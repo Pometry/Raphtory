@@ -1,25 +1,24 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     auth_policy::AuthorizationPolicy,
-    config::{app_config::AppConfig, auth_config::PublicKeyError},
-    data::Data,
-    model::{
-        plugins::{entry_point::EntryPoint, operation::Operation},
-        App,
+    cli::ServerArgs,
+    config::{
+        app_config::{AppConfig, AppConfigBuilder},
+        auth_config::PublicKeyError,
     },
+    data::Data,
+    model::App,
     observability::open_telemetry::OpenTelemetry,
-    paths::ExistingGraphFolder,
+    plugin::schema::RegisterPlugin,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
-    GQLError,
 };
-use config::ConfigError;
-use once_cell::sync::Lazy;
+use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
-    trace::{SdkTracerProvider as TP, SdkTracerProvider, Tracer},
+    trace::{SdkTracerProvider, Tracer},
 };
 use poem::{
     get,
@@ -28,19 +27,16 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::{
-    db::api::storage::storage::Config,
-    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-};
+use raphtory::db::api::storage::storage::Config;
 use serde_json::json;
 use std::{
+    error::Error,
     fs::create_dir_all,
     future::Future,
     io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::RwLock,
     task::{Context, Poll},
 };
 use thiserror::Error;
@@ -52,35 +48,27 @@ use tokio::{
         mpsc,
         mpsc::{Receiver, Sender},
     },
-    task,
     task::JoinHandle,
 };
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::{
-    fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
+    fmt::{self, format::FmtSpan},
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    Registry,
 };
 use url::ParseError;
 
+#[cfg(feature = "vectors")]
+use {
+    crate::{paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+};
+
+use crate::plugin::server::PluginRegistrationError;
+pub use config::ConfigError;
+
 pub const DEFAULT_PORT: u16 = 1736;
-
-type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
-
-static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
-
-pub fn register_server_extension(f: ServerExtensionFn) {
-    *SERVER_EXTENSION.write().unwrap() = Some(f);
-}
-
-pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
-    match SERVER_EXTENSION.read().unwrap().as_ref() {
-        Some(ext) => ext(server, path),
-        None => server,
-    }
-}
-
-pub fn has_server_extension() -> bool {
-    SERVER_EXTENSION.read().unwrap().is_some()
-}
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -108,6 +96,14 @@ pub enum ServerError {
     SchemaError(String),
     #[error("Failed to create endpoints: {0}")]
     EndpointError(String),
+    #[error(transparent)]
+    CliPluginRegistrationError(#[from] PluginRegistrationError),
+}
+
+impl ServerError {
+    pub fn config_error(err: impl Error + Send + Sync + 'static) -> Self {
+        Self::ConfigError(ConfigError::Foreign(Box::new(err)))
+    }
 }
 
 impl From<ServerError> for io::Error {
@@ -129,26 +125,8 @@ pub struct GraphServer {
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
-}
-
-pub fn register_query_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
-}
-
-pub fn register_mutation_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+    key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
+    schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
 
 impl GraphServer {
@@ -160,18 +138,29 @@ impl GraphServer {
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         graph_config: Config,
-    ) -> IoResult<Self> {
+    ) -> Result<Self, ServerError> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
+        let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
-        Ok(Self {
+        let server = Self {
             work_dir,
             data,
             config,
             schema_data: Vec::new(),
-        })
+            key_resolver: None,
+            schema_plugins: Vec::new(),
+        };
+        extensions.process(server)
+    }
+
+    pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
+        let app_config = AppConfigBuilder::new_from_args(args.config_args)?.build();
+        let work_dir = args.work_dir;
+        let graph_config = args.graph_config;
+        GraphServer::new(work_dir, Some(app_config), graph_config).await
     }
 
     /// Returns the working directory for this server.
@@ -179,8 +168,19 @@ impl GraphServer {
         &self.work_dir
     }
 
-    pub fn turn_off_index(&mut self) {
-        self.data.create_index = false; // FIXME: why does this exist yet?
+    /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
+    /// set, it replaces the static `auth.public_key` for token verification.
+    pub fn with_key_resolver(
+        mut self,
+        resolver: std::sync::Arc<dyn crate::auth::KeyResolver>,
+    ) -> Self {
+        self.key_resolver = Some(resolver);
+        self
+    }
+
+    /// Returns the resolved application config.
+    pub fn config(&self) -> &AppConfig {
+        &self.config
     }
 
     /// Set the authorization policy used for graph access checks.
@@ -203,6 +203,12 @@ impl GraphServer {
         self
     }
 
+    /// Inject resolver plugins into hte GQL schema
+    pub fn with_schema_plugin(mut self, plugin: impl RegisterPlugin) -> Self {
+        self.schema_plugins.push(Box::new(plugin));
+        self
+    }
+
     /// Vectorise all the graphs in the server working directory.
     ///
     /// Arguments:
@@ -211,6 +217,7 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_all_graphs(
         &self,
         template: &DocumentTemplate,
@@ -231,6 +238,7 @@ impl GraphServer {
     /// Arguments:
     ///   * path - the path of the graph to vectorise.
     ///   * template - the template to use for creating documents.
+    #[cfg(feature = "vectors")]
     pub async fn vectorise_graph(
         &self,
         path: &str,
@@ -329,14 +337,13 @@ impl GraphServer {
         })
     }
 
-    async fn generate_endpoint(
-        &self,
-        tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    pub async fn build_schema(&self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
-        let mut schema_builder = App::create_schema()
+
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
+
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
         }
@@ -357,21 +364,33 @@ impl GraphServer {
             schema_builder = schema_builder.disable_introspection();
         }
         let trace_level = self.config.tracing.level.clone();
-        let schema = if let Some(t) = tracer {
+        if let Some(t) = tracer {
             schema_builder
                 .extension(OpenTelemetry::new(t, trace_level))
                 .finish()
         } else {
             schema_builder.finish()
         }
-        .map_err(|e| SchemaError(e.to_string()))?;
+        .map_err(|e| SchemaError(e.to_string()))
+    }
+
+    async fn generate_endpoint(
+        &self,
+        tracer: Option<Tracer>,
+    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let schema = self.build_schema(tracer).await?;
 
         let app = Route::new()
             .nest(
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.clone()),
+                    self.config.schema.disable_ui,
+                    AuthenticatedGraphQL::new(
+                        schema,
+                        self.config.clone(),
+                        self.key_resolver.clone(),
+                    ),
                 ),
             )
             .at("/health", get(health))
@@ -473,10 +492,14 @@ async fn server_termination(
         _ = terminate => {},
         _ = internal_terminate => {},
     }
+    #[cfg(not(feature = "integration-test"))]
     match tp {
         None => {}
         Some((tp, lp)) => {
-            task::spawn_blocking(move || {
+            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
+               since they are reused across multiple tests.
+            */
+            tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
                     error!("Failed to shut down tracing provider: {:?}", e);
@@ -494,17 +517,170 @@ async fn server_termination(
 
 #[cfg(test)]
 mod server_tests {
-    use crate::server::GraphServer;
+    use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::{
-        db::api::storage::storage::Config,
-        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-    };
+    use raphtory::db::api::storage::storage::Config;
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
     use tracing::info;
+
+    #[cfg(feature = "vectors")]
+    use raphtory::{
+        prelude::*,
+        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    };
+
+    #[tokio::test]
+    async fn test_public_dir_serves_index_for_subpages() {
+        let work_dir = tempdir().unwrap();
+        let public_dir = tempdir().unwrap();
+        std::fs::write(public_dir.path().join("index.html"), "<html>ui</html>").unwrap();
+
+        let app_config = AppConfigBuilder::new()
+            .with_public_dir(Some(public_dir.path().to_path_buf()))
+            .build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        for path in ["/", "/graphs", "/graphs/nested/route"] {
+            let resp = reqwest::get(format!("http://localhost:{port}{path}"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 200, "GET {path}");
+            assert_eq!(resp.text().await.unwrap(), "<html>ui</html>", "GET {path}");
+        }
+
+        running.stop().await
+    }
+
+    #[tokio::test]
+    async fn test_disable_ui_serves_api_not_ui() {
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_disable_ui(true).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        // The UI is gone on every GET path.
+        for path in ["/", "/graphs", "/index.html"] {
+            let resp = reqwest::get(format!("http://localhost:{port}{path}"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 404, "GET {path}");
+        }
+
+        // The server still answers: health check works.
+        let health = reqwest::get(format!("http://localhost:{port}/health"))
+            .await
+            .unwrap();
+        assert_eq!(health.status(), 200);
+
+        // ...and the GraphQL API (POST) works.
+        let api = reqwest::Client::new()
+            .post(format!("http://localhost:{port}/"))
+            .header("content-type", "application/json")
+            .body(r#"{"query":"{__typename}"}"#)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(api.status(), 200);
+
+        running.stop().await
+    }
+
+    // Builds a GraphQL batch request body containing `n` trivial queries.
+    fn batch_body(n: usize) -> String {
+        let queries = std::iter::repeat(r#"{"query":"{__typename}"}"#)
+            .take(n)
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("[{queries}]")
+    }
+
+    async fn post_batch(port: u16, n: usize) -> reqwest::StatusCode {
+        reqwest::Client::new()
+            .post(format!("http://localhost:{port}/"))
+            .header("content-type", "application/json")
+            .body(batch_body(n))
+            .send()
+            .await
+            .unwrap()
+            .status()
+    }
+
+    // Regression test for the batch-amplification DoS: a single HTTP request must not
+    // be able to smuggle an unbounded number of GraphQL operations past request-level
+    // throttling. Verifies both the secure default cap and an explicit override.
+    #[tokio::test]
+    async fn test_batch_size_limit_enforced() {
+        let work_dir = tempdir().unwrap();
+        // Default config: max_batch_size defaults to 10.
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Config::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        // At the default cap: allowed.
+        assert_eq!(post_batch(port, 10).await, reqwest::StatusCode::OK);
+        // One over the default cap: rejected.
+        assert_eq!(post_batch(port, 11).await, reqwest::StatusCode::BAD_REQUEST);
+        running.stop().await;
+
+        // Explicit lower cap is honoured.
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_max_batch_size(Some(2)).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        assert_eq!(post_batch(port, 2).await, reqwest::StatusCode::OK);
+        assert_eq!(post_batch(port, 3).await, reqwest::StatusCode::BAD_REQUEST);
+        running.stop().await;
+
+        // A single (non-batched) query is never treated as a batch and is unaffected.
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_max_batch_size(Some(2)).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+        let status = reqwest::Client::new()
+            .post(format!("http://localhost:{}/", port))
+            .header("content-type", "application/json")
+            .body(r#"{"query":"{__typename}"}"#)
+            .send()
+            .await
+            .unwrap()
+            .status();
+        assert_eq!(status, reqwest::StatusCode::OK);
+        running.stop().await;
+    }
 
     #[tokio::test]
     async fn test_server_start_stop() {
@@ -520,6 +696,7 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
+    #[cfg(feature = "vectors")]
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();

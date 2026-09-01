@@ -1,24 +1,26 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
-#[cfg(feature = "search")]
-use crate::config::index_config::{IndexConfig, IndexConfigFieldName};
 use crate::{
+    cli::ConfigArgs,
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
         log_config::{LoggingConfig, LoggingConfigFieldName},
         otlp_config::{TracingConfig, TracingConfigFieldName, TracingLevel, TracingProtocol},
+        parquet_config::{ParquetConfig, ParquetConfigFieldName},
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
+    plugin::server::extension::{ArgExtensions, BoxedExtension, ServerExtensionImpl},
     server::ServerError,
 };
 use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
-use serde::{de::DeserializeSeed, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -30,9 +32,10 @@ pub struct AppConfig {
     pub auth: AuthConfig,
     pub concurrency: ConcurrencyConfig,
     pub schema: SchemaConfig,
+    pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
-    #[cfg(feature = "search")]
-    pub index: IndexConfig,
+    #[serde(flatten)]
+    pub extensions: ArgExtensions,
 }
 
 pub struct AppConfigBuilder {
@@ -74,13 +77,119 @@ impl AppConfigBuilder {
         AppConfig::default().into()
     }
 
+    pub fn new_from_args(server_args: ConfigArgs) -> Result<Self, ServerError> {
+        let mut builder = Self::new();
+        // initialise extensions with parsed command line arguments
+        builder.config.extensions = server_args.extensions;
+
+        if let Some(config_file) = server_args.config_file.clone() {
+            builder.load_from_path(config_file)?;
+        };
+        if let Some(cache_capacity) = server_args.cache_capacity {
+            builder.with_cache_capacity(cache_capacity);
+        }
+        if let Some(log_level) = server_args.log_level.clone() {
+            builder.with_log_level(log_level);
+        }
+        if let Some(tracing) = server_args.tracing {
+            builder.with_tracing(tracing);
+        }
+        if let Some(tracing_level) = server_args.tracing_level.clone() {
+            builder.with_tracing_level(tracing_level);
+        }
+        if let Some(otlp_agent_host) = server_args.otlp_agent_host.clone() {
+            builder.with_otlp_agent_host(Some(otlp_agent_host));
+        }
+        if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name.clone() {
+            builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
+        }
+        if let Some(otlp_transport_protocol) = server_args.otlp_transport_protocol.clone() {
+            builder.with_otlp_transport_protocol(otlp_transport_protocol);
+        }
+        if let Some(otlp_transport_headers) = server_args.otlp_transport_headers.clone() {
+            builder.with_otlp_transport_headers(otlp_transport_headers);
+        }
+        if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate.clone() {
+            builder.with_otlp_transport_certificate(Some(otlp_transport_certificate));
+        }
+        if let Some(auth_public_key) = server_args.auth_public_key.clone() {
+            builder
+                .with_auth_public_key(Some(auth_public_key))
+                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+        }
+        if let Some(public_dir) = server_args.public_dir.clone() {
+            builder.with_public_dir(Some(public_dir));
+        }
+        if let Some(require_auth_for_reads) = server_args.require_auth_for_reads {
+            builder.with_require_auth_for_reads(require_auth_for_reads);
+        }
+        if let Some(heavy_query_limit) = server_args.heavy_query_limit {
+            builder.with_heavy_query_limit(Some(heavy_query_limit));
+        }
+        if let Some(exclusive_writes) = server_args.exclusive_writes {
+            builder.with_exclusive_writes(exclusive_writes);
+        }
+        if let Some(disable_batching) = server_args.disable_batching {
+            builder.with_disable_batching(disable_batching);
+        }
+        if let Some(max_batch_size) = server_args.max_batch_size {
+            builder.with_max_batch_size(Some(max_batch_size));
+        }
+        if let Some(disable_lists) = server_args.disable_lists {
+            builder.with_disable_lists(disable_lists);
+        }
+        if let Some(max_page_size) = server_args.max_page_size {
+            builder.with_max_page_size(Some(max_page_size));
+        }
+        if let Some(max_query_depth) = server_args.max_query_depth {
+            builder.with_max_query_depth(Some(max_query_depth));
+        }
+        if let Some(max_query_complexity) = server_args.max_query_complexity {
+            builder.with_max_query_complexity(Some(max_query_complexity));
+        }
+        if let Some(max_recursive_depth) = server_args.max_recursive_depth {
+            builder.with_max_recursive_depth(Some(max_recursive_depth));
+        }
+        if let Some(max_directives_per_field) = server_args.max_directives_per_field {
+            builder.with_max_directives_per_field(Some(max_directives_per_field));
+        }
+        if let Some(disable_introspection) = server_args.disable_introspection {
+            builder.with_disable_introspection(disable_introspection);
+        }
+        Ok(builder)
+    }
+
     pub fn update_from_json(&mut self, value: serde_json::Value) -> Result<&mut Self, ServerError> {
         let map = value
             .as_object()
             .ok_or_else(|| ConfigError::Message(format!("Invalid config: {value}")))?;
 
         for (path, value) in map {
-            match AppConfigFieldName::by_name(path).ok_or_else(|| invalid_path([path]))? {
+            // A key naming no built-in section names a server extension, whose settings sit at
+            // the top level alongside the built-ins. An unregistered name still errors, exactly as
+            // an unknown section did.
+            //
+            // `extensions` is deliberately not treated as a section here: the field is
+            // `#[serde(flatten)]`ed, so a config file has no such key either, and routing it
+            // through the same lookup keeps this path and the file path in agreement.
+            let field = AppConfigFieldName::by_name(path)
+                .filter(|f| !matches!(f, AppConfigFieldName::Extensions));
+            let Some(field) = field else {
+                // A name that is neither a section nor a registered extension is simply an
+                // invalid field. Only once it is known to be an extension do we hand the value
+                // over and let its own error through — that error names the offending inner
+                // field, which reporting the section name here would hide.
+                if !crate::plugin::server::is_registered(path) {
+                    return Err(invalid_path([path]));
+                }
+                let mut one = serde_json::Map::new();
+                one.insert(path.clone(), value.clone());
+                self.config
+                    .extensions
+                    .update_from_json(&serde_json::Value::Object(one))?;
+                continue;
+            };
+            match field {
                 AppConfigFieldName::Logging => {
                     let map = value.as_object().ok_or_else(|| {
                         ConfigError::Message(format!("Invalid logging config: {value}"))
@@ -188,6 +297,24 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            AuthConfigFieldName::Audience => {
+                                self.with_auth_audience(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::Issuer => {
+                                self.with_auth_issuer(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::RoleClaim => {
+                                self.with_auth_role_claim(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -276,6 +403,29 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            SchemaConfigFieldName::DisableUi => {
+                                self.with_disable_ui(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                        }
+                    }
+                }
+                AppConfigFieldName::Parquet => {
+                    let map = value.as_object().ok_or_else(|| {
+                        ConfigError::Message(format!("Invalid parquet config: {value}"))
+                    })?;
+                    for (sub_path, value) in map {
+                        match ParquetConfigFieldName::by_name(sub_path)
+                            .ok_or_else(|| invalid_path([path, sub_path]))?
+                        {
+                            ParquetConfigFieldName::AllowedPaths => {
+                                self.with_allowed_parquet_paths(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -284,24 +434,7 @@ impl AppConfigBuilder {
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
                 }
-                #[cfg(feature = "search")]
-                AppConfigFieldName::Index => {
-                    let map = value.as_object().ok_or_else(|| {
-                        ConfigError::Message(format!("Invalid index config: {value}"))
-                    })?;
-                    for (sub_path, value) in map {
-                        match IndexConfigFieldName::by_name(sub_path)
-                            .ok_or_else(|| invalid_path([path, sub_path]))?
-                        {
-                            IndexConfigFieldName::CreateIndex => {
-                                self.with_create_index(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
-                        }
-                    }
-                }
+                AppConfigFieldName::Extensions => unreachable!("filtered out above"),
             }
         }
 
@@ -382,6 +515,21 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_auth_audience(&mut self, audience: Option<String>) -> &mut Self {
+        self.config.auth.audience = audience;
+        self
+    }
+
+    pub fn with_auth_issuer(&mut self, issuer: Option<String>) -> &mut Self {
+        self.config.auth.issuer = issuer;
+        self
+    }
+
+    pub fn with_auth_role_claim(&mut self, role_claim: Option<String>) -> &mut Self {
+        self.config.auth.role_claim = role_claim;
+        self
+    }
+
     pub fn with_heavy_query_limit(&mut self, heavy_query_limit: Option<usize>) -> &mut Self {
         self.config.concurrency.heavy_query_limit = heavy_query_limit;
         self
@@ -440,14 +588,27 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_disable_ui(&mut self, disable_ui: bool) -> &mut Self {
+        self.config.schema.disable_ui = disable_ui;
+        self
+    }
+
+    pub fn with_allowed_parquet_paths(&mut self, allowed_paths: Vec<PathBuf>) -> &mut Self {
+        self.config.parquet.allowed_paths = allowed_paths;
+        self
+    }
+
     pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
         self.config.public_dir = public_dir;
         self
     }
 
-    #[cfg(feature = "search")]
-    pub fn with_create_index(&mut self, create_index: bool) -> &mut Self {
-        self.config.index.create_index = create_index;
+    pub fn with_extension(&mut self, extension: impl ServerExtensionImpl) -> &mut Self {
+        self.with_boxed_extension(Box::new(extension))
+    }
+
+    pub fn with_boxed_extension(&mut self, extension: BoxedExtension) -> &mut Self {
+        self.config.extensions.push_boxed(extension);
         self
     }
 

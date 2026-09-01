@@ -12,9 +12,11 @@ use crate::{
 
 pub mod and_filtered_graph;
 pub mod edge_expr_filtered_graph;
+pub mod edge_filtered_graph;
 pub mod edge_node_filtered_graph;
 pub mod edge_property_filtered_graph;
 mod exploded_edge_expr_filtered_graph;
+pub mod exploded_edge_filtered_graph;
 pub mod exploded_edge_node_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub mod model;
@@ -22,83 +24,107 @@ pub mod node_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
-#[derive(Copy, Clone, Debug)]
-pub struct Unfiltered;
+pub struct Exists;
 
-impl CreateFilter for Unfiltered {
-    type EntityFiltered<'graph, G>
+impl CreateFilter for Exists {
+    type EntityFiltered<'graph, G, F>
+        = F
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+    type NodeFilter<'graph, G, F>
+        = NodeExistsOp<F>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
-    type NodeFilter<'graph, G>
-        = NodeExistsOp<G>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(graph)
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        Ok(filtered)
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(graph))
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        Ok(NodeExistsOp::new(filtered))
     }
 }
 
-pub trait CreateFilter: Clone + Sized + Send + Sync {
-    type EntityFiltered<'graph, G>: GraphViewOps<'graph>
+pub trait CreateFilter: Sized {
+    type EntityFiltered<'graph, G, F>: GraphView + 'graph
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>: NodeFilterOp
+    type NodeFilter<'graph, G, F>: NodeFilterOp + 'graph
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+
+    type FilteredGraph<'graph, G>: GraphView + 'graph
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>;
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>;
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>;
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>;
 }
 
 impl<T: NodeFilterOp> CreateFilter for T {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = NodeFilteredGraph<G, T>
     where
         Self: 'graph;
 
-    type NodeFilter<'graph, G: GraphView + 'graph>
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = Self
     where
         Self: 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+        _filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
         Self: 'graph,
     {
         Ok(NodeFilteredGraph::new(graph, self))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
     where
         Self: 'graph,
     {

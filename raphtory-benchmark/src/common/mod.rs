@@ -122,7 +122,7 @@ pub fn run_ingestion_benchmarks<F>(
 }
 
 fn times(n: usize) -> impl Iterator {
-    std::iter::repeat(()).take(n)
+    std::iter::repeat_n((), n)
 }
 
 pub fn run_large_ingestion_benchmarks<F, F2>(

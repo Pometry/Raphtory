@@ -1,15 +1,17 @@
-#[cfg(feature = "vectors")]
-use crate::vectors::embeddings::EmbeddingError;
 use crate::{
-    core::storage::lazy_vec::IllegalSet,
+    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
 use parquet::errors::ParquetError;
-use raphtory_api::core::entities::{
-    properties::prop::{InvalidPropertyTypeErr, PropError, PropType},
-    GidType, GID, VID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
+        GidType, GID, VID,
+    },
+    storage::{graph_folder::GraphFolderError, timeindex::TimeError},
+    utils::time::ParseTimeError,
 };
 use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
@@ -24,17 +26,19 @@ use std::{
     sync::Arc,
     time::SystemTimeError,
 };
+use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use raphtory_api::core::utils::time::ParseTimeError;
-#[cfg(feature = "search")]
-use {tantivy, tantivy::query::QueryParserError};
 
-use raphtory_api::core::storage::timeindex::TimeError;
-use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "io")]
 use zip::result::ZipError;
+
+#[cfg(feature = "vectors")]
+use crate::vectors::embeddings::EmbeddingError;
+
+#[cfg(any(feature = "vectors", feature = "io"))]
+use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -116,6 +120,10 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
+    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[error(transparent)]
+    PersistError(#[from] PersistError),
+
     #[error(transparent)]
     MutationError(#[from] MutationError),
 
@@ -149,23 +157,8 @@ pub enum GraphError {
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
 
-    #[error("Missing graph index. You need to create an index first.")]
-    IndexNotCreated,
-
-    #[error("Failed to create index.")]
-    FailedToCreateIndex,
-
-    #[error("Failed to persist index.")]
-    FailedToPersistIndex,
-
-    #[error("Cannot persist RAM index")]
-    CannotPersistRamIndex,
-
-    #[error("Failed to remove existing graph index: {0}")]
-    FailedToRemoveExistingGraphIndex(PathBuf),
-
-    #[error("Failed to move graph index")]
-    FailedToMoveGraphIndex,
+    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
+    VectorTemplateChanged,
 
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
@@ -206,6 +199,12 @@ pub enum GraphError {
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
 
+    #[error("No event at time {time} on edge ({src}, {dst})")]
+    EventMissingError { src: GID, dst: GID, time: i64 },
+
+    #[error("No layer '{layer}' on edge ({src}, {dst})")]
+    EdgeLayerMissingError { src: GID, dst: GID, layer: String },
+
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
 
@@ -238,6 +237,9 @@ pub enum GraphError {
     #[error("IO operation failed: {0}")]
     IOErrorMsg(String),
 
+    #[error("Invalid epidemic seeds: {0}")]
+    SeedError(#[from] SeedError),
+
     #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]
     HeedError(#[from] heed::Error),
@@ -257,18 +259,12 @@ pub enum GraphError {
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
-        source: zip::result::ZipError,
+        source: ZipError,
         location: &'static Location<'static>,
     },
 
-    #[error("Not a zip archive")]
-    NotAZip,
-
     #[error("Not a disk graph")]
     NotADiskGraph,
-
-    #[error("Graph folder is not initialised for writing")]
-    NoWriteInProgress,
 
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
@@ -277,17 +273,6 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "search")]
-    #[error("Index operation failed: {source}")]
-    IndexError {
-        #[from]
-        source: tantivy::TantivyError,
-    },
-
-    #[cfg(feature = "search")]
-    #[error("Index operation failed: {0}")]
-    IndexErrorMsg(String),
 
     #[cfg(feature = "vectors")]
     #[error("Embedding operation failed")]
@@ -299,13 +284,6 @@ pub enum GraphError {
     #[cfg(feature = "vectors")]
     #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
     UnresolvedModel,
-
-    #[cfg(feature = "search")]
-    #[error("Index operation failed")]
-    QueryError {
-        #[from]
-        source: QueryParserError,
-    },
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,
@@ -322,10 +300,6 @@ pub enum GraphError {
 
     #[error("Illegal set error {0}")]
     IllegalSet(String),
-
-    #[cfg(feature = "io")]
-    #[error("Cannot write graph into non empty folder {0}")]
-    NonEmptyGraphFolder(PathBuf),
 
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,
@@ -394,15 +368,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-    #[error("PropertyIndex not found for property {0}")]
-    PropertyIndexNotFound(String),
-
-    #[error("Tokenization is support only for str field type")]
-    UnsupportedFieldTypeForTokenization,
-
-    #[error("Not tokens found")]
-    NoTokensFound,
-
     #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
     TooManyViewsSet,
 
@@ -421,31 +386,26 @@ pub enum GraphError {
     #[error("Node filter is not supported for edge filtering")]
     NodeFilterIsNotEdgeFilter,
 
-    #[error("Indexing not supported")]
-    IndexingNotSupported,
-
-    #[error("Failed to create index in ram. There already exists an on disk index.")]
-    OnDiskIndexAlreadyExists,
+    #[error("Only property filters are supported for exploded edge filtering")]
+    NotExplodedEdgeFilter,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
-
-    #[error("Cannot swap zipped graph data")]
-    ZippedGraphCannotBeSwapped,
 
     #[error("{source} at {location}")]
     StripPrefixError {
         source: StripPrefixError,
         location: &'static Location<'static>,
     },
-    #[error("Path {0} is not a valid relative data path")]
-    InvalidRelativePath(String),
 
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
     #[error("Fatal write error: {0}")]
     FatalWriteError(StorageError),
+
+    #[error(transparent)]
+    GraphFolder(#[from] GraphFolderError),
 }
 
 impl From<MetadataError> for GraphError {
@@ -547,5 +507,13 @@ impl From<InvalidPropertyTypeErr> for LoadError {
 impl From<InvalidPropertyTypeErr> for GraphError {
     fn from(value: InvalidPropertyTypeErr) -> Self {
         GraphError::from(LoadError::from(value))
+    }
+}
+
+impl From<PropTypeParseError> for GraphError {
+    fn from(value: PropTypeParseError) -> Self {
+        GraphError::InvalidProperty {
+            reason: value.to_string(),
+        }
     }
 }

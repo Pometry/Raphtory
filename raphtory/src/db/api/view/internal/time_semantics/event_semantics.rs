@@ -904,7 +904,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<Prop> {
         if w.contains(&t) {
             e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
-                .filter_map(|(_, prop)| prop.last_before(t.next()).filter(|(t, _)| w.contains(&t)))
+                .filter_map(|(_, prop)| prop.last_before(t.next()).filter(|(t, _)| w.contains(t)))
                 .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
                 .map(|(_, v)| v)
         } else {

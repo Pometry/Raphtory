@@ -20,7 +20,6 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
-from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
@@ -38,7 +37,6 @@ from raphtory.iterables import *
 __all__ = [
     "lotr_graph",
     "lotr_graph_with_props",
-    "neo4j_movie_graph",
     "stable_coin_graph",
     "reddit_hyperlink_graph",
     "reddit_hyperlink_graph_local",
@@ -68,22 +66,6 @@ def lotr_graph() -> Graph:
 def lotr_graph_with_props() -> Graph:
     """
     Same as `lotr_graph()` but with additional properties race and gender for some of the nodes
-
-    Returns:
-        Graph:
-    """
-
-def neo4j_movie_graph(
-    uri: str, username: str, password: str, database: str = "neo4j"
-) -> Graph:
-    """
-    Returns the neo4j movie graph example.
-
-    Arguments:
-        uri (str):
-        username (str):
-        password (str):
-        database (str): Neo4j database name. Defaults to "neo4j".
 
     Returns:
         Graph:

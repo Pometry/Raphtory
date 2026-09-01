@@ -1,16 +1,15 @@
 use crate::{
     db::{
-        api::{
-            state::ops::{filter::NodeDegreeFilterOp, GraphView},
-            view::GraphViewOps,
-        },
+        api::state::ops::{filter::NodeDegreeFilterOp, GraphView},
         graph::views::filter::{
+            model,
             model::{
                 property_filter::{
                     builders::PropertyExprBuilderInput, Op, PropertyFilter, PropertyFilterInput,
                     PropertyFilterValue, PropertyRef,
                 },
-                ComposableFilter, FilterOperator, InternalPropertyFilterBuilder, NodeFilter,
+                CombinedFilter, ComposableFilter, CompositeNodeFilter, FilterOperator,
+                InternalPropertyFilterBuilder, NodeFilter, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -48,24 +47,32 @@ pub struct DegreeFilter {
 }
 
 impl CreateFilter for DegreeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, NodeDegreeFilterOp<G>>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        NodeFilteredGraph<G, NodeDegreeFilterOp<F>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodeDegreeFilterOp<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodeDegreeFilterOp<F>;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let filter = self.create_node_filter(graph.clone(), filtered)?;
         Ok(NodeFilteredGraph::new(graph, filter))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        if self.ops.len() > 0 {
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        if !self.ops.is_empty() {
             return Err(GraphError::InvalidFilter(
                 "degree filter does not support expressions".to_string(),
             ));
@@ -88,10 +95,10 @@ impl CreateFilter for DegreeFilter {
         }
         let value = match self.value {
             PropertyFilterValue::Single(ref prop_val) => {
-                let casted_val = prop_val.clone().try_cast(PropType::U64).ok_or_else(|| {
+                let casted_val = prop_val.clone().cast(PropType::U64).ok_or_else(|| {
                     GraphError::InvalidFilter(format!(
                         "degree filter expects an integer value, got {}",
-                        prop_val.to_string()
+                        prop_val
                     ))
                 })?;
 
@@ -101,10 +108,10 @@ impl CreateFilter for DegreeFilter {
                 let casted_set = prop_vals
                     .iter()
                     .map(|val| {
-                        val.clone().try_cast(PropType::U64).ok_or_else(|| {
+                        val.clone().cast(PropType::U64).ok_or_else(|| {
                             GraphError::InvalidFilter(format!(
                                 "degree filter expects an integer value, got {}",
-                                val.to_string()
+                                val
                             ))
                         })
                     })
@@ -120,7 +127,30 @@ impl CreateFilter for DegreeFilter {
         };
         let mut filter = self.clone();
         filter.value = value;
-        Ok(NodeDegreeFilterOp::new(graph, filter))
+        Ok(NodeDegreeFilterOp::new(filtered, filter))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+}
+
+impl TryAsCompositeFilter for DegreeFilter {
+    fn try_as_composite_edge_filter(
+        &self,
+    ) -> Result<model::edge_filter::CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<model::CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+    fn try_as_composite_node_filter(&self) -> Result<model::CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::Degree(self.clone()))
     }
 }
 
@@ -134,7 +164,7 @@ fn property_ref(direction: &Direction) -> PropertyRef {
 
 impl InternalPropertyFilterBuilder for DegreeFilterBuilder
 where
-    DegreeFilter: CreateFilter,
+    DegreeFilter: CombinedFilter,
 {
     type Filter = DegreeFilter;
     type ExprBuilder = DegreeFilterBuilder;
@@ -181,7 +211,7 @@ impl Display for DegreeFilter {
         let property_filter = PropertyFilter {
             prop_ref: property_ref(&self.direction),
             prop_value: self.value.clone(),
-            operator: self.operator.clone(),
+            operator: self.operator,
             ops: self.ops.clone(),
             entity: NodeFilter,
         };

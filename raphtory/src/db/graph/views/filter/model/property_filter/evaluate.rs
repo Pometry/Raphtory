@@ -1,254 +1,19 @@
-use super::PropertyFilter;
-use crate::db::graph::views::filter::model::Op;
-use raphtory_api::core::entities::properties::prop::{Prop, PropArray, PropType};
-use std::borrow::Borrow;
+use crate::{db::graph::views::filter::model::Op, prelude::PropertyFilter};
+use raphtory_api::core::{entities::properties::prop::Prop, utils::generalised_reduce};
 
 enum ValueType {
     Seq(Vec<Prop>),
     Scalar(Option<Prop>),
 }
 
-pub fn aggregate_values(
-    vals: Option<Prop>,
-    op: &dyn Fn(Box<dyn Iterator<Item = Prop>>) -> Option<Prop>,
-) -> Option<Prop> {
-    match vals? {
-        Prop::List(x) => match x.dtype() {
-            PropType::List(_) => {
-                let s = x
-                    .iter_all()
-                    .map(|y| aggregate_values(y, op))
-                    .flatten()
-                    .collect();
-                Some(Prop::List(s))
-            }
-            _ => {
-                let items: Vec<Prop> = x.iter().collect();
-                op(Box::new(items.into_iter()))
-            }
-        },
-        _ => None,
-    }
-}
-
-pub fn scan_u64_sum<P: Borrow<Prop>>(
-    vals: impl IntoIterator<Item = P>,
-) -> Option<(bool, u64, u128, usize)> {
-    let mut sum64: u64 = 0;
-    let mut sum128: u128 = 0;
-    let mut promoted = false;
-    let mut count = 0usize;
-
-    for p in vals {
-        let p = p.borrow();
-        let x = p.as_u64_lossless()?;
-        if !promoted {
-            if let Some(s) = sum64.checked_add(x) {
-                sum64 = s;
-            } else {
-                promoted = true;
-                sum128 = (sum64 as u128) + (x as u128);
-            }
-        } else {
-            sum128 += x as u128;
-        }
-        count += 1;
-    }
-    Some((promoted, sum64, sum128, count))
-}
-
-pub fn scan_i64_sum<P: Borrow<Prop>>(
-    vals: impl IntoIterator<Item = P>,
-) -> Option<(bool, i64, i128, usize)> {
-    let mut sum64: i64 = 0;
-    let mut sum128: i128 = 0;
-    let mut promoted = false;
-    let mut count = 0;
-
-    for p in vals {
-        let p = p.borrow();
-        let x = p.as_i64_lossless()?;
-        if !promoted {
-            if let Some(s) = sum64.checked_add(x) {
-                sum64 = s;
-            } else {
-                promoted = true;
-                sum128 = (sum64 as i128) + (x as i128);
-            }
-        } else {
-            sum128 += x as i128;
-        }
-        count += 1;
-    }
-    Some((promoted, sum64, sum128, count))
-}
-
-pub fn scan_u64_min_max<P: Borrow<Prop>>(vals: impl IntoIterator<Item = P>) -> Option<(u64, u64)> {
-    let mut it = vals.into_iter();
-    let first = it.next()?.borrow().as_u64_lossless()?;
-    let mut min_v = first;
-    let mut max_v = first;
-    for p in it {
-        let p = p.borrow();
-        let x = p.as_u64_lossless()?;
-        if x < min_v {
-            min_v = x;
-        }
-        if x > max_v {
-            max_v = x;
-        }
-    }
-    Some((min_v, max_v))
-}
-
-pub fn scan_i64_min_max<P: Borrow<Prop>>(vals: impl IntoIterator<Item = P>) -> Option<(i64, i64)> {
-    let mut it = vals.into_iter();
-    let first = it.next()?.borrow().as_i64_lossless()?;
-    let mut min_v = first;
-    let mut max_v = first;
-    for p in it {
-        let p = p.borrow();
-        let x = p.as_i64_lossless()?;
-        if x < min_v {
-            min_v = x;
-        }
-        if x > max_v {
-            max_v = x;
-        }
-    }
-    Some((min_v, max_v))
-}
-
-pub fn scan_f64_sum_count<P: Borrow<Prop>>(
-    vals: impl IntoIterator<Item = P>,
-) -> Option<(f64, u64)> {
-    let mut sum = 0.0f64;
-    let mut count = 0u64;
-    for p in vals {
-        let p = p.borrow();
-        let x = p.as_f64_lossless()?;
-        if !x.is_finite() {
-            return None;
-        }
-        sum += x;
-        count += 1;
-    }
-    Some((sum, count))
-}
-
-fn scan_f64_min_max<P: Borrow<Prop>>(vals: impl IntoIterator<Item = P>) -> Option<(f64, f64)> {
-    let mut it = vals.into_iter();
-    let first = it.next()?.borrow().as_f64_lossless()?;
-    if !first.is_finite() {
-        return None;
-    }
-    let mut min_v = first;
-    let mut max_v = first;
-    for p in it {
-        let p = p.borrow();
-        let x = p.as_f64_lossless()?;
-        if !x.is_finite() {
-            return None;
-        }
-        if x < min_v {
-            min_v = x;
-        }
-        if x > max_v {
-            max_v = x;
-        }
-    }
-    Some((min_v, max_v))
-}
-
-pub fn reduce_unsigned<P: Borrow<Prop>>(
-    vals: impl IntoIterator<Item = P>,
-    ret_minmax: fn(u64) -> Prop,
-    op: Op,
-) -> Option<Prop> {
+pub fn aggregate_values<I: IntoIterator<Item = Prop>>(vals: I, op: Op) -> Option<Prop> {
     match op {
-        Op::Sum => {
-            let (promoted, s64, s128, _) = scan_u64_sum(vals)?;
-            Some(if promoted {
-                Prop::U64(u64::try_from(s128).ok()?)
-            } else {
-                Prop::U64(s64)
-            })
-        }
-        Op::Avg => {
-            let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
-            let s = if promoted { s128 as f64 } else { s64 as f64 };
-            Some(Prop::F64(s / (count as f64)))
-        }
-        Op::Min => scan_u64_min_max(vals).map(|(mn, _)| ret_minmax(mn)),
-        Op::Max => scan_u64_min_max(vals).map(|(_, mx)| ret_minmax(mx)),
-        Op::Len | Op::First | Op::Last | Op::Any | Op::All => unreachable!(),
-    }
-}
-
-pub fn reduce_signed<P: Borrow<Prop>>(
-    vals: impl IntoIterator<Item = P>,
-    ret_minmax: fn(i64) -> Prop,
-    op: Op,
-) -> Option<Prop> {
-    match op {
-        Op::Sum => {
-            let (promoted, s64, s128, _) = scan_i64_sum(vals)?;
-            Some(if promoted {
-                Prop::I64(i64::try_from(s128).ok()?)
-            } else {
-                Prop::I64(s64)
-            })
-        }
-        Op::Avg => {
-            let (promoted, s64, s128, count) = scan_i64_sum(vals)?;
-            let s = if promoted { s128 as f64 } else { s64 as f64 };
-            Some(Prop::F64(s / (count as f64)))
-        }
-        Op::Min => scan_i64_min_max(vals).map(|(mn, _)| ret_minmax(mn)),
-        Op::Max => scan_i64_min_max(vals).map(|(_, mx)| ret_minmax(mx)),
-        Op::Len | Op::First | Op::Last | Op::Any | Op::All => unreachable!(),
-    }
-}
-
-pub fn reduce_float<P: Borrow<Prop>>(
-    vals: impl IntoIterator<Item = P>,
-    ret_minmax: fn(f64) -> Prop,
-    op: Op,
-) -> Option<Prop> {
-    match op {
-        Op::Sum => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum)),
-        Op::Avg => {
-            let (sum, count) = scan_f64_sum_count(vals)?;
-            Some(Prop::F64(sum / (count as f64)))
-        }
-        Op::Min => scan_f64_min_max(vals).map(|(mn, _)| ret_minmax(mn)),
-        Op::Max => scan_f64_min_max(vals).map(|(_, mx)| ret_minmax(mx)),
-        Op::Len | Op::First | Op::Last | Op::Any | Op::All => unreachable!(),
-    }
-}
-
-/// Reduce a sequence of `Prop` values using `op`. All elements must have the
-/// same numeric type. Returns `None` if the sequence is empty, the type is
-/// non-numeric, or the op is not a numeric aggregator (Sum/Avg/Min/Max).
-pub fn reduce_seq(vs: impl IntoIterator<Item = Prop>, op: Op) -> Option<Prop> {
-    let mut iter = vs.into_iter().peekable();
-    let inner_dtype = {
-        let first = iter.peek()?;
-        if matches!(first, Prop::List(_)) {
-            return None;
-        }
-        first.dtype()
-    };
-    match inner_dtype {
-        PropType::U8 => reduce_unsigned(iter, |x| Prop::U8(x as u8), op),
-        PropType::U16 => reduce_unsigned(iter, |x| Prop::U16(x as u16), op),
-        PropType::U32 => reduce_unsigned(iter, |x| Prop::U32(x as u32), op),
-        PropType::U64 => reduce_unsigned(iter, |x| Prop::U64(x), op),
-        PropType::I32 => reduce_signed(iter, |x| Prop::I32(x as i32), op),
-        PropType::I64 => reduce_signed(iter, |x| Prop::I64(x), op),
-        PropType::F32 => reduce_float(iter, |x| Prop::F32(x as f32), op),
-        PropType::F64 => reduce_float(iter, |x| Prop::F64(x), op),
-        _ => None,
+        Op::Len => Some(Prop::U64(vals.into_iter().count() as u64)),
+        Op::Sum => generalised_reduce(vals, |a, b| a.add(b), |first| first.is_numeric()),
+        Op::Avg => Prop::mean(vals),
+        Op::Min => generalised_reduce(vals, |a, b| a.min(b), |_| true),
+        Op::Max => generalised_reduce(vals, |a, b| a.max(b), |_| true),
+        Op::First | Op::Last | Op::Any | Op::All => unreachable!(),
     }
 }
 
@@ -258,7 +23,7 @@ pub fn apply_agg_to_prop(p: &Prop, op: Op) -> Option<Prop> {
         (Op::Sum, Prop::List(inner))
         | (Op::Avg, Prop::List(inner))
         | (Op::Min, Prop::List(inner))
-        | (Op::Max, Prop::List(inner)) => reduce_seq(inner.iter(), op),
+        | (Op::Max, Prop::List(inner)) => aggregate_values(inner.iter(), op),
 
         (Op::Len, _) => Some(Prop::U64(1)),
 
@@ -375,7 +140,7 @@ impl<M> PropertyFilter<M> {
             };
             return match q {
                 Op::Any => elems.any(|p| check(&p)),
-                Op::All => !elems.peek().is_none() && elems.all(|p| check(&p)),
+                Op::All => elems.peek().is_some() && elems.all(|p| check(&p)),
                 _ => unreachable!(),
             };
         }
@@ -404,7 +169,12 @@ impl<M> PropertyFilter<M> {
         let reduce_over_seq = |vs: Vec<Prop>, op: Op| -> Option<Prop> {
             match op {
                 Op::Len => Some(Prop::U64(vs.len() as u64)),
-                Op::Sum | Op::Avg | Op::Min | Op::Max => reduce_seq(vs, op),
+                Op::Sum | Op::Avg | Op::Min | Op::Max => {
+                    if vs.is_empty() || matches!(vs.first(), Some(Prop::List(_))) {
+                        return None;
+                    }
+                    aggregate_values(vs, op)
+                }
                 _ => None,
             }
         };
@@ -436,8 +206,7 @@ impl<M> PropertyFilter<M> {
                             ValueType::Scalar(reduce_over_seq(vs, *op))
                         }
                         ValueType::Scalar(Some(Prop::List(inner))) => {
-                            let vs: Vec<Prop> = inner.iter().collect();
-                            ValueType::Scalar(reduce_over_seq(vs, *op))
+                            ValueType::Scalar(aggregate_values(inner.iter(), *op))
                         }
                         ValueType::Scalar(Some(p)) => ValueType::Scalar(apply_agg_to_prop(&p, *op)),
                         ValueType::Scalar(None) => ValueType::Scalar(None),
@@ -542,7 +311,7 @@ impl<M> PropertyFilter<M> {
         }
 
         if let Some(seq) = maybe_seq {
-            let full = Prop::List(PropArray::from(seq));
+            let full = Prop::List(seq.into());
             self.operator
                 .apply_to_property(&self.prop_value, Some(&full))
         } else {

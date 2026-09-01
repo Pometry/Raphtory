@@ -17,7 +17,6 @@ use crate::{
         SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
-    serialise::GraphPaths,
 };
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use itertools::Itertools;
@@ -26,7 +25,12 @@ use parquet::{
     basic::Compression,
     file::{metadata::KeyValue, properties::WriterProperties},
 };
-use raphtory_api::{core::entities::properties::prop::prop_col::lift_property_col, GraphType};
+use raphtory_api::{
+    core::{
+        entities::properties::prop::prop_col::lift_property_col, storage::graph_folder::GraphPaths,
+    },
+    GraphType,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     fs::File,
@@ -75,7 +79,7 @@ pub trait ParquetEncoder {
             if path.is_file() {
                 zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
 
-                let mut file = std::fs::File::open(path)?;
+                let mut file = File::open(path)?;
                 std::io::copy(&mut file, &mut zip_writer)?;
             } else if path.is_dir() {
                 // Add empty directories to the zip
@@ -245,7 +249,7 @@ fn create_arrow_writer_sink(
     filename_num_digits: usize,
     key_value_metadata: Option<Vec<KeyValue>>,
 ) -> Result<ArrowWriter<File>, GraphError> {
-    std::fs::create_dir_all(&root_dir)?;
+    std::fs::create_dir_all(root_dir)?;
 
     let writer_properties = WriterProperties::builder()
         .set_compression(Compression::SNAPPY)

@@ -181,6 +181,7 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     ///     OutputNodeState: Sorted NodeState
+    #[cfg(feature = "datafusion")]
     fn sort_by(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -200,6 +201,7 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     ///     OutputNodeState: Sorted NodeState
+    #[cfg(feature = "datafusion")]
     fn top_k(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -219,6 +221,7 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     ///     list[tuple[dict, Nodes]]: The grouped nodes
+    #[cfg(feature = "datafusion")]
     fn groups(
         &self,
         cols: Vec<String>,
@@ -282,7 +285,7 @@ impl PyOutputNodeState {
         default_column_merge_priority: String,
         column_merge_priority_map: Option<HashMap<String, String>>,
         py: Python<'py>,
-    ) -> Result<Bound<'py, PyAny>, pyo3::PyErr> {
+    ) -> Result<Bound<'py, PyAny>, PyErr> {
         // hashmap of string to enum
         let merge_priority_enum_map: HashMap<String, MergePriority> = HashMap::from([
             ("left".to_string(), MergePriority::Left),
@@ -313,7 +316,6 @@ impl PyOutputNodeState {
                                 .clone(),
                         )
                     })
-                    .into_iter()
                     .collect(),
             )
         }

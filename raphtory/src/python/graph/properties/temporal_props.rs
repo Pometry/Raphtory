@@ -36,13 +36,13 @@ use pyo3::{
     Borrowed,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropUntagged, PropUnwrap},
+    entities::properties::prop::{Prop, PropUntagged},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
     },
+    utils::generalised_reduce,
 };
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
@@ -107,10 +107,21 @@ impl PyTemporalProperties {
 
     /// List the values of the properties
     ///
+    /// Arguments:
+    ///     keys (list[str], optional): restrict the result to these names, in
+    ///         the given order. Defaults to every key, in `keys()` order.
+    ///
     /// Returns:
     ///     list[TemporalProperty]: the list of property views
-    fn values(&self) -> Vec<DynTemporalProperty> {
-        self.props.iter_filtered().map(|(_, value)| value).collect()
+    #[pyo3(signature = (keys = None))]
+    fn values(&self, keys: Option<Vec<String>>) -> Vec<DynTemporalProperty> {
+        match keys {
+            Some(keys) => keys
+                .iter()
+                .filter_map(|k| self.props.get(k.as_str()))
+                .collect(),
+            None => self.props.iter_filtered().map(|(_, value)| value).collect(),
+        }
     }
 
     /// List the property keys together with the corresponding values
@@ -993,9 +1004,7 @@ impl PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                it.map(|data| {
-                    compute_generalised_sum(data, |a, b| a.max(b), |d| d.dtype().has_cmp())
-                })
+                it.map(|data| generalised_reduce(data, |a, b| a.max(b), |d| d.dtype().has_cmp()))
             })
         })
         .into()
@@ -1009,9 +1018,7 @@ impl PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                it.map(|data| {
-                    compute_generalised_sum(data, |a, b| a.min(b), |d| d.dtype().has_cmp())
-                })
+                it.map(|data| generalised_reduce(data, |a, b| a.min(b), |d| d.dtype().has_cmp()))
             })
         })
         .into()
@@ -1025,9 +1032,7 @@ impl PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                it.map(|data| {
-                    compute_generalised_sum(data, |a, b| a.add(b), |d| d.dtype().has_add())
-                })
+                it.map(|data| generalised_reduce(data, |a, b| a.add(b), |d| d.dtype().has_add()))
             })
         })
         .into()
@@ -1050,7 +1055,7 @@ impl PropIterable {
     /// Returns:
     ///     PropValue:
     pub fn sum(&self) -> PropValue {
-        compute_generalised_sum(self.iter(), |a, b| a.add(b), |d| d.dtype().has_add())
+        generalised_reduce(self.iter(), |a, b| a.add(b), |d| d.dtype().has_add())
     }
 
     /// Median property values.
@@ -1074,7 +1079,7 @@ impl PropIterable {
     /// Returns:
     ///     PropValue:
     pub fn min(&self) -> PropValue {
-        compute_generalised_sum(self.iter(), |a, b| a.min(b), |d| d.dtype().has_cmp())
+        generalised_reduce(self.iter(), |a, b| a.min(b), |d| d.dtype().has_cmp())
     }
 
     /// Find the maximum property value and its associated time.
@@ -1082,7 +1087,7 @@ impl PropIterable {
     /// Returns:
     ///     PropValue:
     pub fn max(&self) -> PropValue {
-        compute_generalised_sum(self.iter(), |a, b| a.max(b), |d| d.dtype().has_cmp())
+        generalised_reduce(self.iter(), |a, b| a.max(b), |d| d.dtype().has_cmp())
     }
 
     /// Compute the average of all property values. Alias for mean().
@@ -1111,8 +1116,7 @@ impl PyPropHistValueList {
     pub fn sum(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder()
-                .map(|data| compute_generalised_sum(data, |a, b| a.add(b), |d| d.dtype().has_add()))
+            builder().map(|data| generalised_reduce(data, |a, b| a.add(b), |d| d.dtype().has_add()))
         })
         .into()
     }
@@ -1124,8 +1128,7 @@ impl PyPropHistValueList {
     pub fn min(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder()
-                .map(|data| compute_generalised_sum(data, |a, b| a.min(b), |d| d.dtype().has_cmp()))
+            builder().map(|data| generalised_reduce(data, |a, b| a.min(b), |d| d.dtype().has_cmp()))
         })
         .into()
     }
@@ -1137,8 +1140,7 @@ impl PyPropHistValueList {
     pub fn max(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder()
-                .map(|data| compute_generalised_sum(data, |a, b| a.max(b), |d| d.dtype().has_cmp()))
+            builder().map(|data| generalised_reduce(data, |a, b| a.max(b), |d| d.dtype().has_cmp()))
         })
         .into()
     }
@@ -1195,7 +1197,7 @@ impl PyPropValueList {
     /// Returns:
     ///     PropValue:
     pub fn sum(&self) -> Option<Prop> {
-        compute_generalised_sum(
+        generalised_reduce(
             self.iter().flatten(),
             |a, b| a.add(b),
             |d| d.dtype().has_add(),
@@ -1215,7 +1217,7 @@ impl PyPropValueList {
     /// Returns:
     ///     PropValue:
     pub fn min(&self) -> PropValue {
-        compute_generalised_sum(
+        generalised_reduce(
             self.iter().flatten(),
             |a, b| a.min(b),
             |d| d.dtype().has_cmp(),
@@ -1227,7 +1229,7 @@ impl PyPropValueList {
     /// Returns:
     ///     PropValue:
     pub fn max(&self) -> PropValue {
-        compute_generalised_sum(
+        generalised_reduce(
             self.iter().flatten(),
             |a, b| a.max(b),
             |d| d.dtype().has_cmp(),
@@ -1267,6 +1269,17 @@ impl PyPropValueList {
         self.mean()
     }
 
+    /// Collect the property values into an arrow-backed node state with a single column.
+    ///
+    /// The values are taken in order and aligned with the nodes of `graph`, so this is only
+    /// meaningful when the list was produced by iterating over the nodes of the same graph.
+    ///
+    /// Arguments:
+    ///     graph (GraphView): the graph whose nodes the values are aligned with
+    ///     col_name (str): the name to give the column holding the property values
+    ///
+    /// Returns:
+    ///     OutputNodeState: the values as a node state with one column named `col_name`
     pub fn arrow_compute(&self, graph: DynamicGraph, col_name: String) -> PyOutputNodeState {
         PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(
             graph.clone(),
@@ -1292,7 +1305,7 @@ impl PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                compute_generalised_sum(it.flatten(), |a, b| a.add(b), |d| d.dtype().has_add())
+                generalised_reduce(it.flatten(), |a, b| a.add(b), |d| d.dtype().has_add())
             })
         })
         .into()
@@ -1306,7 +1319,7 @@ impl PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                compute_generalised_sum(it.flatten(), |a, b| a.min(b), |d| d.dtype().has_cmp())
+                generalised_reduce(it.flatten(), |a, b| a.min(b), |d| d.dtype().has_cmp())
             })
         })
         .into()
@@ -1320,7 +1333,7 @@ impl PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                compute_generalised_sum(it.flatten(), |a, b| a.max(b), |d| d.dtype().has_cmp())
+                generalised_reduce(it.flatten(), |a, b| a.max(b), |d| d.dtype().has_cmp())
             })
         })
         .into()
@@ -1399,35 +1412,10 @@ py_iterable_comp!(
     PyPropHistItemsListListCmp
 );
 
-fn compute_median(mut data: Vec<Prop>) -> Option<Prop> {
-    if data.is_empty() || !data[0].dtype().has_cmp() {
-        return None;
-    }
-    data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    Some(data[(data.len() - 1) / 2].clone())
+fn compute_median(data: Vec<Prop>) -> Option<Prop> {
+    Prop::median(data)
 }
 
 fn compute_mean(data: impl IntoIterator<Item = Prop>) -> Option<Prop> {
-    let mut iter = data.into_iter();
-    let first_value = iter.next()?;
-    let mut sum = first_value.as_f64()?;
-    let mut count = 1usize;
-    for value in iter {
-        sum += value.as_f64()?;
-        count += 1;
-    }
-    Some(Prop::F64(sum / count as f64))
-}
-
-fn compute_generalised_sum<V>(
-    data: impl IntoIterator<Item = V>,
-    op: impl Fn(V, V) -> Option<V>,
-    check: impl Fn(&V) -> bool,
-) -> Option<V> {
-    let mut iter = data.into_iter();
-    let first_value = iter.next()?;
-    if !check(&first_value) {
-        return None;
-    }
-    iter.try_fold(first_value, op)
+    Prop::mean(data)
 }

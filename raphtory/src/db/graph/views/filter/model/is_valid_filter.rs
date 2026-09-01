@@ -3,11 +3,10 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
+                edge_filtered_graph::EdgeFilteredGraph,
                 model::{
-                    edge_expr::{ops::IsValidEdgePropOp, EdgeOp},
-                    edge_filter::EdgeFilter,
-                    node_expr::{CreateOp, EntityExpr},
-                    ComposableFilter, CreateView,
+                    edge_filter::CompositeEdgeFilter, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
                 },
                 CreateFilter,
             },
@@ -15,80 +14,77 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
-use std::{fmt, sync::Arc};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IsValidEdge<E> {
-    pub(crate) view_expr: E,
-}
+pub struct IsValidEdge;
 
-impl<E> IsValidEdge<E> {
-    pub fn new(view_expr: E) -> Self {
-        Self { view_expr }
-    }
-}
-
-impl<E> fmt::Display for IsValidEdge<E> {
+impl fmt::Display for IsValidEdge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_VALID_EDGE")
     }
 }
 
-impl<E: Clone + Send + Sync + 'static> EntityExpr for IsValidEdge<E> {
-    type Marker = EdgeFilter;
-
-    fn entity(&self) -> Self::Marker {
-        EdgeFilter
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
-    }
-
-    fn nullable(&self) -> bool {
-        false
-    }
-}
-
-impl<E: CreateView + Clone> CreateOp for IsValidEdge<E> {
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let view = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(IsValidEdgePropOp { graph: view }))
-    }
-}
-
-impl<E: CreateView + 'static> CreateFilter for IsValidEdge<E> {
-    type EntityFiltered<'graph, G>
-        = ValidGraph<G>
+impl CreateFilter for IsValidEdge {
+    type EntityFiltered<'graph, G, F>
+        = EdgeFilteredGraph<G, ValidGraph<F>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
-        = NodeExistsOp<ValidGraph<G>>
+    type NodeFilter<'graph, G, F>
+        = NodeExistsOp<ValidGraph<F>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+
+    type FilteredGraph<'graph, G>
+        = G
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(ValidGraph::new(graph))
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        Ok(EdgeFilteredGraph::new(graph, ValidGraph::new(filtered)))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        Ok(NodeExistsOp::new(ValidGraph::new(filtered)))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(ValidGraph::new(graph)))
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
-impl<E: CreateView> ComposableFilter for IsValidEdge<E> {}
+impl ComposableFilter for IsValidEdge {}
+
+impl TryAsCompositeFilter for IsValidEdge {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge))
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(CompositeExplodedEdgeFilter::IsValidEdge(IsValidEdge))
+    }
+}

@@ -3,17 +3,14 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
-                latest_filter::Latest,
-                layered_filter::Layered,
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
-                CreateView, InternalViewWrapOps, Wrap,
+                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
+                TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 
@@ -42,50 +39,58 @@ impl InternalViewWrapOps for GraphFilter {
     }
 }
 
-pub trait GraphFilterOps: InternalViewWrapOps<Window = Self::GraphWindow> + CreateFilter {
-    type GraphWindow: GraphFilterOps;
-}
-
 impl CreateFilter for GraphFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = G;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = F;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodeExistsOp<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodeExistsOp<F>;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        Ok(filtered)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        Ok(NodeExistsOp::new(filtered))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
     }
+}
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(graph))
+impl TryAsCompositeFilter for GraphFilter {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // The bare graph anchor restricts nothing — an empty view chain.
+        Ok(FilterTree::View(Vec::new()))
     }
-}
 
-impl GraphFilterOps for GraphFilter {
-    type GraphWindow = Self::Window;
-}
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
 
-impl<T: GraphFilterOps> GraphFilterOps for Windowed<T> {
-    type GraphWindow = Self::Window;
-}
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
 
-impl<T: GraphFilterOps> GraphFilterOps for Layered<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for Latest<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for SnapshotAt<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for SnapshotLatest<T> {
-    type GraphWindow = Self::Window;
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
 }

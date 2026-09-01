@@ -1,5 +1,14 @@
 use crate::{
-    db::api::state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+    db::{
+        api::{
+            state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+            view::internal::NodeList,
+        },
+        graph::views::filter::model::{
+            edge_filter::CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+            TryAsCompositeFilter,
+        },
+    },
     errors::GraphError,
 };
 use arrow_array::{cast::AsArray, Array, BooleanArray};
@@ -58,11 +67,32 @@ impl NodeStateBoolColOp {
 impl NodeOp for NodeStateBoolColOp {
     type Output = bool;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        let elems = self.keys.clone();
+        NodeList::List { elems }
+    }
+
     fn apply(&self, _storage: &GraphStorage, node: VID) -> bool {
         let row = match self.row_index(node) {
             None => return false,
             Some(r) => r,
         };
         self.bool_at_row(row)
+    }
+}
+
+impl TryAsCompositeFilter for NodeStateBoolColOp {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }

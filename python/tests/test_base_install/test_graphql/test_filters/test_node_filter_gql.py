@@ -21,14 +21,11 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes(
-          expr: {
-            node: {
-              field: NODE_ID
+        filterNodes: filter(expr: { node: {
+            id: {
               where: { eq: { str: "1" } }
             }
-          }
-        ) {
+          } }) {
           nodes {
             list { name }
           }
@@ -41,18 +38,33 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_sort_key_with_no_or_several_fields_is_rejected(graph):
+    # A sort-key entry names exactly one attribute. Setting none, or several,
+    # used to be a silent no-op / silent drop of all but the first.
+    for keys in ("[{}]", "[{reverse: true}]", "[{id: true, name: true}]"):
+        run_graphql_error_test_contains(
+            """
+            query {
+              graph(path: "g") {
+                nodes { sorted(sortBys: %s) { list { name } } }
+              }
+            }
+            """ % keys,
+            "exactly one",
+            graph,
+        )
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes(
-          expr: {
-            node: {
-              field: NODE_ID
+        filterNodes: filter(expr: { node: {
+            id: {
               where: { eq: { u64: 1 } }
             }
-          }
-        ) {
+          } }) {
           nodes {
             list { name }
           }
@@ -73,14 +85,11 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes(
-          expr: {
-            node: {
-              field: NODE_ID
+        filterNodes: filter(expr: { node: {
+            id: {
               where: { eq: { u64: 1 } }
             }
-          }
-        ) {
+          } }) {
           nodes {
             list { name }
           }
@@ -98,14 +107,13 @@ def test_nodes_chained_selection_with_node_filter(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { node: { 
-            field: NODE_TYPE
+          select(expr: { node: { nodeType: { 
             where: { eq: { str: "fire_nation" } }
-          } }) {
-            select(expr: { property: { name: "p9", where: { eq:{ i64: 5 } } } }) {
-              filter(expr:{
+          } } }) {
+            select(expr: { node: { property: { name: "p9", where: { eq:{ i64: 5 } } } } }) {
+              filter(expr: { node: {
                 property: { name: "p100", where: { gt: { i64: 30 } } }
-              }) {
+              } }) {
                 list {
                   name
                 }
@@ -130,7 +138,7 @@ def test_nodes_filter_windowed_is_active(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: {window: {start: 1, end: 4, expr: {isActive: true}}}) {
+          select(expr: {node: {window: {start: 1, end: 4, expr: {isActive: true}}}}) {
             list {
               name
             }
@@ -158,7 +166,7 @@ def test_nodes_filter_windowed_is_not_active(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: {window: {start: 1, end: 4, expr: {isActive: false}}}) {
+          select(expr: {node: {window: {start: 1, end: 4, expr: {isActive: false}}}}) {
             list {
               name
             }
@@ -209,7 +217,7 @@ def _degree_filter_nodes_query_expected_pair(expr, expected_names):
     query = f"""
   query {{
     graph(path: "g") {{
-    filterNodes(expr: {{ {expr} }}) {{
+    filterNodes: filter(expr: {{ node: {{ {expr} }} }}) {{
       nodes {{
       list {{ name }}
       }}
@@ -233,7 +241,7 @@ def _degree_select_nodes_query_expected_pair(expr, expected_names):
   query {{
     graph(path: "g") {{
       nodes {{
-        select(expr: {{ {expr} }}) {{
+        select(expr: {{ node: {{ {expr} }} }}) {{
           list {{ name }}
         }}
       }}
@@ -530,7 +538,7 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
         filter_nodes_query = f"""
     query {{
       graph(path: "g") {{
-      filterNodes(expr: {{ {expr} }}) {{
+      filterNodes: filter(expr: {{ node: {{ {expr} }} }}) {{
         nodes {{
         list {{ name }}
         }}
@@ -543,7 +551,7 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
     query {{
       graph(path: "g") {{
         nodes {{
-          select(expr: {{ {expr} }}) {{
+          select(expr: {{ node: {{ {expr} }} }}) {{
             list {{ name }}
           }}
         }}
@@ -577,7 +585,7 @@ def test_filter_nodes_degree_invalid_expressions_gql(graph):
         filter_nodes_query = f"""
     query {{
       graph(path: "g") {{
-      filterNodes(expr: {{ {expr} }}) {{
+      filterNodes: filter(expr: {{ node: {{ {expr} }} }}) {{
         nodes {{
         list {{ name }}
         }}
@@ -590,7 +598,7 @@ def test_filter_nodes_degree_invalid_expressions_gql(graph):
     query {{
       graph(path: "g") {{
         nodes {{
-          select(expr: {{ {expr} }}) {{
+          select(expr: {{ node: {{ {expr} }} }}) {{
             list {{ name }}
           }}
         }}

@@ -14,7 +14,6 @@ homepage.workspace = true
 
 [dependencies]
 raphtory = { workspace = true, features = [
-    'vectors',
     "io",
 ] }
 tempfile = { workspace = true }
@@ -25,6 +24,7 @@ jsonwebtoken = { workspace = true }
 spki = { workspace = true }
 thiserror = { workspace = true }
 itertools = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }
@@ -56,11 +56,13 @@ bigdecimal = { workspace = true, features = ["serde"] }
 quick_cache = { workspace = true }
 field_types = { workspace = true }
 pythonize = { workspace = true, optional = true }
+indexmap = { workspace = true }
+dyn-clone = { workspace = true }
+inventory = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
 crossbeam-channel = { workspace = true }
-minijinja = { workspace = true }
 zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
@@ -69,8 +71,16 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+arrow = { workspace = true }
+parquet = { workspace = true }
+# The deny_unknown_fields lint test parses source with syn.
+syn = { version = "2", features = ["full"] }
+quote = "1"
+
 
 [features]
+default = []
+vectors = ["raphtory/vectors"]
+integration-test = ["opentelemetry_sdk/testing"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
-search = ["raphtory/search"]
 panic-on-drop = ["raphtory/panic-on-drop"]

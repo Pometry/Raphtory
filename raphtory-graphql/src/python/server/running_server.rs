@@ -1,5 +1,5 @@
 use crate::python::{
-    client::raphtory_client::PyRaphtoryClient,
+    client::remote_client::PyRaphtoryClient,
     server::{wait_server, BridgeCommand},
     RUNNING_SERVER_CONSUMED_MSG,
 };
@@ -71,11 +71,14 @@ impl PyRunningGraphServer {
         self.apply_if_alive(|handler| {
             let port = handler.port;
             let url = format!("http://localhost:{port}");
-            Ok(PyRaphtoryClient::new(url, None)?)
+            PyRaphtoryClient::new(url, None)
         })
     }
 
     /// Get the port the server is listening on
+    ///
+    /// Returns:
+    ///     int: the port the server is listening on.
     pub fn port(&self) -> PyResult<u16> {
         self.apply_if_alive(|handler| Ok(handler.port))
     }

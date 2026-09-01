@@ -1,25 +1,34 @@
-#[cfg(feature = "io")]
-use raphtory::io::parquet_loaders::load_edges_from_parquet;
-#[cfg(feature = "io")]
-use raphtory::{arrow_loader::df_loaders::edges::ColumnNames, errors::GraphError, prelude::*};
+use raphtory::{
+    arrow_loader::df_loaders::edges::ColumnNames, errors::GraphError,
+    io::parquet_loaders::load_edges_from_parquet, prelude::*,
+};
 use std::path::{Path, PathBuf};
 
+#[cfg(target_os = "macos")]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(target_os = "macos")]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 /// Load ETH data from Parquet files into a Raphtory Graph.
-#[cfg(feature = "io")]
 fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> {
     // ── Static Nodes ──────────────────────────────────────────────────────
 
-    let props = (1..=20).map(|i| format!("prop_{i}")).collect::<Vec<_>>();
-    let props = props.iter().map(|s| s.as_ref()).collect::<Vec<_>>();
     load_edges_from_parquet(
         graph,
         parquet_path,
-        ColumnNames::new("time", None, "source", "target", None),
+        ColumnNames::new(
+            "transaction_timestamp",
+            None,
+            "transfer_sender_cluster_id",
+            "transfer_receiver_cluster_id",
+            None,
+        ),
         true,
-        &props,
+        &["receiver_address", "transfer_amount_usd"],
         &[],
         None,
-        Some("G500"),
+        Some("dac"),
         None,
         None,
     )?;
@@ -34,7 +43,6 @@ fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> 
     Ok(())
 }
 
-#[cfg(feature = "io")]
 fn main() {
     let parquet_path = std::env::args()
         .nth(1)
@@ -58,6 +66,3 @@ fn main() {
         load_eth_graph(&parquet_path, &graph).unwrap()
     }
 }
-
-#[cfg(not(feature = "io"))]
-fn main() {}

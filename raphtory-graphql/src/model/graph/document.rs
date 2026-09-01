@@ -1,4 +1,5 @@
 use dynamic_graphql::{SimpleObject, Union};
+#[cfg(feature = "vectors")]
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     vectors::DocumentEntity,

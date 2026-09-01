@@ -1,27 +1,28 @@
 use raphtory::{
-    db::api::view::{filter_ops::Filter, StaticGraphViewOps},
-    prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
-};
-use std::ops::Range;
-
-use raphtory::{
     db::{
-        api::view::filter_ops::{EdgeSelect, NodeSelect},
-        graph::views::{filter::CreateFilter, window_graph::WindowedGraph},
+        api::view::{
+            filter_ops::{Filter, Select},
+            StaticGraphViewOps,
+        },
+        graph::views::{
+            filter::{model::TryAsCompositeFilter, CreateFilter},
+            window_graph::WindowedGraph,
+        },
     },
     errors::GraphError,
-    prelude::TimeOps,
+    prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::Direction;
+use std::ops::Range;
 
 pub enum TestGraphVariants {
     Graph,
     PersistentGraph,
 }
 
-impl Into<Vec<TestGraphVariants>> for TestGraphVariants {
-    fn into(self) -> Vec<TestGraphVariants> {
-        vec![self]
+impl From<TestGraphVariants> for Vec<TestGraphVariants> {
+    fn from(val: TestGraphVariants) -> Self {
+        vec![val]
     }
 }
 
@@ -62,9 +63,9 @@ pub trait ApplyFilter {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
 }
 
-pub struct FilterNodes<F: CreateFilter + Clone>(F);
+pub struct FilterNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .filter(self.0.clone())
@@ -78,9 +79,9 @@ impl<F: CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     }
 }
 
-pub struct SelectNodes<F: CreateFilter + Clone>(F);
+pub struct SelectNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: CreateFilter + Clone> ApplyFilter for SelectNodes<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SelectNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .nodes()
@@ -94,9 +95,9 @@ impl<F: CreateFilter + Clone> ApplyFilter for SelectNodes<F> {
     }
 }
 
-pub struct FilterNeighbours<F: CreateFilter + Clone>(F, String, Direction);
+pub struct FilterNeighbours<F: TryAsCompositeFilter + CreateFilter + Clone>(F, String, Direction);
 
-impl<F: CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let filter_applied = graph
             .node(self.1.clone())
@@ -117,9 +118,9 @@ impl<F: CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
     }
 }
 
-pub struct FilterEdges<F: CreateFilter + Clone>(F);
+pub struct FilterEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .filter(self.0.clone())
@@ -133,9 +134,9 @@ impl<F: CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     }
 }
 
-pub struct SelectEdges<F: CreateFilter + Clone>(F);
+pub struct SelectEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: CreateFilter + Clone> ApplyFilter for SelectEdges<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SelectEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .edges()
@@ -153,7 +154,7 @@ impl<F: CreateFilter + Clone> ApplyFilter for SelectEdges<F> {
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -170,7 +171,7 @@ pub fn assert_filter_nodes_results(
 pub fn assert_select_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -183,7 +184,7 @@ pub fn assert_select_nodes_results(
         SelectNodes(filter),
     )
 }
-
+#[track_caller]
 fn assert_filter_err_contains<E>(err: GraphError, expected: E)
 where
     E: AsRef<str>,
@@ -201,10 +202,11 @@ where
     }
 }
 
+#[track_caller]
 pub fn assert_filter_nodes_err(
     init_graph: fn(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &str,
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -236,7 +238,7 @@ pub fn assert_filter_neighbours_results(
     transform: impl GraphTransformer,
     node_name: impl AsRef<str>,
     direction: Direction,
-    filter: impl CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -254,7 +256,7 @@ pub fn assert_filter_neighbours_results(
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -272,7 +274,7 @@ pub fn assert_filter_edges_results(
 pub fn assert_select_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -353,6 +355,7 @@ pub fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
 
 pub type EdgeRow = (u64, u64, i64, String, i64);
 
+#[track_caller]
 pub fn assert_ok_or_missing_edges<T>(
     edges: &[EdgeRow],
     res: Result<T, GraphError>,
@@ -370,6 +373,7 @@ pub fn assert_ok_or_missing_edges<T>(
     }
 }
 
+#[track_caller]
 pub fn assert_ok_or_missing_nodes<T>(
     nodes: &[(u64, Option<String>, Option<i64>)],
     res: Result<T, GraphError>,

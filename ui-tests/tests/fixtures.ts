@@ -1,12 +1,9 @@
 import { test as base, Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
-import { mkdir, rm, writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
-import { copyGraph, deleteGraph } from './e2e/api';
+import { copyGraph, deleteNamespace } from './e2e/api';
 import { waitForLayoutToFinish } from './e2e/utils';
-
-const RAPHTORY_WORK_DIR =
-    process.env.RAPHTORY_WORK_DIR ?? '/tmp/vanilla-graphs';
 
 const ENABLE_COVERAGE = process.env.ENABLE_COVERAGE === 'true';
 const COVERAGE_DIR = path.join(process.cwd(), '.nyc_output');
@@ -26,8 +23,6 @@ interface IsolatedGraphs {
         graphName: string,
         params?: string,
     ) => Promise<void>;
-    /** Track a graph path for cleanup (e.g. graphs created via Save As) */
-    trackForCleanup: (graphPath: string) => void;
 }
 
 interface MyFixtures {
@@ -68,13 +63,10 @@ export const test = base.extend<MyFixtures & MyOptions>({
 
     isolatedGraphs: async ({ isolatedGraphsConfig }, use) => {
         const namespace = `test_${randomUUID().slice(0, 8)}`;
-        const copiedGraphs: string[] = [];
 
         for (const graphPath of isolatedGraphsConfig) {
             const graphName = graphPath.split('/').pop()!;
-            const newPath = `${namespace}/${graphName}`;
-            await copyGraph(graphPath, newPath);
-            copiedGraphs.push(newPath);
+            await copyGraph(graphPath, `${namespace}/${graphName}`);
         }
 
         const isolatedGraphs: IsolatedGraphs = {
@@ -93,33 +85,14 @@ export const test = base.extend<MyFixtures & MyOptions>({
                 );
                 await waitForLayoutToFinish(navigatePage);
             },
-            trackForCleanup: (graphPath: string) => {
-                copiedGraphs.push(graphPath);
-            },
         };
 
         await use(isolatedGraphs);
 
-        // Cleanup: delete all copied and tracked graphs
-        for (const graphPath of copiedGraphs) {
-            try {
-                await deleteGraph(graphPath);
-            } catch {
-                // Best effort cleanup — don't fail the test
-            }
-        }
-
-        // Best-effort: remove the namespace directory left behind after graph
-        // deletion. Raphtory has no deleteNamespace mutation, and namespaces
-        // map to directories on disk. Only works when the test runner has
-        // filesystem access to the server's work dir (i.e. local macOS runs).
         try {
-            await rm(path.join(RAPHTORY_WORK_DIR, namespace), {
-                recursive: true,
-                force: true,
-            });
+            await deleteNamespace(namespace);
         } catch {
-            // Ignore — Docker/Linux runs can't reach the host's work dir
+            // Best effort — don't fail the test on cleanup errors
         }
     },
 });

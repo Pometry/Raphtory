@@ -5,11 +5,9 @@ use crate::{
 use arrow_schema::ArrowError;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use lazy_vec::LazyVec;
-use raphtory_api::core::{
-    entities::properties::prop::{prop_col::PropCol, AsPropRef, Prop, PropRef, PropType},
-    storage::arc_str::ArcStr,
+use raphtory_api::core::entities::properties::prop::{
+    prop_col::PropCol, AsPropRef, Prop, PropMap, PropRef, PropType,
 };
-use rustc_hash::FxHashMap;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
@@ -124,7 +122,7 @@ pub enum PropColumn {
     F64(LazyVec<f64>),
     Str(StringCol),
     List(LazyVec<PropArray>),
-    Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
+    Map(LazyVec<Arc<PropMap>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
     DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
     Decimal(LazyVec<BigDecimal>),
@@ -165,7 +163,7 @@ impl PropColumn {
         col
     }
 
-    pub(crate) fn dtype(&self) -> PropType {
+    pub(crate) fn dtype_for_error_report(&self) -> PropType {
         match self {
             PropColumn::Empty(_) => PropType::Empty,
             PropColumn::Bool(_) => PropType::Bool,
@@ -230,7 +228,7 @@ impl PropColumn {
             }
             (col, prop) => {
                 Err(IllegalPropType {
-                    expected: col.dtype(),
+                    expected: col.dtype_for_error_report(),
                     actual: prop.into_prop().dtype(),
                 })?;
             }
@@ -261,7 +259,7 @@ impl PropColumn {
             )?,
             (col, prop) => {
                 Err(IllegalPropType {
-                    expected: col.dtype(),
+                    expected: col.dtype_for_error_report(),
                     actual: prop.clone().into_prop().dtype(),
                 })?;
             }
@@ -308,7 +306,7 @@ impl PropColumn {
             }
             (col, prop) => {
                 Err(IllegalPropType {
-                    expected: col.dtype(),
+                    expected: col.dtype_for_error_report(),
                     actual: prop.into_prop().dtype(),
                 })?;
             }
@@ -394,7 +392,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
-            PropColumn::Str(col) => col.get_opt(index).map(|prop| PropRef::Str(prop.as_ref())),
+            PropColumn::Str(col) => col.get_opt(index).map(PropRef::Str),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| PropRef::from(*prop)),

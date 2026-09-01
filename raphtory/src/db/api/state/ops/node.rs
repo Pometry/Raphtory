@@ -1,4 +1,4 @@
-use crate::db::api::state::ops::ArrowNodeOp;
+use crate::db::api::{state::ops::ArrowNodeOp, view::internal::NodeList};
 pub(crate) use crate::db::api::{
     state::{generic_node_state::InputNodeStateValue, ops::IntoDynNodeOp, NodeOp},
     view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView},
@@ -30,6 +30,10 @@ impl From<String> for NameStruct {
 impl NodeOp for Name {
     type Output = String;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_name(node)
     }
@@ -56,6 +60,10 @@ impl From<GID> for IdStruct {
 
 impl NodeOp for Id {
     type Output = GID;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_id(node)
@@ -85,6 +93,10 @@ impl From<Option<ArcStr>> for TypeStruct {
 impl NodeOp for Type {
     type Output = Option<ArcStr>;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_type(node)
     }
@@ -111,6 +123,10 @@ impl From<usize> for TypeIdStruct {
 
 impl NodeOp for TypeId {
     type Output = usize;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_type_id(node)
@@ -141,6 +157,10 @@ impl From<usize> for DegreeStruct {
 
 impl<G: GraphView> NodeOp for Degree<G> {
     type Output = usize;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.view.node_list()
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
         let node = storage.core_node(node);

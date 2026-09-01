@@ -28,7 +28,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         name: Checkout
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
@@ -45,7 +45,7 @@ jobs:
         with:
           cache-all-crates: true
       - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -74,7 +74,7 @@ jobs:
           esac
       - name: Cache playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.pw-cache-dir.outputs.dir }}
           key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('ui-tests/package-lock.json') }}

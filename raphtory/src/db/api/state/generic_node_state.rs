@@ -20,22 +20,15 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use arrow::{
-    array::{ArrayBuilder, AsArray},
-    compute::{cast_with_options, interleave_record_batch, CastOptions},
+    array::AsArray,
+    compute::{cast_with_options, CastOptions},
     datatypes::UInt64Type,
-    row::{RowConverter, SortField},
 };
 use arrow_array::{
-    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt32Array,
-    UInt64Array,
+    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt64Array,
 };
-use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
+use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use arrow_select::{concat::concat, take::take};
-use dashmap::DashMap;
-use datafusion_expr_common::groups_accumulator::EmitTo;
-use datafusion_physical_expr::expressions::col;
-use datafusion_physical_expr_common::sort_expr::PhysicalSortExpr;
-use datafusion_physical_plan::aggregates::{group_values::new_group_values, order::GroupOrdering};
 use indexmap::{IndexMap, IndexSet};
 use parquet::{
     arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter},
@@ -57,14 +50,28 @@ use serde_arrow::{
     to_record_batch, Deserializer,
 };
 use std::{
-    cmp::{Ordering, PartialEq},
-    collections::{BinaryHeap, HashMap},
+    cmp::PartialEq,
+    collections::HashMap,
     fmt::{Debug, Formatter},
     fs::File,
     hash::BuildHasher,
     marker::PhantomData,
     path::Path,
     sync::Arc,
+};
+
+#[cfg(feature = "datafusion")]
+use {
+    arrow::row::{RowConverter, SortField},
+    arrow_array::UInt32Array,
+    arrow_schema::{ArrowError, SortOptions},
+    arrow_select::interleave::interleave_record_batch,
+    dashmap::DashMap,
+    datafusion_expr_common::groups_accumulator::EmitTo,
+    datafusion_physical_expr::expressions::col,
+    datafusion_physical_expr_common::sort_expr::PhysicalSortExpr,
+    datafusion_physical_plan::aggregates::{group_values::new_group_values, order::GroupOrdering},
+    std::{cmp::Ordering, collections::BinaryHeap},
 };
 
 // The bundle of traits which are useful/essential for the underlying value types
@@ -165,25 +172,30 @@ where
 }
 
 /// A heap entry: stores the row bytes (for comparison) and the original index.
+#[cfg(feature = "datafusion")]
 struct HeapRow {
     row: Vec<u8>,
     index: usize,
 }
 
+#[cfg(feature = "datafusion")]
 impl PartialEq for HeapRow {
     fn eq(&self, other: &Self) -> bool {
         self.row == other.row
     }
 }
+#[cfg(feature = "datafusion")]
 impl Eq for HeapRow {}
 
 // BinaryHeap is a max-heap. We want to keep the *smallest* k rows,
 // so the max of the heap is the eviction candidate.
+#[cfg(feature = "datafusion")]
 impl PartialOrd for HeapRow {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
+#[cfg(feature = "datafusion")]
 impl Ord for HeapRow {
     fn cmp(&self, other: &Self) -> Ordering {
         self.row.cmp(&other.row)
@@ -281,9 +293,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let res = self.deserializer.get(self.idx);
-        if res.is_none() {
-            return None;
-        }
+        res.as_ref()?;
         let item = T::deserialize(res.unwrap()).unwrap();
         self.idx += 1;
         Some(item)
@@ -320,7 +330,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             base_graph,
             values,
             keys,
-            node_cols: node_cols.unwrap_or(HashMap::new()),
+            node_cols: node_cols.unwrap_or_default(),
             _marker: PhantomData,
         }
     }
@@ -698,7 +708,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             let col_name = column.name();
             if column_merge_priority_map
                 .as_ref()
-                .map_or(true, |map| map.contains_key(col_name) == false)
+                .is_none_or(|map| !map.contains_key(col_name))
             {
                 if default_node_cols.contains_key(col_name) {
                     merge_node_cols.insert(
@@ -823,6 +833,7 @@ impl<
         (self.converter)(&self.state, value)
     }
 
+    #[cfg(feature = "datafusion")]
     pub fn get_groups(&self, cols: Vec<String>) -> Result<Vec<(T, Nodes<'graph, G>)>, GraphError> {
         let num_rows = self.state.values().num_rows();
         if num_rows == 0 {
@@ -970,7 +981,7 @@ where
         other.len() == self.len()
             && other
                 .iter()
-                .all(|(k, rhs)| self.get_by_node(k).filter(|lhs| lhs == rhs).is_none() == false)
+                .all(|(k, rhs)| self.get_by_node(k).filter(|lhs| lhs == rhs).is_some())
     }
 }
 
@@ -1007,7 +1018,7 @@ impl<'graph, G: GraphViewOps<'graph>> OutputTypedNodeState<'graph, G> {
                 let rhs_val = rhs_val.unwrap();
 
                 let casted_rhs = rhs_val
-                    .try_cast(lhs_val.0.dtype())
+                    .cast(lhs_val.0.dtype())
                     .ok_or("Failed to cast rhs value")?;
 
                 if casted_rhs != lhs_val.0 {
@@ -1162,7 +1173,7 @@ impl<
             Some(self.state.node_cols.clone()),
         );
         TypedNodeState::<'graph, V, Self::Graph, T> {
-            state: state,
+            state,
             converter: self.converter,
             _v_marker: PhantomData,
             _t_marker: PhantomData,
@@ -1210,7 +1221,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 Vec::<FieldRef>::from_samples(&values, TracingOptions::default()).unwrap()
             })
             .into_iter()
-            .map(|f| Arc::unwrap_or_clone(f))
+            .map(Arc::unwrap_or_clone)
             .collect();
         let fields: Vec<_> = fields
             .into_iter()
@@ -1334,6 +1345,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         }
     }
 
+    #[cfg(feature = "datafusion")]
     fn get_sort_exprs(
         sort_params: IndexMap<String, Option<String>>,
         schema: &Schema,
@@ -1363,6 +1375,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
 
     // NOTE(wyatt): maybe just steal this
     /// Synchronous sort implementation using arrow-row
+    #[cfg(feature = "datafusion")]
     pub fn sort_by(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -1457,6 +1470,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     ///
     /// The returned batch has at most `k` rows, sorted from lowest to highest
     /// in the order defined by `sort_exprs` (which may individually be ASC or DESC).
+    #[cfg(feature = "datafusion")]
     pub fn top_k(
         &self,
         sort_params: IndexMap<String, Option<String>>,

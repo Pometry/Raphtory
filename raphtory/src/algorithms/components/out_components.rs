@@ -8,7 +8,7 @@ use crate::{
         graph::{
             node::NodeView,
             nodes::Nodes,
-            views::filter::{CreateFilter, Unfiltered},
+            views::filter::{CreateFilter, Exists},
         },
         task::{
             context::Context,
@@ -69,7 +69,7 @@ pub fn out_components<G>(
 where
     G: StaticGraphViewOps,
 {
-    out_components_filtered(g, threads, Unfiltered).expect("Unfiltered should never fail")
+    out_components_filtered(g, threads, Exists).expect("Unfiltered should never fail")
 }
 
 /// Computes the out components of each node in the filtered graph
@@ -88,6 +88,7 @@ pub fn out_components_filtered<G, F>(
 where
     G: StaticGraphViewOps,
     F: CreateFilter + 'static,
+    F::EntityFiltered<'static, G, F::FilteredGraph<'static, G>>: StaticGraphViewOps,
 {
     let filtered = g.filter(filter)?;
     let ctx: Context<_, _> = (&filtered).into();
@@ -167,7 +168,7 @@ pub fn out_component<'graph, G>(
 where
     G: GraphViewOps<'graph>,
 {
-    out_component_filtered(node, Unfiltered).expect("Unfiltered should never fail")
+    out_component_filtered(node, Exists).expect("Unfiltered should never fail")
 }
 
 /// Computes the out-component of a given node in the filtered graph
@@ -188,6 +189,7 @@ pub fn out_component_filtered<'graph, G, F>(
 where
     G: GraphViewOps<'graph>,
     F: CreateFilter + 'graph,
+    F::EntityFiltered<'graph, G, F::FilteredGraph<'graph, G>>: GraphViewOps<'graph>,
 {
     let mut out_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();

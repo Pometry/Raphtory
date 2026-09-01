@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.8.3"]
+requires = ["maturin>=1.9.4"]
 build-backend = "maturin"
 
 [project]
@@ -33,12 +33,18 @@ pyvis = ["pyvis >= 0.3.2"]
 networkx = ["networkx >= 2.6.3"]
 export = ["raphtory[pyvis,networkx]"]
 all = ["raphtory[export,plot]"]
-dev = ["raphtory[all,test,tox]", "docstring_parser >= 0.16", "pandas-stubs", "pyarrow-stubs", "maturin>=1.8.3", "tox>=4.25"]
-test = ["requests >= 2.34.2", "pyjwt[crypto] >= 2.13.0", "pytz>=2025.2", "polars >= 1.35.2",  "duckdb >= 1.5.3"]
+# TODO(cachetools): remove the `<4.36` tox cap once pyiceberg allows cachetools>=7.
+#   pyiceberg (a `test` dep) pins cachetools<7, but tox>=4.36 requires cachetools>=7, so the two
+#   cannot share one environment; the cap keeps a flat `.[dev]` install consistent.
+#   To check if it can be lifted: `pip index versions pyiceberg` then confirm the latest release's
+#   cachetools requirement allows >=7 (e.g. `python -c "import importlib.metadata as m; print([r for r in m.requires('pyiceberg') if 'cachetools' in r])"`).
+#   CI is unaffected either way: it installs the tox tool in its own environment and `tox run` builds
+#   isolated testenvs, so tox and pyiceberg never coexist there.
+dev = ["raphtory[all,test,tox]", "docstring_parser >= 0.16", "pandas-stubs", "pyarrow-stubs", "maturin>=1.8.3", "tox>=4.25,<4.36"]
+test = ["requests >= 2.34.2", "pyjwt[crypto] >= 2.13.0", "hypothesis >= 6.100", "pytz>=2025.2", "polars >= 1.35.2", "duckdb >= 1.5.3", "pyiceberg[sql-sqlite] >= 0.8.0", "deltalake >= 1.0"]
 tox = ["nbmake", "pytest >= 8", "pytest-benchmark >= 5.1.0"]
 
 [tool.maturin]
-features = ["extension-module"] # make sure to always specify this when building with private storage enabled
 python-source = "python"
 module-name = "raphtory._raphtory"
 include = ["motif-images/*"]

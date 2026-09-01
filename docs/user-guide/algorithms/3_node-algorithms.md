@@ -28,10 +28,12 @@ results = rp.algorithms.pagerank(lotr_graph)
 gandalf_rank = results.get("Gandalf")
 print(f"Gandalf's ranking is {round(gandalf_rank['pagerank_score'], 5)}\n")
 
-# Getting the top 5 most important characters and printing out their scores
-top_5 = results.top_k({"pagerank_score": "desc"}, 5)
-for rank, (node, score) in enumerate(top_5.items(), 1):
-    print(f"Rank {rank}: {node.name} with a score of {score['pagerank_score']:.5f}")
+# NOTE: NodeState.top_k({...}) is temporarily unavailable while the datafusion-backed
+# node-state ops are disabled for the arrow-59/pyo3-0.29 upgrade. Re-enable with the
+# `datafusion` feature.
+# top_5 = results.top_k({"pagerank_score": "desc"}, 5)
+# for rank, (node, score) in enumerate(top_5.items(), 1):
+#     print(f"Rank {rank}: {node.name} with a score of {score['pagerank_score']:.5f}")
 ```
 ///
 
@@ -81,22 +83,21 @@ results = rp.algorithms.weakly_connected_components(lotr_graph)
 
 print(f"{results}\n")
 
-# Group the components together
-components = results.groups(["component_id"])
-
-# Get the size of each component
-component_sizes = {key["component_id"]: len(value) for key, value in components}
-# Get the key for the largest component
-largest_component = max(component_sizes, key=component_sizes.get)
-# Print the size of the largest component
-print(
-    f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph."
-)
+# NOTE: NodeState.groups([...]) is temporarily unavailable while the datafusion-backed
+# node-state ops are disabled for the arrow-59/pyo3-0.29 upgrade. Re-enable with the
+# `datafusion` feature.
+# components = results.groups(["component_id"])
+# component_sizes = {key["component_id"]: len(value) for key, value in components}
+# largest_component = max(component_sizes, key=component_sizes.get)
+# print(
+#     f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph."
+# )
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph.") == "The largest component contains 134 of the 139 nodes in the graph."
+# Temporarily disabled with NodeState.groups([...]) (see note above).
+# assert str(f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph.") == "The largest component contains 134 of the 139 nodes in the graph."
 ```
 
 !!! Output

@@ -11,3 +11,11 @@ path = "src/main.rs"
 raphtory-graphql = { workspace = true }
 auth = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+
+[features]
+vectors = ["raphtory-graphql/vectors"]

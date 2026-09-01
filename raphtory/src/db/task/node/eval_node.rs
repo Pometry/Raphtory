@@ -12,11 +12,11 @@ use crate::{
         api::{
             state::ops::{ArrowNodeOp, NodeOp},
             view::{
-                internal::{GraphView, InternalFilter},
-                BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
+                internal::{DynGraphArc, GraphView, InternalFilter},
+                BaseNodeViewOps, IntoDynBoxed,
             },
         },
-        graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
+        graph::{edges::Edges, node::NodeView, path::PathFromNode},
         task::{
             edge::eval_edges::EvalEdges, eval_graph::EvalGraph, node::eval_node_state::EVState,
         },
@@ -234,14 +234,14 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
 
 pub struct EvalPathFromNode<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState, S> {
     pub(crate) eval_graph: EvalGraph<'graph, 'a, G, S, CS>,
-    pub(crate) op: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
+    pub(crate) path: PathFromNode<'graph, G>,
 }
 
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     EvalPathFromNode<'graph, 'a, G, CS, S>
 {
     fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
-        (self.op)()
+        self.path.iter_refs()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = EvalNodeView<'graph, 'a, G, S, CS>> + 'graph {
@@ -254,26 +254,10 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     }
 
     pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(&self, node_types: I) -> Self {
-        let node_types_filter = create_node_type_filter(
-            self.eval_graph.base_graph.node_meta().node_type_meta(),
-            node_types,
-        );
-
-        let base_graph = self.eval_graph.base_graph.clone();
-        let old_op = self.op.clone();
-
+        let path = self.path.type_filter(node_types);
         EvalPathFromNode {
             eval_graph: self.eval_graph.clone(),
-            op: Arc::new(move || {
-                let base_graph = base_graph.clone();
-                let node_types_filter = node_types_filter.clone();
-                old_op()
-                    .filter(move |v| {
-                        let node_type_id = base_graph.node_type_id(*v);
-                        node_types_filter[node_type_id]
-                    })
-                    .into_dyn_boxed()
-            }),
+            path,
         }
     }
 }
@@ -295,7 +279,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Clon
     fn clone(&self) -> Self {
         EvalPathFromNode {
             eval_graph: self.eval_graph.clone(),
-            op: self.op.clone(),
+            path: self.path.clone(),
         }
     }
 }
@@ -323,7 +307,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -332,10 +316,8 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         let node_state = self.eval_graph.node_state.clone();
         let ss = self.eval_graph.ss;
         let storage = self.eval_graph.storage;
-        let path =
-            PathFromNode::new_one_hop_filtered(self.eval_graph.base_graph.clone(), self.op.clone());
+        let edges = self.path.map_edges(op);
         let index = self.eval_graph.index;
-        let edges = path.map_edges(op);
         EvalEdges {
             ss,
             edges,
@@ -348,25 +330,16 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::PathType {
-        let old_op = self.op.clone();
-        let graph = self.eval_graph.base_graph.clone();
-        let storage = self.eval_graph.storage;
-        let new_op = Arc::new(move || {
-            let op = op.clone();
-            let graph = graph.clone();
-            old_op()
-                .flat_map(move |vv| op(storage, &graph, vv))
-                .into_dyn_boxed()
-        });
+        let path = self.path.hop(op);
 
         EvalPathFromNode {
             eval_graph: self.eval_graph.clone(),
-            op: new_op,
+            path,
         }
     }
 }
@@ -391,8 +364,8 @@ where
         filtered_graph: Next,
     ) -> Self::Filtered<Next> {
         EvalPathFromNode {
-            eval_graph: self.eval_graph.apply_filter(filtered_graph),
-            op: self.op.clone(),
+            eval_graph: self.eval_graph.apply_filter(filtered_graph.clone()),
+            path: self.path.apply_filter(filtered_graph),
         }
     }
 }
@@ -449,7 +422,7 @@ impl<'graph, 'a: 'graph, G: GraphView + 'graph, S: 'static, CS: ComputeState + '
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -459,12 +432,8 @@ impl<'graph, 'a: 'graph, G: GraphView + 'graph, S: 'static, CS: ComputeState + '
         let node_state = self.eval_graph.node_state.clone();
         let node = self.node;
         let storage = self.eval_graph.storage;
-        let graph = self.eval_graph.base_graph.clone();
-        let edges = Arc::new(move || op(storage, &graph, node).into_dyn_boxed());
-        let edges = Edges {
-            base_graph: self.eval_graph.base_graph.clone(),
-            edges,
-        };
+        let edges = Arc::new(move |graph| op(storage, &graph, node).into_dyn_boxed());
+        let edges = Edges::new(self.eval_graph.base_graph.clone(), edges);
         let index = self.eval_graph.index;
         EvalEdges {
             ss,
@@ -478,18 +447,18 @@ impl<'graph, 'a: 'graph, G: GraphView + 'graph, S: 'static, CS: ComputeState + '
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::PathType {
-        let graph = self.eval_graph.base_graph.clone();
         let node = self.node;
         let storage = self.eval_graph.storage;
-        let path_op = Arc::new(move || op(storage, &graph, node).into_dyn_boxed());
+        let path_op = Arc::new(move |graph| op(storage, &graph, node).into_dyn_boxed());
+        let path = PathFromNode::new(self.eval_graph.base_graph.clone(), path_op);
         EvalPathFromNode {
             eval_graph: self.eval_graph.clone(),
-            op: path_op,
+            path,
         }
     }
 }

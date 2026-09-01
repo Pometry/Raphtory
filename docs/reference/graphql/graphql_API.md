@@ -95,6 +95,73 @@ Graph path relative to the root namespace.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="queryroot.namespaces">namespaces</strong></td>
+<td valign="top"><a href="#collectionofnamespace">CollectionOfNamespace</a>!</td>
+<td>
+
+Returns all namespaces using recursive search
+
+Returns::  List of namespaces on root
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.namespace">namespace</strong></td>
+<td valign="top"><a href="#namespace">Namespace</a>!</td>
+<td>
+
+Returns a specific namespace at a given path
+
+Returns:: Namespace or error if no namespace found
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.root">root</strong></td>
+<td valign="top"><a href="#namespace">Namespace</a>!</td>
+<td>
+
+Returns root namespace
+
+Returns::  Root namespace
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.receivegraph">receiveGraph</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Encodes graph and returns as string.
+
+Returns:: Base64 url safe encoded string
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.version">version</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Version string of the running `raphtory-graphql` server build.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="queryroot.vectorisegraph">vectoriseGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
@@ -142,6 +209,57 @@ Optional edge-document template; defaults to the built-in template.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="queryroot.vectorisemissing">vectoriseMissing</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Index only the entities that are missing from an existing vector index, leaving what is
+already indexed untouched. Cheap enough to run routinely, and never destructive.
+
+Fails if the graph has no index yet, or if the template or model differs from the one the
+index was built with — `vectoriseGraph` is what covers those, by rebuilding.
+
+Returns:: bool
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">model</td>
+<td valign="top"><a href="#embeddingmodel">EmbeddingModel</a></td>
+<td>
+
+Embedding model; must match the one the index was built with.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td>
+
+Node-document template; must match the one the index was built with.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">edges</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td>
+
+Edge-document template; must match the one the index was built with.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="queryroot.vectorisedgraph">vectorisedGraph</strong></td>
 <td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
 <td>
@@ -161,82 +279,6 @@ Graph path relative to the root namespace.
 
 </td>
 </tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.namespaces">namespaces</strong></td>
-<td valign="top"><a href="#collectionofnamespace">CollectionOfNamespace</a>!</td>
-<td>
-
-Returns all namespaces using recursive search
-
-Returns::  List of namespaces on root
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.namespace">namespace</strong></td>
-<td valign="top"><a href="#namespace">Namespace</a>!</td>
-<td>
-
-Returns a specific namespace at a given path
-
-Returns:: Namespace or error if no namespace found
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">path</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.root">root</strong></td>
-<td valign="top"><a href="#namespace">Namespace</a>!</td>
-<td>
-
-Returns root namespace
-
-Returns::  Root namespace
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.plugins">plugins</strong></td>
-<td valign="top"><a href="#queryplugin">QueryPlugin</a>!</td>
-<td>
-
-Returns a plugin.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.receivegraph">receiveGraph</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Encodes graph and returns as string.
-
-Returns:: Base64 url safe encoded string
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">path</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Graph path relative to the root namespace.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="queryroot.version">version</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Version string of the running `raphtory-graphql` server build.
-
-</td>
-</tr>
 </tbody>
 </table>
 
@@ -252,15 +294,6 @@ Version string of the running `raphtory-graphql` server build.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="mutroot.plugins">plugins</strong></td>
-<td valign="top"><a href="#mutationplugin">MutationPlugin</a>!</td>
-<td>
-
-Returns a collection of mutation plugins.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
@@ -275,6 +308,231 @@ Delete graph from a path on the server.
 <td>
 
 Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.loadnodes">loadNodes</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Load nodes
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dataPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to the parquet directory.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">id</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeType</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the node type for all nodes. Cannot be used in combination with node_type_col.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypeCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The node type column name in a dataframe. Cannot be used in combination with node_type.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">properties</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of node property column names.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">metadata</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of node metadata column names.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">schema</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The column name for the secondary index.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the layer for all nodes. Cannot be used in combination with layer_col.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layerCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The node layer column name in a dataframe. Cannot be used in combination with layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.loadedges">loadEdges</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Load edges
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">graphPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dataPath</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to the parquet directory.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the update timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the source node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The column name for the destination node IDs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">properties</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of edge property column names. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">metadata</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of edge metadata column names. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">schema</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A JSON-formatted dict of {'column_name': column_type} to cast columns to. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The column name for the secondary index.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layerCol</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
 </td>
 </tr>
@@ -549,16 +807,16 @@ If true, replace any graph already at `newPath`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="mutroot.createindex">createIndex</strong></td>
+<td colspan="2" valign="top"><strong id="mutroot.flush">flush</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-(Experimental) Creates search index.
+Flush any pending writes for the graph at `graphPath` to disk.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" align="right" valign="top">path</td>
+<td colspan="2" align="right" valign="top">graphPath</td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
@@ -566,24 +824,1079 @@ Graph path relative to the root namespace.
 
 </td>
 </tr>
-<tr>
-<td colspan="2" align="right" valign="top">indexSpec</td>
-<td valign="top"><a href="#indexspecinput">IndexSpecInput</a></td>
-<td>
-
-Optional spec selecting which node/edge property fields to index. Omit to index a default set.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">inRam</td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
-</tr>
 </tbody>
 </table>
 
 ## Objects
+
+### Algorithms
+
+The algorithms that can be run on a graph view.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.pagerank">pagerank</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the PageRank centrality of every node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 20.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Convergence tolerance. Defaults to 0.000001.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dampingFactor</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Probability that the spread continues. Defaults to 0.85.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weight</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.degreecentrality">degreeCentrality</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the degree centrality of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.betweennesscentrality">betweennessCentrality</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the betweenness centrality of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of nodes to sample. Defaults to all nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">normalized</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether to normalize the values. Defaults to true.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.hits">hits</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the HITS hub and authority scores of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 20.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.singlesourceshortestpath">singleSourceShortestPath</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the shortest (unweighted) path from `source` to every reachable node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">cutoff</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Optional maximum path length; stops the search once reached.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.incomponents">inComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the in component (all nodes that can reach it following out-edges) of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.outcomponents">outComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the out component (all reachable nodes following out-edges) of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.incomponent">inComponent</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the in component of a single node (nodes that can reach it, with their distance).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.outcomponent">outComponent</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the out component of a single node (nodes it can reach, with their distance).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localtrianglecount">localTriangleCount</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the local triangle count of a single node (0 if it has degree < 2), or null if
+the node does not exist in the view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localclusteringcoefficient">localClusteringCoefficient</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Returns the local clustering coefficient of a single node (0 if it has degree < 2), or
+null if the node does not exist in the view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.weaklyconnectedcomponents">weaklyConnectedComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the weakly connected component id of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.stronglyconnectedcomponents">stronglyConnectedComponents</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the strongly connected component id of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.louvain">louvain</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the community of every node (Louvain).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">resolution</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Resolution parameter for modularity. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weightProp</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Convergence tolerance. Defaults to 1e-8.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rngSeed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the node-shuffling rng. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.labelpropagation">labelPropagation</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the community of every node (label propagation).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 20.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.dijkstra">dijkstra</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Target node ids.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weight</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#direction">Direction</a></td>
+<td>
+
+Edge direction to follow. Defaults to BOTH.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.alllocalreciprocity">allLocalReciprocity</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the local reciprocity of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.balance">balance</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the net sum of edge weights (balance) of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. Defaults to `weight`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#direction">Direction</a></td>
+<td>
+
+Edge direction to consider. Defaults to BOTH.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localclusteringcoefficientbatch">localClusteringCoefficientBatch</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the local clustering coefficient of each of the given nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to compute the coefficient for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globalclusteringcoefficient">globalClusteringCoefficient</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the global clustering coefficient of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.directedgraphdensity">directedGraphDensity</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the directed graph density (fraction of possible directed edges present).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globalreciprocity">globalReciprocity</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the global reciprocity of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.averagedegree">averageDegree</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the average (undirected) degree of the graph's nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxdegree">maxDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the maximum (undirected) degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.mindegree">minDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the minimum (undirected) degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxoutdegree">maxOutDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the maximum out-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxindegree">maxInDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the maximum in-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.minoutdegree">minOutDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the minimum out-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.minindegree">minInDegree</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the minimum in-degree of any node in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.tripletcount">tripletCount</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of connected triplets (paths of length 2) in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.trianglecount">triangleCount</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of triangles in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.fastrp">fastRp</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the FastRP embedding of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">embeddingDim</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Dimension of the embedding.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">normalizationStrength</td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Normalization strength applied to neighbour contributions.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterWeights</td>
+<td valign="top">[<a href="#float">Float</a>!]!</td>
+<td>
+
+Weight of each iteration's contribution to the embedding.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">seed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the rng. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.temporallyreachablenodes">temporallyReachableNodes</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the nodes temporally reachable from `seedNodes` starting at `startTime`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">maxHops</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of hops to traverse.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">startTime</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Time at which the traversal starts.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">seedNodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to start from.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">stopNodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Node ids that halt the traversal when reached.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.fruchtermanreingold">fruchtermanReingold</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the 2D layout position of every node (Fruchterman-Reingold).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 100.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">scale</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Scale of the layout. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeStartSize</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Initial node size. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">cooloffFactor</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Cooloff factor. Defaults to 0.95.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dt</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Time step. Defaults to 0.1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.cohesivefruchtermanreingold">cohesiveFruchtermanReingold</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the 2D layout position of every node (cohesive Fruchterman-Reingold).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of iterations to run. Defaults to 100.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">scale</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Scale of the layout. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeStartSize</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Initial node size. Defaults to 1.0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">cooloffFactor</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Cooloff factor. Defaults to 0.95.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dt</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Time step. Defaults to 0.1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.localtemporalthreenodemotifs">localTemporalThreeNodeMotifs</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns the local temporal three-node motif counts of every node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">delta</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum time difference between the first and last edge of a motif.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globaltemporalthreenodemotif">globalTemporalThreeNodeMotif</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Returns the graph-wide temporal three-node motif counts: 40 counts in a
+fixed order (8 two-node, 24 star, then 8 triangle motifs).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">delta</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum time difference between the first and last edge of a motif.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.globaltemporalthreenodemotifmulti">globalTemporalThreeNodeMotifMulti</strong></td>
+<td valign="top">[<a href="#motifcounts">MotifCounts</a>!]!</td>
+<td>
+
+Returns the graph-wide temporal three-node motif counts for each of
+`deltas`, one row of 40 counts per delta, in the order given.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">deltas</td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+Maximum time differences to compute the motif counts for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.temporalrichclubcoefficient">temporalRichClubCoefficient</strong></td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Returns the temporal rich club coefficient: the maximal density among the
+nodes of degree at least `k` that persists over `windowSize` consecutive
+snapshots. The snapshots are the rolling windows described by
+`rollingWindow` / `rollingStep`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Minimum degree a node must have to be in the rich club.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">windowSize</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of consecutive snapshots the edges must persist over.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rollingWindow</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td>
+
+Width of each snapshot.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rollingStep</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a></td>
+<td>
+
+Optional gap between the start of one snapshot and the next. Defaults to `rollingWindow`, i.e. non-overlapping snapshots.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.temporalseir">temporalSeir</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Simulates an SEIR epidemic, returning the infection, activation and
+recovery times of every node that was infected.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">seeds</td>
+<td valign="top"><a href="#seeds">Seeds</a>!</td>
+<td>
+
+How the initially infected nodes are chosen.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">infectionProb</td>
+<td valign="top"><a href="#float">Float</a>!</td>
+<td>
+
+Probability that an encounter between an active and a susceptible node infects it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">initialInfection</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Time of the initial infection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">recoveryRate</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Rate at which infected nodes recover. If unset, nodes never recover.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">incubationRate</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Rate at which infected nodes become infectious. If unset, they are infectious immediately.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">rngSeed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the random number generator. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="algorithms.maxweightmatching">maxWeightMatching</strong></td>
+<td valign="top"><a href="#matching">Matching</a>!</td>
+<td>
+
+Returns a maximum weight matching of the graph, treated as undirected.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">weightProp</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Edge property to use as weight. If unset, all edges have weight 1.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">maxCardinality</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Only consider maximum-cardinality matchings. Defaults to false.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">verifyOptimum</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Verify that the matching found is optimum. Defaults to false.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ### CollectionOfMetaGraph
 
@@ -1163,33 +2476,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edge.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#edge">Edge</a>!</td>
-<td>
-
-Shrinks both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edge.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
@@ -1311,6 +2597,29 @@ Returns the start time for rolling and expanding windows for this edge. Returns 
 Returns the end time of the window. Returns none if no window is applied.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.src">src</strong></td>
@@ -1495,10 +2804,65 @@ metadata / history are restricted to the matching subset.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.event">event</strong></td>
+<td valign="top"><a href="#edge">Edge</a>!</td>
+<td>
+
+Pin this edge to a single event — the exploded instance recorded at
+the given event time, optionally restricted to a layer. Matches the
+members of `explode`: the returned edge answers `time` and `layerName`
+and its properties are those of that one update. An Int or DateTime
+String matches the first event at that timestamp; pass the object form
+`{timestamp, eventId}` to select an exact event when several share a
+timestamp. Errors if the edge has no matching event under the current
+view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Event time to pin to — Int, DateTime String, or `{timestamp, eventId}`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Optional layer name the event must belong to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edge.eventlayer">eventLayer</strong></td>
+<td valign="top"><a href="#edge">Edge</a>!</td>
+<td>
+
+Pin this edge to a single layer-exploded instance by layer name — the
+analogue of `event(...)` for `explodeLayers()`. The returned edge has a
+resolved `layerName`; `time` is unavailable on it, matching the local
+`explode_layers()` semantics (a layer instance spans all of its events).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to pin to.
 
 </td>
 </tr>
@@ -1931,33 +3295,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edges.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#edges">Edges</a>!</td>
-<td>
-
-Shrinks both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edges.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
@@ -2048,7 +3385,7 @@ on the first key break to the second, etc.).
 <td valign="top">[<a href="#edgesortby">EdgeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -2071,16 +3408,87 @@ Returns the end time of the window or none if there is no window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edges.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="edges.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.src">src</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the source node of each edge, as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.dst">dst</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the destination node of each edge, as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.nbr">nbr</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the node at the other end of each edge (destination for
+out-edges, source for in-edges), as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Returns the number of edges.
 
 Returns:
 int:
+The property keys this collection reports: the first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.page">page</strong></td>
@@ -2156,10 +3564,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -2191,10 +3599,10 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite edge filter (by property, layer, src/dst, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -2728,34 +4136,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Shrink both the start and end of the window. The new bounds are taken as the
-intersection with the current window; this never widens the view.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if before the current start.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if after the current end.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graph.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
@@ -2855,6 +4235,29 @@ Returns the start time of the window. Errors if there is no window.
 Returns the end time of the window. Errors if there is no window.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliestedgetime">earliestEdgeTime</strong></td>
@@ -3120,13 +4523,11 @@ Returns the graph schema.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.algorithms">algorithms</strong></td>
-<td valign="top"><a href="#graphalgorithmplugin">GraphAlgorithmPlugin</a>!</td>
+<td colspan="2" valign="top"><strong id="graph.algorithm">algorithm</strong></td>
+<td valign="top"><a href="#algorithms">Algorithms</a>!</td>
 <td>
 
-Access registered graph algorithms (PageRank, shortest path, etc.) for this
-graph view. The set of available algorithms is defined by the plugin registry
-loaded at server startup.
+Access the algorithms that can be run on this graph view.
 
 </td>
 </tr>
@@ -3146,6 +4547,16 @@ intersection of each selected node's neighbour set (undirected).
 <td>
 
 Node ids whose common neighbours you want. Returns an empty list if `selectedNodes` is empty or any id does not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.getallnodetypes">getAllNodeTypes</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+All node types present in the graph. Mirrors the local
+`Graph.get_all_node_types`.
 
 </td>
 </tr>
@@ -3181,133 +4592,10 @@ expression and narrows nodes, edges, and their properties to what matches.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
 <td>
 
-Optional composite filter combining node, edge, property, and metadata conditions. If omitted, applies the identity filter (equivalent to no filtering).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.filternodes">filterNodes</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Returns a graph view restricted to nodes that match the given filter; edges
-are kept only if both endpoints survive.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td>
-
-Composite node filter (by name, property, type, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.filteredges">filterEdges</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Returns a graph view restricted to edges that match the given filter. Nodes
-remain in the view even if all their edges are filtered out.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td>
-
-Composite edge filter (by property, layer, src/dst, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.getindexspec">getIndexSpec</strong></td>
-<td valign="top"><a href="#indexspec">IndexSpec</a>!</td>
-<td>
-
-(Experimental) Get index specification.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.searchnodes">searchNodes</strong></td>
-<td valign="top">[<a href="#node">Node</a>!]!</td>
-<td>
-
-(Experimental) Searches for nodes which match the given filter
-expression. Uses Tantivy's exact search; requires the graph to have
-been indexed.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td>
-
-Composite node filter (by name, property, type, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Maximum number of nodes to return.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">offset</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Number of matches to skip before returning results.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.searchedges">searchEdges</strong></td>
-<td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td>
-
-(Experimental) Searches the index for edges which match the given
-filter expression. Uses Tantivy's exact search; requires the graph to
-have been indexed.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td>
-
-Composite edge filter (by property, layer, src/dst, etc.).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">limit</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Maximum number of edges to return.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">offset</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-Number of matches to skip before returning results.
+Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
 
 </td>
 </tr>
@@ -3330,66 +4618,6 @@ resulting graph view. Lets callers compose multiple view transforms
 Ordered list of view operations; each entry is a one-of variant applied to the running result.
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### GraphAlgorithmPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">weight</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -3640,6 +4868,15 @@ Returns True if the history is empty.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="history.reverse">reverse</strong></td>
+<td valign="top"><a href="#history">History</a>!</td>
+<td>
+
+Returns a new history with the iteration order of the entries reversed.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="history.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
@@ -3647,6 +4884,27 @@ Returns True if the history is empty.
 Get the number of entries contained in the history.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="history.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether an entry equal to the given time is present. With `eventId`,
+an entry must match both the timestamp and the event id; without it,
+any entry at the timestamp matches.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">timestamp</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="history.timestamps">timestamps</strong></td>
@@ -3878,6 +5136,29 @@ History object that provides access to event ids instead of `EventTime` entries.
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="historyeventid.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of event ids (one per entry).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historyeventid.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the given value is present among the event ids.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">value</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="historyeventid.list">list</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
 <td>
@@ -3993,6 +5274,29 @@ History object that provides access to timestamps (milliseconds since the Unix e
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of timestamps (one per entry).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the given value is present among the timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">value</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="historytimestamp.list">list</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
 <td>
@@ -4093,57 +5397,6 @@ Zero-based page number; multiplies `limit` to determine where to start (default 
 </tbody>
 </table>
 
-### IndexSpec
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.nodemetadata">nodeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.nodeproperties">nodeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns node properties.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.edgemetadata">edgeMetadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge metadata.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspec.edgeproperties">edgeProperties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Returns edge properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### Intervals
 
 Provides access to the intervals between temporal entries of an object.
@@ -4158,6 +5411,30 @@ Provides access to the intervals between temporal entries of an object.
 </tr>
 </thead>
 <tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of intervals (one per consecutive pair of entries,
+so one less than the history's count; zero for an empty history).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the given value is present among the intervals.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">value</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
 <tr>
 <td colspan="2" valign="top"><strong id="intervals.list">list</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
@@ -4331,6 +5608,140 @@ Returns the list of edge schemas for this edge layer
 </tbody>
 </table>
 
+### Matching
+
+A matching of a graph: a set of edges no two of which share a node.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of edges in the matching.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.edges">edges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+The edges in the matching.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.src">src</strong></td>
+<td valign="top"><a href="#node">Node</a></td>
+<td>
+
+The node matched to `dst`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Destination node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.dst">dst</strong></td>
+<td valign="top"><a href="#node">Node</a></td>
+<td>
+
+The node matched to `src`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.edgeforsrc">edgeForSrc</strong></td>
+<td valign="top"><a href="#edge">Edge</a></td>
+<td>
+
+The matched edge for `src`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.edgefordst">edgeForDst</strong></td>
+<td valign="top"><a href="#edge">Edge</a></td>
+<td>
+
+The matched edge for `dst`, null if it is unmatched.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Destination node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="matching.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the `src` to `dst` edge is part of the matching.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">src</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">dst</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Destination node id.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### MetaGraph
 
 Lightweight summary of a stored graph — its name, path, counts, and
@@ -4395,19 +5806,19 @@ Returns the graph's last updated timestamp.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.nodecount">nodeCount</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the number of nodes in the graph.
+Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.edgecount">edgeCount</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the number of edges in the graph.
+Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
 
 Returns:
 int:
@@ -4416,10 +5827,10 @@ int:
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.metadata">metadata</strong></td>
-<td valign="top">[<a href="#property">Property</a>!]!</td>
+<td valign="top">[<a href="#property">Property</a>!]</td>
 <td>
 
-Returns the metadata of the graph.
+Returns the metadata of the graph, or null if the caller lacks unfiltered read.
 
 Reads metadata without forcing a full graph load: from the
 in-memory cache if the graph is already loaded, otherwise directly
@@ -4510,6 +5921,42 @@ All metadata values as `{key, value}` entries.
 <td>
 
 Optional whitelist. If provided, only metadata with these keys is returned; if omitted, every metadata entry is returned.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MotifCounts
+
+The motif counts for a single delta. Wraps the counts in an object because
+the schema builder does not support nested lists of scalars.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="motifcounts.delta">delta</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+The delta these counts were computed for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="motifcounts.counts">counts</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The 40 motif counts, positionally ordered (see the core docs).
 
 </td>
 </tr>
@@ -5247,26 +6694,6 @@ Optional layer name. If omitted, the default layer is used.
 </tbody>
 </table>
 
-### MutationPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="mutationplugin.noops">NoOps</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### Namespace
 
 A directory-like container for graphs and nested namespaces. Graphs are
@@ -5293,6 +6720,28 @@ Graphs directly inside this namespace (excludes graphs in nested
 namespaces). Filtered by the caller's permissions — only graphs the
 caller is allowed to see are returned.
 
+`filter` and `sort` are applied before the returned collection is paged,
+so `count` reflects the filtered total and `page` slices the sorted
+order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Restricts which graphs are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top">[<a href="#metagraphsort">MetaGraphSort</a>!]</td>
+<td>
+
+Sort keys applied in order, before paging.
+
 </td>
 </tr>
 <tr>
@@ -5302,6 +6751,19 @@ caller is allowed to see are returned.
 
 Path of this namespace relative to the root namespace. Empty string for
 the root namespace itself.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespace.lastupdated">lastUpdated</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Most recent `lastUpdated` across the graphs directly inside this
+namespace, or null when it holds none.
+
+Computed here so a listing can show a folder's recency without the client
+walking every graph in every folder it displays.
 
 </td>
 </tr>
@@ -5322,6 +6784,26 @@ Parent namespace, or null at the root.
 Sub-namespaces directly inside this one (one level down, not recursive).
 Filtered by permissions.
 
+`filter` and `sort` are applied before the returned collection is paged.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#namespacefilter">NamespaceFilter</a></td>
+<td>
+
+Restricts which sub-namespaces are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top"><a href="#namespacesort">NamespaceSort</a></td>
+<td>
+
+Ordering applied before paging.
+
 </td>
 </tr>
 <tr>
@@ -5332,6 +6814,521 @@ Filtered by permissions.
 Everything in this namespace — sub-namespaces and graphs — as a single
 heterogeneous collection. Sub-namespaces are listed before graphs.
 Filtered by permissions.
+
+`filter` and `sort` are applied before the returned collection is paged.
+`sort` orders the graphs; sub-namespaces keep path order and stay ahead of
+them, so a client paging this collection walks folders before graphs
+regardless of how the graphs are ordered.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#namespaceditemfilter">NamespacedItemFilter</a></td>
+<td>
+
+Restricts which items are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top">[<a href="#metagraphsort">MetaGraphSort</a>!]</td>
+<td>
+
+Sort keys for the graphs, applied in order before paging.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NestedEdges
+
+A nested collection of edges anchored to a source collection — the result of
+collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`.
+Each source node yields its own list of incident edges, so results are
+shaped as a list of per-source edge collections. Supports the usual view
+transforms (window, layer, filter, ...).
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing only edges in the default edge layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.layers">layers</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing only edges belonging to the listed layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.excludelayers">excludeLayers</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing edges belonging to all layers except the excluded list of layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.layer">layer</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing edges belonging to the specified layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns a collection containing edges belonging to all layers except the excluded layer specified.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.window">window</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Inclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.at">at</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events at a specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant to pin the view to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.latest">latest</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+View showing only the latest state of each edge (equivalent to `at(latestTime)`).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events that are valid at time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant at which entities must be valid.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events that are valid at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.before">before</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events before a specified end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.after">after</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Creates a view of the NestedEdges including all events after a specified start (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Set the start of the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Set the end of the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.applyviews">applyViews</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Takes a specified selection of views and applies them in order given.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">views</td>
+<td valign="top">[<a href="#edgesviewcollection">EdgesViewCollection</a>!]!</td>
+<td>
+
+Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.start">start</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the earliest time that this NestedEdges is valid or None if valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.end">end</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the latest time that this NestedEdges is valid or None if valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.src">src</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the source node of each edge, grouped per source node, as a
+nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.dst">dst</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the destination node of each edge, grouped per source node, as a
+nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.nbr">nbr</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the node at the other end of each edge (destination for
+out-edges, source for in-edges), grouped per source node, as a nested
+`PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.explode">explode</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Expand each source's edges into one edge per update — mirrors the local
+`NestedEdges.explode`. The per-source nesting is preserved; only the
+inner edge lists fan out per event.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.explodelayers">explodeLayers</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Expand each source's edges into one edge per layer — mirrors the local
+`NestedEdges.explode_layers`. Each resulting edge carries only the
+updates from its respective layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Number of source edge collections in this collection (one per source node).
+The property keys this collection reports: the first non-empty source's first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first non-empty source's first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.page">page</strong></td>
+<td valign="top">[<a href="#edges">Edges</a>!]!</td>
+<td>
+
+Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
+will be returned. Each entry is the per-source list of incident edges.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of source edge collections to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra source edge collections to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.list">list</strong></td>
+<td valign="top">[<a href="#edges">Edges</a>!]!</td>
+<td>
+
+Materialise every source edge collection — one `Edges` per source node,
+each holding that source's incident-edge list. Read
+`list { list { src { name } dst { name } } }` to reach the per-source
+edges. Rejected by the server when bulk list endpoints are disabled; use
+`page` for paginated access instead.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.filter">filter</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Narrow the edge set to edges matching `expr`. The filter sticks to the
+returned collection — every subsequent traversal continues to see the
+filtered scope.
+
+Contrast with `select`, which applies here and is not carried through.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td>
+
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.select">select</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Narrow the edge set to edges matching `expr`, but only at this hop —
+further traversals out of these edges see the unfiltered graph again.
+
+Contrast with `filter`, which persists the scope through subsequent ops.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td>
+
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -5647,33 +7644,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="node.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#node">Node</a>!</td>
-<td>
-
-Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="node.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
@@ -5801,6 +7771,29 @@ Check if the node is active and it's history is not empty.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="node.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="node.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="node.nodetype">nodeType</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td>
@@ -5857,11 +7850,35 @@ Returns the number edges with this node as the destination.
 <tr>
 <td colspan="2" valign="top"><strong id="node.incomponent">inComponent</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
+filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+steps through. The returned nodes are on the full graph so their other-layer neighbours stay
+queryable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outcomponent">outComponent</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
+filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
+neighbours remain queryable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5955,8 +7972,12 @@ Returns the number of neighbours that have at least one out-going edge from this
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td>
+
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6005,6 +8026,593 @@ string-valued properties) the set of distinct values.
 
 Metadata schemas seen on nodes of this type — like `properties`, but
 covering metadata fields rather than temporal properties.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeState
+
+A mapping from the nodes of a graph to the values computed for them by an algorithm.
+
+The output is columnar: every column of the underlying node state is exposed as
+a `NodeStateColumn` whose `values` are row-aligned with `nodes`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Returns the number of nodes with a value in this node state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.nodes">nodes</strong></td>
+<td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+The nodes with a value in this node state, in row order. Aligned with `values`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.columnnames">columnNames</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The column names of this node state in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.rows">rows</strong></td>
+<td valign="top">[<a href="#nodestaterow">NodeStateRow</a>!]!</td>
+<td>
+
+All rows of the node state keyed by node, with one entry per column.
+Unbounded: honours the same list guard as the other bulk endpoints, so
+`disable_lists` cannot be bypassed through node state. Use `page` when
+lists are disabled.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.headlessrows">headlessRows</strong></td>
+<td valign="top">[<a href="#nodestateheadlessrow">NodeStateHeadlessRow</a>!]!</td>
+<td>
+
+All rows of the node state keyed by node, without the column names: the `values` of each row are
+in `columnNames` order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.get">get</strong></td>
+<td valign="top">[<a href="#nodestateentry">NodeStateEntry</a>!]</td>
+<td>
+
+Returns the values for a node, one entry per column; null if the node has no value in this NodeState.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">node</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.min">min</strong></td>
+<td valign="top"><a href="#nodestateitem">NodeStateItem</a></td>
+<td>
+
+Minimum `(node, value)` of a column. Null if the column does not exist, is empty,
+or its values are not comparable (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.max">max</strong></td>
+<td valign="top"><a href="#nodestateitem">NodeStateItem</a></td>
+<td>
+
+Maximum `(node, value)` of a column. Null if the column does not exist, is empty,
+or its values are not comparable (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.sum">sum</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Sum of a column's values, skipping empty cells. Null if the column does not exist, is empty,
+or is not additive (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.mean">mean</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Mean of a column's values as a float, skipping empty cells. Null if the column does not exist,
+is empty, or has any non-numeric value.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.median">median</strong></td>
+<td valign="top"><a href="#nodestateitem">NodeStateItem</a></td>
+<td>
+
+Median `(node, value)` of a column (upper median on even lengths). Null if the column
+does not exist, is empty, or is not comparable (e.g. contains nodes).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.topk">topK</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a></td>
+<td>
+
+Returns the `k` rows with the largest values in a column. Empty cells rank
+lowest, so they are only included if fewer than `k` rows have a value.
+Null if the column does not exist, is empty, or is not comparable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of rows to return.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.bottomk">bottomK</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a></td>
+<td>
+
+Returns the `k` rows with the smallest values in a column. Empty cells rank
+highest, so they are only included if fewer than `k` rows have a value.
+Null if the column does not exist, is empty, or is not comparable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">k</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of rows to return.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.sortbyvalues">sortByValues</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a></td>
+<td>
+
+Returns a view of this node state with the rows sorted by a column's values,
+ascending with empty cells last. `reverse` flips the whole ordering, putting
+empty cells first. Null if the column does not exist, is empty, or is not
+comparable.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">reverse</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Sort in descending order instead. Defaults to false.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.groupby">groupBy</strong></td>
+<td valign="top">[<a href="#nodestategroup">NodeStateGroup</a>!]</td>
+<td>
+
+Groups the nodes by their value in a column. Nodes with an empty cell form
+their own group. Null if the column does not exist or contains nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">column</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Column name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.page">page</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns one page of this node state as a node state of its own, so that
+`nodes` / `rows` / `columns` on it stay row-aligned with each other.
+Pages past the end are empty rather than an error.
+
+For example, if page(limit: 5, offset: 1, page_index: 2) is called, a page with 5 items,
+offset by 11 items (2 pages of 5 + 1), will be returned.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of rows to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra rows to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.sortbyid">sortById</strong></td>
+<td valign="top"><a href="#nodestate">NodeState</a>!</td>
+<td>
+
+Returns a view of this node state with the rows sorted by node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestate.columns">columns</strong></td>
+<td valign="top">[<a href="#nodestatecolumn">NodeStateColumn</a>!]!</td>
+<td>
+
+The columns of the node state, one per output field of the algorithm.
+`values` are row-aligned with `nodes`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateColumn
+
+One column of a node state: the values of a single output field of the
+algorithm. Row-aligned with `NodeState.nodes`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestatecolumn.name">name</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Name of the column.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestatecolumn.values">values</strong></td>
+<td valign="top">[<a href="#nodestatevalue">NodeStateValue</a>!]!</td>
+<td>
+
+The values of this column; `values[i]` belongs to `NodeState.nodes[i]`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateEntry
+
+One column's value for a single node.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateentry.columnname">columnName</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Name of the column.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateentry.value">value</strong></td>
+<td valign="top"><a href="#nodestatevalue">NodeStateValue</a>!</td>
+<td>
+
+The node's value in this column.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateGroup
+
+The nodes sharing one value of a column, as returned by `groupBy`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestategroup.value">value</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+The value shared by the nodes in this group; null if their cell is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestategroup.nodes">nodes</strong></td>
+<td valign="top"><a href="#nodes">Nodes</a>!</td>
+<td>
+
+The nodes holding that value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateHeadlessRow
+
+A node's full row in the node state without the column names: `values[i]`
+belongs to the column `NodeState.columnNames[i]`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateheadlessrow.node">node</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+The node this row belongs to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateheadlessrow.values">values</strong></td>
+<td valign="top">[<a href="#nodestatevalue">NodeStateValue</a>!]!</td>
+<td>
+
+The row's values, in `columnNames` order.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateItem
+
+A `(node, value)` pair, e.g. the result of a column aggregate.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateitem.node">node</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+The node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateitem.value">value</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a>!</td>
+<td>
+
+The node's value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateProp
+
+A plain property value of a node state cell.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestateprop.prop">prop</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+The property value; null if the node has no value in this column.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateRow
+
+A node's full row in the node state: one entry per column.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestaterow.node">node</strong></td>
+<td valign="top"><a href="#node">Node</a>!</td>
+<td>
+
+The node this row belongs to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestaterow.entries">entries</strong></td>
+<td valign="top">[<a href="#nodestateentry">NodeStateEntry</a>!]!</td>
+<td>
+
+The row's values, one entry per column.
 
 </td>
 </tr>
@@ -6382,33 +8990,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td>
-
-Shrink both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodes.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
@@ -6497,7 +9078,7 @@ first key break to the second, etc.).
 <td valign="top">[<a href="#nodesortby">NodeSortBy</a>!]!</td>
 <td>
 
-Ordered list of sort keys. Each entry chooses exactly one of `id` / `time` / `property`, with an optional `reverse: true` to flip order.
+Ordered list of sort keys. Each entry chooses exactly one of `id` / `name` / `type` / `time` / `property`, with an optional `reverse: true` to flip order.
 
 </td>
 </tr>
@@ -6520,13 +9101,92 @@ Returns the end time of the window. Errors if there is no window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="nodes.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.degree">degree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The degree (number of incident edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.indegree">inDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The in-degree (number of incoming edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.outdegree">outDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The out-degree (number of outgoing edges) of every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.edgehistorycount">edgeHistoryCount</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The number of edge updates incident to every node, in collection order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Number of nodes in the current view.
+The property keys this collection reports: the first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.page">page</strong></td>
@@ -6612,10 +9272,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -6647,12 +9307,96 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.neighbours">neighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the neighbouring nodes of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.inneighbours">inNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the in-neighbours of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.outneighbours">outNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the out-neighbours of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.edges">edges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incident edges (both directions) of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.inedges">inEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incoming edges of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.outedges">outEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the outgoing edges of each node in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -6736,9 +9480,14 @@ endpoints are disabled; use `page` for paginated access instead.
 </tbody>
 </table>
 
-### PagerankOutput
+### PathFromGraph
 
-PageRank score.
+A nested collection of nodes anchored to a source collection — the result of
+collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
+`outNeighbours`. Each source node yields its own list of neighbour nodes, so
+results are shaped as a list of per-source node lists. Supports all the usual
+view transforms (window, layer, filter, ...) and can be chained to walk
+further hops.
 
 <table>
 <thead>
@@ -6751,14 +9500,577 @@ PageRank score.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="pagerankoutput.name">name</strong></td>
+<td colspan="2" valign="top"><strong id="pathfromgraph.layers">layers</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns a view of PathFromGraph containing the specified layers, errors if any of the layers do not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph restricted to the default layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.excludelayers">excludeLayers</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.layer">layer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph containing the specified layer, errors if the layer does not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Return a view of PathFromGraph containing all layers except the specified excluded layer, errors if the layer does not exist.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.window">window</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events between a specified start (inclusive) and end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Inclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.at">at</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events at time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant to pin the view to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events that are valid at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events that are valid at the specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant at which entities must be valid.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.latest">latest</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.before">before</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events before the specified end (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.after">after</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Create a view of the PathFromGraph including all events after the specified start (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Set the start of the window to the larger of the specified start and self.start().
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Set the end of the window to the smaller of the specified end and self.end().
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end (TimeInput); ignored if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.typefilter">typeFilter</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Narrow this path to neighbours whose node type is in the given set.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypes</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Node types to keep.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.start">start</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.end">end</strong></td>
+<td valign="top"><a href="#eventtime">EventTime</a>!</td>
+<td>
+
+Returns the latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pagerankoutput.rank">rank</strong></td>
-<td valign="top"><a href="#float">Float</a>!</td>
+<td colspan="2" valign="top"><strong id="pathfromgraph.combinedhistory">combinedHistory</strong></td>
+<td valign="top"><a href="#history">History</a>!</td>
+<td>
+
+Returns a single history object combining the time entries of all nodes in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Number of source paths in this collection (one per source node).
+The property keys this collection reports: the first non-empty source's first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first non-empty source's first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
 <td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.page">page</strong></td>
+<td valign="top">[<a href="#pathfromnode">PathFromNode</a>!]!</td>
+<td>
+
+Fetch one page of source paths up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
+
+For example, if page(5, 2, 1) is called, a page with 5 source paths, offset by 11 (2 pages of 5 + 1),
+will be returned. Each entry is the per-source list of neighbour nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of source paths to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra source paths to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.list">list</strong></td>
+<td valign="top">[<a href="#pathfromnode">PathFromNode</a>!]!</td>
+<td>
+
+Materialise every source path — one `PathFromNode` per source node,
+each holding that source's neighbour list. Read `list { ids }` /
+`list { list { name } }` to reach the per-source neighbours. Rejected
+by the server when bulk list endpoints are disabled; use `page` for
+paginated access instead.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.ids">ids</strong></td>
+<td valign="top"><a href="#nestedstringlist">NestedStringList</a>!</td>
+<td>
+
+Columnar `ids`: every source node's neighbour ids as `[[String]]`,
+computed in ONE `blocking_compute`. Fast-path equivalent of
+`list { ids }`, which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.sourceids">sourceIds</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Columnar `sourceIds`: the id of the source node each path hangs off, in
+the same order as `ids` / `list` — one entry per source path, so entry
+`i` of `sourceIds` and entry `i` of `ids` describe the same pair. Lets a
+client reconstruct the `(source, path)` pairing in ONE request instead of
+one request per source. Computed in ONE `blocking_compute`, like `ids`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.degree">degree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `degree`: each source node's per-neighbour degrees as `[[Int]]`,
+computed in ONE `blocking_compute`. Fast-path for `list { degree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.indegree">inDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `inDegree`. Fast-path for `list { inDegree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outdegree">outDegree</strong></td>
+<td valign="top"><a href="#nestedintlist">NestedIntList</a>!</td>
+<td>
+
+Columnar `outDegree`. Fast-path for `list { outDegree }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.applyviews">applyViews</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Takes a specified selection of views and applies them in given order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">views</td>
+<td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
+<td>
+
+Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.filter">filter</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Narrow the neighbour set to nodes matching `expr`. The filter sticks to
+the returned path — every subsequent traversal (further hops, edges,
+properties) continues to see the filtered scope.
+
+Contrast with `select`, which applies here and is not carried through.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td>
+
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.select">select</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Narrow the neighbour set to nodes matching `expr`, but only at this hop
+— further traversals out of these nodes see the unfiltered graph again.
+
+Contrast with `filter`, which persists the scope through subsequent ops.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td>
+
+Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.neighbours">neighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the neighbouring nodes reachable one further hop from each source
+path (both directions), as a nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.inneighbours">inNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the in-neighbours reachable one further hop from each source
+path, as a nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outneighbours">outNeighbours</strong></td>
+<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
+<td>
+
+Returns the out-neighbours reachable one further hop from each source
+path, as a nested `PathFromGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.edges">edges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incident edges (both directions) of each source path, as a
+nested `NestedEdges` collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.inedges">inEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the incoming edges of each source path, as a nested `NestedEdges`
+collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.outedges">outEdges</strong></td>
+<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
+<td>
+
+Returns the outgoing edges of each source path, as a nested `NestedEdges`
+collection.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6795,6 +10107,15 @@ Returns a view of PathFromNode containing the specified layer, errors if the lay
 <td>
 
 Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Return a view of PathFromNode restricted to the default layer.
 
 </td>
 </tr>
@@ -7047,33 +10368,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnode.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td>
-
-Shrink both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
@@ -7146,13 +10440,101 @@ Returns the latest time that this PathFromNode is valid or None if the PathFromN
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnode.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="pathfromnode.windowsize">windowSize</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.haslayer">hasLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Check if a layer with the given name is present in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.combinedhistory">combinedHistory</strong></td>
+<td valign="top"><a href="#history">History</a>!</td>
+<td>
+
+Returns a single history object combining the time entries of all nodes reachable from the source in this view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.degree">degree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The degree (number of incident edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.indegree">inDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The in-degree (number of incoming edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.outdegree">outDegree</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The out-degree (number of outgoing edges) of every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.edgehistorycount">edgeHistoryCount</strong></td>
+<td valign="top">[<a href="#int">Int</a>!]!</td>
+<td>
+
+The number of edge updates incident to every node in the path, in order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Number of neighbour nodes reachable from the source in this view.
+The property keys this collection reports: the first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.page">page</strong></td>
@@ -7256,10 +10638,10 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
 
 </td>
 </tr>
@@ -7288,10 +10670,85 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
 <td>
 
-Composite node filter (by name, property, type, etc.).
+Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.neighbours">neighbours</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the neighbouring nodes reachable one further hop from this path
+(both directions), as a flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.inneighbours">inNeighbours</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the in-neighbours reachable one further hop from this path, as a
+flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.outneighbours">outNeighbours</strong></td>
+<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
+<td>
+
+Returns the out-neighbours reachable one further hop from this path, as a
+flat `PathFromNode`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">select</td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.edges">edges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns the incident edges (both directions) of the nodes in this path,
+as a flat `Edges` collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.inedges">inEdges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns the incoming edges of the nodes in this path, as a flat `Edges`
+collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.outedges">outEdges</strong></td>
+<td valign="top"><a href="#edges">Edges</a>!</td>
+<td>
+
+Returns the outgoing edges of the nodes in this path, as a flat `Edges`
+collection.
 
 </td>
 </tr>
@@ -7431,6 +10888,26 @@ The property name to look up.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="properties.getdtypeof">getDtypeOf</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The data-type of the property's latest value by key, as its `PropType`
+display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
+the key isn't present. Mirrors the local `Properties.get_dtype_of`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">key</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The property name.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="properties.keys">keys</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
@@ -7517,6 +10994,16 @@ numbers, booleans as booleans, strings as strings, etc.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="property.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The property's exact type, for type-directed decoding of `value`
+(`value` alone collapses e.g. all integer widths to one JSON number).
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -7540,7 +11027,20 @@ numbers, booleans as booleans, strings as strings, etc.
 <tr>
 <td colspan="2" valign="top"><strong id="propertyschema.propertytype">propertyType</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+The type rendered as text — kept for existing consumers; prefer `dtype`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyschema.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The structured property type.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propertyschema.variants">variants</strong></td>
@@ -7595,50 +11095,14 @@ booleans as booleans, etc.
 
 </td>
 </tr>
-</tbody>
-</table>
+<tr>
+<td colspan="2" valign="top"><strong id="propertytuple.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
 
-### QueryPlugin
+The value's exact type, for type-directed decoding of `value`.
 
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="queryplugin.noops">NoOps</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### ShortestPathOutput
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="shortestpathoutput.target">target</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="shortestpathoutput.nodes">nodes</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+</td>
 </tr>
 </tbody>
 </table>
@@ -7750,6 +11214,17 @@ update (via `values` / `history` / `orderedDedupe`), point lookups (`at`,
 <td>
 
 The property key (name).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The property's declared type, for type-directed decoding of stored
+values (`values`, `at`, `latest`, `unique`, `min`, `max`, `median`,
+`orderedDedupe`). Aggregates (`sum`, `mean`, `average`) may widen.
 
 </td>
 </tr>
@@ -8690,25 +12165,38 @@ Filter evaluated within the layer-restricted view.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Reverse order
+Reverse order. Applies to the `time` / `property` keys; the node keys
+(`src` / `dst` / `neighbour`) carry their own `reverse` inside the
+nested `NodeSortBy` and ignore this flag.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.src">src</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
 <td>
 
-Source node
+Sort by the source node.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.dst">dst</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
 <td>
 
-Destination
+Sort by the destination node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgesortby.neighbour">neighbour</strong></td>
+<td valign="top"><a href="#nodesortby">NodeSortBy</a></td>
+<td>
+
+Sort by the neighbour node: the endpoint that is NOT the node these
+edges were traversed from (the destination for a graph-level edge
+collection).
 
 </td>
 </tr>
@@ -8907,15 +12395,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -9103,15 +12582,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -9158,6 +12628,585 @@ Edge filter
 <td>
 
 OpenAI embedding models or compatible providers
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeFilter
+
+GraphQL input type for filtering **exploded edges** — edge views where each
+temporal event is an individually addressable edge instance, rather than
+one aggregated edge across time.
+
+Predicates are evaluated **per event**: a property condition keeps the
+individual updates that match it (and the edges carrying them), where the
+plain `EdgeFilter` evaluates one aggregated value per edge.
+
+Filters can target edge endpoints, properties/metadata, temporal scope,
+layer membership, and structural edge state, and can be combined
+recursively with `And`/`Or`/`Not` — mirroring `EdgeFilter`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.src">src</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td>
+
+Applies a filter to the **source node** of the exploded edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.dst">dst</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td>
+
+Applies a filter to the **destination node** of the exploded edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.property">property</strong></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td>
+
+Filters an exploded-edge **property** by name and value, evaluated
+per event.
+
+Example:
+`{ Property: { name: "weight", gt: 0.5 } }`
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.metadata">metadata</strong></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td>
+
+Filters an exploded-edge **metadata field**.
+
+Metadata is shared across all temporal versions of an edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td>
+
+Filters a **temporal exploded-edge property**, evaluated within a
+temporal context per event.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.and">and</strong></td>
+<td valign="top">[<a href="#explodededgefilter">ExplodedEdgeFilter</a>!]</td>
+<td>
+
+Logical **AND** over multiple exploded-edge filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.or">or</strong></td>
+<td valign="top">[<a href="#explodededgefilter">ExplodedEdgeFilter</a>!]</td>
+<td>
+
+Logical **OR** over multiple exploded-edge filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.not">not</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
+<td>
+
+Logical **NOT** over a nested exploded-edge filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.window">window</strong></td>
+<td valign="top"><a href="#explodededgewindowexpr">ExplodedEdgeWindowExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to a **time window**
+(inclusive start, exclusive end).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.at">at</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to a **single point in time**.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.before">before</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to times **strictly before** a
+given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.after">after</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Restricts exploded-edge evaluation to times **strictly after** a
+given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.latest">latest</strong></td>
+<td valign="top"><a href="#explodededgeunaryexpr">ExplodedEdgeUnaryExpr</a></td>
+<td>
+
+Evaluates exploded-edge predicates against the **latest available
+state**.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
+<td>
+
+Evaluates exploded-edge predicates against a **snapshot** of the graph
+at a specific time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#explodededgeunaryexpr">ExplodedEdgeUnaryExpr</a></td>
+<td>
+
+Evaluates exploded-edge predicates against the **most recent
+snapshot** of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.layers">layers</strong></td>
+<td valign="top"><a href="#explodededgelayersexpr">ExplodedEdgeLayersExpr</a></td>
+<td>
+
+Restricts evaluation to exploded edges belonging to one or more
+**layers**.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that have at least one event in the current
+view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isvalid">isValid</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that are structurally valid (i.e. not deleted)
+in the current view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isdeleted">isDeleted</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that have been deleted in the current
+view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgefilter.isselfloop">isSelfLoop</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Matches exploded edges that are **self-loops**
+(source node == destination node).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeLayersExpr
+
+Restricts exploded-edge evaluation to one or more layers and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Layers`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgelayersexpr.names">names</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgelayersexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated within the layer-restricted view.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeTimeExpr
+
+Restricts exploded-edge evaluation to a single time bound and applies a
+nested `ExplodedEdgeFilter`.
+
+Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgetimeexpr.time">time</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Reference time for the operation.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgetimeexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated within the restricted time scope.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeUnaryExpr
+
+Applies a unary edge-view operation and then evaluates a nested
+`ExplodedEdgeFilter`.
+
+Used by `Latest` and `SnapshotLatest` exploded-edge filters.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeunaryexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated after applying the unary operation.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeWindowExpr
+
+Restricts exploded-edge evaluation to a time window and applies a nested
+`ExplodedEdgeFilter`.
+
+Used by `GqlExplodedEdgeFilter::Window`.
+
+The window is inclusive of `start` and exclusive of `end`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgewindowexpr.start">start</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Window start time (inclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgewindowexpr.end">end</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Window end time (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgewindowexpr.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td>
+
+Filter evaluated within the restricted window.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### FuzzySearchExpr
+
+Fuzzy string match: passes when the candidate is within `levenshteinDistance`
+edits of `value` (optionally also matching by prefix). Mirrors the local
+`fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="fuzzysearchexpr.value">value</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The string to match against.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="fuzzysearchexpr.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum Levenshtein edit distance for a match.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="fuzzysearchexpr.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether a prefix match within the distance also passes.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### GqlFilter
+
+A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
+filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
+(which may mix kinds). Used where an operation accepts any filter, such as scoping a component
+walk.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.node">node</strong></td>
+<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td>
+
+Filter by node properties, fields, or temporal state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.edge">edge</strong></td>
+<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td>
+
+Filter by edge properties, source/destination, or temporal state.
+(Persisted filters may use the legacy `edge` key.)
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.explodededge">explodedEdge</strong></td>
+<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
+<td>
+
+Filter exploded edges — per-event edge instances — by properties,
+endpoints, or temporal state, evaluated per event.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.graph">graph</strong></td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td>
+
+Apply a graph-level view (window, snapshot, layer restriction, …).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.and">and</strong></td>
+<td valign="top">[<a href="#gqlfilter">GqlFilter</a>!]</td>
+<td>
+
+All sub-filters must pass (intersection).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.or">or</strong></td>
+<td valign="top">[<a href="#gqlfilter">GqlFilter</a>!]</td>
+<td>
+
+At least one sub-filter must pass (union).
+Cross-type sub-filters (e.g. `node` and `edge` together) produce a
+proper graph union: a node is visible if it matches the node filter or
+has a visible edge, and an edge is visible if it matches the edge
+filter or both its endpoints are visible.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.not">not</strong></td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Inverts the nested filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.window">window</strong></td>
+<td valign="top"><a href="#graphwindowexpr">GraphWindowExpr</a></td>
+<td>
+
+Restrict evaluation to a time window (inclusive start, exclusive end).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.at">at</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Restrict evaluation to a single point in time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.before">before</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Restrict evaluation to times strictly before the given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.after">after</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Restrict evaluation to times strictly after the given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.latest">latest</strong></td>
+<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
+<td>
+
+Evaluate against the latest available state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td>
+
+Evaluate against a snapshot of the graph at a given time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
+<td>
+
+Evaluate against the most recent snapshot of the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="gqlfilter.layers">layers</strong></td>
+<td valign="top"><a href="#graphlayersexpr">GraphLayersExpr</a></td>
+<td>
+
+Restrict evaluation to one or more layers.
 
 </td>
 </tr>
@@ -9512,15 +13561,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -9612,38 +13652,6 @@ Optional nested filter applied after the window restriction.
 </tbody>
 </table>
 
-### IndexSpecInput
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspecinput.nodeprops">nodeProps</strong></td>
-<td valign="top"><a href="#propsinput">PropsInput</a>!</td>
-<td>
-
-Node properties.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="indexspecinput.edgeprops">edgeProps</strong></td>
-<td valign="top"><a href="#propsinput">PropsInput</a>!</td>
-<td>
-
-Edge properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### InputEdge
 
 <table>
@@ -9670,6 +13678,288 @@ Source node id (string or non-negative integer).
 <td>
 
 Destination node id (string or non-negative integer).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphCondition
+
+One condition on a graph, testing either a built-in attribute or a metadata
+key. Set exactly one of `field` / `metadataKey`, as for `MetaGraphSort`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.field">field</strong></td>
+<td valign="top"><a href="#metagraphfield">MetaGraphField</a></td>
+<td>
+
+Built-in attribute to test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.metadatakey">metadataKey</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Metadata key to test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.where">where</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
+<td>
+
+Condition applied to the value, using the same grammar as property
+filters elsewhere in the schema. Names, paths and metadata strings are
+tested as strings; counts and timestamps as integers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.matchesifabsent">matchesIfAbsent</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Overrides the result when the graph has no value for the target.
+
+Set this when absence should read as a default rather than a non-match —
+e.g. treating a graph with no `archived` key as not archived, so
+`archived == false` still selects it. Applies to `field` too, since a
+graph may have no name.
+
+Left unset, the condition itself decides, which is what you want for
+conditions already about absence (`isNone`, `ne`).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.casesensitive">caseSensitive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Compare strings case-sensitively (defaults to false, matching
+`NamespaceFilter`). Only affects string comparisons: numbers, booleans
+and the string-encoded temporal/decimal values are unaffected.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphFilter
+
+Narrows a namespace's graph listing.
+
+Composes the same way as the graph/node/edge filters: leaves test one
+attribute or metadata key, and `and` / `or` / `not` combine them.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.condition">condition</strong></td>
+<td valign="top"><a href="#metagraphcondition">MetaGraphCondition</a></td>
+<td>
+
+Condition on a built-in attribute or a metadata key.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.and">and</strong></td>
+<td valign="top">[<a href="#metagraphfilter">MetaGraphFilter</a>!]</td>
+<td>
+
+Logical AND over nested filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.or">or</strong></td>
+<td valign="top">[<a href="#metagraphfilter">MetaGraphFilter</a>!]</td>
+<td>
+
+Logical OR over nested filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.not">not</strong></td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Logical NOT over a nested filter.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphSort
+
+One sort key for a graph listing. Set exactly one of `field` or
+`metadataKey`. Keys are applied in order, each breaking ties left by the
+previous one; graphs missing the sort value sort last.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.field">field</strong></td>
+<td valign="top"><a href="#metagraphfield">MetaGraphField</a></td>
+<td>
+
+Sort on a built-in attribute.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.metadatakey">metadataKey</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Sort on the value of this metadata key.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.valueorder">valueOrder</strong></td>
+<td valign="top">[<a href="#value">Value</a>!]</td>
+<td>
+
+Explicit ordering for the values of `metadataKey`, lowest first. Values
+not listed sort after every listed one, among themselves by their natural
+order. Use for keys holding a small vocabulary whose meaningful order
+isn't alphabetical.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.reverse">reverse</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Reverse this key's direction (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespaceFilter
+
+Narrows a namespace's sub-namespace listing. Sub-namespaces carry no metadata
+of their own, so only their path can be matched.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacefilter.pathcontains">pathContains</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Substring match against the namespace's path.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacefilter.casesensitive">caseSensitive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Match `pathContains` case-sensitively (defaults to false).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespaceSort
+
+One sort key for a sub-namespace listing.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacesort.reverse">reverse</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Reverse the path ordering (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespacedItemFilter
+
+Narrows a namespace's heterogeneous `items` listing. Each half applies to the
+matching kind of item; an item whose kind has no filter is kept. To list only
+one kind, query `graphs` or `children` instead.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespaceditemfilter.graphs">graphs</strong></td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Applied to the graphs in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespaceditemfilter.namespaces">namespaces</strong></td>
+<td valign="top"><a href="#namespacefilter">NamespaceFilter</a></td>
+<td>
+
+Applied to the sub-namespaces in the collection.
 
 </td>
 </tr>
@@ -9739,8 +14029,8 @@ Layer.
 
 Boolean expression over a built-in node field (ID, name, or type).
 
-This is used by `NodeFieldFilterNew.where_` when filtering a specific
-`NodeField`.
+This is used by `NodeFieldWhere.where_` when filtering a specific
+built-in field.
 
 Supports comparisons, string predicates, and set membership.
 (Presence checks and aggregations are handled via property filters instead.)
@@ -9845,6 +14135,15 @@ Negated substring match.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="nodefieldcondition.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#fuzzysearchexpr">FuzzySearchExpr</a></td>
+<td>
+
+Fuzzy string match (Levenshtein distance, optional prefix matching).
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.isin">isIn</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
 <td>
@@ -9865,14 +14164,11 @@ Negated set membership.
 </tbody>
 </table>
 
-### NodeFieldFilterNew
+### NodeFieldWhere
 
-Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-
-Example (GraphQL):
-```graphql
-{ Node: { field: NodeName, where: { Contains: "ali" } } }
-```
+A condition on one specific built-in field — the payload of the per-field
+filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
+`{ nodeType: { where: ... } }`).
 
 <table>
 <thead>
@@ -9884,20 +14180,11 @@ Example (GraphQL):
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilternew.field">field</strong></td>
-<td valign="top"><a href="#nodefield">NodeField</a>!</td>
-<td>
-
-Which built-in field to filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilternew.where">where</strong></td>
+<td colspan="2" valign="top"><strong id="nodefieldwhere.where">where</strong></td>
 <td valign="top"><a href="#nodefieldcondition">NodeFieldCondition</a>!</td>
 <td>
 
-Condition applied to the selected field.
+Condition applied to the field.
 
 Exposed as `where` in GraphQL.
 
@@ -9913,7 +14200,7 @@ GraphQL input type for filtering nodes.
 `NodeFilter` represents a composable boolean expression evaluated
 against nodes in a graph. Filters can target:
 
-- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- built-in node fields (`Id` / `Name` / `NodeType`),
 - node properties and metadata,
 - temporal properties,
 - temporal scope (windows, snapshots, latest),
@@ -9933,11 +14220,29 @@ Filters can be combined recursively using logical operators
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.node">node</strong></td>
-<td valign="top"><a href="#nodefieldfilternew">NodeFieldFilterNew</a></td>
+<td colspan="2" valign="top"><strong id="nodefilter.id">id</strong></td>
+<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
 <td>
 
-Filters a built-in node field (ID, name, or type).
+Filters the node id: `{ id: { where: ... } }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.name">name</strong></td>
+<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td>
+
+Filters the node name: `{ name: { where: ... } }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.nodetype">nodeType</strong></td>
+<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td>
+
+Filters the node type: `{ nodeType: { where: ... } }`.
 
 </td>
 </tr>
@@ -10161,6 +14466,24 @@ Unique Id
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="nodesortby.name">name</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node name
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodesortby.type">type</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node type. Untyped nodes sort first (before any named type).
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="nodesortby.time">time</strong></td>
 <td valign="top"><a href="#sortbytime">SortByTime</a></td>
 <td>
@@ -10355,15 +14678,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -10547,15 +14861,6 @@ View before a specified time (end exclusive).
 <td>
 
 View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -10771,15 +15076,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -10916,6 +15212,15 @@ Substring match against the property's string representation.
 <td>
 
 Negated substring match against the property's string representation.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propcondition.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#fuzzysearchexpr">FuzzySearchExpr</a></td>
+<td>
+
+Fuzzy string match (Levenshtein distance, optional prefix matching).
 
 </td>
 </tr>
@@ -11150,7 +15455,9 @@ Value.
 </tbody>
 </table>
 
-### PropsInput
+### Seeds
+
+How the initially infected nodes are chosen.
 
 <table>
 <thead>
@@ -11162,54 +15469,29 @@ Value.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="propsinput.all">all</strong></td>
-<td valign="top"><a href="#allpropertyspec">AllPropertySpec</a></td>
+<td colspan="2" valign="top"><strong id="seeds.nodes">nodes</strong></td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
 <td>
 
-All properties and metadata.
+Infect exactly these nodes.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="propsinput.some">some</strong></td>
-<td valign="top"><a href="#somepropertyspec">SomePropertySpec</a></td>
+<td colspan="2" valign="top"><strong id="seeds.number">number</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Some properties and metadata.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### SomePropertySpec
-
-SomePropertySpec object containing lists of metadata and property names.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="somepropertyspec.metadata">metadata</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-List of metadata.
+Infect this many randomly chosen nodes.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="somepropertyspec.properties">properties</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
+<td colspan="2" valign="top"><strong id="seeds.probability">probability</strong></td>
+<td valign="top"><a href="#float">Float</a></td>
 <td>
 
-List of properties.
+Infect this fraction of the nodes, chosen at random.
 
 </td>
 </tr>
@@ -11365,6 +15647,24 @@ Properties.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="value.f32special">f32Special</strong></td>
+<td valign="top"><a href="#specialfloat">SpecialFloat</a></td>
+<td>
+
+Non-finite 32 bit float (NaN, ±Infinity) — JSON has no number form for these.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.f64special">f64Special</strong></td>
+<td valign="top"><a href="#specialfloat">SpecialFloat</a></td>
+<td>
+
+Non-finite 64 bit float (NaN, ±Infinity) — JSON has no number form for these.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="value.str">str</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td>
@@ -11424,6 +15724,32 @@ Naive datetime (no timezone).
 <td>
 
 BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.var">var</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A named placeholder, resolved before the filter is evaluated.
+
+Lets a filter be written once with per-request values left open — an authorization policy
+binds them per caller. A `Var` must be substituted before the filter reaches the engine;
+converting one to a `Prop` is an error rather than a silent default.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.claim">claim</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A named claim, read straight from the caller's token and substituted before evaluation.
+
+Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+spec is needed. Must be substituted before the filter reaches the engine; converting one to
+a `Prop` is an error rather than a silent default.
 
 </td>
 </tr>
@@ -11581,43 +15907,6 @@ Alignment unit used to align window boundaries.
 </tbody>
 </table>
 
-### AllPropertySpec
-
-<table>
-<thead>
-<tr>
-<th align="left">Value</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top"><strong>ALL</strong></td>
-<td>
-
-All properties and metadata.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>ALL_METADATA</strong></td>
-<td>
-
-All metadata.
-
-</td>
-</tr>
-<tr>
-<td valign="top"><strong>ALL_PROPERTIES</strong></td>
-<td>
-
-All properties.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### DegreeDirection
 
 Filters nodes by computed degree with a directional scope.
@@ -11657,6 +15946,33 @@ Example (GraphQL):
 </tbody>
 </table>
 
+### Direction
+
+Edge direction to follow during traversal.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>OUT</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>IN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>BOTH</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### GraphType
 
 <table>
@@ -11686,7 +16002,11 @@ Event.
 </tbody>
 </table>
 
-### NodeField
+### MetaGraphField
+
+A graph's built-in attributes. Both filtering and sorting address them
+through this enum, so a client that knows how a column maps onto a field can
+drive either from one declaration.
 
 <table>
 <thead>
@@ -11697,32 +16017,50 @@ Event.
 </thead>
 <tbody>
 <tr>
-<td valign="top"><strong>NODE_ID</strong></td>
+<td valign="top"><strong>NAME</strong></td>
 <td>
 
-Node ID field.
-
-Represents the graph’s node identifier (numeric or string-backed in the API).
+The graph's name.
 
 </td>
 </tr>
 <tr>
-<td valign="top"><strong>NODE_NAME</strong></td>
+<td valign="top"><strong>PATH</strong></td>
 <td>
 
-Node name field.
-
-Represents the human-readable node name (string).
+The graph's full path.
 
 </td>
 </tr>
 <tr>
-<td valign="top"><strong>NODE_TYPE</strong></td>
+<td valign="top"><strong>CREATED</strong></td>
 <td>
 
-Node type field.
+Creation timestamp.
 
-Represents the optional node type assigned at node creation (string).
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LAST_UPDATED</strong></td>
+<td>
+
+Last-updated timestamp.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>NODE_COUNT</strong></td>
+<td>
+
+Number of nodes.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>EDGE_COUNT</strong></td>
+<td>
+
+Number of edges.
 
 </td>
 </tr>
@@ -11758,6 +16096,36 @@ Earliest time
 </tbody>
 </table>
 
+### SpecialFloat
+
+Non-finite float values, which JSON cannot represent as numbers.
+
+Follows protobuf's JSON mapping convention of spelling these out
+explicitly rather than silently coercing them to `null`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>NAN</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>INFINITY</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>NEG_INFINITY</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ## Scalars
 
 ### Boolean
@@ -11772,6 +16140,20 @@ The `Float` scalar type represents signed double-precision fractional values as 
 
 The `Int` scalar type represents non-fractional signed whole numeric values. Int can represent values between -(2^31) and 2^31 - 1.
 
+### NestedIntList
+
+Like [`NestedStringList`] but for integer results (`[[Int]]`) — the
+columnar `degree`/`inDegree`/`outDegree` nested terminals.
+
+### NestedStringList
+
+Output-only scalars for the columnar nested terminals below. They carry a
+`[[..]]` result (one inner list per source node) in a SINGLE field so the
+whole thing is computed in one `blocking_compute`, instead of the
+`list { ids }` shape which resolves one `PathFromNode` object — and its own
+`blocking_compute` — per source. The derive macro can't register a nested
+list type directly, hence the custom scalar.
+
 ### NodeId
 
 Identifier for a node — either a string (`"alice"`) or a non-negative
@@ -11779,6 +16161,13 @@ integer (`42`). Use whichever form matches how the graph was indexed
 when nodes were added.
 
 ### PropertyOutput
+
+### PropertyType
+
+A property's type, as `PropType`'s serde JSON form — round-trippable,
+unlike the human-readable string from `getDtypeOf`. Scalars are bare
+strings (`"F64"`), containers are tagged objects
+(`{"List": "F64"}`, `{"Map": {"a": "I64"}}`, `{"Decimal": {"scale": 2}}`).
 
 ### String
 
@@ -11863,6 +16252,48 @@ Lightweight summary of a stored graph — its name, path, counts, and
 filesystem timestamps — served without deserializing the full graph.
 Useful for listing what's available on the server before committing to a
 full load.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeStateValue
+
+A single cell of a node state column: either a plain property value, a
+node, or a collection of nodes.
+
+<table>
+<thead>
+<tr>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong><a href="#nodestateprop">NodeStateProp</a></strong></td>
+<td valign="top">
+
+A plain property value of a node state cell.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong><a href="#node">Node</a></strong></td>
+<td valign="top">
+
+Raphtory graph node.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong><a href="#nodes">Nodes</a></strong></td>
+<td valign="top">
+
+A lazy collection of nodes from a graph view. Supports all the same view
+transforms as `Graph` (window, layer, filter, ...) plus pagination and
+sorting. Iterated via `list` / `page` / `ids` / `count`.
 
 </td>
 </tr>

@@ -2,7 +2,11 @@ use crate::{
     LocalPOS,
     api::nodes::NodeSegmentOps,
     error::StorageError,
-    pages::{layer_counter::GraphStats, node_page::writer::NodeWriter, resolve_pos},
+    pages::{
+        layer_counter::GraphStats,
+        node_page::{bulk_writer::BulkNodeWriter, writer::NodeWriter},
+        resolve_pos,
+    },
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
@@ -45,6 +49,11 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
         NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
+    }
+
+    #[inline(always)]
+    pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
+        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut()).into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {

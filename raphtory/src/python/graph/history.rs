@@ -237,7 +237,7 @@ impl PyHistory {
                 .eq(list.into_iter().map(|c| c.t()));
         }
         if let Ok(list) = other.extract::<Vec<EventTime>>() {
-            return self.history.iter().eq(list.into_iter());
+            return self.history.iter().eq(list);
         }
         false
     }
@@ -315,14 +315,6 @@ impl PyHistoryTimestamp {
         t.into_pyarray(py)
     }
 
-    /// Collect all timestamps into a list.
-    ///
-    /// Returns:
-    ///     list[int]: List of timestamps.
-    pub fn to_list<'py>(&self) -> Vec<i64> {
-        self.history_t.collect()
-    }
-
     /// Collect all timestamps into a NumPy ndarray in reverse order.
     ///
     /// Returns:
@@ -330,14 +322,6 @@ impl PyHistoryTimestamp {
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect_rev();
         t.into_pyarray(py)
-    }
-
-    /// Collect all timestamps into a list in reverse order.
-    ///
-    /// Returns:
-    ///     list[int]: List of timestamps.
-    pub fn to_list_rev<'py>(&self) -> Vec<i64> {
-        self.history_t.collect_rev()
     }
 
     /// Iterate over all timestamps.
@@ -396,7 +380,7 @@ impl PyHistoryTimestamp {
             return self.history_t.iter().eq(py_hist.get().history_t.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {
-            return self.history_t.iter().eq(list.into_iter());
+            return self.history_t.iter().eq(list);
         }
         false
     }
@@ -541,12 +525,12 @@ impl PyHistoryDateTime {
     fn __contains__(&self, item: &Bound<PyAny>) -> bool {
         let dt_opt: Option<DateTime<Utc>> = {
             if let Ok(dt) = item.extract::<DateTime<FixedOffset>>() {
-                Some(dt.with_timezone(&Utc));
+                Some(dt.with_timezone(&Utc))
+            } else if let Ok(ndt) = item.extract::<NaiveDateTime>() {
+                Some(ndt.and_utc())
+            } else {
+                None
             }
-            if let Ok(ndt) = item.extract::<NaiveDateTime>() {
-                Some(ndt.and_utc());
-            }
-            None
         };
         if let Some(target) = dt_opt {
             return self
@@ -571,18 +555,18 @@ impl PyHistoryDateTime {
                     list.into_iter()
                         .map(|d| d.with_timezone(&Utc))
                         .into_dyn_boxed(),
-                );
+                )
+            } else if let Ok(list) = other.extract::<Vec<NaiveDateTime>>() {
+                Some(list.into_iter().map(|d| d.and_utc()).into_dyn_boxed())
+            } else {
+                None
             }
-            if let Ok(list) = other.extract::<Vec<NaiveDateTime>>() {
-                Some(list.into_iter().map(|d| d.and_utc()).into_dyn_boxed());
-            }
-            None
         };
         if let Ok(py_hist) = other.cast::<PyHistoryDateTime>() {
             return self.history_dt.iter().eq(py_hist.get().history_dt.iter());
         }
         if let Some(iterator) = dt_iter_opt {
-            return self.history_dt.iter().eq(iterator.map(|dt| Ok(dt)));
+            return self.history_dt.iter().eq(iterator.map(Ok));
         }
         false
     }
@@ -664,14 +648,6 @@ impl PyHistoryEventId {
         u.into_pyarray(py)
     }
 
-    /// Collect all event ids into a list.
-    ///
-    /// Returns:
-    ///     list[int]: List of event ids.
-    pub fn to_list<'py>(&self) -> Vec<usize> {
-        self.history_s.collect()
-    }
-
     /// Collect all event ids in reverse order.
     ///
     /// Returns:
@@ -679,14 +655,6 @@ impl PyHistoryEventId {
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect_rev();
         u.into_pyarray(py)
-    }
-
-    /// Collect all event ids into a list in reverse order.
-    ///
-    /// Returns:
-    ///     list[int]: List of event ids.
-    pub fn to_list_rev<'py>(&self) -> Vec<usize> {
-        self.history_s.collect_rev()
     }
 
     /// Iterate over all event ids.
@@ -745,7 +713,7 @@ impl PyHistoryEventId {
             return self.history_s.iter().eq(py_hist.get().history_s.iter());
         }
         if let Ok(list) = other.extract::<Vec<usize>>() {
-            return self.history_s.iter().eq(list.into_iter());
+            return self.history_s.iter().eq(list);
         }
         false
     }
@@ -827,14 +795,6 @@ impl PyIntervals {
         i.into_pyarray(py)
     }
 
-    /// Collect all interval values in milliseconds into a list.
-    ///
-    /// Returns:
-    ///     list[int]: List of intervals in milliseconds.
-    pub fn to_list<'py>(&self) -> Vec<i64> {
-        self.intervals.collect()
-    }
-
     /// Collect all interval values in reverse order.
     ///
     /// Returns:
@@ -842,14 +802,6 @@ impl PyIntervals {
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let i = self.intervals.collect_rev();
         i.into_pyarray(py)
-    }
-
-    /// Collect all interval values in milliseconds into a list in reverse order.
-    ///
-    /// Returns:
-    ///     list[int]: List of intervals in milliseconds.
-    pub fn to_list_rev<'py>(&self) -> Vec<i64> {
-        self.intervals.collect_rev()
     }
 
     /// Iterate over all intervals.
@@ -908,7 +860,7 @@ impl PyIntervals {
             return self.intervals.iter().eq(py_hist.get().intervals.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {
-            return self.intervals.iter().eq(list.into_iter());
+            return self.intervals.iter().eq(list);
         }
         false
     }
@@ -1154,14 +1106,6 @@ impl HistoryTimestampIterable {
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
         self.iter().map(|h| h.collect().into_pyarray(py)).collect()
     }
-
-    /// Collect timestamps for each history into a list.
-    ///
-    /// Returns:
-    ///     list[list[int]]: List of timestamps in milliseconds per history.
-    pub fn to_list(&self) -> Vec<Vec<i64>> {
-        self.iter().map(|h| h.collect()).collect::<Vec<Vec<i64>>>()
-    }
 }
 
 py_nested_iterable_base!(
@@ -1180,16 +1124,6 @@ impl NestedHistoryTimestampIterable {
         self.iter()
             .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
             .collect()
-    }
-
-    /// Collect timestamps for each history in each nested iterable into a list.
-    ///
-    /// Returns:
-    ///     list[list[list[int]]]: List of timestamps in milliseconds per nested history.
-    pub fn to_list(&self) -> Vec<Vec<Vec<i64>>> {
-        self.iter()
-            .map(|h| h.map(|h| h.collect()).collect())
-            .collect::<Vec<Vec<Vec<i64>>>>()
     }
 
     /// Flatten the nested iterable of history objects into a single NumPy NDArray of all contained timestamps.
@@ -1284,16 +1218,6 @@ impl HistoryEventIdIterable {
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<usize, Ix1>>> {
         self.iter().map(|h| h.collect().into_pyarray(py)).collect()
     }
-
-    /// Collect event ids for each history into a list.
-    ///
-    /// Returns:
-    ///     list[list[int]]: List of event ids per history.
-    pub fn to_list(&self) -> Vec<Vec<usize>> {
-        self.iter()
-            .map(|h| h.collect())
-            .collect::<Vec<Vec<usize>>>()
-    }
 }
 
 py_nested_iterable_base!(
@@ -1312,16 +1236,6 @@ impl NestedHistoryEventIdIterable {
         self.iter()
             .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
             .collect()
-    }
-
-    /// Collect event ids for each history in each nested iterable into a list.
-    ///
-    /// Returns:
-    ///     list[list[list[int]]]: List of event ids per nested history.
-    pub fn to_list(&self) -> Vec<Vec<Vec<usize>>> {
-        self.iter()
-            .map(|h| h.map(|h| h.collect()).collect())
-            .collect::<Vec<Vec<Vec<usize>>>>()
     }
 
     /// Flatten the nested iterable of history objects into a single NumPy NDArray of all contained event ids.
@@ -1358,14 +1272,6 @@ impl IntervalsIterable {
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
         self.iter().map(|h| h.collect().into_pyarray(py)).collect()
     }
-
-    /// Collect intervals between each history's consecutive timestamps in milliseconds into a list.
-    ///
-    /// Returns:
-    ///     list[list[int]]: List of intervals per history.
-    pub fn to_list(&self) -> Vec<Vec<i64>> {
-        self.iter().map(|h| h.collect()).collect::<Vec<Vec<i64>>>()
-    }
 }
 
 py_nested_iterable_base!(
@@ -1384,16 +1290,6 @@ impl NestedIntervalsIterable {
         self.iter()
             .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
             .collect()
-    }
-
-    /// Collect intervals between each nested history's consecutive timestamps in milliseconds into a list.
-    ///
-    /// Returns:
-    ///     list[list[list[int]]]: List of intervals per nested history.
-    pub fn to_list(&self) -> Vec<Vec<Vec<i64>>> {
-        self.iter()
-            .map(|h| h.map(|h| h.collect()).collect())
-            .collect::<Vec<Vec<Vec<i64>>>>()
     }
 
     /// Collect intervals between each nested history's consecutive timestamps in milliseconds into a single NumPy array.

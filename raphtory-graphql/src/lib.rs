@@ -1,17 +1,21 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access},
-    model::graph::filtering::GraphAccessFilter,
+    auth::{
+        Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
+    },
+    model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
+
 use crate::{data::InsertionError, paths::PathValidationError};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
-mod auth;
+pub mod auth;
 pub mod auth_policy;
+
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -26,9 +30,11 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
+pub mod plugin;
 #[cfg(test)]
 pub(crate) mod test_support;
 
@@ -46,8 +52,6 @@ pub enum GQLError {
 
 #[cfg(test)]
 mod graphql_test {
-    #[cfg(feature = "search")]
-    use crate::config::app_config::AppConfigBuilder;
     use crate::{
         auth::Access,
         auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
@@ -72,9 +76,11 @@ mod graphql_test {
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::*,
-        serialise::GraphFolder,
     };
-    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, graph_folder::GraphFolder},
+    };
     use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
@@ -430,6 +436,118 @@ mod graphql_test {
         graph
     }
 
+    pub(crate) fn single_component_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // chain a -> b -> c -> d
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn star_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // star out of a: a -> b, a -> c, a -> d
+        for (src, dst) in [("a", "b"), ("a", "c"), ("a", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn components_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // cycle a -> b -> c -> a (one SCC), plus d -> a (d reaches the cycle but not vice versa)
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "a"), ("d", "a")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn community_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // two triangles joined by a single bridge edge (c -> d)
+        for (src, dst) in [
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "a"),
+            ("d", "e"),
+            ("e", "f"),
+            ("f", "d"),
+            ("c", "d"),
+        ] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn scalar_metrics_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // a <-> b reciprocated, b -> c -> a forming a triangle with a-b, and c -> d as a pendant edge,
+        // so density/reciprocity/clustering/degree are all non-trivial
+        for (src, dst) in [("a", "b"), ("b", "a"), ("b", "c"), ("c", "a"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn centrality_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // path a -> b -> c -> d so nodes get distinct centrality scores
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "d", NO_PROPS, None).unwrap();
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_scalar_metrics() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", scalar_metrics_test_graph())], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              globalClusteringCoefficient
+              directedGraphDensity
+              globalReciprocity
+              averageDegree
+              maxDegree
+              minDegree
+              maxOutDegree
+              maxInDegree
+              minOutDegree
+              minInDegree
+              tripletCount
+              triangleCount
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": {
+                    "globalClusteringCoefficient": 0.6,
+                    "directedGraphDensity": 0.4166666666666667,
+                    "globalReciprocity": 0.4,
+                    "averageDegree": 2.0,
+                    "maxDegree": 3,
+                    "minDegree": 1,
+                    "maxOutDegree": 2,
+                    "maxInDegree": 2,
+                    "minOutDegree": 0,
+                    "minInDegree": 1,
+                    "tripletCount": 5,
+                    "triangleCount": 1
+                } }
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_degree_filter_nodes_and_select_gql() {
         let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
@@ -439,7 +557,9 @@ mod graphql_test {
         let query = r#"
         {
           graph(path: "g") {
-            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+            filterNodes: filter(
+                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+            ) {
               nodes {
                 list {
                   name
@@ -447,7 +567,7 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+              select(expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
                 list {
                   name
                 }
@@ -980,7 +1100,7 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None, None).unwrap();
-        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let tmp_dir = TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
         let file = fs::File::open(&zip_path).unwrap();
@@ -2101,7 +2221,7 @@ mod graphql_test {
 
             let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
 
-            let snapshot_before = std::fs::read_dir(work_dir.path())
+            let snapshot_before = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -2120,7 +2240,7 @@ mod graphql_test {
                 );
             }
 
-            let snapshot_after = std::fs::read_dir(work_dir.path())
+            let snapshot_after = fs::read_dir(work_dir.path())
                 .unwrap()
                 .map(|e| e.unwrap().file_name())
                 .collect::<HashSet<_>>();
@@ -2154,6 +2274,118 @@ mod graphql_test {
             );
 
             assert!(!work_dir.path().join("foo").exists());
+        }
+    }
+
+    /// A policy that cannot answer must fail the listing, not shorten it: an omitted row
+    /// and a row the caller has no grant on are indistinguishable once the response is
+    /// returned, so a shortened list silently misreports what the caller may see.
+    #[tokio::test]
+    async fn test_policy_fault_fails_listing_rather_than_emptying_it() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g1 = Graph::new();
+            let g1: MaterializedGraph = g1.into();
+            let g2 = Graph::new();
+            let g2: MaterializedGraph = g2.into();
+
+            // Sanity: with both graphs resolving, the listing carries both.
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_graph("g_ok", GraphPermission::Read { filter: None })
+                    .with_graph("g_bad", GraphPermission::Read { filter: None }),
+            );
+            let setup = setup_with_policy(
+                &[("g_ok", g1.clone()), ("g_bad", g2.clone())],
+                work_dir.path(),
+                policy,
+            )
+            .await;
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { root { graphs { list { path } } } }"#,
+            )
+            .await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "root": { "graphs": { "list": [ { "path": "g_bad" }, { "path": "g_ok" } ] } } }),
+            );
+        }
+        {
+            // The same listing with one graph faulting must error, not return a shorter list.
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_graph("g_ok", GraphPermission::Read { filter: None })
+                    .with_fault("g_bad"),
+            );
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { root { graphs { list { path } } } }"#,
+            )
+            .await;
+            assert!(
+                !res.errors.is_empty(),
+                "a fault must fail the listing, got {:?}",
+                res.data,
+            );
+            assert!(
+                res.errors[0].message.contains("test fault"),
+                "the fault, not a denial, must surface: {}",
+                res.errors[0].message,
+            );
+        }
+    }
+
+    /// A fault while resolving a single graph must leave it as hidden as a denial does:
+    /// `graph()` resolves to null with no error, so a caller can never distinguish
+    /// "the server broke" from "no such graph" — only the log tells the operator.
+    #[tokio::test]
+    async fn test_policy_fault_on_graph_lookup_stays_hidden() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(FakePolicy::default().with_fault("g"));
+            let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
+            assert_eq!(
+                res.errors,
+                vec![],
+                "must not disclose the fault to the caller"
+            );
+            assert_eq!(res.data.into_json().unwrap(), json!({ "graph": null }));
+        }
+    }
+
+    /// The write gate reports a fault as an error carrying the fault's message, not as a
+    /// permission denial: a caller refused because the server is broken should not be told
+    /// they lack access.
+    #[tokio::test]
+    async fn test_policy_fault_on_write_gate_reports_the_fault() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(FakePolicy::default().with_fault("g"));
+            let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
+
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+            )
+            .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res.data);
+            assert!(
+                res.errors[0].message.contains("test fault"),
+                "the fault, not a denial, must surface: {}",
+                res.errors[0].message,
+            );
         }
     }
 
@@ -2449,5 +2681,994 @@ mod graphql_test {
                 }),
             _ => None,
         }
+    }
+
+    #[tokio::test]
+    async fn test_load_nodes_from_parquet() {
+        use crate::config::app_config::AppConfigBuilder;
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let graph_dir = tempdir().unwrap();
+        let tmp_dir = tempdir().unwrap();
+
+        // Write a minimal parquet file: two nodes "a" and "b" at t=1 with a weight property.
+        let parquet_path = tmp_dir.path().join("nodes.parquet");
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("id", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+            Field::new("weight", DataType::Int64, true),
+        ]));
+        let batch = RecordBatch::try_new(
+            arrow_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["a", "b"])),
+                Arc::new(Int64Array::from(vec![1, 1])),
+                Arc::new(Int64Array::from(vec![10, 20])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&parquet_path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+
+        // Build an AppConfig that permits the temp dir as a parquet source.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("mygraph", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{
+                loadNodes(
+                    graphPath: "mygraph",
+                    dataPath: "{}",
+                    time: "time",
+                    id: "id",
+                    properties: ["weight"]
+                )
+            }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(res.errors, vec![], "loadNodes mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
+
+        // Query the loaded nodes back via GraphQL to confirm they landed.
+        let query = r#"{
+            graph(path: "mygraph") {
+                nodes {
+                    list { name }
+                }
+            }
+        }"#;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "node query returned errors");
+        let mut names: Vec<String> = res.data.into_json().unwrap()["graph"]["nodes"]["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn test_load_edges_from_parquet() {
+        use crate::config::app_config::AppConfigBuilder;
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let graph_dir = tempdir().unwrap();
+        let tmp_dir = tempdir().unwrap();
+
+        // Write a minimal parquet file: two edges a→b and b→c at t=1 with a weight property.
+        let parquet_path = tmp_dir.path().join("edges.parquet");
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("src", DataType::Utf8, false),
+            Field::new("dst", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+            Field::new("weight", DataType::Int64, true),
+        ]));
+        let batch = RecordBatch::try_new(
+            arrow_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["a", "b"])),
+                Arc::new(StringArray::from(vec!["b", "c"])),
+                Arc::new(Int64Array::from(vec![1, 1])),
+                Arc::new(Int64Array::from(vec![10, 20])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&parquet_path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+
+        // Build an AppConfig that permits the temp dir as a parquet source.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("mygraph", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{
+                loadEdges(
+                    graphPath: "mygraph",
+                    dataPath: "{}",
+                    time: "time",
+                    src: "src",
+                    dst: "dst",
+                    properties: ["weight"]
+                )
+            }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(res.errors, vec![], "loadEdges mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadEdges": true}));
+
+        // Query the loaded edges back via GraphQL to confirm they landed.
+        let query = r#"{
+            graph(path: "mygraph") {
+                edges {
+                    list { src { name } dst { name } }
+                }
+            }
+        }"#;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "edge query returned errors");
+        let mut edges: Vec<(String, String)> = res.data.into_json().unwrap()["graph"]["edges"]
+            ["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["src"]["name"].as_str().unwrap().to_string(),
+                    e["dst"]["name"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect();
+        edges.sort();
+        assert_eq!(
+            edges,
+            vec![
+                ("a".to_string(), "b".to_string()),
+                ("b".to_string(), "c".to_string())
+            ]
+        );
+    }
+
+    // ── allowed-paths tests ──────────────────────────────────────────────────
+
+    /// Write a one-row nodes parquet file into `dir` and return its path.
+    fn write_nodes_parquet(dir: &std::path::Path) -> std::path::PathBuf {
+        use arrow::{
+            array::{Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let path = dir.join("nodes.parquet");
+        let schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("id", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+        ]));
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["x"])),
+                Arc::new(Int64Array::from(vec![1i64])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+        path
+    }
+
+    #[tokio::test]
+    async fn test_parquet_allowed_path_accepted() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let allowed_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(allowed_dir.path());
+
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(
+            res.errors,
+            vec![],
+            "path inside allowlist and outside the work dir should be accepted"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parquet_path_within_work_dir_rejected() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(graph_dir.path());
+
+        // Even though the work dir is allowlisted, paths within it must be rejected.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![graph_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert!(
+            !res.errors.is_empty(),
+            "path within the work dir should be rejected"
+        );
+        assert!(
+            res.errors[0]
+                .message
+                .contains("working directory are not permitted"),
+            "unexpected error: {}",
+            res.errors[0].message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parquet_disallowed_path_rejected() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let allowed_dir = tempdir().unwrap();
+        let other_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(other_dir.path());
+
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(allowed_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert!(
+            !res.errors.is_empty(),
+            "path outside allowlist should be rejected"
+        );
+        assert!(
+            res.errors[0]
+                .message
+                .contains("not in the list of allowed paths"),
+            "unexpected error: {}",
+            res.errors[0].message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parquet_empty_allowlist_denies_any_path() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let other_dir = tempdir().unwrap();
+        let parquet_path = write_nodes_parquet(other_dir.path());
+
+        // No allowed paths configured → nothing is permitted.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert!(
+            !res.errors.is_empty(),
+            "empty allowlist should deny any path"
+        );
+        assert!(
+            res.errors[0]
+                .message
+                .contains("not in the list of allowed paths"),
+            "unexpected error: {}",
+            res.errors[0].message
+        );
+    }
+
+    #[tokio::test]
+    async fn test_load_nodes_schema_parameter() {
+        use crate::config::app_config::AppConfigBuilder;
+        use arrow::{
+            array::{Float32Array, Int64Array, StringArray},
+            datatypes::{DataType, Field, Schema as ArrowSchema},
+            record_batch::RecordBatch,
+        };
+        use parquet::arrow::ArrowWriter;
+        use std::{fs::File, sync::Arc};
+
+        let graph_dir = tempdir().unwrap();
+        let tmp_dir = tempdir().unwrap();
+
+        // Write a parquet file where 'score' is stored as Float32.
+        let parquet_path = tmp_dir.path().join("nodes.parquet");
+        let arrow_schema = Arc::new(ArrowSchema::new(vec![
+            Field::new("id", DataType::Utf8, false),
+            Field::new("time", DataType::Int64, false),
+            Field::new("score", DataType::Float32, true),
+        ]));
+        let batch = RecordBatch::try_new(
+            arrow_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["a", "b"])),
+                Arc::new(Int64Array::from(vec![1, 1])),
+                Arc::new(Float32Array::from(vec![1.5f32, 2.5f32])),
+            ],
+        )
+        .unwrap();
+        let file = File::create(&parquet_path).unwrap();
+        let mut writer = ArrowWriter::try_new(file, arrow_schema, None).unwrap();
+        writer.write(&batch).unwrap();
+        writer.close().unwrap();
+
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        // Cast 'score' from Float32 (on-disk type) to Float64 via the schema parameter.
+        let mutation = format!(
+            r#"mutation {{
+                loadNodes(
+                    graphPath: "g",
+                    dataPath: "{}",
+                    time: "time",
+                    id: "id",
+                    properties: ["score"],
+                    schema: "{{\"score\": \"Float64\"}}"
+                )
+            }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(
+            res.errors,
+            vec![],
+            "schema parameter cast Float32 → Float64 should succeed"
+        );
+        assert_eq!(res.data.into_json().unwrap(), json!({"loadNodes": true}));
+
+        // Confirm both nodes loaded.
+        let query = r#"{
+            graph(path: "g") {
+                nodes { list { name } }
+            }
+        }"#;
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+        assert_eq!(res.errors, vec![], "node query returned errors");
+        let mut names: Vec<String> = res.data.into_json().unwrap()["graph"]["nodes"]["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["name"].as_str().unwrap().to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn test_load_nodes_nested_directory_within_allowed_path() {
+        use crate::config::app_config::AppConfigBuilder;
+
+        let graph_dir = tempdir().unwrap();
+        let tmp_dir = tempdir().unwrap();
+        // Create a subdirectory inside the allowed root.
+        let sub_dir = tmp_dir.path().join("subdir");
+        fs::create_dir_all(&sub_dir).unwrap();
+        let parquet_path = write_nodes_parquet(&sub_dir);
+
+        // The allowlist only contains the top-level directory, not subdir directly.
+        let app_config = AppConfigBuilder::new()
+            .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
+            .build();
+        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let parquet_path_str = parquet_path.to_str().unwrap().replace('\\', "/");
+        let mutation = format!(
+            r#"mutation {{ loadNodes(graphPath: "g", dataPath: "{}", time: "time", id: "id") }}"#,
+            parquet_path_str
+        );
+        let res = run_mutation(&schema, &mutation).await;
+        assert_eq!(
+            res.errors,
+            vec![],
+            "parquet nested inside an allowed path should be accepted"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_flush() {
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let folder = data
+            .work_dir_write()
+            .await
+            .validate_path_for_insert("g", false)
+            .unwrap();
+        data.insert_graph(folder, Graph::new().into())
+            .await
+            .unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let res = run_mutation(&schema, r#"mutation { flush(graphPath: "g") }"#).await;
+        assert_eq!(res.errors, vec![], "flush mutation returned errors");
+        assert_eq!(res.data.into_json().unwrap(), json!({"flush": true}));
+    }
+
+    /// End-to-end reproduction of the stale namespace-listing counts bug:
+    /// create a graph, populate it, and flush — all over GraphQL — then read
+    /// the listing from a cold-cache session (as after a server restart),
+    /// which resolves `nodeCount`/`edgeCount` from the persisted sidecar.
+    /// Before the fix, `updateGraph{ flush }` never rewrote the sidecar, so
+    /// this reported 0/0.
+    #[tokio::test]
+    async fn test_namespace_listing_counts_after_flush() {
+        use crate::test_support::{run_mutation, setup_with_graphs};
+
+        let work_dir = tempdir().unwrap();
+
+        let session = setup_with_graphs(&[], work_dir.path()).await;
+
+        // Graph lives inside the `people` namespace so we can list it below.
+        let created = run_mutation(
+            &session.schema,
+            r#"mutation { newGraph(path: "people/g", graphType: EVENT) }"#,
+        )
+        .await;
+        assert_eq!(created.errors, vec![], "newGraph errored");
+
+        // `updateGraph` is a side-effecting field on the query root.
+        // `addEdge` implicitly creates both endpoints: 2 nodes, 1 edge.
+        let written = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+        )
+        .await;
+        assert_eq!(written.errors, vec![], "addEdge errored");
+
+        // Separate request so `flush` is ordered after the writes.
+        let flushed = run_mutation(
+            &session.schema,
+            r#"query { updateGraph(path: "people/g") { flush } }"#,
+        )
+        .await;
+        assert_eq!(flushed.errors, vec![], "flush errored");
+
+        // Fresh session over the same work dir → cold cache, so the listing
+        // reads counts from the persisted sidecar (the bug surface).
+        let restarted = setup_with_graphs(&[], work_dir.path()).await;
+        let listed = restarted
+            .schema
+            .execute(Request::new(
+                r#"query { namespace(path: "people") { graphs { list { nodeCount edgeCount } } } }"#,
+            ))
+            .await;
+        assert_eq!(listed.errors, vec![], "namespace listing errored");
+
+        let json = listed.data.into_json().unwrap();
+        let row = &json["namespace"]["graphs"]["list"][0];
+        assert_eq!(row["nodeCount"], 2, "listing nodeCount stale after flush");
+        assert_eq!(row["edgeCount"], 1, "listing edgeCount stale after flush");
+
+        // Keep session 1 alive past the assertion: its `Drop` runs
+        // `flush_and_clear`, which would rewrite the sidecar and mask the bug.
+        drop(session);
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_type_then_name() {
+        let g = Graph::new();
+        g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+        g.add_node(1, "d", NO_PROPS, None, None).unwrap(); // untyped
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // type ascending: None < "Company" < "Person"; then name ascending.
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes {
+              sorted(sortBys: [{ type: true }, { name: true }]) {
+                list { name }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "d" }, { "name": "c" }, { "name": "a" }, { "name": "b" }
+            ] } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_type_reverse() {
+        let g = Graph::new();
+        g.add_node(1, "b", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("Person"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, Some("Company"), None).unwrap();
+        g.add_node(1, "d", NO_PROPS, None, None).unwrap(); // untyped
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // type descending (reverse: true): "Person" > "Company" > None; then name ascending.
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes {
+              sorted(sortBys: [{ type: true, reverse: true }, { name: true }]) {
+                list { name }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "a" }, { "name": "b" }, { "name": "c" }, { "name": "d" }
+            ] } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_nodes_sorted_by_id_regression() {
+        let g = Graph::new();
+        g.add_node(1, "c", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "a", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "b", NO_PROPS, None, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            nodes { sorted(sortBys: [{ id: true }]) { list { name } } }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "nodes": { "sorted": { "list": [
+                { "name": "a" }, { "name": "b" }, { "name": "c" }
+            ] } } } })
+        );
+    }
+
+    async fn neighbour_sort_setup(tmp: &std::path::Path) -> crate::test_support::TestSetup {
+        // Anchor "hub" with edges in BOTH directions to typed + untyped neighbours.
+        let g = Graph::new();
+        g.add_node(1, "hub", NO_PROPS, None, None).unwrap();
+        g.add_node(1, "x", [("score", 3i64)], Some("B"), None)
+            .unwrap();
+        g.add_node(1, "y", [("score", 1i64)], Some("A"), None)
+            .unwrap();
+        g.add_node(1, "w", [("score", 2i64)], Some("A"), None)
+            .unwrap();
+        g.add_node(1, "z", [("score", 4i64)], None, None).unwrap(); // untyped
+        g.add_edge(10, "hub", "x", NO_PROPS, None).unwrap(); // out -> nbr x (B)
+        g.add_edge(11, "y", "hub", NO_PROPS, None).unwrap(); // in  -> nbr y (A)
+        g.add_edge(12, "w", "hub", NO_PROPS, None).unwrap(); // in  -> nbr w (A)
+        g.add_edge(13, "hub", "z", NO_PROPS, None).unwrap(); // out -> nbr z (untyped)
+
+        let graph: MaterializedGraph = g.into();
+        setup_with_graphs(&[("g", graph)], tmp).await
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_type_then_name() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // type asc (None < "A" < "B"), then name asc: z(None), w(A), y(A), x(B)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [
+                    { neighbour: { type: true } },
+                    { neighbour: { name: true } },
+                    { time: LATEST }
+                  ]) {
+                    count
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "count": 4,
+                "page": [
+                    { "nbr": { "name": "z", "nodeType": null } },
+                    { "nbr": { "name": "w", "nodeType": "A" } },
+                    { "nbr": { "name": "y", "nodeType": "A" } },
+                    { "nbr": { "name": "x", "nodeType": "B" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_property() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // neighbour "score" ascending: y(1), w(2), x(3), z(4)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ neighbour: { property: "score" } }]) {
+                    page(limit: 10) { nbr { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "y" } }, { "nbr": { "name": "w" } },
+                    { "nbr": { "name": "x" } }, { "nbr": { "name": "z" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_graph_edges_neighbour_id_equals_dst() {
+        // At graph level every ref is Dir::Out, so neighbour == dst.
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ neighbour: { id: true } }]) {
+                page(limit: 10) { dst { name } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        // dst ids ascending: hub, hub, x, z
+        assert_eq!(
+            data,
+            json!({ "graph": { "edges": { "sorted": {
+                "page": [
+                    { "dst": { "name": "hub" } }, { "dst": { "name": "hub" } },
+                    { "dst": { "name": "x" } }, { "dst": { "name": "z" } }
+                ]
+            } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_name_reverse() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // Neighbour name DESCENDING via the nested `reverse`; the outer
+        // `reverse: true` must be ignored (the neighbour arm early-returns).
+        // hub's neighbours are w, x, y, z -> descending: z, y, x, w.
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ reverse: true, neighbour: { name: true, reverse: true } }]) {
+                    page(limit: 10) { nbr { name } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "z" } }, { "nbr": { "name": "y" } },
+                    { "nbr": { "name": "x" } }, { "nbr": { "name": "w" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_self_loop() {
+        // Self-loop hub->hub must resolve nbr to the anchor itself, sorting
+        // under its own type ("M"), not treated specially.
+        let g = Graph::new();
+        g.add_node(1, "hub", NO_PROPS, Some("M"), None).unwrap();
+        g.add_node(1, "a", NO_PROPS, Some("A"), None).unwrap();
+        g.add_edge(10, "hub", "a", NO_PROPS, None).unwrap();
+        g.add_edge(11, "hub", "hub", NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [{ neighbour: { type: true } }]) {
+                    count
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "count": 2,
+                "page": [
+                    { "nbr": { "name": "a", "nodeType": "A" } },
+                    { "nbr": { "name": "hub", "nodeType": "M" } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_edges_sorted_by_neighbour_type_reverse_untyped_last() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = neighbour_sort_setup(tmp_dir.path()).await;
+
+        // neighbour type DESCENDING (untyped sorts last, not first), then
+        // neighbour name ascending to break the "A" tie: x(B), w(A), y(A), z(None)
+        let query = r#"
+        {
+          graph(path: "g") {
+            node(name: "hub") {
+              edges {
+                explodeLayers {
+                  sorted(sortBys: [
+                      { neighbour: { type: true, reverse: true } },
+                      { neighbour: { name: true } }
+                  ]) {
+                    page(limit: 10) { nbr { name nodeType } }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "node": { "edges": { "explodeLayers": { "sorted": {
+                "page": [
+                    { "nbr": { "name": "x", "nodeType": "B" } },
+                    { "nbr": { "name": "w", "nodeType": "A" } },
+                    { "nbr": { "name": "y", "nodeType": "A" } },
+                    { "nbr": { "name": "z", "nodeType": null } }
+                ]
+            } } } } } })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_graph_edges_sorted_by_src_node() {
+        // Sort a graph-level edge collection by the src node (type, then name).
+        // Enabled by making `src` take a NodeSortBy; a bare id flag could not
+        // express this.
+        let g = Graph::new();
+        g.add_node(1, "a", NO_PROPS, Some("Z"), None).unwrap();
+        g.add_node(1, "b", NO_PROPS, Some("A"), None).unwrap();
+        g.add_node(1, "c", NO_PROPS, None, None).unwrap(); // untyped
+        g.add_node(1, "x", NO_PROPS, None, None).unwrap();
+        g.add_edge(10, "a", "x", NO_PROPS, None).unwrap();
+        g.add_edge(11, "b", "x", NO_PROPS, None).unwrap();
+        g.add_edge(12, "c", "x", NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = g.into();
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
+
+        // src type ascending, untyped first: None(c) < "A"(b) < "Z"(a)
+        let query = r#"
+        {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ src: { type: true } }, { src: { name: true } }]) {
+                page(limit: 10) { src { name nodeType } }
+              }
+            }
+          }
+        }
+        "#;
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({ "graph": { "edges": { "sorted": {
+                "page": [
+                    { "src": { "name": "c", "nodeType": null } },
+                    { "src": { "name": "b", "nodeType": "A" } },
+                    { "src": { "name": "a", "nodeType": "Z" } }
+                ]
+            } } } })
+        );
     }
 }

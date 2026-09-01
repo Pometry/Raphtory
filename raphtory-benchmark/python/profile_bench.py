@@ -1,7 +1,6 @@
 from raphtory_bench import RaphtoryBench
 from kuzu_bench import KuzuBench
 from networkx_bench import NetworkXBench
-from neo4j_bench import Neo4jBench
 from graphtool_bench import GraphToolBench
 from memgraph_bench import MemgraphBench
 import time
@@ -14,7 +13,6 @@ def display_menu():
     print("2. Run GraphTool Benchmark")
     print("3. Run Kuzu Benchmark")
     print("4. Run NetworkX Benchmark")
-    print("5. Run Neo4j Benchmark")
     print("6. Run Memgraph Benchmark")
     print("0. Exit")
     choice = int(input("Enter your choice: "))
@@ -27,7 +25,6 @@ def setup():
         2: GraphToolBench(),
         3: KuzuBench(),
         4: NetworkXBench(),
-        5: Neo4jBench(),
         6: MemgraphBench(),
     }
 

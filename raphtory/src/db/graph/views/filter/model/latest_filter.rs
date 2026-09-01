@@ -4,8 +4,22 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    windowed_filter::Windowed, ComposableFilter, CreateView, EdgeViewFilterOps,
-                    InternalViewWrapOps, Wrap,
+                    edge_filter::CompositeEdgeFilter,
+                    is_active_edge_filter::IsActiveEdge,
+                    is_active_node_filter::IsActiveNode,
+                    is_deleted_filter::IsDeletedEdge,
+                    is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge,
+                    node_filter::builders::{
+                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
+                    },
+                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
+                    windowed_filter::Windowed,
+                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -13,7 +27,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, TimeOps},
+    prelude::TimeOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};
@@ -44,51 +58,141 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
     }
 }
 
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, WindowedGraph<G>>
-    where
-        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone;
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Latest<T> {
+    type FilterType = T::FilterType;
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, WindowedGraph<G>>
-    where
-        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph;
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Latest<T> {
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
 
-    fn create_filter<'graph, G>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
-    where
-        G: GraphViewOps<'graph> + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone,
-    {
-        self.inner.create_filter(graph.latest())
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Latest<T> {
+    type Filter = Latest<T::Filter>;
+    type ExprBuilder = Latest<T::ExprBuilder>;
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.inner.property_ref()
     }
 
-    fn create_node_filter<'graph, G>(
+    fn ops(&self) -> &[Op] {
+        self.inner.ops()
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
+    }
+}
+
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // Single-kind inners keep their composite form (the wrapper becomes a
+        // windowed/layered/... composite variant); only graph-level view
+        // chains export as `View` ops. Anything else (a view wrapping a
+        // mixed-kind tree) has no wire representation yet.
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
+        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
+            return Err(GraphError::NotSupported);
+        };
+        let mut chain = vec![GraphViewOp::Latest];
+        chain.extend(ops);
+        Ok(FilterTree::View(chain))
+    }
+
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_node_filter()?,
+        ))))
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_edge_filter()?,
+        ))))
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(CompositeExplodedEdgeFilter::Latest(Box::new(Latest::new(
+            self.inner.try_as_composite_exploded_edge_filter()?,
+        ))))
+    }
+}
+
+impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
+    where
+        G: GraphView + TimeOps<'graph> + 'graph,
+        F: GraphView + TimeOps<'graph> + 'graph;
+
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
+    where
+        G: GraphView + TimeOps<'graph> + 'graph,
+        F: GraphView + TimeOps<'graph> + 'graph;
+
+    type FilteredGraph<'graph, G>
+        = WindowedGraph<T::FilteredGraph<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
-        G: GraphView + TimeOps<'graph, WindowedViewType = WindowedGraph<G>> + Clone + 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph.latest())
+        self.inner.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G, F>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
+    {
+        self.inner.create_node_filter(graph, filtered)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(self.inner.filter_graph_view(graph)?.latest())
     }
 }
 
 impl<T: ComposableFilter> ComposableFilter for Latest<T> {}
-
-impl<T: CreateView> CreateView for Latest<T> {
-    type View<'graph, G: GraphView + 'graph> = WindowedGraph<T::View<'graph, G>>;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        let inner = self.inner.create_view(view)?;
-        Ok(inner.latest())
-    }
-}
 
 impl<M> Wrap for Latest<M> {
     type Wrapped<T> = Latest<T>;
@@ -97,4 +201,50 @@ impl<M> Wrap for Latest<M> {
     }
 }
 
-impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Latest<T> {}
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Latest<T> {
+    type Entity = T::Entity;
+    type PropertyBuilder = Latest<T::PropertyBuilder>;
+    type MetadataBuilder = Latest<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
+    }
+
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Latest<T> {}
+
+impl<U: NodeViewFilterOps> NodeViewFilterOps for Latest<U> {
+    type Output<T: CombinedFilter> = Latest<U::Output<T>>;
+
+    fn is_active(&self) -> Self::Output<IsActiveNode> {
+        self.wrap(self.inner.is_active())
+    }
+}
+
+impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Latest<U> {
+    type Output<T: CombinedFilter> = Latest<U::Output<T>>;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        self.wrap(self.inner.is_active())
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        self.wrap(self.inner.is_valid())
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        self.wrap(self.inner.is_deleted())
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        self.wrap(self.inner.is_self_loop())
+    }
+}

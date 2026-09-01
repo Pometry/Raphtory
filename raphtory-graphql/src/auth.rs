@@ -1,4 +1,7 @@
-use crate::config::{app_config::AppConfig, auth_config::PublicKey};
+use crate::{
+    config::app_config::AppConfig,
+    data::{gql_error_with_code, CODE_ACCESS_DENIED},
+};
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -7,15 +10,15 @@ use async_graphql::{
     BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
-use futures_util::StreamExt;
-use jsonwebtoken::{decode, Validation};
+use futures_util::{future::BoxFuture, StreamExt};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use poem::{
     error::{BadRequest, TooManyRequests, Unauthorized},
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, warn};
 
@@ -26,11 +29,114 @@ pub enum Access {
     Rw,
 }
 
+impl Default for Access {
+    /// Read-only. A token that carries no `access` claim — as one minted by an external identity
+    /// provider does — gets the least authority, and whatever authorization policy is active
+    /// decides what that reaches. Write access has to be asked for, with an explicit
+    /// `"access": "rw"`.
+    fn default() -> Self {
+        Access::Ro
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
-    pub(crate) access: Access,
+    /// Defaults to read-only when absent — external IdP tokens don't carry this claim.
     #[serde(default)]
-    pub(crate) role: Option<String>,
+    pub(crate) access: Access,
+    /// The `role` claim, either a string or an array of strings. Read via [`roles_from_value`]; a
+    /// custom claim name may be selected with `role_claim`.
+    #[serde(default)]
+    pub(crate) role: Option<serde_json::Value>,
+    /// Every other claim in the token, kept verbatim so authorization policies can read claims
+    /// this crate has no opinion about (`sub`, tenant identifiers, and so on).
+    #[serde(flatten)]
+    pub(crate) other: HashMap<String, serde_json::Value>,
+}
+
+/// The validated token's claims beyond `access`/`role`, injected into the GraphQL context for
+/// authorization policies to consult. Empty when no token was presented.
+#[derive(Clone, Debug, Default)]
+pub struct TokenClaimValues(pub HashMap<String, serde_json::Value>);
+
+impl TokenClaimValues {
+    /// Convenience accessor for a string-valued claim.
+    pub fn string(&self, name: &str) -> Option<&str> {
+        self.0.get(name).and_then(|v| v.as_str())
+    }
+}
+
+/// The roles carried by the validated token (a request may hold several), injected into the GraphQL
+/// context for authorization policies. Empty when no token was presented.
+///
+/// A newtype rather than a bare `Vec<String>` on purpose: the context is keyed by type, and
+/// `ctx.data::<T>()` resolves at runtime, so a bare standard type can be silently orphaned by a
+/// change on the producing side without any consumer failing to compile.
+#[derive(Clone, Debug, Default)]
+pub struct Roles(pub Vec<String>);
+
+impl Roles {
+    /// The roles, in the order the claim listed them.
+    pub fn as_slice(&self) -> &[String] {
+        &self.0
+    }
+
+    /// The caller's roles, read from the request context.
+    ///
+    /// The auth layer inserts `Roles` on every request, including when no token was presented and
+    /// when auth is not configured, so an absent entry is an internal inconsistency rather than a
+    /// token without roles. It is reported as an error instead of being read as "no roles":
+    /// silently substituting an empty set would deny every request for a reason no caller or log
+    /// could explain, which is exactly how a change to this type went unnoticed once already.
+    pub fn from_context<'a>(ctx: &'a Context<'_>) -> Result<&'a Self, RolesMissing> {
+        ctx.data::<Self>().map_err(|_| RolesMissing)
+    }
+}
+
+/// The request context carried no [`Roles`]. Always a server-side fault: the auth layer inserts it
+/// unconditionally, so this means a request bypassed that layer or the entry's type has drifted.
+#[derive(Debug, Clone, Copy)]
+pub struct RolesMissing;
+
+impl std::fmt::Display for RolesMissing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "internal: request context is missing the caller's roles")
+    }
+}
+
+impl std::error::Error for RolesMissing {}
+
+/// Resolves the JWT decoding key(s) used to verify a bearer token. The default
+/// [`StaticKeyResolver`] returns a single configured key; an extension may register a resolver that
+/// fetches keys dynamically (e.g. SSO/OIDC JWKS by `kid`).
+pub trait KeyResolver: Send + Sync {
+    /// The decoding key and the algorithm(s) permitted for a token carrying `kid` (`None` when the
+    /// token has no `kid`), or `None` if no key matches.
+    fn resolve<'a>(
+        &'a self,
+        kid: Option<&'a str>,
+    ) -> BoxFuture<'a, Option<(DecodingKey, Vec<Algorithm>)>>;
+}
+
+/// The default resolver: one statically-configured key (`auth.public_key`), used for every token.
+pub struct StaticKeyResolver {
+    key: DecodingKey,
+    algorithms: Vec<Algorithm>,
+}
+
+impl StaticKeyResolver {
+    pub fn new(key: DecodingKey, algorithms: Vec<Algorithm>) -> Self {
+        Self { key, algorithms }
+    }
+}
+
+impl KeyResolver for StaticKeyResolver {
+    fn resolve<'a>(
+        &'a self,
+        _kid: Option<&'a str>,
+    ) -> BoxFuture<'a, Option<(DecodingKey, Vec<Algorithm>)>> {
+        Box::pin(async move { Some((self.key.clone(), self.algorithms.clone())) })
+    }
 }
 
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
@@ -38,12 +144,15 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AppConfig,
     semaphore: Option<Semaphore>,
-    lock: Option<tokio::sync::RwLock<()>>,
+    lock: Option<RwLock<()>>,
+    /// Resolves the JWT verification key. `None` when no auth is configured.
+    key_resolver: Option<Arc<dyn KeyResolver>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
-    /// Create a GraphQL endpoint.
-    pub fn new(executor: E, config: AppConfig) -> Self {
+    /// Create a GraphQL endpoint. `key_resolver` is a resolver registered by an extension (e.g. an
+    /// SSO/JWKS resolver); when `None`, a static key from `auth.public_key` is used if configured.
+    pub fn new(executor: E, config: AppConfig, key_resolver: Option<Arc<dyn KeyResolver>>) -> Self {
         let semaphore = config.concurrency.heavy_query_limit.map(|limit| {
             println!("Server running with concurrency limited to {limit} for heavy queries");
             Semaphore::new(limit)
@@ -54,11 +163,21 @@ impl<E> AuthenticatedGraphQL<E> {
         } else {
             None
         };
+        // A registered resolver (e.g. SSO/JWKS) wins; otherwise fall back to the static public key.
+        let key_resolver = key_resolver.or_else(|| {
+            config.auth.public_key.as_ref().map(|pk| {
+                Arc::new(StaticKeyResolver::new(
+                    pk.decoding_key.clone(),
+                    pk.algorithms.clone(),
+                )) as Arc<dyn KeyResolver>
+            })
+        });
         Self {
             executor,
             config,
             semaphore,
             lock,
+            key_resolver,
         }
     }
 }
@@ -124,28 +243,40 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let (access, role) = match &self.config.auth.public_key {
-            Some(public_key) => {
-                let claims = req
-                    .header(AUTHORIZATION)
-                    .and_then(|header| extract_claims_from_header(header, public_key));
+        let auth = &self.config.auth;
+        let (access, roles, claim_values) = match &self.key_resolver {
+            // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
+            Some(resolver) => {
+                let claims = match req.header(AUTHORIZATION) {
+                    Some(header) => {
+                        extract_claims(
+                            header,
+                            resolver.as_ref(),
+                            auth.audience.as_deref(),
+                            auth.issuer.as_deref(),
+                            auth.role_claim.as_deref(),
+                        )
+                        .await
+                    }
+                    None => None,
+                };
                 match claims {
-                    Some(claims) => {
-                        debug!(role = ?claims.role, "JWT validated successfully");
-                        (claims.access, claims.role)
+                    Some((access, roles, other)) => {
+                        debug!(roles = ?roles, "JWT validated successfully");
+                        (access, Roles(roles), TokenClaimValues(other))
                     }
                     None => {
-                        if self.config.auth.require_auth_for_reads {
+                        if auth.require_auth_for_reads {
                             warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
                             debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (Access::Ro, None)
+                            (Access::Ro, Roles::default(), TokenClaimValues::default())
                         }
                     }
                 }
             }
-            None => (Access::Rw, None), // if auth is not setup, we give write access to all requests
         };
 
         let is_accept_multipart_mixed = req
@@ -156,7 +287,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(role);
+            let req = req.0.data(access).data(roles).data(claim_values);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -180,7 +311,7 @@ where
                 }
             }
 
-            let req = batch_req.data(access).data(role);
+            let req = batch_req.data(access).data(roles).data(claim_values);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),
@@ -226,49 +357,133 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("neighbours")
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
+        || query.contains("algorithm")
 }
 
-fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<TokenClaims> {
-    if header.starts_with("Bearer ") {
-        let jwt = header.replace("Bearer ", "");
-        let mut validation = Validation::new(public_key.algorithms[0]);
-        validation.algorithms = public_key.algorithms.clone();
-        validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
-        let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
-        match decoded {
-            Ok(token_data) => Some(token_data.claims),
-            Err(e) => {
-                warn!(error = %e, "JWT signature validation failed");
-                None
-            }
-        }
-    } else {
+/// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),
+/// validate signature + `nbf` + `aud` + `iss`, and return the claims (with the role remapped from a
+/// custom claim if configured).
+async fn extract_claims(
+    header: &str,
+    resolver: &dyn KeyResolver,
+    audience: Option<&str>,
+    issuer: Option<&str>,
+    role_claim: Option<&str>,
+) -> Option<(Access, Vec<String>, HashMap<String, serde_json::Value>)> {
+    let jwt = header.strip_prefix("Bearer ").or_else(|| {
         warn!("Authorization header is missing or does not start with 'Bearer '");
         None
+    })?;
+    let kid = decode_header(jwt).ok()?.kid;
+    let (decoding_key, algorithms) = resolver.resolve(kid.as_deref()).await?;
+
+    let mut validation = Validation::new(algorithms[0]);
+    validation.algorithms = algorithms;
+    validation.validate_nbf = true; // reject not-yet-valid tokens (nbf in the future)
+                                    // Require the claims we validate to be present, so a token that simply omits a configured
+                                    // audience/issuer is rejected rather than skipping the check. `exp` stays optional.
+    let mut required: Vec<&str> = Vec::new();
+    // Validate `aud` against the configured audience, or disable the check so SSO/OIDC tokens
+    // (which always carry an `aud`) are accepted.
+    match audience {
+        Some(aud) => {
+            validation.set_audience(&[aud]);
+            required.push("aud");
+        }
+        None => validation.validate_aud = false,
+    }
+    if let Some(iss) = issuer {
+        validation.set_issuer(&[iss]);
+        required.push("iss");
+    }
+    validation.set_required_spec_claims(&required);
+    match decode::<TokenClaims>(jwt, &decoding_key, &validation) {
+        Ok(token_data) => {
+            let claims = token_data.claims;
+            let roles = effective_roles(&claims, role_claim);
+            Some((claims.access, roles, claims.other))
+        }
+        Err(e) => {
+            warn!(error = %e, "JWT validation failed");
+            None
+        }
     }
 }
 
-pub(crate) trait ContextValidation {
+/// The caller's roles, read from the `role` claim or a custom claim named by `role_claim`. The claim
+/// may be a single string or an array of strings (e.g. an SSO `roles`/`groups` claim); every entry
+/// becomes a role, and the authorization policy merges their grants.
+fn effective_roles(claims: &TokenClaims, role_claim: Option<&str>) -> Vec<String> {
+    let name = role_claim.unwrap_or("role");
+    let value = if name == "role" {
+        claims.role.as_ref()
+    } else {
+        claims.other.get(name)
+    };
+    value.map(roles_from_value).unwrap_or_default()
+}
+
+/// The roles carried by a claim that is either a string or an array of strings. Non-string array
+/// entries are ignored.
+fn roles_from_value(v: &serde_json::Value) -> Vec<String> {
+    match v {
+        serde_json::Value::String(s) => vec![s.clone()],
+        serde_json::Value::Array(items) => items
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+pub trait ContextValidation {
+    fn is_read_only(&self) -> bool;
     fn require_jwt_write_access(&self) -> Result<(), AuthError>;
 }
 
-/// Check that the request carries a write-access JWT (`"access": "rw"`).
-/// For use in dynamic resolver ops that run under `query { ... }` and are
-/// therefore not covered by the `MutationAuth` extension.
-pub fn require_jwt_write_access_dynamic(
-    ctx: &async_graphql::dynamic::ResolverContext,
-) -> Result<(), async_graphql::Error> {
-    if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
-        Ok(())
-    } else {
-        Err(async_graphql::Error::new(
-            "Access denied: write access required",
-        ))
-    }
+/// A request-context marker meaning "this execution must not write", independent of how much
+/// access its token carries.
+///
+/// Attach it with `Request::data(ReadOnly)` (or `.data(ReadOnly)` when building a schema for
+/// internal use). Every write gate refuses while it is present, so an [`Access::Rw`] token
+/// executing under this marker still cannot write.
+///
+/// # Why a marker, rather than lowering `Access`
+///
+/// The two answer different questions. [`Access`] is *how much authority this token has*; the
+/// marker is *whether this particular execution is permitted to use it to write*. A server
+/// extension that runs a query itself — on a caller's behalf, but with access of its own rather
+/// than the caller's — needs to raise the first without raising the second. Lowering `Access` to
+/// [`Access::Ro`] would instead take away the read breadth that is the whole point of running it
+/// separately, so the two have to be independent.
+///
+/// # Why the gate, rather than inspecting the query
+///
+/// Parsing as a `query` operation does **not** make a document read-only. GraphQL's query root
+/// carries fields that mutate — `updateGraph`, `deleteGraph`, and the `load*` family — so a
+/// document containing no `mutation` keyword can still change stored data.
+///
+/// Checking at the point where write authority is granted, instead of pattern-matching the query
+/// text, means the refusal does not depend on how a mutating field is named, aliased, or reached:
+/// anything that needs write authority asks for it, and while this marker is set the answer is no.
+/// It also keeps the guarantee true for fields added later, which a text check would silently miss.
+#[derive(Clone, Copy, Debug)]
+pub struct ReadOnly;
+
+pub(crate) fn is_read_only(ctx: &Context<'_>) -> bool {
+    ctx.data::<ReadOnly>().is_ok()
 }
 
-impl<'a> ContextValidation for &Context<'a> {
+impl<'a> ContextValidation for Context<'a> {
+    /// Whether this context is marked [`ReadOnly`].
+    fn is_read_only(&self) -> bool {
+        self.data::<ReadOnly>().is_ok()
+    }
     fn require_jwt_write_access(&self) -> Result<(), AuthError> {
+        // A read-only context never writes, however much access its token carries.
+        if self.data::<ReadOnly>().is_ok() {
+            return Err(AuthError::RequireWrite);
+        }
         match self.data::<Access>() {
             Ok(access) if access == &Access::Rw => Ok(()),
             _ => Err(AuthError::RequireWrite),
@@ -312,5 +527,93 @@ impl Extension for MutationAuth {
             }
             Ok(doc)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn claims(role: Option<serde_json::Value>, other: &[(&str, serde_json::Value)]) -> TokenClaims {
+        TokenClaims {
+            access: Access::Ro,
+            role,
+            other: other
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.clone()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn role_claim_may_be_a_single_string() {
+        let c = claims(Some(json!("analyst")), &[]);
+        assert_eq!(effective_roles(&c, None), vec!["analyst".to_string()]);
+    }
+
+    #[test]
+    fn role_claim_may_be_an_array() {
+        // The shape SSO providers emit; a single-role deployment and an Entra-style
+        // token have to travel the same path.
+        let c = claims(Some(json!(["analyst", "auditor"])), &[]);
+        assert_eq!(
+            effective_roles(&c, None),
+            vec!["analyst".to_string(), "auditor".to_string()]
+        );
+    }
+
+    #[test]
+    fn absent_role_claim_yields_no_roles() {
+        assert!(effective_roles(&claims(None, &[]), None).is_empty());
+    }
+
+    #[test]
+    fn empty_array_role_claim_yields_no_roles() {
+        assert!(effective_roles(&claims(Some(json!([])), &[]), None).is_empty());
+    }
+
+    #[test]
+    fn a_custom_claim_name_is_read_from_the_other_claims() {
+        // `role_claim = "groups"`: the standard `role` claim must be ignored entirely,
+        // not merged with the custom one.
+        let c = claims(Some(json!("ignored")), &[("groups", json!(["eng", "ops"]))]);
+        assert_eq!(
+            effective_roles(&c, Some("groups")),
+            vec!["eng".to_string(), "ops".to_string()]
+        );
+    }
+
+    #[test]
+    fn a_missing_custom_claim_yields_no_roles() {
+        let c = claims(Some(json!("analyst")), &[]);
+        assert!(effective_roles(&c, Some("groups")).is_empty());
+    }
+
+    #[test]
+    fn non_string_entries_are_dropped_not_stringified() {
+        // A malformed claim must not smuggle in a role named "1" or "null".
+        let c = claims(Some(json!(["analyst", 1, null, {"a": 1}, "auditor"])), &[]);
+        assert_eq!(
+            effective_roles(&c, None),
+            vec!["analyst".to_string(), "auditor".to_string()]
+        );
+    }
+
+    #[test]
+    fn a_non_string_non_array_claim_yields_no_roles() {
+        assert!(effective_roles(&claims(Some(json!(42)), &[]), None).is_empty());
+        assert!(effective_roles(&claims(Some(json!({"a": 1})), &[]), None).is_empty());
+    }
+
+    #[test]
+    fn role_order_is_preserved() {
+        // Access decisions are order-independent by construction — grants merge as a set —
+        // so order is preserved here only because reports echo the claim as it was made.
+        let c = claims(Some(json!(["b", "a", "c"])), &[]);
+        assert_eq!(
+            effective_roles(&c, None),
+            vec!["b".to_string(), "a".to_string(), "c".to_string()]
+        );
     }
 }

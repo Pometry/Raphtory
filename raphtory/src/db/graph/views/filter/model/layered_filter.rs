@@ -1,13 +1,32 @@
 use crate::{
     db::{
-        api::view::internal::{GraphView, InternalFilter},
-        graph::views::filter::{
-            model::{ComposableFilter, EdgeViewFilterOps, InternalViewWrapOps, Wrap},
-            CreateFilter,
+        api::view::internal::GraphView,
+        graph::views::{
+            filter::{
+                model::{
+                    edge_filter::CompositeEdgeFilter,
+                    is_active_edge_filter::IsActiveEdge,
+                    is_active_node_filter::IsActiveNode,
+                    is_deleted_filter::IsDeletedEdge,
+                    is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge,
+                    node_filter::builders::{
+                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
+                    },
+                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
+                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
+                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
+                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                },
+                CreateFilter,
+            },
+            layer_graph::LayeredGraph,
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, LayerOps},
+    prelude::LayerOps,
 };
 use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display};
@@ -51,39 +70,140 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
     }
 }
 
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
-    type EntityFiltered<'graph, G>
-        = T::EntityFiltered<'graph, <G as LayerOps<'graph>>::LayeredViewType>
-    where
-        G: GraphViewOps<'graph> + InternalFilter<'graph>,
-        <G as LayerOps<'graph>>::LayeredViewType: GraphViewOps<'graph>;
+impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Layered<T> {
+    type FilterType = T::FilterType;
 
-    type NodeFilter<'graph, G>
-        = T::NodeFilter<'graph, <G as LayerOps<'graph>>::LayeredViewType>
-    where
-        G: GraphView + InternalFilter<'graph> + 'graph,
-        <G as LayerOps<'graph>>::LayeredViewType: GraphView + 'graph;
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
 
-    fn create_filter<'graph, G>(
-        self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
-    where
-        G: GraphViewOps<'graph> + InternalFilter<'graph>,
-        <G as LayerOps<'graph>>::LayeredViewType: GraphViewOps<'graph>,
-    {
-        self.inner.create_filter(graph.layers(self.layer)?)
+impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Layered<T> {
+    fn field_name(&self) -> &'static str {
+        self.inner.field_name()
+    }
+}
+
+impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Layered<T> {
+    type Filter = Layered<T::Filter>;
+    type ExprBuilder = Layered<T::ExprBuilder>;
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.inner.property_ref()
     }
 
-    fn create_node_filter<'graph, G>(
+    fn ops(&self) -> &[Op] {
+        self.inner.ops()
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
+
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        self.wrap(self.inner.filter(filter))
+    }
+
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        self.wrap(self.inner.with_expr_builder(builder))
+    }
+}
+
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // Single-kind inners keep their composite form (the wrapper becomes a
+        // windowed/layered/... composite variant); only graph-level view
+        // chains export as `View` ops. Anything else (a view wrapping a
+        // mixed-kind tree) has no wire representation yet.
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
+            return Ok(FilterTree::ExplodedEdge(f));
+        }
+        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
+            return Err(GraphError::NotSupported);
+        };
+        let mut chain = vec![GraphViewOp::Layers(self.layer.clone())];
+        chain.extend(ops);
+        Ok(FilterTree::View(chain))
+    }
+
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_node_filter()?;
+        let filter = CompositeNodeFilter::Layered(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_edge_filter()?;
+        let filter = CompositeEdgeFilter::Layered(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
+        let filter = CompositeExplodedEdgeFilter::Layered(Box::new(self.wrap(filter)));
+        Ok(filter)
+    }
+}
+
+impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
+    type EntityFiltered<'graph, G, F>
+        = T::EntityFiltered<'graph, G, F>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+
+    type NodeFilter<'graph, G, F>
+        = T::NodeFilter<'graph, G, F>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+
+    type FilteredGraph<'graph, G>
+        = LayeredGraph<T::FilteredGraph<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G, F>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
-        G: GraphView + InternalFilter<'graph> + 'graph,
-        <G as LayerOps<'graph>>::LayeredViewType: GraphView + 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
     {
-        self.inner.create_node_filter(graph.layers(self.layer)?)
+        self.inner.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G, F>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    where
+        G: GraphView + 'graph,
+        F: GraphView + 'graph,
+    {
+        self.inner.create_node_filter(graph, filtered)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.inner
+            .filter_graph_view(graph)?
+            .layers(self.layer.clone())
     }
 }
 
@@ -97,4 +217,50 @@ impl<M> Wrap for Layered<M> {
     }
 }
 
-impl<T: EdgeViewFilterOps> EdgeViewFilterOps for Layered<T> {}
+impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Layered<T> {
+    type Entity = T::Entity;
+    type PropertyBuilder = Layered<T::PropertyBuilder>;
+    type MetadataBuilder = Layered<T::MetadataBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.inner.entity()
+    }
+
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.wrap(self.inner.property_builder(property))
+    }
+
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.wrap(self.inner.metadata_builder(property))
+    }
+}
+
+impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Layered<T> {}
+
+impl<U: NodeViewFilterOps> NodeViewFilterOps for Layered<U> {
+    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
+
+    fn is_active(&self) -> Self::Output<IsActiveNode> {
+        self.wrap(self.inner.is_active())
+    }
+}
+
+impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Layered<U> {
+    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        self.wrap(self.inner.is_active())
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        self.wrap(self.inner.is_valid())
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        self.wrap(self.inner.is_deleted())
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        self.wrap(self.inner.is_self_loop())
+    }
+}

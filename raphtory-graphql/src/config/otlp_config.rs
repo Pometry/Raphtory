@@ -1,12 +1,11 @@
 use crate::{model::blocking_io, server::ServerError};
-use clap::{Args, ValueEnum};
+use clap::ValueEnum;
 use config::ConfigError;
 use field_types::FieldName;
 use opentelemetry::KeyValue;
-use opentelemetry_appender_tracing::layer::{
-    OpenTelemetryTracingBridge, OpenTelemetryTracingBridgeBuilder,
-};
 use opentelemetry_otlp::{LogExporter, Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
+#[cfg(feature = "integration-test")]
+use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider,
     trace::{Sampler, SdkTracerProvider},
@@ -15,7 +14,10 @@ use opentelemetry_sdk::{
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
-use std::{collections::HashMap, env, fs::File, io::Read, path::PathBuf, time::Duration};
+use std::{collections::HashMap, fs::File, io::Read, path::PathBuf, time::Duration};
+// Only the in-memory test exporters are lazily initialised.
+#[cfg(feature = "integration-test")]
+use std::sync::LazyLock;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
@@ -80,6 +82,8 @@ pub enum TracingProtocol {
     TONIC,
     HTTP,
     STDOUT,
+    #[cfg(feature = "integration-test")]
+    IN_MEMORY,
 }
 
 impl TryFrom<String> for TracingProtocol {
@@ -108,6 +112,28 @@ pub const DEFAULT_TRACING_LEVEL: TracingLevel = TracingLevel::COMPLETE;
 pub const DEFAULT_OTLP_TRANSPORT_PROTOCOL: TracingProtocol = TracingProtocol::TONIC;
 pub const DEFAULT_OTLP_AGENT_PORT_TONIC: u16 = 4317;
 pub const DEFAULT_OTLP_TRACING_SERVICE_NAME: &'static str = "Raphtory";
+
+#[cfg(feature = "integration-test")]
+// in-memory exporters to retrieve spans and logs in tests.
+#[derive(Clone)]
+pub struct GlobalExporters {
+    pub span: InMemorySpanExporter,
+    pub log: InMemoryLogExporter,
+}
+
+#[cfg(feature = "integration-test")]
+/* GraphServer registers span and log exporters
+   across the entire process, which can conflict
+   when starting up servers with their own exporters.
+   Making in-memory exporters global allows them to be
+   initialized once and reused across multiple tests
+   allowing the tests to retrieve spans and logs
+   without conflicts.
+*/
+pub static GLOBAL_EXPORTERS: LazyLock<GlobalExporters> = LazyLock::new(|| GlobalExporters {
+    span: InMemorySpanExporter::default(),
+    log: InMemoryLogExporter::default(),
+});
 
 #[derive(Clone, Deserialize, Debug, PartialEq, serde::Serialize, FieldName)]
 pub struct TracingConfig {
@@ -158,6 +184,34 @@ impl TracingConfig {
 
         let logger = SdkLoggerProvider::builder()
             .with_batch_exporter(log_exporter)
+            .with_resource(resource)
+            .build();
+        (tracer, logger)
+    }
+
+    #[cfg(feature = "integration-test")]
+    fn with_simple_exporter<
+        E: opentelemetry_sdk::trace::SpanExporter + 'static,
+        L: opentelemetry_sdk::logs::LogExporter + 'static,
+    >(
+        &self,
+        span_exporter: E,
+        log_exporter: L,
+    ) -> (SdkTracerProvider, SdkLoggerProvider) {
+        let resource = Resource::builder()
+            .with_attributes(vec![KeyValue::new(
+                "service.name",
+                self.service_name.clone(),
+            )])
+            .build();
+        let tracer = SdkTracerProvider::builder()
+            .with_simple_exporter(span_exporter)
+            .with_sampler(Sampler::AlwaysOn)
+            .with_resource(resource.clone())
+            .build();
+
+        let logger = SdkLoggerProvider::builder()
+            .with_simple_exporter(log_exporter)
             .with_resource(resource)
             .build();
         (tracer, logger)
@@ -263,6 +317,17 @@ impl TracingConfig {
                     Ok(self.with_exporter(
                         opentelemetry_stdout::SpanExporter::default(),
                         opentelemetry_stdout::LogExporter::default(),
+                    ))
+                }
+                #[cfg(feature = "integration-test")]
+                TracingProtocol::IN_MEMORY => {
+                    eprintln!(
+                        "Sending traces to in-memory exporter with tracing level `{}`",
+                        self.level
+                    );
+                    Ok(self.with_simple_exporter(
+                        GLOBAL_EXPORTERS.span.clone(),
+                        GLOBAL_EXPORTERS.log.clone(),
                     ))
                 }
             };

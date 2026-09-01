@@ -1,5 +1,7 @@
 use crate::core::{
-    entities::properties::prop::{data_type_as_prop_type, Prop, PropArray, PropType, PropUnwrap},
+    entities::properties::prop::{
+        data_type_as_prop_type, Prop, PropArray, PropMap, PropType, PropUnwrap,
+    },
     storage::arc_str::ArcStr,
 };
 use array_ext::*;
@@ -19,7 +21,6 @@ use pyo3::{
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use pyo3_arrow::{PyArray, PyDataType};
-use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
 mod array_ext {
@@ -331,12 +332,10 @@ impl PyProp {
     ///     Prop:
     #[staticmethod]
     pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
-        let items: HashMap<String, Prop> = dict.extract()?;
-
-        let map: FxHashMap<ArcStr, Prop> = items
-            .into_iter()
-            .map(|(k, v)| (ArcStr::from(k), v))
-            .collect();
+        let mut map = PropMap::default();
+        for (k, v) in dict.iter() {
+            map.insert(ArcStr::from(k.extract::<String>()?), v.extract::<Prop>()?);
+        }
 
         Ok(PyProp(Prop::Map(Arc::new(map))))
     }

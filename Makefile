@@ -64,7 +64,7 @@ rust-test:
 	cargo test -q
 
 rust-check:
-	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,vectors,datafusion
 
 rust-test-all: rust-check
 	cargo nextest run --all

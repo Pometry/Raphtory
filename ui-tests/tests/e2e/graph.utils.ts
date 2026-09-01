@@ -1,31 +1,45 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { searchForEntity } from './search.utils';
+import { openTimeline } from './temporalview.utils';
 import { waitForLayoutToFinish } from './utils';
 
-interface G6NodeData {
-    id: string;
-    displayName: string;
-    states?: string[];
-    style?: {
-        fill?: string;
-        size?: number;
-    };
+/**
+ * The canvas that receives pointer events. Sigma stacks several canvases
+ * (`sigma-nodes`, `sigma-edges`, `sigma-edgeLabels`, `sigma-mouse`,
+ * `sigma-hovers`); only `sigma-mouse` accepts pointer events.
+ */
+export function getInteractiveCanvas(page: Page): Locator {
+    return page.locator('canvas.sigma-mouse');
 }
-interface G6EdgeData {
-    id?: string;
-    source: string;
-    target: string;
-    states?: string[];
+
+interface SigmaGraphShape {
+    nodes(): string[];
+    edges(): string[];
+    hasNode(id: string): boolean;
+    getNodeAttribute(id: string, key: string): unknown;
+    getEdgeAttribute(id: string, key: string): unknown;
+    source(edge: string): string;
+    target(edge: string): string;
+}
+interface SigmaInstanceShape {
+    graph: SigmaGraphShape;
+    sigma: {
+        graphToViewport(p: { x: number; y: number }): { x: number; y: number };
+    };
 }
 type BrowserWindow = Window & {
     __TESTING_ENABLED__?: boolean;
-    __G6_GRAPH__?: {
-        getData(): { nodes: G6NodeData[]; edges: G6EdgeData[] };
-        getElementPosition(id: string): [number, number];
-        getViewportByCanvas(point: [number, number]): [number, number];
-        getElementRenderStyle(id: string): Record<string, unknown>;
-    };
+    __SIGMA__?: SigmaInstanceShape;
 };
+
+// Mirror the truncation rule applied by useGraphContext.ts's
+// `truncateDisplayName` so a >20-char displayName matches its rendered
+// labelText. Short names pass through unchanged.
+function expectedLabelText(displayName: string): string {
+    return displayName.length > 20
+        ? displayName.slice(0, 20) + '...'
+        : displayName;
+}
 
 export async function fitView(page: Page) {
     await page
@@ -38,26 +52,45 @@ async function getNodePosition(
     page: Page,
     displayName: string,
 ): Promise<{ x: number; y: number }> {
+    const labelText = expectedLabelText(displayName);
+    // Match by id or label — BTS overrides label to "<id>\nES: …LS: …"
+    // which won't match the bare id callers pass.
     await page.waitForFunction(
         (name) => {
-            const graph = (window as BrowserWindow).__G6_GRAPH__;
+            const sigma = (window as BrowserWindow).__SIGMA__;
             return !!(
-                graph &&
-                graph.getData().nodes.some((n) => n.displayName === name)
+                sigma &&
+                sigma.graph
+                    .nodes()
+                    .some(
+                        (id) =>
+                            id === name ||
+                            sigma.graph.getNodeAttribute(id, 'label') === name,
+                    )
             );
         },
         displayName,
         { timeout: 10000 },
     );
 
-    const position = await page.evaluate((name) => {
-        const graph = (window as BrowserWindow).__G6_GRAPH__;
-        const node = graph?.getData().nodes.find((n) => n.displayName === name);
-        if (!node || !graph) return null;
-        const canvasPoint = graph.getElementPosition(node.id);
-        const vp = graph.getViewportByCanvas(canvasPoint);
-        return { x: vp[0], y: vp[1] };
-    }, displayName);
+    const position = await page.evaluate(
+        ({ name, label }) => {
+            const sigma = (window as BrowserWindow).__SIGMA__;
+            if (!sigma) return null;
+            const id = sigma.graph
+                .nodes()
+                .find(
+                    (nid) =>
+                        nid === name ||
+                        sigma.graph.getNodeAttribute(nid, 'label') === label,
+                );
+            if (id === undefined) return null;
+            const x = sigma.graph.getNodeAttribute(id, 'x') as number;
+            const y = sigma.graph.getNodeAttribute(id, 'y') as number;
+            return sigma.sigma.graphToViewport({ x, y });
+        },
+        { name: displayName, label: labelText },
+    );
     if (!position) {
         throw new Error(
             `Failed to get canvas position for node "${displayName}"`,
@@ -83,15 +116,15 @@ export async function clickOnNode(
     options?: { modifiers?: ('Shift' | 'Control' | 'Meta' | 'Alt')[] },
 ) {
     const position = await getNodePosition(page, displayName);
-    await page
-        .locator('canvas')
-        .nth(1)
-        .click({ position, modifiers: options?.modifiers });
+    await getInteractiveCanvas(page).click({
+        position,
+        modifiers: options?.modifiers,
+    });
 }
 
 export async function doubleClickOnNode(page: Page, displayName: string) {
     const position = await getNodePosition(page, displayName);
-    await page.locator('canvas').nth(1).dblclick({ position });
+    await getInteractiveCanvas(page).dblclick({ position });
 }
 
 /** Click the first node normally, then Shift-click the rest to multi-select. */
@@ -105,20 +138,20 @@ export async function clickOnNodes(page: Page, displayNames: string[]) {
 
 export async function rightClickOnNode(page: Page, displayName: string) {
     const position = await getNodePosition(page, displayName);
-    await page.locator('canvas').nth(1).click({ position, button: 'right' });
+    await getInteractiveCanvas(page).click({ position, button: 'right' });
 }
 
 /**
  * Simulate macOS ctrl+click — on macOS this fires a native `contextmenu`
- * event without going through G6's pointer pipeline. Caller is responsible
+ * event without going through sigma's pointer pipeline. Caller is responsible
  * for skipping on non-webkit browsers.
  */
 export async function ctrlClickOnNode(page: Page, displayName: string) {
     const position = await getNodePosition(page, displayName);
-    await page
-        .locator('canvas')
-        .nth(1)
-        .click({ position, modifiers: ['Control'] });
+    await getInteractiveCanvas(page).click({
+        position,
+        modifiers: ['Control'],
+    });
 }
 
 /** Click a point along an edge identified by its src and dst node display names.
@@ -135,7 +168,7 @@ export async function clickOnEdge(
         getNodePosition(page, srcDisplayName),
         getNodePosition(page, dstDisplayName),
     ]);
-    const canvas = page.locator('canvas').nth(1);
+    const canvas = getInteractiveCanvas(page);
     // Order tried: midpoint first (preserves existing behaviour for the common
     // case), then progressively closer to each endpoint where curves and label
     // overlaps deviate less from the straight line.
@@ -220,12 +253,6 @@ export async function changeTab(page: Page, tabName: string) {
     await page.waitForTimeout(500);
 }
 
-export async function openTimeline(page: Page) {
-    await page.getByRole('button', { name: 'Open timeline' }).click();
-    // wait for animation to finish
-    await page.waitForTimeout(300);
-}
-
 export async function setupGraphPage(
     page: Page,
     relativePath = 'graph/vanilla/event?initialNodes=%5B%5D',
@@ -234,39 +261,6 @@ export async function setupGraphPage(
     await waitForLayoutToFinish(page);
     await openTimeline(page);
     return page;
-}
-
-export async function hoverEdgeAndExpectTooltip(
-    page: Page,
-    selector: string,
-    expectedTexts: string[],
-) {
-    const temporalViewIsHidden = await page
-        .locator('#temporal-view')
-        .isHidden();
-    if (temporalViewIsHidden) {
-        await openTimeline(page);
-        await page.waitForTimeout(500);
-    }
-
-    const line = page.locator(selector).first();
-    await expect(line).toHaveCount(1);
-
-    // Dispatch the enter event directly rather than moving the cursor: edges
-    // with identical timestamps render at the same X with the shorter line's
-    // vertical range entirely contained within the longer one, so a positional
-    // hit-test on the overlap lands on whichever is rendered last in DOM
-    // order — and raphtory's edge iteration order is non-deterministic.
-    // React polyfills onMouseEnter/onMouseLeave from native mouseover/
-    // mouseout via root-level delegation, so dispatch mouseover/mouseout
-    // (which bubble) rather than mouseenter/mouseleave (which don't).
-    await line.dispatchEvent('mouseover');
-    for (const text of expectedTexts) {
-        await expect(
-            page.getByText(text, { exact: true }).first(),
-        ).toBeVisible();
-    }
-    await line.dispatchEvent('mouseout');
 }
 
 export async function dragSlider({
@@ -322,9 +316,10 @@ async function selectStylingTarget(page: Page, target: StyleTarget) {
         case 'edge':
             await clickOnEdge(page, target.src, target.dst);
             await changeTab(page, 'Styling');
-            await page.waitForTimeout(100);
-            await page.getByText('Select Edge Layer').click();
-            await page.getByRole('option', { name: target.layer }).click();
+            // TODO: as soon as there are instanced where an edge has two layers, this will need to change
+            await expect(
+                page.getByRole('combobox', { name: 'Edge Layer' }),
+            ).toContainText(target.layer);
             break;
         case 'edge-instance':
             await page.getByLabel(target.label).click();
@@ -333,31 +328,88 @@ async function selectStylingTarget(page: Page, target: StyleTarget) {
     }
 }
 
+export async function style(
+    page: Page,
+    target: StyleTarget,
+    styling: { colourValue?: string; size?: number },
+) {
+    await selectStylingTarget(page, target);
+    await fillInStyling(page, styling);
+}
+
+export async function saveAs(page: Page, newName: string) {
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save as ...').click();
+    await page.getByLabel('New Graph Name').fill(newName);
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await waitForLayoutToFinish(page);
+}
+
+export async function saveAsWithRandomName(
+    page: Page,
+    namespace: string,
+): Promise<string> {
+    const name = `${namespace}/test_${Math.random().toString(36).slice(2, 8)}`;
+    await saveAs(page, name);
+    return name;
+}
+
+export async function save(page: Page) {
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save changes').waitFor();
+    await page.getByText('Save changes').click();
+    // The save runs async behind the menu click. Wait for the Save button's
+    // unsaved-changes dot to clear — it only does once the mutation has
+    // completed AND the refetched server state matches the local one.
+    // Returning earlier lets callers (e.g. page.reload()) abort the save
+    // mid-flight, silently losing it.
+    await expect(
+        page.getByRole('button', { name: 'Save' }).locator('.MuiBadge-badge'),
+    ).toHaveClass(/MuiBadge-invisible/, { timeout: 15000 });
+}
+
+// TODO: remove styleAndSave and styleAndSaveAs, we should above instead
+export async function styleAndSaveAs(
+    page: Page,
+    target: StyleTarget,
+    styling: { colourValue?: string; size?: number },
+    newName: string,
+) {
+    await selectStylingTarget(page, target);
+    await fillInStyling(page, styling);
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save as ...').click();
+    await page.getByLabel('New Graph Name').fill(newName);
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await waitForLayoutToFinish(page);
+}
+
 export async function styleAndSave(
     page: Page,
     target: StyleTarget,
     styling: { colourValue?: string; size?: number },
-    saveButtonText: string,
+    _saveButtonText: string, // FIXME: remove this? or maybe styleAndSave and  styleAndSaveAs entirely
 ) {
     await selectStylingTarget(page, target);
     await fillInStyling(page, styling);
-    await page
-        .getByRole('button', { name: saveButtonText, exact: true })
-        .click();
-    await expect(page.getByText('Styling updated')).toBeVisible({
-        timeout: 5000,
-    });
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByText('Save changes').waitFor();
+    await page.getByText('Save changes').click();
 }
 
 // Asserts the styling tab's hex input shows expectedHex. Assumes the styling
 // tab is already showing the relevant target.
 export async function expectStylingHexInput(page: Page, expectedHex: string) {
-    const hex = await page
+    // Poll instead of reading once: after a page reload the saved style loads
+    // asynchronously, so the controlled colour picker can briefly show a stale
+    // value before the query settles. toHaveValue retries until it matches (or
+    // times out), which waits that race out — a one-shot inputValue() read was
+    // flaky on faster runs.
+    const hexInput = page
         .locator('div')
         .filter({ hasText: /^Hex$/ })
-        .getByRole('textbox')
-        .inputValue();
-    expect(hex.toLowerCase()).toBe(expectedHex.toLowerCase());
+        .getByRole('textbox');
+    await expect(hexInput).toHaveValue(new RegExp(`^${expectedHex}$`, 'i'));
 }
 
 // Selects the target on the styling tab and asserts the hex input matches
@@ -425,54 +477,77 @@ interface GraphState {
     }[];
 }
 
-export async function getGraphState(page: Page): Promise<GraphState> {
+export async function getGraphState(
+    page: Page,
+    options: { allowEmpty?: boolean } = {},
+): Promise<GraphState> {
+    const allowEmpty = options.allowEmpty ?? false;
     const handle = await page.waitForFunction(
-        () => {
-            const graph = (window as BrowserWindow).__G6_GRAPH__;
-            if (!graph) return undefined;
-            const data = graph.getData();
-            const anyDisabled = data.nodes.some((n) =>
-                n.states?.includes('disabled'),
+        (allowEmpty) => {
+            const sigma = (window as BrowserWindow).__SIGMA__;
+            if (!sigma) return undefined;
+            const sg = sigma.graph;
+            const nodeIds = sg.nodes();
+            // Default: wait until the graph has loaded. allowEmpty for the
+            // rare test that expects a deliberately blank canvas.
+            if (nodeIds.length === 0 && !allowEmpty) return undefined;
+
+            // SigmaScene's reconcile step writes `disabled` / `selected` as node and
+            // edge attributes on sigma's graphology graph.
+            const anyDisabled = nodeIds.some(
+                (id) => sg.getNodeAttribute(id, 'disabled') === true,
             );
+            const highlighted = anyDisabled
+                ? nodeIds
+                      .filter(
+                          (id) => sg.getNodeAttribute(id, 'disabled') !== true,
+                      )
+                      .map((id) => ({ id }))
+                : [];
+            const selected = nodeIds.filter(
+                (id) => sg.getNodeAttribute(id, 'selected') === true,
+            );
+            const selectedEdges = sg
+                .edges()
+                .filter((id) => sg.getEdgeAttribute(id, 'selected') === true);
+
+            // Sigma stores size as size/1.6; multiply back so callers see
+            // the same pre-divisor value the store used to expose.
+            const SIGMA_NODE_SIZE_DIVISOR = 1.6;
+
             return {
-                highlighted: anyDisabled
-                    ? data.nodes
-                          .filter((n) => !n.states?.includes('disabled'))
-                          .map((n) => ({ id: n.id }))
-                    : [],
-                selected: data.nodes
-                    .filter((n) => n.states?.includes('selected'))
-                    .map((n) => n.id),
-                selectedEdges: data.edges
-                    .filter(
-                        (e) =>
-                            e.id !== undefined &&
-                            e.states?.includes('selected'),
-                    )
-                    .map((e) => e.id as string),
-                nodes: data.nodes.map((n) => {
+                highlighted,
+                selected,
+                selectedEdges,
+                nodes: nodeIds.map((id) => {
                     let badgeText: string | undefined;
-                    try {
-                        const style = graph.getElementRenderStyle(n.id);
-                        const badges = style?.badges;
-                        if (Array.isArray(badges)) {
-                            const textBadge = badges.find(
-                                (b: Record<string, unknown>) => 'text' in b,
-                            );
-                            badgeText = textBadge?.text?.toString();
-                        }
-                    } catch {
-                        // getElementRenderStyle may not be available
+                    const badges = sg.hasNode(id)
+                        ? sg.getNodeAttribute(id, 'badges')
+                        : undefined;
+                    if (Array.isArray(badges)) {
+                        const textBadge = badges.find(
+                            (b: Record<string, unknown>) => 'text' in b,
+                        );
+                        badgeText = textBadge?.text?.toString();
                     }
+                    const rawSize = sg.getNodeAttribute(id, 'size') as
+                        | number
+                        | undefined;
                     return {
-                        id: n.id,
-                        colour: n.style?.fill,
-                        size: n.style?.size,
+                        id,
+                        colour: sg.getNodeAttribute(id, 'color') as
+                            | string
+                            | undefined,
+                        size:
+                            rawSize !== undefined
+                                ? rawSize * SIGMA_NODE_SIZE_DIVISOR
+                                : undefined,
                         badgeText,
                     };
                 }),
             };
         },
+        allowEmpty,
         { timeout: 10000 },
     );
     return handle.jsonValue() as Promise<GraphState>;

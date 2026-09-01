@@ -658,18 +658,6 @@ def test_node_properties():
         "static prop": 123,
     }
 
-    # find all nodes that match properties
-    [n] = g.find_nodes(
-        {
-            "prop 3": "hello",
-            "prop 1": 2,
-        }
-    )
-    assert n == g.node(1)
-
-    empty_list = g.find_nodes({"prop 1": 2, "prop 3": "hi"})
-    assert len(empty_list) == 0
-
     assert g.nodes.properties == {
         "prop 2": [0.9],
         "prop 3": ["hello"],
@@ -979,13 +967,6 @@ def test_edge_properties():
         "prop 3",
         "prop 4",
     ]
-
-    # find all edges that match properties
-    [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
-    assert e == g.edge(1, 2)
-
-    empty_list = g.at(1).find_edges({"prop 1": 1, "prop 3": "hx"})
-    assert len(empty_list) == 0
 
     # testing has_property
     assert "prop 4" in g.edge(1, 2).properties

@@ -9,21 +9,23 @@ use arrow_array::{
     builder::{FixedSizeListBuilder, Float32Builder},
     types::{Float32Type, UInt64Type},
     Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
-    UInt64Array,
+    RecordBatchIterator, UInt64Array,
 };
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 use lancedb::{
     arrow::arrow_schema::{DataType, Field, Schema},
+    database::CreateTableMode,
     index::{
         vector::{IvfFlatIndexBuilder, IvfPqIndexBuilder},
         Index, IndexType,
     },
-    query::{ExecutableQuery, QueryBase},
+    query::{ExecutableQuery, QueryBase, Select},
     table::{OptimizeAction, OptimizeOptions},
     Connection, DistanceType, Table,
 };
-use std::{ops::Deref, path::Path, sync::Arc};
+use roaring::RoaringTreemap;
+use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
 const VECTOR_COL_NAME: &str = "vector";
 
@@ -40,7 +42,13 @@ impl VectorCollectionFactory for LanceDb {
     ) -> GraphResult<Self::DbType> {
         let db = connect(path.deref().as_ref()).await?;
         let schema = get_schema(dim);
-        let table = db.create_empty_table(name, schema).execute().await?;
+        // Overwrite: a re-vectorise of a graph whose collections are already on disk has to
+        // rebuild them from scratch, and the default Create mode errors on an existing table
+        let table = db
+            .create_empty_table(name, schema)
+            .mode(CreateTableMode::Overwrite)
+            .execute()
+            .await?;
         Ok(Self::DbType {
             table,
             dim,
@@ -82,23 +90,58 @@ impl VectorCollection for LanceDbCollection {
         &self,
         ids: Vec<u64>,
         vectors: impl IntoIterator<Item = Embedding>,
-    ) -> crate::errors::GraphResult<()> {
+    ) -> GraphResult<()> {
+        // lance defines a merge with several source rows matching one target row as undefined,
+        // and currently duplicates the row, so only the last vector for each id is kept
+        let incoming: Vec<_> = ids.into_iter().zip(vectors).collect();
+        let mut seen = HashSet::with_capacity(incoming.len());
         let mut builder = FixedSizeListBuilder::new(Float32Builder::new(), self.dim as i32);
-        for vector in vectors {
-            builder.values().append_slice(&vector);
-            builder.append(true);
+        let mut ids = Vec::with_capacity(incoming.len()); // duplicates should be rare
+
+        // order after deduplication doesn't matter, can build the arrays directly
+        for (id, vector) in incoming.into_iter().rev() {
+            if seen.insert(id) {
+                ids.push(id);
+                builder.values().append_slice(&vector);
+                builder.append(true);
+            }
         }
-        self.table
-            .add(RecordBatch::try_new(
-                self.schema(),
-                vec![Arc::new(UInt64Array::from(ids)), Arc::new(builder.finish())],
-            )?)
-            .execute()
+
+        let schema = self.schema();
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![Arc::new(UInt64Array::from(ids)), Arc::new(builder.finish())],
+        )?;
+        // upsert rather than append: re-embedding an entity has to replace its vector, otherwise
+        // the stale one stays behind as a second row with the same id and both get returned
+        let mut merge = self.table.merge_insert(&["id"]);
+        merge
+            .when_matched_update_all(None)
+            .when_not_matched_insert_all();
+        merge
+            .execute(Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema)))
             .await?;
         Ok(())
     }
 
-    async fn get_id(&self, id: u64) -> GraphResult<Option<crate::vectors::Embedding>> {
+    async fn existing_ids(&self) -> GraphResult<RoaringTreemap> {
+        let stream = self
+            .table
+            .query()
+            .select(Select::columns(&["id"]))
+            .execute()
+            .await?;
+        let batches: Vec<_> = stream.try_collect().await?;
+        let mut ids = RoaringTreemap::new();
+        for batch in batches {
+            let column = primitive_column::<UInt64Type>(&batch, "id")
+                .ok_or(GraphError::InvalidVectorDbSchema)?;
+            ids.extend(column.iter().flatten());
+        }
+        Ok(ids)
+    }
+
+    async fn get_id(&self, id: u64) -> GraphResult<Option<Embedding>> {
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await?;
         let batches: Vec<_> = result.try_collect().await?;
@@ -116,7 +159,7 @@ impl VectorCollection for LanceDbCollection {
     // with get_id(), although we need this anyways for entities that are forced into the selection
     async fn top_k_with_distances(
         &self,
-        query: &crate::vectors::Embedding,
+        query: &Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
     ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send> {
@@ -201,7 +244,7 @@ impl VectorCollection for LanceDbCollection {
     }
 }
 
-fn primitive_column<T>(record: &arrow_array::RecordBatch, name: &str) -> Option<PrimitiveArray<T>>
+fn primitive_column<T>(record: &RecordBatch, name: &str) -> Option<PrimitiveArray<T>>
 where
     T: ArrowPrimitiveType,
 {
@@ -276,6 +319,62 @@ mod lancedb_tests {
             .collect::<Vec<_>>();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], (1, 2.0));
+    }
+
+    /// Re-embedding an entity has to replace its row. An append would leave the old vector
+    /// behind under the same id, so the entity would come back twice from a search.
+    #[tokio::test]
+    async fn test_insert_replaces_existing_ids() {
+        let factory = LanceDb;
+        let tempdir = tempfile::tempdir().unwrap();
+        let collection = factory
+            .new_collection(Arc::new(tempdir), "vectors", 2)
+            .await
+            .unwrap();
+
+        let vectors: Vec<Embedding> = vec![vec![1.0, 0.0].into(), vec![0.0, 1.0].into()];
+        collection
+            .insert_vectors(vec![0, 1], vectors.into_iter())
+            .await
+            .unwrap();
+        collection
+            .insert_vectors(vec![0], vec![Embedding::from(vec![0.5, 0.5])].into_iter())
+            .await
+            .unwrap();
+
+        let all = collection
+            .top_k_with_distances(&[1.0, 0.0].into(), 10, None::<Vec<_>>)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>();
+        assert_eq!(all.len(), 2, "expected one row per id, got {all:?}");
+        assert_eq!(
+            collection.get_id(0).await.unwrap().unwrap(),
+            Embedding::from(vec![0.5, 0.5])
+        );
+
+        // an id repeated inside a single call keeps the last vector, still one row
+        collection
+            .insert_vectors(
+                vec![2, 2],
+                vec![
+                    Embedding::from(vec![0.1, 0.9]),
+                    Embedding::from(vec![0.9, 0.1]),
+                ]
+                .into_iter(),
+            )
+            .await
+            .unwrap();
+        let all = collection
+            .top_k_with_distances(&[1.0, 0.0].into(), 10, None::<Vec<_>>)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>();
+        assert_eq!(all.len(), 3, "expected one row per id, got {all:?}");
+        assert_eq!(
+            collection.get_id(2).await.unwrap().unwrap(),
+            Embedding::from(vec![0.9, 0.1])
+        );
     }
 
     const EMBEDDING_DIM: usize = 32;

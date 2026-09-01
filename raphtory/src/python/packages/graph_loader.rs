@@ -3,7 +3,6 @@
 use crate::python::graph::graph::PyGraph;
 use pyo3::prelude::*;
 use std::path::PathBuf;
-use tokio::runtime::Runtime;
 
 /// Load the Lord of the Rings dataset into a graph.
 /// The dataset is available at https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
@@ -109,33 +108,6 @@ pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult
         path,
         subset.unwrap_or(false),
     ))
-}
-
-#[pyfunction]
-#[pyo3(signature = (uri,username,password,database="neo4j".to_string()))]
-/// Returns the neo4j movie graph example.
-///
-/// Arguments:
-///     uri (str):
-///     username (str):
-///     password (str):
-///     database (str): Neo4j database name. Defaults to "neo4j".
-///
-/// Returns:
-///     Graph:
-pub fn neo4j_movie_graph(
-    uri: String,
-    username: String,
-    password: String,
-    database: String,
-) -> PyResult<Py<PyGraph>> {
-    let g =
-        Runtime::new()
-            .unwrap()
-            .block_on(crate::graph_loader::neo4j_examples::neo4j_movie_graph(
-                uri, username, password, database,
-            ));
-    PyGraph::py_from_db_graph(g)
 }
 
 /// `karate_club_graph` constructs a karate club graph.

@@ -1,0 +1,391 @@
+use super::view_ops::py_remote_view_ops;
+use crate::{
+    client::{remote_nodes::RemoteNodes, ClientError},
+    python::client::{
+        node_subscript,
+        remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
+        remote_nested_edges::PyRemoteNestedEdges,
+        remote_node::PyRemoteNode,
+        remote_path_from_graph::PyRemotePathFromGraph,
+    },
+};
+use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use raphtory::python::{
+    filter::filter_expr::PyFilterExpr, graph::sorting::PyNodeSortBy, utils::execute_async_task,
+};
+use raphtory_api::{
+    core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
+    python::timeindex::PyOptionalEventTime,
+};
+use std::sync::Arc;
+
+/// A handle to a remote collection of nodes.
+///
+/// Returned by [RemoteGraph.nodes][raphtory.graphql.RemoteGraph.nodes] and by
+/// [RemoteNode.neighbours][raphtory.graphql.RemoteNode.neighbours] /
+/// [RemoteNode.in_neighbours][raphtory.graphql.RemoteNode.in_neighbours] /
+/// [RemoteNode.out_neighbours][raphtory.graphql.RemoteNode.out_neighbours].
+#[derive(Clone)]
+#[pyclass(name = "RemoteNodes", module = "raphtory.graphql", from_py_object)]
+pub struct PyRemoteNodes {
+    pub(crate) nodes: Arc<RemoteNodes>,
+}
+
+impl PyRemoteNodes {
+    pub(crate) fn new(nodes: RemoteNodes) -> Self {
+        Self {
+            nodes: Arc::new(nodes),
+        }
+    }
+}
+
+#[pymethods]
+impl PyRemoteNodes {
+    /// Restrict this collection to members whose node type is in the given
+    /// list. Filters membership — the returned collection has fewer members.
+    /// Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): the node types to keep.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection restricted to those node types.
+    pub fn type_filter(&self, node_types: Vec<String>) -> PyRemoteNodes {
+        PyRemoteNodes::new(self.nodes.type_filter(node_types))
+    }
+
+    /// Filter this collection by a filter expression from `raphtory.filter`
+    /// (the same builder used by local graphs). The filter **propagates**:
+    /// it narrows the current collection AND applies to downstream
+    /// traversals from the matching nodes (e.g. their `.neighbours`,
+    /// `.edges`). For a narrow-here-only variant, use `.select(...)`.
+    /// Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection with the filter applied.
+    ///
+    /// Raises:
+    ///     ValueError: if the filter cannot be represented as a GraphQL
+    ///         `NodeFilter` (e.g. references edge fields).
+    pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
+        let tree = filter
+            .try_as_filter_tree()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
+    }
+
+    /// `nodes[filter]` — narrow this collection's membership by a filter
+    /// expression, the sugar form of `.select(filter)` (matches the local
+    /// `Nodes.__getitem__`). Node predicates, graph views (which narrow
+    /// membership to the nodes present in the view), and combinations all
+    /// apply. Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection narrowed to matching nodes.
+    ///
+    /// Raises:
+    ///     Exception: if the expression tests edges rather than nodes — the
+    ///         same error the local `Nodes.__getitem__` raises.
+    ///     ValueError: if the filter cannot be sent over the wire.
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
+        Ok(PyRemoteNodes::new(
+            self.nodes.select(node_subscript(&filter)?)?,
+        ))
+    }
+
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
+    ///
+    /// Arguments:
+    ///     sort_bys (list[NodeSortBy]): the ordered sort keys.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a new collection in the sorted order.
+    pub fn sorted(&self, sort_bys: Vec<PyNodeSortBy>) -> PyRemoteNodes {
+        let inner: Vec<_> = sort_bys.into_iter().map(|s| s.inner.into()).collect();
+        PyRemoteNodes::new(self.nodes.sorted(inner))
+    }
+
+    /// Each member's neighbours (both directions). Lazy — no RPC. Returns a
+    /// `RemotePathFromGraph` (nested, grouped per source node).
+    ///
+    /// Returns:
+    ///     RemotePathFromGraph: each member's neighbours, grouped per source node.
+    #[getter]
+    pub fn neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.nodes.neighbours())
+    }
+
+    /// Each member's in-neighbours. Lazy — no RPC. See `neighbours` for
+    /// return-type notes.
+    ///
+    /// Returns:
+    ///     RemotePathFromGraph: each member's in-neighbours, grouped per source node.
+    #[getter]
+    pub fn in_neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.nodes.in_neighbours())
+    }
+
+    /// Each member's out-neighbours. Lazy — no RPC. See `neighbours` for
+    /// return-type notes.
+    ///
+    /// Returns:
+    ///     RemotePathFromGraph: each member's out-neighbours, grouped per source node.
+    #[getter]
+    pub fn out_neighbours(&self) -> PyRemotePathFromGraph {
+        PyRemotePathFromGraph::new(self.nodes.out_neighbours())
+    }
+
+    /// Each member's incident edges (both directions). Lazy — no RPC. Returns a
+    /// `RemoteNestedEdges` (nested, grouped per source node).
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: each member's incident edges, grouped per source node.
+    #[getter]
+    pub fn edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.nodes.edges())
+    }
+
+    /// Each member's incoming edges. Lazy — no RPC. See `edges` for
+    /// return-type notes.
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: each member's incoming edges, grouped per source node.
+    #[getter]
+    pub fn in_edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.nodes.in_edges())
+    }
+
+    /// Each member's outgoing edges. Lazy — no RPC. See `edges` for
+    /// return-type notes.
+    ///
+    /// Returns:
+    ///     RemoteNestedEdges: each member's outgoing edges, grouped per source node.
+    #[getter]
+    pub fn out_edges(&self) -> PyRemoteNestedEdges {
+        PyRemoteNestedEdges::new(self.nodes.out_edges())
+    }
+
+    /// The id of each node in this collection. Property — attribute access
+    /// fires one RPC.
+    ///
+    /// Returns:
+    ///   list[str | int]: the ids, in collection order — strings for
+    ///   string-indexed graphs, integers for integer-indexed ones.
+    #[getter]
+    pub fn id(&self) -> Result<Vec<GID>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.id().await })
+    }
+
+    /// The name of each node in this collection. Property — attribute access
+    /// fires one RPC.
+    ///
+    /// Returns:
+    ///   list[str]: the names, in collection order.
+    #[getter]
+    pub fn name(&self) -> Result<Vec<String>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.name().await })
+    }
+
+    /// The type of each node in this collection (`None` when unset). Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[str]]: the node types, in collection order.
+    #[getter]
+    pub fn node_type(&self) -> Result<Vec<Option<String>>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.node_type().await })
+    }
+
+    /// The earliest event time of each node in this collection. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[EventTime]]: the earliest times, in collection order.
+    #[getter]
+    pub fn earliest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.earliest_time().await })
+    }
+
+    /// The latest event time of each node in this collection. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///   list[Optional[EventTime]]: the latest times, in collection order.
+    #[getter]
+    pub fn latest_time(&self) -> Result<Vec<Option<EventTime>>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.latest_time().await })
+    }
+
+    /// The non-temporal metadata of this collection as a columnar view. Each
+    /// accessor returns one value per node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemoteMetadataView: the columnar metadata view of this collection.
+    #[getter]
+    pub fn metadata(&self) -> PyRemoteMetadataView {
+        PyRemoteMetadataView::new(self.nodes.metadata())
+    }
+
+    /// The properties of this collection as a columnar view. Each accessor
+    /// returns one value per node. Lazy — no RPC.
+    ///
+    /// Returns:
+    ///     RemotePropertiesView: the columnar properties view of this collection.
+    #[getter]
+    pub fn properties(&self) -> PyRemotePropertiesView {
+        PyRemotePropertiesView::new(self.nodes.properties())
+    }
+
+    /// Returns the degree of each node in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node degrees, in collection order.
+    pub fn degree(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.degree().await })
+    }
+
+    /// Returns the in-degree of each node in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node in-degrees, in collection order.
+    pub fn in_degree(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.in_degree().await })
+    }
+
+    /// Returns the out-degree of each node in this collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node out-degrees, in collection order.
+    pub fn out_degree(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.out_degree().await })
+    }
+
+    /// Returns the number of incident edge updates for each node in this
+    /// collection. Fires one RPC.
+    ///
+    /// Returns:
+    ///   list[int]: the per-node edge history counts, in collection order.
+    pub fn edge_history_count(&self) -> Result<Vec<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.edge_history_count().await })
+    }
+
+    /// Check if this view has a layer named `name`. Fires one RPC.
+    ///
+    /// Arguments:
+    ///     name (str): the name of the layer to check.
+    ///
+    /// Returns:
+    ///     bool: True if the layer is present.
+    pub fn has_layer(&self, name: &str) -> Result<bool, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        let name = name.to_string();
+        execute_async_task(move || async move { nodes.has_layer(name).await })
+    }
+
+    /// The size of the window covered by this view (`end - start`), or `None`
+    /// if the view is unbounded. Property — attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     Optional[int]: the size of the window, or `None` if the view is unbounded.
+    #[getter]
+    pub fn window_size(&self) -> Result<Option<i64>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        execute_async_task(move || async move { nodes.window_size().await })
+    }
+
+    /// `len(nodes)` — number of nodes in the collection. Fires one RPC.
+    pub fn __len__(&self) -> Result<usize, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(execute_async_task(move || async move { nodes.count().await })?.max(0) as usize)
+    }
+
+    /// `bool(nodes)` — whether the collection is non-empty. Fires one RPC.
+    pub fn __bool__(&self) -> Result<bool, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(execute_async_task(move || async move { nodes.count().await })? > 0)
+    }
+
+    /// View start bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     OptionalEventTime: the view start bound, or empty if unbounded.
+    #[getter]
+    pub fn start(&self) -> Result<PyOptionalEventTime, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(execute_async_task(move || async move { nodes.start().await })?.into())
+    }
+
+    /// View end bound for this collection — `None` if unbounded. Property —
+    /// attribute access fires one RPC.
+    ///
+    /// Returns:
+    ///     OptionalEventTime: the view end bound, or empty if unbounded.
+    #[getter]
+    pub fn end(&self) -> Result<PyOptionalEventTime, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        Ok(execute_async_task(move || async move { nodes.end().await })?.into())
+    }
+
+    /// Materialize this collection as a list of `RemoteNode` handles.
+    ///
+    /// Fires one RPC (to fetch the ids); each returned node is rebased under
+    /// the same view chain that produced this collection, so terminals on the
+    /// returned handles evaluate under the same window / layer / at / etc.
+    ///
+    /// Returns:
+    ///   list[RemoteNode]: one handle per node in the collection.
+    pub fn collect(&self) -> Result<Vec<PyRemoteNode>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        let result = execute_async_task(move || async move { nodes.collect().await })?;
+        Ok(result.into_iter().map(PyRemoteNode::new).collect())
+    }
+
+    /// Enables `for n in remote_nodes:` — fetches all ids in one RPC, then
+    /// yields a `RemoteNode` handle for each. Node handles are not batched:
+    /// each terminal on a yielded node fires its own RPC.
+    fn __iter__(&self) -> Result<PyRemoteNodesIter, ClientError> {
+        let list = self.collect()?;
+        Ok(PyRemoteNodesIter {
+            inner: list.into_iter(),
+        })
+    }
+}
+
+/// Opaque iterator returned by `PyRemoteNodes::__iter__`.
+///
+/// Not intended to be constructed directly — Python creates it via
+/// `iter(remote_nodes)` (or under the hood in a `for` loop).
+#[pyclass(name = "RemoteNodesIter", module = "raphtory.graphql")]
+pub struct PyRemoteNodesIter {
+    inner: std::vec::IntoIter<PyRemoteNode>,
+}
+
+#[pymethods]
+impl PyRemoteNodesIter {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyRemoteNode> {
+        slf.inner.next()
+    }
+}
+
+py_remote_view_ops!(PyRemoteNodes, nodes, "RemoteNodes");

@@ -1,3 +1,5 @@
+pub mod filter_tests;
+
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 
 mod test_composite_filters {

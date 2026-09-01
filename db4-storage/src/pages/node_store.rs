@@ -27,7 +27,7 @@ use std::{
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
-pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
+pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
@@ -101,7 +101,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn par_iter(
         &self,
-    ) -> impl rayon::iter::ParallelIterator<
+    ) -> impl ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
@@ -316,7 +316,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let mut segment_id = *slot;
 
         let writer = self.writer(segment_id);
-        match self.reserve_segment_rows(writer.page, num_rows) {
+        match self.reserve_segment_rows(writer.segment, num_rows) {
             None => {
                 // The current segment is full, drop its lock and push a new free segment
                 drop(writer);
@@ -324,7 +324,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 *slot = segment_id;
                 let writer = self.writer(segment_id);
                 let local_pos = self
-                    .reserve_segment_rows(writer.page, num_rows)
+                    .reserve_segment_rows(writer.segment, num_rows)
                     .expect("new segment should never be full");
                 (LocalPOS(local_pos), writer)
             }
@@ -536,7 +536,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         Ok(Self {
             segments: pages,
-            free_segments: free_pages.try_into().unwrap(),
+            free_segments: free_pages.into(),
             nodes_path: Some(nodes_path.to_path_buf()),
             stats: stats.into(),
             node_meta,

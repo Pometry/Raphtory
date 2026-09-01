@@ -33,7 +33,7 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     closure: F,
 ) -> R {
     let (send, recv) = oneshot::channel();
-    COMPUTE_POOL.spawn_fifo(move || {
+    COMPUTE_POOL.spawn(move || {
         let _ = send.send(closure()); // this only errors if no-one is listening anymore
     });
 

@@ -72,9 +72,12 @@ Continuing from the previous example, you can use the PageRank algorithm to find
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
 results = algorithms.pagerank(g)
-top_5 = results.top_k({"pagerank_score":"desc"}, 5)
-for rank, (node, score) in enumerate(top_5.items(),1):
-    print(f"Rank {rank}: {node.name} with a score of {score['pagerank_score']:.5f}")
+# NOTE: NodeState.top_k({...}) is temporarily unavailable while the datafusion-backed
+# node-state ops are disabled for the arrow-59/pyo3-0.29 upgrade. Re-enable with the
+# `datafusion` feature.
+# top_5 = results.top_k({"pagerank_score":"desc"}, 5)
+# for rank, (node, score) in enumerate(top_5.items(),1):
+#     print(f"Rank {rank}: {node.name} with a score of {score['pagerank_score']:.5f}")
 ```
 ///
 

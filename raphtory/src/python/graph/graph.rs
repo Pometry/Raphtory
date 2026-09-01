@@ -3,8 +3,6 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
-#[cfg(feature = "search")]
-use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
     arrow_loader::df_loaders::edges::ColumnNames,
@@ -167,7 +165,7 @@ impl PyGraph {
     pub fn py_new(
         path: Option<PathBuf>,
         config: Option<PyConfig>,
-    ) -> Result<(Self, PyGraphView), GraphError> {
+    ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
@@ -178,12 +176,7 @@ impl PyGraph {
                 Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
             },
         };
-        Ok((
-            Self {
-                graph: graph.clone(),
-            },
-            PyGraphView::from(graph),
-        ))
+        Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
     }
 
     /// Load a disk graph from path
@@ -192,9 +185,9 @@ impl PyGraph {
     ///     path (str | PathLike): the path of the graph folder
     ///     config (Config, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
-    ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
-    ///                       a read-only handle to the same graph directory concurrently;
-    ///                       mutating the returned graph will fail. Defaults to ``False``.
+    ///     read_only (bool, optional): open as a read-only snapshot. Defaults to False.
+    ///                                 Multiple processes can hold a read-only handle to the same
+    ///                                 graph directory concurrently. Mutating the returned graph will fail.
     ///
     /// Returns:
     ///     Graph: the graph
@@ -462,6 +455,7 @@ impl PyGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
+    #[pyo3(signature = (timestamp, src, dst, layer = None, event_id = None))]
     pub fn delete_edge(
         &self,
         timestamp: EventTimeComponent,
@@ -716,7 +710,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Graph: the graph with event semantics applied
-    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+    pub fn event_graph(&self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
@@ -1170,57 +1164,5 @@ impl PyGraph {
         } else {
             Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
         }
-    }
-
-    /// Create graph index
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index(&self) -> Result<(), GraphError> {
-        self.graph.create_index()
-    }
-
-    /// Create graph index with the provided index spec.
-    ///
-    /// Arguments:
-    ///     py_spec: - The specification for the in-memory index to be created.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph.create_index_with_spec(py_spec.spec.clone())
-    }
-
-    /// Creates a graph index in memory (RAM).
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_in_ram(&self) -> Result<(), GraphError> {
-        self.graph.create_index_in_ram()
-    }
-
-    /// Creates a graph index in memory (RAM) with the provided index spec.
-    ///
-    /// This is primarily intended for use in tests and should not be used in production environments,
-    /// as the index will not be persisted to disk.
-    ///
-    /// Arguments:
-    ///     py_spec: The specification for the in-memory index to be created.
-    ///
-    /// Arguments:
-    ///     py_spec (IndexSpec): - The specification for the in-memory index to be created.
-    ///
-    /// Returns:
-    ///     None:
-    #[cfg(feature = "search")]
-    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
-        self.graph
-            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 }

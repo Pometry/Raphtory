@@ -16,13 +16,11 @@
 //! ```
 //!
 use super::views::deletion_graph::PersistentGraph;
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
 use crate::{
     db::{
         api::{
             state::ops::NodeFilterOp,
-            storage::storage::{Config, PersistenceStrategy, Storage},
+            storage::storage::{Config, Storage},
             view::{
                 internal::{
                     GraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
@@ -52,7 +50,15 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::Extension;
+
+#[cfg(feature = "io")]
+use {
+    crate::{
+        db::api::storage::storage::PersistenceStrategy, serialise::metadata::build_graph_metadata,
+    },
+    raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata as GraphFolderMetadata},
+    storage::Extension,
+};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -177,7 +183,11 @@ impl Graph {
             inner: Arc::new(storage),
         };
 
-        path.write_metadata(&graph)?;
+        let meta = GraphFolderMetadata {
+            path: path.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        path.write_metadata(meta)?;
         Ok(graph)
     }
 
@@ -199,7 +209,11 @@ impl Graph {
             )?),
         };
 
-        path.write_metadata(&graph)?;
+        let meta = GraphFolderMetadata {
+            path: path.relative_graph_path()?,
+            meta: build_graph_metadata(&graph),
+        };
+        path.write_metadata(meta)?;
         Ok(graph)
     }
 

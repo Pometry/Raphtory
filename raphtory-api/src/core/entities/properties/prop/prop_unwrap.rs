@@ -1,10 +1,10 @@
 use crate::core::{
-    entities::properties::prop::{Prop, PropArray},
+    entities::properties::prop::{Prop, PropArray, PropMap},
     storage::arc_str::ArcStr,
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use rustc_hash::FxHashMap;
+use num_traits::ToPrimitive;
 use std::sync::Arc;
 
 pub trait PropUnwrap: Sized {
@@ -63,8 +63,8 @@ pub trait PropUnwrap: Sized {
         self.into_list().unwrap()
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>>;
-    fn unwrap_map(self) -> Arc<FxHashMap<ArcStr, Prop>> {
+    fn into_map(self) -> Option<Arc<PropMap>>;
+    fn unwrap_map(self) -> Arc<PropMap> {
         self.into_map().unwrap()
     }
 
@@ -85,6 +85,7 @@ pub trait PropUnwrap: Sized {
     fn unwrap_dtime(self) -> DateTime<Utc> {
         self.into_dtime().unwrap()
     }
+    fn as_f32(&self) -> Option<f32>;
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -132,7 +133,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_list())
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<PropMap>> {
         self.and_then(|p| p.into_map())
     }
 
@@ -150,6 +151,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_dtime(self) -> Option<DateTime<Utc>> {
         self.and_then(|p| p.into_dtime())
+    }
+
+    fn as_f32(&self) -> Option<f32> {
+        self.as_ref().and_then(|p| p.as_f32())
     }
 }
 
@@ -242,7 +247,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<PropMap>> {
         if let Prop::Map(v) = self {
             Some(v)
         } else {
@@ -276,6 +281,22 @@ impl PropUnwrap for Prop {
             Prop::U64(v) => Some(*v as f64),
             Prop::F32(v) => Some(*v as f64),
             Prop::F64(v) => Some(*v),
+            Prop::Decimal(d) => d.to_f64(),
+            _ => None,
+        }
+    }
+
+    fn as_f32(&self) -> Option<f32> {
+        match self {
+            Prop::U8(v) => Some(*v as f32),
+            Prop::U16(v) => Some(*v as f32),
+            Prop::I32(v) => Some(*v as f32),
+            Prop::I64(v) => Some(*v as f32),
+            Prop::U32(v) => Some(*v as f32),
+            Prop::U64(v) => Some(*v as f32),
+            Prop::F32(v) => Some(*v),
+            Prop::F64(v) => Some(*v as f32),
+            Prop::Decimal(d) => d.to_f32(),
             _ => None,
         }
     }

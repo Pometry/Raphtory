@@ -5,7 +5,6 @@ mod prop_enum;
 mod prop_ref_enum;
 mod prop_type;
 mod prop_unwrap;
-#[cfg(feature = "io")]
 mod serde;
 
 #[cfg(feature = "template")]

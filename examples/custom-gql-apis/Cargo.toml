@@ -16,12 +16,9 @@ crate-type = ["cdylib"]
 raphtory = { workspace = true, features = ["python"] }
 raphtory-graphql = { workspace = true, features = ["python"] }
 async-graphql = { workspace = true, features = ["dynamic-schema"] }
+dynamic-graphql = { workspace = true }
 futures-util = { workspace = true }
 pyo3 = { workspace = true, features = ["multiple-pymethods"] }
-
-
-[features]
-extension-module = ["pyo3/extension-module"]
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

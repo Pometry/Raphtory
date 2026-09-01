@@ -13,8 +13,7 @@ pub trait FastMergeExt: Iterator {
     ///
     /// Iterator element type is `Self::Item`.
     fn fast_merge_by<
-        F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool
-            + Clone,
+        F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool,
     >(
         self,
         cmp_fn: F,
@@ -52,8 +51,7 @@ pub trait FastMergeExt: Iterator {
     ///
     /// Iterator element type is `Self::Item`.
     fn fast_merge_by_rev<
-        F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool
-            + Clone,
+        F: FnMut(&<Self::Item as IntoIterator>::Item, &<Self::Item as IntoIterator>::Item) -> bool,
     >(
         self,
         first: F,
@@ -93,7 +91,7 @@ pub enum FastMerge<I: Iterator, F: MergePredicate<I::Item>> {
     Many(KMergeBy<I, F>),
 }
 
-impl<I: Iterator, P: MergePredicate<I::Item> + Clone> FastMerge<I, P> {
+impl<I: Iterator, P: MergePredicate<I::Item>> FastMerge<I, P> {
     pub(crate) fn new(mut iters: impl Iterator<Item = I>, predicate: P) -> Self {
         let (lower, _) = iters.size_hint();
         if lower > 2 {

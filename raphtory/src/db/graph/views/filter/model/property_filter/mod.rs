@@ -9,10 +9,14 @@ use crate::{
             edge::EdgeView,
             node::NodeView,
             views::filter::{
+                edge_filtered_graph::EdgeFilteredGraph,
                 edge_property_filtered_graph::EdgePropertyFilteredGraph,
+                exploded_edge_filtered_graph::ExplodedEdgeFilteredGraph,
                 exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 model::{
-                    filter_value::FilterValue, ComposableFilter, ExplodedEdgeFilter, FilterOperator,
+                    edge_filter::CompositeEdgeFilter, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, ExplodedEdgeFilter,
+                    FilterOperator, TryAsCompositeFilter,
                 },
                 node_filtered_graph::NodeFilteredGraph,
                 CreateFilter,
@@ -20,9 +24,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{
-        EdgeFilter, EdgeViewOps, GraphViewOps, LayerOps, NodeFilter, NodeViewOps, PropertiesOps,
-    },
+    prelude::{EdgeFilter, EdgeViewOps, LayerOps, NodeFilter, NodeViewOps, PropertiesOps},
 };
 use either::Either;
 use itertools::Itertools;
@@ -40,10 +42,10 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{fmt, fmt::Display, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
-pub(crate) mod evaluate;
+mod evaluate;
 pub mod ops;
 mod validate;
 
@@ -107,8 +109,12 @@ impl PropertyRef {
     }
 }
 
-/// Property filter value: a specialisation of `FilterValue<T>` for stored `Prop` values.
-pub type PropertyFilterValue = FilterValue<Prop>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PropertyFilterValue {
+    None,
+    Single(Prop),
+    Set(Arc<HashSet<Prop>>),
+}
 
 pub struct PropertyFilterInput {
     pub prop_ref: PropertyRef,
@@ -260,7 +266,7 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
+    pub fn matches_node<'graph, G: GraphView + 'graph>(
         &self,
         graph: &G,
         prop_id: usize,
@@ -320,7 +326,7 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
+    pub fn matches_edge<'graph, G: GraphView + 'graph>(
         &self,
         graph: &G,
         prop_id: usize,
@@ -378,67 +384,167 @@ impl<M> PropertyFilter<M> {
 }
 
 impl CreateFilter for PropertyFilter<NodeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, NodePropertyFilterOp<G>>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        NodeFilteredGraph<G, NodePropertyFilterOp<F>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodePropertyFilterOp<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodePropertyFilterOp<F>;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let filter = self.create_node_filter(graph.clone(), filtered)?;
         Ok(NodeFilteredGraph::new(graph, filter))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
-        Ok(NodePropertyFilterOp::new(graph, prop_id, self))
+        Ok(NodePropertyFilterOp::new(filtered, prop_id, self))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        EdgeFilteredGraph<G, EdgePropertyFilteredGraph<F>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(EdgePropertyFilteredGraph::new(graph, prop_id, self))
+        Ok(EdgeFilteredGraph::new(
+            graph,
+            EdgePropertyFilteredGraph::new(filtered, prop_id, self),
+        ))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = ExplodedEdgePropertyFilteredGraph<G>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        ExplodedEdgeFilteredGraph<G, ExplodedEdgePropertyFilteredGraph<F>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
-        Ok(ExplodedEdgePropertyFilteredGraph::new(graph, prop_id, self))
+        Ok(ExplodedEdgeFilteredGraph::new(
+            graph,
+            ExplodedEdgePropertyFilteredGraph::new(filtered, prop_id, self),
+        ))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
 impl<M> ComposableFilter for PropertyFilter<M> {}
+
+impl TryAsCompositeFilter for PropertyFilter<NodeFilter> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::Property(self.clone()))
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl TryAsCompositeFilter for PropertyFilter<EdgeFilter> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::Property(self.clone()))
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl TryAsCompositeFilter for PropertyFilter<ExplodedEdgeFilter> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(CompositeExplodedEdgeFilter::Property(self.clone()))
+    }
+}

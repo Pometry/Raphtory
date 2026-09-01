@@ -2,6 +2,7 @@ use raphtory::{
     db::graph::node::NodeView,
     prelude::{GraphViewOps, NodeViewOps},
 };
+use raphtory_api::core::entities::properties::prop::PropType;
 use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
@@ -22,7 +23,7 @@ fn get_node_type<'graph, G: GraphViewOps<'graph>>(node: NodeView<'graph, G>) -> 
     }
 }
 
-type SchemaAggregate = FxHashMap<(String, String), HashSet<String>>;
+type SchemaAggregate = FxHashMap<(String, PropType), HashSet<String>>;
 
 fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
     for ((key, prop_type), set2) in s2 {

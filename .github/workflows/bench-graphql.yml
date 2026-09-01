@@ -14,7 +14,7 @@ jobs:
     name: GraphQL Benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         name: Checkout
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -25,13 +25,13 @@ jobs:
         with:
           cache-all-crates: true
       - name: Install maturin
-        run: pip install maturin==1.8.3
+        run: pip install maturin==1.9.4
       - name: Build raphtory
         run: |
           make install-python clean
         #                     ↑ this is for freeing up space used by cargo before installing raphtory
       - name: Set up pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1

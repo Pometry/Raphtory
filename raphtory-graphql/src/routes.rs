@@ -58,12 +58,21 @@ struct PublicFolder;
 
 pub(crate) struct PublicFilesEndpoint<G> {
     public_dir: Option<PathBuf>,
+    disable_ui: bool,
     gql: G,
 }
 
 impl<G> PublicFilesEndpoint<G> {
-    pub(crate) fn new(public_dir: Option<PathBuf>, gql: G) -> PublicFilesEndpoint<G> {
-        PublicFilesEndpoint { public_dir, gql }
+    pub(crate) fn new(
+        public_dir: Option<PathBuf>,
+        disable_ui: bool,
+        gql: G,
+    ) -> PublicFilesEndpoint<G> {
+        PublicFilesEndpoint {
+            public_dir,
+            disable_ui,
+            gql,
+        }
     }
 }
 
@@ -76,8 +85,11 @@ where
     async fn call(&self, req: Request) -> poem::Result<Self::Output> {
         if req.method() == Method::POST {
             self.gql.call(req).await
+        } else if self.disable_ui {
+            Ok(StatusCode::NOT_FOUND.into_response())
         } else if let Some(public_dir) = &self.public_dir {
             StaticFilesEndpoint::new(public_dir)
+                .index_file("index.html")
                 .fallback_to_index()
                 .call(req)
                 .await
@@ -101,5 +113,105 @@ where
                 EmbeddedFilesEndpoint::<PublicFolder>::new().call(req).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PublicFilesEndpoint;
+    use poem::{
+        endpoint::make_sync,
+        http::{Method, StatusCode},
+        Endpoint, Request, Response,
+    };
+    use std::{fs, path::Path};
+    use tempfile::tempdir;
+
+    fn public_dir_endpoint(dir: &Path) -> impl Endpoint<Output = Response> {
+        PublicFilesEndpoint::new(
+            Some(dir.to_path_buf()),
+            false,
+            make_sync(|_| Response::builder().body("gql")),
+        )
+    }
+
+    #[tokio::test]
+    async fn disable_ui_returns_404_for_get_but_post_reaches_gql() {
+        let endpoint =
+            PublicFilesEndpoint::new(None, true, make_sync(|_| Response::builder().body("gql")));
+        // GET (the UI) is gone.
+        assert_eq!(get(&endpoint, "/").await.status(), StatusCode::NOT_FOUND);
+        // POST still reaches the GraphQL executor.
+        let post = Request::builder()
+            .method(Method::POST)
+            .uri("/".parse().unwrap())
+            .finish();
+        let resp = endpoint.call(post).await.unwrap();
+        assert_eq!(resp.into_body().into_string().await.unwrap(), "gql");
+    }
+
+    async fn get(endpoint: &impl Endpoint<Output = Response>, path: &str) -> Response {
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri(path.parse().unwrap())
+            .finish();
+        endpoint
+            .call(req)
+            .await
+            .unwrap_or_else(|err| err.into_response())
+    }
+
+    #[tokio::test]
+    async fn public_dir_serves_index_for_spa_routes() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("index.html"), "<html>ui</html>").unwrap();
+        let endpoint = public_dir_endpoint(dir.path());
+
+        for path in ["/", "/index.html", "/graphs", "/graphs/nested/route"] {
+            let resp = get(&endpoint, path).await;
+            assert_eq!(resp.status(), StatusCode::OK, "GET {path}");
+            assert_eq!(
+                resp.into_body().into_string().await.unwrap(),
+                "<html>ui</html>",
+                "GET {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn public_dir_missing_index_returns_404() {
+        let dir = tempdir().unwrap(); // exists but has no index.html
+        let endpoint = public_dir_endpoint(dir.path());
+        assert_eq!(get(&endpoint, "/").await.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            get(&endpoint, "/graphs").await.status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn public_dir_nonexistent_returns_404() {
+        // public_dir points at a path that doesn't exist at all (misconfiguration).
+        let dir = tempdir().unwrap();
+        let missing = dir.path().join("does-not-exist");
+        let endpoint = public_dir_endpoint(&missing);
+        assert_eq!(get(&endpoint, "/").await.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            get(&endpoint, "/assets/app.js").await.status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn public_dir_serves_real_files() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("index.html"), "<html>ui</html>").unwrap();
+        fs::create_dir(dir.path().join("assets")).unwrap();
+        fs::write(dir.path().join("assets").join("app.js"), "js-content").unwrap();
+        let endpoint = public_dir_endpoint(dir.path());
+
+        let resp = get(&endpoint, "/assets/app.js").await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.into_body().into_string().await.unwrap(), "js-content");
     }
 }
