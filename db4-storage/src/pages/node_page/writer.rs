@@ -7,12 +7,15 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::{
-    EID, GID, LayerId, VID,
-    properties::{
-        meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::{AsPropRef, Prop},
+use raphtory_api::core::{
+    entities::{
+        EID, GID, LayerId, VID,
+        properties::{
+            meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+            prop::{AsPropRef, Prop},
+        },
     },
+    storage::timeindex::EventTime,
 };
 use raphtory_core::{
     entities::{ELID, GidRef},
@@ -160,6 +163,16 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.graph_stats.update_time(t.t());
 
         let (is_new_node, add) = self.writer.add_props(t, pos, layer_id, props);
+        self.writer.increment_est_size(add);
+
+        if is_new_node && !self.segment.has_node(pos, layer_id) {
+            self.graph_stats.increment(layer_id);
+        }
+    }
+
+    pub fn delete(&mut self, t: EventTime, pos: LocalPOS, layer_id: LayerId) {
+        self.graph_stats.update_time(t.t());
+        let (is_new_node, add) = self.writer.delete(t, pos, layer_id);
         self.writer.increment_est_size(add);
 
         if is_new_node && !self.segment.has_node(pos, layer_id) {

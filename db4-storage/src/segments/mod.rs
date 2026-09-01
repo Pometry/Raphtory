@@ -426,7 +426,7 @@ impl<T: HasRow> SegmentContainer<T> {
             .unwrap_or(&TCell::Empty)
     }
 
-    pub fn deletions(&self, item_pos: LocalPOS) -> &TCell<ELID> {
+    pub fn deletions(&self, item_pos: LocalPOS) -> &TCell<()> {
         self.data
             .get(item_pos)
             .and_then(|entry| self.properties.deletions(entry.row()))

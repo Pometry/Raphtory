@@ -27,8 +27,9 @@ pub mod props_meta_writer;
 pub struct Properties {
     c_properties: Vec<PropColumn>,
 
-    additions: Vec<TCell<ELID>>,
-    deletions: Vec<TCell<ELID>>,
+    /// edge updates for nodes, empty for edges
+    node_edge_additions: Vec<TCell<ELID>>,
+    deletions: Vec<TCell<()>>,
     times_from_props: Vec<TCell<Option<usize>>>,
 
     t_properties: TColumns,
@@ -100,10 +101,10 @@ impl Properties {
     }
 
     pub(crate) fn additions(&self, row: usize) -> Option<&TCell<ELID>> {
-        self.additions.get(row)
+        self.node_edge_additions.get(row)
     }
 
-    pub(crate) fn deletions(&self, row: usize) -> Option<&TCell<ELID>> {
+    pub(crate) fn deletions(&self, row: usize) -> Option<&TCell<()>> {
         self.deletions.get(row)
     }
 
@@ -339,20 +340,20 @@ impl<'a> PropMutEntry<'a> {
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID) {
-        if self.properties.additions.len() <= self.row {
+        if self.properties.node_edge_additions.len() <= self.row {
             self.properties
-                .additions
+                .node_edge_additions
                 .resize_with(self.row + 1, Default::default);
         }
 
         self.properties.has_additions = true;
-        let prop_timestamps = &mut self.properties.additions[self.row];
+        let prop_timestamps = &mut self.properties.node_edge_additions[self.row];
         prop_timestamps.set(t, edge_id);
 
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn deletion_timestamp(&mut self, t: EventTime, edge_id: Option<ELID>) {
+    pub(crate) fn deletion_timestamp(&mut self, t: EventTime) {
         if self.properties.deletions.len() <= self.row {
             self.properties
                 .deletions
@@ -363,7 +364,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.deletions_count += 1;
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
-        prop_timestamps.set(t, edge_id.unwrap_or_default());
+        prop_timestamps.set(t, ());
         self.properties.update_earliest_latest(t);
     }
 
@@ -413,7 +414,7 @@ impl<'a> PropEntry<'a> {
         self.properties.additions(self.row).unwrap_or(&TCell::Empty)
     }
 
-    pub fn deletions(self) -> &'a TCell<ELID> {
+    pub fn deletions(self) -> &'a TCell<()> {
         self.properties.deletions(self.row).unwrap_or(&TCell::Empty)
     }
 }

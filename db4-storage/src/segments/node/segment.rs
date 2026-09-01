@@ -359,6 +359,23 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
+    pub fn delete(
+        &mut self,
+        ts: EventTime,
+        node_pos: LocalPOS,
+        layer_id: LayerId,
+    ) -> (bool, usize) {
+        let layer = self.get_or_create_layer(layer_id);
+        let est_size = layer.est_size();
+        let row = layer.reserve_local_row(node_pos);
+        let is_new = row.is_new();
+        let row = row.inner().row;
+        let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
+        prop_mut_entry.deletion_timestamp(ts);
+        let layer_est_size = layer.est_size();
+        (is_new, layer_est_size - est_size)
+    }
+
     pub fn check_metadata<P: AsPropRef>(
         &self,
         node_pos: LocalPOS,
