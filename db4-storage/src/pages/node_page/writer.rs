@@ -30,6 +30,9 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
     pub l_counter: &'a GraphStats,
     pub node_type_index: &'a NodeTypeIndexOf<NS>,
     pub old_est_size: usize,
+
+    /// Whether this writer inserted into `node_type_index`.
+    node_type_updated: bool,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
@@ -47,6 +50,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             l_counter: global_num_nodes,
             node_type_index,
             old_est_size,
+            node_type_updated: false,
         }
     }
 
@@ -254,12 +258,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         );
 
         if let Some(node_type) = node_type {
-            let vid = pos.as_vid(
-                self.mut_segment.segment_id(),
-                self.mut_segment.max_page_len(),
-            );
-
-            self.node_type_index.head().insert(node_type, vid);
+            self.update_node_type_index(node_type, pos);
         }
     }
 
@@ -278,13 +277,18 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
 
         if node_type != DEFAULT_NODE_TYPE_ID {
-            let vid = pos.as_vid(
-                self.mut_segment.segment_id(),
-                self.mut_segment.max_page_len(),
-            );
-
-            self.node_type_index.head().insert(node_type, vid);
+            self.update_node_type_index(node_type, pos);
         }
+    }
+
+    fn update_node_type_index(&mut self, node_type: usize, pos: LocalPOS) {
+        let vid = pos.as_vid(
+            self.mut_segment.segment_id(),
+            self.mut_segment.max_page_len(),
+        );
+
+        self.node_type_index.head().insert(node_type, vid);
+        self.node_type_updated = true;
     }
 
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID) {
@@ -333,7 +337,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");
 
-        self.node_type_index.notify_write();
+        if self.node_type_updated {
+            self.node_type_index.notify_write();
+        }
     }
 }
 
