@@ -301,7 +301,7 @@ where
         }
     }
 
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
+    fn const_value(&self) -> Option<Self::Output> {
         match (self.left.const_value(), self.right.const_value()) {
             (Some(true), _) | (_, Some(true)) => Some(true),
             (Some(left), Some(right)) => Some(left || right),
@@ -309,13 +309,14 @@ where
         }
     }
 
-    fn const_value(&self) -> Option<Self::Output> {
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        // An OR's domain is the union of its branches', so it is constant-true over that domain
+        // only when both branches are constant-true over theirs.
         match (
             self.left.const_value_in_domain(),
             self.right.const_value_in_domain(),
         ) {
-            (Some(true), _) | (_, Some(true)) => Some(true),
-            (Some(left), Some(right)) => Some(left || right),
+            (Some(true), Some(true)) => Some(true),
             _ => None,
         }
     }
@@ -406,11 +407,105 @@ impl NodeTypeFilterOp {
 
 #[cfg(test)]
 mod test {
-    use crate::db::api::state::ops::{Const, NodeFilterOp};
+    use super::{AndOp, OrOp};
+    use crate::db::api::{
+        state::ops::{Const, NodeFilterOp, NodeOp},
+        view::internal::NodeList,
+    };
+    use raphtory_api::core::entities::VID;
+    use raphtory_storage::graph::graph::GraphStorage;
 
     #[test]
     fn test_const() {
         let c = Const(true);
         assert!(!c.is_filtered());
+    }
+
+    /// A stub op with configurable `const_value` / `const_value_in_domain` and an `All` domain.
+    #[derive(Clone)]
+    struct Stub {
+        cv: Option<bool>,
+        cvid: Option<bool>,
+    }
+
+    impl NodeOp for Stub {
+        type Output = bool;
+        fn domain(&self, _storage: &GraphStorage) -> NodeList {
+            NodeList::All
+        }
+        fn apply(&self, _storage: &GraphStorage, _node: VID) -> bool {
+            true
+        }
+        fn const_value(&self) -> Option<bool> {
+            self.cv
+        }
+        fn const_value_in_domain(&self) -> Option<bool> {
+            self.cvid
+        }
+    }
+
+    /// Constant-true over its own domain but not globally — the profile of `name.is_in([...])`.
+    fn member() -> Stub {
+        Stub {
+            cv: None,
+            cvid: Some(true),
+        }
+    }
+
+    /// Domain-all and not constant over it — the profile of `node_type.is_in([...])`.
+    fn wide() -> Stub {
+        Stub {
+            cv: None,
+            cvid: None,
+        }
+    }
+
+    #[test]
+    fn or_is_const_true_in_domain_only_when_every_branch_is() {
+        let both = OrOp {
+            left: member(),
+            right: member(),
+        };
+        assert_eq!(both.const_value_in_domain(), Some(true));
+
+        let widened = OrOp {
+            left: wide(),
+            right: member(),
+        };
+        assert_eq!(widened.const_value_in_domain(), None);
+
+        // The nested three-branch shape that triggered the RBAC edge leak.
+        let nested = OrOp {
+            left: wide(),
+            right: OrOp {
+                left: member(),
+                right: member(),
+            },
+        };
+        assert_eq!(nested.const_value_in_domain(), None);
+
+        // Global const_value keeps or-logic: true if either branch is globally true.
+        let global = OrOp {
+            left: Stub {
+                cv: Some(true),
+                cvid: None,
+            },
+            right: wide(),
+        };
+        assert_eq!(global.const_value(), Some(true));
+    }
+
+    #[test]
+    fn and_const_value_in_domain_is_the_conjunction() {
+        let both = AndOp {
+            left: member(),
+            right: member(),
+        };
+        assert_eq!(both.const_value_in_domain(), Some(true));
+        let mixed = AndOp {
+            left: member(),
+            right: wide(),
+        };
+        assert_eq!(mixed.const_value_in_domain(), None);
     }
 }

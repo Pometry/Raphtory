@@ -75,23 +75,56 @@ def test_and_filter_keeps_edge_endpoints_minimal():
     return check
 
 
+def _combo_offenders(graph, op, join):
+    """Dangling edges left by every 2- and 3-leg combination joined with `op` (`&` / `|`)."""
+    legs = list(LEGS.items())
+    combos = list(combinations(legs, 2)) + list(combinations(legs, 3))
+    offenders = {}
+    for combo in combos:
+        expr = combo[0][1]
+        for _, leg in combo[1:]:
+            expr = op(expr, leg)
+        dangling = _dangling_edges(graph.filter(expr))
+        if dangling:
+            offenders[join.join(label for label, _ in combo)] = dangling
+    return offenders, len(combos)
+
+
 @with_variants(_init)
 def test_and_filter_combinations_keep_edge_endpoints():
     def check(graph):
-        legs = list(LEGS.items())
-        combos = list(combinations(legs, 2)) + list(combinations(legs, 3))
-        offenders = {}
-        for combo in combos:
-            expr = combo[0][1]
-            for _, leg in combo[1:]:
-                expr = expr & leg
-            dangling = _dangling_edges(graph.filter(expr))
-            if dangling:
-                offenders[" & ".join(label for label, _ in combo)] = dangling
+        offenders, total = _combo_offenders(graph, lambda a, b: a & b, " & ")
         assert not offenders, (
-            f"{len(offenders)}/{len(combos)} node-filter combinations leaked edges to excluded "
-            f"nodes, e.g. "
+            f"{len(offenders)}/{total} and-combinations leaked edges to excluded nodes, e.g. "
             + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
         )
+
+    return check
+
+
+@with_variants(_init)
+def test_or_filter_combinations_keep_edge_endpoints():
+    def check(graph):
+        offenders, total = _combo_offenders(graph, lambda a, b: a | b, " | ")
+        assert not offenders, (
+            f"{len(offenders)}/{total} or-combinations leaked edges to excluded nodes, e.g. "
+            + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
+        )
+
+    return check
+
+
+@with_variants(_init)
+def test_and_of_or_keeps_edge_endpoints_and_node_set():
+    def check(graph):
+        # The shape behind the RBAC leak: a node-set restriction ANDed with a wide `or` that
+        # includes a node_type branch (whose domain is every node).
+        expr = Node.id().is_in([0, 1, 2, 3, 4, 5]) & (
+            Node.node_type().is_in(["A"]) | (Node.name() == "1") | (Node.name() == "3")
+        )
+        view = graph.filter(expr)
+        # type A = {0,2,4}, plus names {1,3}.
+        assert sorted(view.nodes.id) == [0, 1, 2, 3, 4]
+        assert _dangling_edges(view) == []
 
     return check
