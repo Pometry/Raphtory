@@ -915,7 +915,9 @@ fn apply_row_filter_sync(
         .filter(dyn_filter)
         .map_err(|e| {
             error!(error = %e, "access filter application failed");
-            async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
+            async_graphql::Error::new(
+                "access filter could not be applied; the grant is misconfigured",
+            )
         })?
         .into_dynamic())
 }
