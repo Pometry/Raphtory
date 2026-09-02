@@ -77,7 +77,7 @@ use crate::{
         },
         graph::views::filter::model::{
             edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
-            filter_operator::Comparable,
+            filter_operator::{Comparable, ElemQual},
             node_filter::NodeFilter,
             require_aggregable, resolved_prop_type, CreateView, EntityMarker,
         },
@@ -191,7 +191,11 @@ impl CreateOp for Type {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(Type.map(|a| a.map(|b| b.into_prop()))))
+        // Untyped nodes carry the storage's default type key, matching how the
+        // composite path builds its type mask over the node-type meta keys.
+        Ok(Arc::new(Type.map(|a| {
+            Some(a.map_or_else(|| Prop::str("_default"), |b| b.into_prop()))
+        })))
     }
 }
 
@@ -587,7 +591,66 @@ pub trait EntityAggOps: EntityExpr + Sized {
 }
 
 macro_rules! impl_agg_expr {
+    ($expr:ident, $node_op_ty:ident, $edge_op_ty:ident, $qual:expr) => {
+        impl_agg_expr!(@common $expr, $node_op_ty, $edge_op_ty);
+
+        impl<E: CreateOp> CreateOp for $expr<E> {
+            impl_agg_expr!(@create $node_op_ty, $edge_op_ty);
+
+            fn create_qualified_node_op<'g, G: GraphView + 'g>(
+                &self,
+                graph: G,
+            ) -> Result<(Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError>
+            {
+                let (inner, mut quals) = self.0.create_qualified_node_op(graph)?;
+                quals.push($qual);
+                Ok((inner, quals))
+            }
+
+            fn create_qualified_edge_op<'g, G: GraphView + 'g>(
+                &self,
+                graph: G,
+            ) -> Result<(Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError>
+            {
+                let (inner, mut quals) = self.0.create_qualified_edge_op(graph)?;
+                quals.push($qual);
+                Ok((inner, quals))
+            }
+        }
+    };
     ($expr:ident, $node_op_ty:ident,  $edge_op_ty:ident) => {
+        impl_agg_expr!(@common $expr, $node_op_ty, $edge_op_ty);
+
+        impl<E: CreateOp> CreateOp for $expr<E> {
+            impl_agg_expr!(@create $node_op_ty, $edge_op_ty);
+
+            // Leading qualifiers float through aggregates: the aggregate
+            // applies per element (aggregate_list_values recurses into
+            // nested lists) and the qualifiers collapse afterwards.
+            fn create_qualified_node_op<'g, G: GraphView + 'g>(
+                &self,
+                graph: G,
+            ) -> Result<(Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError>
+            {
+                let (inner, quals) = self.0.create_qualified_node_op(graph)?;
+                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
+                require_aggregable(&pt, stringify!($node_op_ty))?;
+                Ok((Arc::new($node_op_ty { inner }), quals))
+            }
+
+            fn create_qualified_edge_op<'g, G: GraphView + 'g>(
+                &self,
+                graph: G,
+            ) -> Result<(Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError>
+            {
+                let (inner, quals) = self.0.create_qualified_edge_op(graph)?;
+                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
+                require_aggregable(&pt, stringify!($edge_op_ty))?;
+                Ok((Arc::new($edge_op_ty { inner }), quals))
+            }
+        }
+    };
+    (@common $expr:ident, $node_op_ty:ident, $edge_op_ty:ident) => {
         #[derive(Clone)]
         pub struct $expr<E>(pub E);
 
@@ -624,26 +687,26 @@ macro_rules! impl_agg_expr {
             }
         }
 
-        impl<E: CreateOp> CreateOp for $expr<E> {
-            fn create_node_op<'g, G: GraphView + 'g>(
-                &self,
-                graph: G,
-            ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                let inner = self.0.create_node_op(graph)?;
-                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
-                require_aggregable(&pt, stringify!($expr))?;
-                Ok(Arc::new($node_op_ty { inner }))
-            }
+    };
+    (@create $node_op_ty:ident, $edge_op_ty:ident) => {
+        fn create_node_op<'g, G: GraphView + 'g>(
+            &self,
+            graph: G,
+        ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+            let inner = self.0.create_node_op(graph)?;
+            let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
+            require_aggregable(&pt, stringify!($node_op_ty))?;
+            Ok(Arc::new($node_op_ty { inner }))
+        }
 
-            fn create_edge_op<'g, G: GraphView + 'g>(
-                &self,
-                graph: G,
-            ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                let inner = self.0.create_edge_op(graph)?;
-                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
-                require_aggregable(&pt, stringify!($expr))?;
-                Ok(Arc::new($edge_op_ty { inner }))
-            }
+        fn create_edge_op<'g, G: GraphView + 'g>(
+            &self,
+            graph: G,
+        ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+            let inner = self.0.create_edge_op(graph)?;
+            let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
+            require_aggregable(&pt, stringify!($edge_op_ty))?;
+            Ok(Arc::new($edge_op_ty { inner }))
         }
     };
 }
@@ -655,5 +718,5 @@ impl_agg_expr!(MaxExpr, MaxNodeOp, MaxEdgeOp);
 impl_agg_expr!(FirstExpr, FirstNodeOp, FirstEdgeOp);
 impl_agg_expr!(LastExpr, LastNodeOp, LastEdgeOp);
 impl_agg_expr!(LenExpr, LenNodeOp, LenEdgeOp);
-impl_agg_expr!(AnyExpr, AnyNodeOp, AnyEdgeOp);
-impl_agg_expr!(AllExpr, AllNodeOp, AllEdgeOp);
+impl_agg_expr!(AnyExpr, AnyNodeOp, AnyEdgeOp, ElemQual::Any);
+impl_agg_expr!(AllExpr, AllNodeOp, AllEdgeOp, ElemQual::All);

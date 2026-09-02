@@ -42,8 +42,8 @@
 
 use super::{
     ops::{
-        BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
-        ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
+        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp,
+        ListAwareStringNodeOp, ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
     CreateOp, EntityExpr, EntityExprBuilder, Marker,
 };
@@ -63,7 +63,8 @@ use crate::{
                     },
                     EdgeOp,
                 },
-                filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
+                elem_prop_type,
+                filter_operator::{BinaryOp, ElemQual, SetOp, StringOp, UnaryOp},
                 resolved_prop_type, validate_binary_op, validate_const_castable,
                 validate_string_op, validate_types_compatible, ComposableFilter, CreateFilter,
                 EntityMarker, ExplodedEdgeFilter,
@@ -103,6 +104,22 @@ pub struct BinaryCmpExpr<L, R, Entity> {
     pub op: BinaryOp,
     pub right: R,
     pub entity: Entity,
+}
+
+/// Collapse elementwise boolean results per the collected qualifiers,
+/// innermost list level first, and adapt to a boolean node filter.
+fn qualify_node_filter<'g>(
+    elemwise: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    quals: &[ElemQual],
+) -> Arc<dyn NodeOp<Output = bool> + 'g> {
+    let mut op = elemwise;
+    for q in quals {
+        op = match q {
+            ElemQual::Any => Arc::new(AnyNodeOp { inner: op }),
+            ElemQual::All => Arc::new(AllNodeOp { inner: op }),
+        };
+    }
+    Arc::new(op.map(|v| matches!(v, Some(Prop::Bool(true)))))
 }
 
 impl<L, R, E> BinaryCmpExpr<L, R, E> {
@@ -200,20 +217,29 @@ where
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
-        let left = self.left.create_node_op(filtered.clone())?;
+        let (left, quals) = self.left.create_qualified_node_op(filtered.clone())?;
         let right = self.right.create_node_op(filtered)?;
-        let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         match right.const_value() {
             Some(c) => validate_const_castable(&lhs_pt, c.as_ref())?,
             None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
         }
-        Ok(Arc::new(BinaryCmpNodeOp {
-            left,
-            right,
-            op: self.op,
-        }))
+        if quals.is_empty() {
+            Ok(Arc::new(BinaryCmpNodeOp {
+                left,
+                right,
+                op: self.op,
+            }))
+        } else {
+            let elemwise = Arc::new(ListAwareCmpNodeOp {
+                left,
+                right,
+                op: self.op,
+            });
+            Ok(qualify_node_filter(elemwise, &quals))
+        }
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -574,14 +600,26 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
-        let left = self.left.create_node_op(filtered.clone())?;
+        let (left, quals) = self.left.create_qualified_node_op(filtered.clone())?;
         let right = self.right.create_node_op(filtered)?;
-        validate_string_op(&resolved_prop_type(expr_pt, left.prop_type()))?;
-        Ok(Arc::new(StringNodeOp {
-            left,
-            right,
-            op: self.op,
-        }))
+        validate_string_op(&elem_prop_type(
+            &resolved_prop_type(expr_pt, left.prop_type()),
+            quals.len(),
+        ))?;
+        if quals.is_empty() {
+            Ok(Arc::new(StringNodeOp {
+                left,
+                right,
+                op: self.op,
+            }))
+        } else {
+            let elemwise = Arc::new(ListAwareStringNodeOp {
+                left,
+                right,
+                op: self.op,
+            });
+            Ok(qualify_node_filter(elemwise, &quals))
+        }
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -719,9 +757,9 @@ impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        NodeFilteredGraph<G, PropValueSetNodeOp<'graph>>;
+        NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        PropValueSetNodeOp<'graph>;
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -744,14 +782,23 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.expr.prop_type();
-        let inner = self.expr.create_node_op(filtered)?;
-        let lhs_pt = resolved_prop_type(expr_pt, inner.prop_type());
+        let (inner, quals) = self.expr.create_qualified_node_op(filtered)?;
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len());
         let values = coerce_set_values(&lhs_pt, self.values)?;
-        Ok(PropValueSetNodeOp {
-            inner,
-            values,
-            op: self.op,
-        })
+        if quals.is_empty() {
+            Ok(Arc::new(PropValueSetNodeOp {
+                inner,
+                values,
+                op: self.op,
+            }))
+        } else {
+            let elemwise = Arc::new(ListAwareSetNodeOp {
+                inner,
+                values,
+                op: self.op,
+            });
+            Ok(qualify_node_filter(elemwise, &quals))
+        }
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -766,7 +813,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         Arc<dyn BoxableGraphView + 'graph>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        PropValueSetNodeOp<'graph>;
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -823,10 +870,139 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
 // The conversion is fallible by design, so "not representable" is an answer, not a lie;
 // the composite path survives solely for its remaining GraphQL and grant-lowering consumers.
 
-use crate::db::graph::views::filter::model::{
-    edge_filter::CompositeEdgeFilter, exploded_edge_filter::CompositeExplodedEdgeFilter,
-    node_filter::CompositeNodeFilter, TryAsCompositeFilter,
+use crate::db::graph::views::filter::{
+    edge_expr_filtered_graph::EdgeExprFilteredGraph,
+    exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
+    model::{
+        edge_expr::filters::qualify_edge_filter,
+        edge_filter::CompositeEdgeFilter,
+        exploded_edge_filter::CompositeExplodedEdgeFilter,
+        node_expr::exprs::{AllExpr, AnyExpr},
+        node_filter::CompositeNodeFilter,
+        FilterTree, TryAsCompositeFilter,
+    },
 };
+
+/// A bare leading qualifier used directly as a filter keeps its historical
+/// meaning: each element compares equal to `true` and the qualifier chain
+/// collapses the results. One impl serves every entity, dispatching on the
+/// runtime marker like the other expression filters with erased entities.
+macro_rules! impl_qualifier_filter {
+    ($($ty:ident),+ $(,)?) => {$(
+        impl<E: CreateOp> CreateFilter for $ty<E>
+        where
+            E::Marker: Into<EntityMarker>,
+        {
+            type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+                Arc<dyn BoxableGraphView + 'graph>;
+            type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+                Arc<dyn NodeOp<Output = bool> + 'graph>;
+
+            type FilteredGraph<'graph, G>
+                = G
+            where
+                Self: 'graph,
+                G: GraphView + 'graph;
+
+            fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+                self,
+                graph: G,
+                filtered: F,
+            ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+                match self.0.entity().into() {
+                    EntityMarker::Node => {
+                        let filter = self.create_node_filter(graph.clone(), filtered)?;
+                        Ok(Arc::new(NodeFilteredGraph::new(graph, filter)))
+                    }
+                    EntityMarker::Edge => {
+                        let (left, quals) = self.create_qualified_edge_op(filtered.clone())?;
+                        let right = Prop::Bool(true).create_edge_op(filtered)?;
+                        let elemwise = Arc::new(ListAwareCmpEdgeOp {
+                            left,
+                            right,
+                            op: BinaryOp::Eq,
+                        });
+                        Ok(Arc::new(EdgeExprFilteredGraph::new(
+                            graph,
+                            qualify_edge_filter(elemwise, &quals),
+                        )))
+                    }
+                    EntityMarker::ExplodedEdge => {
+                        let (left, quals) = self.create_qualified_edge_op(filtered.clone())?;
+                        let right = Prop::Bool(true).create_edge_op(filtered)?;
+                        let elemwise = Arc::new(ListAwareCmpEdgeOp {
+                            left,
+                            right,
+                            op: BinaryOp::Eq,
+                        });
+                        Ok(Arc::new(ExplodedEdgeExprFilteredGraph::new(
+                            graph,
+                            qualify_edge_filter(elemwise, &quals),
+                        )))
+                    }
+                    EntityMarker::Const => Err(GraphError::NotSupported),
+                }
+            }
+
+            fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+                self,
+                _graph: G,
+                filtered: F,
+            ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+                if !matches!(self.0.entity().into(), EntityMarker::Node) {
+                    return Err(GraphError::NotNodeFilter);
+                }
+                let (left, quals) = self.create_qualified_node_op(filtered.clone())?;
+                let right = Prop::Bool(true).create_node_op(filtered)?;
+                let elemwise = Arc::new(ListAwareCmpNodeOp {
+                    left,
+                    right,
+                    op: BinaryOp::Eq,
+                });
+                Ok(qualify_node_filter(elemwise, &quals))
+            }
+
+            fn filter_graph_view<'graph, G: GraphView + 'graph>(
+                &self,
+                graph: G,
+            ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+                Ok(graph)
+            }
+        }
+
+        impl<E: CreateOp> ComposableFilter for $ty<E> where E::Marker: Into<EntityMarker> {}
+
+        impl<E: Send + Sync> TryAsCompositeFilter for $ty<E> {
+            fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+
+            fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+
+            fn try_as_composite_exploded_edge_filter(
+                &self,
+            ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+
+            fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+        }
+    )+};
+}
+
+impl_qualifier_filter!(AnyExpr, AllExpr);
 
 macro_rules! impl_not_composite {
     ($($ty:ident<$($g:ident),+>),+ $(,)?) => {$(

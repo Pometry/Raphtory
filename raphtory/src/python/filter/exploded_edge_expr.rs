@@ -1,7 +1,11 @@
 use crate::{
     db::graph::views::filter::model::exploded_edge_filter::ExplodedEdgeFilter,
     python::{
-        filter::{edge_expr::DynEdgeFilterFactory, filter_expr::PyFilterExpr, node_expr::PyExpr},
+        filter::{
+            edge_expr::DynEdgeFilterFactory,
+            filter_expr::PyFilterExpr,
+            node_expr::{PyExpr, PyPropertyExpr},
+        },
         types::iterable::FromIterable,
     },
 };
@@ -52,7 +56,7 @@ impl PyExplodedEdgeFilter {
     ///
     /// Arguments:
     ///     name (str): Property key.
-    fn property(&self, name: String) -> PyExpr {
+    fn property(&self, name: String) -> PyPropertyExpr {
         self.0.dyn_property(name).into()
     }
 

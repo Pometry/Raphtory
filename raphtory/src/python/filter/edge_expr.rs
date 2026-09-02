@@ -58,8 +58,9 @@ impl PyEdgeEndpoint {
     ///
     /// Arguments:
     ///     name (str): Property key.
-    fn property(&self, name: String) -> PyExpr {
-        self.0.property(name).into()
+    fn property(&self, name: String) -> PyPropertyExpr {
+        let expr: Arc<dyn DynTemporal> = Arc::new(self.0.property(name));
+        expr.into()
     }
 
     /// Filters an endpoint node metadata field by name.

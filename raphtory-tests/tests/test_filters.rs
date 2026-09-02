@@ -2324,7 +2324,7 @@ mod test_node_filter {
     fn test_filter_nodes_for_node_type_ne() {
         let filter = NodeFilter.node_type().ne("fire_nation");
         // node 4 has no node_type; None cannot satisfy a value comparison.
-        let expected_results = vec!["2"];
+        let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -2363,7 +2363,7 @@ mod test_node_filter {
     fn test_filter_nodes_for_node_type_not_in() {
         let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]);
         // node 4 has no node_type; None cannot satisfy a value comparison.
-        let expected_results = vec!["2"];
+        let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -2436,7 +2436,7 @@ mod test_node_filter {
     fn test_filter_nodes_for_node_type_contains_not() {
         let filter = NodeFilter.node_type().not_contains("fire");
         // node 4 has no node_type; None cannot satisfy a value comparison.
-        let expected_results = vec!["2"];
+        let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,

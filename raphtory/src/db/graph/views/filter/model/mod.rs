@@ -509,7 +509,7 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Me
         let prop_id = graph
             .node_meta()
             .get_prop_id(&self.name, true)
-            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+            .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(NodeMetaOp { graph, prop_id }))
     }
@@ -1149,14 +1149,12 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         self.eq(Prop::Bool(false))
     }
 
-    fn any(self) -> BinaryCmpExpr<AnyExpr<Self>, Prop, Self::Marker> {
-        let entity = self.entity();
-        BinaryCmpExpr::new(AnyExpr(self), BinaryOp::Eq, Prop::Bool(true), entity)
+    fn any(self) -> AnyExpr<Self> {
+        AnyExpr(self)
     }
 
-    fn all(self) -> BinaryCmpExpr<AllExpr<Self>, Prop, Self::Marker> {
-        let entity = self.entity();
-        BinaryCmpExpr::new(AllExpr(self), BinaryOp::Eq, Prop::Bool(true), entity)
+    fn all(self) -> AllExpr<Self> {
+        AllExpr(self)
     }
 }
 
@@ -1304,6 +1302,19 @@ pub fn validate_types_compatible(lhs_pt: &PropType, rhs_pt: &PropType) -> Result
 /// build time, so we defer to filter-build / runtime to catch scalar/list
 /// mismatches there. Anything declaring a scalar type up front (e.g.
 /// `IsActiveNode` → `Bool`, `DegreeExpr` → `U64`) is rejected.
+/// The element type a leading `any()`/`all()` chain compares against: one
+/// list level is stripped per qualifier. Unknown types stay unknown.
+pub fn elem_prop_type(pt: &PropType, levels: usize) -> PropType {
+    let mut pt = pt.clone();
+    for _ in 0..levels {
+        pt = match pt {
+            PropType::List(inner) => *inner,
+            other => other,
+        };
+    }
+    pt
+}
+
 pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
     match pt {
         PropType::List(_) | PropType::Empty => Ok(()),

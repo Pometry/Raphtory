@@ -348,6 +348,15 @@ pub enum StringOp {
     },
 }
 
+/// Element qualifiers collected from a leading `any()`/`all()` chain: the
+/// comparison is applied per element and the qualifiers collapse the results,
+/// innermost list level first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ElemQual {
+    Any,
+    All,
+}
+
 /// Unary presence operators used by `UnaryExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
