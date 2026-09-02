@@ -30,7 +30,10 @@ use raphtory_storage::{
     graph::graph::{GraphStorage, NodeGlobalPropCandidates, NodePropPredicate, NodePropSemantics},
 };
 use std::sync::Arc;
-use storage::api::{node_type_index::NodeTypeIndexOps, nodes::NodeEntryOps};
+use storage::api::{
+    node_type_index::NodeTypeIndexOps,
+    nodes::{NodeEntryOps, NodeRefOps},
+};
 
 #[derive(Clone, Debug)]
 pub struct Mask<Op> {
@@ -227,7 +230,7 @@ impl NodeOp for NodeNameFilterOp {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_ref = storage.core_node(node);
-        self.filter.matches(Some(&node_ref.name()))
+        self.filter.matches(Some(&node_ref.as_ref().name()))
     }
 
     fn const_value(&self) -> Option<Self::Output> {

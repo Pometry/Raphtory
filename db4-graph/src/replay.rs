@@ -598,7 +598,7 @@ where
             }
 
             if let Some(name) = node_name {
-                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
+                node_writer.store_node_id(pos, name);
             }
 
             node_writer.delete(t, pos, layer_id);

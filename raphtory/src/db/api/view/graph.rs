@@ -57,7 +57,9 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{
-    api::nodes::NodeEntryOps, persist::strategy::PersistenceStrategy, Config, Extension,
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    persist::strategy::PersistenceStrategy,
+    Config, Extension,
 };
 
 /// This trait GraphViewOps defines operations for accessing
@@ -889,9 +891,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
-        if self.internal_nodes_filtered()
-            && !self.internal_filter_node(src_node.as_ref(), layer_ids)
-        {
+        let src_node = src_node.as_ref();
+        if self.internal_nodes_filtered() && !self.internal_filter_node(src_node, layer_ids) {
             return None;
         }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;

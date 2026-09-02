@@ -193,9 +193,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates(node, view, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates(node, view, layer_ids, prop_ids))
     }
 
     #[inline]
@@ -203,10 +204,11 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, layer_ids, w, prop_ids))
     }
 
     #[inline]

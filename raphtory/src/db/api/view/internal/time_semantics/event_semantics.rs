@@ -212,21 +212,21 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        layer_ids: &'graph LayerIds,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.t_prop_rows(None, prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.t_prop_rows(None, prop_ids, layer_ids)
     }
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.t_prop_rows(Some(w), prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.t_prop_rows(Some(w), prop_ids, layer_ids)
     }
 
     #[inline]

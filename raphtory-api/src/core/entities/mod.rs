@@ -14,7 +14,7 @@ pub mod edges;
 pub mod layers;
 pub mod properties;
 
-use crate::core::entities::properties::prop::PropType;
+use crate::core::entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType};
 pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
