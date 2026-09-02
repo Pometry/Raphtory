@@ -99,7 +99,7 @@ impl TryAsCompositeFilter for GraphFilter {
     }
 }
 
-// ── expr-layer view ops (June branch) ──
+// ── expr-layer view ops ──
 
 pub trait GraphFilterOps:
     InternalViewWrapOps<Window = Self::GraphWindow> + CombinedFilter + Send + Sync + 'static

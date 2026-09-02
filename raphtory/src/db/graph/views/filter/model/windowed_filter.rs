@@ -285,7 +285,7 @@ impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Windowed<U> {
     }
 }
 
-// ── expr-layer view construction (June branch) ──
+// ── expr-layer view construction ──
 
 impl<T: CreateView> CreateView for Windowed<T> {
     type View<'graph, G: GraphView + 'graph> = WindowedGraph<<T as CreateView>::View<'graph, G>>;

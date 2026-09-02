@@ -534,7 +534,7 @@ impl TryAsCompositeFilter for CompositeEdgeFilter {
     }
 }
 
-// ── expr layer: endpoint expressions bridge node ops into edge ops (June branch) ──
+// ── expr layer: endpoint expressions bridge node ops into edge ops ──
 
 impl<T: EntityExprBuilder> EntityExprBuilder for EdgeEndpointWrapper<T> {}
 
@@ -558,7 +558,7 @@ impl<T: CreateOp> CreateOp for EdgeEndpointWrapper<T> {
     }
 }
 
-// ── expr layer: which types serve as edge-filter factories (June branch) ──
+// ── expr layer: which types serve as edge-filter factories ──
 
 use crate::db::{
     api::state::ops::node::{Id, Name, Type},
@@ -576,7 +576,7 @@ impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotAt<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> {}
 
-// ── expr layer: temporal chains on endpoint properties (June branch) ──
+// ── expr layer: temporal chains on endpoint properties ──
 
 use crate::db::graph::views::filter::model::node_expr::{
     AllExpr, AnyExpr, AvgExpr, EntityAggOps, FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr,

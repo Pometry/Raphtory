@@ -251,7 +251,7 @@ impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Latest<U> {
     }
 }
 
-// ── expr-layer view construction (June branch) ──
+// ── expr-layer view construction ──
 
 impl<T: CreateView> CreateView for Latest<T> {
     type View<'graph, G: GraphView + 'graph> = WindowedGraph<<T as CreateView>::View<'graph, G>>;

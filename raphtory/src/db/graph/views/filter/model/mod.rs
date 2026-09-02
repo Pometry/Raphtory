@@ -1342,7 +1342,7 @@ pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Pro
         .collect()
 }
 
-// ── restored from db_v4: machinery the June branch had removed, still consumed ──
+// ── composite-path machinery: still consumed by the GraphQL and permissions lowering ──
 
 pub trait InternalPropertyFilterBuilder: Send + Sync {
     type Filter: CombinedFilter;

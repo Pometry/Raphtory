@@ -334,7 +334,7 @@ impl<M> PropertyFilter<M> {
     }
 }
 
-// ── numeric scan helpers for expr aggregates (June branch) ──
+// ── numeric scan helpers for expr aggregates ──
 
 pub fn scan_u64_sum<P: Borrow<Prop>>(
     vals: impl IntoIterator<Item = P>,

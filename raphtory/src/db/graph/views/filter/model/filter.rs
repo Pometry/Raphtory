@@ -240,5 +240,7 @@ impl Filter {
     }
 }
 
-// June renamed `FilterValue` to `FieldFilterValue`; db_v4 machinery still says `FilterValue`.
+// The generic `filter_value::FilterValue<T>` owns the short name; the composite
+// machinery keeps its original spelling through this alias and both leave with
+// the composite path.
 pub type FilterValue = FieldFilterValue;

@@ -554,7 +554,7 @@ impl TryAsCompositeFilter for CompositeNodeFilter {
     }
 }
 
-// ── expr-layer factory (June branch) ──
+// ── expr-layer factory ──
 
 pub trait NodeFilterFactory:
     InternalViewWrapOps<Window = Self::NodeWindow> + CreateView + EntityExpr

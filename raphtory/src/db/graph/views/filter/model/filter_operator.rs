@@ -314,7 +314,7 @@ impl FilterOperator {
     }
 }
 
-// ── expr-layer operator kinds (from the June branch; consumed by node_expr/edge_expr) ──
+// ── expr-layer operator kinds (consumed by node_expr/edge_expr) ──
 
 pub trait Comparable: Clone + Send + Sync + 'static {
     fn binary_cmp(op: &BinaryOp, left: &Self, right: &Self) -> bool;
