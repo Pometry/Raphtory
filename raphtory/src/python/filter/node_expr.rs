@@ -1,10 +1,10 @@
 use crate::{
     db::graph::views::filter::model::{
         is_active_node_filter::IsActiveNode,
-        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal, Scoped},
+        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal},
         node_state_filter::NodeStateBoolColOp,
-        DynCreateView, DynPropertyExprFactory, EntityMarker, InternalViewWrapOps,
-        PropertyExprFactory, ViewWrapOps,
+        CombinedFilter, DynCreateFilter, DynCreateView, DynPropertyExprFactory, EntityMarker,
+        InternalViewWrapOps, NodeViewFilterOps, PropertyExprFactory, ViewWrapOps,
     },
     prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
     python::{
@@ -12,7 +12,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
+use pyo3::{pyclass, pymethods, Bound, FromPyObject, IntoPyObject, PyErr, PyResult, Python};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::sync::Arc;
 
@@ -55,62 +55,109 @@ impl From<Arc<dyn DynNodeFilterFactory>> for PyNodeFilter {
     }
 }
 
+/// Accepts either another expression or a plain python value (extracted as a
+/// `Prop` constant) on the rhs of comparison and string operators.
+#[derive(FromPyObject)]
+enum ExprOrValue {
+    Expr(PyExpr),
+    Value(Prop),
+}
+
 #[pymethods]
 impl PyExpr {
-    fn __eq__(&self, other: &Self) -> Self {
-        self.0.clone().eq(other.0.clone()).into()
+    fn __eq__(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().eq(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().eq(v))),
+        }
     }
-    fn __ne__(&self, other: &Self) -> Self {
-        self.0.clone().ne(other.0.clone()).into()
+    fn __ne__(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().ne(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().ne(v))),
+        }
     }
-    fn __lt__(&self, other: &Self) -> Self {
-        self.0.clone().lt(other.0.clone()).into()
+    fn __lt__(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().lt(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().lt(v))),
+        }
     }
-    fn __le__(&self, other: &Self) -> Self {
-        self.0.clone().le(other.0.clone()).into()
+    fn __le__(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().le(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().le(v))),
+        }
     }
-    fn __gt__(&self, other: &Self) -> Self {
-        self.0.clone().gt(other.0.clone()).into()
+    fn __gt__(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().gt(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().gt(v))),
+        }
     }
-    fn __ge__(&self, other: &Self) -> Self {
-        self.0.clone().ge(other.0.clone()).into()
-    }
-
-    fn starts_with(&self, other: &Self) -> Self {
-        self.0.clone().starts_with(other.0.clone()).into()
-    }
-    fn ends_with(&self, other: &Self) -> Self {
-        self.0.clone().ends_with(other.0.clone()).into()
-    }
-    fn contains(&self, other: &Self) -> Self {
-        self.0.clone().contains(other.0.clone()).into()
-    }
-    fn not_contains(&self, other: &Self) -> Self {
-        self.0.clone().not_contains(other.0.clone()).into()
-    }
-    fn fuzzy_search(&self, other: &Self, levenshtein_distance: usize, prefix_match: bool) -> Self {
-        self.0
-            .clone()
-            .fuzzy_search(other.0.clone(), levenshtein_distance, prefix_match)
-            .into()
-    }
-
-    fn is_in(&self, values: FromIterable<Prop>) -> Self {
-        self.0.clone().is_in(values).into()
-    }
-    fn is_not_in(&self, values: FromIterable<Prop>) -> Self {
-        self.0.clone().is_not_in(values).into()
+    fn __ge__(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().ge(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().ge(v))),
+        }
     }
 
-    fn is_some(&self) -> Self {
-        self.0.clone().is_some().into()
+    fn starts_with(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().starts_with(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().starts_with(v))),
+        }
     }
-    fn is_none(&self) -> Self {
-        self.0.clone().is_none().into()
+    fn ends_with(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().ends_with(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().ends_with(v))),
+        }
+    }
+    fn contains(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().contains(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().contains(v))),
+        }
+    }
+    fn not_contains(&self, other: ExprOrValue) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().not_contains(e.0))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().not_contains(v))),
+        }
+    }
+    fn fuzzy_search(
+        &self,
+        other: ExprOrValue,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        match other {
+            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().fuzzy_search(
+                e.0,
+                levenshtein_distance,
+                prefix_match,
+            ))),
+            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().fuzzy_search(
+                v,
+                levenshtein_distance,
+                prefix_match,
+            ))),
+        }
     }
 
-    fn __invert__(&self) -> Self {
-        self.0.clone().not().into()
+    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.clone().is_in(values)))
+    }
+    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.clone().is_not_in(values)))
+    }
+
+    fn is_some(&self) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.clone().is_some()))
+    }
+    fn is_none(&self) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.clone().is_none()))
     }
 
     fn any(&self) -> Self {
@@ -141,13 +188,18 @@ impl PyExpr {
     fn len(&self) -> Self {
         self.0.clone().len().into()
     }
+}
 
-    // ── Temporal ────────────────────────────────────────────────────────
-    // `.temporal()` only exists on `PropertyExpr<E>`. To expose it on PyExpr
-    // you need either a separate `PyPropertyExpr` subtype, or a `dyn_temporal`
-    // method on `DynCreateOp` that downcasts/dispatches.
-    //
-    // fn temporal(&self) -> Self { … }
+#[pymethods]
+impl PyPropertyExpr {
+    /// Switches from the property's latest value to its full temporal history,
+    /// unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, `any`, ...).
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn temporal(&self) -> PyExpr {
+        PyExpr(self.0.temporal())
+    }
 }
 
 pub trait DynNodeFilterFactory:
@@ -159,7 +211,7 @@ pub trait DynNodeFilterFactory:
     fn dyn_degree(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_in_degree(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_out_degree(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateOp>;
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
 
     fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory>;
@@ -170,18 +222,20 @@ pub trait DynNodeFilterFactory:
 impl InternalViewWrapOps for Arc<dyn DynNodeFilterFactory> {
     type Window = Arc<dyn DynNodeFilterFactory>;
 
+    // Both calls dispatch through the vtable explicitly: plain method syntax
+    // would select the DynNodeFilterFactory blanket on Arc itself and loop.
     fn bounds(&self) -> (EventTime, EventTime) {
-        self.dyn_bounds()
+        self.as_ref().dyn_bounds()
     }
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        self.dyn_build_window(start, end)
+        self.as_ref().dyn_build_window(start, end)
     }
 }
 
 impl<T> DynNodeFilterFactory for T
 where
-    T: NodeFilterFactory + Send + Sync + 'static,
+    T: NodeFilterFactory + NodeViewFilterOps + Send + Sync + 'static,
 {
     fn dyn_id(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(self.id())
@@ -203,11 +257,8 @@ where
         Arc::new(self.out_degree())
     }
 
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(Scoped {
-            view: self.clone(),
-            inner: IsActiveNode,
-        })
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_active())
     }
 
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
@@ -227,6 +278,14 @@ impl NodeFilterFactory for Arc<dyn DynNodeFilterFactory> {
     type NodeWindow = Self::Window;
 }
 
+impl NodeViewFilterOps for Arc<dyn DynNodeFilterFactory> {
+    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
+
+    fn is_active(&self) -> Self::Output<IsActiveNode> {
+        self.as_ref().dyn_is_active()
+    }
+}
+
 /// Constructs node filter expressions.
 ///
 /// Each method returns either:
@@ -237,6 +296,10 @@ impl NodeFilterFactory for Arc<dyn DynNodeFilterFactory> {
 pub struct PyNodeFilter(Arc<dyn DynNodeFilterFactory>);
 
 impl PyNodeFilter {
+    pub(crate) fn root() -> Self {
+        PyNodeFilter(Arc::new(NodeFilter))
+    }
+
     fn wrap<T: DynNodeFilterFactory>(filter: T) -> Self {
         Self(Arc::new(filter))
     }
@@ -423,8 +486,8 @@ impl PyNodeFilter {
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn is_active(&self) -> PyExpr {
-        self.0.dyn_is_active().into()
+    fn is_active(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_active())
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.

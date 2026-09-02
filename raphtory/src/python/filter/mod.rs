@@ -39,5 +39,13 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
     filter_module.add_class::<PyGraphFilter>()?;
 
+    // The entry points are instances: `filter.Edge.src()` chains through
+    // instance methods, so the module attributes shadow the classes with
+    // ready-made roots.
+    filter_module.add("Node", PyNodeFilter::root())?;
+    filter_module.add("Edge", PyEdgeFilter::root())?;
+    filter_module.add("ExplodedEdge", PyExplodedEdgeFilter::root())?;
+    filter_module.add("Graph", PyGraphFilter::root())?;
+
     Ok(filter_module)
 }

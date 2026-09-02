@@ -1,5 +1,5 @@
 use crate::{
-    db::graph::views::filter::model::{DynView, ViewWrapOps},
+    db::graph::views::filter::model::{graph_filter::GraphFilter, DynView, ViewWrapOps},
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
@@ -28,6 +28,12 @@ use std::sync::Arc;
     frozen
 )]
 pub struct PyGraphFilter(pub(crate) DynView);
+
+impl PyGraphFilter {
+    pub(crate) fn root() -> Self {
+        PyGraphFilter(Arc::new(GraphFilter))
+    }
+}
 
 #[pymethods]
 impl PyGraphFilter {

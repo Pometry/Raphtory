@@ -1,7 +1,7 @@
 use crate::{
     db::graph::views::filter::model::exploded_edge_filter::ExplodedEdgeFilter,
     python::{
-        filter::{edge_expr::DynEdgeFilterFactory, node_expr::PyExpr},
+        filter::{edge_expr::DynEdgeFilterFactory, filter_expr::PyFilterExpr, node_expr::PyExpr},
         types::iterable::FromIterable,
     },
 };
@@ -26,6 +26,12 @@ use std::sync::Arc;
 ///     ExplodedEdge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
 pub struct PyExplodedEdgeFilter(Arc<dyn DynEdgeFilterFactory>);
+
+impl PyExplodedEdgeFilter {
+    pub(crate) fn root() -> Self {
+        PyExplodedEdgeFilter(Arc::new(ExplodedEdgeFilter))
+    }
+}
 
 impl From<Arc<dyn DynEdgeFilterFactory>> for PyExplodedEdgeFilter {
     fn from(value: Arc<dyn DynEdgeFilterFactory>) -> Self {
@@ -108,22 +114,22 @@ impl PyExplodedEdgeFilter {
     }
 
     /// Matches exploded edges that have at least one event in the current view.
-    fn is_active(&self) -> PyExpr {
-        self.0.dyn_is_active().into()
+    fn is_active(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_active())
     }
 
     /// Matches exploded edges that are structurally valid in the current view.
-    fn is_valid(&self) -> PyExpr {
-        self.0.dyn_is_valid().into()
+    fn is_valid(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_valid())
     }
 
     /// Matches exploded edges that have been deleted.
-    fn is_deleted(&self) -> PyExpr {
-        self.0.dyn_is_deleted().into()
+    fn is_deleted(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_deleted())
     }
 
     /// Matches exploded edges that are self-loops (source == destination).
-    fn is_self_loop(&self) -> PyExpr {
-        self.0.dyn_is_self_loop().into()
+    fn is_self_loop(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_self_loop())
     }
 }

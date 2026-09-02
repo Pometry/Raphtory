@@ -5,15 +5,23 @@ use crate::{
         is_deleted_filter::IsDeletedEdge,
         is_self_loop_filter::IsSelfLoopEdge,
         is_valid_filter::IsValidEdge,
-        node_expr::{DynCreateOp, DynEntityExpr, EntityExpr, Scoped},
+        node_expr::{DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr},
         node_filter::NodeFilter,
-        CreateView, DynCreateView, EdgeFilterFactory, EntityMarker, InternalViewWrapOps,
-        PropertyExprFactory, ViewWrapOps, Wrap,
+        windowed_filter::Windowed,
+        CombinedFilter, CreateView, DynCreateFilter, DynCreateView, EdgeFilterFactory,
+        EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, PropertyExprFactory, ViewWrapOps,
+        Wrap,
     },
-    python::{filter::node_expr::PyExpr, types::iterable::FromIterable},
+    python::{
+        filter::{
+            filter_expr::PyFilterExpr,
+            node_expr::{PyExpr, PyPropertyExpr},
+        },
+        types::iterable::FromIterable,
+    },
 };
 use pyo3::{pyclass, pymethods};
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::sync::Arc;
 
 /// Entry point for filtering an edge endpoint (source or destination).
@@ -66,13 +74,13 @@ impl PyEdgeEndpoint {
 }
 
 pub trait DynEdgeFilterFactory: DynEntityExpr + DynCreateView + Send + Sync + 'static {
-    fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp>;
+    fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal>;
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
 
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateOp>;
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
+    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter>;
+    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter>;
+    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
 
     fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
     fn dyn_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
@@ -86,68 +94,79 @@ pub trait DynEdgeFilterFactory: DynEntityExpr + DynCreateView + Send + Sync + 's
 
 impl EdgeFilterFactory for Arc<dyn DynEdgeFilterFactory> {}
 
+impl EdgeViewFilterOps for Arc<dyn DynEdgeFilterFactory> {
+    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        self.as_ref().dyn_is_active()
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        self.as_ref().dyn_is_valid()
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        self.as_ref().dyn_is_deleted()
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        self.as_ref().dyn_is_self_loop()
+    }
+}
+
 impl InternalViewWrapOps for Arc<dyn DynEdgeFilterFactory> {
     type Window = Arc<dyn DynEdgeFilterFactory>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        self.dyn_window(start, end)
+        self.as_ref().dyn_window(start, end)
     }
 }
 
 impl<T> DynEdgeFilterFactory for T
 where
-    T: EdgeFilterFactory + ViewWrapOps + CreateView + EntityExpr + Clone + Send + Sync + 'static,
+    T: EdgeFilterFactory + EdgeViewFilterOps + ViewWrapOps + CreateView + EntityExpr + Clone,
+    T: Send + Sync + 'static,
     <T as EntityExpr>::Marker: Into<EntityMarker>,
 {
-    fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp> {
+    fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal> {
         Arc::new(PropertyExprFactory::property(self, name))
     }
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
         Arc::new(PropertyExprFactory::metadata(self, name))
     }
 
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(Scoped {
-            view: self.clone(),
-            inner: IsActiveEdge,
-        })
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_active())
     }
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(Scoped {
-            view: self.clone(),
-            inner: IsValidEdge,
-        })
+    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_valid())
     }
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(Scoped {
-            view: self.clone(),
-            inner: IsDeletedEdge,
-        })
+    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_deleted())
     }
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(Scoped {
-            view: self.clone(),
-            inner: IsSelfLoopEdge,
-        })
+    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_self_loop())
     }
 
-    // Go dynamic before calling window — the Arc<dyn DynEdgeFilterFactory> impl
-    // has Window = Self, which terminates the recursive bound resolution.
+    // The window wrapper is constructed over the erased factory directly:
+    // routing through ViewWrapOps::window would dispatch straight back into
+    // this method through the erased build_window.
     fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
         let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
-        dyn_self.window(start, end)
+        let (old_start, old_end) = self.bounds();
+        let end = end.min(old_end);
+        let start = start.max(old_start).min(end);
+        Arc::new(Windowed::new(start, end, dyn_self))
     }
     fn dyn_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
-        dyn_self.at(time)
+        self.dyn_window(time, EventTime::from(time.t().saturating_add(1)))
     }
     fn dyn_after(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
-        dyn_self.after(time)
+        let start = time.t().saturating_add(1);
+        self.dyn_window(EventTime::start(start), EventTime::end(i64::MAX))
     }
     fn dyn_before(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
-        dyn_self.before(time)
+        self.dyn_window(EventTime::start(i64::MIN), EventTime::end(time.t()))
     }
     // Same erasure trick as dyn_window: wrapping the erased factory keeps the
     // set of vtable-instantiated types finite; wrapping `self` directly would
@@ -167,6 +186,12 @@ where
     fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynEdgeFilterFactory> {
         let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
         Arc::new(dyn_self.layer(layers))
+    }
+}
+
+impl PyEdgeFilter {
+    pub(crate) fn root() -> Self {
+        PyEdgeFilter(Arc::new(EdgeFilter))
     }
 }
 
@@ -213,7 +238,7 @@ impl PyEdgeFilter {
     ///
     /// Arguments:
     ///     name (str): Property key.
-    fn property(&self, name: String) -> PyExpr {
+    fn property(&self, name: String) -> PyPropertyExpr {
         self.0.dyn_property(name).into()
     }
 
@@ -271,22 +296,22 @@ impl PyEdgeFilter {
     }
 
     /// Matches edges that have at least one event in the current view.
-    fn is_active(&self) -> PyExpr {
-        self.0.dyn_is_active().into()
+    fn is_active(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_active())
     }
 
     /// Matches edges that are structurally valid in the current view.
-    fn is_valid(&self) -> PyExpr {
-        self.0.dyn_is_valid().into()
+    fn is_valid(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_valid())
     }
 
     /// Matches edges that have been deleted.
-    fn is_deleted(&self) -> PyExpr {
-        self.0.dyn_is_deleted().into()
+    fn is_deleted(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_deleted())
     }
 
     /// Matches edges that are self-loops (source == destination).
-    fn is_self_loop(&self) -> PyExpr {
-        self.0.dyn_is_self_loop().into()
+    fn is_self_loop(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_self_loop())
     }
 }

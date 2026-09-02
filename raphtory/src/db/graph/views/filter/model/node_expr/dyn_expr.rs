@@ -108,6 +108,14 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
     fn entity(&self) -> Self::Marker {
         self.deref().dyn_entity()
     }
+
+    fn prop_type(&self) -> PropType {
+        self.deref().dyn_prop_type()
+    }
+
+    fn nullable(&self) -> bool {
+        self.deref().dyn_nullable()
+    }
 }
 
 impl<T: DynEntityExpr + ?Sized> EntityExprBuilder for Arc<T> {}
