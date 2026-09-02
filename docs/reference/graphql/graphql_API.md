@@ -6561,6 +6561,18 @@ processes attaching a read-only handle observe up-to-date data.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.buildpropertyindex">buildPropertyIndex</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Build secondary indexes over node property values to speed up property
+filters (equality, comparisons and string matching). A no-op for
+storage backends without index support; filters return the same
+results either way, the index only changes how fast they run.
+
+</td>
+</tr>
 </tbody>
 </table>
 
