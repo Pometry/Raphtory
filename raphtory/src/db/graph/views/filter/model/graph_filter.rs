@@ -1,3 +1,4 @@
+use crate::db::graph::views::filter::model::{latest_filter::Latest, layered_filter::Layered, snapshot_filter::{SnapshotAt, SnapshotLatest}, CombinedFilter};
 use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
@@ -93,4 +94,36 @@ impl TryAsCompositeFilter for GraphFilter {
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
+}
+
+// ── expr-layer view ops (June branch) ──
+
+pub trait GraphFilterOps:
+    InternalViewWrapOps<Window = Self::GraphWindow> + CombinedFilter + Send + Sync + 'static
+{
+    type GraphWindow: GraphFilterOps + CombinedFilter;
+}
+
+impl GraphFilterOps for GraphFilter {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Windowed<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Layered<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Latest<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for SnapshotAt<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for SnapshotLatest<T> {
+    type GraphWindow = Self::Window;
 }

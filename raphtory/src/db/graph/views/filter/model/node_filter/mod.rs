@@ -1,3 +1,7 @@
+use crate::db::{
+    api::state::ops::node::{Id, Name, Type},
+    graph::views::filter::model::{node_expr::exprs::DegreeExpr, CreateView, node_expr::EntityExpr},
+};
 use crate::{
     api::core::Direction,
     db::{
@@ -112,11 +116,11 @@ impl InternalPropertyFilterFactory for NodeFilter {
     }
 
     fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        PropertyFilterBuilder(property, self.entity())
+        PropertyFilterBuilder(property, InternalPropertyFilterFactory::entity(self))
     }
 
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        MetadataFilterBuilder(property, self.entity())
+        MetadataFilterBuilder(property, InternalPropertyFilterFactory::entity(self))
     }
 }
 
@@ -550,4 +554,96 @@ impl TryAsCompositeFilter for CompositeNodeFilter {
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
+}
+
+// ── expr-layer factory (June branch) ──
+
+pub trait NodeFilterFactory:
+    InternalViewWrapOps<Window = Self::NodeWindow> + CreateView + EntityExpr
+{
+    type NodeWindow: NodeFilterFactory;
+    #[inline]
+    fn id(&self) -> Id {
+        Id
+    }
+
+    /// Selects the node name field for filtering.
+    ///
+    /// Returns `Name` which implements `NodeExprFilterOps` — use `.eq("Alice")`,
+    /// `.contains("ali")`, `.is_in([…])`, etc. directly on the returned value.
+    #[inline]
+    fn name(&self) -> Name {
+        Name
+    }
+
+    /// Selects the node type field for filtering.
+    ///
+    /// Returns `Type` which implements `NodeExprFilterOps`.
+    #[inline]
+    fn node_type(&self) -> Type {
+        Type
+    }
+
+    /// Build a filter from a boolean column inside a TypedNodeState.
+    fn by_column<'graph, V, G, T>(
+        state: &TypedNodeState<'graph, V, G, T>,
+        col: &str,
+    ) -> Result<NodeStateBoolColOp, GraphError>
+    where
+        V: NodeStateValue + 'graph,
+        T: Clone + Send + Sync + 'graph,
+        Self: Sized,
+    {
+        state.bool_col_filter(col)
+    }
+
+    /// Total degree expression — supports `.gt(n)`, `.lt(n)`, etc.
+    fn degree(&self) -> DegreeExpr<Self> {
+        DegreeExpr {
+            dir: Direction::BOTH,
+            view_expr: self.clone(),
+        }
+    }
+
+    /// In-degree expression.
+    fn in_degree(&self) -> DegreeExpr<Self> {
+        DegreeExpr {
+            dir: Direction::IN,
+            view_expr: self.clone(),
+        }
+    }
+
+    /// Out-degree expression.
+    #[inline]
+    fn out_degree(&self) -> DegreeExpr<Self> {
+        DegreeExpr {
+            dir: Direction::OUT,
+            view_expr: self.clone(),
+        }
+    }
+
+}
+
+impl NodeFilterFactory for NodeFilter {
+    type NodeWindow = Self::Window;
+}
+
+impl<T: NodeFilterFactory> NodeFilterFactory for Windowed<T> {
+    type NodeWindow = T::NodeWindow;
+}
+
+impl<T: NodeFilterFactory> NodeFilterFactory for Latest<T> {
+    type NodeWindow = Self::Window;
+}
+
+impl<T: NodeFilterFactory> NodeFilterFactory for SnapshotAt<T> {
+    type NodeWindow = Self::Window;
+}
+
+impl<T: NodeFilterFactory> NodeFilterFactory for SnapshotLatest<T> {
+    type NodeWindow = Self::Window;
+}
+
+impl<T: NodeFilterFactory> NodeFilterFactory for Layered<T> {
+    type NodeWindow = Self::Window;
 }

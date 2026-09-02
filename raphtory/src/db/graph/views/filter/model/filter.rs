@@ -239,3 +239,6 @@ impl Filter {
         self.operator.apply_id(&self.field_value, node_value)
     }
 }
+
+// June renamed `FilterValue` to `FieldFilterValue`; db_v4 machinery still says `FilterValue`.
+pub type FilterValue = FieldFilterValue;

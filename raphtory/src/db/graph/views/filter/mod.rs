@@ -60,6 +60,13 @@ impl CreateFilter for Exists {
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Ok(NodeExistsOp::new(filtered))
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
 }
 
 pub trait CreateFilter: Sized {
@@ -108,6 +115,11 @@ impl<T: NodeFilterOp> CreateFilter for T {
         = Self
     where
         Self: 'graph;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
     fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
@@ -129,5 +141,15 @@ impl<T: NodeFilterOp> CreateFilter for T {
         Self: 'graph,
     {
         Ok(self)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
+    where
+        Self: 'graph,
+    {
+        Ok(graph)
     }
 }

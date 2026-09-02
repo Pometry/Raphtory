@@ -1,3 +1,4 @@
+use raphtory_api::core::storage::arc_str::ArcStr;
 use crate::db::graph::views::filter::model::{
     filter::FilterValue, property_filter::PropertyFilterValue,
 };
@@ -310,3 +311,257 @@ impl FilterOperator {
         }
     }
 }
+
+// ── expr-layer operator kinds (from the June branch; consumed by node_expr/edge_expr) ──
+
+pub trait Comparable: Clone + Send + Sync + 'static {
+    fn binary_cmp(op: &BinaryOp, left: &Self, right: &Self) -> bool;
+}
+
+
+pub trait StringComparable: Clone + Send + Sync + 'static {
+    fn string_cmp(op: &StringOp, left: &Self, right: &Self) -> bool;
+}
+
+
+/// Ordering and equality operators used by `BinaryCmpExpr`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinaryOp {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+}
+
+
+/// String-only operators used by `StringExpr`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StringOp {
+    StartsWith,
+    EndsWith,
+    Contains,
+    NotContains,
+    FuzzySearch {
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    },
+}
+
+
+/// Unary presence operators used by `UnaryExpr`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOp {
+    IsSome,
+    IsNone,
+}
+
+
+/// Set membership operators used by `SetNodeFilter`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetOp {
+    IsIn,
+    IsNotIn,
+}
+
+
+impl Comparable for usize {
+    fn binary_cmp(op: &BinaryOp, left: &usize, right: &usize) -> bool {
+        match op {
+            BinaryOp::Eq => left == right,
+            BinaryOp::Ne => left != right,
+            BinaryOp::Lt => left < right,
+            BinaryOp::Le => left <= right,
+            BinaryOp::Gt => left > right,
+            BinaryOp::Ge => left >= right,
+        }
+    }
+}
+
+
+impl Comparable for Prop {
+    fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
+        use std::cmp::Ordering::*;
+
+        // Try casting right to left's type for cross-type numeric comparisons
+        // (e.g. Prop::I32(1) vs Prop::U64(1), or Prop::F64(3.0) vs Prop::U64(3)).
+        let right_casted = right.clone().try_cast(left.dtype());
+        let right = right_casted.as_ref().unwrap_or(right);
+
+        match op {
+            BinaryOp::Eq => left == right,
+            BinaryOp::Ne => left != right,
+            BinaryOp::Lt => left.partial_cmp(right).map(|o| o == Less).unwrap_or(false),
+            BinaryOp::Le => left
+                .partial_cmp(right)
+                .map(|o| o != Greater)
+                .unwrap_or(false),
+            BinaryOp::Gt => left
+                .partial_cmp(right)
+                .map(|o| o == Greater)
+                .unwrap_or(false),
+            BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
+        }
+    }
+}
+
+
+impl Comparable for GID {
+    fn binary_cmp(op: &BinaryOp, left: &GID, right: &GID) -> bool {
+        match (left, right) {
+            (GID::U64(l), GID::U64(r)) => match op {
+                BinaryOp::Eq => l == r,
+                BinaryOp::Ne => l != r,
+                BinaryOp::Lt => l < r,
+                BinaryOp::Le => l <= r,
+                BinaryOp::Gt => l > r,
+                BinaryOp::Ge => l >= r,
+            },
+            (GID::Str(l), GID::Str(r)) => String::binary_cmp(op, l, r),
+            _ => matches!(op, BinaryOp::Ne),
+        }
+    }
+}
+
+
+impl<T: Comparable> Comparable for Option<T> {
+    fn binary_cmp(op: &BinaryOp, left: &Option<T>, right: &Option<T>) -> bool {
+        match (left, right) {
+            (Some(l), Some(r)) => T::binary_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+
+impl StringComparable for Prop {
+    fn string_cmp(op: &StringOp, left: &Prop, right: &Prop) -> bool {
+        match (left, right) {
+            (Prop::Str(l), Prop::Str(r)) => ArcStr::string_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+
+impl StringComparable for GID {
+    fn string_cmp(op: &StringOp, left: &GID, right: &GID) -> bool {
+        match (left, right) {
+            (GID::Str(l), GID::Str(r)) => String::string_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+
+impl<T: StringComparable> StringComparable for Option<T> {
+    fn string_cmp(op: &StringOp, left: &Option<T>, right: &Option<T>) -> bool {
+        match (left, right) {
+            (Some(l), Some(r)) => T::string_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+
+impl Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BinaryOp::Eq => write!(f, "=="),
+            BinaryOp::Ne => write!(f, "!="),
+            BinaryOp::Lt => write!(f, "<"),
+            BinaryOp::Le => write!(f, "<="),
+            BinaryOp::Gt => write!(f, ">"),
+            BinaryOp::Ge => write!(f, ">="),
+        }
+    }
+}
+
+
+impl Display for StringOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StringOp::StartsWith => write!(f, "STARTS_WITH"),
+            StringOp::EndsWith => write!(f, "ENDS_WITH"),
+            StringOp::Contains => write!(f, "CONTAINS"),
+            StringOp::NotContains => write!(f, "NOT_CONTAINS"),
+            StringOp::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            } => write!(f, "FUZZY_SEARCH({},{})", levenshtein_distance, prefix_match),
+        }
+    }
+}
+
+
+impl Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnaryOp::IsSome => write!(f, "IS_SOME"),
+            UnaryOp::IsNone => write!(f, "IS_NONE"),
+        }
+    }
+}
+
+
+impl Display for SetOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SetOp::IsIn => write!(f, "IS_IN"),
+            SetOp::IsNotIn => write!(f, "IS_NOT_IN"),
+        }
+    }
+}
+
+macro_rules! impl_comparable_str {
+    ($ty:ty) => {
+        impl Comparable for $ty {
+            fn binary_cmp(op: &BinaryOp, left: &$ty, right: &$ty) -> bool {
+                let (l, r): (&str, &str) = (left, right);
+                match op {
+                    BinaryOp::Eq => l == r,
+                    BinaryOp::Ne => l != r,
+                    BinaryOp::Lt => l < r,
+                    BinaryOp::Le => l <= r,
+                    BinaryOp::Gt => l > r,
+                    BinaryOp::Ge => l >= r,
+                }
+            }
+        }
+    };
+}
+
+impl_comparable_str!(String);
+impl_comparable_str!(ArcStr);
+impl_comparable_str!(&'static str);
+
+macro_rules! impl_string_comparable_str {
+    ($ty:ty) => {
+        impl StringComparable for $ty {
+            fn string_cmp(op: &StringOp, left: &$ty, right: &$ty) -> bool {
+                let (l, r): (&str, &str) = (left, right);
+                match op {
+                    StringOp::StartsWith => l.starts_with(r),
+                    StringOp::EndsWith => l.ends_with(r),
+                    StringOp::Contains => l.contains(r),
+                    StringOp::NotContains => !l.contains(r),
+                    StringOp::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => {
+                        let l = l.to_lowercase();
+                        let r = r.to_lowercase();
+                        let lev = levenshtein(&r, &l) <= *levenshtein_distance;
+                        let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
+                        lev || prefix
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_string_comparable_str!(String);
+impl_string_comparable_str!(ArcStr);
+impl_string_comparable_str!(&'static str);

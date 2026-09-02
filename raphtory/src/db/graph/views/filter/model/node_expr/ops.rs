@@ -21,7 +21,7 @@
 //! NodeFilter.property("score").temporal().sum()  ← SumExpr (pure data)
 //!   .create_node_op(graph)?
 //!  ──► SumNodeOp { inner: TemporalNodePropOp { graph, prop_id: 7 } }
-//!        apply: collect Prop::List temporal values, then aggregate_values(Sum)
+//!        apply: collect Prop::List temporal values, then aggregate_list_values(Sum)
 //! ```
 //!
 //! # Quantified evaluation
@@ -36,6 +36,7 @@
 //! Eq Bool(true)           →  true    (at least one matched)
 //! ```
 
+use crate::db::api::view::internal::NodeList;
 use super::EdgeOp;
 use crate::{
     db::{
@@ -47,7 +48,7 @@ use crate::{
         graph::views::filter::model::{
             filter_operator::{BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp},
             property_filter::evaluate::{
-                aggregate_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+                aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
             },
         },
     },
@@ -75,6 +76,10 @@ pub(crate) struct NodePropOp<G> {
 }
 
 impl<G: GraphView> NodeOp for NodePropOp<G> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -105,6 +110,10 @@ pub(crate) struct NodeMetaOp<G> {
 }
 
 impl<G: GraphView> NodeOp for NodeMetaOp<G> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -136,6 +145,10 @@ pub(crate) struct TemporalNodePropOp<G> {
 }
 
 impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
     type Output = Prop;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Prop {
@@ -173,6 +186,10 @@ macro_rules! impl_agg_entity_op {
         }
 
         impl<'g> NodeOp for $node_name<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.inner.domain(_storage)
+    }
+
             type Output = Option<Prop>;
 
             fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -196,7 +213,7 @@ macro_rules! impl_agg_entity_op {
 }
 
 impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_list_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -228,7 +245,7 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
 });
 
 impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_list_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
             return None;
@@ -257,14 +274,14 @@ impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
     })
 });
 impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_list_values(vals, &|pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
     })
 });
 impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| {
+    aggregate_list_values(vals, &|pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
@@ -287,15 +304,15 @@ impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
     }
 });
 impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
-    aggregate_values(vals, &|pi| Some(pi.count().into_prop()))
+    aggregate_list_values(vals, &|pi| Some(pi.count().into_prop()))
 });
 impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
-    aggregate_values(vals, &|mut pi| {
+    aggregate_list_values(vals, &|mut pi| {
         Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
     })
 });
 impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
-    aggregate_values(vals, &|mut pi| {
+    aggregate_list_values(vals, &|mut pi| {
         let mut saw_any = false;
         let all_true = pi.all(|r| {
             saw_any = true;
@@ -326,6 +343,10 @@ pub(crate) struct ListAwareCmpNodeOp<'g> {
 }
 
 impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -346,6 +367,10 @@ pub(crate) struct ListAwareStringNodeOp<'g> {
 }
 
 impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -414,6 +439,10 @@ pub(crate) struct ListAwareSetNodeOp<'g> {
 }
 
 impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -450,6 +479,10 @@ pub(crate) struct ListAwareUnaryNodeOp<'g> {
 }
 
 impl<'g> NodeOp for ListAwareUnaryNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -487,6 +520,10 @@ impl<'g> Clone for AndBoolNodeOp<'g> {
 }
 
 impl<'g> NodeOp for AndBoolNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -515,6 +552,10 @@ impl<'g> Clone for OrBoolNodeOp<'g> {
 }
 
 impl<'g> NodeOp for OrBoolNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
@@ -552,6 +593,10 @@ impl<'g> Clone for PropValueSetNodeOp<'g> {
 }
 
 impl<'g> NodeOp for PropValueSetNodeOp<'g> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
@@ -590,6 +635,10 @@ pub struct BinaryCmpNodeOp<'g, T: Comparable> {
 }
 
 impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinaryCmpNodeOp<'g, T> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
@@ -619,6 +668,10 @@ pub struct StringNodeOp<'g, T: StringComparable> {
 }
 
 impl<'g, T: StringComparable> NodeOp for StringNodeOp<'g, T> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
@@ -645,6 +698,10 @@ pub struct UnaryNodeOp<'g, I: Clone + Send + Sync + 'static> {
 }
 
 impl<'g, I: Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, I> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
@@ -676,6 +733,10 @@ pub struct SetNodeOp<'g, I: Eq + Hash + Clone + Send + Sync + 'static> {
 }
 
 impl<'g, I: Eq + Hash + Clone + Send + Sync + 'static> NodeOp for SetNodeOp<'g, I> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {

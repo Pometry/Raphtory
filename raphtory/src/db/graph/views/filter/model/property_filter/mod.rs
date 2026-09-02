@@ -45,7 +45,7 @@ use raphtory_storage::graph::{
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
-mod evaluate;
+pub(crate) mod evaluate;
 pub mod ops;
 mod validate;
 

@@ -39,15 +39,23 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph.clone())?;
@@ -63,11 +71,19 @@ where
         Ok(EdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -76,15 +92,23 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph.clone())?;
@@ -100,11 +124,19 @@ where
         Ok(ExplodedEdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -116,25 +148,41 @@ impl<E> CreateFilter for UnaryExpr<E, EdgeFilter>
 where
     E: CreateOp,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let inner = self.expr.create_edge_op(graph.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> =
             Arc::new(UnaryEdgeOp { inner, op: self.op });
         Ok(EdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -142,25 +190,41 @@ impl<E> CreateFilter for UnaryExpr<E, ExplodedEdgeFilter>
 where
     E: CreateOp,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let inner = self.expr.create_edge_op(graph.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> =
             Arc::new(UnaryEdgeOp { inner, op: self.op });
         Ok(ExplodedEdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -173,14 +237,22 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph.clone())?;
         validate_string_op(&left.prop_type())?;
@@ -192,11 +264,19 @@ where
         Ok(EdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -205,14 +285,22 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let left = self.left.create_edge_op(graph.clone())?;
         let right = self.right.create_edge_op(graph.clone())?;
         validate_string_op(&left.prop_type())?;
@@ -224,11 +312,19 @@ where
         Ok(ExplodedEdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
@@ -237,14 +333,22 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let inner = self.expr.create_edge_op(graph.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(PropValueSetEdgeOp {
             inner,
@@ -254,23 +358,39 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
         Ok(EdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph> = NotANodeFilter;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let inner = self.expr.create_edge_op(graph.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(PropValueSetEdgeOp {
             inner,
@@ -280,10 +400,18 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
         Ok(ExplodedEdgeExprFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
     }
 }

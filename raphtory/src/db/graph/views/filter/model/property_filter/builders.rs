@@ -1,3 +1,4 @@
+use crate::db::graph::views::filter::model::{CombinedFilter, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory};
 use crate::db::graph::views::filter::{
     model::{
         property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
@@ -6,17 +7,6 @@ use crate::db::graph::views::filter::{
     CreateFilter,
 };
 
-pub trait InternalPropertyFilterBuilder {
-    type Filter;
-    type ExprBuilder;
-    type Marker;
-
-    fn property_ref(&self) -> PropertyRef;
-    fn ops(&self) -> &[Op];
-    fn entity(&self) -> Self::Marker;
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter;
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder;
-}
 
 #[derive(Clone)]
 pub struct PropertyFilterBuilder<M>(pub String, pub M);
@@ -38,7 +28,7 @@ impl<M> Wrap for PropertyFilterBuilder<M> {
 impl<M> InternalPropertyFilterBuilder for PropertyFilterBuilder<M>
 where
     M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CreateFilter,
+    PropertyFilter<M>: CombinedFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
@@ -86,7 +76,7 @@ impl<M> Wrap for MetadataFilterBuilder<M> {
 impl<M> InternalPropertyFilterBuilder for MetadataFilterBuilder<M>
 where
     M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CreateFilter,
+    PropertyFilter<M>: CombinedFilter,
     PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
 {
     type Filter = PropertyFilter<M>;
@@ -195,7 +185,7 @@ impl<M> Wrap for PropertyExprBuilder<M> {
 impl<M> InternalPropertyFilterBuilder for PropertyExprBuilder<M>
 where
     M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<M>: CreateFilter,
+    PropertyFilter<M>: CombinedFilter,
 {
     type Filter = PropertyFilter<M>;
     type ExprBuilder = PropertyExprBuilder<M>;
@@ -220,4 +210,11 @@ where
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
         builder.with_entity(self.entity())
     }
+}
+
+impl<T> TemporalPropertyFilterFactory for PropertyFilterBuilder<T>
+where
+    T: Into<EntityMarker> + Send + Sync + Clone + 'static,
+    PropertyFilter<T>: CombinedFilter,
+{
 }
