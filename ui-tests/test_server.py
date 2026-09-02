@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 import tempfile
+import time
 from datetime import datetime, timedelta
 
 from raphtory import graphql, PersistentGraph, Graph
@@ -91,16 +92,34 @@ def build_from_spec(name):
     return apply_spec(cls(), spec)
 
 
+def setup_playground_graph(graph):
+    """Backing data for the GraphQL playground examples, which query a graph
+    at root path `my_graph` with node_1/node_2/node_3, nodeType "user",
+    node property "score" (some >= 90), edge property "weight" (some > 0.5),
+    layer "knows", and all timestamps inside the examples' 0..1000 windows."""
+    graph.add_node(1, "node_1", {"score": 95}, "user")
+    graph.add_node(10, "node_2", {"score": 60}, "user")
+    graph.add_node(600, "node_3", {"score": 30}, "user")
+    graph.add_node(20, "node_4", {"score": 10}, "system")
+    graph.add_edge(5, "node_1", "node_2", {"weight": 0.9}, "knows")
+    graph.add_edge(15, "node_1", "node_3", {"weight": 0.3}, "knows")
+    graph.add_edge(700, "node_2", "node_3", {"weight": 0.7}, "knows")
+    # Key must not collide with the "Add Graph Metadata" example, which sets
+    # "description" — metadata is immutable once set.
+    graph.add_metadata({"source": "playground-fixture"})
+    graph.add_properties(1, {"version": "v1"})
+    return graph
+
+
 def __main__():
     port = int(os.environ.get("RAPHTORY_PORT", "1736"))
     work_dir = os.environ.get(
         "RAPHTORY_WORK_DIR", os.path.join(tempfile.gettempdir(), "vanilla-graphs")
     )
 
-    for sub in ("vanilla", "new_folder"):
-        target = os.path.join(work_dir, sub)
-        shutil.rmtree(target, ignore_errors=True)
-        os.makedirs(target, exist_ok=True)
+    shutil.rmtree(work_dir, ignore_errors=True)
+    for sub in ("vanilla", "new_folder", "my_namespace"):
+        os.makedirs(os.path.join(work_dir, sub), exist_ok=True)
 
     def graph_path(*parts):
         return os.path.join(work_dir, *parts)
@@ -130,7 +149,29 @@ def __main__():
 
     build_from_spec("numerical").save_to_file(graph_path("vanilla", "numerical"))
 
-    server = graphql.GraphServer(work_dir=work_dir)
+    g = setup_playground_graph(Graph())
+    g.save_to_file(graph_path("my_graph"))
+    g.save_to_file(graph_path("my_namespace", "demo"))
+
+    # # manually build hub graph (very useful to uncomment for performance tracing)
+    # HUB_COUNT = 6_000_000
+    # huge_hub_graph = Graph()
+    # huge_hub_graph.add_node(0, "center")
+    # for h in range(4):
+    #     hub_name = f"hub_{h}"
+    #     huge_hub_graph.add_edge(0, "center", hub_name)
+    #     for i in range(HUB_COUNT - 1):
+    #         huge_hub_graph.add_edge(0, hub_name, f"hub_{h}_leaf_{i}")
+    # EDGE_UPDATE_COUNT = 6_000_000
+    # for t in range(EDGE_UPDATE_COUNT):
+    #     huge_hub_graph.add_edge(t, "center", "chatty")
+    # huge_hub_graph.save_to_file(graph_path("hub-nodes"))
+
+    # Matches the UI's own MAX_NESTED_PAGE, so a query that asks for a bigger
+    # page fails the tests here rather than on a deployment that sets the cap.
+    server = graphql.GraphServer(
+        work_dir=work_dir, config={"concurrency": {"max_page_size": 10_000}}
+    )
     server.run(port=port)
 
 
