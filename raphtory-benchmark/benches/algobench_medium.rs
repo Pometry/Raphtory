@@ -216,12 +216,17 @@ pub fn graphgen_dijkstra(c: &mut Criterion) {
         5,
         10,
         medium_random_attachment_graph,
-        first_node_id,
-        |graph, source| {
+        |graph| {
+            (
+                first_node_id(graph),
+                graph.nodes().id().iter_values().last().unwrap(),
+            )
+        },
+        |graph, (source, dst)| {
             dijkstra_single_source_shortest_paths(
                 graph,
                 source.clone(),
-                vec![source.clone()],
+                vec![dst.clone()],
                 None,
                 Direction::BOTH,
             )
