@@ -72,27 +72,7 @@ impl MemNodeTypeIndex {
 
     /// Drains `self` into a new instance, leaving this one empty.
     pub fn take(&mut self) -> Self {
-        let taken = Self::new();
-
-        for mut entry in self.map.iter_mut() {
-            let type_id = *entry.key();
-            let vids: BTreeSet<VID> = std::mem::take(entry.value_mut());
-
-            if !vids.is_empty() {
-                taken.map.insert(type_id, vids);
-            }
-        }
-
-        let taken_count = self.entry_count.load(Ordering::Relaxed);
-        let taken_est_size = self.est_size.load(Ordering::Relaxed);
-
-        self.entry_count.store(0, Ordering::Relaxed);
-        self.est_size.store(0, Ordering::Relaxed);
-
-        taken.entry_count.store(taken_count, Ordering::Relaxed);
-        taken.est_size.store(taken_est_size, Ordering::Relaxed);
-
-        taken
+        std::mem::replace(self, Self::new())
     }
 
     /// Yields `(type_id, vids)` in ascending `type_id` order with ascending `VID`s per type.
