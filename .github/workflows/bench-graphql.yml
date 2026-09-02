@@ -28,8 +28,7 @@ jobs:
         run: pip install maturin==1.9.4
       - name: Build raphtory
         run: |
-          make install-python clean
-        #                     ↑ this is for freeing up space used by cargo before installing raphtory
+          make install-minimal-python
       - name: Set up pnpm
         uses: pnpm/action-setup@v6.0.9
         with:
