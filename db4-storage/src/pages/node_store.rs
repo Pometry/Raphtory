@@ -278,7 +278,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                         &self.stats,
                         self.max_segment_len(),
                         page.as_ref(),
-                        &self.node_type_index,
                         page.head_mut(),
                     )
                 })
@@ -408,7 +407,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
-        NodeWriter::new(segment, &self.stats, &self.node_type_index, head)
+        NodeWriter::new(segment, &self.stats, head)
     }
 
     pub fn try_writer<'a>(
@@ -417,12 +416,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> Option<NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.try_head_mut()?;
-        Some(NodeWriter::new(
-            segment,
-            &self.stats,
-            &self.node_type_index,
-            head,
-        ))
+        Some(NodeWriter::new(segment, &self.stats, head))
     }
 
     pub fn id_type(&self) -> Option<GidType> {

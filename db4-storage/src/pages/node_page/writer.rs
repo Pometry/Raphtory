@@ -1,9 +1,6 @@
 use crate::{
     LocalPOS,
-    api::{
-        node_type_index::NodeTypeIndexOps,
-        nodes::{NodeSegmentOps, NodeTypeIndexOf},
-    },
+    api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, resolve_pos},
     segments::node::segment::MemNodeSegment,
@@ -28,29 +25,18 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
     pub page: &'a NS,
     pub mut_segment: MP,
     pub l_counter: &'a GraphStats,
-    pub node_type_index: &'a NodeTypeIndexOf<NS>,
     pub old_est_size: usize,
-
-    /// Whether this writer inserted into `node_type_index`.
-    node_type_updated: bool,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
-    pub fn new(
-        page: &'a NS,
-        global_num_nodes: &'a GraphStats,
-        node_type_index: &'a NodeTypeIndexOf<NS>,
-        writer: MP,
-    ) -> Self {
+    pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
         let old_est_size = writer.est_size();
 
         Self {
             page,
             mut_segment: writer,
             l_counter: global_num_nodes,
-            node_type_index,
             old_est_size,
-            node_type_updated: false,
         }
     }
 
@@ -256,10 +242,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             STATIC_GRAPH_LAYER_ID,
             node_info_as_props(gid, node_type),
         );
-
-        if let Some(node_type) = node_type {
-            self.update_node_type_index(node_type, pos);
-        }
     }
 
     pub fn store_node_id(&mut self, pos: LocalPOS, gid: GID) {
@@ -275,20 +257,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn store_node_type(&mut self, pos: LocalPOS, node_type: usize) {
         let props = [(NODE_TYPE_IDX, Prop::U64(node_type as u64))];
         self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
-
-        if node_type != DEFAULT_NODE_TYPE_ID {
-            self.update_node_type_index(node_type, pos);
-        }
-    }
-
-    fn update_node_type_index(&mut self, node_type: usize, pos: LocalPOS) {
-        let vid = pos.as_vid(
-            self.mut_segment.segment_id(),
-            self.mut_segment.max_page_len(),
-        );
-
-        self.node_type_index.head().insert(node_type, vid);
-        self.node_type_updated = true;
     }
 
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID) {
@@ -336,10 +304,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");
-
-        if self.node_type_updated {
-            self.node_type_index.notify_write();
-        }
     }
 }
 

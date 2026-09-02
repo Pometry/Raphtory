@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS,
-    api::nodes::{NodeSegmentOps, NodeTypeIndexOf},
+    api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
@@ -22,9 +22,6 @@ pub struct LockedNodePage<'a, NS: NodeSegmentOps> {
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     page: &'a NS,
-
-    /// Reference to the node type index - used by writers to update the index.
-    node_type_index: &'a NodeTypeIndexOf<NS>,
     lock: RwLockWriteGuard<'a, MemNodeSegment>,
 }
 
@@ -34,7 +31,6 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         page: &'a NS,
-        node_type_index: &'a NodeTypeIndexOf<NS>,
         lock: RwLockWriteGuard<'a, MemNodeSegment>,
     ) -> Self {
         Self {
@@ -42,7 +38,6 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
             layer_counter,
             max_page_len,
             page,
-            node_type_index,
             lock,
         }
     }
@@ -53,23 +48,12 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(
-            self.page,
-            self.layer_counter,
-            self.node_type_index,
-            self.lock.deref_mut(),
-        )
+        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(
-            self.page,
-            self.layer_counter,
-            self.node_type_index,
-            self.lock.deref_mut(),
-        )
-        .into()
+        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut()).into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {

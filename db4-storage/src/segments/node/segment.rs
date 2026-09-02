@@ -27,7 +27,6 @@ use raphtory_core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use std::{
-    mem,
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
@@ -127,7 +126,7 @@ impl MemNodeSegment {
                     head_guard.meta().clone(),
                 );
 
-                mem::swap(&mut *head_guard, &mut old_head);
+                std::mem::swap(&mut *head_guard, &mut old_head);
 
                 old_head
             })
@@ -177,7 +176,7 @@ impl MemNodeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
-        let est_size = mem::take(&mut self.est_size);
+        let est_size = std::mem::take(&mut self.est_size);
 
         Self {
             segment_id: self.segment_id,
@@ -633,20 +632,19 @@ mod test {
     use super::MemNodeSegment;
     use crate::{
         LocalPOS, NodeSegmentView,
-        api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
+        api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::{
             config::BaseConfig,
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
-        segments::node_type_index::NodeTypeIndexView,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
         prop::{Prop, PropType},
     };
     use raphtory_core::entities::{EID, ELID, VID};
-    use std::sync::{Arc, atomic::AtomicUsize};
+    use std::sync::Arc;
     use tempfile::tempdir;
 
     #[test]
@@ -666,8 +664,7 @@ mod test {
         );
 
         let stats = GraphStats::default();
-        let type_index = NodeTypeIndexView::new(None, ext.clone());
-        let mut writer = NodeWriter::new(&segment, &stats, &type_index, segment.head_mut());
+        let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
 
         let est_size1 = writer.mut_segment.est_size();
         assert_eq!(est_size1, 0);
