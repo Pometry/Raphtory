@@ -159,19 +159,38 @@ impl<T> EdgeEndpointWrapper<T> {
 }
 
 impl EdgeEndpointWrapper<NodeFilter> {
+    /// Endpoint fields and properties are expressions: they compose with the comparison,
+    /// string, set and temporal operators. Nothing outside the expression tests consumed
+    /// the builder-returning forms these replace.
     #[inline]
-    pub fn id(&self) -> EdgeEndpointWrapper<NodeIdFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeFilter::id(), self.endpoint)
+    pub fn id(&self) -> EdgeEndpointWrapper<Id> {
+        self.wrap(Id)
     }
 
     #[inline]
-    pub fn name(&self) -> EdgeEndpointWrapper<NodeNameFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeFilter::name(), self.endpoint)
+    pub fn name(&self) -> EdgeEndpointWrapper<Name> {
+        self.wrap(Name)
     }
 
     #[inline]
-    pub fn node_type(&self) -> EdgeEndpointWrapper<NodeTypeFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeFilter::node_type(), self.endpoint)
+    pub fn node_type(&self) -> EdgeEndpointWrapper<Type> {
+        self.wrap(Type)
+    }
+
+    #[inline]
+    pub fn property(
+        &self,
+        name: impl Into<String>,
+    ) -> EdgeEndpointWrapper<PropertyExpr<NodeFilter>> {
+        self.wrap(PropertyExprFactory::property(&self.inner, name))
+    }
+
+    #[inline]
+    pub fn metadata(
+        &self,
+        name: impl Into<String>,
+    ) -> EdgeEndpointWrapper<MetadataExpr<NodeFilter>> {
+        self.wrap(PropertyExprFactory::metadata(&self.inner, name))
     }
 }
 
@@ -544,8 +563,12 @@ impl<T: CreateOp> CreateOp for EdgeEndpointWrapper<T> {
 
 // ── expr layer: which types serve as edge-filter factories (June branch) ──
 
-use crate::db::graph::views::filter::model::{
-    exploded_edge_filter::ExplodedEdgeFilter, CreateView, EdgeFilterFactory,
+use crate::db::{
+    api::state::ops::node::{Id, Name, Type},
+    graph::views::filter::model::{
+        exploded_edge_filter::ExplodedEdgeFilter, CreateView, EdgeFilterFactory, MetadataExpr,
+        PropertyExpr, PropertyExprFactory,
+    },
 };
 
 impl EdgeFilterFactory for EdgeFilter {}
@@ -555,3 +578,67 @@ impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Latest<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotAt<T> {}
 impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> {}
+
+// ── expr layer: temporal chains on endpoint properties (June branch) ──
+
+use crate::db::graph::views::filter::model::node_expr::{
+    AllExpr, AnyExpr, AvgExpr, EntityAggOps, FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr,
+    SumExpr, TemporalPropExpr,
+};
+
+impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<PropertyExpr<E>> {
+    #[inline]
+    pub fn temporal(&self) -> EdgeEndpointWrapper<TemporalPropExpr<E>> {
+        EdgeEndpointWrapper::new(self.inner.temporal(), self.endpoint)
+    }
+}
+
+impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static>
+    EdgeEndpointWrapper<TemporalPropExpr<E>>
+{
+    #[inline]
+    pub fn sum(self) -> EdgeEndpointWrapper<SumExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.sum(), endpoint)
+    }
+    #[inline]
+    pub fn avg(self) -> EdgeEndpointWrapper<AvgExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.avg(), endpoint)
+    }
+    #[inline]
+    pub fn min(self) -> EdgeEndpointWrapper<MinExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.min(), endpoint)
+    }
+    #[inline]
+    pub fn max(self) -> EdgeEndpointWrapper<MaxExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.max(), endpoint)
+    }
+    #[inline]
+    pub fn first(self) -> EdgeEndpointWrapper<FirstExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.first(), endpoint)
+    }
+    #[inline]
+    pub fn last(self) -> EdgeEndpointWrapper<LastExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.last(), endpoint)
+    }
+    #[inline]
+    pub fn len(self) -> EdgeEndpointWrapper<LenExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(self.inner.len(), endpoint)
+    }
+    #[inline]
+    pub fn any(self) -> EdgeEndpointWrapper<AnyExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(AnyExpr(self.inner), endpoint)
+    }
+    #[inline]
+    pub fn all(self) -> EdgeEndpointWrapper<AllExpr<TemporalPropExpr<E>>> {
+        let endpoint = self.endpoint;
+        EdgeEndpointWrapper::new(AllExpr(self.inner), endpoint)
+    }
+}

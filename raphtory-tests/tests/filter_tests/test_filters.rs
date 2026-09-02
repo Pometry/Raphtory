@@ -8297,8 +8297,8 @@ mod test_edge_filter {
         edge_filter::EdgeFilter,
         node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
         property_filter::ops::{ListAggOps, PropertyFilterOps},
-        ComposableFilter, EdgeViewFilterOps, PropertyFilterFactory, TemporalPropertyFilterFactory,
-        ViewWrapOps,
+        ComposableFilter, EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps,
+        PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
@@ -8645,7 +8645,8 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_not_src() {
-        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]).not();
+        // `not` pinned to the composite complement it resolved to before the expr ops were in scope.
+        let filter = ComposableFilter::not(EdgeFilter::src().name().is_not_in(vec!["1"]));
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,

@@ -1,7 +1,7 @@
 use raphtory::{
     db::{
         api::view::Filter,
-        graph::views::filter::model::{ComposableFilter, EdgeFilter, PropertyFilterFactory},
+        graph::views::filter::model::{ComposableFilter, EdgeFilter, PropertyExprFactory},
     },
     prelude::*,
 };

@@ -819,3 +819,45 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
         Ok(graph)
     }
 }
+
+// ── The expr layer has no composite form: these filters exist only as compiled ops. ──
+// The conversion is fallible by design, so "not representable" is an answer, not a lie;
+// the composite path survives solely for its remaining GraphQL and grant-lowering consumers.
+
+use crate::db::graph::views::filter::model::{
+    edge_filter::CompositeEdgeFilter, exploded_edge_filter::CompositeExplodedEdgeFilter,
+    node_filter::CompositeNodeFilter, TryAsCompositeFilter,
+};
+
+macro_rules! impl_not_composite {
+    ($($ty:ident<$($g:ident),+>),+ $(,)?) => {$(
+        impl<$($g: Send + Sync),+> TryAsCompositeFilter for $ty<$($g),+> {
+            fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+
+            fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+
+            fn try_as_composite_exploded_edge_filter(
+                &self,
+            ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+                Err(GraphError::InvalidFilter(
+                    "expression filters have no composite representation".to_string(),
+                ))
+            }
+        }
+    )+};
+}
+
+impl_not_composite!(
+    BinaryCmpExpr<L, R, Entity>,
+    UnaryExpr<E, Entity>,
+    StringExpr<L, R, Entity>,
+    PropValueSetExpr<E, Entity>,
+);

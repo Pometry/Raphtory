@@ -6,7 +6,7 @@ mod test_composite_filters {
     use raphtory::{
         db::graph::views::filter::model::{
             edge_filter::EdgeFilter, filter::Filter, node_filter::NodeFilter,
-            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+            property_filter::ops::PropertyFilterOps, PropertyExprFactory,
         },
         prelude::IntoProp,
     };
@@ -125,7 +125,7 @@ mod test_property_semantics {
                 api::view::{filter_ops::Filter, StaticGraphViewOps},
                 graph::views::filter::model::{
                     node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
-                    PropertyFilterFactory,
+                    PropertyExprFactory,
                 },
             },
             errors::GraphError,
@@ -412,7 +412,7 @@ mod test_property_semantics {
                 graph::views::filter::{
                     model::{
                         edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
-                        PropertyFilterFactory,
+                        PropertyExprFactory,
                     },
                     CreateFilter,
                 },
@@ -1501,14 +1501,13 @@ mod test_node_filter {
         algorithms::alternating_mask::alternating_mask,
         core::entities::VID,
         db::{
-            api::view::{filter_ops::NodeSelect, Filter},
+            api::view::{filter_ops::Select, Filter},
             graph::views::filter::{
                 model::{
-                    degree_filter::DegreeFilterFactory,
                     node_filter::ops::NodeFilterOps,
                     not_filter::NotFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    ComposableFilter, NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
+                    ComposableFilter, NodeViewFilterOps, PropertyExprFactory, ViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -1919,7 +1918,7 @@ mod test_node_filter {
 
             assert_filter(
                 &graph,
-                NodeFilter.degree().lt(threshold).or(NodeFilter.degree().gt(threshold + 5).not()),
+                NodeFilter.degree().lt(threshold).or(EntityExprFilterOps::not(NodeFilter.degree().gt(threshold + 5))),
                 Direction::BOTH,
                 |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("BOTH < {} OR BOTH > {}", threshold, threshold + 5),
@@ -1927,7 +1926,7 @@ mod test_node_filter {
 
             assert_filter(
                 &graph,
-                NodeFilter.in_degree().lt(threshold).or(NodeFilter.in_degree().gt(threshold + 5).not()),
+                NodeFilter.in_degree().lt(threshold).or(EntityExprFilterOps::not(NodeFilter.in_degree().gt(threshold + 5))),
                 Direction::IN,
                 |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("IN < {} OR IN > {}", threshold, threshold + 5),
@@ -1935,7 +1934,7 @@ mod test_node_filter {
 
             assert_filter(
                 &graph,
-                NodeFilter.out_degree().lt(threshold).or(NodeFilter.out_degree().gt(threshold + 5).not()),
+                NodeFilter.out_degree().lt(threshold).or(EntityExprFilterOps::not(NodeFilter.out_degree().gt(threshold + 5))),
                 Direction::OUT,
                 |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("OUT < {} OR OUT > {}", threshold, threshold + 5),
@@ -2482,7 +2481,8 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_not_node_type() {
-        let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]).not();
+        let filter =
+            EntityExprFilterOps::not(NodeFilter.node_type().is_not_in(vec!["fire_nation"]));
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2842,7 +2842,7 @@ mod test_node_property_filter {
             not_filter::NotFilter,
             property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             windowed_filter::Windowed,
-            ComposableFilter, PropertyFilterFactory, ViewWrapOps,
+            ComposableFilter, PropertyExprFactory, ViewWrapOps,
         },
         prelude::{EntityAggOps, EntityExprFilterOps},
     };
@@ -3531,7 +3531,7 @@ mod test_node_property_filter {
         // (None cannot satisfy a value comparison). Use "ship" so nodes 1 and 3
         // (p10 = "Paper_airplane", does not contain "ship") pass; node 2
         // (p10 = "Paper_ship") and node 4 (no p10) are rejected.
-        let filter = NodeFilter.property("p10").contains("ship").not();
+        let filter = EntityExprFilterOps::not(NodeFilter.property("p10").contains("ship"));
         let expected_results: Vec<&str> = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4308,7 +4308,7 @@ mod composite_node_filter_tests {
         db::graph::views::filter::model::{
             node_filter::ops::NodeFilterOps, not_filter::NotFilter,
             property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
-            PropertyFilterFactory,
+            PropertyExprFactory,
         },
         prelude::NodeFilter,
     };
@@ -4574,13 +4574,10 @@ mod test_node_property_filter_agg {
     use raphtory::{
         db::{
             api::view::StaticGraphViewOps,
-            graph::views::filter::{
-                model::{
-                    node_filter::NodeFilter,
-                    property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    PropertyFilterFactory,
-                },
-                CreateFilter,
+            graph::views::filter::model::{
+                node_filter::NodeFilter,
+                property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+                CombinedFilter, PropertyExprFactory,
             },
         },
         prelude::{
@@ -4911,7 +4908,7 @@ mod test_node_property_filter_agg {
         graph
     }
 
-    fn apply_assertion(filter: impl CreateFilter + Clone, expected: &[&str]) {
+    fn apply_assertion(filter: impl CombinedFilter, expected: &[&str]) {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -4921,7 +4918,7 @@ mod test_node_property_filter_agg {
         );
     }
 
-    fn apply_assertion_err(filter: impl CreateFilter + Clone, expected: &str) {
+    fn apply_assertion_err(filter: impl CombinedFilter, expected: &str) {
         assert_filter_nodes_err(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -8083,8 +8080,8 @@ mod test_edge_filter {
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, node_expr::EntityExprFilterOps, ComposableFilter,
-        EdgeViewFilterOps, NodeFilterFactory, PropertyFilterFactory, ViewWrapOps,
+        edge_filter::EdgeFilter, ComposableFilter, EdgeViewFilterOps, EntityExprFilterOps,
+        NodeFilterFactory, PropertyExprFactory, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
@@ -8431,7 +8428,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_not_src() {
-        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]).not();
+        let filter = EntityExprFilterOps::not(EdgeFilter::src().name().is_not_in(vec!["1"]));
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -9098,7 +9095,7 @@ mod test_edge_property_filter {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter,
         property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-        ComposableFilter, PropertyFilterFactory, ViewWrapOps,
+        ComposableFilter, PropertyExprFactory, ViewWrapOps,
     };
 
     use raphtory::prelude::{EntityAggOps, EntityExprFilterOps};
@@ -9892,7 +9889,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_filter_edges_for_not_property() {
         // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
-        let filter = EdgeFilter.property("p2").ne(2u64).not();
+        let filter = EntityExprFilterOps::not(EdgeFilter.property("p2").ne(2u64));
         let expected_results = vec!["2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -10404,7 +10401,7 @@ mod composite_edge_filter_tests {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps, not_filter::NotFilter,
         property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
-        PropertyFilterFactory,
+        PropertyExprFactory,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, TestGraphVariants, TestVariants,

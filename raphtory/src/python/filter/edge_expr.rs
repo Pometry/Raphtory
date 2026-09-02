@@ -37,17 +37,17 @@ pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 impl PyEdgeEndpoint {
     /// Selects the endpoint node ID field for filtering.
     fn id(&self) -> PyExpr {
-        self.0.wrap(Id).into()
+        self.0.id().into()
     }
 
     /// Selects the endpoint node name field for filtering.
     fn name(&self) -> PyExpr {
-        self.0.wrap(Name).into()
+        self.0.name().into()
     }
 
     /// Selects the endpoint node type field for filtering.
     fn node_type(&self) -> PyExpr {
-        self.0.wrap(Type).into()
+        self.0.node_type().into()
     }
 
     /// Filters an endpoint node property by name.
@@ -55,7 +55,7 @@ impl PyEdgeEndpoint {
     /// Arguments:
     ///     name (str): Property key.
     fn property(&self, name: String) -> PyExpr {
-        self.0.wrap(NodeFilter.property(name)).into()
+        self.0.property(name).into()
     }
 
     /// Filters an endpoint node metadata field by name.
