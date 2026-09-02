@@ -265,8 +265,9 @@ impl<G: GraphView> NodePropertyFilterOp<G> {
     /// off. `temporal().any()` is served by Ever directly; aggregating
     /// chains are not served.
     fn pushdown_semantics(&self) -> Option<(NodePropSemantics, bool)> {
-        use crate::db::api::view::internal::InnerFilterOps;
-        use crate::db::graph::views::filter::model::property_filter::Op;
+        use crate::db::{
+            api::view::internal::InnerFilterOps, graph::views::filter::model::property_filter::Op,
+        };
         let plain_view = !self.graph.window_filtered() && !self.graph.is_layer_filtered();
         match (&self.filter.prop_ref, self.filter.ops.as_slice()) {
             (PropertyRef::Property(_) | PropertyRef::Metadata(_), [])
