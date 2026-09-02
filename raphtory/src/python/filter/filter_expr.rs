@@ -91,4 +91,11 @@ impl CreateFilter for PyFilterExpr {
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         self.0.create_node_filter(graph, filtered)
     }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.0.dyn_filter_graph_view(Arc::new(graph))
+    }
 }

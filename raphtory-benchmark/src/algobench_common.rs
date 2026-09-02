@@ -99,7 +99,7 @@ pub fn large_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn large_random_attachment_filtered() -> impl StaticGraphViewOps {
     large_random_attachment_graph()
-        .filter(NodeFilter.degree().ge(1u64))
+        .filter(DegreeFilterFactory::degree(&NodeFilter).ge(1u64))
         .unwrap()
 }
 
@@ -166,7 +166,7 @@ pub fn medium_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn medium_random_attachment_filtered() -> impl StaticGraphViewOps {
     medium_random_attachment_graph()
-        .filter(NodeFilter.degree().ge(0u64))
+        .filter(DegreeFilterFactory::degree(&NodeFilter).ge(0u64))
         .unwrap()
 }
 
@@ -233,7 +233,7 @@ pub fn tiny_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn tiny_random_attachment_filtered() -> impl StaticGraphViewOps {
     tiny_random_attachment_graph()
-        .filter(NodeFilter.degree().ge(0u64))
+        .filter(DegreeFilterFactory::degree(&NodeFilter).ge(0u64))
         .unwrap()
 }
 

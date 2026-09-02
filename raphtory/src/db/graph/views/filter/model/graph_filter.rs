@@ -1,12 +1,15 @@
-use crate::db::graph::views::filter::model::{latest_filter::Latest, layered_filter::Layered, snapshot_filter::{SnapshotAt, SnapshotLatest}, CombinedFilter};
 use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
-                TryAsCompositeFilter, Wrap,
+                edge_filter::CompositeEdgeFilter,
+                latest_filter::Latest,
+                layered_filter::Layered,
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
+                windowed_filter::Windowed,
+                CombinedFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree,
+                InternalViewWrapOps, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },

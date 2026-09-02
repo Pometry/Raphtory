@@ -183,6 +183,10 @@ pub trait ComposableFilter: Sized {
             right: other,
         }
     }
+
+    fn not(self) -> NotFilter<Self> {
+        NotFilter(self)
+    }
 }
 
 pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
@@ -547,8 +551,6 @@ impl<T: CreateView + EntityExpr + Clone> PropertyExprFactory for T {
     }
 }
 
-
-
 pub trait DynPropertyFilterFactory: Send + Sync + 'static {
     fn dyn_entity(&self) -> EntityMarker;
 
@@ -646,7 +648,7 @@ impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
 ///
 /// Disjoint from `NodeFilterFactory`: no type implements both, so `PropertyExpr<E>`
 /// can have two separate sets of comparison methods gated on each.
-pub trait EdgeFilterFactory: PropertyFilterFactory + Clone {}
+pub trait EdgeFilterFactory: PropertyExprFactory + Clone {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PropertyExpr<E> / MetadataExpr<E> — EdgeExpr impls
@@ -980,11 +982,6 @@ impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps> DynEdgeViewFilterOps for
         Arc::new(self.is_self_loop())
     }
 }
-
-
-
-
-
 
 pub type DynEdgeViewProps = Arc<dyn DynEdgeViewFilterOps>;
 

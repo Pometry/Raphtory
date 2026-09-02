@@ -1,10 +1,11 @@
 use crate::{
     db::graph::views::filter::model::{
         degree_filter::DegreeFilterFactory,
-        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr},
+        is_active_node_filter::IsActiveNode,
+        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr, Scoped},
         node_state_filter::NodeStateBoolColOp,
-        CreateView, DynCreateView, DynPropertyFilterFactory, EntityMarker, InternalViewWrapOps,
-        PropertyExpr, PropertyFilterFactory, ViewWrapOps,
+        CreateView, DynCreateView, DynPropertyExprFactory, EntityMarker, InternalViewWrapOps,
+        PropertyExpr, PropertyExprFactory, ViewWrapOps,
     },
     prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
     python::{
@@ -151,7 +152,7 @@ impl PyExpr {
 }
 
 pub trait DynNodeFilterFactory:
-    DynPropertyFilterFactory + DynEntityExpr + DynCreateView + Send + Sync + 'static
+    DynPropertyExprFactory + DynEntityExpr + DynCreateView + Send + Sync + 'static
 {
     fn dyn_id(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_name(&self) -> Arc<dyn DynCreateOp>;
@@ -204,11 +205,14 @@ where
     }
 
     fn dyn_is_active(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.is_active())
+        Arc::new(Scoped {
+            view: self.clone(),
+            inner: IsActiveNode,
+        })
     }
 
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
-        Arc::new(PropertyFilterFactory::metadata(self, name))
+        Arc::new(PropertyExprFactory::metadata(self, name))
     }
 
     fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory> {

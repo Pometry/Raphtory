@@ -36,14 +36,16 @@
 //! Eq Bool(true)           →  true    (at least one matched)
 //! ```
 
-use crate::db::api::view::internal::NodeList;
 use super::EdgeOp;
 use crate::{
     db::{
         api::{
             properties::PropertiesOps,
             state::ops::NodeOp,
-            view::{internal::GraphView, NodeViewOps},
+            view::{
+                internal::{GraphView, NodeList},
+                NodeViewOps,
+            },
         },
         graph::views::filter::model::{
             filter_operator::{BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp},
@@ -186,9 +188,9 @@ macro_rules! impl_agg_entity_op {
         }
 
         impl<'g> NodeOp for $node_name<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        self.inner.domain(_storage)
-    }
+            fn domain(&self, _storage: &GraphStorage) -> NodeList {
+                self.inner.domain(_storage)
+            }
 
             type Output = Option<Prop>;
 

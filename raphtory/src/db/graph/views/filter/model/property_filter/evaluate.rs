@@ -1,7 +1,9 @@
-use std::borrow::Borrow;
-use raphtory_api::core::entities::properties::prop::PropType;
 use crate::{db::graph::views::filter::model::Op, prelude::PropertyFilter};
-use raphtory_api::core::{entities::properties::prop::Prop, utils::generalised_reduce};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType},
+    utils::generalised_reduce,
+};
+use std::borrow::Borrow;
 
 enum ValueType {
     Seq(Vec<Prop>),

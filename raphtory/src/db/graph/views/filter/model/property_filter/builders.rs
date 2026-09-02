@@ -1,12 +1,11 @@
-use crate::db::graph::views::filter::model::{CombinedFilter, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory};
 use crate::db::graph::views::filter::{
     model::{
         property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
-        EntityMarker, Wrap,
+        CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory,
+        Wrap,
     },
     CreateFilter,
 };
-
 
 #[derive(Clone)]
 pub struct PropertyFilterBuilder<M>(pub String, pub M);

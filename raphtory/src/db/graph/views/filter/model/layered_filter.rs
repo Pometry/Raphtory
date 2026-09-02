@@ -1,15 +1,17 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::{state::NodeOp, view::internal::GraphView},
         graph::views::{
             filter::{
                 model::{
+                    edge_expr::EdgeOp,
                     edge_filter::CompositeEdgeFilter,
                     is_active_edge_filter::IsActiveEdge,
                     is_active_node_filter::IsActiveNode,
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
+                    node_expr::CreateOp,
                     node_filter::builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
@@ -28,8 +30,11 @@ use crate::{
     errors::GraphError,
     prelude::LayerOps,
 };
-use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
-use std::{fmt, fmt::Display};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, Layer},
+    storage::timeindex::EventTime,
+};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layered<M> {
@@ -262,5 +267,24 @@ impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Layered<U> {
 
     fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
         self.wrap(self.inner.is_self_loop())
+    }
+}
+
+// ── expr layer: the layer view scopes any inner expression (per-expression view) ──
+// Nesting order of chained views is pinned by the Phase-3 semantics tests.
+
+impl<T: CreateOp> CreateOp for Layered<T> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_node_op(graph.layers(self.layer.clone())?)
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_edge_op(graph.layers(self.layer.clone())?)
     }
 }

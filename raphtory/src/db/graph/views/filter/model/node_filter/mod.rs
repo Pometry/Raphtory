@@ -1,7 +1,3 @@
-use crate::db::{
-    api::state::ops::node::{Id, Name, Type},
-    graph::views::filter::model::{node_expr::exprs::DegreeExpr, CreateView, node_expr::EntityExpr},
-};
 use crate::{
     api::core::Direction,
     db::{
@@ -12,6 +8,7 @@ use crate::{
                         AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
                         OrOp,
                     },
+                    node::{Id, Name, Type},
                     NodeOp, TypeId,
                 },
                 NodeStateValue, TypedNodeState,
@@ -26,6 +23,7 @@ use crate::{
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
+                node_expr::{exprs::DegreeExpr, EntityExpr},
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
@@ -35,7 +33,7 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps,
+                CreateView, EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps,
                 NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
@@ -621,7 +619,6 @@ pub trait NodeFilterFactory:
             view_expr: self.clone(),
         }
     }
-
 }
 
 impl NodeFilterFactory for NodeFilter {

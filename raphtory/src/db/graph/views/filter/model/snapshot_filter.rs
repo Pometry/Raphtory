@@ -1,20 +1,24 @@
-use crate::db::graph::views::filter::model::CreateView;
 use crate::{
     db::{
-        api::view::{internal::GraphView, time::TimeOps},
+        api::{
+            state::NodeOp,
+            view::{internal::GraphView, time::TimeOps},
+        },
         graph::views::{
             filter::{
                 model::{
+                    edge_expr::EdgeOp,
                     edge_filter::CompositeEdgeFilter,
                     is_active_edge_filter::IsActiveEdge,
                     is_active_node_filter::IsActiveNode,
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
+                    node_expr::CreateOp,
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, FilterTree, GraphViewOp,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                     InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
                     TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
@@ -26,8 +30,10 @@ use crate::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
-use std::{fmt, fmt::Display};
+use raphtory_api::core::{
+    entities::properties::prop::Prop, storage::timeindex::EventTime, utils::time::IntoTime,
+};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnapshotAt<M> {
@@ -471,5 +477,43 @@ impl<T: CreateView> CreateView for SnapshotLatest<T> {
     ) -> Result<Self::View<'graph, G>, GraphError> {
         let inner = self.inner.create_view(view)?;
         Ok(inner.snapshot_latest())
+    }
+}
+
+// ── expr layer: the snapshot-at view scopes any inner expression (per-expression view) ──
+// Nesting order of chained views is pinned by the Phase-3 semantics tests.
+
+impl<T: CreateOp> CreateOp for SnapshotAt<T> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_node_op(graph.snapshot_at(self.time))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_edge_op(graph.snapshot_at(self.time))
+    }
+}
+
+// ── expr layer: the snapshot-latest view scopes any inner expression (per-expression view) ──
+// Nesting order of chained views is pinned by the Phase-3 semantics tests.
+
+impl<T: CreateOp> CreateOp for SnapshotLatest<T> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_node_op(graph.snapshot_latest())
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_edge_op(graph.snapshot_latest())
     }
 }

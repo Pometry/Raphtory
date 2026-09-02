@@ -1,10 +1,17 @@
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::{EdgeEndpointWrapper, EdgeFilter},
-        node_expr::{DynCreateOp, EntityExpr},
-        node_filter::NodeFilter,
-        CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
-        PropertyFilterFactory, ViewWrapOps,
+    db::{
+        api::state::ops::node::{Id, Name, Type},
+        graph::views::filter::model::{
+            edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+            is_active_edge_filter::IsActiveEdge,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            node_expr::{DynCreateOp, EntityExpr, Scoped},
+            node_filter::NodeFilter,
+            CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
+            PropertyExprFactory, ViewWrapOps, Wrap,
+        },
     },
     prelude::EdgeViewOps,
     python::{filter::node_expr::PyExpr, types::iterable::FromIterable},
@@ -30,17 +37,17 @@ pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 impl PyEdgeEndpoint {
     /// Selects the endpoint node ID field for filtering.
     fn id(&self) -> PyExpr {
-        self.0.clone().id().into()
+        self.0.wrap(Id).into()
     }
 
     /// Selects the endpoint node name field for filtering.
     fn name(&self) -> PyExpr {
-        self.0.clone().name().into()
+        self.0.wrap(Name).into()
     }
 
     /// Selects the endpoint node type field for filtering.
     fn node_type(&self) -> PyExpr {
-        self.0.clone().node_type().into()
+        self.0.wrap(Type).into()
     }
 
     /// Filters an endpoint node property by name.
@@ -48,7 +55,7 @@ impl PyEdgeEndpoint {
     /// Arguments:
     ///     name (str): Property key.
     fn property(&self, name: String) -> PyExpr {
-        self.0.clone().property(name).into()
+        self.0.wrap(NodeFilter.property(name)).into()
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -56,7 +63,9 @@ impl PyEdgeEndpoint {
     /// Arguments:
     ///     name (str): Metadata key.
     fn metadata(&self, name: String) -> PyExpr {
-        self.0.clone().metadata(name).into()
+        self.0
+            .wrap(PropertyExprFactory::metadata(&NodeFilter, name))
+            .into()
     }
 }
 
@@ -101,23 +110,35 @@ where
     <T as EntityExpr>::Marker: Into<EntityMarker>,
 {
     fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp> {
-        Arc::new(PropertyFilterFactory::property(self, name))
+        Arc::new(PropertyExprFactory::property(self, name))
     }
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
-        Arc::new(PropertyFilterFactory::metadata(self, name))
+        Arc::new(PropertyExprFactory::metadata(self, name))
     }
 
     fn dyn_is_active(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.is_active())
+        Arc::new(Scoped {
+            view: self.clone(),
+            inner: IsActiveEdge,
+        })
     }
     fn dyn_is_valid(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.is_valid())
+        Arc::new(Scoped {
+            view: self.clone(),
+            inner: IsValidEdge,
+        })
     }
     fn dyn_is_deleted(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.is_deleted())
+        Arc::new(Scoped {
+            view: self.clone(),
+            inner: IsDeletedEdge,
+        })
     }
     fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.is_self_loop())
+        Arc::new(Scoped {
+            view: self.clone(),
+            inner: IsSelfLoopEdge,
+        })
     }
 
     // Go dynamic before calling window — the Arc<dyn DynEdgeFilterFactory> impl

@@ -88,3 +88,38 @@ impl TryAsCompositeFilter for IsActiveEdge {
         Ok(CompositeExplodedEdgeFilter::IsActiveEdge(IsActiveEdge))
     }
 }
+
+// ── expr layer: the predicate as a boolean expression over the eval view ──
+
+use crate::db::graph::views::filter::model::{
+    edge_expr::{ops::IsActiveEdgePropOp, EdgeOp},
+    edge_filter::EdgeFilter as EdgeFilterMarker,
+    node_expr::{CreateOp, EntityExpr},
+};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::sync::Arc;
+
+impl EntityExpr for IsActiveEdge {
+    type Marker = EdgeFilterMarker;
+
+    fn entity(&self) -> EdgeFilterMarker {
+        EdgeFilterMarker
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn nullable(&self) -> bool {
+        false
+    }
+}
+
+impl CreateOp for IsActiveEdge {
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
+        Ok(Arc::new(IsActiveEdgePropOp { graph }))
+    }
+}

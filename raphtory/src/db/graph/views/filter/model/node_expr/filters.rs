@@ -173,11 +173,11 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -230,10 +230,11 @@ where
     L: CreateOp<Marker = EntityMarker>,
     R: CreateOp,
 {
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn BoxableGraphView + 'graph>;
 
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -247,11 +248,18 @@ where
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         Ok(match self.entity {
-            EntityMarker::Node => Arc::new(self.with_entity(NodeFilter).create_filter(graph, filtered)?),
-            EntityMarker::Edge => Arc::new(self.with_entity(EdgeFilter).create_filter(graph, filtered)?),
-            EntityMarker::ExplodedEdge => {
-                Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph, filtered)?)
-            }
+            EntityMarker::Node => Arc::new(
+                self.with_entity(NodeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::Edge => Arc::new(
+                self.with_entity(EdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::ExplodedEdge => Arc::new(
+                self.with_entity(ExplodedEdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
 
             EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
@@ -263,7 +271,9 @@ where
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         match self.entity {
-            EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph, filtered)?),
+            EntityMarker::Node => Ok(self
+                .with_entity(NodeFilter)
+                .create_node_filter(graph, filtered)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
             EntityMarker::Const => Err(GraphError::NotSupported)?,
@@ -342,11 +352,11 @@ impl<E> CreateFilter for UnaryExpr<E, NodeFilter>
 where
     E: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, UnaryNodeOp<'graph, Prop>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = UnaryNodeOp<'graph, Prop>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        UnaryNodeOp<'graph, Prop>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -390,10 +400,11 @@ impl<E> CreateFilter for UnaryExpr<E, EntityMarker>
 where
     E: CreateOp,
 {
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn BoxableGraphView + 'graph>;
 
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = UnaryNodeOp<'graph, Prop>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        UnaryNodeOp<'graph, Prop>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -407,11 +418,18 @@ where
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         Ok(match self.entity {
-            EntityMarker::Node => Arc::new(self.with_entity(NodeFilter).create_filter(graph, filtered)?),
-            EntityMarker::Edge => Arc::new(self.with_entity(EdgeFilter).create_filter(graph, filtered)?),
-            EntityMarker::ExplodedEdge => {
-                Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph, filtered)?)
-            }
+            EntityMarker::Node => Arc::new(
+                self.with_entity(NodeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::Edge => Arc::new(
+                self.with_entity(EdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::ExplodedEdge => Arc::new(
+                self.with_entity(ExplodedEdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
             EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
@@ -422,7 +440,9 @@ where
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         match self.entity {
-            EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph, filtered)?),
+            EntityMarker::Node => Ok(self
+                .with_entity(NodeFilter)
+                .create_node_filter(graph, filtered)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
             EntityMarker::Const => Err(GraphError::NotSupported)?,
@@ -528,11 +548,11 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
 }
 
 impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -574,10 +594,11 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
 }
 
 impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, EntityMarker> {
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn BoxableGraphView + 'graph>;
 
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -591,11 +612,18 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, EntityMarker> {
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         Ok(match self.entity {
-            EntityMarker::Node => Arc::new(self.with_entity(NodeFilter).create_filter(graph, filtered)?),
-            EntityMarker::Edge => Arc::new(self.with_entity(EdgeFilter).create_filter(graph, filtered)?),
-            EntityMarker::ExplodedEdge => {
-                Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph, filtered)?)
-            }
+            EntityMarker::Node => Arc::new(
+                self.with_entity(NodeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::Edge => Arc::new(
+                self.with_entity(EdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::ExplodedEdge => Arc::new(
+                self.with_entity(ExplodedEdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
             EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
@@ -606,7 +634,9 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, EntityMarker> {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         match self.entity {
-            EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph, filtered)?),
+            EntityMarker::Node => Ok(self
+                .with_entity(NodeFilter)
+                .create_node_filter(graph, filtered)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
             EntityMarker::Const => Err(GraphError::NotSupported)?,
@@ -689,10 +719,10 @@ impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
 }
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, PropValueSetNodeOp<'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = PropValueSetNodeOp<'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        PropValueSetNodeOp<'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -734,9 +764,10 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
 }
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
-
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = PropValueSetNodeOp<'graph>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn BoxableGraphView + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        PropValueSetNodeOp<'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -750,11 +781,18 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         Ok(match self.entity {
-            EntityMarker::Node => Arc::new(self.with_entity(NodeFilter).create_filter(graph, filtered)?),
-            EntityMarker::Edge => Arc::new(self.with_entity(EdgeFilter).create_filter(graph, filtered)?),
-            EntityMarker::ExplodedEdge => {
-                Arc::new(self.with_entity(ExplodedEdgeFilter).create_filter(graph, filtered)?)
-            }
+            EntityMarker::Node => Arc::new(
+                self.with_entity(NodeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::Edge => Arc::new(
+                self.with_entity(EdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
+            EntityMarker::ExplodedEdge => Arc::new(
+                self.with_entity(ExplodedEdgeFilter)
+                    .create_filter(graph, filtered)?,
+            ),
             EntityMarker::Const => Err(GraphError::NotSupported)?,
         })
     }
@@ -765,7 +803,9 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         match self.entity {
-            EntityMarker::Node => Ok(self.with_entity(NodeFilter).create_node_filter(graph, filtered)?),
+            EntityMarker::Node => Ok(self
+                .with_entity(NodeFilter)
+                .create_node_filter(graph, filtered)?),
             EntityMarker::Edge => Err(GraphError::NotNodeFilter),
             EntityMarker::ExplodedEdge => Err(GraphError::NotNodeFilter),
             EntityMarker::Const => Err(GraphError::NotSupported)?,

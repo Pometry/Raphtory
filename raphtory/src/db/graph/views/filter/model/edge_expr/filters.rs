@@ -39,7 +39,6 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
 
@@ -92,7 +91,6 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
 
@@ -148,7 +146,6 @@ impl<E> CreateFilter for UnaryExpr<E, EdgeFilter>
 where
     E: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
@@ -190,7 +187,6 @@ impl<E> CreateFilter for UnaryExpr<E, ExplodedEdgeFilter>
 where
     E: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
@@ -237,7 +233,6 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
@@ -285,7 +280,6 @@ where
     L: CreateOp,
     R: CreateOp,
 {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
@@ -333,7 +327,6 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
@@ -375,7 +368,6 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
 }
 
 impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
-
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         ExplodedEdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;

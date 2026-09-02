@@ -1,8 +1,10 @@
-use raphtory_api::core::storage::arc_str::ArcStr;
 use crate::db::graph::views::filter::model::{
     filter::FilterValue, property_filter::PropertyFilterValue,
 };
-use raphtory_api::core::entities::{properties::prop::Prop, GidRef, GID};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GidRef, GID},
+    storage::arc_str::ArcStr,
+};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
@@ -318,11 +320,9 @@ pub trait Comparable: Clone + Send + Sync + 'static {
     fn binary_cmp(op: &BinaryOp, left: &Self, right: &Self) -> bool;
 }
 
-
 pub trait StringComparable: Clone + Send + Sync + 'static {
     fn string_cmp(op: &StringOp, left: &Self, right: &Self) -> bool;
 }
-
 
 /// Ordering and equality operators used by `BinaryCmpExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -334,7 +334,6 @@ pub enum BinaryOp {
     Gt,
     Ge,
 }
-
 
 /// String-only operators used by `StringExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -349,7 +348,6 @@ pub enum StringOp {
     },
 }
 
-
 /// Unary presence operators used by `UnaryExpr`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
@@ -357,14 +355,12 @@ pub enum UnaryOp {
     IsNone,
 }
 
-
 /// Set membership operators used by `SetNodeFilter`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SetOp {
     IsIn,
     IsNotIn,
 }
-
 
 impl Comparable for usize {
     fn binary_cmp(op: &BinaryOp, left: &usize, right: &usize) -> bool {
@@ -378,7 +374,6 @@ impl Comparable for usize {
         }
     }
 }
-
 
 impl Comparable for Prop {
     fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
@@ -406,7 +401,6 @@ impl Comparable for Prop {
     }
 }
 
-
 impl Comparable for GID {
     fn binary_cmp(op: &BinaryOp, left: &GID, right: &GID) -> bool {
         match (left, right) {
@@ -424,7 +418,6 @@ impl Comparable for GID {
     }
 }
 
-
 impl<T: Comparable> Comparable for Option<T> {
     fn binary_cmp(op: &BinaryOp, left: &Option<T>, right: &Option<T>) -> bool {
         match (left, right) {
@@ -433,7 +426,6 @@ impl<T: Comparable> Comparable for Option<T> {
         }
     }
 }
-
 
 impl StringComparable for Prop {
     fn string_cmp(op: &StringOp, left: &Prop, right: &Prop) -> bool {
@@ -444,7 +436,6 @@ impl StringComparable for Prop {
     }
 }
 
-
 impl StringComparable for GID {
     fn string_cmp(op: &StringOp, left: &GID, right: &GID) -> bool {
         match (left, right) {
@@ -454,7 +445,6 @@ impl StringComparable for GID {
     }
 }
 
-
 impl<T: StringComparable> StringComparable for Option<T> {
     fn string_cmp(op: &StringOp, left: &Option<T>, right: &Option<T>) -> bool {
         match (left, right) {
@@ -463,7 +453,6 @@ impl<T: StringComparable> StringComparable for Option<T> {
         }
     }
 }
-
 
 impl Display for BinaryOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -477,7 +466,6 @@ impl Display for BinaryOp {
         }
     }
 }
-
 
 impl Display for StringOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -494,7 +482,6 @@ impl Display for StringOp {
     }
 }
 
-
 impl Display for UnaryOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -503,7 +490,6 @@ impl Display for UnaryOp {
         }
     }
 }
-
 
 impl Display for SetOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

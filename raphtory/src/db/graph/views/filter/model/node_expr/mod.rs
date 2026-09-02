@@ -100,3 +100,44 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
 ///
 /// Mirrors the same trick used by `EntityAggOps` for `min`/`max`/`sum`.
 pub trait EntityExprBuilder: EntityExpr {}
+
+/// Scopes an expression to a view chain: the inner expression is compiled against the view the
+/// chain constructs over the incoming graph. This is how a factory chain (window, latest, layers)
+/// carries its view into a unit expression such as a validity predicate.
+#[derive(Clone)]
+pub struct Scoped<V, T> {
+    pub view: V,
+    pub inner: T,
+}
+
+impl<V: CreateView, T: EntityExpr> EntityExpr for Scoped<V, T> {
+    type Marker = T::Marker;
+
+    fn entity(&self) -> Self::Marker {
+        self.inner.entity()
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.inner.prop_type()
+    }
+
+    fn nullable(&self) -> bool {
+        self.inner.nullable()
+    }
+}
+
+impl<V: CreateView, T: CreateOp> CreateOp for Scoped<V, T> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_node_op(self.view.create_view(graph)?)
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_edge_op(self.view.create_view(graph)?)
+    }
+}

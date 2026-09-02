@@ -10,6 +10,7 @@ use crate::{
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
+                edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 is_active_edge_filter::IsActiveEdge,
                 is_deleted_filter::IsDeletedEdge,
@@ -17,6 +18,7 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
+                node_expr::{CreateOp, EntityExpr, EntityExprBuilder},
                 node_filter::{
                     builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
@@ -41,7 +43,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -92,11 +94,11 @@ impl InternalPropertyFilterFactory for EdgeFilter {
     }
 
     fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        PropertyFilterBuilder(property, self.entity())
+        PropertyFilterBuilder(property, InternalPropertyFilterFactory::entity(self))
     }
 
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        MetadataFilterBuilder(property, self.entity())
+        MetadataFilterBuilder(property, InternalPropertyFilterFactory::entity(self))
     }
 }
 
@@ -515,3 +517,41 @@ impl TryAsCompositeFilter for CompositeEdgeFilter {
         Err(GraphError::NotSupported)
     }
 }
+
+// ── expr layer: endpoint expressions bridge node ops into edge ops (June branch) ──
+
+impl<T: EntityExprBuilder> EntityExprBuilder for EdgeEndpointWrapper<T> {}
+
+impl<T: EntityExpr> EntityExpr for EdgeEndpointWrapper<T> {
+    type Marker = EdgeFilter;
+    fn entity(&self) -> Self::Marker {
+        EdgeFilter
+    }
+}
+
+impl<T: CreateOp> CreateOp for EdgeEndpointWrapper<T> {
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let node_op = self.inner.create_node_op(graph)?;
+        Ok(Arc::new(EdgeEndpointNodeOp {
+            node_op,
+            endpoint: self.endpoint,
+        }))
+    }
+}
+
+// ── expr layer: which types serve as edge-filter factories (June branch) ──
+
+use crate::db::graph::views::filter::model::{
+    exploded_edge_filter::ExplodedEdgeFilter, CreateView, EdgeFilterFactory,
+};
+
+impl EdgeFilterFactory for EdgeFilter {}
+impl EdgeFilterFactory for ExplodedEdgeFilter {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Windowed<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Latest<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotAt<T> {}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> {}

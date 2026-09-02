@@ -1,23 +1,24 @@
-use crate::db::graph::views::filter::model::CreateView;
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::{state::NodeOp, view::internal::GraphView},
         graph::views::{
             filter::{
                 model::{
+                    edge_expr::EdgeOp,
                     edge_filter::CompositeEdgeFilter,
                     is_active_edge_filter::IsActiveEdge,
                     is_active_node_filter::IsActiveNode,
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
+                    node_expr::CreateOp,
                     node_filter::builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, FilterTree, GraphViewOp,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                     InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
                     TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
@@ -30,8 +31,8 @@ use crate::{
     errors::GraphError,
     prelude::TimeOps,
 };
-use raphtory_api::core::storage::timeindex::EventTime;
-use std::{fmt, fmt::Display};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Latest<M> {
@@ -261,5 +262,24 @@ impl<T: CreateView> CreateView for Latest<T> {
     ) -> Result<Self::View<'graph, G>, GraphError> {
         let inner = self.inner.create_view(view)?;
         Ok(inner.latest())
+    }
+}
+
+// ── expr layer: the latest view scopes any inner expression (per-expression view) ──
+// Nesting order of chained views is pinned by the Phase-3 semantics tests.
+
+impl<T: CreateOp> CreateOp for Latest<T> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_node_op(graph.latest())
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        self.inner.create_edge_op(graph.latest())
     }
 }
