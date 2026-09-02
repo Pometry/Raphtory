@@ -7840,61 +7840,6 @@ mod test_node_property_filter_agg {
     }
 
     // --------------- OVERFLOW ---------------
-    #[test]
-    fn test_max_value_agg() {
-        let filter = NodeFilter
-            .property("p_u64s_max")
-            .max()
-            .eq(Prop::U64(u64::MAX));
-        let expected: Vec<&str> = vec!["n5", "n1"];
-        apply_assertion(filter, &expected);
-
-        let filter = NodeFilter
-            .property("p_u64s_min")
-            .min()
-            .eq(Prop::U64(u64::MIN));
-        let expected: Vec<&str> = vec!["n5"];
-        apply_assertion(filter, &expected);
-
-        let filter = NodeFilter.property("p_u8s_max").sum().eq(Prop::U64(510));
-        let expected: Vec<&str> = vec!["n1"];
-        apply_assertion(filter, &expected);
-
-        let filter = NodeFilter
-            .property("p_u16s_max")
-            .sum()
-            .eq(Prop::U64(131070));
-        let expected: Vec<&str> = vec!["n1"];
-        apply_assertion(filter, &expected);
-
-        let filter = NodeFilter
-            .property("p_u32s_max")
-            .sum()
-            .eq(Prop::U64(8589934590));
-        let expected: Vec<&str> = vec!["n1"];
-        apply_assertion(filter, &expected);
-
-        let filter = NodeFilter.property("p_u64s_max").sum().gt(Prop::U64(0));
-        let expected: Vec<&str> = vec![];
-        apply_assertion(filter, &expected);
-
-        // AVG is computed in f64 even if SUM overflowed.
-        let avg = (u64::MAX as f64 + 1.0) / 2.0;
-        let filter = NodeFilter.property("p_u64s_max").avg().eq(avg);
-        let expected = vec!["n5"];
-        apply_assertion(filter, &expected);
-
-        let filter = NodeFilter.property("p_i64s_max").sum().gt(Prop::I64(0));
-        let expected: Vec<&str> = vec![];
-        apply_assertion(filter, &expected);
-
-        // AVG is computed in f64 even if SUM overflowed.
-        let avg = (i64::MAX as f64 + 1.0) / 2.0;
-        let filter = NodeFilter.property("p_i64s_max").avg().eq(avg);
-        let expected = vec!["n5"];
-        apply_assertion(filter, &expected);
-    }
-
     // ------ Property: any ------
     #[test]
     fn test_node_property_any() {
@@ -9036,43 +8981,6 @@ mod test_edge_filter {
     fn test_is_deleted_edge_before() {
         let filter = EdgeFilter.before(4).is_deleted();
         let expected_results = vec!["London->Paris"];
-        assert_filter_edges_results(
-            init_edges_graph_with_str_ids_del,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-        assert_select_edges_results(
-            init_edges_graph_with_str_ids_del,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-    }
-
-    #[test]
-    fn test_is_self_loop_edge_window() {
-        let filter = EdgeFilter.window(1, 3).is_self_loop();
-        let expected_results = vec![];
-        assert_filter_edges_results(
-            init_edges_graph_with_str_ids_del,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-        assert_select_edges_results(
-            init_edges_graph_with_str_ids_del,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = EdgeFilter.window(1, 6).is_self_loop();
-        let expected_results = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,

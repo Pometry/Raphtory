@@ -18,7 +18,6 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{collections::HashSet, hash::Hash};
 
 use super::EdgeOp;
 use crate::db::{
@@ -45,6 +44,10 @@ impl<'a, V: Clone + Send + Sync> EdgeOp for Arc<dyn EdgeOp<Output = V> + 'a> {
     fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> V {
         self.as_ref().apply(storage, edge)
     }
+
+    fn const_value(&self) -> Option<V> {
+        self.as_ref().const_value()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +59,10 @@ impl<V: Clone + Send + Sync + 'static> EdgeOp for Const<V> {
 
     fn apply(&self, _storage: &GraphStorage, _edge: EdgeRef) -> V {
         self.0.clone()
+    }
+
+    fn const_value(&self) -> Option<V> {
+        Some(self.0.clone())
     }
 }
 
@@ -233,31 +240,6 @@ impl<'g> EdgeOp for PropValueSetEdgeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SetEdgeOp<'g, I> — is_in / is_not_in for Option<I> (HashSet, O(1))
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Clone)]
-pub(crate) struct SetEdgeOp<'g, I: Eq + Hash + Clone + Send + Sync + 'static> {
-    pub(crate) inner: Arc<dyn EdgeOp<Output = Option<I>> + 'g>,
-    pub(crate) values: Arc<HashSet<I>>,
-    pub(crate) op: SetOp,
-}
-
-impl<'g, I: Eq + Hash + Clone + Send + Sync + 'static> EdgeOp for SetEdgeOp<'g, I> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
-        match self.inner.apply(storage, edge) {
-            None => false,
-            Some(v) => match self.op {
-                SetOp::IsIn => self.values.contains(&v),
-                SetOp::IsNotIn => !self.values.contains(&v),
-            },
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ListAwareCmpEdgeOp<'g> — element-wise comparison via broadcast_binary
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -363,69 +345,6 @@ impl<'g> EdgeOp for ListAwareUnaryEdgeOp<'g> {
                 UnaryOp::IsSome => v.is_some(),
                 UnaryOp::IsNone => v.is_none(),
             }))
-        })
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AndBoolEdgeOp / OrBoolEdgeOp — boolean AND/OR over two Option<Prop> edge ops
-//
-// Used by AndFilter<L, R> / OrFilter<L, R> when they implement EdgeExpr so that
-// .not() (and other EntityExprFilterOps) can be chained on composed edge filters.
-// ─────────────────────────────────────────────────────────────────────────────
-
-pub(crate) struct AndBoolEdgeOp<'g> {
-    pub(crate) left: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) right: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
-}
-
-impl<'g> Clone for AndBoolEdgeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            left: self.left.clone(),
-            right: self.right.clone(),
-        }
-    }
-}
-
-impl<'g> EdgeOp for AndBoolEdgeOp<'g> {
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
-        let l = self.left.apply(storage, edge);
-        let r = self.right.apply(storage, edge);
-        broadcast_binary(l, r, &|lv, rv| {
-            let lb = matches!(lv, Some(Prop::Bool(true)));
-            let rb = matches!(rv, Some(Prop::Bool(true)));
-            Some(Prop::Bool(lb && rb))
-        })
-    }
-}
-
-pub(crate) struct OrBoolEdgeOp<'g> {
-    pub(crate) left: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) right: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
-}
-
-impl<'g> Clone for OrBoolEdgeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            left: self.left.clone(),
-            right: self.right.clone(),
-        }
-    }
-}
-
-impl<'g> EdgeOp for OrBoolEdgeOp<'g> {
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
-        let l = self.left.apply(storage, edge);
-        let r = self.right.apply(storage, edge);
-        broadcast_binary(l, r, &|lv, rv| {
-            let lb = matches!(lv, Some(Prop::Bool(true)));
-            let rb = matches!(rv, Some(Prop::Bool(true)));
-            Some(Prop::Bool(lb || rb))
         })
     }
 }

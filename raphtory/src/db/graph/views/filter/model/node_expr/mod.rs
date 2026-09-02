@@ -17,9 +17,7 @@ pub mod ops;
 mod tests;
 
 pub use super::{Metadata, Property};
-use crate::db::graph::views::filter::model::{
-    edge_expr::EdgeOp, node_filter::NodeFilter, EntityMarker,
-};
+use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, EntityMarker};
 pub use dyn_expr::*;
 pub use exprs::*;
 pub use filters::*;

@@ -3,27 +3,17 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::{
-    db::{
-        api::{
-            state::ops::filter::{AndOp, NotOp, OrOp},
-            view::internal::NodeList,
-        },
-        graph::views::filter::model::{
-            node_expr::{BinaryCmpNodeOp, CreateOp, EntityExpr},
-            BinaryOp, Comparable,
-        },
+use crate::db::{
+    api::{
+        state::ops::filter::{AndOp, NotOp, OrOp},
+        view::internal::NodeList,
     },
-    errors::GraphError,
-    prelude::NodeFilter,
+    graph::views::filter::model::{node_expr::BinaryCmpNodeOp, BinaryOp, Comparable},
 };
 pub use history::*;
 pub use node::*;
 pub use properties::*;
-use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropType},
-    VID,
-};
+use raphtory_api::core::entities::{properties::prop::PropType, VID};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};

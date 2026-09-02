@@ -1,19 +1,15 @@
 use crate::{
-    db::{
-        api::state::ops::node::{Id, Name, Type},
-        graph::views::filter::model::{
-            edge_filter::{EdgeEndpointWrapper, EdgeFilter},
-            is_active_edge_filter::IsActiveEdge,
-            is_deleted_filter::IsDeletedEdge,
-            is_self_loop_filter::IsSelfLoopEdge,
-            is_valid_filter::IsValidEdge,
-            node_expr::{DynCreateOp, EntityExpr, Scoped},
-            node_filter::NodeFilter,
-            CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
-            PropertyExprFactory, ViewWrapOps, Wrap,
-        },
+    db::graph::views::filter::model::{
+        edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+        is_active_edge_filter::IsActiveEdge,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
+        node_expr::{DynCreateOp, EntityExpr, Scoped},
+        node_filter::NodeFilter,
+        CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
+        PropertyExprFactory, ViewWrapOps, Wrap,
     },
-    prelude::EdgeViewOps,
     python::{filter::node_expr::PyExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods};

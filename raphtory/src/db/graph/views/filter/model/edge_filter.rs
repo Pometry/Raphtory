@@ -20,10 +20,7 @@ use crate::{
                 layered_filter::Layered,
                 node_expr::{CreateOp, EntityExpr, EntityExprBuilder},
                 node_filter::{
-                    builders::{
-                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
-                        NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
-                    },
+                    builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
                     CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{

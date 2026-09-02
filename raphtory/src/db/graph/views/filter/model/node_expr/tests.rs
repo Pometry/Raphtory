@@ -1,10 +1,10 @@
 use super::*;
 use crate::{
     db::{
-        api::{state::ops::Id, view::filter_ops::NodeSelect},
+        api::{state::ops::Id, view::filter_ops::Select},
         graph::views::filter::{
             model::{
-                filter_operator::BinaryOp, node_filter::NodeFilter, PropertyFilterFactory,
+                filter_operator::BinaryOp, node_filter::NodeFilter, PropertyExprFactory,
                 ViewWrapOps,
             },
             CreateFilter,
@@ -33,10 +33,12 @@ fn build_test_graph() -> Graph {
 fn filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
+    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
+        GraphViewOps<'graph>,
 {
+    let fg = filter.filter_graph_view(g.clone()).unwrap();
     let mut names: Vec<String> = filter
-        .create_filter(g)
+        .create_filter(g, fg)
         .unwrap()
         .nodes()
         .iter()
@@ -193,10 +195,12 @@ fn build_temporal_graph() -> Graph {
 fn temporal_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
+    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
+        GraphViewOps<'graph>,
 {
+    let fg = filter.filter_graph_view(g.clone()).unwrap();
     let mut names: Vec<String> = filter
-        .create_filter(g)
+        .create_filter(g, fg)
         .unwrap()
         .nodes()
         .iter()
@@ -339,10 +343,12 @@ fn temporal_expr_ops_blanket_any() {
 fn windowed_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
+    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
+        GraphViewOps<'graph>,
 {
+    let fg = filter.filter_graph_view(g.clone()).unwrap();
     let mut names: Vec<String> = filter
-        .create_filter(g)
+        .create_filter(g, fg)
         .unwrap()
         .nodes()
         .iter()
@@ -444,10 +450,12 @@ fn build_layered_temporal_graph() -> Graph {
 fn layered_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
+    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
+        GraphViewOps<'graph>,
 {
+    let fg = filter.filter_graph_view(g.clone()).unwrap();
     let mut names: Vec<String> = filter
-        .create_filter(g)
+        .create_filter(g, fg)
         .unwrap()
         .nodes()
         .iter()
@@ -546,7 +554,7 @@ fn string_op_on_numeric_prop_returns_error() {
     let filter = NodeFilter
         .property("score")
         .starts_with(Prop::Str("x".into()));
-    let result = filter.create_filter(g);
+    let result = filter.create_filter(g.clone(), g);
     assert!(
         result.is_err(),
         "expected Err for string op on numeric property"
@@ -560,7 +568,7 @@ fn ordering_op_on_bool_prop_returns_error() {
         .unwrap();
     // Use Prop::Bool as rhs so both sides share Output = Option<Prop>
     let filter = NodeFilter.property("flag").gt(Prop::Bool(false));
-    let result = filter.create_filter(g);
+    let result = filter.create_filter(g.clone(), g);
     assert!(
         result.is_err(),
         "expected Err for ordering op on boolean property"

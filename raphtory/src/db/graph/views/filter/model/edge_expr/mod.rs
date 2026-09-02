@@ -19,7 +19,6 @@
 //! └──────────────────────────────────────────────────────────┘
 //! ```
 
-use crate::db::graph::views::filter::model::node_expr::EntityExpr;
 use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::PropType};
 use raphtory_storage::graph::graph::GraphStorage;
 
@@ -27,7 +26,6 @@ pub mod filters;
 pub mod ops;
 
 pub use super::{Metadata, Property};
-pub use filters::*;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgeOp — compiled evaluator: EdgeRef → typed value
@@ -43,5 +41,10 @@ pub trait EdgeOp: Send + Sync {
 
     fn prop_type(&self) -> PropType {
         PropType::Empty
+    }
+
+    /// Returns `Some(value)` if the edge op has a constant global value
+    fn const_value(&self) -> Option<Self::Output> {
+        None
     }
 }

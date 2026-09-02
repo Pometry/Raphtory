@@ -1,10 +1,7 @@
-use crate::db::graph::views::filter::{
-    model::{
-        property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
-        CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory,
-        Wrap,
-    },
-    CreateFilter,
+use crate::db::graph::views::filter::model::{
+    property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
+    CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory,
+    Wrap,
 };
 
 #[derive(Clone)]

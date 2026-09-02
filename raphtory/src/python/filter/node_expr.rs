@@ -1,11 +1,10 @@
 use crate::{
     db::graph::views::filter::model::{
-        degree_filter::DegreeFilterFactory,
         is_active_node_filter::IsActiveNode,
-        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr, Scoped},
+        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal, Scoped},
         node_state_filter::NodeStateBoolColOp,
-        CreateView, DynCreateView, DynPropertyExprFactory, EntityMarker, InternalViewWrapOps,
-        PropertyExpr, PropertyExprFactory, ViewWrapOps,
+        DynCreateView, DynPropertyExprFactory, EntityMarker, InternalViewWrapOps,
+        PropertyExprFactory, ViewWrapOps,
     },
     prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
     python::{

@@ -62,7 +62,7 @@ use raphtory_api::core::entities::{
     VID,
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{borrow::Borrow, collections::HashSet, hash::Hash, sync::Arc};
+use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // NodePropOp<G> — latest property value by pre-resolved column ID
 // ─────────────────────────────────────────────────────────────────────────────
@@ -500,78 +500,6 @@ impl<'g> NodeOp for ListAwareUnaryNodeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AndBoolNodeOp / OrBoolNodeOp — boolean AND/OR over two Option<Prop> node ops
-//
-// Used by AndFilter<L, R> / OrFilter<L, R> when they implement NodeExpr so that
-// .not() (and other EntityExprFilterOps) can be chained on composed filters:
-//   NodeFilter.degree().lt(5).and(NodeFilter.name().eq("alice")).not()
-// ─────────────────────────────────────────────────────────────────────────────
-
-pub(crate) struct AndBoolNodeOp<'g> {
-    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-}
-
-impl<'g> Clone for AndBoolNodeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            left: self.left.clone(),
-            right: self.right.clone(),
-        }
-    }
-}
-
-impl<'g> NodeOp for AndBoolNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let l = self.left.apply(storage, node);
-        let r = self.right.apply(storage, node);
-        broadcast_binary(l, r, &|lv, rv| {
-            let lb = matches!(lv, Some(Prop::Bool(true)));
-            let rb = matches!(rv, Some(Prop::Bool(true)));
-            Some(Prop::Bool(lb && rb))
-        })
-    }
-}
-
-pub(crate) struct OrBoolNodeOp<'g> {
-    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-}
-
-impl<'g> Clone for OrBoolNodeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            left: self.left.clone(),
-            right: self.right.clone(),
-        }
-    }
-}
-
-impl<'g> NodeOp for OrBoolNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let l = self.left.apply(storage, node);
-        let r = self.right.apply(storage, node);
-        broadcast_binary(l, r, &|lv, rv| {
-            let lb = matches!(lv, Some(Prop::Bool(true)));
-            let rb = matches!(rv, Some(Prop::Bool(true)));
-            Some(Prop::Bool(lb || rb))
-        })
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // PropValueSetNodeOp<'g> — is_in / is_not_in for Option<Prop> (linear scan)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -716,39 +644,5 @@ impl<'g, I: Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, I> {
 
     fn prop_type(&self) -> PropType {
         PropType::Bool
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SetNodeOp<'g, T> — evaluates is_in / is_not_in
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Internal op for hash-set membership on typed values.
-///
-/// e.g. `NodeFilter.node_type().is_in(["Person", "Account"])` compiles to:
-/// `SetNodeOp { inner: Type.map(...), op: IsIn, values: {"Person", "Account"} }`
-#[derive(Clone)]
-pub struct SetNodeOp<'g, I: Eq + Hash + Clone + Send + Sync + 'static> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Option<I>> + 'g>,
-    pub(crate) op: SetOp,
-    pub(crate) values: Arc<HashSet<I>>,
-}
-
-impl<'g, I: Eq + Hash + Clone + Send + Sync + 'static> NodeOp for SetNodeOp<'g, I> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        let v = self.inner.apply(storage, node);
-        match self.op {
-            SetOp::IsIn => v.as_ref().map(|x| self.values.contains(x)).unwrap_or(false),
-            SetOp::IsNotIn => v
-                .as_ref()
-                .map(|x| !self.values.contains(x))
-                .unwrap_or(false),
-        }
     }
 }

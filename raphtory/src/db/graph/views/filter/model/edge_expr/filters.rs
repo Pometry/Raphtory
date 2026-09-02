@@ -4,10 +4,7 @@
 //! an `EdgeExprFilteredGraph` instead of a `NodeFilteredGraph`.
 
 use super::{
-    ops::{
-        BinaryCmpEdgeOp, ListAwareCmpEdgeOp, ListAwareSetEdgeOp, ListAwareStringEdgeOp,
-        ListAwareUnaryEdgeOp, PropValueSetEdgeOp, StringEdgeOp, UnaryEdgeOp,
-    },
+    ops::{BinaryCmpEdgeOp, PropValueSetEdgeOp, StringEdgeOp, UnaryEdgeOp},
     EdgeOp,
 };
 pub(crate) use crate::db::graph::views::filter::model::{BinaryCmpExpr, StringExpr, UnaryExpr};
@@ -20,15 +17,13 @@ use crate::{
             model::{
                 edge_filter::EdgeFilter,
                 node_expr::{filters::PropValueSetExpr, CreateOp},
-                resolved_prop_type, validate_binary_op, validate_string_op,
-                validate_types_compatible, CreateFilter, ExplodedEdgeFilter,
+                resolved_prop_type, validate_binary_op, validate_const_castable,
+                validate_string_op, validate_types_compatible, CreateFilter, ExplodedEdgeFilter,
             },
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpExpr<L, R>
@@ -56,12 +51,15 @@ where
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph.clone())?;
+        let left = self.left.create_edge_op(filtered.clone())?;
+        let right = self.right.create_edge_op(filtered.clone())?;
         let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
-        validate_types_compatible(&lhs_pt, &rhs_pt)?;
+        match right.const_value() {
+            Some(c) => validate_const_castable(&lhs_pt, c.as_ref())?,
+            None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
+        }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(BinaryCmpEdgeOp {
             left,
             right,
@@ -108,12 +106,15 @@ where
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph.clone())?;
+        let left = self.left.create_edge_op(filtered.clone())?;
+        let right = self.right.create_edge_op(filtered.clone())?;
         let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
-        validate_types_compatible(&lhs_pt, &rhs_pt)?;
+        match right.const_value() {
+            Some(c) => validate_const_castable(&lhs_pt, c.as_ref())?,
+            None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
+        }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(BinaryCmpEdgeOp {
             left,
             right,
@@ -161,7 +162,7 @@ where
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let inner = self.expr.create_edge_op(graph.clone())?;
+        let inner = self.expr.create_edge_op(filtered.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> =
             Arc::new(UnaryEdgeOp { inner, op: self.op });
         Ok(EdgeExprFilteredGraph::new(graph, op))
@@ -202,7 +203,7 @@ where
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let inner = self.expr.create_edge_op(graph.clone())?;
+        let inner = self.expr.create_edge_op(filtered.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> =
             Arc::new(UnaryEdgeOp { inner, op: self.op });
         Ok(ExplodedEdgeExprFilteredGraph::new(graph, op))
@@ -248,8 +249,8 @@ where
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph.clone())?;
+        let left = self.left.create_edge_op(filtered.clone())?;
+        let right = self.right.create_edge_op(filtered.clone())?;
         validate_string_op(&left.prop_type())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(StringEdgeOp {
             left,
@@ -295,8 +296,8 @@ where
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let left = self.left.create_edge_op(graph.clone())?;
-        let right = self.right.create_edge_op(graph.clone())?;
+        let left = self.left.create_edge_op(filtered.clone())?;
+        let right = self.right.create_edge_op(filtered.clone())?;
         validate_string_op(&left.prop_type())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(StringEdgeOp {
             left,
@@ -342,7 +343,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let inner = self.expr.create_edge_op(graph.clone())?;
+        let inner = self.expr.create_edge_op(filtered.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(PropValueSetEdgeOp {
             inner,
             values: self.values,
@@ -383,7 +384,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let inner = self.expr.create_edge_op(graph.clone())?;
+        let inner = self.expr.create_edge_op(filtered.clone())?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(PropValueSetEdgeOp {
             inner,
             values: self.values,

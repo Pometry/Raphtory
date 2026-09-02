@@ -45,7 +45,7 @@ use super::{
         BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp,
         ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    ConstFilter, CreateOp, EntityExpr, EntityExprBuilder, Marker,
+    CreateOp, EntityExpr, EntityExprBuilder, Marker,
 };
 use crate::{
     db::{
@@ -72,7 +72,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{EdgeFilter, GraphViewOps, NodeFilter},
+    prelude::{EdgeFilter, NodeFilter},
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
@@ -196,7 +196,7 @@ where
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
+        _graph: G,
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
@@ -205,11 +205,10 @@ where
         let lhs_pt = resolved_prop_type(expr_pt, left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
-        validate_const_castable(
-            &lhs_pt,
-            right.const_value().as_ref().and_then(|o| o.as_ref()),
-        )?;
-        validate_types_compatible(&lhs_pt, &rhs_pt)?;
+        match right.const_value() {
+            Some(c) => validate_const_castable(&lhs_pt, c.as_ref())?,
+            None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
+        }
         Ok(Arc::new(BinaryCmpNodeOp {
             left,
             right,
@@ -375,7 +374,7 @@ where
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
+        _graph: G,
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         if !self.expr.nullable() {
@@ -571,7 +570,7 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
+        _graph: G,
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
@@ -741,7 +740,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
+        _graph: G,
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.expr.prop_type();

@@ -78,7 +78,7 @@ use crate::{
         graph::views::filter::model::{
             edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
             filter_operator::Comparable,
-            node_filter::{NodeFilter, NodeFilterFactory},
+            node_filter::NodeFilter,
             require_aggregable, resolved_prop_type, CreateView, EntityMarker,
         },
     },
