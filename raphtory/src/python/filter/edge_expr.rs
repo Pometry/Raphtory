@@ -5,9 +5,9 @@ use crate::{
         is_deleted_filter::IsDeletedEdge,
         is_self_loop_filter::IsSelfLoopEdge,
         is_valid_filter::IsValidEdge,
-        node_expr::{DynCreateOp, EntityExpr, Scoped},
+        node_expr::{DynCreateOp, DynEntityExpr, EntityExpr, Scoped},
         node_filter::NodeFilter,
-        CreateView, EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
+        CreateView, DynCreateView, EdgeFilterFactory, EntityMarker, InternalViewWrapOps,
         PropertyExprFactory, ViewWrapOps, Wrap,
     },
     python::{filter::node_expr::PyExpr, types::iterable::FromIterable},
@@ -65,7 +65,7 @@ impl PyEdgeEndpoint {
     }
 }
 
-pub trait DynEdgeFilterFactory: Send + Sync + 'static {
+pub trait DynEdgeFilterFactory: DynEntityExpr + DynCreateView + Send + Sync + 'static {
     fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp>;
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
 
@@ -84,6 +84,8 @@ pub trait DynEdgeFilterFactory: Send + Sync + 'static {
     fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynEdgeFilterFactory>;
 }
 
+impl EdgeFilterFactory for Arc<dyn DynEdgeFilterFactory> {}
+
 impl InternalViewWrapOps for Arc<dyn DynEdgeFilterFactory> {
     type Window = Arc<dyn DynEdgeFilterFactory>;
 
@@ -94,15 +96,7 @@ impl InternalViewWrapOps for Arc<dyn DynEdgeFilterFactory> {
 
 impl<T> DynEdgeFilterFactory for T
 where
-    T: EdgeFilterFactory
-        + EdgeViewFilterOps
-        + ViewWrapOps
-        + CreateView
-        + EntityExpr
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    T: EdgeFilterFactory + ViewWrapOps + CreateView + EntityExpr + Clone + Send + Sync + 'static,
     <T as EntityExpr>::Marker: Into<EntityMarker>,
 {
     fn dyn_property(&self, name: String) -> Arc<dyn DynCreateOp> {
@@ -155,17 +149,24 @@ where
         let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
         dyn_self.before(time)
     }
+    // Same erasure trick as dyn_window: wrapping the erased factory keeps the
+    // set of vtable-instantiated types finite; wrapping `self` directly would
+    // materialise a vtable for every wrapper combination.
     fn dyn_latest(&self) -> Arc<dyn DynEdgeFilterFactory> {
-        Arc::new(self.clone().latest())
+        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
+        Arc::new(dyn_self.latest())
     }
     fn dyn_snapshot_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        Arc::new(self.clone().snapshot_at(time))
+        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
+        Arc::new(dyn_self.snapshot_at(time))
     }
     fn dyn_snapshot_latest(&self) -> Arc<dyn DynEdgeFilterFactory> {
-        Arc::new(self.clone().snapshot_latest())
+        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
+        Arc::new(dyn_self.snapshot_latest())
     }
     fn dyn_layer(&self, layers: Vec<String>) -> Arc<dyn DynEdgeFilterFactory> {
-        Arc::new(self.clone().layer(layers))
+        let dyn_self: Arc<dyn DynEdgeFilterFactory> = Arc::new(self.clone());
+        Arc::new(dyn_self.layer(layers))
     }
 }
 
