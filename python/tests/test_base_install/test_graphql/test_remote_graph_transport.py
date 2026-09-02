@@ -2067,8 +2067,8 @@ def test_filter_nodes_preserves_membership():
 
 
 def test_filter_by_node_id_keeps_membership_but_getitem_narrows():
-    """`.filter()` keeps every member for a name/id filter too — `[]` is the one that narrows.
-    Matches local raphtory."""
+    """`.filter()` on a collection keeps every member for a name/id filter too — `[]` and the
+    graph-level `.filter()` are the ones that narrow. Matches local raphtory."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
@@ -2079,6 +2079,7 @@ def test_filter_by_node_id_keeps_membership_but_getitem_narrows():
             "hamza",
         ]
         assert sorted(rg.nodes[Node.name() == "ben"].id) == ["ben"]
+        assert sorted(rg.filter(Node.name() == "ben").nodes.id) == ["ben"]
 
 
 def test_temporal_multi_op_filter_preserves_op_order_e2e():

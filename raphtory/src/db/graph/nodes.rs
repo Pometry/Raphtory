@@ -150,11 +150,6 @@ where
     }
 
     pub fn node_list(&self) -> NodeList {
-        // Membership is the candidate set (`self.nodes` / the base graph), filtered per node by
-        // `base_graph.filter_node` and `predicate` in the iterators. `self.graph` is only the view
-        // each node is presented through, so a `.filter(...)` — which stashes its predicate in
-        // `self.graph` — restricts the view without dropping members (unlike `[...]`, which narrows
-        // `self.nodes`).
         match self.nodes.clone() {
             elems @ Index::Partial(_) => NodeList::List { elems },
             _ => self.base_graph.node_list(),

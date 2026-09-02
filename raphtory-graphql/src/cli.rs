@@ -241,9 +241,7 @@ where
             let print_config_schema = server_args.print_config_schema;
             let server = GraphServer::new_from_args(server_args).await?;
             if print_config_schema {
-                let schema = server.config().config_schema_json().map_err(|e| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-                })?;
+                let schema = server.config().config_schema_json()?;
                 println!("{}", schema);
             } else if print_config {
                 let config = json!(server.config());

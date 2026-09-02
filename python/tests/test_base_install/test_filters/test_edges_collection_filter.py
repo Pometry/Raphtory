@@ -39,7 +39,7 @@ def _exprs():
 
 
 def _edges(collection):
-    return sorted((e.src.name, e.dst.name) for e in collection)
+    return sorted(e.id for e in collection)
 
 
 @with_variants(_init)
