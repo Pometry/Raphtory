@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+
 import { clickAfterPaginating } from './utils';
 
 export async function fillInCondition(
@@ -17,9 +18,7 @@ export async function fillInCondition(
     }
     if (condition.op !== undefined) {
         await page.getByText(condition.op.current).click();
-        await expect(
-            page.getByRole('option', { name: condition.op.new }),
-        ).toBeVisible();
+        await expect(page.getByRole('option', { name: condition.op.new })).toBeVisible();
         await page.getByRole('option', { name: condition.op.new }).click();
         // Wait for condition dropdown to close
         await expect(page.locator('.MuiMenu-root')).toBeHidden();
@@ -50,22 +49,12 @@ export async function selectGraphInQueryBuilder(
     const namespaceRow = page.getByRole('row', {
         name: new RegExp(`^${namespace}$`),
     });
-    await clickAfterPaginating(
-        page,
-        namespaceRow,
-        `Namespace "${namespace}"`,
-        nextPageButton,
-    );
+    await clickAfterPaginating(page, namespaceRow, `Namespace "${namespace}"`, nextPageButton);
     const graphCell = page.getByRole('cell', {
         name: graphName,
         exact: true,
     });
-    await clickAfterPaginating(
-        page,
-        graphCell,
-        `Graph "${graphName}"`,
-        nextPageButton,
-    );
+    await clickAfterPaginating(page, graphCell, `Graph "${graphName}"`, nextPageButton);
 }
 
 export async function searchForEntity(
@@ -114,15 +103,11 @@ export async function searchForEntity(
         await page.getByRole('option', { name: 'Relationship' }).click();
         if (entity.src !== undefined) {
             await page.getByRole('textbox', { name: 'Source ID' }).click();
-            await page
-                .getByRole('textbox', { name: 'Source ID' })
-                .fill(entity.src);
+            await page.getByRole('textbox', { name: 'Source ID' }).fill(entity.src);
         }
         if (entity.dst !== undefined) {
             await page.getByRole('textbox', { name: 'Destination ID' }).click();
-            await page
-                .getByRole('textbox', { name: 'Destination ID' })
-                .fill(entity.dst);
+            await page.getByRole('textbox', { name: 'Destination ID' }).fill(entity.dst);
         }
         for (const layer of entity.layers ?? []) {
             await page.getByRole('combobox', { name: 'Layers' }).click();

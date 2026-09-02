@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+
 import { clickAfterPaginating, waitForLayoutToFinish } from './utils';
 
 export async function clickSavedGraphsGraph(page: Page, graphName: string) {
@@ -15,10 +16,7 @@ export async function clickSavedGraphsFolder(page: Page, folderName: string) {
     await clickAfterPaginating(page, target, `Folder "${folderName}"`);
 }
 
-export type OpenSavedGraphMethod =
-    | 'split-button'
-    | 'double-click'
-    | 'preview-graph';
+export type OpenSavedGraphMethod = 'split-button' | 'double-click' | 'preview-graph';
 
 export const OPEN_SAVED_GRAPH_METHODS: OpenSavedGraphMethod[] = [
     'split-button',
@@ -55,21 +53,15 @@ export async function navigateInSavedGraphs(
 
     if (graphName === undefined) {
         if (view === 'table') {
-            await page
-                .getByRole('button', { name: 'Table view', exact: true })
-                .click();
+            await page.getByRole('button', { name: 'Table view', exact: true }).click();
         }
         return;
     }
 
     switch (method) {
         case 'double-click':
-            await page
-                .getByRole('button', { name: 'Table view', exact: true })
-                .click();
-            await page
-                .getByRole('cell', { name: graphName, exact: true })
-                .dblclick();
+            await page.getByRole('button', { name: 'Table view', exact: true }).click();
+            await page.getByRole('cell', { name: graphName, exact: true }).dblclick();
             break;
         case 'split-button':
             await clickSavedGraphsGraph(page, graphName);

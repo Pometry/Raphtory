@@ -31,6 +31,13 @@
             "layer": "meets",
             "properties": { "where": "Madrid" }
         },
+        {
+            "time": 55,
+            "src": "Pedro",
+            "dst": "Ben",
+            "layer": "meets",
+            "properties": { "where": "Lisbon" }
+        },
         { "time": 60, "src": "Ben", "dst": "Pometry", "layer": "founds" },
         { "time": 60, "src": "Hamza", "dst": "Pometry", "layer": "founds" }
     ]
