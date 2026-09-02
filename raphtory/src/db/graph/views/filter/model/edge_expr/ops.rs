@@ -45,6 +45,10 @@ impl<'a, V: Clone + Send + Sync> EdgeOp for Arc<dyn EdgeOp<Output = V> + 'a> {
         self.as_ref().apply(storage, edge)
     }
 
+    fn prop_type(&self) -> PropType {
+        self.as_ref().prop_type()
+    }
+
     fn const_value(&self) -> Option<V> {
         self.as_ref().const_value()
     }
@@ -109,13 +113,9 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
         EdgeView::new(&self.graph, edge).get_metadata(self.prop_id)
     }
 
-    fn prop_type(&self) -> PropType {
-        self.graph
-            .edge_meta()
-            .metadata_mapper()
-            .get_dtype(self.prop_id)
-            .unwrap_or_default()
-    }
+    // No declared type: the runtime shape depends on the edge's layers (a
+    // multi-layer edge yields a map keyed by layer, a single-layer edge the
+    // plain value), so comparisons defer to runtime coercion.
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,6 +130,14 @@ pub(crate) struct TemporalEdgePropOp<G> {
 
 impl<G: GraphView> EdgeOp for TemporalEdgePropOp<G> {
     type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        self.graph
+            .edge_meta()
+            .temporal_prop_mapper()
+            .get_dtype(self.prop_id)
+            .map_or(PropType::Empty, |dt| PropType::List(Box::new(dt)))
+    }
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
         let vals: Vec<Prop> = EdgeView::new(&self.graph, edge)
@@ -365,6 +373,14 @@ pub(crate) struct EdgeEndpointNodeOp<'g> {
 
 impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
     type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        self.node_op.prop_type()
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        self.node_op.const_value()
+    }
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
         let vid = match self.endpoint {

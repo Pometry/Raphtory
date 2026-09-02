@@ -56,6 +56,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use bigdecimal::BigDecimal;
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef,
     properties::prop::{IntoProp, Prop, PropArray, PropType},
@@ -132,6 +133,40 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WithPropType<T> — annotates an op with a type only known at compile time
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+pub(crate) struct WithPropType<T> {
+    pub(crate) inner: T,
+    pub(crate) pt: PropType,
+}
+
+impl<T: NodeOp> NodeOp for WithPropType<T> {
+    type Output = T::Output;
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.inner.domain(storage)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.pt.clone()
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        self.inner.const_value()
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        self.inner.const_value_in_domain()
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.inner.apply(storage, node)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TemporalNodePropOp<G> — all temporal values for a property within the window
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -149,6 +184,14 @@ pub(crate) struct TemporalNodePropOp<G> {
 impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
         self.graph.node_list()
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.graph
+            .node_meta()
+            .temporal_prop_mapper()
+            .get_dtype(self.prop_id)
+            .map_or(PropType::Empty, |dt| PropType::List(Box::new(dt)))
     }
 
     type Output = Prop;
@@ -180,8 +223,22 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
 //   LenExpr::create_node_op   → LenNodeOp    (Output = usize)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Aggregations collapse the innermost list level; outer levels survive so a
+/// pending qualifier still sees per-element results. `scalar` names the type a
+/// single aggregation step produces (`None` keeps the element type, as for
+/// sum/min/max/first/last).
+fn agg_out_type(pt: PropType, scalar: Option<PropType>) -> PropType {
+    match pt {
+        PropType::List(inner) => match *inner {
+            nested @ PropType::List(_) => PropType::List(Box::new(agg_out_type(nested, scalar))),
+            elem => scalar.unwrap_or(elem),
+        },
+        other => other,
+    }
+}
+
 macro_rules! impl_agg_entity_op {
-    ($node_name:ident, $edge_name:ident, $body:expr) => {
+    ($node_name:ident, $edge_name:ident, $out_pt:expr, $body:expr) => {
         #[derive(Clone)]
         pub struct $node_name<'g> {
             pub inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
@@ -193,6 +250,10 @@ macro_rules! impl_agg_entity_op {
             }
 
             type Output = Option<Prop>;
+
+            fn prop_type(&self) -> PropType {
+                ($out_pt)(self.inner.prop_type())
+            }
 
             fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
                 ($body)(self.inner.apply(storage, node))
@@ -207,6 +268,10 @@ macro_rules! impl_agg_entity_op {
         impl<'g> EdgeOp for $edge_name<'g> {
             type Output = Option<Prop>;
 
+            fn prop_type(&self) -> PropType {
+                ($out_pt)(self.inner.prop_type())
+            }
+
             fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
                 ($body)(self.inner.apply(storage, edge))
             }
@@ -214,7 +279,7 @@ macro_rules! impl_agg_entity_op {
     };
 }
 
-impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
+impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| agg_out_type(pt, None), |vals| {
     aggregate_list_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
@@ -225,7 +290,11 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
             PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
                 let (promoted, s64, s128, _) = scan_u64_sum(vals)?;
                 Some(if promoted {
-                    Prop::U64(u64::try_from(s128).ok()?)
+                    // A sum past u64 promotes to Decimal and still compares.
+                    match u64::try_from(s128) {
+                        Ok(v) => Prop::U64(v),
+                        Err(_) => Prop::Decimal(BigDecimal::from(s128)),
+                    }
                 } else {
                     Prop::U64(s64)
                 })
@@ -233,7 +302,10 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
             PropType::I32 | PropType::I64 => {
                 let (promoted, s64, s128, _) = scan_i64_sum(vals)?;
                 Some(if promoted {
-                    Prop::I64(i64::try_from(s128).ok()?)
+                    match i64::try_from(s128) {
+                        Ok(v) => Prop::I64(v),
+                        Err(_) => Prop::Decimal(BigDecimal::from(s128)),
+                    }
                 } else {
                     Prop::I64(s64)
                 })
@@ -246,83 +318,111 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |vals| {
     })
 });
 
-impl_agg_entity_op!(AvgNodeOp, AvgEdgeOp, |vals| {
-    aggregate_list_values(vals, &|pi| {
-        let mut vals = pi.peekable();
-        if vals.peek().is_none() {
-            return None;
-        }
-        let inner = vals.peek().unwrap().dtype();
-        match inner {
-            PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
-                let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
-                let s = if promoted { s128 as f64 } else { s64 as f64 };
-                Some(Prop::F64(s / (count as f64)))
+impl_agg_entity_op!(
+    AvgNodeOp,
+    AvgEdgeOp,
+    |pt| agg_out_type(pt, Some(PropType::F64)),
+    |vals| {
+        aggregate_list_values(vals, &|pi| {
+            let mut vals = pi.peekable();
+            if vals.peek().is_none() {
+                return None;
             }
+            let inner = vals.peek().unwrap().dtype();
+            match inner {
+                PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
+                    let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
+                    let s = if promoted { s128 as f64 } else { s64 as f64 };
+                    Some(Prop::F64(s / (count as f64)))
+                }
 
-            PropType::I32 | PropType::I64 => {
-                let (promoted, s64, s128, count) = scan_i64_sum(vals)?;
-                let s = if promoted { s128 as f64 } else { s64 as f64 };
-                Some(Prop::F64(s / (count as f64)))
+                PropType::I32 | PropType::I64 => {
+                    let (promoted, s64, s128, count) = scan_i64_sum(vals)?;
+                    let s = if promoted { s128 as f64 } else { s64 as f64 };
+                    Some(Prop::F64(s / (count as f64)))
+                }
+
+                PropType::F32 | PropType::F64 => {
+                    let (sum, count) = scan_f64_sum_count(vals)?;
+                    Some(Prop::F64(sum / (count as f64)))
+                }
+
+                _ => None,
             }
-
-            PropType::F32 | PropType::F64 => {
-                let (sum, count) = scan_f64_sum_count(vals)?;
-                Some(Prop::F64(sum / (count as f64)))
-            }
-
-            _ => None,
-        }
-    })
-});
-impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |vals| {
+        })
+    }
+);
+impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |pt| agg_out_type(pt, None), |vals| {
     aggregate_list_values(vals, &|pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
     })
 });
-impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |vals| {
+impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |pt| agg_out_type(pt, None), |vals| {
     aggregate_list_values(vals, &|pi| {
         let mut it = pi;
         let first = it.next()?;
         it.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
     })
 });
-impl_agg_entity_op!(FirstNodeOp, FirstEdgeOp, |vals| {
-    // Pick the first temporal entry as-is (whether scalar or list).
-    // aggregate_values would recurse into list entries and pick the first
-    // *element* within each entry, which is wrong for list-typed properties.
-    match vals? {
-        Prop::List(x) => x.iter_all().find_map(|v| v),
-        _ => None,
+impl_agg_entity_op!(
+    FirstNodeOp,
+    FirstEdgeOp,
+    |pt| agg_out_type(pt, None),
+    |vals| {
+        // Pick the first temporal entry as-is (whether scalar or list).
+        // aggregate_values would recurse into list entries and pick the first
+        // *element* within each entry, which is wrong for list-typed properties.
+        match vals? {
+            Prop::List(x) => x.iter_all().find_map(|v| v),
+            _ => None,
+        }
     }
-});
-impl_agg_entity_op!(LastNodeOp, LastEdgeOp, |vals| {
-    // Pick the last temporal entry as-is (whether scalar or list).
-    match vals? {
-        Prop::List(x) => x.iter_all().filter_map(|v| v).last(),
-        _ => None,
+);
+impl_agg_entity_op!(
+    LastNodeOp,
+    LastEdgeOp,
+    |pt| agg_out_type(pt, None),
+    |vals| {
+        // Pick the last temporal entry as-is (whether scalar or list).
+        match vals? {
+            Prop::List(x) => x.iter_all().filter_map(|v| v).last(),
+            _ => None,
+        }
     }
-});
-impl_agg_entity_op!(LenNodeOp, LenEdgeOp, |vals| {
-    aggregate_list_values(vals, &|pi| Some(pi.count().into_prop()))
-});
-impl_agg_entity_op!(AnyNodeOp, AnyEdgeOp, |vals| {
-    aggregate_list_values(vals, &|mut pi| {
-        Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
-    })
-});
-impl_agg_entity_op!(AllNodeOp, AllEdgeOp, |vals| {
-    aggregate_list_values(vals, &|mut pi| {
-        let mut saw_any = false;
-        let all_true = pi.all(|r| {
-            saw_any = true;
-            r == Prop::Bool(true)
-        });
-        Some(Prop::Bool(saw_any && all_true))
-    })
-});
+);
+impl_agg_entity_op!(
+    LenNodeOp,
+    LenEdgeOp,
+    |pt| agg_out_type(pt, Some(PropType::U64)),
+    |vals| { aggregate_list_values(vals, &|pi| Some(pi.count().into_prop())) }
+);
+impl_agg_entity_op!(
+    AnyNodeOp,
+    AnyEdgeOp,
+    |pt| agg_out_type(pt, Some(PropType::Bool)),
+    |vals| {
+        aggregate_list_values(vals, &|mut pi| {
+            Some(Prop::Bool(pi.any(|r| r == Prop::Bool(true))))
+        })
+    }
+);
+impl_agg_entity_op!(
+    AllNodeOp,
+    AllEdgeOp,
+    |pt| agg_out_type(pt, Some(PropType::Bool)),
+    |vals| {
+        aggregate_list_values(vals, &|mut pi| {
+            let mut saw_any = false;
+            let all_true = pi.all(|r| {
+                saw_any = true;
+                r == Prop::Bool(true)
+            });
+            Some(Prop::Bool(saw_any && all_true))
+        })
+    }
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ListAwareCmpNodeOp / ListAwareStringNodeOp / ListAwareSetNodeOp

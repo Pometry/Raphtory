@@ -1179,17 +1179,28 @@ impl<T: EntityExprBuilder> EntityExprBuilder for SnapshotLatest<T> {}
 /// Reject ordering operators on boolean properties.
 //. TODO: Also check if both the types are comparable.
 pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphError> {
-    if *prop_type != PropType::Empty
-        && matches!(
-            op,
-            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
-        )
-        && *prop_type == PropType::Bool
-    {
-        return Err(GraphError::InvalidFilter(format!(
-            "operator {:?} is not valid for boolean properties",
-            op
-        )));
+    if matches!(
+        op,
+        BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
+    ) {
+        if *prop_type == PropType::Bool {
+            return Err(GraphError::InvalidFilter(format!(
+                "operator {:?} is not valid for boolean properties",
+                op
+            )));
+        }
+        if matches!(prop_type, PropType::Map(_)) {
+            return Err(GraphError::InvalidFilter(format!(
+                "operator {:?} is not valid for map properties",
+                op
+            )));
+        }
+        if matches!(prop_type, PropType::List(_)) {
+            return Err(GraphError::InvalidFilter(format!(
+                "operator {:?} is not valid for list properties",
+                op
+            )));
+        }
     }
     Ok(())
 }
@@ -1234,6 +1245,21 @@ pub fn validate_const_castable(
         return Ok(());
     }
     if let Some(rhs) = rhs_const {
+        // Map values carry partial schemas against a union-schema declared
+        // type and compare structurally at runtime; a non-map constant can
+        // never match a map property.
+        if matches!(lhs_pt, PropType::Map(_)) {
+            return if matches!(rhs, Prop::Map(_)) {
+                Ok(())
+            } else {
+                Err(GraphError::InvalidFilter(format!(
+                    "value {:?} of type {} cannot be coerced to {}",
+                    rhs,
+                    rhs.dtype(),
+                    lhs_pt
+                )))
+            };
+        }
         if rhs.dtype() != *lhs_pt && rhs.clone().try_cast(lhs_pt.clone()).is_err() {
             return Err(GraphError::InvalidFilter(format!(
                 "value {:?} of type {} cannot be coerced to {}",
@@ -1303,16 +1329,22 @@ pub fn validate_types_compatible(lhs_pt: &PropType, rhs_pt: &PropType) -> Result
 /// mismatches there. Anything declaring a scalar type up front (e.g.
 /// `IsActiveNode` → `Bool`, `DegreeExpr` → `U64`) is rejected.
 /// The element type a leading `any()`/`all()` chain compares against: one
-/// list level is stripped per qualifier. Unknown types stay unknown.
-pub fn elem_prop_type(pt: &PropType, levels: usize) -> PropType {
+/// list level is stripped per qualifier. Unknown types stay unknown; a
+/// qualifier over a known scalar is an error.
+pub fn elem_prop_type(pt: &PropType, levels: usize) -> Result<PropType, GraphError> {
     let mut pt = pt.clone();
     for _ in 0..levels {
         pt = match pt {
             PropType::List(inner) => *inner,
-            other => other,
+            PropType::Empty => PropType::Empty,
+            other => {
+                return Err(GraphError::InvalidFilter(format!(
+                    "any()/all() require list or temporal values, found {other}"
+                )))
+            }
         };
     }
-    pt
+    Ok(pt)
 }
 
 pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
@@ -1333,6 +1365,12 @@ pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
 /// substituted so the runtime set comparison sees same-typed values.
 pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Prop>, GraphError> {
     if *lhs_pt == PropType::Empty {
+        return Ok(values);
+    }
+    // Map values carry partial schemas and compare structurally; the declared
+    // map type is the union schema, so per-value coercion would reject
+    // legitimate members.
+    if matches!(lhs_pt, PropType::Map(_)) {
         return Ok(values);
     }
     values

@@ -6,7 +6,7 @@
 use super::{
     ops::{
         BinaryCmpEdgeOp, ListAwareCmpEdgeOp, ListAwareSetEdgeOp, ListAwareStringEdgeOp,
-        PropValueSetEdgeOp, StringEdgeOp, UnaryEdgeOp,
+        ListAwareUnaryEdgeOp, PropValueSetEdgeOp, StringEdgeOp, UnaryEdgeOp,
     },
     EdgeOp,
 };
@@ -18,6 +18,7 @@ use crate::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
             model::{
+                coerce_set_values,
                 edge_filter::EdgeFilter,
                 elem_prop_type,
                 filter_operator::{BinaryOp, ElemQual},
@@ -33,7 +34,10 @@ use crate::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::Prop};
+use raphtory_api::core::entities::{
+    edges::edge_ref::EdgeRef,
+    properties::prop::{Prop, PropType},
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +66,9 @@ pub(crate) fn qualify_edge_filter<'g>(
     quals: &[ElemQual],
 ) -> Arc<dyn EdgeOp<Output = bool> + 'g> {
     let mut op = elemwise;
-    for q in quals {
+    // Qualifiers are collected in call order (outermost list level first);
+    // wrapping starts at the innermost level, so iterate in reverse.
+    for q in quals.iter().rev() {
         op = match q {
             ElemQual::Any => Arc::new(AnyEdgeOp { inner: op }),
             ElemQual::All => Arc::new(AllEdgeOp { inner: op }),
@@ -95,7 +101,7 @@ where
         let expr_pt = self.left.prop_type();
         let (left, quals) = self.left.create_qualified_edge_op(filtered.clone())?;
         let right = self.right.create_edge_op(filtered.clone())?;
-        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len());
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len())?;
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         match right.const_value() {
@@ -161,7 +167,7 @@ where
         let expr_pt = self.left.prop_type();
         let (left, quals) = self.left.create_qualified_edge_op(filtered.clone())?;
         let right = self.right.create_edge_op(filtered.clone())?;
-        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len());
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len())?;
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         match right.const_value() {
@@ -226,9 +232,15 @@ where
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let inner = self.expr.create_edge_op(filtered.clone())?;
-        let op: Arc<dyn EdgeOp<Output = bool> + 'graph> =
-            Arc::new(UnaryEdgeOp { inner, op: self.op });
+        let (inner, quals) = self.expr.create_qualified_edge_op(filtered.clone())?;
+        let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
+            Arc::new(UnaryEdgeOp { inner, op: self.op })
+        } else {
+            qualify_edge_filter(
+                Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }),
+                &quals,
+            )
+        };
         Ok(EdgeExprFilteredGraph::new(graph, op))
     }
 
@@ -267,9 +279,15 @@ where
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let inner = self.expr.create_edge_op(filtered.clone())?;
-        let op: Arc<dyn EdgeOp<Output = bool> + 'graph> =
-            Arc::new(UnaryEdgeOp { inner, op: self.op });
+        let (inner, quals) = self.expr.create_qualified_edge_op(filtered.clone())?;
+        let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
+            Arc::new(UnaryEdgeOp { inner, op: self.op })
+        } else {
+            qualify_edge_filter(
+                Arc::new(ListAwareUnaryEdgeOp { inner, op: self.op }),
+                &quals,
+            )
+        };
         Ok(ExplodedEdgeExprFilteredGraph::new(graph, op))
     }
 
@@ -315,7 +333,11 @@ where
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let (left, quals) = self.left.create_qualified_edge_op(filtered.clone())?;
         let right = self.right.create_edge_op(filtered.clone())?;
-        validate_string_op(&elem_prop_type(&left.prop_type(), quals.len()))?;
+        validate_string_op(&elem_prop_type(&left.prop_type(), quals.len())?)?;
+        match right.const_value() {
+            Some(c) => validate_const_castable(&PropType::Str, c.as_ref())?,
+            None => {}
+        }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(StringEdgeOp {
                 left,
@@ -373,7 +395,11 @@ where
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let (left, quals) = self.left.create_qualified_edge_op(filtered.clone())?;
         let right = self.right.create_edge_op(filtered.clone())?;
-        validate_string_op(&elem_prop_type(&left.prop_type(), quals.len()))?;
+        validate_string_op(&elem_prop_type(&left.prop_type(), quals.len())?)?;
+        match right.const_value() {
+            Some(c) => validate_const_castable(&PropType::Str, c.as_ref())?,
+            None => {}
+        }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(StringEdgeOp {
                 left,
@@ -429,18 +455,21 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let expr_pt = self.expr.prop_type();
         let (inner, quals) = self.expr.create_qualified_edge_op(filtered.clone())?;
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
+        let values = coerce_set_values(&lhs_pt, self.values)?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(PropValueSetEdgeOp {
                 inner,
-                values: self.values,
+                values,
                 op: self.op,
             })
         } else {
             qualify_edge_filter(
                 Arc::new(ListAwareSetEdgeOp {
                     inner,
-                    values: self.values,
+                    values,
                     op: self.op,
                 }),
                 &quals,
@@ -481,18 +510,21 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
         graph: G,
         filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let expr_pt = self.expr.prop_type();
         let (inner, quals) = self.expr.create_qualified_edge_op(filtered.clone())?;
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
+        let values = coerce_set_values(&lhs_pt, self.values)?;
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(PropValueSetEdgeOp {
                 inner,
-                values: self.values,
+                values,
                 op: self.op,
             })
         } else {
             qualify_edge_filter(
                 Arc::new(ListAwareSetEdgeOp {
                     inner,
-                    values: self.values,
+                    values,
                     op: self.op,
                 }),
                 &quals,

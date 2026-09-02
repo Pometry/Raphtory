@@ -12,8 +12,14 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, Bound, FromPyObject, IntoPyObject, PyErr, PyResult, Python};
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use pyo3::{
+    exceptions::PyTypeError, pyclass, pymethods, Bound, FromPyObject, IntoPyObject, PyErr,
+    PyResult, Python,
+};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType},
+    storage::timeindex::EventTime,
+};
 use std::sync::Arc;
 
 // filter.Node.neighbours.is_active.all
@@ -63,67 +69,126 @@ enum ExprOrValue {
     Value(Prop),
 }
 
+/// Values are checked against the expression's statically known type at the
+/// comparison itself, so a mistyped literal fails where it is written instead
+/// of at some later `filter()` call. Unknown types defer to filter time.
+/// String operators require a string-castable operand whatever the lhs type.
+fn check_str_value(v: &Prop) -> PyResult<()> {
+    if v.dtype() != PropType::Str && v.clone().try_cast(PropType::Str).is_err() {
+        return Err(PyTypeError::new_err(format!(
+            "value {v:?} of type {} is not a valid string operand",
+            v.dtype()
+        )));
+    }
+    Ok(())
+}
+
+fn check_value(lhs: &Arc<dyn DynCreateOp>, v: &Prop) -> PyResult<()> {
+    let pt = lhs.dyn_prop_type();
+    if pt != PropType::Empty && v.dtype() != pt && v.clone().try_cast(pt.clone()).is_err() {
+        return Err(PyTypeError::new_err(format!(
+            "value {v:?} of type {} is not comparable with an expression of type {pt}",
+            v.dtype()
+        )));
+    }
+    Ok(())
+}
+
 #[pymethods]
 impl PyExpr {
-    fn __eq__(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn __eq__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().eq(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().eq(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().eq(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().eq(v))))
+            }
         }
     }
-    fn __ne__(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn __ne__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().ne(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().ne(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().ne(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().ne(v))))
+            }
         }
     }
-    fn __lt__(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn __lt__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().lt(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().lt(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().lt(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().lt(v))))
+            }
         }
     }
-    fn __le__(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn __le__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().le(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().le(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().le(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().le(v))))
+            }
         }
     }
-    fn __gt__(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn __gt__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().gt(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().gt(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().gt(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().gt(v))))
+            }
         }
     }
-    fn __ge__(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn __ge__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().ge(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().ge(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().ge(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().ge(v))))
+            }
         }
     }
 
-    fn starts_with(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn starts_with(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().starts_with(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().starts_with(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().starts_with(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_str_value(&v)?;
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().starts_with(v))))
+            }
         }
     }
-    fn ends_with(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn ends_with(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().ends_with(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().ends_with(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().ends_with(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_str_value(&v)?;
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().ends_with(v))))
+            }
         }
     }
-    fn contains(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn contains(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().contains(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().contains(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().contains(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_str_value(&v)?;
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().contains(v))))
+            }
         }
     }
-    fn not_contains(&self, other: ExprOrValue) -> PyFilterExpr {
+    fn not_contains(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
-            ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().not_contains(e.0))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().not_contains(v))),
+            ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().not_contains(e.0)))),
+            ExprOrValue::Value(v) => {
+                check_str_value(&v)?;
+                check_value(&self.0, &v)?;
+                Ok(PyFilterExpr(Arc::new(self.0.clone().not_contains(v))))
+            }
         }
     }
     fn fuzzy_search(
@@ -131,19 +196,22 @@ impl PyExpr {
         other: ExprOrValue,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> PyFilterExpr {
-        match other {
+    ) -> PyResult<PyFilterExpr> {
+        Ok(match other {
             ExprOrValue::Expr(e) => PyFilterExpr(Arc::new(self.0.clone().fuzzy_search(
                 e.0,
                 levenshtein_distance,
                 prefix_match,
             ))),
-            ExprOrValue::Value(v) => PyFilterExpr(Arc::new(self.0.clone().fuzzy_search(
-                v,
-                levenshtein_distance,
-                prefix_match,
-            ))),
-        }
+            ExprOrValue::Value(v) => {
+                check_str_value(&v)?;
+                PyFilterExpr(Arc::new(self.0.clone().fuzzy_search(
+                    v,
+                    levenshtein_distance,
+                    prefix_match,
+                )))
+            }
+        })
     }
 
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {

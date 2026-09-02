@@ -184,6 +184,10 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
         self.op.domain(storage)
     }
 
+    fn prop_type(&self) -> PropType {
+        self.op.prop_type()
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         (self.map)(self.op.apply(storage, node))
     }

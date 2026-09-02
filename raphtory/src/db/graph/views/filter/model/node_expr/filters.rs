@@ -113,7 +113,9 @@ fn qualify_node_filter<'g>(
     quals: &[ElemQual],
 ) -> Arc<dyn NodeOp<Output = bool> + 'g> {
     let mut op = elemwise;
-    for q in quals {
+    // Qualifiers are collected in call order (outermost list level first);
+    // wrapping starts at the innermost level, so iterate in reverse.
+    for q in quals.iter().rev() {
         op = match q {
             ElemQual::Any => Arc::new(AnyNodeOp { inner: op }),
             ElemQual::All => Arc::new(AllNodeOp { inner: op }),
@@ -219,7 +221,7 @@ where
         let expr_pt = self.left.prop_type();
         let (left, quals) = self.left.create_qualified_node_op(filtered.clone())?;
         let right = self.right.create_node_op(filtered)?;
-        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len());
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len())?;
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         match right.const_value() {
@@ -378,10 +380,10 @@ where
     E: CreateOp,
 {
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        NodeFilteredGraph<G, UnaryNodeOp<'graph, Prop>>;
+        NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        UnaryNodeOp<'graph, Prop>;
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -409,8 +411,13 @@ where
                 self.op
             )));
         }
-        let inner = self.expr.create_node_op(filtered)?;
-        Ok(UnaryNodeOp { inner, op: self.op })
+        let (inner, quals) = self.expr.create_qualified_node_op(filtered)?;
+        if quals.is_empty() {
+            Ok(Arc::new(UnaryNodeOp { inner, op: self.op }))
+        } else {
+            let elemwise = Arc::new(ListAwareUnaryNodeOp { inner, op: self.op });
+            Ok(qualify_node_filter(elemwise, &quals))
+        }
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -429,7 +436,7 @@ where
         Arc<dyn BoxableGraphView + 'graph>;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        UnaryNodeOp<'graph, Prop>;
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -605,7 +612,11 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
         validate_string_op(&elem_prop_type(
             &resolved_prop_type(expr_pt, left.prop_type()),
             quals.len(),
-        ))?;
+        )?)?;
+        match right.const_value() {
+            Some(c) => validate_const_castable(&PropType::Str, c.as_ref())?,
+            None => {}
+        }
         if quals.is_empty() {
             Ok(Arc::new(StringNodeOp {
                 left,
@@ -783,7 +794,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.expr.prop_type();
         let (inner, quals) = self.expr.create_qualified_node_op(filtered)?;
-        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len());
+        let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
         let values = coerce_set_values(&lhs_pt, self.values)?;
         if quals.is_empty() {
             Ok(Arc::new(PropValueSetNodeOp {
@@ -915,7 +926,9 @@ macro_rules! impl_qualifier_filter {
                         Ok(Arc::new(NodeFilteredGraph::new(graph, filter)))
                     }
                     EntityMarker::Edge => {
-                        let (left, quals) = self.create_qualified_edge_op(filtered.clone())?;
+                        let (left, mut quals) = self.create_qualified_edge_op(filtered.clone())?;
+                        quals.reverse();
+                        elem_prop_type(&left.prop_type(), quals.len())?;
                         let right = Prop::Bool(true).create_edge_op(filtered)?;
                         let elemwise = Arc::new(ListAwareCmpEdgeOp {
                             left,
@@ -928,7 +941,9 @@ macro_rules! impl_qualifier_filter {
                         )))
                     }
                     EntityMarker::ExplodedEdge => {
-                        let (left, quals) = self.create_qualified_edge_op(filtered.clone())?;
+                        let (left, mut quals) = self.create_qualified_edge_op(filtered.clone())?;
+                        quals.reverse();
+                        elem_prop_type(&left.prop_type(), quals.len())?;
                         let right = Prop::Bool(true).create_edge_op(filtered)?;
                         let elemwise = Arc::new(ListAwareCmpEdgeOp {
                             left,
@@ -952,7 +967,12 @@ macro_rules! impl_qualifier_filter {
                 if !matches!(self.0.entity().into(), EntityMarker::Node) {
                     return Err(GraphError::NotNodeFilter);
                 }
-                let (left, quals) = self.create_qualified_node_op(filtered.clone())?;
+                let (left, mut quals) = self.create_qualified_node_op(filtered.clone())?;
+                // Trailing qualifiers collect innermost level first; the
+                // collapse helper wraps innermost first after reversing, so
+                // reverse here to cancel it.
+                quals.reverse();
+                elem_prop_type(&left.prop_type(), quals.len())?;
                 let right = Prop::Bool(true).create_node_op(filtered)?;
                 let elemwise = Arc::new(ListAwareCmpNodeOp {
                     left,

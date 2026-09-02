@@ -174,7 +174,7 @@ def test_filter_nodes_for_property_starts_with():
 
         filter_expr = filter.Node.property("p20").temporal().all().starts_with("Gold")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["3", "4"]
+        expected_ids = ["1", "3", "4"]
         assert result_ids == expected_ids
 
     return check
@@ -210,7 +210,7 @@ def test_filter_nodes_for_property_ends_with():
 
         filter_expr = filter.Node.property("p20").temporal().all().ends_with("ship")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["2"]
+        expected_ids = ["1", "2"]
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").ends_with("ane")
@@ -787,10 +787,15 @@ def test_filter_nodes_for_temporary_property_any_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_on_non_string():
     def check(graph):
+        # A numeric string coerces to the element type under the
+        # castable-constant rule; a non-numeric string is rejected.
         filter_expr = filter.Node.property("prop8").any() == "3"
+        assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
+
+        filter_expr = filter.Node.property("prop8").any() == "pometry"
         with pytest.raises(
             Exception,
-            match=r"Wrong type for property prop8: expected I64 but actual type is Str",
+            match=r"of type Str cannot be coerced to I64",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -800,12 +805,10 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
+        # Elementwise presence with a qualifier collapse: list elements are
+        # always present, so this matches every node carrying the property.
         filter_expr = filter.Node.property("prop8").any().is_some()
-        with pytest.raises(
-            Exception,
-            match=r"Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself \(without elem qualifiers\).",
-        ):
-            graph.filter(filter_expr).nodes.id
+        assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
 
     return check
 
@@ -816,14 +819,14 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
         filter_expr = filter.Node.property("prop8").all().len() > 0
         with pytest.raises(
             Exception,
-            match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
+            match=r"len\(\) is not valid on a scalar expression",
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop8").sum().any() > 0
         with pytest.raises(
             Exception,
-            match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
+            match=r"any\(\)/all\(\) require list or temporal values",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1138,18 +1141,18 @@ def test_filter_nodes_for_temporal_property_ne():
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() == 60
-        msg = "Wrong type for property prop1: expected List(I64) but actual type is I64"
+        msg = r"value I64\(60\) of type I64 cannot be coerced to List"
         with pytest.raises(
             Exception,
-            match=re.escape(msg),
+            match=msg,
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop1").temporal() == "pometry"
-        msg = "Wrong type for property prop1: expected List(I64) but actual type is Str"
+        msg = r"of type Str cannot be coerced to List"
         with pytest.raises(
             Exception,
-            match=re.escape(msg),
+            match=msg,
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1186,7 +1189,10 @@ def test_filter_nodes_two_windows_and():
 def test_filter_nodes_window_out_of_range_is_empty():
     def check(graph):
         expr = filter.Node.window(10, 20).property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1240,7 +1246,10 @@ def test_filter_nodes_before():
 def test_filter_nodes_after():
     def check(graph):
         expr = filter.Node.after(1).property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+            graph.filter(expr).nodes.id
 
         expr = filter.Node.after(1).property("prop6").temporal().last().sum() == 12
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
@@ -1255,7 +1264,10 @@ def test_filter_nodes_latest():
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
         expr = filter.Node.latest().property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1272,7 +1284,10 @@ def test_filter_nodes_snapshot_at():
         assert sorted(graph.filter(expr).nodes.id) == ["c"]
 
         expr = filter.Node.snapshot_at(1).property("prop6").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1287,7 +1302,10 @@ def test_filter_nodes_snapshot_latest():
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
         expr = filter.Node.snapshot_latest().property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+            graph.filter(expr).nodes.id
 
     return check
 
