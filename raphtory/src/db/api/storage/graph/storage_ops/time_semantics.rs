@@ -12,11 +12,14 @@ use raphtory_api::{
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::graph::{locked::LockedGraph, nodes::node_storage_ops::NodeStorageOps};
+use raphtory_storage::graph::locked::LockedGraph;
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 use storage::{
-    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    api::{
+        graph_props::{GraphPropEntryOps, GraphPropRefOps},
+        nodes::NodeRefOps,
+    },
     generic_time_ops::ALL_LAYERS,
 };
 
@@ -64,12 +67,12 @@ impl GraphTimeSemanticsOps for GraphStorage {
         self.nodes()
             .par_iter()
             .flat_map_iter(|node| {
-                node.node_prop_additions(&LayerIds::All)
+                node.node_additions(&LayerIds::All)
                     .range(start..end)
                     .first_t()
                     .into_iter()
                     .chain(
-                        node.node_edge_additions(ALL_LAYERS.clone())
+                        node.edge_additions(ALL_LAYERS.clone())
                             .range(start..end)
                             .first_t(),
                     )
@@ -81,12 +84,12 @@ impl GraphTimeSemanticsOps for GraphStorage {
         self.nodes()
             .par_iter()
             .flat_map_iter(|node| {
-                node.node_prop_additions(ALL_LAYERS.clone())
+                node.node_additions(ALL_LAYERS.clone())
                     .range(start..end)
                     .last_t()
                     .into_iter()
                     .chain(
-                        node.node_edge_additions(ALL_LAYERS.clone())
+                        node.edge_additions(ALL_LAYERS.clone())
                             .range(start..end)
                             .last_t(),
                     )

@@ -256,7 +256,7 @@ where
                         .iter_entries()
                         .filter(|entry| {
                             !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
-                                || entry.has_layer_inner(*id)
+                                || entry.has_layer(*id)
                         })
                         .count()
                 })
@@ -272,7 +272,7 @@ where
                             .iter_entries()
                             .filter(|entry| {
                                 !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
-                                    || ids.iter().any(|layer| entry.has_layer_inner(layer))
+                                    || ids.iter().any(|layer| entry.has_layer(layer))
                             })
                             .count()
                     })

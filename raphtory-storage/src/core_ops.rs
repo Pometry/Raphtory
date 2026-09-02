@@ -2,7 +2,7 @@ use crate::graph::{
     edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
     graph::GraphStorage,
     locked::LockedGraph,
-    nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
+    nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
 };
 use either::Either;
 use raphtory_api::{
@@ -21,7 +21,10 @@ use raphtory_api::{
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{iter, sync::Arc};
-use storage::resolver::GIDResolverOps;
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    resolver::GIDResolverOps,
+};
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -174,7 +177,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// Returns the external ID for a node
     #[inline]
     fn node_id(&self, v: VID) -> GID {
-        self.core_graph().core_node(v).id().into()
+        self.core_graph().core_node(v).gid().into()
     }
 
     /// Returns the string name for a node
@@ -221,7 +224,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// The property value if it exists.
     fn node_metadata(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
-        core_node_entry.constant_prop_layer(STATIC_GRAPH_LAYER_ID, id)
+        core_node_entry.c_prop(STATIC_GRAPH_LAYER_ID, id)
     }
 
     /// Gets the keys of metadata of a given node

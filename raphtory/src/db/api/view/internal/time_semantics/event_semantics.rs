@@ -19,11 +19,13 @@ use raphtory_api::core::{
 };
 use raphtory_itertools::FastMergeExt;
 use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    edges::edge_storage_ops::EdgeStorageOps, nodes::node_ref::NodeStorageRef,
 };
 use std::{ops::Range, sync::Arc};
-use storage::{api::edges::EdgeRefOps, EdgeEntryRef};
+use storage::{
+    api::{edges::EdgeRefOps, nodes::NodeRefOps},
+    EdgeEntryRef,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct EventSemantics;
@@ -212,7 +214,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         _view: G,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows(prop_ids)
+        node.t_prop_rows(None, prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -223,7 +225,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_range(Some(w), prop_ids)
+        node.t_prop_rows(Some(w), prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -242,7 +244,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         // nodes with explicit additions are always valid
         let layers = view.layer_ids();
         let has_history = !node
-            .node_prop_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
+            .node_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
             .is_empty();
         if has_history {
             return true;
@@ -269,7 +271,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter())
             .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
@@ -280,7 +282,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter_rev())
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
@@ -292,7 +294,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(move |p| p.iter_window(w.clone()))
             .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
@@ -304,7 +306,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(move |p| p.iter_window_rev(w.clone()))
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
@@ -315,7 +317,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last())
             .max_by_key(|(t, _)| *t)
     }
@@ -327,7 +329,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_window(w.clone()))
             .max_by_key(|(t, _)| *t)
     }
@@ -339,7 +341,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
     }
@@ -353,7 +355,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            node.tprop_iter_layers(view.layer_ids(), prop_id)
+            node.t_prop_iter_layers(view.layer_ids(), prop_id)
                 .filter_map(|prop| prop.last_window(w.start..t.next()))
                 .max_by_key(|(t, _)| *t)
         } else {
