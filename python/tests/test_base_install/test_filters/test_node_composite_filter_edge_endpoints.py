@@ -93,7 +93,9 @@ def _dangling_edges_by_combination(graph, op, join):
 @with_variants(_init)
 def test_and_filter_combinations_keep_edge_endpoints():
     def check(graph):
-        offenders, total = _dangling_edges_by_combination(graph, lambda a, b: a & b, " & ")
+        offenders, total = _dangling_edges_by_combination(
+            graph, lambda a, b: a & b, " & "
+        )
         assert not offenders, (
             f"{len(offenders)}/{total} and-combinations leaked edges to excluded nodes, e.g. "
             + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
@@ -105,7 +107,9 @@ def test_and_filter_combinations_keep_edge_endpoints():
 @with_variants(_init)
 def test_or_filter_combinations_keep_edge_endpoints():
     def check(graph):
-        offenders, total = _dangling_edges_by_combination(graph, lambda a, b: a | b, " | ")
+        offenders, total = _dangling_edges_by_combination(
+            graph, lambda a, b: a | b, " | "
+        )
         assert not offenders, (
             f"{len(offenders)}/{total} or-combinations leaked edges to excluded nodes, e.g. "
             + "; ".join(f"{k} -> {v}" for k, v in list(offenders.items())[:3])
