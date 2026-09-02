@@ -22,11 +22,13 @@ use raphtory_api::core::{
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
+    Direction,
 };
 use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps, nodes::node_ref::NodeStorageRef,
 };
 use std::{iter, ops::Range, sync::Arc};
+use raphtory_storage::core_ops::CoreGraphOps;
 use storage::{
     api::nodes::{NodeEntryOps, NodeRefOps},
     EdgeAdditions, EdgeDeletions, EdgeEntryRef,
@@ -138,24 +140,30 @@ fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
 }
 
 fn node_has_valid_edges<'graph, G: GraphView>(
-    history: NodeEdgeHistory<'graph, G>,
+    node: NodeStorageRef<'graph>,
+    view: G,
     t: EventTime,
 ) -> bool {
-    let mut deleted = AHashSet::new();
-    history
-        .range(EventTime::MIN..t.next())
-        .history_rev()
-        .any(|(_, e)| {
-            // scan backwards in time over filtered history and keep track of deletions
-            let eid = e.eid();
-            let layer = e.layer();
-            if e.is_deletion() {
-                deleted.insert((eid, layer));
-                false
-            } else {
-                !deleted.contains(&(eid, layer))
+    let gs = view.core_graph();
+    search_start_
+    node.edges_iter(view.layer_ids(), Direction::BOTH).any(|edge_ref| {
+        let edge = gs.core_edge(Either::Right(edge_ref));
+        if view.internal_edge_filtered() && !view.internal_filter_edge(edge.as_ref(), view.layer_ids()) {
+            return false
+        }
+        let neighbour = gs.core_node(edge_ref.remote());
+        let search_start_global = neighbour.node_deletions(STATIC_GRAPH_LAYER_ID).range(EventTime::MIN..t.next()).last().max(node.node_deletions(STATIC_GRAPH_LAYER_ID).range(EventTime::MIN..t.next()).last()).map_or(EventTime::MIN, |t| t.next());
+        if edge.updates_iter(view.layer_ids()).any(|(layer, additions, deletions)| {
+            let search_start = search_start_global.max(neighbour.node_deletions(layer).range(EventTime::MIN..t.next()).last().map_or(EventTime::MIN, |t| t.next()));
+            if !view.internal_filter_edge_layer(edge.as_ref(), layer) {
+                return true
             }
-        })
+            let Some(last_edge_addition) = additions.range(EventTime::MIN..t.next()).last() else {return true}
+        }) {
+            return false
+        }
+        true
+    })
 }
 
 fn merged_deletions<'a, G: GraphView + 'a>(
@@ -253,7 +261,15 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
     ) -> Option<EventTime> {
         let history = node.history(&view, view.layer_ids());
-        let prop_earliest = history.prop_history().range(EventTime::MIN..w.end).first();
+
+        let effective_start = history
+            .deletions_history()
+            .range(EventTime::MIN..w.start.next_t())
+            .last()
+            .map_or(EventTime::MIN, |t| t.next());
+        let history = history.range(effective_start..w.end);
+
+        let prop_earliest = history.prop_history().first();
 
         if let Some(prop_earliest) = prop_earliest {
             if prop_earliest <= w.start {
@@ -267,9 +283,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
         let edge_earliest = history
             .edge_history()
-            .range(EventTime::start(w.start.t().saturating_add(1))..w.end)
+            .range(w.start.next_t()..w.end)
             .first();
-        prop_earliest.into_iter().chain(edge_earliest).min()
+        node_earliest.into_iter().chain(edge_earliest).min()
     }
 
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(

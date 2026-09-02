@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::internal::{
-        EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView,
+        EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -336,6 +336,26 @@ pub trait FilteredNodeStorageOps<'a>:
                     view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                 }))
             }
+        }
+    }
+
+    /// Applies only the internal filters, no windowing, used for implementing time semantics
+    fn internal_filtered_edges_iter<G: GraphView + 'a>(
+        self,
+        view: &'a G,
+        layer_ids: &'a LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
+        let iter = self.edges_iter(layer_ids, dir);
+        match view.filter_state() {
+            FilterState::Neither | FilterState::Window => Either::Left(iter),
+            FilterState::Both
+            | FilterState::BothIndependent
+            | FilterState::Nodes
+            | FilterState::Edges => Either::Right(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.filter_edge_inner(gs.core_edge(Either::Right(*e)).as_ref())
+            })),
         }
     }
 
