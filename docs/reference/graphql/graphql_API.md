@@ -133,15 +133,6 @@ Returns::  Root namespace
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="queryroot.plugins">plugins</strong></td>
-<td valign="top"><a href="#queryplugin">QueryPlugin</a>!</td>
-<td>
-
-Returns a plugin.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="queryroot.receivegraph">receiveGraph</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
@@ -218,6 +209,57 @@ Optional edge-document template; defaults to the built-in template.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="queryroot.vectorisemissing">vectoriseMissing</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Index only the entities that are missing from an existing vector index, leaving what is
+already indexed untouched. Cheap enough to run routinely, and never destructive.
+
+Fails if the graph has no index yet, or if the template or model differs from the one the
+index was built with — `vectoriseGraph` is what covers those, by rebuilding.
+
+Returns:: bool
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">model</td>
+<td valign="top"><a href="#embeddingmodel">EmbeddingModel</a></td>
+<td>
+
+Embedding model; must match the one the index was built with.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td>
+
+Node-document template; must match the one the index was built with.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">edges</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td>
+
+Edge-document template; must match the one the index was built with.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="queryroot.vectorisedgraph">vectorisedGraph</strong></td>
 <td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
 <td>
@@ -251,15 +293,6 @@ Graph path relative to the root namespace.
 </tr>
 </thead>
 <tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="mutroot.plugins">plugins</strong></td>
-<td valign="top"><a href="#mutationplugin">MutationPlugin</a>!</td>
-<td>
-
-Returns a collection of mutation plugins.
-
-</td>
-</tr>
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
@@ -2443,33 +2476,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edge.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#edge">Edge</a>!</td>
-<td>
-
-Shrinks both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edge.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
@@ -3289,33 +3295,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edges.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#edges">Edges</a>!</td>
-<td>
-
-Shrinks both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edges.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
@@ -3480,16 +3459,36 @@ out-edges, source for in-edges), as a flat `PathFromNode`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edges.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="edges.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Returns the number of edges.
 
 Returns:
 int:
+The property keys this collection reports: the first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edges.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.page">page</strong></td>
@@ -4137,34 +4136,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Shrink both the start and end of the window. The new bounds are taken as the
-intersection with the current window; this never widens the view.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if before the current start.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if after the current end.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graph.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
@@ -4552,17 +4523,6 @@ Returns the graph schema.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graph.algorithms">algorithms</strong></td>
-<td valign="top"><a href="#graphalgorithmplugin">GraphAlgorithmPlugin</a>!</td>
-<td>
-
-Access registered graph algorithms (PageRank, shortest path, etc.) for this
-graph view. The set of available algorithms is defined by the plugin registry
-loaded at server startup.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graph.algorithm">algorithm</strong></td>
 <td valign="top"><a href="#algorithms">Algorithms</a>!</td>
 <td>
@@ -4587,44 +4547,6 @@ intersection of each selected node's neighbour set (undirected).
 <td>
 
 Node ids whose common neighbours you want. Returns an empty list if `selectedNodes` is empty or any id does not exist.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.findnodes">findNodes</strong></td>
-<td valign="top">[<a href="#node">Node</a>!]!</td>
-<td>
-
-The nodes whose latest property value matches every `(key, value)`
-entry in `propertiesDict`. Mirrors the local `Graph.find_nodes`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">propertiesDict</td>
-<td valign="top">[<a href="#propertyinput">PropertyInput</a>!]!</td>
-<td>
-
-`{key, value}` property entries every returned node must match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.findedges">findEdges</strong></td>
-<td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td>
-
-The edges whose latest property value matches every `(key, value)`
-entry in `propertiesDict`. Mirrors the local `Graph.find_edges`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">propertiesDict</td>
-<td valign="top">[<a href="#propertyinput">PropertyInput</a>!]!</td>
-<td>
-
-`{key, value}` property entries every returned edge must match.
 
 </td>
 </tr>
@@ -4696,66 +4618,6 @@ resulting graph view. Lets callers compose multiple view transforms
 Ordered list of view operations; each entry is a one-of variant applied to the running result.
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### GraphAlgorithmPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">weight</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -5024,6 +4886,27 @@ Get the number of entries contained in the history.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="history.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether an entry equal to the given time is present. With `eventId`,
+an entry must match both the timestamp and the event id; without it,
+any entry at the timestamp matches.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">timestamp</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">eventId</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="history.timestamps">timestamps</strong></td>
 <td valign="top"><a href="#historytimestamp">HistoryTimestamp</a>!</td>
 <td>
@@ -5253,6 +5136,29 @@ History object that provides access to event ids instead of `EventTime` entries.
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="historyeventid.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of event ids (one per entry).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historyeventid.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the given value is present among the event ids.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">value</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="historyeventid.list">list</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
 <td>
@@ -5368,6 +5274,29 @@ History object that provides access to timestamps (milliseconds since the Unix e
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of timestamps (one per entry).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="historytimestamp.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the given value is present among the timestamps.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">value</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="historytimestamp.list">list</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
 <td>
@@ -5482,6 +5411,30 @@ Provides access to the intervals between temporal entries of an object.
 </tr>
 </thead>
 <tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Get the number of intervals (one per consecutive pair of entries,
+so one less than the history's count; zero for an empty history).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="intervals.contains">contains</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Whether the given value is present among the intervals.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">value</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
 <tr>
 <td colspan="2" valign="top"><strong id="intervals.list">list</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
@@ -5853,19 +5806,19 @@ Returns the graph's last updated timestamp.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.nodecount">nodeCount</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the number of nodes in the graph.
+Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.edgecount">edgeCount</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the number of edges in the graph.
+Returns the number of edges in the graph, or null if the caller lacks unfiltered read.
 
 Returns:
 int:
@@ -5874,10 +5827,10 @@ int:
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.metadata">metadata</strong></td>
-<td valign="top">[<a href="#property">Property</a>!]!</td>
+<td valign="top">[<a href="#property">Property</a>!]</td>
 <td>
 
-Returns the metadata of the graph.
+Returns the metadata of the graph, or null if the caller lacks unfiltered read.
 
 Reads metadata without forcing a full graph load: from the
 in-memory cache if the graph is already loaded, otherwise directly
@@ -6741,26 +6694,6 @@ Optional layer name. If omitted, the default layer is used.
 </tbody>
 </table>
 
-### MutationPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="mutationplugin.noops">NoOps</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### Namespace
 
 A directory-like container for graphs and nested namespaces. Graphs are
@@ -6787,6 +6720,28 @@ Graphs directly inside this namespace (excludes graphs in nested
 namespaces). Filtered by the caller's permissions — only graphs the
 caller is allowed to see are returned.
 
+`filter` and `sort` are applied before the returned collection is paged,
+so `count` reflects the filtered total and `page` slices the sorted
+order.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Restricts which graphs are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top">[<a href="#metagraphsort">MetaGraphSort</a>!]</td>
+<td>
+
+Sort keys applied in order, before paging.
+
 </td>
 </tr>
 <tr>
@@ -6796,6 +6751,19 @@ caller is allowed to see are returned.
 
 Path of this namespace relative to the root namespace. Empty string for
 the root namespace itself.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespace.lastupdated">lastUpdated</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Most recent `lastUpdated` across the graphs directly inside this
+namespace, or null when it holds none.
+
+Computed here so a listing can show a folder's recency without the client
+walking every graph in every folder it displays.
 
 </td>
 </tr>
@@ -6816,6 +6784,26 @@ Parent namespace, or null at the root.
 Sub-namespaces directly inside this one (one level down, not recursive).
 Filtered by permissions.
 
+`filter` and `sort` are applied before the returned collection is paged.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#namespacefilter">NamespaceFilter</a></td>
+<td>
+
+Restricts which sub-namespaces are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top"><a href="#namespacesort">NamespaceSort</a></td>
+<td>
+
+Ordering applied before paging.
+
 </td>
 </tr>
 <tr>
@@ -6826,6 +6814,29 @@ Filtered by permissions.
 Everything in this namespace — sub-namespaces and graphs — as a single
 heterogeneous collection. Sub-namespaces are listed before graphs.
 Filtered by permissions.
+
+`filter` and `sort` are applied before the returned collection is paged.
+`sort` orders the graphs; sub-namespaces keep path order and stay ahead of
+them, so a client paging this collection walks folders before graphs
+regardless of how the graphs are ordered.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">filter</td>
+<td valign="top"><a href="#namespaceditemfilter">NamespacedItemFilter</a></td>
+<td>
+
+Restricts which items are listed.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">sort</td>
+<td valign="top">[<a href="#metagraphsort">MetaGraphSort</a>!]</td>
+<td>
+
+Sort keys for the graphs, applied in order before paging.
 
 </td>
 </tr>
@@ -7049,33 +7060,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nestededges.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
-<td>
-
-Shrinks both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nestededges.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
 <td>
@@ -7224,13 +7208,33 @@ updates from its respective layer.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nestededges.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="nestededges.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Number of source edge collections in this collection (one per source node).
+The property keys this collection reports: the first non-empty source's first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first non-empty source's first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nestededges.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nestededges.page">page</strong></td>
@@ -7636,33 +7640,6 @@ Create a view of the node including all events after the specified start time (e
 <td>
 
 Exclusive lower bound.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="node.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#node">Node</a>!</td>
-<td>
-
-Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
 
 </td>
 </tr>
@@ -8105,6 +8082,9 @@ The column names of this node state in order.
 <td>
 
 All rows of the node state keyed by node, with one entry per column.
+Unbounded: honours the same list guard as the other bulk endpoints, so
+`disable_lists` cannot be bypassed through node state. Use `page` when
+lists are disabled.
 
 </td>
 </tr>
@@ -9010,33 +8990,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td>
-
-Shrink both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodes.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
@@ -9207,13 +9160,33 @@ The number of edge updates incident to every node, in collection order.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="nodes.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Number of nodes in the current view.
+The property keys this collection reports: the first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodes.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.page">page</strong></td>
@@ -9507,33 +9480,6 @@ endpoints are disabled; use `page` for paginated access instead.
 </tbody>
 </table>
 
-### PagerankOutput
-
-PageRank score.
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="pagerankoutput.name">name</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pagerankoutput.rank">rank</strong></td>
-<td valign="top"><a href="#float">Float</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### PathFromGraph
 
 A nested collection of nodes anchored to a source collection — the result of
@@ -9752,33 +9698,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromgraph.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
-<td>
-
-Shrink both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -9883,13 +9802,33 @@ Returns a single history object combining the time entries of all nodes in this 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromgraph.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="pathfromgraph.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Number of source paths in this collection (one per source node).
+The property keys this collection reports: the first non-empty source's first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first non-empty source's first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromgraph.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.page">page</strong></td>
@@ -10429,33 +10368,6 @@ Exclusive lower bound.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnode.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td>
-
-Shrink both the start and end of the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">start</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new start (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">end</td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
@@ -10596,13 +10508,33 @@ The number of edge updates incident to every node in the path, in order.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnode.count">count</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
+<td colspan="2" valign="top"><strong id="pathfromnode.propertykeys">propertyKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
 Number of neighbour nodes reachable from the source in this view.
+The property keys this collection reports: the first member's registry
+view — the graph's registered property keys for the entity kind — or an
+empty list when there are no members. Mirrors the local collection
+`properties.keys()`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.metadatakeys">metadataKeys</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+The metadata keys this collection reports: the first member's registry
+view, or an empty list when there are no members. Mirrors the local
+collection `metadata.keys()`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="pathfromnode.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.page">page</strong></td>
@@ -11095,7 +11027,20 @@ The property's exact type, for type-directed decoding of `value`
 <tr>
 <td colspan="2" valign="top"><strong id="propertyschema.propertytype">propertyType</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+The type rendered as text — kept for existing consumers; prefer `dtype`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="propertyschema.dtype">dtype</strong></td>
+<td valign="top"><a href="#propertytype">PropertyType</a>!</td>
+<td>
+
+The structured property type.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propertyschema.variants">variants</strong></td>
@@ -11158,51 +11103,6 @@ booleans as booleans, etc.
 The value's exact type, for type-directed decoding of `value`.
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### QueryPlugin
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="queryplugin.noops">NoOps</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### ShortestPathOutput
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="shortestpathoutput.target">target</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="shortestpathoutput.nodes">nodes</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -12495,15 +12395,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -12687,15 +12578,6 @@ View before a specified time (end exclusive).
 <td>
 
 View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -13173,7 +13055,7 @@ Whether a prefix match within the distance also passes.
 
 ### GqlFilter
 
-A general filter expression — a node filter (`nodes`), an edge filter (`edges`), a graph/view
+A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
 filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
 (which may mix kinds). Used where an operation accepts any filter, such as scoping a component
 walk.
@@ -13188,17 +13070,16 @@ walk.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.nodes">nodes</strong></td>
+<td colspan="2" valign="top"><strong id="gqlfilter.node">node</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td>
 
 Filter by node properties, fields, or temporal state.
-(Persisted filters may use the legacy `node` key.)
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.edges">edges</strong></td>
+<td colspan="2" valign="top"><strong id="gqlfilter.edge">edge</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
 <td>
 
@@ -13208,7 +13089,7 @@ Filter by edge properties, source/destination, or temporal state.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.explodededges">explodedEdges</strong></td>
+<td colspan="2" valign="top"><strong id="gqlfilter.explodededge">explodedEdge</strong></td>
 <td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
 <td>
 
@@ -13241,7 +13122,7 @@ All sub-filters must pass (intersection).
 <td>
 
 At least one sub-filter must pass (union).
-Cross-type sub-filters (e.g. `nodes` and `edges` together) produce a
+Cross-type sub-filters (e.g. `node` and `edge` together) produce a
 proper graph union: a node is visible if it matches the node filter or
 has a visible edge, and an edge is visible if it matches the edge
 filter or both its endpoints are visible.
@@ -13680,15 +13561,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -13812,6 +13684,288 @@ Destination node id (string or non-negative integer).
 </tbody>
 </table>
 
+### MetaGraphCondition
+
+One condition on a graph, testing either a built-in attribute or a metadata
+key. Set exactly one of `field` / `metadataKey`, as for `MetaGraphSort`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.field">field</strong></td>
+<td valign="top"><a href="#metagraphfield">MetaGraphField</a></td>
+<td>
+
+Built-in attribute to test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.metadatakey">metadataKey</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Metadata key to test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.where">where</strong></td>
+<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
+<td>
+
+Condition applied to the value, using the same grammar as property
+filters elsewhere in the schema. Names, paths and metadata strings are
+tested as strings; counts and timestamps as integers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.matchesifabsent">matchesIfAbsent</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Overrides the result when the graph has no value for the target.
+
+Set this when absence should read as a default rather than a non-match —
+e.g. treating a graph with no `archived` key as not archived, so
+`archived == false` still selects it. Applies to `field` too, since a
+graph may have no name.
+
+Left unset, the condition itself decides, which is what you want for
+conditions already about absence (`isNone`, `ne`).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphcondition.casesensitive">caseSensitive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Compare strings case-sensitively (defaults to false, matching
+`NamespaceFilter`). Only affects string comparisons: numbers, booleans
+and the string-encoded temporal/decimal values are unaffected.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphFilter
+
+Narrows a namespace's graph listing.
+
+Composes the same way as the graph/node/edge filters: leaves test one
+attribute or metadata key, and `and` / `or` / `not` combine them.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.condition">condition</strong></td>
+<td valign="top"><a href="#metagraphcondition">MetaGraphCondition</a></td>
+<td>
+
+Condition on a built-in attribute or a metadata key.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.and">and</strong></td>
+<td valign="top">[<a href="#metagraphfilter">MetaGraphFilter</a>!]</td>
+<td>
+
+Logical AND over nested filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.or">or</strong></td>
+<td valign="top">[<a href="#metagraphfilter">MetaGraphFilter</a>!]</td>
+<td>
+
+Logical OR over nested filters.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphfilter.not">not</strong></td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Logical NOT over a nested filter.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### MetaGraphSort
+
+One sort key for a graph listing. Set exactly one of `field` or
+`metadataKey`. Keys are applied in order, each breaking ties left by the
+previous one; graphs missing the sort value sort last.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.field">field</strong></td>
+<td valign="top"><a href="#metagraphfield">MetaGraphField</a></td>
+<td>
+
+Sort on a built-in attribute.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.metadatakey">metadataKey</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Sort on the value of this metadata key.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.valueorder">valueOrder</strong></td>
+<td valign="top">[<a href="#value">Value</a>!]</td>
+<td>
+
+Explicit ordering for the values of `metadataKey`, lowest first. Values
+not listed sort after every listed one, among themselves by their natural
+order. Use for keys holding a small vocabulary whose meaningful order
+isn't alphabetical.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="metagraphsort.reverse">reverse</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Reverse this key's direction (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespaceFilter
+
+Narrows a namespace's sub-namespace listing. Sub-namespaces carry no metadata
+of their own, so only their path can be matched.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacefilter.pathcontains">pathContains</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Substring match against the namespace's path.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacefilter.casesensitive">caseSensitive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Match `pathContains` case-sensitively (defaults to false).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespaceSort
+
+One sort key for a sub-namespace listing.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespacesort.reverse">reverse</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Reverse the path ordering (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamespacedItemFilter
+
+Narrows a namespace's heterogeneous `items` listing. Each half applies to the
+matching kind of item; an item whose kind has no filter is kept. To list only
+one kind, query `graphs` or `children` instead.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namespaceditemfilter.graphs">graphs</strong></td>
+<td valign="top"><a href="#metagraphfilter">MetaGraphFilter</a></td>
+<td>
+
+Applied to the graphs in the collection.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namespaceditemfilter.namespaces">namespaces</strong></td>
+<td valign="top"><a href="#namespacefilter">NamespaceFilter</a></td>
+<td>
+
+Applied to the sub-namespaces in the collection.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### NodeAddition
 
 <table>
@@ -13875,8 +14029,8 @@ Layer.
 
 Boolean expression over a built-in node field (ID, name, or type).
 
-This is used by `NodeFieldFilterNew.where_` when filtering a specific
-`NodeField`.
+This is used by `NodeFieldWhere.where_` when filtering a specific
+built-in field.
 
 Supports comparisons, string predicates, and set membership.
 (Presence checks and aggregations are handled via property filters instead.)
@@ -14010,14 +14164,11 @@ Negated set membership.
 </tbody>
 </table>
 
-### NodeFieldFilterNew
+### NodeFieldWhere
 
-Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
-
-Example (GraphQL):
-```graphql
-{ Node: { field: NodeName, where: { Contains: "ali" } } }
-```
+A condition on one specific built-in field — the payload of the per-field
+filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
+`{ nodeType: { where: ... } }`).
 
 <table>
 <thead>
@@ -14029,20 +14180,11 @@ Example (GraphQL):
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilternew.field">field</strong></td>
-<td valign="top"><a href="#nodefield">NodeField</a>!</td>
-<td>
-
-Which built-in field to filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldfilternew.where">where</strong></td>
+<td colspan="2" valign="top"><strong id="nodefieldwhere.where">where</strong></td>
 <td valign="top"><a href="#nodefieldcondition">NodeFieldCondition</a>!</td>
 <td>
 
-Condition applied to the selected field.
+Condition applied to the field.
 
 Exposed as `where` in GraphQL.
 
@@ -14058,7 +14200,7 @@ GraphQL input type for filtering nodes.
 `NodeFilter` represents a composable boolean expression evaluated
 against nodes in a graph. Filters can target:
 
-- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- built-in node fields (`Id` / `Name` / `NodeType`),
 - node properties and metadata,
 - temporal properties,
 - temporal scope (windows, snapshots, latest),
@@ -14078,11 +14220,29 @@ Filters can be combined recursively using logical operators
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.node">node</strong></td>
-<td valign="top"><a href="#nodefieldfilternew">NodeFieldFilterNew</a></td>
+<td colspan="2" valign="top"><strong id="nodefilter.id">id</strong></td>
+<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
 <td>
 
-Filters a built-in node field (ID, name, or type).
+Filters the node id: `{ id: { where: ... } }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.name">name</strong></td>
+<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td>
+
+Filters the node name: `{ name: { where: ... } }`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.nodetype">nodeType</strong></td>
+<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td>
+
+Filters the node type: `{ nodeType: { where: ... } }`.
 
 </td>
 </tr>
@@ -14518,15 +14678,6 @@ View after a specified time (start exclusive).
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>
@@ -14710,15 +14861,6 @@ View before a specified time (end exclusive).
 <td>
 
 View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -14930,15 +15072,6 @@ View before a specified time (end exclusive).
 <td>
 
 View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkwindow">shrinkWindow</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -15594,6 +15727,32 @@ BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.var">var</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A named placeholder, resolved before the filter is evaluated.
+
+Lets a filter be written once with per-request values left open — an authorization policy
+binds them per caller. A `Var` must be substituted before the filter reaches the engine;
+converting one to a `Prop` is an error rather than a silent default.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.claim">claim</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A named claim, read straight from the caller's token and substituted before evaluation.
+
+Like [`Value::Var`] but sourced directly from a token claim rather than a binding, so no
+spec is needed. Must be substituted before the filter reaches the engine; converting one to
+a `Prop` is an error rather than a silent default.
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -15843,7 +16002,11 @@ Event.
 </tbody>
 </table>
 
-### NodeField
+### MetaGraphField
+
+A graph's built-in attributes. Both filtering and sorting address them
+through this enum, so a client that knows how a column maps onto a field can
+drive either from one declaration.
 
 <table>
 <thead>
@@ -15854,32 +16017,50 @@ Event.
 </thead>
 <tbody>
 <tr>
-<td valign="top"><strong>NODE_ID</strong></td>
+<td valign="top"><strong>NAME</strong></td>
 <td>
 
-Node ID field.
-
-Represents the graph’s node identifier (numeric or string-backed in the API).
+The graph's name.
 
 </td>
 </tr>
 <tr>
-<td valign="top"><strong>NODE_NAME</strong></td>
+<td valign="top"><strong>PATH</strong></td>
 <td>
 
-Node name field.
-
-Represents the human-readable node name (string).
+The graph's full path.
 
 </td>
 </tr>
 <tr>
-<td valign="top"><strong>NODE_TYPE</strong></td>
+<td valign="top"><strong>CREATED</strong></td>
 <td>
 
-Node type field.
+Creation timestamp.
 
-Represents the optional node type assigned at node creation (string).
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LAST_UPDATED</strong></td>
+<td>
+
+Last-updated timestamp.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>NODE_COUNT</strong></td>
+<td>
+
+Number of nodes.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>EDGE_COUNT</strong></td>
+<td>
+
+Number of edges.
 
 </td>
 </tr>

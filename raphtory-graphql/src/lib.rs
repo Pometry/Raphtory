@@ -1,19 +1,21 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access, Roles, TokenClaimValues},
+    auth::{
+        Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
+    },
     model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
+
 use crate::{data::InsertionError, paths::PathValidationError};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
-mod auth;
+pub mod auth;
 pub mod auth_policy;
 
-pub use auth::{KeyResolver, StaticKeyResolver};
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -32,6 +34,7 @@ pub mod url_encode;
 // no doctests in python as the docstrings are python not rust format
 pub mod python;
 
+pub mod plugin;
 #[cfg(test)]
 pub(crate) mod test_support;
 
@@ -2271,6 +2274,118 @@ mod graphql_test {
             );
 
             assert!(!work_dir.path().join("foo").exists());
+        }
+    }
+
+    /// A policy that cannot answer must fail the listing, not shorten it: an omitted row
+    /// and a row the caller has no grant on are indistinguishable once the response is
+    /// returned, so a shortened list silently misreports what the caller may see.
+    #[tokio::test]
+    async fn test_policy_fault_fails_listing_rather_than_emptying_it() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g1 = Graph::new();
+            let g1: MaterializedGraph = g1.into();
+            let g2 = Graph::new();
+            let g2: MaterializedGraph = g2.into();
+
+            // Sanity: with both graphs resolving, the listing carries both.
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_graph("g_ok", GraphPermission::Read { filter: None })
+                    .with_graph("g_bad", GraphPermission::Read { filter: None }),
+            );
+            let setup = setup_with_policy(
+                &[("g_ok", g1.clone()), ("g_bad", g2.clone())],
+                work_dir.path(),
+                policy,
+            )
+            .await;
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { root { graphs { list { path } } } }"#,
+            )
+            .await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "root": { "graphs": { "list": [ { "path": "g_bad" }, { "path": "g_ok" } ] } } }),
+            );
+        }
+        {
+            // The same listing with one graph faulting must error, not return a shorter list.
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_graph("g_ok", GraphPermission::Read { filter: None })
+                    .with_fault("g_bad"),
+            );
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { root { graphs { list { path } } } }"#,
+            )
+            .await;
+            assert!(
+                !res.errors.is_empty(),
+                "a fault must fail the listing, got {:?}",
+                res.data,
+            );
+            assert!(
+                res.errors[0].message.contains("test fault"),
+                "the fault, not a denial, must surface: {}",
+                res.errors[0].message,
+            );
+        }
+    }
+
+    /// A fault while resolving a single graph must leave it as hidden as a denial does:
+    /// `graph()` resolves to null with no error, so a caller can never distinguish
+    /// "the server broke" from "no such graph" — only the log tells the operator.
+    #[tokio::test]
+    async fn test_policy_fault_on_graph_lookup_stays_hidden() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(FakePolicy::default().with_fault("g"));
+            let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
+            assert_eq!(
+                res.errors,
+                vec![],
+                "must not disclose the fault to the caller"
+            );
+            assert_eq!(res.data.into_json().unwrap(), json!({ "graph": null }));
+        }
+    }
+
+    /// The write gate reports a fault as an error carrying the fault's message, not as a
+    /// permission denial: a caller refused because the server is broken should not be told
+    /// they lack access.
+    #[tokio::test]
+    async fn test_policy_fault_on_write_gate_reports_the_fault() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(FakePolicy::default().with_fault("g"));
+            let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
+
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+            )
+            .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res.data);
+            assert!(
+                res.errors[0].message.contains("test fault"),
+                "the fault, not a denial, must surface: {}",
+                res.errors[0].message,
+            );
         }
     }
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=0.13,<0.14"]
+requires = ["maturin>=1.9.4"]
 build-backend = "maturin"
 
 [project]
@@ -13,5 +13,5 @@ classifiers = [
 dynamic = ["version"]
 
 [tool.maturin]
-features = ["extension-module"]
 python-source = "python"
+module-name = "raphtory._raphtory_custom"

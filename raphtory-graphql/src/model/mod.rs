@@ -1,33 +1,27 @@
 use crate::{
-    auth::ContextValidation,
+    auth::{ContextValidation, Roles},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{
         gql_error_with_code, parent_namespace, require_graph_write, Data, GqlGraphType,
         PermissionError, CODE_ACCESS_DENIED,
     },
-    model::{
-        graph::{
-            collection::GqlCollection,
-            graph::GqlGraph,
-            meta_graph::MetaGraph,
-            mutable_graph::GqlMutableGraph,
-            namespace::{is_namespace_visible, Namespace},
-            namespaced_item::NamespacedItem,
-            node_id::GqlNodeId,
-        },
-        plugins::{
-            mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
-            PermissionsEntrypointQuery,
-        },
+    model::graph::{
+        collection::GqlCollection,
+        graph::GqlGraph,
+        meta_graph::MetaGraph,
+        mutable_graph::GqlMutableGraph,
+        namespace::{is_namespace_visible, Namespace},
+        namespaced_item::NamespacedItem,
+        node_id::GqlNodeId,
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::{blocking_compute, blocking_write},
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
-use async_graphql::Context;
+use async_graphql::{dynamic::SchemaBuilder, Context};
 use dynamic_graphql::{
-    App, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject, ResolvedObjectFields,
-    Result, Upload,
+    internal::Registry, App, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
+    ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -46,10 +40,13 @@ use raphtory::{
 };
 use raphtory_api::core::entities::properties::prop::PropType;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use tracing::warn;
+use tracing::{error, warn};
 
 #[cfg(feature = "vectors")]
-use crate::model::graph::vectorised_graph::VectorQuery;
+pub use crate::model::graph::vectorised_graph::VectorQuery;
+use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
+
+pub use algorithms::GqlAlgorithms;
 
 pub(crate) mod algorithms;
 pub mod graph;
@@ -128,12 +125,26 @@ fn require_namespace_write(
     new_path: &str,
     operation: &str,
 ) -> Result<()> {
+    if ctx.is_read_only() {
+        return Err(gql_error_with_code(
+            "Access denied: this context may not write",
+            CODE_ACCESS_DENIED,
+        ));
+    }
     match policy {
         None => ctx
             .require_jwt_write_access()
             .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
-            if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
+            let ns_perm = p.namespace_permissions(ctx, ns_path).map_err(|e| {
+                error!(
+                    namespace = ns_path,
+                    error = %e,
+                    "Authorization policy could not resolve namespace permissions"
+                );
+                gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)
+            })?;
+            if ns_perm < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
                     namespace: ns_path.to_string(),
                     graph: new_path.to_string(),
@@ -205,17 +216,26 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
 
         if let Some(policy) = &data.auth_policy {
-            if let Err(_) = policy.graph_permissions(ctx, &path) {
-                let roles = ctx
-                    .data::<crate::auth::Roles>()
-                    .map(|r| r.0.as_slice())
-                    .unwrap_or(&[]);
-                warn!(
-                    roles = ?roles,
-                    graph = path.as_str(),
-                    "Access denied by auth policy"
-                );
-                return Ok(None);
+            match policy.graph_permissions(ctx, &path) {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    // Logged as `None` when the claims are absent rather than as an empty
+                    // list, which would read as "denied, caller had no roles".
+                    warn!(
+                        roles = ?Roles::from_context(ctx).ok().map(Roles::as_slice),
+                        graph = path.as_str(),
+                        "Access denied by auth policy"
+                    );
+                    return Ok(None);
+                }
+                Err(e) => {
+                    error!(
+                        graph = path.as_str(),
+                        error = %e,
+                        "Authorization policy could not resolve graph permissions"
+                    );
+                    return Ok(None);
+                }
             }
         }
 
@@ -244,7 +264,7 @@ impl QueryRoot {
     /// Returns all namespaces using recursive search
     ///
     /// Returns::  List of namespaces on root
-    pub async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
+    pub async fn namespaces<'a>(ctx: &Context<'a>) -> Result<GqlCollection<Namespace>> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir_read().await);
         let all: Vec<Namespace> = blocking_compute(move || {
@@ -257,12 +277,16 @@ impl QueryRoot {
                 .collect()
         })
         .await;
-        // Filter to namespaces the caller may see.
-        let visible = all
-            .into_iter()
-            .filter(|n| is_namespace_visible(ctx, &data.auth_policy, n))
-            .collect();
-        GqlCollection::new(visible)
+        // Filter to namespaces the caller may see. A policy that cannot answer fails the
+        // listing rather than shortening it: an omitted entry is indistinguishable from one
+        // the caller simply has no grant on.
+        let mut visible = Vec::new();
+        for n in all {
+            if is_namespace_visible(ctx, &data.auth_policy, &n)? {
+                visible.push(n);
+            }
+        }
+        Ok(GqlCollection::new(visible.into()))
     }
 
     /// Returns a specific namespace at a given path
@@ -279,11 +303,6 @@ impl QueryRoot {
     pub async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::root(data.work_dir_read().await)
-    }
-
-    /// Returns a plugin.
-    pub async fn plugins<'a>() -> QueryPlugin {
-        QueryPlugin
     }
 
     /// Encodes graph and returns as string.
@@ -308,18 +327,13 @@ impl QueryRoot {
 }
 
 #[derive(MutationRoot)]
-pub(crate) struct MutRoot;
+pub struct MutRoot;
 
 #[derive(Mutation)]
-pub(crate) struct Mut(MutRoot);
+pub struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Returns a collection of mutation plugins.
-    pub async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
-        MutationPlugin
-    }
-
     /// Delete graph from a path on the server.
     pub async fn delete_graph<'a>(
         ctx: &Context<'a>,
@@ -769,6 +783,18 @@ pub struct App(
     MutRoot,
     #[cfg(feature = "vectors")] VectorQuery<'static>,
     Mut,
-    PermissionsEntrypointMut,
-    PermissionsEntrypointQuery,
+    Plugins,
 );
+
+impl App {
+    pub fn create_schema_with_plugins(
+        plugins: impl IntoIterator<Item: AsRef<dyn RegisterPlugin>>,
+    ) -> SchemaBuilder {
+        let mut registry = Registry::new();
+        registry = registry.register::<Self>();
+        for plugin in plugins {
+            registry = plugin.as_ref().register(registry);
+        }
+        registry.create_schema()
+    }
+}

@@ -142,6 +142,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn layer_count(&self, layer_id: LayerId) -> u32;
 
+    fn get_metadata_immut(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
+
     fn check_metadata_immut<P: AsPropRef>(
         &self,
         pos: LocalPOS,

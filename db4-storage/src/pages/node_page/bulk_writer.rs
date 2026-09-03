@@ -139,7 +139,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment>, ES: NodeSegmentOps> Drop
 {
     fn drop(&mut self) {
         for (layer_id, count) in self.layers.iter().enumerate() {
-            self.nw.l_counter.increment_by(LayerId(layer_id), *count);
+            self.nw.graph_stats.increment_by(LayerId(layer_id), *count);
         }
     }
 }

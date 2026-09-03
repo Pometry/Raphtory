@@ -1,13 +1,15 @@
 use std::{
     io::Write,
     process::{Command, Stdio},
-    time::Duration,
 };
 
 use raphtory_graphql::config::{app_config::AppConfig, cache_config::DEFAULT_CACHE_CAPACITY};
 use serde::Deserialize;
 use serde_json::Value;
 use tempfile::Builder;
+
+// link in the auth plugin
+extern crate auth;
 
 fn server_bin() -> std::path::PathBuf {
     std::env::var_os("NEXTEST_BIN_EXE_raphtory-server")
@@ -18,14 +20,7 @@ fn server_bin() -> std::path::PathBuf {
         )
 }
 
-fn get_app_config(stdout: String) -> AppConfig {
-    let server_config_serialized = stdout
-        .lines()
-        .find(|line| line.contains("Server configurations:"))
-        .expect("failed to find app config in CLI output")
-        .split_once("Server configurations: ")
-        .expect("failed to parse app config from CLI output")
-        .1;
+fn get_app_config(server_config_serialized: String) -> AppConfig {
     let json_start = server_config_serialized.find('{').expect("no JSON found");
     let json_end = server_config_serialized
         .rfind('}')
@@ -35,8 +30,7 @@ fn get_app_config(stdout: String) -> AppConfig {
 
     let server_config_json: Value =
         serde_json::from_str(json_str).expect("failed to parse config JSON");
-    let config = &server_config_json["config"];
-    AppConfig::deserialize(config).expect("failed to deserialize AppConfig")
+    AppConfig::deserialize(&server_config_json).expect("failed to deserialize AppConfig")
 }
 
 fn config_file() -> tempfile::NamedTempFile {
@@ -57,15 +51,13 @@ fn test_cli_parsing_no_arguments() {
     let server_bin = server_bin();
 
     let mut child = Command::new(server_bin)
-        .args(["server", "--log-level", "debug"])
+        .args(["server", "--log-level", "debug", "--print-config"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .env_remove("RAPHTORY_CACHE_CAPACITY")
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(5));
-    child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
@@ -89,6 +81,7 @@ fn test_cli_parsing_with_config_file() {
             "debug",
             "--config-file",
             config_file.path().to_str().unwrap(),
+            "--print-config",
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -96,8 +89,6 @@ fn test_cli_parsing_with_config_file() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(5));
-    child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
@@ -121,6 +112,7 @@ fn test_cli_parsing_with_env_variable() {
             "debug",
             "--config-file",
             config_file.path().to_str().unwrap(),
+            "--print-config",
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -128,8 +120,6 @@ fn test_cli_parsing_with_env_variable() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(5));
-    child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
@@ -155,6 +145,7 @@ fn test_cli_parsing_with_server_argument() {
             config_file.path().to_str().unwrap(),
             "--cache-capacity",
             "789",
+            "--print-config",
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -162,8 +153,6 @@ fn test_cli_parsing_with_server_argument() {
         .spawn()
         .expect("failed to spawn raphtory-server CLI");
 
-    std::thread::sleep(Duration::from_secs(5));
-    child.kill().expect("failed to kill raphtory-server CLI");
     let output = child
         .wait_with_output()
         .expect("failed to collect raphtory-server CLI output");
