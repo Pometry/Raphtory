@@ -25,6 +25,21 @@ export async function getYAxisRows(page: Page): Promise<YAxisRow[]> {
 }
 
 /**
+ * Screen-x of the right edge of the y-axis label strip — the rightmost
+ * extent of any `#yaxis-nodes text` label. The visible plot area starts at
+ * or after this x (labels are padded well inside the strip, see
+ * Y_AXIS_LEFT_PADDING in useDimensions.ts), so anything drawn to the left of
+ * it is unambiguously off the visible plot, in the overscan margin (#966).
+ */
+export async function getYAxisLabelStripRightEdge(page: Page): Promise<number> {
+    await page.locator('#yaxis-nodes text').first().waitFor();
+    const rights = await page
+        .locator('#yaxis-nodes text')
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right));
+    return Math.max(...rights);
+}
+
+/**
  * Returns the name of the y-axis row whose centre Y is closest to `y`.
  * Row height is inferred from the gaps between consecutive labels, so this
  * works even when rows are unevenly spaced due to zooming or pinning.
@@ -73,18 +88,13 @@ export async function pinYAxisNode(page: Page, name: string): Promise<void> {
  * equal to `weight`. Selected rows render at 500, unselected at 400
  * (see YAxis.tsx).
  */
-async function getYAxisNodesByFontWeight(
-    page: Page,
-    weight: '400' | '500',
-): Promise<string[]> {
-    return page
-        .locator(`#yaxis-nodes > g text[font-weight="${weight}"]`)
-        .evaluateAll((els) =>
-            els.flatMap((el) => {
-                const name = el.textContent?.trim() ?? '';
-                return name ? [name] : [];
-            }),
-        );
+async function getYAxisNodesByFontWeight(page: Page, weight: '400' | '500'): Promise<string[]> {
+    return page.locator(`#yaxis-nodes > g text[font-weight="${weight}"]`).evaluateAll((els) =>
+        els.flatMap((el) => {
+            const name = el.textContent?.trim() ?? '';
+            return name ? [name] : [];
+        }),
+    );
 }
 
 /** Y-axis rows whose label is rendered bold (font-weight 500 = selected). */
@@ -115,18 +125,25 @@ export async function showEdges(page: Page): Promise<void> {
 }
 
 /**
- * Clicks the toolbar "Turn filter on" button. With nodes selected, enabling
- * the filter restricts the y-axis to the selected nodes plus their direct
- * neighbours, and edges/props to those involving the visible nodes (see
- * useTemporalData.ts). Default state is off.
+ * Clicks the toolbar "Turn filter on" button and waits for the toggle to flip
+ * to its on-state. With nodes selected, enabling the filter restricts the
+ * y-axis to the selected nodes plus their direct neighbours, and edges/props to
+ * those involving the visible nodes. Default state is off.
  */
 export async function turnFilterOn(page: Page): Promise<void> {
+    await expect(page.getByRole('button', { name: 'Turn filter on' })).toBeVisible();
     await page.getByRole('button', { name: 'Turn filter on' }).click();
+    await expect(page.getByRole('button', { name: 'Turn filter off' })).toBeVisible();
 }
 
-/** Clicks the toolbar "Turn filter off" button. Only present while the filter is on. */
+/**
+ * Clicks the toolbar "Turn filter off" button and waits for the toggle to flip
+ * back to its off-state. Only present while the filter is on.
+ */
 export async function turnFilterOff(page: Page): Promise<void> {
+    await expect(page.getByRole('button', { name: 'Turn filter off' })).toBeVisible();
     await page.getByRole('button', { name: 'Turn filter off' }).click();
+    await expect(page.getByRole('button', { name: 'Turn filter on' })).toBeVisible();
 }
 
 // ── Temporal view data reader ─────────────────────────────────────────
@@ -170,8 +187,7 @@ interface XTick {
     screenX: number; // page-coordinate X of the tick line
 }
 
-const UPPER_X_AXIS_TICK_SELECTOR =
-    '#temporal-view svg > g:first-child > g:first-child .tick';
+const UPPER_X_AXIS_TICK_SELECTOR = '#temporal-view svg > g:first-child > g:first-child .tick';
 
 interface XAxisTick {
     time: number | null;
@@ -222,9 +238,7 @@ function visibleTicksOf(ticks: XAxisTick[]): XAxisTickLabel[] {
  * some mark-only ticks) are omitted, since the user sees nothing there. A thin
  * projection of `getXAxisTicks`, so it shares the same single DOM read.
  */
-export async function getVisibleXAxisTicks(
-    page: Page,
-): Promise<XAxisTickLabel[]> {
+export async function getVisibleXAxisTicks(page: Page): Promise<XAxisTickLabel[]> {
     return visibleTicksOf(await getXAxisTicks(page));
 }
 
@@ -237,9 +251,7 @@ export async function getVisibleXAxisTicks(
 export function labelAtX(ticks: XAxisTickLabel[], screenX: number): string {
     if (ticks.length === 0) return '';
     return ticks.reduce((closest, tick) =>
-        Math.abs(tick.screenX - screenX) < Math.abs(closest.screenX - screenX)
-            ? tick
-            : closest,
+        Math.abs(tick.screenX - screenX) < Math.abs(closest.screenX - screenX) ? tick : closest,
     ).label;
 }
 
@@ -297,28 +309,26 @@ interface RawEdge {
     ariaLabel: string;
 }
 
-async function readRawEdges(page: Page): Promise<RawEdge[]> {
-    return page
-        .locator('#temporal-view g:has(> defs):has(> circle)')
-        .evaluateAll((groups) =>
-            groups.flatMap((group) => {
-                const circles = group.querySelectorAll('circle');
-                const n = circles.length;
-                if (n < 2) return [];
-                // Hover/selection prepends highlight circles; the last
-                // two are always the solid src then dst endpoints.
-                const srcRect = circles[n - 2].getBoundingClientRect();
-                const dstRect = circles[n - 1].getBoundingClientRect();
-                return [
-                    {
-                        screenX: srcRect.left + srcRect.width / 2,
-                        srcY: srcRect.top + srcRect.height / 2,
-                        dstY: dstRect.top + dstRect.height / 2,
-                        ariaLabel: group.getAttribute('aria-label') ?? '',
-                    },
-                ];
-            }),
-        );
+export async function readRawEdges(page: Page): Promise<RawEdge[]> {
+    return page.locator('#temporal-view g:has(> defs):has(> circle)').evaluateAll((groups) =>
+        groups.flatMap((group) => {
+            const circles = group.querySelectorAll('circle');
+            const n = circles.length;
+            if (n < 2) return [];
+            // Hover/selection prepends highlight circles; the last
+            // two are always the solid src then dst endpoints.
+            const srcRect = circles[n - 2].getBoundingClientRect();
+            const dstRect = circles[n - 1].getBoundingClientRect();
+            return [
+                {
+                    screenX: srcRect.left + srcRect.width / 2,
+                    srcY: srcRect.top + srcRect.height / 2,
+                    dstY: dstRect.top + dstRect.height / 2,
+                    ariaLabel: group.getAttribute('aria-label') ?? '',
+                },
+            ];
+        }),
+    );
 }
 
 /**
@@ -358,29 +368,27 @@ interface RawProp {
     ariaLabel: string;
 }
 
-async function readRawProps(page: Page): Promise<RawProp[]> {
+export async function readRawProps(page: Page): Promise<RawProp[]> {
     // Prop event groups have a direct child <circle cx="…">: prop-event
     // circles always carry an explicit cx (= xScale(time)), whereas edge
     // and y-axis circles only carry cy. Some groups render without the
     // sensor <rect> (e.g. nodes with no edges); we still surface them so
     // the caller can see every event circle that was drawn.
-    return page
-        .locator('#temporal-view g:has(> circle[cx])')
-        .evaluateAll((groups) =>
-            groups.flatMap((group) => {
-                const circle = group.querySelector(':scope > circle[cx]');
-                if (!circle) return [];
-                const box = circle.getBoundingClientRect();
-                const rect = group.querySelector(':scope > rect');
-                return [
-                    {
-                        screenX: box.left + box.width / 2,
-                        screenY: box.top + box.height / 2,
-                        ariaLabel: rect?.getAttribute('aria-label') ?? '',
-                    },
-                ];
-            }),
-        );
+    return page.locator('#temporal-view g:has(> circle[cx])').evaluateAll((groups) =>
+        groups.flatMap((group) => {
+            const circle = group.querySelector(':scope > circle[cx]');
+            if (!circle) return [];
+            const box = circle.getBoundingClientRect();
+            const rect = group.querySelector(':scope > rect');
+            return [
+                {
+                    screenX: box.left + box.width / 2,
+                    screenY: box.top + box.height / 2,
+                    ariaLabel: rect?.getAttribute('aria-label') ?? '',
+                },
+            ];
+        }),
+    );
 }
 
 /**
@@ -400,9 +408,7 @@ function parsePropAriaLabel(
 ): { key: string; value: string; time: number | null } {
     if (!ariaLabel) return { key: '', value: '', time: null };
     const prefix = 'Select node via event trace: ';
-    let body = ariaLabel.startsWith(prefix)
-        ? ariaLabel.slice(prefix.length)
-        : ariaLabel;
+    let body = ariaLabel.startsWith(prefix) ? ariaLabel.slice(prefix.length) : ariaLabel;
     if (body.startsWith(`${node}-`)) body = body.slice(node.length + 1);
     const m = body.match(/^(.+)-(\d+)-(.+)$/);
     if (!m) return { key: '', value: '', time: null };
@@ -418,13 +424,8 @@ function parsePropAriaLabel(
  * to match what the tooltip would show); groups missing that rect still appear in `properties`
  * with empty key/value rather than being dropped. Edge layer also reads from the aria-label.
  */
-export async function getTemporalViewData(
-    page: Page,
-): Promise<TemporalViewData> {
-    const [yAxisRows, allTicks] = await Promise.all([
-        getYAxisRows(page),
-        getXAxisTicks(page),
-    ]);
+export async function getTemporalViewData(page: Page): Promise<TemporalViewData> {
+    const [yAxisRows, allTicks] = await Promise.all([getYAxisRows(page), getXAxisTicks(page)]);
     // Two projections of one tick read: time anchors for interpolation, and the
     // labelled subset for view-anchored tick labels.
     const timeTicks = allTicks.flatMap((t) =>
@@ -433,61 +434,89 @@ export async function getTemporalViewData(
     const visibleTicks = visibleTicksOf(allTicks);
 
     const rawEdges = await readRawEdges(page);
-    const edges: TemporalEdge[] = rawEdges.map(
-        ({ screenX, srcY, dstY, ariaLabel }) => {
-            const src = labelAtY(yAxisRows, srcY);
-            const dst = labelAtY(yAxisRows, dstY);
-            const { layer, time: labelTimeMs } = parseEdgeAria(ariaLabel);
-            return {
-                src,
-                dst,
-                time: new Date(interpolateTime(screenX, timeTicks)),
-                labelTime: labelTimeMs !== null ? new Date(labelTimeMs) : null,
-                labelTimeOffsetPx:
-                    labelTimeMs !== null
-                        ? Math.abs(
-                              screenX - timeToScreenX(labelTimeMs, timeTicks),
-                          )
-                        : null,
-                layer,
-                tickLabel: labelAtX(visibleTicks, screenX),
-            };
-        },
-    );
+    const edges: TemporalEdge[] = rawEdges.map(({ screenX, srcY, dstY, ariaLabel }) => {
+        const src = labelAtY(yAxisRows, srcY);
+        const dst = labelAtY(yAxisRows, dstY);
+        const { layer, time: labelTimeMs } = parseEdgeAria(ariaLabel);
+        return {
+            src,
+            dst,
+            time: new Date(interpolateTime(screenX, timeTicks)),
+            labelTime: labelTimeMs !== null ? new Date(labelTimeMs) : null,
+            labelTimeOffsetPx:
+                labelTimeMs !== null
+                    ? Math.abs(screenX - timeToScreenX(labelTimeMs, timeTicks))
+                    : null,
+            layer,
+            tickLabel: labelAtX(visibleTicks, screenX),
+        };
+    });
 
     const rawProps = await readRawProps(page);
-    const properties: TemporalProperty[] = rawProps.map(
-        ({ screenX, screenY, ariaLabel }) => {
-            const node = labelAtY(yAxisRows, screenY);
-            const {
-                key,
-                value,
-                time: labelTimeMs,
-            } = parsePropAriaLabel(ariaLabel, node);
-            return {
-                node,
-                time: new Date(interpolateTime(screenX, timeTicks)),
-                labelTime: labelTimeMs !== null ? new Date(labelTimeMs) : null,
-                labelTimeOffsetPx:
-                    labelTimeMs !== null
-                        ? Math.abs(
-                              screenX - timeToScreenX(labelTimeMs, timeTicks),
-                          )
-                        : null,
-                key,
-                value,
-                tickLabel: labelAtX(visibleTicks, screenX),
-            };
-        },
-    );
+    const properties: TemporalProperty[] = rawProps.map(({ screenX, screenY, ariaLabel }) => {
+        const node = labelAtY(yAxisRows, screenY);
+        const { key, value, time: labelTimeMs } = parsePropAriaLabel(ariaLabel, node);
+        return {
+            node,
+            time: new Date(interpolateTime(screenX, timeTicks)),
+            labelTime: labelTimeMs !== null ? new Date(labelTimeMs) : null,
+            labelTimeOffsetPx:
+                labelTimeMs !== null
+                    ? Math.abs(screenX - timeToScreenX(labelTimeMs, timeTicks))
+                    : null,
+            key,
+            value,
+            tickLabel: labelAtX(visibleTicks, screenX),
+        };
+    });
 
     return { edges, properties };
 }
 
+/**
+ * Blocks until the x-axis stops moving. Opening the timeline eases the domain
+ * into place over a few hundred ms (see animateUserDomainTransition), and every
+ * reader here takes several round-trips — ticks, then y-axis, then events — so
+ * reading mid-animation compares an axis from one frame against elements from
+ * another and reports a phantom pixel offset.
+ */
+export async function waitForTimelineToSettle(page: Page): Promise<void> {
+    // Sampled per animation frame inside the page: a round-trip per sample is
+    // too coarse to tell "not moving" from "moved between two reads". The
+    // marker is cleared first so a reopen can't inherit the last run's verdict.
+    await page.evaluate(() => {
+        delete (window as unknown as { __axisSettle?: unknown }).__axisSettle;
+    });
+    await page.waitForFunction(
+        (selector) => {
+            const marker = window as unknown as { __axisSettle?: { at: string; since: number } };
+            const at = Array.from(document.querySelectorAll(selector))
+                .map((tick) => (tick.querySelector('line') ?? tick).getBoundingClientRect().left)
+                .join();
+            const previous = marker.__axisSettle;
+            if (previous?.at !== at) {
+                marker.__axisSettle = { at, since: performance.now() };
+                return false;
+            }
+            return performance.now() - previous.since >= 250;
+        },
+        UPPER_X_AXIS_TICK_SELECTOR,
+        { polling: 'raf' },
+    );
+}
+
 export async function openTimeline(page: Page) {
     await page.getByRole('button', { name: 'Open timeline' }).click();
-    // wait for animation to finish
-    await page.waitForTimeout(300);
+    await waitForTimelineToSettle(page);
+}
+
+export async function closeTimeline(page: Page) {
+    const closeBtn = page.getByRole('button', { name: 'Close timeline' });
+    if (await closeBtn.count()) {
+        await closeBtn.click();
+        // wait for animation to finish
+        await page.waitForTimeout(300);
+    }
 }
 
 export async function hoverEdgeAndExpectTooltip(
@@ -495,12 +524,9 @@ export async function hoverEdgeAndExpectTooltip(
     selector: string,
     expectedTexts: string[],
 ) {
-    const temporalViewIsHidden = await page
-        .locator('#temporal-view')
-        .isHidden();
+    const temporalViewIsHidden = await page.locator('#temporal-view').isHidden();
     if (temporalViewIsHidden) {
         await openTimeline(page);
-        await page.waitForTimeout(500);
     }
 
     const line = page.locator(selector).first();
@@ -516,9 +542,7 @@ export async function hoverEdgeAndExpectTooltip(
     // (which bubble) rather than mouseenter/mouseleave (which don't).
     await line.dispatchEvent('mouseover');
     for (const text of expectedTexts) {
-        await expect(
-            page.getByText(text, { exact: true }).first(),
-        ).toBeVisible();
+        await expect(page.getByText(text, { exact: true }).first()).toBeVisible();
     }
     await line.dispatchEvent('mouseout');
 }

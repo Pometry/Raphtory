@@ -422,6 +422,36 @@ mod dijkstra_tests {
             );
         });
     }
+
+    #[test]
+    fn test_dijkstra_no_weight_undirected_repeated_target() {
+        let edges = vec![
+            (0, "C", "A", vec![("weight", 4u64)]),
+            (1, "A", "B", vec![("weight", 4u64)]),
+            (3, "C", "D", vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        let targets: Vec<&str> = vec!["D", "D", "D"];
+        let results =
+            dijkstra_single_source_shortest_paths(&graph, "A", targets, None, Direction::BOTH)
+                .unwrap();
+        assert_eq!(
+            results
+                .get_by_node("D")
+                .unwrap()
+                .path
+                .into_iter()
+                .map(|value| graph.node(value).unwrap().name())
+                .collect_vec(),
+            vec!["A", "C", "D"]
+        );
+    }
 }
 
 mod sssp_tests {

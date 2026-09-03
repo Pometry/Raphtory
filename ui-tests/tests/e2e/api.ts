@@ -27,8 +27,5 @@ export async function copyGraph(path: string, newPath: string): Promise<void> {
 }
 
 export async function deleteNamespace(path: string): Promise<void> {
-    await graphqlMutation(
-        'mutation($path: String!) { deleteNamespace(path: $path) }',
-        { path },
-    );
+    await graphqlMutation('mutation($path: String!) { deleteNamespace(path: $path) }', { path });
 }

@@ -152,7 +152,7 @@ where
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
             elems @ Index::Partial(_) => NodeList::List { elems },
-            Index::Full(_) => self.graph.node_list(),
+            Index::Full(_) => self.base_graph.node_list(),
         }
     }
 
@@ -270,7 +270,7 @@ where
             self.par_iter_refs(g).count()
         } else {
             match &self.nodes {
-                Index::Full(_) => self.graph.count_nodes(),
+                Index::Full(_) => self.base_graph.count_nodes(),
                 Index::Partial(nodes) => nodes.len(),
             }
         }
@@ -329,7 +329,8 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
+        !self.base_graph.node_list_trusted()
+            || self.predicate.is_domain_filtered(self.graph.core_graph())
     }
 
     pub fn is_filtered(&self) -> bool {

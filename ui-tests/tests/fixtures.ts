@@ -1,7 +1,9 @@
-import { test as base, Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
+
+import { test as base, Page } from '@playwright/test';
+
 import { copyGraph, deleteNamespace } from './e2e/api';
 import { waitForLayoutToFinish } from './e2e/utils';
 
@@ -18,16 +20,11 @@ interface IsolatedGraphs {
     /** Build a graph page URL for a cloned graph */
     graphUrl: (graphName: string, params?: string) => string;
     /** Navigate to a cloned graph's page and wait for layout */
-    navigateToGraph: (
-        page: Page,
-        graphName: string,
-        params?: string,
-    ) => Promise<void>;
+    navigateToGraph: (page: Page, graphName: string, params?: string) => Promise<void>;
 }
 
 interface MyFixtures {
     isolatedGraphs: IsolatedGraphs;
-    // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- Playwright fixtures use `void` for side-effect-only fixtures
     collectCoverage: void;
 }
 
@@ -44,16 +41,11 @@ export const test = base.extend<MyFixtures & MyOptions>({
             await use();
             if (!ENABLE_COVERAGE) return;
             try {
-                const coverage = await page.evaluate(
-                    () => (window as CoverageWindow).__coverage__,
-                );
+                const coverage = await page.evaluate(() => (window as CoverageWindow).__coverage__);
                 if (!coverage) return;
                 await mkdir(COVERAGE_DIR, { recursive: true });
                 const filename = `${testInfo.testId}-${randomUUID()}.json`;
-                await writeFile(
-                    path.join(COVERAGE_DIR, filename),
-                    JSON.stringify(coverage),
-                );
+                await writeFile(path.join(COVERAGE_DIR, filename), JSON.stringify(coverage));
             } catch {
                 // Page may already be closed; skip silently
             }
@@ -75,14 +67,8 @@ export const test = base.extend<MyFixtures & MyOptions>({
                 const urlBase = `/graph/${namespace}/${graphName}?initialNodes=%5B%5D`;
                 return params ? `${urlBase}&${params}` : urlBase;
             },
-            navigateToGraph: async (
-                navigatePage: Page,
-                graphName: string,
-                params?: string,
-            ) => {
-                await navigatePage.goto(
-                    isolatedGraphs.graphUrl(graphName, params),
-                );
+            navigateToGraph: async (navigatePage: Page, graphName: string, params?: string) => {
+                await navigatePage.goto(isolatedGraphs.graphUrl(graphName, params));
                 await waitForLayoutToFinish(navigatePage);
             },
         };

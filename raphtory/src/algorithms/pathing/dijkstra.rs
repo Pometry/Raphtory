@@ -125,11 +125,15 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         }
     }
 
+    let mut num_targets_remaining = 0usize;
     let mut target_nodes = vec![false; g.count_nodes()];
     for target in targets {
         if let Some(target_node) = g.node(target) {
             let pos = index.index(&target_node.node).unwrap();
-            target_nodes[pos] = true;
+            if !target_nodes[pos] {
+                target_nodes[pos] = true;
+                num_targets_remaining += 1;
+            }
         }
     }
 
@@ -185,6 +189,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     {
         let pos = index.index(&node_vid).unwrap();
         if target_nodes[pos] && !paths.contains_key(&node_vid) {
+            num_targets_remaining -= 1;
             let mut path = IndexSet::default();
             path.insert(node_vid);
             let mut current_node_id = node_vid;
@@ -194,6 +199,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             }
             path.reverse();
             paths.insert(node_vid, (cost.as_f64().unwrap(), path));
+        }
+        if num_targets_remaining == 0 {
+            break;
         }
         if !visited.insert(node_vid) {
             continue;

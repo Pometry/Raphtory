@@ -27,7 +27,7 @@ pub trait NodeOp: Send + Sync {
     }
 
     /// Returns `Some(value)` if the node op has a constant value over the domain
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
+    fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<Self::Output> {
         self.const_value()
     }
 
@@ -71,7 +71,7 @@ pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
 
-    fn is_domain_filtered(&self) -> bool;
+    fn is_domain_filtered(&self, storage: &GraphStorage) -> bool;
 
     fn and<T>(self, other: T) -> AndOp<Self, T>;
 
@@ -86,8 +86,8 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
         self.const_value().is_none_or(|v| !v)
     }
 
-    fn is_domain_filtered(&self) -> bool {
-        self.const_value_in_domain().is_none_or(|v| !v)
+    fn is_domain_filtered(&self, storage: &GraphStorage) -> bool {
+        self.const_value_in_domain(storage).is_none_or(|v| !v)
     }
 
     fn and<T>(self, other: T) -> AndOp<Self, T> {
@@ -178,8 +178,8 @@ impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
         self.deref().const_value()
     }
 
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
-        self.deref().const_value_in_domain()
+    fn const_value_in_domain(&self, storage: &GraphStorage) -> Option<Self::Output> {
+        self.deref().const_value_in_domain(storage)
     }
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {
