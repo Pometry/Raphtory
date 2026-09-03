@@ -315,7 +315,7 @@ impl CreateFilter for NodeTypeFilter {
         graph: G,
         _filtered: F,
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let node_types_filter = graph
+        let node_types_mask = graph
             .node_meta()
             .node_type_meta()
             .keys()
@@ -323,10 +323,9 @@ impl CreateFilter for NodeTypeFilter {
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
 
-        Ok(NodeFilteredGraph::new(
-            graph.clone(),
-            NodeTypeFilterOp::from_mask(node_types_filter.into(), graph),
-        ))
+        let filter = NodeTypeFilterOp::from_mask(node_types_mask.into(), &graph);
+
+        Ok(NodeFilteredGraph::new(graph, filter))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
