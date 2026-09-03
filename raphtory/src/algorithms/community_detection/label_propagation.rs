@@ -17,6 +17,7 @@ use crate::{
 use rand::Rng;
 use raphtory_api::core::utils::hashing::calculate_hash;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use std::{
     collections::HashMap,
     sync::{
@@ -199,7 +200,7 @@ where
         if diff == 0 || *stale >= patience {
             let pct = 100.0 * diff as f64 / num_nodes as f64;
             // println!("label_propagation: stopped after {n_iter} iters; diff={diff} ({pct:.2}%)");
-            println!(
+            debug!(
                 "label_propagation: stopped after {n_iter} iters; \
                  diff={diff} ({pct:.2}%); seed={tie_seed}"
             );
