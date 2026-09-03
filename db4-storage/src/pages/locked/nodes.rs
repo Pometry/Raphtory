@@ -17,7 +17,7 @@ use rayon::prelude::*;
 use std::ops::DerefMut;
 
 #[derive(Debug)]
-pub struct LockedNodePage<'a, NS: NodeSegmentOps> {
+pub struct LockedNodePage<'a, NS> {
     segment_id: usize,
     max_page_len: u32,
     layer_counter: &'a GraphStats,
@@ -86,11 +86,11 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     }
 }
 
-pub struct WriteLockedNodePages<'a, NS: NodeSegmentOps> {
+pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }
 
-impl<NS: NodeSegmentOps> Default for WriteLockedNodePages<'_, NS> {
+impl<NS> Default for WriteLockedNodePages<'_, NS> {
     fn default() -> Self {
         Self {
             writers: Vec::new(),

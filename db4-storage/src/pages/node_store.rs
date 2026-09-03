@@ -224,6 +224,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         ext: EXT,
     ) -> Self {
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        // TODO: Use a constant for type_index_path.
         let type_index_path = nodes_path.as_ref().map(|p| p.join("type_index"));
         let node_type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
 
@@ -557,7 +558,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         });
 
         let stats = GraphStats::load(layer_counts, earliest, latest);
-
+        // TODO: Use a constant for type_index_path.
         let type_index_path = nodes_path.join("type_index");
         let node_type_index = Arc::new(EXT::NTI::load(&type_index_path, ext.clone())?);
 

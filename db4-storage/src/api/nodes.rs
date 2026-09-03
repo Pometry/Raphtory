@@ -45,7 +45,7 @@ use rayon::prelude::*;
 pub type NodeTypeIndexOf<NS> = <<NS as NodeSegmentOps>::Extension as PersistenceStrategy>::NTI;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
-    type Extension: PersistenceStrategy<NS = Self>;
+    type Extension;
 
     type Entry<'a>: NodeEntryOps<'a>
     where
