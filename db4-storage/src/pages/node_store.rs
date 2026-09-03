@@ -152,6 +152,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self.node_meta
     }
 
+    pub fn node_type_index(&self) -> &EXT::NTI {
+        &self.node_type_index
+    }
+
     pub fn num_layers(&self) -> usize {
         self.stats.len()
     }

@@ -17,8 +17,11 @@ where
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
-    /// Returns the `VID`s of nodes with the given type.
-    fn nodes_of_type(&self, type_id: usize) -> Vec<VID>;
+    /// Returns the sorted, unique `VID`s of nodes whose type is in `type_ids`.
+    fn nodes_of_type(&self, type_ids: &[usize]) -> Vec<VID>;
+
+    /// Returns `true` if the index has no `(type_id, VID)` entries.
+    fn is_empty(&self) -> bool;
 
     fn est_size(&self) -> usize;
 

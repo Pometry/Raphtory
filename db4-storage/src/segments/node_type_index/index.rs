@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use raphtory_api::core::storage::FxDashMap;
 use raphtory_core::entities::VID;
 use std::{
@@ -46,12 +47,18 @@ impl MemNodeTypeIndex {
         }
     }
 
-    /// Returns the VIDs for `type_id` in ascending order.
-    pub fn get(&self, type_id: usize) -> Vec<VID> {
-        self.map
-            .get(&type_id)
-            .map(|set| set.iter().copied().collect())
-            .unwrap_or_default()
+    /// Returns the sorted VIDs for `type_ids`.
+    pub fn get(&self, type_ids: &[usize]) -> Vec<VID> {
+        let sets: Vec<_> = type_ids
+            .iter()
+            .filter_map(|type_id| self.map.get(type_id))
+            .collect();
+
+        // No need to dedup after kmerge since a node can only have one type.
+        sets.iter()
+            .map(|set| set.iter().copied())
+            .kmerge()
+            .collect()
     }
 
     pub fn max_type_id(&self) -> Option<usize> {
@@ -75,8 +82,8 @@ impl MemNodeTypeIndex {
         std::mem::replace(self, Self::new())
     }
 
-    /// Yields `(type_id, vids)` in ascending `type_id` order with ascending `VID`s per type.
-    pub fn iter_sorted(&self) -> Vec<(usize, Vec<VID>)> {
+    /// Returns `(type_id, vids)` in ascending `type_id` order with ascending `VID`s per type.
+    pub fn sorted_entries(&self) -> Vec<(usize, Vec<VID>)> {
         let mut type_ids: Vec<usize> = self.map.iter().map(|entry| *entry.key()).collect();
         type_ids.sort_unstable();
 
@@ -105,13 +112,29 @@ mod tests {
         index.insert(1, VID(2));
         index.insert(1, VID(1));
 
-        assert_eq!(index.get(1), vec![VID(1), VID(2), VID(4)]);
+        assert_eq!(index.get(&[1]), vec![VID(1), VID(2), VID(4)]);
     }
 
     #[test]
     fn get_missing_type_is_empty() {
         let index = MemNodeTypeIndex::new();
-        assert!(index.get(3).is_empty());
+        assert!(index.get(&[3]).is_empty());
+    }
+
+    #[test]
+    fn get_merges_sorted_vids() {
+        let index = MemNodeTypeIndex::new();
+
+        index.insert(1, VID(4));
+        index.insert(1, VID(1));
+        index.insert(2, VID(2));
+        index.insert(2, VID(1));
+        index.insert(3, VID(5));
+
+        assert_eq!(index.get(&[1, 2]), vec![VID(1), VID(1), VID(2), VID(4)]);
+        assert_eq!(index.get(&[3]), vec![VID(5)]);
+        assert!(index.get(&[9]).is_empty());
+        assert!(index.get(&[]).is_empty());
     }
 
     #[test]
@@ -141,14 +164,14 @@ mod tests {
     }
 
     #[test]
-    fn iter_sorted_returns_types_in_order_with_sorted_vids() {
+    fn sorted_entries_returns_types_in_order_with_sorted_vids() {
         let index = MemNodeTypeIndex::new();
         index.insert(2, VID(5));
         index.insert(0, VID(3));
         index.insert(2, VID(1));
         index.insert(0, VID(1));
 
-        let collected: Vec<(usize, Vec<VID>)> = index.iter_sorted();
+        let collected: Vec<(usize, Vec<VID>)> = index.sorted_entries();
 
         assert_eq!(
             collected,
@@ -165,8 +188,8 @@ mod tests {
 
         let taken = index.take();
         assert!(index.is_empty());
-        assert_eq!(taken.get(1), vec![VID(1), VID(3)]);
-        assert_eq!(taken.get(2), vec![VID(2)]);
+        assert_eq!(taken.get(&[1]), vec![VID(1), VID(3)]);
+        assert_eq!(taken.get(&[2]), vec![VID(2)]);
     }
 
     #[test]
@@ -183,6 +206,6 @@ mod tests {
         });
 
         assert_eq!(index.num_entries(), 100);
-        assert_eq!(index.get(1).len(), 100);
+        assert_eq!(index.get(&[1]).len(), 100);
     }
 }

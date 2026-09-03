@@ -5,10 +5,9 @@ use crate::{
             state::{
                 ops::{
                     filter::{
-                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
-                        OrOp,
+                        AndOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp, OrOp,
                     },
-                    NodeOp, TypeId,
+                    NodeOp,
                 },
                 NodeStateValue, TypedNodeState,
             },
@@ -323,9 +322,10 @@ impl CreateFilter for NodeTypeFilter {
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
+
         Ok(NodeFilteredGraph::new(
-            graph,
-            TypeId.mask(node_types_filter.into()),
+            graph.clone(),
+            NodeTypeFilterOp::from_mask(node_types_filter.into(), graph),
         ))
     }
 
@@ -341,7 +341,8 @@ impl CreateFilter for NodeTypeFilter {
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
-        Ok(TypeId.mask(node_types_filter.into()))
+
+        Ok(NodeTypeFilterOp::from_mask(node_types_filter.into(), graph))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

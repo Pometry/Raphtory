@@ -49,8 +49,12 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.write()
     }
 
-    fn nodes_of_type(&self, type_id: usize) -> Vec<VID> {
-        self.head().get(type_id)
+    fn nodes_of_type(&self, type_ids: &[usize]) -> Vec<VID> {
+        self.head().get(type_ids)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.head().is_empty()
     }
 
     fn est_size(&self) -> usize {

@@ -723,7 +723,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     ) -> NodeFilteredGraph<Self, NodeTypeFilterOp> {
         NodeFilteredGraph::new(
             self.clone(),
-            NodeTypeFilterOp::new_from_values(node_types, self),
+            NodeTypeFilterOp::from_values(node_types, self),
         )
     }
 

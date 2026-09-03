@@ -150,10 +150,13 @@ where
     }
 
     pub fn node_list(&self) -> NodeList {
-        match self.nodes.clone() {
+        let list = match self.nodes.clone() {
             elems @ Index::Partial(_) => NodeList::List { elems },
             _ => self.graph.node_list(),
-        }
+        };
+
+        // TODO: Is this correct?
+        list.intersection(&self.predicate.domain(self.base_graph.core_graph()))
     }
 
     pub(crate) fn par_iter_refs(
@@ -291,8 +294,9 @@ where
         &self,
         node_types: I,
     ) -> Nodes<'graph, G, GH, AndOp<F, NodeTypeFilterOp>> {
-        let node_types_filter = NodeTypeFilterOp::new_from_values(node_types, &self.graph);
+        let node_types_filter = NodeTypeFilterOp::from_values(node_types, &self.graph);
         let predicate = self.predicate.clone().and(node_types_filter);
+
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
@@ -327,7 +331,12 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
+        !self.graph.node_list_trusted()
+            || self.predicate.is_domain_filtered()
+            || !self // TODO: Is this correct?
+                .predicate
+                .domain(self.base_graph.core_graph())
+                .unfiltered()
     }
 
     pub fn is_filtered(&self) -> bool {
