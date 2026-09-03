@@ -2,7 +2,9 @@ use crate::{
     api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
-        nodes::{GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics},
+        nodes::{
+            GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
+        },
     },
     error::StorageError,
     persist::{
@@ -107,18 +109,32 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         None
     }
 
-    /// Build any missing secondary property indexes. A no-op for strategies
-    /// without index support.
+    /// Rebuild the secondary property indexes over `selected`. A no-op for
+    /// strategies without index support.
     fn build_node_prop_index<'a>(
         &self,
         _segments: impl Iterator<Item = &'a Self::NS> + Send,
         _max_segment_len: u32,
+        _selected: &SelectedProps,
     ) -> Result<(), StorageError>
     where
         Self: Sized,
         Self::NS: 'a,
     {
         Ok(())
+    }
+
+    /// Replace the persisted set of node property names that index builds
+    /// consider; `None` restores "every indexable property". Takes effect at
+    /// the next build, and survives reopening the graph.
+    fn set_indexed_node_props(&self, _names: Option<Vec<String>>) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    /// The persisted set of node property names index builds consider, or
+    /// `None` when every indexable property is considered.
+    fn indexed_node_props(&self) -> Option<Vec<String>> {
+        None
     }
 }
 

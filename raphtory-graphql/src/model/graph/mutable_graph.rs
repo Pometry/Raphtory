@@ -571,16 +571,26 @@ impl GqlMutableGraph {
     }
 
     /// Build secondary indexes over node property values to speed up property
-    /// filters (equality, comparisons and string matching). A no-op for
-    /// storage backends without index support; filters return the same
-    /// results either way, the index only changes how fast they run.
-    pub async fn build_property_index(&self) -> Result<bool, GraphError> {
+    /// filters (equality, comparisons and string matching). The index covers
+    /// the graph as of this call, so values added later need another build to
+    /// be searchable through it; filters over uncovered properties fall back
+    /// to a scan and stay correct either way.
+    ///
+    /// `props` replaces the saved selection of property names to index, which
+    /// later builds reuse; omit it to keep the saved one.
+    pub async fn build_property_index(&self, props: Option<Vec<String>>) -> Result<bool, GraphError> {
         let graph = self.graph.graph().clone();
         blocking_write(move || {
-            graph.core_graph().build_node_prop_index()?;
+            graph.core_graph().build_node_prop_index(props)?;
             Ok(true)
         })
         .await
+    }
+
+    /// The node property names that index builds consider, or null when every
+    /// supported property is indexed.
+    pub async fn indexed_properties(&self) -> Option<Vec<String>> {
+        self.graph.graph().core_graph().indexed_node_props()
     }
 }
 

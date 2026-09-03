@@ -19,6 +19,7 @@ use raphtory_core::{
 };
 use std::{
     borrow::Cow,
+    collections::HashSet,
     fmt::Debug,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
@@ -66,6 +67,51 @@ pub enum PropSemantics {
     Latest,
     /// Any value the property ever held may match.
     Ever,
+}
+
+/// Which node property columns an index build considers.
+///
+/// Selection is configured by property *name* and persisted, so it can name a
+/// property that does not exist yet; the names are resolved to prop ids once
+/// per build, which is what this carries. A property left out is simply not
+/// indexed — filters over it fall back to a scan and must still be correct.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum SelectedProps {
+    /// Every indexable column, the default for a graph that never configured
+    /// a selection.
+    #[default]
+    All,
+    /// Only these prop ids, per id space. Either set may be empty.
+    Only {
+        temporal: HashSet<usize>,
+        metadata: HashSet<usize>,
+    },
+}
+
+impl SelectedProps {
+    pub fn includes(&self, temporal: bool, prop_id: usize) -> bool {
+        match self {
+            SelectedProps::All => true,
+            SelectedProps::Only {
+                temporal: t,
+                metadata: m,
+            } => {
+                if temporal {
+                    t.contains(&prop_id)
+                } else {
+                    m.contains(&prop_id)
+                }
+            }
+        }
+    }
+
+    /// True when nothing at all is selected, so a build has no work to do.
+    pub fn is_empty(&self) -> bool {
+        match self {
+            SelectedProps::All => false,
+            SelectedProps::Only { temporal, metadata } => temporal.is_empty() && metadata.is_empty(),
+        }
+    }
 }
 
 /// Global candidate node ids for a [`PropPredicate`].

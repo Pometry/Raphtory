@@ -217,16 +217,52 @@ impl PyGraph {
     /// Build secondary indexes over node property values to speed up
     /// property filters (equality, comparisons and string matching).
     ///
-    /// Asks the storage backend to build any property value indexes it does
-    /// not already have. Backends without index support treat this as a
-    /// no-op. Filters return the same results either way; an index only
-    /// changes how fast they run.
+    /// The index describes the graph as of this call: values written
+    /// afterwards are not searchable through it until the next build, so call
+    /// this again after loading more data. Filters over properties the index
+    /// does not cover fall back to a scan and stay correct either way; an
+    /// index only changes how fast they run.
+    ///
+    /// Arguments:
+    ///     props (list[str], optional): the property names to index, replacing
+    ///         any previously configured selection. The selection is saved
+    ///         with the graph, so later builds reuse it; pass a different list
+    ///         to change what the next build considers. Defaults to None,
+    ///         which keeps the saved selection (or indexes every supported
+    ///         property if none was ever set).
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
-    pub fn build_property_index(&self) -> Result<(), GraphError> {
-        self.graph.core_graph().build_node_prop_index()?;
+    #[pyo3(signature = (props = None))]
+    pub fn build_property_index(&self, props: Option<Vec<String>>) -> Result<(), GraphError> {
+        self.graph.core_graph().build_node_prop_index(props)?;
         Ok(())
+    }
+
+    /// Choose which node properties later index builds consider, without
+    /// building now.
+    ///
+    /// Arguments:
+    ///     props (list[str], optional): the property names to index. An empty
+    ///         list indexes nothing. Defaults to None, which restores
+    ///         indexing every supported property — the way back after a
+    ///         selection has been set.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    #[pyo3(signature = (props = None))]
+    pub fn set_indexed_properties(&self, props: Option<Vec<String>>) -> Result<(), GraphError> {
+        self.graph.core_graph().set_indexed_node_props(props)?;
+        Ok(())
+    }
+
+    /// The node property names that index builds consider.
+    ///
+    /// Returns:
+    ///     list[str]: the saved selection, or None when every supported
+    ///         property is indexed.
+    pub fn indexed_properties(&self) -> Option<Vec<String>> {
+        self.graph.core_graph().indexed_node_props()
     }
 
     /// Return a read-only handle to this graph.

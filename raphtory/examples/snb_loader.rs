@@ -6,6 +6,7 @@ use raphtory::{
 };
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
 fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
@@ -14,6 +15,7 @@ fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
 
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
+use raphtory_storage::core_ops::CoreGraphOps;
 
 #[cfg(target_os = "macos")]
 #[global_allocator]
@@ -473,10 +475,13 @@ fn main() {
         .nth(3)
         .map(|graph| PathBuf::from(graph))
         .unwrap_or_else(|| parquet_dir.join("..").join("graph"));
-    let graph = if !graph_path.exists() {
-        Graph::new_at_path(&graph_path).unwrap()
+    if !graph_path.exists() {
+        let graph = Graph::new_at_path(&graph_path).unwrap();
+        load_snb_graph(&parquet_dir, filter, &graph).unwrap()
     } else {
-        Graph::load(&graph_path).unwrap()
+        let graph = Graph::load(&graph_path).unwrap();
+        let now = Instant::now();
+        graph.core_graph().build_node_prop_index(None).unwrap();
+        println!("Building node index took {:?}", now.elapsed());
     };
-    load_snb_graph(&parquet_dir, filter, &graph).unwrap()
 }

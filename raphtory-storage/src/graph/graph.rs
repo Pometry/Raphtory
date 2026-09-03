@@ -16,9 +16,9 @@ use raphtory_api::core::entities::{
     properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
-use std::{fmt::Debug, iter, path::Path, sync::Arc};
+use std::{collections::HashSet, fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics},
+    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
     error::StorageError,
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
@@ -198,14 +198,68 @@ impl GraphStorage {
         )
     }
 
-    /// Ask the storage backend to build any missing secondary property
-    /// indexes. A no-op for backends without index support.
-    pub fn build_node_prop_index(&self) -> Result<(), StorageError> {
+    /// Rebuild the secondary node property indexes. A no-op for backends
+    /// without index support.
+    ///
+    /// `props` replaces the persisted selection of property names before
+    /// building; pass `None` to build with whatever selection is already
+    /// stored. A graph that has never had one indexes every indexable
+    /// property. Properties left out are not indexed, and filters over them
+    /// fall back to a scan.
+    ///
+    /// Names are resolved to prop ids here, per build: a name no property has
+    /// yet selects nothing now, and starts selecting the column as soon as
+    /// something creates it.
+    pub fn build_node_prop_index(&self, props: Option<Vec<String>>) -> Result<(), StorageError> {
         let storage = self.temporal_graph().storage();
+        if props.is_some() {
+            storage.extension().set_indexed_node_props(props)?;
+        }
         let nodes = storage.nodes();
-        storage
+        let selected = match storage.extension().indexed_node_props() {
+            None => SelectedProps::All,
+            Some(names) => {
+                let meta = nodes.prop_meta();
+                let mut temporal = HashSet::new();
+                let mut metadata = HashSet::new();
+                for name in &names {
+                    if let Some(id) = meta.get_prop_id(name, false) {
+                        temporal.insert(id);
+                    }
+                    if let Some(id) = meta.get_prop_id(name, true) {
+                        metadata.insert(id);
+                    }
+                }
+                SelectedProps::Only { temporal, metadata }
+            }
+        };
+        storage.extension().build_node_prop_index(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            &selected,
+        )
+    }
+
+    /// Replace the persisted selection without building. `None` restores
+    /// "every indexable property", which is the only way back once a
+    /// selection has been set — an empty list means "index nothing".
+    pub fn set_indexed_node_props(
+        &self,
+        props: Option<Vec<String>>,
+    ) -> Result<(), StorageError> {
+        self.temporal_graph()
+            .storage()
             .extension()
-            .build_node_prop_index(nodes.segments_iter(), nodes.max_segment_len())
+            .set_indexed_node_props(props)
+    }
+
+    /// The persisted node property names index builds consider, or `None` when
+    /// every indexable property is considered.
+    pub fn indexed_node_props(&self) -> Option<Vec<String>> {
+        self.temporal_graph()
+            .storage()
+            .extension()
+            .indexed_node_props()
     }
 
     #[inline(always)]
