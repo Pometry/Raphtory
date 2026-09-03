@@ -39,23 +39,22 @@ fn type_filter_domain_uses_index() {
 
     match op.domain(storage) {
         NodeList::List { elems } => {
-            let vids: Vec<_> = elems.iter().collect();
-            assert_eq!(vids.len(), 2);
-            assert!(vids.contains(&a));
-            assert!(vids.contains(&b));
-            assert!(!vids.contains(&c));
+            assert_eq!(elems.len(), 2);
+            assert!(elems.contains(&a));
+            assert!(elems.contains(&b));
+            assert!(!elems.contains(&c));
         }
         NodeList::All => panic!("expected index-backed list domain"),
     }
 
     let both = NodeTypeFilterOp::from_values(["Person", "Company"], &g);
+
     match both.domain(storage) {
         NodeList::List { elems } => {
-            let vids: Vec<_> = elems.iter().collect();
-            assert_eq!(vids.len(), 3);
-            assert!(vids.contains(&a));
-            assert!(vids.contains(&b));
-            assert!(vids.contains(&c));
+            assert_eq!(elems.len(), 3);
+            assert!(elems.contains(&a));
+            assert!(elems.contains(&b));
+            assert!(elems.contains(&c));
         }
         NodeList::All => panic!("expected index-backed list domain"),
     }
