@@ -4,6 +4,8 @@ use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
     persist::strategy::PersistenceStrategy, segments::node_type_index::index::MemNodeTypeIndex,
 };
+use ahash::RandomState;
+use indexmap::IndexSet;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_core::entities::VID;
 use std::{
@@ -49,8 +51,8 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.write()
     }
 
-    fn nodes_of_type(&self, type_ids: &[usize]) -> Vec<VID> {
-        self.head().get(type_ids)
+    fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState> {
+        self.head().nodes_of_type(type_ids).into_iter().collect()
     }
 
     fn is_empty(&self) -> bool {

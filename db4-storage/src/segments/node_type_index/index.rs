@@ -48,7 +48,7 @@ impl MemNodeTypeIndex {
     }
 
     /// Returns the sorted VIDs for `type_ids`.
-    pub fn get(&self, type_ids: &[usize]) -> Vec<VID> {
+    pub fn nodes_of_type(&self, type_ids: &[usize]) -> Vec<VID> {
         if type_ids.is_empty() {
             return vec![];
         }
@@ -125,13 +125,13 @@ mod tests {
         index.insert(1, VID(2));
         index.insert(1, VID(1));
 
-        assert_eq!(index.get(&[1]), vec![VID(1), VID(2), VID(4)]);
+        assert_eq!(index.nodes_of_type(&[1]), vec![VID(1), VID(2), VID(4)]);
     }
 
     #[test]
     fn get_missing_type_is_empty() {
         let index = MemNodeTypeIndex::new();
-        assert!(index.get(&[3]).is_empty());
+        assert!(index.nodes_of_type(&[3]).is_empty());
     }
 
     #[test]
@@ -144,10 +144,13 @@ mod tests {
         index.insert(2, VID(1));
         index.insert(3, VID(5));
 
-        assert_eq!(index.get(&[1, 2]), vec![VID(1), VID(1), VID(2), VID(4)]);
-        assert_eq!(index.get(&[3]), vec![VID(5)]);
-        assert!(index.get(&[9]).is_empty());
-        assert!(index.get(&[]).is_empty());
+        assert_eq!(
+            index.nodes_of_type(&[1, 2]),
+            vec![VID(1), VID(1), VID(2), VID(4)]
+        );
+        assert_eq!(index.nodes_of_type(&[3]), vec![VID(5)]);
+        assert!(index.nodes_of_type(&[9]).is_empty());
+        assert!(index.nodes_of_type(&[]).is_empty());
     }
 
     #[test]
@@ -201,8 +204,8 @@ mod tests {
 
         let taken = index.take();
         assert!(index.is_empty());
-        assert_eq!(taken.get(&[1]), vec![VID(1), VID(3)]);
-        assert_eq!(taken.get(&[2]), vec![VID(2)]);
+        assert_eq!(taken.nodes_of_type(&[1]), vec![VID(1), VID(3)]);
+        assert_eq!(taken.nodes_of_type(&[2]), vec![VID(2)]);
     }
 
     #[test]
@@ -219,6 +222,6 @@ mod tests {
         });
 
         assert_eq!(index.num_entries(), 100);
-        assert_eq!(index.get(&[1]).len(), 100);
+        assert_eq!(index.nodes_of_type(&[1]).len(), 100);
     }
 }

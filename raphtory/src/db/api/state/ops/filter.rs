@@ -463,12 +463,10 @@ impl NodeOp for NodeTypeFilterOp {
             .filter_map(|(type_id, keep)| keep.then_some(type_id))
             .collect();
 
+        let nodes = storage.node_type_index().nodes_of_type(&type_ids);
+
         NodeList::List {
-            elems: storage
-                .node_type_index()
-                .nodes_of_type(&type_ids)
-                .into_iter()
-                .collect(),
+            elems: nodes.into(),
         }
     }
 
