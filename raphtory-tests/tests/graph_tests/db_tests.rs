@@ -10,7 +10,7 @@ use raphtory::{
     db::{
         api::{
             properties::internal::InternalMetadataOps,
-            state::MergePriority,
+            state::{GenericNodeState, MergePriority},
             view::{
                 internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                 EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
@@ -2956,6 +2956,26 @@ fn test_node_state_merge() {
         )])),
     );
     assert_eq!(m2.values().num_rows(), graph.count_nodes());
+}
+
+#[test]
+fn pagerank_round_trips_through_parquet() {
+    let graph = Graph::new();
+    random_attachment(&graph, 100, 5, Some([1u8; 32]));
+
+    let pagerank_state = page_rank(&graph, None, Some(20), Some(1), None, true, None);
+    let original = pagerank_state.state;
+
+    let dir = TempDir::new().unwrap();
+    let file_path = dir.path().join("pagerank.parquet");
+    original.to_parquet(&file_path, Some("node_id".to_string()));
+
+    let reloaded = GenericNodeState::new_empty(graph.clone())
+        .from_parquet(&file_path, Some("node_id".to_string()))
+        .expect("should read the pagerank node state back from parquet");
+
+    assert_eq!(reloaded.keys_ref().len(), original.keys_ref().len());
+    assert_eq!(reloaded.values_ref(), original.values_ref());
 }
 
 #[test]

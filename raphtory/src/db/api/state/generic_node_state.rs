@@ -479,11 +479,20 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .unwrap()
                 .as_primitive_opt::<UInt64Type>()
             {
+                let membership_index = if self.keys.is_empty() {
+                    Index::for_graph(self.base_graph.clone())
+                } else {
+                    self.keys.clone()
+                };
                 let values: Vec<Option<u64>> = arr.iter().collect();
-                if values
-                    .par_iter()
-                    .any(|v| !v.is_some_and(|v| self.keys.contains(&VID(v as usize))))
-                {
+                let invalid = if membership_index.is_empty() {
+                    values.par_iter().any(|v| v.is_none())
+                } else {
+                    values
+                        .par_iter()
+                        .any(|v| !v.is_some_and(|v| membership_index.contains(&VID(v as usize))))
+                };
+                if invalid {
                     return Err(GraphError::IOErrorMsg(
                         format!(
                             "Column {} contains null or invalid node IDs.",
