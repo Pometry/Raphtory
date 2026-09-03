@@ -152,7 +152,7 @@ where
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
             elems @ Index::Partial(_) => NodeList::List { elems },
-            _ => self.graph.node_list(),
+            Index::Full(_) => self.graph.node_list(),
         }
     }
 

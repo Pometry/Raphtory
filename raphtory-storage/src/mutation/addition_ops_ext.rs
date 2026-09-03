@@ -277,19 +277,18 @@ impl InternalAdditionOps for TemporalGraph {
 
         let node_type_id = match node_type {
             None => {
-                writer.update_c_props(
-                    local_pos,
-                    STATIC_GRAPH_LAYER_ID,
-                    node_info_as_props(id.as_gid_ref(), None),
-                );
-                MaybeNew::Existing(0)
+                if let Some(gid) = id.as_gid_ref() {
+                    writer.store_node_id(local_pos, gid.to_owned());
+                }
+
+                MaybeNew::Existing(DEFAULT_NODE_TYPE_ID)
             }
             Some(node_type) => {
-                let old_type_id = writer
+                let existing_type_id = writer
                     .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
                     .into_u64();
 
-                match old_type_id {
+                match existing_type_id {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
 
@@ -301,12 +300,15 @@ impl InternalAdditionOps for TemporalGraph {
 
                         node_type_id
                     }
-                    Some(old_type_id) => MaybeNew::Existing(
-                        self.node_meta()
-                            .get_node_type_id(node_type)
-                            .filter(|&new_id| new_id == old_type_id as usize)
-                            .ok_or(MutationError::NodeTypeError)?,
-                    ),
+                    Some(existing_type_id) => {
+                        // Node types cannot be changed once set.
+                        // Fail if trying to set a different type_id.
+                        let node_type_id = self.node_meta().get_node_type_id(node_type)
+                            .filter(|&node_type_id| node_type_id == existing_type_id as usize)
+                            .ok_or(MutationError::NodeTypeError)?;
+
+                        MaybeNew::Existing(node_type_id)
+                    }
                 }
             }
         };

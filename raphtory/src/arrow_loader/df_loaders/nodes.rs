@@ -468,6 +468,7 @@ pub fn load_node_props_from_df<
                         let row_layer = layer_col_resolved
                             .as_ref()
                             .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[idx]));
+
                         writer.store_node_id_and_node_type(pos, Some(gid), *node_type);
 
                         if resolve_nodes {
