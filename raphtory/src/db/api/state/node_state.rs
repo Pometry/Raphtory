@@ -65,6 +65,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
         Self::Partial(Arc::new(IndexSet::from_iter(iter)))
     }
 }
+
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         if graph.node_list_trusted() {
