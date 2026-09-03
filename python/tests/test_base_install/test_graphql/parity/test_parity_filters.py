@@ -450,6 +450,11 @@ VIEW_EXPRS = {
     "view.and_mixed": lambda: f.Graph.window(2, 8)
     & (f.Node.node_type() != "bot")
     & f.Edge.property("weight").is_some(),
+    # window+latest does not commute: these two must stay distinct on both
+    # sides (the wire nests views in application order; a regression here
+    # inverts the chain remotely while local stays correct).
+    "view.chain_window_latest": lambda: f.Graph.window(2, 5).latest(),
+    "view.chain_latest_window": lambda: f.Graph.latest().window(11, 13),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -468,6 +473,13 @@ SCOPED_EXPRS = {
     "scoped.node.layers": lambda: f.Node.layers(["knows", "works"]).property("score")
     > 15,
     "scoped.node.metadata": lambda: f.Node.window(1, 6).metadata("region") == "eu",
+    # Non-commuting view chains (see view.chain_window_latest above).
+    "scoped.node.window_then_latest": (
+        lambda: f.Node.window(1, 6).latest().property("score") > 1
+    ),
+    "scoped.node.latest_then_window": (
+        lambda: f.Node.latest().window(11, 13).property("score") > 15
+    ),
     "scoped.node.is_active": lambda: f.Node.window(1, 3).is_active(),
     "scoped.edge.window": lambda: f.Edge.window(2, 5).property("weight") > 2.0,
     "scoped.edge.at": lambda: f.Edge.at(3).property("weight") > 2.0,
@@ -482,6 +494,13 @@ SCOPED_EXPRS = {
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
     "scoped.edge.is_deleted": lambda: f.Edge.window(2, 11).is_deleted(),
     "scoped.exploded.is_valid": lambda: f.ExplodedEdge.window(2, 4).is_valid(),
+    # Non-commuting view chains (see view.chain_window_latest above).
+    "scoped.edge.window_then_latest": (
+        lambda: f.Edge.window(2, 6).latest().property("weight") > 2.0
+    ),
+    "scoped.edge.latest_then_window": (
+        lambda: f.Edge.latest().window(11, 13).property("weight") > 2.0
+    ),
 }
 
 PREDICATE_EXPRS = {

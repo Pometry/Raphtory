@@ -9,7 +9,7 @@ use crate::{
                     PropertyFilterValue, PropertyRef,
                 },
                 CombinedFilter, ComposableFilter, CompositeNodeFilter, FilterOperator,
-                InternalPropertyFilterBuilder, NodeFilter, TryAsCompositeFilter,
+                InternalPropertyFilterBuilder, NodeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -135,22 +135,6 @@ impl CreateFilter for DegreeFilter {
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
-    }
-}
-
-impl TryAsCompositeFilter for DegreeFilter {
-    fn try_as_composite_edge_filter(
-        &self,
-    ) -> Result<model::edge_filter::CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<model::CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-    fn try_as_composite_node_filter(&self) -> Result<model::CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Degree(self.clone()))
     }
 }
 

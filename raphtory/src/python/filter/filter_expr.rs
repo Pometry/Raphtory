@@ -8,7 +8,6 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
-                TryAsCompositeFilter,
             },
             CreateFilter,
         },
@@ -40,14 +39,6 @@ impl PyFilterExpr {
                     .to_string(),
             )
         })
-    }
-
-    pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.0.try_as_composite_node_filter()
-    }
-
-    pub fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.0.try_as_composite_edge_filter()
     }
 }
 

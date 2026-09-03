@@ -1643,8 +1643,7 @@ mod test_node_filter {
                     degree_filter::DegreeFilterFactory,
                     node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
-                    ViewWrapOps,
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, ViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -1687,7 +1686,7 @@ mod test_node_filter {
         manual_expr: F,
         context: &str,
     ) where
-        CF: CreateFilter + TryAsCompositeFilter + Clone,
+        CF: CreateFilter + Clone,
         F: Fn(usize) -> bool + Copy,
     {
         let expected_select_nodes = graph
@@ -2891,12 +2890,7 @@ mod test_node_filter {
 
     #[test]
     fn test_is_active_node_window_not() {
-        let filter = NodeFilter
-            .window(1, 10)
-            .is_active()
-            .try_as_composite_node_filter()
-            .unwrap();
-        let filter = CompositeNodeFilter::Not(Box::new(filter));
+        let filter = NodeFilter.window(1, 10).is_active().not();
         let expected_results = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4458,7 +4452,7 @@ mod test_node_composite_filter {
     use raphtory::{
         db::graph::views::filter::model::{
             node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
-            ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
+            ComposableFilter, PropertyFilterFactory,
         },
         prelude::NodeFilter,
     };
@@ -4526,29 +4520,12 @@ mod test_node_composite_filter {
             &expected_results,
             TestVariants::All,
         );
-        let filter = filter.try_as_composite_node_filter().unwrap();
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
 
         let filter = NodeFilter
             .property("p2")
             .eq(2u64)
             .or(NodeFilter.property("p1").eq("shivam_kapoor"));
         let expected_results = vec!["1", "2"];
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_node_filter().unwrap();
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -4569,28 +4546,11 @@ mod test_node_composite_filter {
             &expected_results,
             TestVariants::All,
         );
-        let filter = filter.try_as_composite_node_filter().unwrap();
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
 
         let filter = NodeFilter::node_type()
             .eq("fire_nation")
             .and(NodeFilter.property("p1").eq("prop1"));
         let expected_results = Vec::<&str>::new();
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_node_filter().unwrap();
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -4612,28 +4572,10 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = filter.try_as_composite_node_filter().unwrap();
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
         let filter = NodeFilter::node_type()
             .eq("fire_nation")
             .and(NodeFilter.property("p1").eq("shivam_kapoor"));
         let expected_results = vec!["1"];
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_node_filter().unwrap();
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -4654,29 +4596,11 @@ mod test_node_composite_filter {
             TestVariants::All,
         );
 
-        let filter = filter.try_as_composite_node_filter().unwrap();
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
         let filter = NodeFilter::name()
             .eq("2")
             .and(NodeFilter.property("p2").eq(2u64))
             .or(NodeFilter.property("p9").eq(5u64));
         let expected_results = vec!["1", "2"];
-        assert_filter_nodes_results(
-            init_nodes_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_node_filter().unwrap();
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -4774,7 +4698,7 @@ mod test_node_property_filter_agg {
                 model::{
                     node_filter::NodeFilter,
                     property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
+                    PropertyFilterFactory, TemporalPropertyFilterFactory,
                 },
                 CreateFilter,
             },
@@ -5106,10 +5030,7 @@ mod test_node_property_filter_agg {
     }
 
     #[track_caller]
-    fn apply_assertion(
-        filter: impl TryAsCompositeFilter + CreateFilter + Clone,
-        expected: &[&str],
-    ) {
+    fn apply_assertion(filter: impl CreateFilter + Clone, expected: &[&str]) {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -5120,10 +5041,7 @@ mod test_node_property_filter_agg {
     }
 
     #[track_caller]
-    fn apply_assertion_err(
-        filter: impl TryAsCompositeFilter + CreateFilter + Clone,
-        expected: &str,
-    ) {
+    fn apply_assertion_err(filter: impl CreateFilter + Clone, expected: &str) {
         assert_filter_nodes_err(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -10602,7 +10520,6 @@ mod test_edge_composite_filter {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
         property_filter::ops::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
-        TryAsCompositeFilter,
     };
     use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
@@ -10681,29 +10598,12 @@ mod test_edge_composite_filter {
             &expected_results,
             TestVariants::All,
         );
-        let filter = filter.try_as_composite_edge_filter().unwrap();
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
 
         let filter = EdgeFilter
             .property("p2")
             .eq(2u64)
             .or(EdgeFilter.property("p1").eq("shivam_kapoor"));
         let expected_results = vec!["1->2", "2->3"];
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
             init_edges_graph,
             IdentityGraphTransformer,
@@ -10730,29 +10630,11 @@ mod test_edge_composite_filter {
             TestVariants::All,
         );
 
-        let filter = filter.try_as_composite_edge_filter().unwrap();
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
         let filter = EdgeFilter::src()
             .name()
             .eq("13")
             .and(EdgeFilter.property("p1").eq("prop1"));
         let expected_results = Vec::<&str>::new();
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
             init_edges_graph,
             IdentityGraphTransformer,
@@ -10774,29 +10656,11 @@ mod test_edge_composite_filter {
             TestVariants::All,
         );
 
-        let filter = filter.try_as_composite_edge_filter().unwrap();
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
         let filter = EdgeFilter::src()
             .name()
             .eq("1")
             .and(EdgeFilter.property("p1").eq("shivam_kapoor"));
         let expected_results = vec!["1->2"];
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
             init_edges_graph,
             IdentityGraphTransformer,
@@ -10818,30 +10682,12 @@ mod test_edge_composite_filter {
             TestVariants::All,
         );
 
-        let filter = filter.try_as_composite_edge_filter().unwrap();
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
         let filter = EdgeFilter::src()
             .name()
             .eq("1")
             .and(EdgeFilter.property("p1").eq("shivam_kapoor"))
             .or(EdgeFilter.property("p3").eq(5u64));
         let expected_results = vec!["1->2"];
-        assert_filter_edges_results(
-            init_edges_graph,
-            IdentityGraphTransformer,
-            filter.clone(),
-            &expected_results,
-            TestVariants::All,
-        );
-
-        let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
             init_edges_graph,
             IdentityGraphTransformer,

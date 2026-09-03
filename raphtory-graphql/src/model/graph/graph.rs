@@ -33,12 +33,7 @@ use raphtory::{
             filter_ops::Select, DynamicGraph, Filter, IntoDynamic, NodeViewOps, StaticGraphViewOps,
             TimeOps,
         },
-        graph::{
-            node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
-            },
-        },
+        graph::{node::NodeView, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -547,7 +542,7 @@ impl GqlGraph {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let nf: CompositeNodeFilter = sel.try_into()?;
+            let nf = GqlFilter::Node(sel);
             let narrowed = blocking_compute({
                 let nn_clone = nn.clone();
                 move || nn_clone.select(nf)
@@ -581,7 +576,7 @@ impl GqlGraph {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
+            let ef = GqlFilter::Edge(sel);
             let narrowed = blocking_compute(move || base.select(ef)).await?;
             return Ok(GqlEdges::new(narrowed));
         }

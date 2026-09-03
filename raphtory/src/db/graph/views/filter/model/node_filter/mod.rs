@@ -34,7 +34,7 @@ use crate::{
                 windowed_filter::Windowed,
                 AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
                 CreateView, EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps,
-                NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
+                NodeViewFilterOps, NotFilter, OrFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -199,22 +199,6 @@ impl CreateFilter for NodeIdFilter {
     }
 }
 
-impl TryAsCompositeFilter for NodeIdFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Node(self.0.clone()))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);
 
@@ -265,22 +249,6 @@ impl CreateFilter for NodeNameFilter {
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
-    }
-}
-
-impl TryAsCompositeFilter for NodeNameFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Node(self.0.clone()))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -354,22 +322,6 @@ impl CreateFilter for NodeTypeFilter {
     }
 }
 
-impl TryAsCompositeFilter for NodeTypeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Node(self.0.clone()))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeNodeFilter {
     Node(Filter),
@@ -402,155 +354,6 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeNodeFilter::Not(filter) => write!(f, "NOT({})", filter),
         }
-    }
-}
-
-impl CreateFilter for CompositeNodeFilter {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn NodeOp<Output = bool> + 'graph>;
-
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let filter = self.create_node_filter(graph.clone(), filtered)?;
-        Ok(NodeFilteredGraph::new(graph, filter))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        match self {
-            CompositeNodeFilter::Degree(i) => Ok(Arc::new(i.create_node_filter(graph, filtered)?)),
-            CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
-                "node_id" => Ok(Arc::new(
-                    NodeIdFilter(i).create_node_filter(graph, filtered)?,
-                )),
-                "node_name" => Ok(Arc::new(
-                    NodeNameFilter(i).create_node_filter(graph, filtered)?,
-                )),
-                "node_type" => Ok(Arc::new(
-                    NodeTypeFilter(i).create_node_filter(graph, filtered)?,
-                )),
-                _ => {
-                    unreachable!()
-                }
-            },
-            CompositeNodeFilter::Property(i) => {
-                Ok(Arc::new(i.create_node_filter(graph, filtered)?))
-            }
-            CompositeNodeFilter::Windowed(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: Arc<dyn BoxableGraphView + 'graph> = Arc::new(filtered);
-                i.create_node_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeNodeFilter::Layered(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: Arc<dyn BoxableGraphView + 'graph> = Arc::new(filtered);
-                i.create_node_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeNodeFilter::Latest(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: Arc<dyn BoxableGraphView + 'graph> = Arc::new(filtered);
-                i.create_node_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeNodeFilter::SnapshotAt(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: Arc<dyn BoxableGraphView + 'graph> = Arc::new(filtered);
-                i.create_node_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeNodeFilter::SnapshotLatest(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: Arc<dyn BoxableGraphView + 'graph> = Arc::new(filtered);
-                i.create_node_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeNodeFilter::IsActiveNode(i) => {
-                Ok(Arc::new(i.create_node_filter(graph, filtered)?))
-            }
-            CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
-                left: l
-                    .clone()
-                    .create_node_filter(graph.clone(), filtered.clone())?,
-                right: r.clone().create_node_filter(graph, filtered)?,
-            })),
-            CompositeNodeFilter::Or(l, r) => Ok(Arc::new(OrOp {
-                left: l
-                    .clone()
-                    .create_node_filter(graph.clone(), filtered.clone())?,
-                right: r.clone().create_node_filter(graph, filtered)?,
-            })),
-            CompositeNodeFilter::Not(filter) => Ok(Arc::new(NotOp(
-                filter.clone().create_node_filter(graph, filtered)?,
-            ))),
-        }
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        match self.clone() {
-            CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
-                "node_id" => Ok(Arc::new(NodeIdFilter(i).filter_graph_view(graph)?)),
-                "node_name" => Ok(Arc::new(NodeNameFilter(i).filter_graph_view(graph)?)),
-                "node_type" => Ok(Arc::new(NodeTypeFilter(i).filter_graph_view(graph)?)),
-                _ => {
-                    unreachable!()
-                }
-            },
-            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Degree(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::IsActiveNode(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::And(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            CompositeNodeFilter::Or(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            CompositeNodeFilter::Not(f) => {
-                let base = *f;
-                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
-            }
-        }
-    }
-}
-
-impl TryAsCompositeFilter for CompositeNodeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(self.clone())
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 

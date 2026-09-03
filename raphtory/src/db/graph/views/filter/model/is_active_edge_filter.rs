@@ -6,7 +6,7 @@ use crate::{
                 edge_filtered_graph::EdgeFilteredGraph,
                 model::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter,
                 },
                 CreateFilter,
             },
@@ -72,22 +72,6 @@ impl CreateFilter for IsActiveEdge {
 }
 
 impl ComposableFilter for IsActiveEdge {}
-
-impl TryAsCompositeFilter for IsActiveEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsActiveEdge(IsActiveEdge))
-    }
-}
 
 // ── expr layer: the predicate as a boolean expression over the eval view ──
 

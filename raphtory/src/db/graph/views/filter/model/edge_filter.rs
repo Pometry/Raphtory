@@ -35,7 +35,7 @@ use crate::{
                 AndFilter, CombinedFilter, ComposableFilter, DynFilter, EdgeViewFilterOps,
                 EntityMarker, FilterTree, InternalPropertyFilterBuilder,
                 InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
-                TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                TemporalPropertyFilterFactory, Wrap,
             },
             CreateFilter,
         },
@@ -208,7 +208,7 @@ impl<M> Wrap for EdgeEndpointWrapper<M> {
     }
 }
 
-impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
+impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: Clone + Send + Sync {}
 
 impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for EdgeEndpointWrapper<T> {
     fn field_name(&self) -> &'static str {
@@ -318,32 +318,6 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> 
     }
 }
 
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for EdgeEndpointWrapper<T> {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = match self.endpoint {
-            Endpoint::Src => CompositeEdgeFilter::Src(filter),
-            Endpoint::Dst => CompositeEdgeFilter::Dst(filter),
-        };
-        Ok(filter)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = match self.endpoint {
-            Endpoint::Src => CompositeExplodedEdgeFilter::Src(filter),
-            Endpoint::Dst => CompositeExplodedEdgeFilter::Dst(filter),
-        };
-        Ok(filter)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeEdgeFilter {
     Src(CompositeNodeFilter),
@@ -382,161 +356,6 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
         }
-    }
-}
-
-impl CreateFilter for CompositeEdgeFilter {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn BoxableGraphView + 'graph>;
-
-    type NodeFilter<'graph, G, F>
-        = NotANodeFilter
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        match self {
-            CompositeEdgeFilter::Src(filter) => {
-                let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Src);
-                let filtered_graph = wrapped.create_filter(graph, filtered)?;
-                Ok(Arc::new(filtered_graph))
-            }
-            CompositeEdgeFilter::Dst(filter) => {
-                let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Dst);
-                let filtered_graph = wrapped.create_filter(graph, filtered)?;
-                Ok(Arc::new(filtered_graph))
-            }
-            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph, filtered)?)),
-            CompositeEdgeFilter::Windowed(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
-                i.create_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeEdgeFilter::Latest(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
-                i.create_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeEdgeFilter::SnapshotAt(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
-                i.create_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeEdgeFilter::SnapshotLatest(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
-                i.create_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.create_filter(graph, filtered)?)),
-            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.create_filter(graph, filtered)?)),
-            CompositeEdgeFilter::IsDeletedEdge(i) => {
-                Ok(Arc::new(i.create_filter(graph, filtered)?))
-            }
-            CompositeEdgeFilter::IsSelfLoopEdge(i) => {
-                Ok(Arc::new(i.create_filter(graph, filtered)?))
-            }
-            CompositeEdgeFilter::Layered(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
-                i.create_filter(dyn_graph, dyn_filtered)
-            }
-            CompositeEdgeFilter::And(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    AndFilter { left: l, right: r }.create_filter(graph, filtered)?,
-                ))
-            }
-            CompositeEdgeFilter::Or(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    OrFilter { left: l, right: r }.create_filter(graph, filtered)?,
-                ))
-            }
-            CompositeEdgeFilter::Not(f) => {
-                let base = *f;
-                Ok(Arc::new(NotFilter(base).create_filter(graph, filtered)?))
-            }
-        }
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        _filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        match self.clone() {
-            CompositeEdgeFilter::Src(filter) => {
-                let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Src);
-                let filtered_graph = wrapped.filter_graph_view(graph)?;
-                Ok(Arc::new(filtered_graph))
-            }
-            CompositeEdgeFilter::Dst(filter) => {
-                let wrapped = EdgeEndpointWrapper::new(filter, Endpoint::Dst);
-                let filtered_graph = wrapped.filter_graph_view(graph)?;
-                Ok(Arc::new(filtered_graph))
-            }
-            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::Windowed(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::IsDeletedEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::IsSelfLoopEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeEdgeFilter::And(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            CompositeEdgeFilter::Or(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            CompositeEdgeFilter::Not(f) => {
-                let base = *f;
-                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
-            }
-        }
-    }
-}
-
-impl TryAsCompositeFilter for CompositeEdgeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(self.clone())
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 
@@ -614,34 +433,6 @@ impl CreateFilter for EdgeEndpointNodeFilter {
 }
 
 impl ComposableFilter for EdgeEndpointNodeFilter {}
-
-impl TryAsCompositeFilter for EdgeEndpointNodeFilter {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::InvalidFilter(
-            "expression filters have no composite representation".to_string(),
-        ))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::InvalidFilter(
-            "expression filters have no composite representation".to_string(),
-        ))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::InvalidFilter(
-            "expression filters have no composite representation".to_string(),
-        ))
-    }
-
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        Err(GraphError::InvalidFilter(
-            "expression filters have no composite representation".to_string(),
-        ))
-    }
-}
 
 // ── expr layer: endpoint expressions bridge node ops into edge ops ──
 

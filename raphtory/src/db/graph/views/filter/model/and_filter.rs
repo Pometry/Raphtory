@@ -10,7 +10,6 @@ use crate::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
-                TryAsCompositeFilter,
             },
             CreateFilter,
         },
@@ -93,49 +92,5 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         Self: 'graph,
     {
         Ok(graph)
-    }
-}
-
-impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for AndFilter<L, R> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Same-kind combinations keep their composite form; mixed-kind trees
-        // export structurally — the case the composite exports cannot
-        // represent.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
-        }
-        Ok(FilterTree::And(vec![
-            self.left.try_as_filter_tree()?,
-            self.right.try_as_filter_tree()?,
-        ]))
-    }
-
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::And(
-            Box::new(self.left.try_as_composite_node_filter()?),
-            Box::new(self.right.try_as_composite_node_filter()?),
-        ))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::And(
-            Box::new(self.left.try_as_composite_edge_filter()?),
-            Box::new(self.right.try_as_composite_edge_filter()?),
-        ))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::And(
-            Box::new(self.left.try_as_composite_exploded_edge_filter()?),
-            Box::new(self.right.try_as_composite_exploded_edge_filter()?),
-        ))
     }
 }

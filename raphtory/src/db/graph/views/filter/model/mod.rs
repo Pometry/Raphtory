@@ -140,22 +140,6 @@ impl CreateFilter for Unfiltered {
     }
 }
 
-impl TryAsCompositeFilter for Unfiltered {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-}
-
 pub trait Wrap {
     type Wrapped<T>;
 
@@ -189,7 +173,7 @@ pub trait ComposableFilter: Sized {
     }
 }
 
-pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
+pub trait DynCreateFilter: Send + Sync + 'static {
     fn create_dyn_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
@@ -379,10 +363,10 @@ pub enum GraphViewOp {
 
 /// Kind-tagged, owned export of a filter tree — the transportable form of a
 /// composed filter, referencing no in-process state. `View` is an
-/// outermost-first chain of graph-level restrictions. Produced by
-/// [`TryAsCompositeFilter::try_as_filter_tree`]; filters that inherently
-/// reference in-process state (e.g. node-state columns) cannot be exported
-/// and return an error instead.
+/// chain of graph-level restrictions in application order (each later op
+/// wraps outside the previous one). Recorded at construction on the python
+/// side; filters that inherently reference in-process state (e.g. node-state
+/// columns) carry no tree.
 #[derive(Clone, Debug)]
 pub enum FilterTree {
     Node(CompositeNodeFilter),
@@ -410,55 +394,6 @@ impl FilterTree {
             }
             FilterTree::Not(inner) => inner.tests_edges(),
         }
-    }
-}
-
-pub trait TryAsCompositeFilter: Send + Sync {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError>;
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError>;
-
-    /// Export this filter as a kind-tagged [`FilterTree`]. The default covers
-    /// every single-kind filter via the composite exports; combinators and
-    /// graph-view filters override it to preserve structure the single-kind
-    /// exports cannot represent (mixed-kind trees, view chains). The kinds are
-    /// tried node → edge → exploded-edge, so a filter that exports as more
-    /// than one kind (e.g. the edge validity predicates) keeps its
-    /// plain-edge export.
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        Ok(FilterTree::ExplodedEdge(
-            self.try_as_composite_exploded_edge_filter()?,
-        ))
-    }
-}
-
-impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        self.deref().try_as_filter_tree()
-    }
-
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.deref().try_as_composite_node_filter()
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.deref().try_as_composite_edge_filter()
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        self.deref().try_as_composite_exploded_edge_filter()
     }
 }
 
@@ -1436,7 +1371,7 @@ pub trait InternalPropertyFilterFactory {
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder;
 }
 
-pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static {}
+pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}
 
 pub trait NodeViewFilterOps: ViewWrapOps {
     type Output<T: CombinedFilter>: CombinedFilter;
@@ -1569,7 +1504,7 @@ impl InternalPropertyFilterFactory for Arc<dyn DynPropertyFilterFactory> {
     }
 }
 
-impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
+impl<T: CreateFilter + Clone + Send + Sync + 'static> CombinedFilter for T {}
 
 impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapPropOps> {
     type Entity = EntityMarker;

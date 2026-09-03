@@ -183,9 +183,10 @@ pub(crate) enum WireValue {
 macro_rules! wrap_views_fn {
     ($name:ident, $composite:ident) => {
         pub(crate) fn $name(leaf: $composite, views: &[WireView]) -> $composite {
-            // Views recorded factory-first wrap outside-in: the first view a
-            // user applied is the outermost restriction.
-            views.iter().rev().fold(leaf, |acc, view| match view {
+            // Views are recorded in application order and each later view
+            // wraps outside the previous one: the outermost wrapper is the
+            // last view applied, matching the local expression engine.
+            views.iter().fold(leaf, |acc, view| match view {
                 WireView::Window(start, end) => {
                     $composite::Windowed(Box::new(Windowed::new(*start, *end, acc)))
                 }

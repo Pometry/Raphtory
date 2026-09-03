@@ -5,7 +5,7 @@ use crate::{
             filter::{
                 model::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter,
                 },
                 CreateFilter,
             },
@@ -72,22 +72,6 @@ impl CreateFilter for IsSelfLoopEdge {
 }
 
 impl ComposableFilter for IsSelfLoopEdge {}
-
-impl TryAsCompositeFilter for IsSelfLoopEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
-    }
-}
 
 // ── expr layer: the predicate as a boolean expression over the eval view ──
 

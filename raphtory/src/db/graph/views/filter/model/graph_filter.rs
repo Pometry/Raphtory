@@ -9,7 +9,7 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 CombinedFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree,
-                InternalViewWrapOps, TryAsCompositeFilter, Wrap,
+                InternalViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -75,27 +75,6 @@ impl CreateFilter for GraphFilter {
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
-    }
-}
-
-impl TryAsCompositeFilter for GraphFilter {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // The bare graph anchor restricts nothing — an empty view chain.
-        Ok(FilterTree::View(Vec::new()))
-    }
-
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
     }
 }
 

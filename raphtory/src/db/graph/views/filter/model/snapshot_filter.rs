@@ -21,7 +21,7 @@ use crate::{
                     CompositeNodeFilter, CreateView, EdgeViewFilterOps, FilterTree, GraphViewOp,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                     InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    TemporalPropertyFilterFactory, Wrap,
                 },
                 CreateFilter,
             },
@@ -88,55 +88,6 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Snapsho
 
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
         self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotAt<T> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Single-kind inners keep their composite form (the wrapper becomes a
-        // windowed/layered/... composite variant); only graph-level view
-        // chains export as `View` ops. Anything else (a view wrapping a
-        // mixed-kind tree) has no wire representation yet.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
-        }
-        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
-            return Err(GraphError::NotSupported);
-        };
-        let mut chain = vec![GraphViewOp::SnapshotAt(self.time)];
-        chain.extend(ops);
-        Ok(FilterTree::View(chain))
-    }
-
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::SnapshotAt(Box::new(SnapshotAt {
-            time: self.time,
-            inner: self.inner.try_as_composite_node_filter()?,
-        })))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::SnapshotAt(Box::new(SnapshotAt::new(
-            self.time,
-            self.inner.try_as_composite_edge_filter()?,
-        ))))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::SnapshotAt(Box::new(
-            SnapshotAt::new(
-                self.time,
-                self.inner.try_as_composite_exploded_edge_filter()?,
-            ),
-        )))
     }
 }
 
@@ -300,50 +251,6 @@ impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Snapsho
 
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
         self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotLatest<T> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Single-kind inners keep their composite form (the wrapper becomes a
-        // windowed/layered/... composite variant); only graph-level view
-        // chains export as `View` ops. Anything else (a view wrapping a
-        // mixed-kind tree) has no wire representation yet.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
-        }
-        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
-            return Err(GraphError::NotSupported);
-        };
-        let mut chain = vec![GraphViewOp::SnapshotLatest];
-        chain.extend(ops);
-        Ok(FilterTree::View(chain))
-    }
-
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::SnapshotLatest(Box::new(
-            SnapshotLatest::new(self.inner.try_as_composite_node_filter()?),
-        )))
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::SnapshotLatest(Box::new(
-            SnapshotLatest::new(self.inner.try_as_composite_edge_filter()?),
-        )))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::SnapshotLatest(Box::new(
-            SnapshotLatest::new(self.inner.try_as_composite_exploded_edge_filter()?),
-        )))
     }
 }
 
