@@ -25,7 +25,7 @@ use arrow::{
     datatypes::UInt64Type,
 };
 use arrow_array::{
-    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt64Array,
+    builder::UInt64Builder, Array, ArrayRef, RecordBatch, UInt64Array,
 };
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use arrow_select::{concat::concat, take::take};
@@ -470,8 +470,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             ));
         }
 
-        let mut index = self.keys.clone();
-
+        let index: Index<VID>;
         // checking again so we can remove the column
         if let Some(ref col_name) = id_column {
             // reconstruct index
@@ -480,25 +479,37 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .unwrap()
                 .as_primitive_opt::<UInt64Type>()
             {
-                let max_node_id = arr.iter().max().unwrap_or(Some(0)).unwrap() as usize;
-                if max_node_id >= num_nodes {
+                let values: Vec<Option<u64>> = arr.iter().collect();
+                if values
+                    .par_iter()
+                    .any(|v| !v.is_some_and(|v| self.keys.contains(&VID(v as usize))))
+                {
                     return Err(GraphError::IOErrorMsg(
                         format!(
-                            "Max Node ID ({}) exceeds order of graph ({}).",
-                            max_node_id, num_nodes,
+                            "Column {} contains null or invalid node IDs.",
+                            col_name
                         )
                         .to_string(),
                     ));
                 }
-                index = Index::from_iter(arr.iter().map(|v| VID(v.unwrap_or(0) as usize)));
+                index = Index::from_iter(values.into_iter().map(|v| VID(v.unwrap() as usize)));
             } else {
                 return Err(GraphError::IOErrorMsg(
                     format!("Column {} is not unsigned integer type.", col_name).to_string(),
                 ));
             }
             batch.remove_column(schema.column_with_name(col_name).unwrap().0);
-        } else if batch.num_rows() < num_nodes {
-            index = Index::from_iter((0..batch.num_rows()).map(VID));
+        } else if batch.num_rows() != num_nodes {
+            return Err(GraphError::IOErrorMsg(
+                format!(
+                    "No ID column specified and number of rows ({}) does not match order of graph ({}).",
+                    batch.num_rows(),
+                    num_nodes,
+                )
+                .to_string(),
+            ));
+        } else {
+            index = self.keys.clone();
         }
 
         Ok(GenericNodeState {
@@ -515,13 +526,8 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let mut schema = self.values.schema();
 
         if id_column.is_some() {
-            let ids: Vec<String> = self
-                .nodes()
-                .id()
-                .iter()
-                .map(|(_, gid)| gid.to_string())
-                .collect();
-            let ids_array = Arc::new(LargeStringArray::from(ids)) as ArrayRef;
+            let ids: Vec<u64> = self.keys.iter().map(|vid| vid.0 as u64).collect();
+            let ids_array = Arc::new(UInt64Array::from(ids)) as ArrayRef;
 
             let mut builder = SchemaBuilder::new();
             for field in &self.values.schema().fields().clone() {
@@ -529,7 +535,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             }
             builder.push(Arc::new(Field::new(
                 id_column.unwrap(),
-                DataType::LargeUtf8,
+                DataType::UInt64,
                 false,
             )));
             schema = Arc::new(Schema::new(builder.finish().fields));
