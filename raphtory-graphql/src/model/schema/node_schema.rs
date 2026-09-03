@@ -88,11 +88,11 @@ impl NodeSchema {
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
                     let num_type_ids = self.graph.node_meta().node_type_meta().num_all_fields();
-                    let mut node_types_filter = vec![false; num_type_ids];
-                    node_types_filter[self.type_id] = true;
+                    let mut node_types_mask = vec![false; num_type_ids];
+                    node_types_mask[self.type_id] = true;
 
                     let filter =
-                        NodeTypeFilterOp::from_mask(node_types_filter.into(), self.graph.clone());
+                        NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
 
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
@@ -143,11 +143,11 @@ impl NodeSchema {
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
                     let num_type_ids = self.graph.node_meta().node_type_meta().num_all_fields();
-                    let mut node_types_filter = vec![false; num_type_ids];
-                    node_types_filter[self.type_id] = true;
+                    let mut node_types_mask = vec![false; num_type_ids];
+                    node_types_mask[self.type_id] = true;
 
                     let filter =
-                        NodeTypeFilterOp::from_mask(node_types_filter.into(), self.graph.clone());
+                        NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
 
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
