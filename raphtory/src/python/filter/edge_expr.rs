@@ -1,21 +1,23 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+        edge_filter::{CompositeEdgeFilter, EdgeEndpointWrapper, EdgeFilter, Endpoint},
         is_active_edge_filter::IsActiveEdge,
         is_deleted_filter::IsDeletedEdge,
         is_self_loop_filter::IsSelfLoopEdge,
         is_valid_filter::IsValidEdge,
         node_expr::{DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr},
         node_filter::NodeFilter,
+        property_filter::PropertyRef,
         windowed_filter::Windowed,
         CombinedFilter, CreateView, DynCreateFilter, DynCreateView, EdgeFilterFactory,
-        EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, PropertyExprFactory, ViewWrapOps,
-        Wrap,
+        EdgeViewFilterOps, EntityMarker, FilterTree, InternalViewWrapOps, PropertyExprFactory,
+        ViewWrapOps, Wrap,
     },
     python::{
         filter::{
             filter_expr::PyFilterExpr,
             node_expr::{PyExpr, PyPropertyExpr},
+            wire::{wrap_edge_views, WireEntity, WireLhs, WireTarget, WireView},
         },
         types::iterable::FromIterable,
     },
@@ -35,23 +37,48 @@ use std::sync::Arc;
 ///     Edge.dst().name().starts_with("user:")
 ///     Edge.src().property("country") == "UK"
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
-pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
+pub struct PyEdgeEndpoint(
+    pub EdgeEndpointWrapper<NodeFilter>,
+    pub(crate) Endpoint,
+    pub(crate) Vec<WireView>,
+);
+
+impl PyEdgeEndpoint {
+    fn lhs(&self, target: WireTarget) -> WireLhs {
+        WireLhs {
+            entity: WireEntity::Edge,
+            endpoint: Some(self.1),
+            target,
+            ops: Vec::new(),
+            views: self.2.clone(),
+        }
+    }
+}
 
 #[pymethods]
 impl PyEdgeEndpoint {
     /// Selects the endpoint node ID field for filtering.
     fn id(&self) -> PyExpr {
-        self.0.id().into()
+        PyExpr::new(
+            Arc::new(self.0.id()),
+            Some(self.lhs(WireTarget::Field("node_id"))),
+        )
     }
 
     /// Selects the endpoint node name field for filtering.
     fn name(&self) -> PyExpr {
-        self.0.name().into()
+        PyExpr::new(
+            Arc::new(self.0.name()),
+            Some(self.lhs(WireTarget::Field("node_name"))),
+        )
     }
 
     /// Selects the endpoint node type field for filtering.
     fn node_type(&self) -> PyExpr {
-        self.0.node_type().into()
+        PyExpr::new(
+            Arc::new(self.0.node_type()),
+            Some(self.lhs(WireTarget::Field("node_type"))),
+        )
     }
 
     /// Filters an endpoint node property by name.
@@ -59,8 +86,8 @@ impl PyEdgeEndpoint {
     /// Arguments:
     ///     name (str): Property key.
     fn property(&self, name: String) -> PyPropertyExpr {
-        let expr: Arc<dyn DynTemporal> = Arc::new(self.0.property(name));
-        expr.into()
+        let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
+        PyPropertyExpr::new(Arc::new(self.0.property(name)), Some(lhs))
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -68,9 +95,14 @@ impl PyEdgeEndpoint {
     /// Arguments:
     ///     name (str): Metadata key.
     fn metadata(&self, name: String) -> PyExpr {
-        self.0
-            .wrap(PropertyExprFactory::metadata(&NodeFilter, name))
-            .into()
+        let lhs = self.lhs(WireTarget::Prop(PropertyRef::Metadata(name.clone())));
+        PyExpr::new(
+            Arc::new(
+                self.0
+                    .wrap(PropertyExprFactory::metadata(&NodeFilter, name)),
+            ),
+            Some(lhs),
+        )
     }
 }
 
@@ -192,13 +224,23 @@ where
 
 impl PyEdgeFilter {
     pub(crate) fn root() -> Self {
-        PyEdgeFilter(Arc::new(EdgeFilter))
+        PyEdgeFilter(Arc::new(EdgeFilter), Vec::new())
     }
-}
 
-impl From<Arc<dyn DynEdgeFilterFactory>> for PyEdgeFilter {
-    fn from(value: Arc<dyn DynEdgeFilterFactory>) -> Self {
-        PyEdgeFilter(value)
+    fn wrap(&self, factory: Arc<dyn DynEdgeFilterFactory>, view: WireView) -> Self {
+        let mut views = self.1.clone();
+        views.push(view);
+        PyEdgeFilter(factory, views)
+    }
+
+    fn lhs(&self, target: WireTarget) -> WireLhs {
+        WireLhs {
+            entity: WireEntity::Edge,
+            endpoint: None,
+            target,
+            ops: Vec::new(),
+            views: self.1.clone(),
+        }
     }
 }
 
@@ -216,23 +258,23 @@ impl From<Arc<dyn DynEdgeFilterFactory>> for PyEdgeFilter {
 ///     Edge.window(0, 10).is_active()
 ///     Edge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
-pub struct PyEdgeFilter(Arc<dyn DynEdgeFilterFactory>);
+pub struct PyEdgeFilter(Arc<dyn DynEdgeFilterFactory>, Vec<WireView>);
 
 #[pymethods]
 impl PyEdgeFilter {
     #[new]
     fn new() -> PyEdgeFilter {
-        PyEdgeFilter(Arc::new(EdgeFilter))
+        Self::root()
     }
 
     /// Selects the edge **source endpoint** for filtering.
     fn src(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(EdgeFilter::src())
+        PyEdgeEndpoint(EdgeFilter::src(), Endpoint::Src, self.1.clone())
     }
 
     /// Selects the edge **destination endpoint** for filtering.
     fn dst(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(EdgeFilter::dst())
+        PyEdgeEndpoint(EdgeFilter::dst(), Endpoint::Dst, self.1.clone())
     }
 
     /// Filters an edge property by name.
@@ -240,7 +282,8 @@ impl PyEdgeFilter {
     /// Arguments:
     ///     name (str): Property key.
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.0.dyn_property(name).into()
+        let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
+        PyPropertyExpr::new(self.0.dyn_property(name), Some(lhs))
     }
 
     /// Filters an edge metadata field by name.
@@ -248,71 +291,104 @@ impl PyEdgeFilter {
     /// Arguments:
     ///     name (str): Metadata key.
     fn metadata(&self, name: String) -> PyExpr {
-        self.0.dyn_metadata(name).into()
+        let lhs = self.lhs(WireTarget::Prop(PropertyRef::Metadata(name.clone())));
+        PyExpr::new(self.0.dyn_metadata(name), Some(lhs))
     }
 
     /// Restricts edge evaluation to the given time window.
     fn window(&self, start: EventTime, end: EventTime) -> PyEdgeFilter {
-        self.0.dyn_window(start, end).into()
+        self.wrap(self.0.dyn_window(start, end), WireView::Window(start, end))
     }
 
     /// Restricts edge evaluation to a single point in time.
     fn at(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.dyn_at(time).into()
+        self.wrap(
+            self.0.dyn_at(time),
+            WireView::Window(time, EventTime::end(time.t().saturating_add(1))),
+        )
     }
 
     /// Restricts edge evaluation to times strictly after the given time.
     fn after(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.dyn_after(time).into()
+        self.wrap(
+            self.0.dyn_after(time),
+            WireView::Window(
+                EventTime::start(time.t().saturating_add(1)),
+                EventTime::end(i64::MAX),
+            ),
+        )
     }
 
     /// Restricts edge evaluation to times strictly before the given time.
     fn before(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.dyn_before(time).into()
+        self.wrap(
+            self.0.dyn_before(time),
+            WireView::Window(EventTime::start(i64::MIN), EventTime::end(time.t())),
+        )
     }
 
     /// Evaluates edge predicates against the latest available edge state.
     fn latest(&self) -> PyEdgeFilter {
-        self.0.dyn_latest().into()
+        self.wrap(self.0.dyn_latest(), WireView::Latest)
     }
 
     /// Evaluates edge predicates against a snapshot of the graph at a given time.
     fn snapshot_at(&self, time: EventTime) -> PyEdgeFilter {
-        self.0.dyn_snapshot_at(time).into()
+        self.wrap(self.0.dyn_snapshot_at(time), WireView::SnapshotAt(time))
     }
 
     /// Evaluates edge predicates against the most recent snapshot of the graph.
     fn snapshot_latest(&self) -> PyEdgeFilter {
-        self.0.dyn_snapshot_latest().into()
+        self.wrap(self.0.dyn_snapshot_latest(), WireView::SnapshotLatest)
     }
 
     /// Restricts evaluation to edges belonging to the given layer.
     fn layer(&self, layer: String) -> PyEdgeFilter {
-        self.0.dyn_layer(vec![layer]).into()
+        self.wrap(
+            self.0.dyn_layer(vec![layer.clone()]),
+            WireView::Layers(vec![layer]),
+        )
     }
 
     /// Restricts evaluation to edges belonging to any of the given layers.
     fn layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        self.0.dyn_layer(layers.to_vec()).into()
+        let layers = layers.to_vec();
+        self.wrap(self.0.dyn_layer(layers.clone()), WireView::Layers(layers))
     }
 
     /// Matches edges that have at least one event in the current view.
     fn is_active(&self) -> PyFilterExpr {
-        PyFilterExpr(self.0.dyn_is_active())
+        let tree = FilterTree::Edge(wrap_edge_views(
+            CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
+            &self.1,
+        ));
+        PyFilterExpr(self.0.dyn_is_active(), Some(tree))
     }
 
     /// Matches edges that are structurally valid in the current view.
     fn is_valid(&self) -> PyFilterExpr {
-        PyFilterExpr(self.0.dyn_is_valid())
+        let tree = FilterTree::Edge(wrap_edge_views(
+            CompositeEdgeFilter::IsValidEdge(IsValidEdge),
+            &self.1,
+        ));
+        PyFilterExpr(self.0.dyn_is_valid(), Some(tree))
     }
 
     /// Matches edges that have been deleted.
     fn is_deleted(&self) -> PyFilterExpr {
-        PyFilterExpr(self.0.dyn_is_deleted())
+        let tree = FilterTree::Edge(wrap_edge_views(
+            CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge),
+            &self.1,
+        ));
+        PyFilterExpr(self.0.dyn_is_deleted(), Some(tree))
     }
 
     /// Matches edges that are self-loops (source == destination).
     fn is_self_loop(&self) -> PyFilterExpr {
-        PyFilterExpr(self.0.dyn_is_self_loop())
+        let tree = FilterTree::Edge(wrap_edge_views(
+            CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge),
+            &self.1,
+        ));
+        PyFilterExpr(self.0.dyn_is_self_loop(), Some(tree))
     }
 }

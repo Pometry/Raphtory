@@ -19,6 +19,7 @@ pub mod exploded_edge_expr;
 pub mod filter_expr;
 pub mod graph_filter;
 pub mod node_expr;
+pub(crate) mod wire;
 
 impl From<FromIterable<String>> for Layer {
     fn from(iter: FromIterable<String>) -> Self {

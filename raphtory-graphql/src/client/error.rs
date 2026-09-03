@@ -118,13 +118,20 @@ pub(crate) fn classify_graphql_errors(errors: &JsonValue, query: &str) -> Client
         }
     }
 
+    // Surface each error's `message` text directly; the raw JSON object is a
+    // fallback for servers that send errors without one. Printing the object
+    // itself would JSON-escape any quotes inside the message.
+    let error_text = |e: &JsonValue| match e.get("message").and_then(|m| m.as_str()) {
+        Some(m) => m.to_owned(),
+        None => e.to_string(),
+    };
     let message = match errors {
         JsonValue::Array(errors) => errors
             .iter()
-            .map(|e| format!("{}", e))
+            .map(error_text)
             .collect::<Vec<_>>()
             .join("\n\t"),
-        _ => format!("{}", errors),
+        _ => error_text(errors),
     };
 
     if graph_not_found && !access_denied {

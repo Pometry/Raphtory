@@ -1032,6 +1032,11 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
+    # One element on purpose: the wire carries sets unordered, so with several
+    # bad values local and server may name different offenders in the error.
+    "reject.is_in_mistyped_values": lambda: f.Node.property("score").is_in(
+        ["banana"]
+    ),
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 
@@ -1113,29 +1118,6 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
         f"  local : {local_exc.value}\n"
         f"  remote: {remote_exc.value}"
     )
-
-
-def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
-    """`is_in` with values of the wrong type is empty, not an error.
-
-    Unlike `>` against a mistyped value — which both sides reject — a mistyped
-    `is_in` list is accepted and simply matches no node. That asymmetry is
-    surprising enough to pin, and it has to be the *same* surprise on both
-    sides, since a caller cannot tell "no matches" from "bad query" otherwise.
-    """
-    build = lambda: f.Node.property("score").is_in(["not", "numbers"])
-    assert_parity(
-        filter_pair, lambda g: sorted(n.name for n in g.filter(build()).nodes)
-    )
-
-    for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
-    ):
-        assert [n.name for n in side.filter(build()).nodes] == [], (
-            f"{side_name}: a mistyped is_in matched nodes; if this now raises "
-            f"or filters, move the case into REJECTED_EXPRS"
-        )
 
 
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now

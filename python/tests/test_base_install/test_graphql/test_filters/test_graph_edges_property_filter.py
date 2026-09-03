@@ -55,7 +55,7 @@ def test_graph_edge_property_filter_equal_type_error(graph):
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop5: expected List(I64) but actual type is I64"
+        "Invalid filter: value I64(1) of type I64 cannot be coerced to List<I64>"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -103,7 +103,7 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop4: expected Bool but actual type is I64"
+        "Invalid filter: value I64(1) of type I64 cannot be coerced to Bool"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -142,7 +142,7 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
         filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop1"
-              where: { ge: { bool: true } }
+              where: { ge: { str: "shivam" } }
             }
           } }) {
           edges { list { src { name } dst { name } } }
@@ -151,7 +151,7 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop1: expected I64 but actual type is Bool"
+        "Invalid filter: value Str(ArcStr(\"shivam\")) of type Str cannot be coerced to I64"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -199,7 +199,7 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop1: expected I64 but actual type is Str"
+        "Invalid filter: value Str(ArcStr(\"shivam\")) of type Str cannot be coerced to I64"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -237,7 +237,7 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop1: expected I64 but actual type is Str"
+        "Invalid filter: value Str(ArcStr(\"shivam\")) of type Str cannot be coerced to I64"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -275,7 +275,7 @@ def test_graph_edge_property_filter_less_than_type_error(graph):
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop1: expected I64 but actual type is Str"
+        "Invalid filter: value Str(ArcStr(\"shivam\")) of type Str cannot be coerced to I64"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -689,7 +689,7 @@ def test_edge_temporal_property_filter_empty_layers(graph):
             expr: {
               temporalProperty: {
                 name: "p2"
-                where: { any: { avg: { lt: { f64: 1.0 } } } }
+                where: { avg: { lt: { f64: 1.0 } } }
               }
             }
           }

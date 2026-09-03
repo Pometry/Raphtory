@@ -26,11 +26,20 @@ use std::sync::Arc;
     from_py_object
 )]
 #[derive(Clone)]
-pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
+pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>, pub Option<FilterTree>);
 
 impl PyFilterExpr {
+    /// The wire form recorded at construction; filters built in ways the wire
+    /// schema cannot express (an expression on both sides of a comparison)
+    /// carry none and cannot be sent to a server.
     pub fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        self.0.try_as_filter_tree()
+        self.1.clone().ok_or_else(|| {
+            GraphError::InvalidFilter(
+                "this filter has no server-side form; use plain values rather than \
+                 expressions on the right-hand side of comparisons"
+                    .to_string(),
+            )
+        })
     }
 
     pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
@@ -47,17 +56,26 @@ impl PyFilterExpr {
     pub fn __and__(&self, other: &Self) -> Self {
         let left = self.0.clone();
         let right = other.0.clone();
-        PyFilterExpr(Arc::new(AndFilter { left, right }))
+        let wire = match (&self.1, &other.1) {
+            (Some(a), Some(b)) => Some(FilterTree::And(vec![a.clone(), b.clone()])),
+            _ => None,
+        };
+        PyFilterExpr(Arc::new(AndFilter { left, right }), wire)
     }
 
     pub fn __or__(&self, other: &Self) -> Self {
         let left = self.0.clone();
         let right = other.0.clone();
-        PyFilterExpr(Arc::new(OrFilter { left, right }))
+        let wire = match (&self.1, &other.1) {
+            (Some(a), Some(b)) => Some(FilterTree::Or(vec![a.clone(), b.clone()])),
+            _ => None,
+        };
+        PyFilterExpr(Arc::new(OrFilter { left, right }), wire)
     }
 
     fn __invert__(&self) -> Self {
-        PyFilterExpr(Arc::new(NotFilter(self.0.clone())))
+        let wire = self.1.clone().map(|t| FilterTree::Not(Box::new(t)));
+        PyFilterExpr(Arc::new(NotFilter(self.0.clone())), wire)
     }
 }
 

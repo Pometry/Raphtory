@@ -21,7 +21,7 @@ use crate::{
                 coerce_set_values,
                 edge_filter::EdgeFilter,
                 elem_prop_type,
-                filter_operator::{BinaryOp, ElemQual},
+                filter_operator::ElemQual,
                 node_expr::{
                     filters::PropValueSetExpr,
                     ops::{AllEdgeOp, AnyEdgeOp},
