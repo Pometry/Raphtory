@@ -251,7 +251,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     pub fn store_node_type(&mut self, pos: LocalPOS, node_type: usize) {
-        if node_type == DEFAULT_NODE_TYPE_ID { return; }
+        if node_type == DEFAULT_NODE_TYPE_ID {
+            return;
+        }
 
         let props = [(NODE_TYPE_IDX, Prop::U64(node_type as u64))];
         self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);

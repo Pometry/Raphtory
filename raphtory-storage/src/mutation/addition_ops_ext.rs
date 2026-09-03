@@ -303,7 +303,9 @@ impl InternalAdditionOps for TemporalGraph {
                     Some(existing_type_id) => {
                         // Node types cannot be changed once set.
                         // Fail if trying to set a different type_id.
-                        let node_type_id = self.node_meta().get_node_type_id(node_type)
+                        let node_type_id = self
+                            .node_meta()
+                            .get_node_type_id(node_type)
                             .filter(|&node_type_id| node_type_id == existing_type_id as usize)
                             .ok_or(MutationError::NodeTypeError)?;
 

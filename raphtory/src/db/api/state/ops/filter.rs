@@ -22,7 +22,10 @@ use crate::{
 };
 use raphtory_api::core::entities::{properties::prop::Prop, VID};
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-use raphtory_storage::{core_ops::CoreGraphOps, graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps}};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
+};
 use std::sync::Arc;
 use storage::api::node_type_index::NodeTypeIndexOps;
 
@@ -472,10 +475,7 @@ impl NodeOp for NodeTypeFilterOp {
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_type_id = storage.node_type_id(node);
 
-        self.mask
-            .get(node_type_id)
-            .copied()
-            .unwrap_or(false)
+        self.mask.get(node_type_id).copied().unwrap_or(false)
     }
 
     fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<Self::Output> {
