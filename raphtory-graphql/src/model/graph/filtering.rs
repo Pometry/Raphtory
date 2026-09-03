@@ -807,11 +807,9 @@ impl TryFrom<GqlFilter> for DynFilter {
 
     fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
         let filter = match value {
-            GqlFilter::Node(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
-            GqlFilter::Edge(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
-            GqlFilter::ExplodedEdge(f) => {
-                Arc::new(CompositeExplodedEdgeFilter::try_from(f)?) as DynFilter
-            }
+            GqlFilter::Node(f) => super::expr_lowering::lower_node_filter(&f)?,
+            GqlFilter::Edge(f) => super::expr_lowering::lower_edge_filter(&f)?,
+            GqlFilter::ExplodedEdge(f) => super::expr_lowering::lower_exploded_edge_filter(&f)?,
             GqlFilter::Graph(f) => DynView::try_from(f)?,
             GqlFilter::And(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
@@ -1592,7 +1590,7 @@ fn parse_string_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     Ok(FilterValue::Set(Arc::new(strings.into_iter().collect())))
 }
 
-fn translate_node_field_where(
+pub(crate) fn translate_node_field_where(
     field: NodeField,
     cond: &NodeFieldCondition,
 ) -> Result<(String, FilterValue, FilterOperator), GraphError> {
@@ -1764,7 +1762,7 @@ fn translate_node_field_where(
     })
 }
 
-fn translate_prop_leaf_to_filter(
+pub(crate) fn translate_prop_leaf_to_filter(
     name_for_errors: &str,
     cmp: &PropCondition,
 ) -> Result<(FilterOperator, PropertyFilterValue), GraphError> {
