@@ -49,6 +49,19 @@ impl MemNodeTypeIndex {
 
     /// Returns the sorted VIDs for `type_ids`.
     pub fn get(&self, type_ids: &[usize]) -> Vec<VID> {
+        if type_ids.is_empty() {
+            return vec![];
+        }
+
+        // Fast path for single type that avoids kmerge.
+        if let [type_id] = type_ids {
+            return self
+                .map
+                .get(type_id)
+                .map(|set| set.iter().copied().collect())
+                .unwrap_or_default();
+        }
+
         let sets: Vec<_> = type_ids
             .iter()
             .filter_map(|type_id| self.map.get(type_id))
