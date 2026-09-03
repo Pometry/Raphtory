@@ -4,7 +4,8 @@ Singles are checked against the graph-level filter and the chained-view referenc
 are checked against set algebra over the single-filter results (`&` = intersection, `|` = union,
 `~` = complement), which is how node collections already behave. The combination classes that are
 known broken on edges are pinned by `test_broken_combination_classes_are_still_broken` — when a fix
-lands, that test fails and the class moves into the working set by deleting its rule below."""
+lands, that test fails and the class moves into the working set by deleting its rule below.
+"""
 
 from itertools import combinations
 
@@ -149,7 +150,9 @@ def test_working_combinations_follow_set_algebra():
                 ("filter()", _ids(graph.filter(expr).edges)),
             ):
                 if got != want:
-                    mismatches.append(f"[{path}] {label}: got {sorted(got)} want {sorted(want)}")
+                    mismatches.append(
+                        f"[{path}] {label}: got {sorted(got)} want {sorted(want)}"
+                    )
         assert not mismatches, "\n".join(mismatches)
 
     return check
@@ -166,7 +169,9 @@ def test_nested_edge_collection_matches_the_graph_filter():
         working["~edge_prop"] = ~atoms["edge_prop"]
         for label, expr in working.items():
             indexed = sorted(e.id for es in graph.nodes.edges[expr] for e in es)
-            reference = sorted(e.id for es in graph.filter(expr).nodes.edges for e in es)
+            reference = sorted(
+                e.id for es in graph.filter(expr).nodes.edges for e in es
+            )
             assert indexed == reference, label
 
     return check
@@ -248,7 +253,8 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 @with_variants(_init)
 def test_broken_combination_classes_are_still_broken():
     """One discriminating representative per known-broken class. When a class is fixed this fails:
-    delete its `_*_is_broken` rule above so the combinations join the set-algebra test."""
+    delete its `_*_is_broken` rule above so the combinations join the set-algebra test.
+    """
 
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
@@ -266,7 +272,10 @@ def test_broken_combination_classes_are_still_broken():
                 atoms["edge_prop"] | atoms["node_prop"],
                 single["edge_prop"] | single["node_prop"],
             ),
-            "not of a view returns every edge": (~atoms["layer"], every - single["layer"]),
+            "not of a view returns every edge": (
+                ~atoms["layer"],
+                every - single["layer"],
+            ),
             "not of a node filter is not the complement": (
                 ~atoms["node_name"],
                 every - single["node_name"],
@@ -274,15 +283,22 @@ def test_broken_combination_classes_are_still_broken():
         }
         fixed = []
         for label, (expr, want) in representatives.items():
-            if _ids(graph.edges[expr]) == want and _ids(graph.filter(expr).edges) == want:
+            if (
+                _ids(graph.edges[expr]) == want
+                and _ids(graph.filter(expr).edges) == want
+            ):
                 fixed.append(label)
-        nested = sorted(e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es)
-        nested_ref = sorted(e.id for es in graph.filter(atoms["node_prop"]).nodes.edges for e in es)
+        nested = sorted(
+            e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es
+        )
+        nested_ref = sorted(
+            e.id for es in graph.filter(atoms["node_prop"]).nodes.edges for e in es
+        )
         per_node = _ids(graph.node("a").edges[atoms["node_prop"]])
         if nested == nested_ref and per_node == frozenset():
             fixed.append("per-node/nested edges with a node filter")
-        assert not fixed, (
-            f"now FIXED: {fixed} — move the class into the working set by deleting its rule"
-        )
+        assert (
+            not fixed
+        ), f"now FIXED: {fixed} — move the class into the working set by deleting its rule"
 
     return check

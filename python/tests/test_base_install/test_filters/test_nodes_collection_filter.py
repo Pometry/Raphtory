@@ -100,7 +100,10 @@ def test_node_collection_combinations_follow_set_algebra():
                     mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
         # Pin the skip: when the entity path is fixed these fire — delete `filter_path_reliable`.
-        assert frozenset(graph.filter(~atoms["window"]).nodes.name) != every - single["window"]
+        assert (
+            frozenset(graph.filter(~atoms["window"]).nodes.name)
+            != every - single["window"]
+        )
         assert (
             frozenset(graph.filter(atoms["name"] | atoms["window"]).nodes.name)
             != single["name"] | single["window"]
