@@ -288,6 +288,14 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             }
         }
     }
+
+    pub fn is_subset(&self, other: &Self) -> bool {
+        match (self, other) {
+            (_, Index::Full(_)) => true,
+            (Index::Full(_), Index::Partial(_)) => false,
+            (Index::Partial(a), Index::Partial(b)) => a.is_subset(b.as_ref()),
+        }
+    }
 }
 
 #[derive(Clone)]

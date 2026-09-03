@@ -97,6 +97,14 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             elems: Index::default(),
         }
     }
+
+    pub fn is_subset(&self, other: &List<I>) -> bool {
+        match (self, other) {
+            (_, List::All) => true,
+            (List::All, List::List { .. }) => false,
+            (List::List { elems: a }, List::List { elems: b }) => a.is_subset(b),
+        }
+    }
 }
 
 impl List<VID> {
