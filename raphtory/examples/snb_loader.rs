@@ -5,16 +5,17 @@ use raphtory::{
     prelude::*,
 };
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
 fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
     parquet_dir.join(format!("{}.parquet", name))
 }
 
-use raphtory::db::api::view::Filter;
-use raphtory::db::graph::views::filter::model::PropertyFilterFactory;
+use raphtory::db::{api::view::Filter, graph::views::filter::model::PropertyFilterFactory};
 use raphtory_storage::core_ops::CoreGraphOps;
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
@@ -482,9 +483,9 @@ fn main() {
         load_snb_graph(&parquet_dir, filter, &graph).unwrap()
     } else {
         let graph = Graph::load(&graph_path).unwrap();
-        let now = Instant::now();
-        graph.core_graph().build_node_prop_index(Some(vec!["content".to_string()])).unwrap();
-        println!("Built node index in {:?}", now.elapsed());
+        // let now = Instant::now();
+        // graph.core_graph().build_node_prop_index(Some(vec!["content".to_string(), "browserUsed".to_string(), "language".to_string(), "name".to_string(), "url".to_string(), "type".to_string(), "length".to_string()])).unwrap();
+        // println!("Built node index in {:?}", now.elapsed());
         let now = Instant::now();
         println!(
             "Prop names: {:?}",
@@ -494,8 +495,8 @@ fn main() {
                 .into_iter()
                 .collect::<Vec<_>>()
         );
-        // let needle = "George Frideric";
-        let needle = "blerg";
+        let needle = "George Frideric";
+        // let needle = "blerg";
         let filtered_node_count = graph
             .filter(NodeFilter.property("content").contains(needle))
             .unwrap()

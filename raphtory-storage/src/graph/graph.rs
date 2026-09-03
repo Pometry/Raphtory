@@ -243,10 +243,7 @@ impl GraphStorage {
     /// Replace the persisted selection without building. `None` restores
     /// "every indexable property", which is the only way back once a
     /// selection has been set — an empty list means "index nothing".
-    pub fn set_indexed_node_props(
-        &self,
-        props: Option<Vec<String>>,
-    ) -> Result<(), StorageError> {
+    pub fn set_indexed_node_props(&self, props: Option<Vec<String>>) -> Result<(), StorageError> {
         self.temporal_graph()
             .storage()
             .extension()

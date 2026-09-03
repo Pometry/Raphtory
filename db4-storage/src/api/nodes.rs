@@ -109,7 +109,9 @@ impl SelectedProps {
     pub fn is_empty(&self) -> bool {
         match self {
             SelectedProps::All => false,
-            SelectedProps::Only { temporal, metadata } => temporal.is_empty() && metadata.is_empty(),
+            SelectedProps::Only { temporal, metadata } => {
+                temporal.is_empty() && metadata.is_empty()
+            }
         }
     }
 }

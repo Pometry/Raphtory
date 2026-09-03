@@ -578,7 +578,10 @@ impl GqlMutableGraph {
     ///
     /// `props` replaces the saved selection of property names to index, which
     /// later builds reuse; omit it to keep the saved one.
-    pub async fn build_property_index(&self, props: Option<Vec<String>>) -> Result<bool, GraphError> {
+    pub async fn build_property_index(
+        &self,
+        props: Option<Vec<String>>,
+    ) -> Result<bool, GraphError> {
         let graph = self.graph.graph().clone();
         blocking_write(move || {
             graph.core_graph().build_node_prop_index(props)?;
