@@ -2189,6 +2189,7 @@ dependencies = [
 name = "db4-storage"
 version = "0.18.0"
 dependencies = [
+ "ahash",
  "arrow-array",
  "arrow-schema",
  "bigdecimal",
@@ -2198,6 +2199,7 @@ dependencies = [
  "dashmap",
  "drop-logging",
  "either",
+ "indexmap 2.14.0",
  "iter-enum",
  "itertools 0.15.0",
  "lock_api",

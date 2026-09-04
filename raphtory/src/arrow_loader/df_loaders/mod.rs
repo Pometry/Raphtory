@@ -283,7 +283,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
         },
         |gid, _, _| {
             let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            Ok(vid)
+            Ok(vid.inner())
         },
     )
 }

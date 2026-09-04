@@ -298,7 +298,12 @@ mod test {
         let mut history = graph
             .nodes()
             .iter()
-            .map(|n| (n.id(), n.history().iter().map(|t| t.t()).collect::<Vec<_>>()))
+            .map(|n| {
+                (
+                    n.id(),
+                    n.history().iter().map(|t| t.t()).collect::<Vec<_>>(),
+                )
+            })
             .collect::<Vec<_>>();
 
         history.sort();
@@ -390,6 +395,80 @@ mod test {
                 (GID::Str("a".to_string()), Some(ArcStr::from("t1"))),
                 (GID::Str("b".to_string()), Some(ArcStr::from("t2"))),
             ]
+        );
+    }
+
+    #[test]
+    fn load_nodes_keeps_existing_type_already_on_graph() {
+        let graph = Graph::new();
+        graph
+            .add_node(1, 1u64, NO_PROPS, Some("Person"), None)
+            .expect("failed to add node");
+
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1], vec![Some("Person")], vec![2])]),
+        )
+        .expect("reloading an existing typed node should succeed");
+
+        assert_eq!(
+            node_types(&graph),
+            vec![(GID::U64(1), Some(ArcStr::from("Person")))]
+        );
+        assert_eq!(
+            graph
+                .node(1u64)
+                .unwrap()
+                .history()
+                .iter()
+                .map(|t| t.t())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+    }
+
+    #[test]
+    fn load_nodes_rejects_conflicting_type_already_on_graph() {
+        let graph = Graph::new();
+        graph
+            .add_node(1, 1u64, NO_PROPS, Some("Person"), None)
+            .expect("failed to add node");
+
+        let err = load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1], vec![Some("Company")], vec![2])]),
+        )
+        .expect_err("expected a conflicting node type error");
+
+        assert!(
+            matches!(
+                &err,
+                GraphError::LoadError {
+                    source: LoadError::ConflictingNodeType { existing, new, .. }
+                } if existing == "Person" && new == "Company"
+            ),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn load_nodes_assigns_type_to_untyped_existing_node() {
+        let graph = Graph::new();
+        graph
+            .add_edge(1, 1u64, 2u64, NO_PROPS, None)
+            .expect("failed to add edge");
+
+        assert_eq!(graph.node(1u64).unwrap().node_type(), None);
+
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1], vec![Some("Person")], vec![2])]),
+        )
+        .expect("first type assignment on an untyped node should succeed");
+
+        assert_eq!(
+            graph.node(1u64).unwrap().node_type(),
+            Some(ArcStr::from("Person"))
         );
     }
 }

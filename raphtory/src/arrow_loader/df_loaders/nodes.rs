@@ -10,7 +10,10 @@ use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
     core::{
         entities::{
-            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+            properties::{
+                meta::{NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+                prop::AsPropRef,
+            },
             LayerId,
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
@@ -26,9 +29,7 @@ use std::{
     collections::HashMap,
     sync::{atomic::Ordering, mpsc},
 };
-use storage::{
-    api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension,
-};
+use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};
 
 #[cfg(feature = "progress")]
 use crate::arrow_loader::df_loaders::build_progress_bar;
@@ -510,9 +511,11 @@ fn get_or_resolve_node_vids<
 
 /// Resolves node GIDs and types using `NodeResolveCache`.
 ///
-/// The returned list only contains GIDs that were *newly* inserted into the cache, since anything
-/// already cached had its node ID and type written to the segments by an earlier chunk. A GID that
-/// reappears with a different node type is rejected.
+/// The returned list only contains GIDs that still need their id/type written to the segments:
+/// newly created GID -> VID mappings, or existing nodes that do not yet have a stored type.
+///
+/// Cache hits and existing nodes that already have a matching type are skipped.
+/// A GID that reappears with a different node type is rejected.
 fn resolve_node_vids_and_types_with_cache<
     'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -538,18 +541,32 @@ fn resolve_node_vids_and_types_with_cache<
                 }
 
                 let node_type = node_types[row];
+                let mut should_store = false;
                 let resolved = shard.resolve_with(gid, || {
                     let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-                    Ok((vid, node_type))
+                    match vid {
+                        MaybeNew::New(vid) => {
+                            should_store = true;
+                            Ok((vid, node_type))
+                        }
+                        MaybeNew::Existing(vid) => match existing_stored_node_type(graph, vid) {
+                            None => {
+                                should_store = true;
+                                Ok((vid, node_type))
+                            }
+                            Some(existing) if existing == node_type => Ok((vid, existing)),
+                            Some(existing) => Err(GraphError::LoadError {
+                                source: LoadError::ConflictingNodeType {
+                                    gid: gid.into(),
+                                    existing: node_type_name(graph, existing),
+                                    new: node_type_name(graph, node_type),
+                                },
+                            }),
+                        },
+                    }
                 })?;
 
-                let (vid, cached_node_type) = match resolved {
-                    MaybeNew::New(entry) => {
-                        new_gids.push((gid, entry));
-                        entry
-                    }
-                    MaybeNew::Existing(entry) => entry,
-                };
+                let (vid, cached_node_type) = resolved.inner();
 
                 if cached_node_type != node_type {
                     return Err(GraphError::LoadError {
@@ -561,6 +578,10 @@ fn resolve_node_vids_and_types_with_cache<
                     });
                 }
 
+                if should_store {
+                    new_gids.push((gid, (vid, cached_node_type)));
+                }
+
                 vid_slot.store(vid.0, Ordering::Relaxed);
             }
 
@@ -570,6 +591,16 @@ fn resolve_node_vids_and_types_with_cache<
 
     // Shards own disjoint gids, so concatenating is already deduplicated.
     Ok((node_col_resolved.as_slice(), new_gids_by_shard.concat()))
+}
+
+fn existing_stored_node_type<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    graph: &G,
+    vid: VID,
+) -> Option<usize> {
+    graph
+        .node_metadata(vid, NODE_TYPE_IDX)
+        .and_then(|prop| prop.into_u64())
+        .map(|id| id as usize)
 }
 
 fn node_type_name<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
@@ -673,7 +704,12 @@ fn resolve_node_and_meta_for_node_col<
             // materialize_impl consumer loop (one record batch at a time), and the resolve loop is serial
             // both here and in load_node_props_from_df, so no other thread resolves the same id concurrently.
             // Other future callers should make sure to utilize this pathway in single-threaded contexts only.
-            unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? }
+            unsafe {
+                graph
+                    .bulk_load_resolve_node(gid)
+                    .map_err(into_graph_err)?
+                    .inner()
+            }
         } else {
             graph
                 .internalise_node(gid.as_node_ref())

@@ -482,10 +482,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn resolve_node_vids_with_cache<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
+fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     node_cache: &mut NodeResolveCache<VID>,
     src_col_resolved: &'a mut Vec<VID>,
@@ -503,32 +500,31 @@ fn resolve_node_vids_with_cache<
     let resolve_gid = |gid: GidRef<'_>| unsafe {
         graph
             .bulk_load_resolve_node(gid)
+            .map(|vid| vid.inner())
             .map_err(into_graph_err)
     };
 
-    node_cache
-        .par_iter_mut()
-        .try_for_each(|mut shard| {
-            let iter = izip!(
-                src_col.iter(),
-                dst_col.iter(),
-                atomic_src_col.iter(),
-                atomic_dst_col.iter()
-            );
+    node_cache.par_iter_mut().try_for_each(|mut shard| {
+        let iter = izip!(
+            src_col.iter(),
+            dst_col.iter(),
+            atomic_src_col.iter(),
+            atomic_dst_col.iter()
+        );
 
-            for (src, dst, src_vid, dst_vid) in iter {
-                if shard.is_in_shard(src) {
-                    let vid = shard.resolve_with(src, || resolve_gid(src))?.inner();
-                    src_vid.store(vid.0, Ordering::Relaxed);
-                }
-
-                if shard.is_in_shard(dst) {
-                    let vid = shard.resolve_with(dst, || resolve_gid(dst))?.inner();
-                    dst_vid.store(vid.0, Ordering::Relaxed);
-                }
+        for (src, dst, src_vid, dst_vid) in iter {
+            if shard.is_in_shard(src) {
+                let vid = shard.resolve_with(src, || resolve_gid(src))?.inner();
+                src_vid.store(vid.0, Ordering::Relaxed);
             }
-            Ok::<_, GraphError>(())
-        })?;
+
+            if shard.is_in_shard(dst) {
+                let vid = shard.resolve_with(dst, || resolve_gid(dst))?.inner();
+                dst_vid.store(vid.0, Ordering::Relaxed);
+            }
+        }
+        Ok::<_, GraphError>(())
+    })?;
 
     let node_ids = src_col
         .iter()
