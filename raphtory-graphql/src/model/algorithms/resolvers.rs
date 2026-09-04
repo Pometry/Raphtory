@@ -340,7 +340,7 @@ impl GqlAlgorithms {
             GqlDirection,
         >,
         #[graphql(
-            des = "Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1."
+            desc = "Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1."
         )]
         default_weight: Option<Prop>,
     ) -> Result<GqlNodeState, GraphError> {
