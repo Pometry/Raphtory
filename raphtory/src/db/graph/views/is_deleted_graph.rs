@@ -5,20 +5,17 @@ use crate::{
                 InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
             },
             view::internal::{
-                EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
-                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeLayerFilterOps, Static,
+                EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
+                InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
         graph::views::layer_graph::LayeredGraph,
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::{
-    core::entities::{LayerId, LayerIds},
-    inherit::Base,
-};
+use raphtory_api::{core::entities::LayerIds, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Copy, Clone, Debug)]
@@ -59,22 +56,32 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for IsDeletedGraph<G>
 
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for IsDeletedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for IsDeletedGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for IsDeletedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for IsDeletedGraph<G> {
-    fn internal_edge_layer_filtered(&self) -> bool {
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for IsDeletedGraph<G> {}
+
+/// An edge is deleted only when *no* layer of the current view still holds it
+/// alive, which is what `EdgeView::is_deleted` reports.
+///
+/// This has to be the whole-edge filter rather than the per-layer one: an edge
+/// passes a layer filter when *any* of its layers passes, so testing layers
+/// individually would answer "some layer has a deletion" instead. The two
+/// readings diverge as soon as an edge's layers disagree — a deletion recorded
+/// on a layer the edge was never added to (which `delete_edge` does by default,
+/// tombstoning `_default`) would then report an edge as deleted while it is
+/// still alive on another layer, and while `is_deleted()` says it is not.
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for IsDeletedGraph<G> {
+    fn internal_edge_filtered(&self) -> bool {
         true
     }
 
-    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+    fn internal_edge_list_trusted(&self) -> bool {
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
-        time_semantics.edge_is_deleted(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer)))
-            && self.graph.internal_filter_edge_layer(edge, layer)
+        time_semantics.edge_is_deleted(edge, LayeredGraph::new(&self.graph, layer_ids.clone()))
+            && self.graph.internal_filter_edge(edge, layer_ids)
     }
 }
