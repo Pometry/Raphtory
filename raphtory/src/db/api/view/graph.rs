@@ -52,14 +52,13 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-    nodes::node_storage_ops::NodeStorageOps,
-};
+use raphtory_storage::graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
-use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+use storage::{
+    api::nodes::NodeEntryOps, persist::strategy::PersistenceStrategy, Config, Extension,
+};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

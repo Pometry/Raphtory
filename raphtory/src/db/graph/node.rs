@@ -53,7 +53,10 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use storage::wal::{GraphWalOps, WalOps};
+use storage::{
+    api::nodes::NodeEntryOps,
+    wal::{GraphWalOps, WalOps},
+};
 
 /// View of a Node in a Graph
 #[derive(Copy, Clone)]

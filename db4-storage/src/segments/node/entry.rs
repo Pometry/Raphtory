@@ -1,9 +1,11 @@
 use crate::{
-    LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
+    LocalPOS, NodeDeletions, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
     generic_t_props::WithTProps,
-    generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
-    segments::{additions::MemAdditions, node::segment::MemNodeSegment},
+    generic_time_ops::{
+        DeletionCellsRef, EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells,
+    },
+    segments::{additions::MemTimeCell, node::segment::MemNodeSegment},
 };
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -38,7 +40,7 @@ impl<'a, MNS: Deref<Target = MemNodeSegment>> MemNodeEntry<'a, MNS> {
     }
 }
 
-impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps<'a>
+impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps
     for MemNodeEntry<'a, MNS>
 {
     type Ref<'b>
@@ -47,10 +49,7 @@ impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps<'a
         'a: 'b,
         MNS: 'b;
 
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b,
-    {
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b> {
         MemNodeRef {
             pos: self.pos,
             ns: self.ns.deref(),
@@ -71,7 +70,7 @@ impl<'a> MemNodeRef<'a> {
 }
 
 impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
-    type TimeCell = MemAdditions<'a>;
+    type TimeCell = MemTimeCell<'a>;
 
     fn t_props_tc(
         self,
@@ -81,7 +80,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id.0)
-            .map(|seg| MemAdditions::Props(seg.times_from_props(self.pos)))
+            .map(|seg| MemTimeCell::Props(seg.times_from_props(self.pos)))
             .into_iter()
             .map(move |t_cell| {
                 range
@@ -98,7 +97,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id.0)
-            .map(|seg| MemAdditions::Edges(seg.additions(self.pos)))
+            .map(|seg| MemTimeCell::Edges(seg.additions(self.pos)))
             .into_iter()
             .map(move |t_cell| {
                 range
@@ -115,7 +114,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id.0)
-            .map(|seg| MemAdditions::Edges(seg.deletions(self.pos)))
+            .map(|seg| MemTimeCell::Deletions(seg.deletions(self.pos)))
             .into_iter()
             .map(move |t_cell| {
                 range
@@ -153,9 +152,11 @@ impl<'a> WithTProps<'a> for MemNodeRef<'a> {
 impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type Additions = NodePropAdditions<'a>;
     type EdgeAdditions = NodeEdgeAdditions<'a>;
+
+    type Deletions = NodeDeletions<'a>;
     type TProps = NodeTProps<'a>;
 
-    fn node_meta(&self) -> &Arc<Meta> {
+    fn node_meta(self) -> &'a Arc<Meta> {
         self.ns.node_meta()
     }
 
@@ -199,6 +200,10 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn edge_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::EdgeAdditions {
         NodeEdgeAdditions::new_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
+    }
+
+    fn node_deletions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Deletions {
+        NodeDeletions::new_with_layer(DeletionCellsRef::new(self), layer_id)
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
@@ -247,15 +252,15 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
     }
 
-    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
+    fn t_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
         NodeTProps::new_with_layer(self, layer_id, prop_id)
     }
 
-    fn internal_num_layers(&self) -> usize {
+    fn num_layers(&self) -> usize {
         self.ns.as_ref().len()
     }
 
-    fn has_layer_inner(self, layer_id: LayerId) -> bool {
+    fn has_layer(self, layer_id: LayerId) -> bool {
         self.ns
             .as_ref()
             .get(layer_id.0)

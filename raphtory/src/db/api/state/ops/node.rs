@@ -8,11 +8,9 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
     Direction,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use serde::{Deserialize, Serialize};
+use storage::api::nodes::NodeEntryOps;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Name;
@@ -166,7 +164,8 @@ impl<G: GraphView> NodeOp for Degree<G> {
         if matches!(self.view.filter_state(), FilterState::Neither) {
             node.degree(self.view.layer_ids(), self.dir)
         } else {
-            node.filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
+            node.as_ref()
+                .filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
                 .count()
         }
     }

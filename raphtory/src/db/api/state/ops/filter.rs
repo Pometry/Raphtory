@@ -22,8 +22,9 @@ use crate::{
 };
 use raphtory_api::core::entities::{properties::prop::Prop, VID};
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
+use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
+use storage::api::nodes::NodeEntryOps;
 
 #[derive(Clone, Debug)]
 pub struct Mask<Op> {
@@ -99,7 +100,7 @@ impl NodeOp for NodeIdFilterOp {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node = storage.core_node(node);
-        self.filter.id_matches(node.id())
+        self.filter.id_matches(node.gid())
     }
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {

@@ -1,4 +1,4 @@
-use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
+use crate::{NodeEntryRef, segments::additions::MemTimeCell, utils::Iter3};
 use std::ops::Range;
 
 use raphtory_api::core::entities::LayerId;
@@ -95,7 +95,7 @@ pub trait WithEdgeEvents<'a>: WithTimeCells<'a> {
 }
 
 impl<'a> WithEdgeEvents<'a> for NodeEntryRef<'a> {
-    type TimeCell = MemAdditions<'a>;
+    type TimeCell = MemTimeCell<'a>;
 }
 
 pub trait EdgeEventOps<'a>: TimeIndexOps<'a, IndexType = EventTime> {

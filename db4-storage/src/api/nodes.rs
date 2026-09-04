@@ -1,12 +1,24 @@
+use crate::{
+    LocalPOS,
+    error::StorageError,
+    generic_time_ops::LayerIter,
+    pages::node_store::increment_and_clamp,
+    segments::node::segment::MemNodeSegment,
+    utils::{Iter2, Iter3, Iter4},
+    wal::LSN,
+};
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::{
     core::{
         Direction,
-        entities::properties::{
-            meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
-            prop::{AsPropRef, Prop, PropUnwrap},
-            tprop::TPropOps,
+        entities::{
+            LayerId, LayerVariants,
+            properties::{
+                meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+                prop::{AsPropRef, Prop, PropUnwrap},
+                tprop::TPropOps,
+            },
         },
     },
     iter::IntoDynBoxed,
@@ -17,6 +29,8 @@ use raphtory_core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
+use raphtory_itertools::FastMergeExt;
+use rayon::prelude::*;
 use std::{
     borrow::Cow,
     fmt::Debug,
@@ -28,23 +42,10 @@ use std::{
     },
 };
 
-use crate::{
-    LocalPOS,
-    error::StorageError,
-    generic_time_ops::LayerIter,
-    pages::node_store::increment_and_clamp,
-    segments::node::segment::MemNodeSegment,
-    utils::{Iter2, Iter3, Iter4},
-    wal::LSN,
-};
-use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
-use raphtory_itertools::FastMergeExt;
-use rayon::prelude::*;
-
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
-    type Entry<'a>: NodeEntryOps<'a>
+    type Entry<'a>: NodeEntryOps + 'a
     where
         Self: 'a;
 
@@ -173,16 +174,196 @@ pub trait LockedNSSegment: Debug + Send + Sync {
     }
 }
 
-pub trait NodeEntryOps<'a>: Send + Sync + 'a {
+pub trait NodeEntryOps: Send + Sync {
     type Ref<'b>: NodeRefOps<'b>
     where
-        'a: 'b,
         Self: 'b;
 
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b;
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b>;
 
+    fn out_edges<'a>(
+        &'a self,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a {
+        self.as_ref().out_edges(layer_id)
+    }
+
+    fn inb_edges<'a>(
+        &'a self,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a {
+        self.as_ref().inb_edges(layer_id)
+    }
+
+    fn out_edges_sorted<'a>(
+        &'a self,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a {
+        self.as_ref().out_edges_sorted(layer_id)
+    }
+
+    fn inb_edges_sorted<'a>(
+        &'a self,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a {
+        self.as_ref().inb_edges_sorted(layer_id)
+    }
+
+    fn vid(&self) -> VID {
+        self.as_ref().vid()
+    }
+
+    fn edges_dir<'a>(
+        &'a self,
+        layer_id: LayerId,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().edges_dir(layer_id, dir)
+    }
+
+    fn edges_sorted_dir<'a>(
+        &'a self,
+        layer_id: LayerId,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().edges_sorted_dir(layer_id, dir)
+    }
+
+    fn edges_iter<'a, 'b: 'a>(
+        &'a self,
+        layers_ids: &'b LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().edges_iter(layers_ids, dir)
+    }
+
+    fn node_meta(&self) -> &Arc<Meta> {
+        self.as_ref().node_meta()
+    }
+
+    fn t_prop_rows<'a>(
+        &'a self,
+        w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
+        self.as_ref().t_prop_rows(w, prop_ids)
+    }
+
+    fn out_nbrs<'a>(&'a self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().out_nbrs(layer_id)
+    }
+
+    fn inb_nbrs<'a>(&'a self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().inb_nbrs(layer_id)
+    }
+
+    fn out_nbrs_sorted<'a>(&'a self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().out_nbrs_sorted(layer_id)
+    }
+
+    fn inb_nbrs_sorted<'a>(&'a self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
+    where
+        Self::Ref<'a>: Sized,
+    {
+        self.as_ref().inb_nbrs_sorted(layer_id)
+    }
+
+    fn edge_additions<'a, L: Into<LayerIter<'a>>>(
+        &'a self,
+        layer_id: L,
+    ) -> <Self::Ref<'a> as NodeRefOps<'a>>::EdgeAdditions {
+        self.as_ref().edge_additions(layer_id)
+    }
+
+    fn node_additions<'a, L: Into<LayerIter<'a>>>(
+        &'a self,
+        layer_id: L,
+    ) -> <Self::Ref<'a> as NodeRefOps<'a>>::Additions {
+        self.as_ref().node_additions(layer_id)
+    }
+
+    fn node_deletions<'a, L: Into<LayerIter<'a>>>(
+        &'a self,
+        layer_id: L,
+    ) -> <Self::Ref<'a> as NodeRefOps<'a>>::Deletions {
+        self.as_ref().node_deletions(layer_id)
+    }
+
+    fn c_prop(&self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
+        self.as_ref().c_prop(layer_id, prop_id)
+    }
+
+    fn c_prop_str(&self, layer_id: LayerId, prop_id: usize) -> Option<&str> {
+        self.as_ref().c_prop_str(layer_id, prop_id)
+    }
+
+    fn t_prop_layer<'a>(
+        &'a self,
+        layer_id: LayerId,
+        prop_id: usize,
+    ) -> <Self::Ref<'a> as NodeRefOps<'a>>::TProps {
+        self.as_ref().t_prop_layer(layer_id, prop_id)
+    }
+
+    fn degree(&self, layers: &LayerIds, dir: Direction) -> usize {
+        self.as_ref().degree(layers, dir)
+    }
+
+    fn find_edge(&self, dst: VID, layers: &LayerIds) -> Option<EdgeRef> {
+        self.as_ref().find_edge(dst, layers)
+    }
+
+    fn name<'a>(&'a self) -> Cow<'a, str> {
+        self.as_ref().name()
+    }
+
+    fn gid<'a>(&'a self) -> GidRef<'a> {
+        self.as_ref().gid()
+    }
+
+    fn node_type_id(&self) -> usize {
+        self.as_ref().node_type_id()
+    }
+
+    fn internal_num_layers(&self) -> usize {
+        self.as_ref().num_layers()
+    }
+
+    fn has_layer_inner(&self, layer_id: LayerId) -> bool {
+        self.as_ref().has_layer(layer_id)
+    }
+
+    fn layer_ids_iter<'a, L: Into<LayerIter<'a>>>(
+        &'a self,
+        layer_ids: L,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        self.as_ref().layer_ids_iter(layer_ids)
+    }
+
+    fn has_layers<'a, L: Into<LayerIter<'a>>>(&'a self, layer_ids: L) -> bool {
+        self.as_ref().has_layers(layer_ids)
+    }
+}
+
+pub trait IntoEdges<'a>: NodeEntryOps + Send + Sync + 'a {
     fn into_edges<'b: 'a>(
         self,
         layers: &'b LayerIds,
@@ -197,9 +378,13 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
     }
 }
 
+impl<'a, T: NodeEntryOps + Send + Sync + 'a> IntoEdges<'a> for T {}
+
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type Additions: TimeIndexOps<'a, IndexType = EventTime>;
     type EdgeAdditions: TimeIndexOps<'a, IndexType = EventTime>;
+
+    type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
     fn out_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
@@ -305,14 +490,14 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         }
     }
 
-    fn node_meta(&self) -> &Arc<Meta>;
+    fn node_meta(self) -> &'a Arc<Meta>;
 
-    fn temp_prop_rows(
+    fn t_prop_rows(
         self,
         w: Option<Range<EventTime>>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
-        (0..self.internal_num_layers()).flat_map(move |layer_id| {
+        (0..self.num_layers()).flat_map(move |layer_id| {
             let w = w.clone();
             let prop_ids = Arc::clone(&prop_ids);
             let additions = self.node_additions(layer_id);
@@ -325,7 +510,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 .iter()
                 .copied()
                 .map(move |prop_id| {
-                    self.temporal_prop_layer(LayerId(layer_id), prop_id)
+                    self.t_prop_layer(LayerId(layer_id), prop_id)
                         .iter_inner(w.clone())
                         .map(move |(t, prop)| (t, (prop_id, prop)))
                 })
@@ -397,11 +582,44 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions;
 
+    fn node_deletions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Deletions;
+
     fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn c_prop_str(self, layer_id: LayerId, prop_id: usize) -> Option<&'a str>;
 
-    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
+    fn t_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
+
+    /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
+    /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
+    /// explicit layer name).  This mirrors the behaviour of `layer_ids_with_static`
+    /// used for node additions: unlayered nodes must be visible in every view.
+    fn t_prop_iter_layers(
+        self,
+        layer_ids: &LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = Self::TProps> + Send + Sync + 'a {
+        let layers = match layer_ids {
+            LayerIds::None => LayerVariants::None(std::iter::once(STATIC_GRAPH_LAYER_ID)),
+            LayerIds::All => LayerVariants::All((0..self.num_layers()).map(LayerId)),
+            LayerIds::One(id) => {
+                if *id == STATIC_GRAPH_LAYER_ID {
+                    LayerVariants::One(std::iter::once(*id))
+                } else {
+                    LayerVariants::Multiple(Iter3::I([STATIC_GRAPH_LAYER_ID, *id].into_iter()))
+                }
+            }
+            LayerIds::Multiple(ids) => {
+                if ids.contains(STATIC_GRAPH_LAYER_ID) {
+                    LayerVariants::Multiple(Iter3::J(ids.clone().into_iter()))
+                } else {
+                    let v = std::iter::once(STATIC_GRAPH_LAYER_ID).chain(ids.clone().into_iter());
+                    LayerVariants::Multiple(Iter3::K(v))
+                }
+            }
+        };
+        layers.map(move |id| self.t_prop_layer(id, prop_id))
+    }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
@@ -427,7 +645,22 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             .map_or(0, |id| id as usize)
     }
 
-    fn internal_num_layers(&self) -> usize;
+    fn num_layers(&self) -> usize;
 
-    fn has_layer_inner(self, layer_id: LayerId) -> bool;
+    fn has_layer(self, layer_id: LayerId) -> bool;
+
+    fn layer_ids_iter<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        layer_ids
+            .into()
+            .into_iter(self.num_layers())
+            .filter(move |layer| self.has_layer(*layer))
+    }
+
+    fn has_layers<L: Into<LayerIter<'a>>>(self, layer_ids: L) -> bool {
+        !self.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+            || self.layer_ids_iter(layer_ids).next().is_some()
+    }
 }

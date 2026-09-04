@@ -197,6 +197,11 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
         self.writer.add_props(t, pos, layer, props)
     }
 
+    fn internal_delete(&mut self, t: EventTime, layer: LayerId) {
+        let pos = self.local_pos();
+        self.writer.delete(t, pos, layer)
+    }
+
     fn can_set_type(&self) -> bool {
         self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
     }
