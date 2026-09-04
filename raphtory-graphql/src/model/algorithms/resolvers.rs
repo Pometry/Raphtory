@@ -12,6 +12,7 @@ use crate::{
         },
     },
     rayon::blocking_compute,
+    Value,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use rand::{prelude::StdRng, SeedableRng};
@@ -342,8 +343,9 @@ impl GqlAlgorithms {
         #[graphql(
             desc = "Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1."
         )]
-        default_weight: Option<Prop>,
+        default_weight: Option<Value>,
     ) -> Result<GqlNodeState, GraphError> {
+        let default_weight = default_weight.map(Prop::try_from).transpose()?;
         Ok(self
             .run(move |graph| {
                 dijkstra_single_source_shortest_paths(
