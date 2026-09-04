@@ -7,9 +7,8 @@ use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            extract_secondary_index_col, group_rows_by_vid_segment,
-            cache::NodeResolveCache, process_shared_properties,
-            resolve_nodes_with_cache, secondary_index_at,
+            cache::NodeResolveCache, extract_secondary_index_col, group_rows_by_vid_segment,
+            process_shared_properties, resolve_nodes_with_cache, secondary_index_at,
         },
         layer_col::lift_layer_col,
         node_col::NodeCol,
