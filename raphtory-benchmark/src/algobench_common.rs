@@ -2,12 +2,7 @@ use criterion::{Criterion, SamplingMode};
 use raphtory::{
     db::{
         api::view::{Filter, StaticGraphViewOps},
-        graph::views::{
-            filter::model::{
-                degree_filter::DegreeFilterFactory, property_filter::ops::PropertyFilterOps,
-            },
-            node_subgraph::NodeSubgraph,
-        },
+        graph::views::node_subgraph::NodeSubgraph,
     },
     graphgen::random_attachment::random_attachment,
     prelude::*,
@@ -99,7 +94,7 @@ pub fn large_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn large_random_attachment_filtered() -> impl StaticGraphViewOps {
     large_random_attachment_graph()
-        .filter(DegreeFilterFactory::degree(&NodeFilter).ge(1u64))
+        .filter(NodeFilter.degree().ge(1u64))
         .unwrap()
 }
 
@@ -166,7 +161,7 @@ pub fn medium_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn medium_random_attachment_filtered() -> impl StaticGraphViewOps {
     medium_random_attachment_graph()
-        .filter(DegreeFilterFactory::degree(&NodeFilter).ge(0u64))
+        .filter(NodeFilter.degree().ge(0u64))
         .unwrap()
 }
 
@@ -233,7 +228,7 @@ pub fn tiny_random_attachment_subgraph() -> NodeSubgraph<Graph> {
 
 pub fn tiny_random_attachment_filtered() -> impl StaticGraphViewOps {
     tiny_random_attachment_graph()
-        .filter(DegreeFilterFactory::degree(&NodeFilter).ge(0u64))
+        .filter(NodeFilter.degree().ge(0u64))
         .unwrap()
 }
 

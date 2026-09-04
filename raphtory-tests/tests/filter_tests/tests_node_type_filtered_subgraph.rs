@@ -4,9 +4,7 @@ use raphtory::{
         api::view::Filter,
         graph::{
             graph::assert_graph_equal,
-            views::filter::model::{
-                property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-            },
+            views::filter::model::{EntityExprFilterOps, PropertyExprFactory},
         },
     },
     prelude::*,
@@ -210,7 +208,6 @@ mod test_filters_node_type_filtered_subgraph {
     }
 
     mod test_nodes_filters_node_type_filtered_subgraph {
-        use raphtory::db::graph::views::filter::model::property_filter::ops::PropertyFilterOps;
 
         use crate::filter_tests::{init_graph, Edges, Nodes};
 
@@ -218,7 +215,8 @@ mod test_filters_node_type_filtered_subgraph {
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
         use raphtory::{
-            db::graph::views::filter::model::PropertyFilterFactory, prelude::NodeFilter,
+            db::graph::views::filter::model::PropertyExprFactory,
+            prelude::{EntityExprFilterOps, NodeFilter},
         };
         use raphtory_tests::assertions::{
             assert_filter_nodes_results,
@@ -302,10 +300,7 @@ mod test_filters_node_type_filtered_subgraph {
 
     mod test_edges_filters_node_type_filtered_subgraph {
         use raphtory::{
-            db::{
-                api::view::StaticGraphViewOps,
-                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
-            },
+            db::api::view::StaticGraphViewOps,
             prelude::{AdditionOps, NO_PROPS},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
@@ -419,7 +414,8 @@ mod test_filters_node_type_filtered_subgraph {
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
         use raphtory::{
-            db::graph::views::filter::model::PropertyFilterFactory, prelude::EdgeFilter,
+            db::graph::views::filter::model::PropertyExprFactory,
+            prelude::{EdgeFilter, EntityExprFilterOps},
         };
 
         use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};

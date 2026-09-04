@@ -4,23 +4,11 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_expr::EdgeOp,
-                    edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    node_expr::CreateOp,
-                    node_filter::builders::{
-                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
-                    },
-                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, CreateView, EdgeViewFilterOps, FilterTree, GraphViewOp,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
-                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, Wrap,
+                    edge_expr::EdgeOp, is_active_edge_filter::IsActiveEdge,
+                    is_active_node_filter::IsActiveNode, is_deleted_filter::IsDeletedEdge,
+                    is_self_loop_filter::IsSelfLoopEdge, is_valid_filter::IsValidEdge,
+                    node_expr::CreateOp, CombinedFilter, ComposableFilter, CreateView,
+                    EdgeViewFilterOps, InternalViewWrapOps, NodeViewFilterOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -83,46 +71,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         self.inner.build_window(start, end)
-    }
-}
-
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Windowed<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Windowed<T> {
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Windowed<T> {
-    type Filter = Windowed<T::Filter>;
-    type ExprBuilder = Windowed<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
     }
 }
 
@@ -190,26 +138,6 @@ impl<M> Wrap for Windowed<M> {
     }
 }
 
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Windowed<T> {
-    type Entity = T::Entity;
-    type PropertyBuilder = Windowed<T::PropertyBuilder>;
-    type MetadataBuilder = Windowed<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Windowed<T> {}
-
 impl<U: NodeViewFilterOps> NodeViewFilterOps for Windowed<U> {
     type Output<T: CombinedFilter> = Windowed<U::Output<T>>;
 
@@ -253,7 +181,7 @@ impl<T: CreateView> CreateView for Windowed<T> {
 }
 
 // ── expr layer: the windowed view scopes any inner expression (per-expression view) ──
-// Nesting order of chained views is pinned by the Phase-3 semantics tests.
+// Nesting order of chained views is pinned by the view-semantics tests.
 
 impl<T: CreateOp> CreateOp for Windowed<T> {
     fn create_node_op<'g, G: GraphView + 'g>(

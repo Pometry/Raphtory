@@ -2,13 +2,7 @@ use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
-            filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                },
-                CreateFilter,
-            },
+            filter::{model::ComposableFilter, CreateFilter},
             is_self_loop_graph::IsSelfLoopGraph,
         },
     },

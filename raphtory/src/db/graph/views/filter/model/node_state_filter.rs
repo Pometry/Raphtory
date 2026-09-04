@@ -1,12 +1,7 @@
 use crate::{
-    db::{
-        api::{
-            state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
-            view::internal::NodeList,
-        },
-        graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
-        },
+    db::api::{
+        state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+        view::internal::NodeList,
     },
     errors::GraphError,
 };

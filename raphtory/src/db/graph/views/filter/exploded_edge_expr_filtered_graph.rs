@@ -119,6 +119,12 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
         if !self.graph.internal_filter_exploded_edge(eid, t, layer_ids) {
             return false;
         }
+        // Deletions carry no properties, so they always pass through: filtering
+        // them out would silently extend the previous addition's interval on a
+        // persistent graph.
+        if eid.is_deletion() {
+            return true;
+        }
         let edge_ref: EdgeRef = self.core_edge(Either::Left(eid.eid())).out_ref();
         self.filter.apply(
             self.graph.core_graph(),

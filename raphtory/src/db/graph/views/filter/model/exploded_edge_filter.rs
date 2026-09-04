@@ -1,37 +1,21 @@
 use crate::{
     db::{
-        api::{
-            state::ops::NotANodeFilter,
-            view::{
-                internal::{DynGraphArc, GraphView},
-                BoxableGraphView,
-            },
-        },
+        api::{state::ops::NotANodeFilter, view::internal::GraphView},
         graph::views::filter::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             model::{
-                edge_filter::{CompositeEdgeFilter, Endpoint},
+                edge_filter::Endpoint,
                 is_active_edge_filter::IsActiveEdge,
                 is_deleted_filter::IsDeletedEdge,
                 is_self_loop_filter::IsSelfLoopEdge,
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_filter::{
-                    builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
-                    CompositeNodeFilter, NodeFilter,
-                },
-                property_filter::{
-                    builders::{
-                        MetadataFilterBuilder, PropertyExprBuilderInput, PropertyFilterBuilder,
-                    },
-                    Op, PropertyFilter, PropertyFilterInput, PropertyRef,
-                },
+                node_filter::{CompositeNodeFilter, NodeFilter},
+                property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, CombinedFilter, EdgeViewFilterOps, EntityMarker,
-                InternalPropertyFilterBuilder, InternalPropertyFilterFactory, InternalViewWrapOps,
-                NotFilter, OrFilter, TemporalPropertyFilterFactory, Wrap,
+                CombinedFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -39,7 +23,7 @@ use crate::{
     errors::GraphError,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::{fmt, fmt::Display, sync::Arc};
+use std::{fmt, fmt::Display};
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
@@ -75,24 +59,6 @@ impl InternalViewWrapOps for ExplodedEdgeFilter {
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         Windowed::from_times(start, end, self)
-    }
-}
-
-impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
-    type Entity = ExplodedEdgeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
-    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
-
-    fn entity(&self) -> Self::Entity {
-        ExplodedEdgeFilter
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        PropertyFilterBuilder(property, self.entity())
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        MetadataFilterBuilder(property, self.entity())
     }
 }
 
@@ -152,78 +118,6 @@ impl<M> Wrap for ExplodedEdgeEndpointWrapper<M> {
             endpoint: self.endpoint,
         }
     }
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder
-    for ExplodedEdgeEndpointWrapper<T>
-{
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for ExplodedEdgeEndpointWrapper<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder
-    for ExplodedEdgeEndpointWrapper<T>
-{
-    type Filter = ExplodedEdgeEndpointWrapper<T::Filter>;
-    type ExprBuilder = ExplodedEdgeEndpointWrapper<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    #[inline]
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    #[inline]
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    #[inline]
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
-    for ExplodedEdgeEndpointWrapper<T>
-{
-    type Entity = T::Entity;
-    type PropertyBuilder = ExplodedEdgeEndpointWrapper<T::PropertyBuilder>;
-    type MetadataBuilder = ExplodedEdgeEndpointWrapper<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
-    for ExplodedEdgeEndpointWrapper<T>
-{
 }
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {

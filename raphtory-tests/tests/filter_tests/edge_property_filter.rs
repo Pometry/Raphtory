@@ -8,8 +8,7 @@ use raphtory::{
             views::{
                 deletion_graph::PersistentGraph,
                 filter::model::{
-                    node_filter::ops::NodeFilterOps, property_filter::ops::PropertyFilterOps,
-                    ComposableFilter, EdgeFilter, EdgeViewFilterOps, PropertyFilterFactory,
+                    ComposableFilter, EdgeFilter, EdgeViewFilterOps, PropertyExprFactory,
                     ViewWrapOps,
                 },
             },

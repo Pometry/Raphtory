@@ -1,4 +1,4 @@
-use crate::{db::graph::views::filter::model::Op, prelude::PropertyFilter};
+use crate::{db::graph::views::filter::model::property_filter::Op, prelude::PropertyFilter};
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType},
     utils::generalised_reduce,

@@ -3,12 +3,7 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
-                edge_filtered_graph::EdgeFilteredGraph,
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter,
-                },
-                CreateFilter,
+                edge_filtered_graph::EdgeFilteredGraph, model::ComposableFilter, CreateFilter,
             },
             is_active_graph::IsActiveGraph,
         },

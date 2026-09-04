@@ -2,17 +2,13 @@ use crate::{
     db::{
         api::{
             state::ops::{NodeOp, NotANodeFilter},
-            view::{
-                internal::{DynGraphArc, GraphView},
-                BoxableGraphView,
-            },
+            view::internal::GraphView,
         },
         graph::views::filter::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
                 edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
                 is_active_edge_filter::IsActiveEdge,
                 is_deleted_filter::IsDeletedEdge,
                 is_self_loop_filter::IsSelfLoopEdge,
@@ -20,22 +16,12 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_expr::{CreateOp, EntityExpr, EntityExprBuilder},
-                node_filter::{
-                    builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
-                    CompositeNodeFilter, NodeFilter,
-                },
-                property_filter::{
-                    builders::{
-                        MetadataFilterBuilder, PropertyExprBuilderInput, PropertyFilterBuilder,
-                    },
-                    Op, PropertyFilter, PropertyFilterInput, PropertyRef,
-                },
+                node_filter::{CompositeNodeFilter, NodeFilter},
+                property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, CombinedFilter, ComposableFilter, DynFilter, EdgeViewFilterOps,
-                EntityMarker, FilterTree, InternalPropertyFilterBuilder,
-                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
-                TemporalPropertyFilterFactory, Wrap,
+                CombinedFilter, ComposableFilter, DynFilter, EdgeViewFilterOps, EntityMarker,
+                InternalViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -87,24 +73,6 @@ impl InternalViewWrapOps for EdgeFilter {
     }
 }
 
-impl InternalPropertyFilterFactory for EdgeFilter {
-    type Entity = EdgeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
-    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
-
-    fn entity(&self) -> Self::Entity {
-        EdgeFilter
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        PropertyFilterBuilder(property, InternalPropertyFilterFactory::entity(self))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        MetadataFilterBuilder(property, InternalPropertyFilterFactory::entity(self))
-    }
-}
-
 impl EdgeViewFilterOps for EdgeFilter {
     type Output<T: CombinedFilter> = T;
 
@@ -131,9 +99,9 @@ pub enum Endpoint {
     Dst,
 }
 
-// Generic wrapper that pairs node-side builders with a concrete endpoint.
-// The objective is to carry the endpoint through builder chain without having to change node builders
-// and at the end convert into a composite node filter via TryAsCompositeFilter
+// Generic wrapper that pairs a node-side expression with a concrete endpoint,
+// carrying the endpoint through the chain so the compiled node op can be
+// applied to the edge's src or dst node.
 #[derive(Debug, Clone)]
 pub struct EdgeEndpointWrapper<T> {
     pub(crate) inner: T,
@@ -162,9 +130,8 @@ impl<T> EdgeEndpointWrapper<T> {
 }
 
 impl EdgeEndpointWrapper<NodeFilter> {
-    /// Endpoint fields and properties are expressions: they compose with the comparison,
-    /// string, set and temporal operators. Nothing outside the expression tests consumed
-    /// the builder-returning forms these replace.
+    /// Endpoint fields and properties are expressions: they compose with the
+    /// comparison, string, set and temporal operators.
     #[inline]
     pub fn id(&self) -> EdgeEndpointWrapper<Id> {
         self.wrap(Id)
@@ -209,68 +176,6 @@ impl<M> Wrap for EdgeEndpointWrapper<M> {
 }
 
 impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: Clone + Send + Sync {}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for EdgeEndpointWrapper<T> {
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for EdgeEndpointWrapper<T> {
-    type FilterType = T::FilterType;
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for EdgeEndpointWrapper<T> {
-    type Filter = EdgeEndpointWrapper<T::Filter>;
-    type ExprBuilder = EdgeEndpointWrapper<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    #[inline]
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    #[inline]
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    #[inline]
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EdgeEndpointWrapper<T> {
-    type Entity = T::Entity;
-    type PropertyBuilder = EdgeEndpointWrapper<T::PropertyBuilder>;
-    type MetadataBuilder = EdgeEndpointWrapper<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EdgeEndpointWrapper<T> {}
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> {
     type EntityFiltered<'graph, G, F>

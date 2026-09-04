@@ -6,7 +6,6 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
             },
             CreateFilter,

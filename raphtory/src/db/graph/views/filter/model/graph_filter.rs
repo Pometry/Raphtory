@@ -3,13 +3,11 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter,
                 latest_filter::Latest,
                 layered_filter::Layered,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                CombinedFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree,
-                InternalViewWrapOps, Wrap,
+                CombinedFilter, InternalViewWrapOps, Wrap,
             },
             CreateFilter,
         },

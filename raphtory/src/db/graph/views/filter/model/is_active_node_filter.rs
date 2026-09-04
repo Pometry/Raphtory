@@ -2,12 +2,7 @@ use crate::{
     db::{
         api::state::ops::{GraphView, HistoryOp, Map, NodeOp},
         graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                CompositeNodeFilter,
-            },
-            node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+            model::ComposableFilter, node_filtered_graph::NodeFilteredGraph, CreateFilter,
         },
     },
     errors::GraphError,

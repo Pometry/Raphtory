@@ -886,11 +886,7 @@ use crate::db::graph::views::filter::{
     exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
     model::{
         edge_expr::filters::qualify_edge_filter,
-        edge_filter::CompositeEdgeFilter,
-        exploded_edge_filter::CompositeExplodedEdgeFilter,
         node_expr::exprs::{AllExpr, AnyExpr},
-        node_filter::CompositeNodeFilter,
-        FilterTree,
     },
 };
 

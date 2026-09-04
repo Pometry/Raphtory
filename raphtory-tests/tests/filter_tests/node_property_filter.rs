@@ -6,9 +6,8 @@ use raphtory::{
         graph::{
             graph::assert_edges_equal,
             views::filter::model::{
-                node_filter::{ops::NodeFilterOps, NodeFilter, NodeFilterFactory},
-                property_filter::ops::PropertyFilterOps,
-                ComposableFilter, PropertyFilterFactory,
+                node_filter::{NodeFilter, NodeFilterFactory},
+                ComposableFilter, PropertyExprFactory,
             },
         },
     },

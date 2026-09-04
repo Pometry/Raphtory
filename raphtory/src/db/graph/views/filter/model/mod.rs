@@ -48,10 +48,6 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_expr::{NodeMetaOp, NodePropOp},
-                property_filter::{
-                    builders::{PropertyExprBuilder, PropertyExprBuilderInput},
-                    Op, PropertyFilterInput, PropertyRef,
-                },
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
             },
@@ -315,40 +311,6 @@ impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {
     }
 }
 
-pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
-    fn property(&self, name: impl Into<String>) -> Self::PropertyBuilder {
-        self.property_builder(name.into())
-    }
-
-    fn metadata(&self, name: impl Into<String>) -> Self::MetadataBuilder {
-        self.metadata_builder(name.into())
-    }
-}
-
-impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
-
-pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
-    fn temporal(&self) -> Self::ExprBuilder {
-        let builder = PropertyExprBuilderInput {
-            prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
-            ops: vec![],
-        };
-        self.with_expr_builder(builder)
-    }
-}
-
-pub trait DynTemporalPropertyFilterBuilder: DynPropertyFilterBuilder {
-    fn dyn_temporal(&self) -> Arc<dyn DynPropertyFilterBuilder>;
-}
-
-impl<T: TemporalPropertyFilterFactory + 'static> DynTemporalPropertyFilterBuilder for T {
-    fn dyn_temporal(&self) -> Arc<dyn DynPropertyFilterBuilder> {
-        Arc::new(self.temporal())
-    }
-}
-
-impl TemporalPropertyFilterFactory for Arc<dyn DynTemporalPropertyFilterBuilder> {}
-
 /// One graph-level view restriction, as data. `at`/`before`/`after` lower to
 /// `Window` at construction time (see `ViewWrapOps`), so they need no
 /// variants here.
@@ -463,7 +425,6 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Me
 }
 
 /// Entry point of the expr API: selects a property or metadata column on any view expression.
-/// Distinct from [`PropertyFilterFactory`], the builder-path factory it will eventually replace.
 pub trait PropertyExprFactory: CreateView + EntityExpr + Sized {
     fn property(&self, name: impl Into<String>) -> PropertyExpr<Self>;
 
@@ -486,14 +447,6 @@ impl<T: CreateView + EntityExpr + Clone> PropertyExprFactory for T {
     }
 }
 
-pub trait DynPropertyFilterFactory: Send + Sync + 'static {
-    fn dyn_entity(&self) -> EntityMarker;
-
-    fn dyn_property_builder(&self, property: String) -> Arc<dyn DynTemporalPropertyFilterBuilder>;
-
-    fn dyn_metadata_builder(&self, property: String) -> Arc<dyn DynPropertyFilterBuilder>;
-}
-
 pub trait DynPropertyExprFactory {
     fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal>;
 }
@@ -504,74 +457,63 @@ impl<T: PropertyExprFactory> DynPropertyExprFactory for T {
     }
 }
 
-impl<E> InternalPropertyFilterBuilder for PropertyExpr<E>
-where
-    E: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    crate::prelude::PropertyFilter<E>: CombinedFilter,
-    PropertyExprBuilder<E>: InternalPropertyFilterBuilder,
-{
-    type Filter = crate::prelude::PropertyFilter<E>;
-    type ExprBuilder = PropertyExprBuilder<E>;
-    type Marker = E;
-
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.name.clone())
-    }
-
-    fn ops(&self) -> &[Op] {
-        &[]
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.view_expr.clone()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        filter.with_entity(self.entity())
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        builder.with_entity(self.entity())
-    }
-}
-
-impl<E> InternalPropertyFilterBuilder for MetadataExpr<E>
-where
-    E: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    crate::prelude::PropertyFilter<E>: CombinedFilter,
-    PropertyExprBuilder<E>: InternalPropertyFilterBuilder,
-{
-    type Filter = crate::prelude::PropertyFilter<E>;
-    type ExprBuilder = PropertyExprBuilder<E>;
-    type Marker = E;
-
-    fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Metadata(self.name.clone())
-    }
-
-    fn ops(&self) -> &[Op] {
-        &[]
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.view_expr.clone()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        filter.with_entity(self.entity())
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        builder.with_entity(self.entity())
-    }
-}
-
 impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
     pub fn temporal(&self) -> TemporalPropExpr<E> {
         TemporalPropExpr {
             view_expr: self.view_expr.clone(),
             name: self.name.clone(),
         }
+    }
+}
+
+/// Aggregators apply to the latest value of a property when it is list-valued;
+/// scalar values are rejected at filter-build time (`require_aggregable`).
+impl<E: EntityExpr> EntityAggOps for PropertyExpr<E> {
+    fn sum(self) -> SumExpr<Self> {
+        SumExpr(self)
+    }
+    fn avg(self) -> AvgExpr<Self> {
+        AvgExpr(self)
+    }
+    fn min(self) -> MinExpr<Self> {
+        MinExpr(self)
+    }
+    fn max(self) -> MaxExpr<Self> {
+        MaxExpr(self)
+    }
+    fn first(self) -> FirstExpr<Self> {
+        FirstExpr(self)
+    }
+    fn last(self) -> LastExpr<Self> {
+        LastExpr(self)
+    }
+    fn len(self) -> LenExpr<Self> {
+        LenExpr(self)
+    }
+}
+
+/// As for [`PropertyExpr`]: aggregation over a list-valued metadata field.
+impl<E: EntityExpr> EntityAggOps for MetadataExpr<E> {
+    fn sum(self) -> SumExpr<Self> {
+        SumExpr(self)
+    }
+    fn avg(self) -> AvgExpr<Self> {
+        AvgExpr(self)
+    }
+    fn min(self) -> MinExpr<Self> {
+        MinExpr(self)
+    }
+    fn max(self) -> MaxExpr<Self> {
+        MaxExpr(self)
+    }
+    fn first(self) -> FirstExpr<Self> {
+        FirstExpr(self)
+    }
+    fn last(self) -> LastExpr<Self> {
+        LastExpr(self)
+    }
+    fn len(self) -> LenExpr<Self> {
+        LenExpr(self)
     }
 }
 
@@ -829,14 +771,6 @@ impl<T: CreateView> CreateView for Layered<T> {
     }
 }
 
-pub trait ViewWrapPropOps: InternalViewWrapOps + PropertyFilterFactory + Sized {}
-
-impl<T> ViewWrapPropOps for T where T: InternalViewWrapOps + PropertyFilterFactory + Sized {}
-
-pub trait DynInternalViewWrapPropOps: DynInternalViewWrapOps + DynPropertyFilterFactory {}
-
-impl<T> DynInternalViewWrapPropOps for T where T: DynInternalViewWrapOps + DynPropertyFilterFactory {}
-
 pub trait DynViewFilter: DynCreateFilter + Send + Sync + 'static {
     fn dyn_bounds(&self) -> (EventTime, EventTime);
 
@@ -888,56 +822,6 @@ pub trait EdgeViewFilterOps: ViewWrapOps {
     fn is_deleted(&self) -> Self::Output<IsDeletedEdge>;
 
     fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge>;
-}
-
-pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
-
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter>;
-
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter>;
-
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
-}
-
-impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps> DynEdgeViewFilterOps for T {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_active())
-    }
-
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_valid())
-    }
-
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_deleted())
-    }
-
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_self_loop())
-    }
-}
-
-pub type DynEdgeViewProps = Arc<dyn DynEdgeViewFilterOps>;
-
-impl EdgeViewFilterOps for DynEdgeViewProps {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.deref().dyn_is_active()
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.deref().dyn_is_valid()
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.deref().dyn_is_deleted()
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.deref().dyn_is_self_loop()
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1326,51 +1210,6 @@ pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Pro
         .collect()
 }
 
-// ── composite-path machinery: still consumed by the GraphQL and permissions lowering ──
-
-pub trait InternalPropertyFilterBuilder: Send + Sync {
-    type Filter: CombinedFilter;
-    type ExprBuilder: InternalPropertyFilterBuilder;
-    type Marker: Into<EntityMarker> + Send + Sync + Clone + 'static;
-
-    fn property_ref(&self) -> PropertyRef;
-
-    fn ops(&self) -> &[Op];
-
-    fn entity(&self) -> Self::Marker;
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter;
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder;
-}
-
-pub trait DynPropertyFilterBuilder: Send + Sync + 'static {
-    fn dyn_property_ref(&self) -> PropertyRef;
-
-    fn dyn_ops(&self) -> &[Op];
-
-    fn dyn_entity(&self) -> EntityMarker;
-
-    fn dyn_filter(&self, filter: PropertyFilterInput) -> Arc<dyn DynCreateFilter>;
-
-    fn dyn_into_expr_builder(
-        &self,
-        builder: PropertyExprBuilderInput,
-    ) -> Arc<dyn DynPropertyFilterBuilder>;
-}
-
-pub trait InternalPropertyFilterFactory {
-    type Entity: Clone + Send + Sync + Into<EntityMarker> + 'static;
-    type PropertyBuilder: InternalPropertyFilterBuilder + TemporalPropertyFilterFactory;
-    type MetadataBuilder: InternalPropertyFilterBuilder;
-
-    fn entity(&self) -> Self::Entity;
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder;
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder;
-}
-
 pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}
 
 pub trait NodeViewFilterOps: ViewWrapOps {
@@ -1379,199 +1218,4 @@ pub trait NodeViewFilterOps: ViewWrapOps {
     fn is_active(&self) -> Self::Output<IsActiveNode>;
 }
 
-pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
-}
-
-impl<T: InternalPropertyFilterBuilder + 'static> DynPropertyFilterBuilder for T {
-    fn dyn_property_ref(&self) -> PropertyRef {
-        self.property_ref()
-    }
-
-    fn dyn_ops(&self) -> &[Op] {
-        self.ops()
-    }
-
-    fn dyn_entity(&self) -> EntityMarker {
-        self.entity().into()
-    }
-
-    fn dyn_filter(&self, filter: PropertyFilterInput) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.filter(filter))
-    }
-
-    fn dyn_into_expr_builder(
-        &self,
-        builder: PropertyExprBuilderInput,
-    ) -> Arc<dyn DynPropertyFilterBuilder> {
-        Arc::new(self.with_expr_builder(builder))
-    }
-}
-
-impl InternalPropertyFilterBuilder for Arc<dyn DynPropertyFilterBuilder> {
-    type Filter = Arc<dyn DynCreateFilter>;
-    type ExprBuilder = Arc<dyn DynPropertyFilterBuilder>;
-    type Marker = EntityMarker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().dyn_property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().dyn_ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().dyn_entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.deref().dyn_filter(filter)
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.deref().dyn_into_expr_builder(builder)
-    }
-}
-
-impl InternalPropertyFilterBuilder for Arc<dyn DynTemporalPropertyFilterBuilder> {
-    type Filter = Arc<dyn DynCreateFilter>;
-    type ExprBuilder = Arc<dyn DynPropertyFilterBuilder>;
-    type Marker = EntityMarker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().dyn_property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().dyn_ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().dyn_entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.deref().dyn_filter(filter)
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.deref().dyn_into_expr_builder(builder)
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Arc<T> {
-    type Filter = T::Filter;
-    type ExprBuilder = T::ExprBuilder;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.deref().filter(filter)
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.deref().with_expr_builder(builder)
-    }
-}
-
-impl InternalPropertyFilterFactory for Arc<dyn DynPropertyFilterFactory> {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}
-
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CombinedFilter for T {}
-
-impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapPropOps> {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}
-
-impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps> DynNodeViewFilterOps for T {
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_active())
-    }
-}
-
-pub type DynNodeViewProps = Arc<dyn DynNodeViewFilterOps>;
-
-impl NodeViewFilterOps for DynNodeViewProps {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.deref().dyn_is_active()
-    }
-}
-
-impl InternalPropertyFilterFactory for DynNodeViewProps {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}
-
-impl InternalPropertyFilterFactory for DynEdgeViewProps {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}

@@ -5,12 +5,38 @@ use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 mod test_composite_filters {
     use raphtory::{
         db::graph::views::filter::model::{
-            edge_filter::EdgeFilter, filter::Filter, node_filter::NodeFilter,
-            property_filter::ops::PropertyFilterOps, PropertyExprFactory,
+            filter::Filter,
+            node_filter::NodeFilter,
+            property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef},
+            FilterOperator,
         },
         prelude::IntoProp,
     };
     use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+    use std::sync::Arc;
+
+    /// A property condition as wire data, evaluated through
+    /// [`PropertyFilter::matches`].
+    fn prop_filter(
+        operator: FilterOperator,
+        prop_value: PropertyFilterValue,
+    ) -> PropertyFilter<NodeFilter> {
+        PropertyFilter {
+            prop_ref: PropertyRef::Property("prop".to_string()),
+            prop_value,
+            operator,
+            ops: vec![],
+            entity: NodeFilter,
+        }
+    }
+
+    fn single(value: impl IntoProp) -> PropertyFilterValue {
+        PropertyFilterValue::Single(value.into_prop())
+    }
+
+    fn set(values: impl IntoIterator<Item = Prop>) -> PropertyFilterValue {
+        PropertyFilterValue::Set(Arc::new(values.into_iter().collect()))
+    }
 
     #[test]
     fn test_fuzzy_search() {
@@ -44,35 +70,53 @@ mod test_composite_filters {
 
     #[test]
     fn test_fuzzy_search_property() {
-        let filter = NodeFilter.property("prop").fuzzy_search("pomet", 2, false);
+        let filter = prop_filter(
+            FilterOperator::FuzzySearch {
+                levenshtein_distance: 2,
+                prefix_match: false,
+            },
+            single("pomet"),
+        );
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 
     #[test]
     fn test_fuzzy_search_property_prefix_match() {
-        let filter = EdgeFilter.property("prop").fuzzy_search("pome", 2, false);
+        let filter = prop_filter(
+            FilterOperator::FuzzySearch {
+                levenshtein_distance: 2,
+                prefix_match: false,
+            },
+            single("pome"),
+        );
         assert!(!filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
 
-        let filter = EdgeFilter.property("prop").fuzzy_search("pome", 2, true);
+        let filter = prop_filter(
+            FilterOperator::FuzzySearch {
+                levenshtein_distance: 2,
+                prefix_match: true,
+            },
+            single("pome"),
+        );
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 
     #[test]
     fn test_contains_match() {
-        let filter = EdgeFilter.property("prop").contains("shivam");
+        let filter = prop_filter(FilterOperator::Contains, single("shivam"));
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(res);
         let res = filter.matches(None);
         assert!(!res);
 
-        let filter = EdgeFilter.property("prop").contains("am_ka");
+        let filter = prop_filter(FilterOperator::Contains, single("am_ka"));
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(res);
     }
 
     #[test]
     fn test_contains_not_match() {
-        let filter = NodeFilter.property("prop").not_contains("shivam");
+        let filter = prop_filter(FilterOperator::NotContains, single("shivam"));
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(!res);
         let res = filter.matches(None);
@@ -81,9 +125,7 @@ mod test_composite_filters {
 
     #[test]
     fn test_is_in_match() {
-        let filter = NodeFilter
-            .property("prop")
-            .is_in(vec!["shivam".into_prop()]);
+        let filter = prop_filter(FilterOperator::IsIn, set(["shivam".into_prop()]));
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam"))));
         assert!(res);
         let res = filter.matches(None);
@@ -92,9 +134,7 @@ mod test_composite_filters {
 
     #[test]
     fn test_is_not_in_match() {
-        let filter = EdgeFilter
-            .property("prop")
-            .is_not_in(vec!["shivam".into_prop()]);
+        let filter = prop_filter(FilterOperator::IsNotIn, set(["shivam".into_prop()]));
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam"))));
         assert!(!res);
         let res = filter.matches(None);
@@ -123,10 +163,7 @@ mod test_property_semantics {
         use raphtory::{
             db::{
                 api::view::{filter_ops::Filter, StaticGraphViewOps},
-                graph::views::filter::model::{
-                    node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
-                    PropertyExprFactory,
-                },
+                graph::views::filter::model::{node_filter::NodeFilter, PropertyExprFactory},
             },
             errors::GraphError,
             prelude::*,
@@ -410,10 +447,7 @@ mod test_property_semantics {
             db::{
                 api::view::{filter_ops::Filter, EdgeViewOps, StaticGraphViewOps},
                 graph::views::filter::{
-                    model::{
-                        edge_filter::EdgeFilter, property_filter::ops::PropertyFilterOps,
-                        PropertyExprFactory,
-                    },
+                    model::{edge_filter::EdgeFilter, PropertyExprFactory},
                     CreateFilter,
                 },
             },
@@ -1503,12 +1537,7 @@ mod test_node_filter {
         db::{
             api::view::{filter_ops::Select, Filter},
             graph::views::filter::{
-                model::{
-                    node_filter::ops::NodeFilterOps,
-                    not_filter::NotFilter,
-                    property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                    ComposableFilter, NodeViewFilterOps, PropertyExprFactory, ViewWrapOps,
-                },
+                model::{not_filter::NotFilter, ComposableFilter, NodeViewFilterOps, ViewWrapOps},
                 CreateFilter,
             },
         },
@@ -2837,11 +2866,7 @@ mod test_node_property_filter {
     use crate::{init_nodes_graph, IdentityGraphTransformer};
     use raphtory::{
         db::graph::views::filter::model::{
-            graph_filter::GraphFilter,
-            node_filter::NodeFilter,
-            not_filter::NotFilter,
-            property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-            windowed_filter::Windowed,
+            graph_filter::GraphFilter, node_filter::NodeFilter, windowed_filter::Windowed,
             ComposableFilter, PropertyExprFactory, ViewWrapOps,
         },
         prelude::{EntityAggOps, EntityExprFilterOps},
@@ -4306,11 +4331,9 @@ mod composite_node_filter_tests {
     use crate::{init_edges_graph, init_nodes_graph, IdentityGraphTransformer};
     use raphtory::{
         db::graph::views::filter::model::{
-            node_filter::ops::NodeFilterOps, not_filter::NotFilter,
-            property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
-            PropertyExprFactory,
+            not_filter::NotFilter, ComposableFilter, NodeFilterFactory, PropertyExprFactory,
         },
-        prelude::NodeFilter,
+        prelude::{EntityExprFilterOps, NodeFilter},
     };
     use raphtory_tests::assertions::{
         assert_filter_neighbours_results, assert_filter_nodes_results, TestVariants,
@@ -4575,9 +4598,7 @@ mod test_node_property_filter_agg {
         db::{
             api::view::StaticGraphViewOps,
             graph::views::filter::model::{
-                node_filter::NodeFilter,
-                property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-                CombinedFilter, PropertyExprFactory,
+                node_filter::NodeFilter, CombinedFilter, PropertyExprFactory,
             },
         },
         prelude::{
@@ -7814,29 +7835,28 @@ mod test_node_property_filter_agg {
     // ------ Unsupported filter operations ------
     #[test]
     fn test_unsupported_filter_ops_agg() {
+        // String operators over an aggregated numeric value are rejected.
+        let expected: &str = "string operator requires a Str property";
+
         let filter = NodeFilter.property("p_u64s").sum().starts_with("abc");
-        let expected: &str = "Operator STARTS_WITH is not supported with list aggregation";
         apply_assertion_err(filter, expected);
 
         let filter = NodeFilter.property("p_u64s").avg().ends_with("abc");
-        let expected: &str = "Operator ENDS_WITH is not supported with list aggregation";
-        apply_assertion_err(filter, expected);
-
-        let filter = NodeFilter.property("p_u64s").min().is_none();
-        let expected: &str = "Operator IS_NONE is not supported with list aggregation";
-        apply_assertion_err(filter, expected);
-
-        let filter = NodeFilter.property("p_u64s").max().is_some();
-        let expected: &str = "Operator IS_SOME is not supported with list aggregation";
         apply_assertion_err(filter, expected);
 
         let filter = NodeFilter.property("p_u64s").len().contains("abc");
-        let expected: &str = "Operator CONTAINS is not supported with list aggregation";
         apply_assertion_err(filter, expected);
 
         let filter = NodeFilter.property("p_u64s").sum().not_contains("abc");
-        let expected: &str = "Operator NOT_CONTAINS is not supported with list aggregation";
         apply_assertion_err(filter, expected);
+
+        // is_none / is_some after an aggregation are meaningful: the
+        // aggregate of an absent or empty list is absent.
+        let filter = NodeFilter.property("p_u64s").min().is_none();
+        apply_assertion(filter, &["n6", "n7"]);
+
+        let filter = NodeFilter.property("p_u64s").max().is_some();
+        apply_assertion(filter, &["n1", "n10", "n2", "n3", "n4", "n5"]);
     }
 
     // --------------- OVERFLOW ---------------
@@ -8017,6 +8037,63 @@ mod test_node_property_filter_agg {
         let expected = vec!["n4", "n10"];
         apply_assertion(filter, &expected);
     }
+
+    // --------------- OVERFLOW HANDLING ---------------
+    #[test]
+    fn test_max_value_agg() {
+        let filter = NodeFilter
+            .property("p_u64s_max")
+            .max()
+            .eq(Prop::U64(u64::MAX));
+        let expected: Vec<&str> = vec!["n5", "n1"];
+        apply_assertion(filter, &expected);
+
+        let filter = NodeFilter
+            .property("p_u64s_min")
+            .min()
+            .eq(Prop::U64(u64::MIN));
+        let expected: Vec<&str> = vec!["n5"];
+        apply_assertion(filter, &expected);
+
+        // A constant is validated by value-castability against the list's
+        // element type, so a sum that only exists past that type's range
+        // cannot be matched with a wider constant.
+        let filter = NodeFilter.property("p_u8s_max").sum().eq(Prop::U64(510));
+        apply_assertion_err(filter, "cannot be coerced to U8");
+
+        let filter = NodeFilter
+            .property("p_u16s_max")
+            .sum()
+            .eq(Prop::U64(131070));
+        apply_assertion_err(filter, "cannot be coerced to U16");
+
+        let filter = NodeFilter
+            .property("p_u32s_max")
+            .sum()
+            .eq(Prop::U64(8589934590));
+        apply_assertion_err(filter, "cannot be coerced to U32");
+
+        let filter = NodeFilter.property("p_u64s_max").sum().gt(Prop::U64(0));
+        let expected: Vec<&str> = vec!["n1", "n5"];
+        apply_assertion(filter, &expected);
+
+        // AVG is computed in f64 even if SUM overflowed.
+        let avg = (u64::MAX as f64 + 1.0) / 2.0;
+        let filter = NodeFilter.property("p_u64s_max").avg().eq(avg);
+        let expected = vec!["n5"];
+        apply_assertion(filter, &expected);
+
+        // Overflow is handled by promoting to Decimal which still compares
+        let filter = NodeFilter.property("p_i64s_max").sum().gt(Prop::I64(0));
+        let expected: Vec<&str> = vec!["n5"];
+        apply_assertion(filter, &expected);
+
+        // AVG is computed in f64 even if SUM overflowed.
+        let avg = (i64::MAX as f64 + 1.0) / 2.0;
+        let filter = NodeFilter.property("p_i64s_max").avg().eq(avg);
+        let expected = vec!["n5"];
+        apply_assertion(filter, &expected);
+    }
 }
 
 mod test_edge_filter {
@@ -8025,8 +8102,8 @@ mod test_edge_filter {
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, ComposableFilter, EdgeViewFilterOps, EntityExprFilterOps,
-        NodeFilterFactory, PropertyExprFactory, ViewWrapOps,
+        edge_filter::EdgeFilter, EdgeViewFilterOps, EntityExprFilterOps, NodeFilterFactory,
+        PropertyExprFactory, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
@@ -8409,8 +8486,8 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_dst_id_eq() {
-        let filter = EdgeFilter::dst().id().eq("3");
-        let expected_results = vec!["2->3"];
+        let _filter = EdgeFilter::dst().id().eq("3");
+        let _expected_results = vec!["2->3"];
         // assert_filter_edges_results(
         //     init_edges_graph,
         //     IdentityGraphTransformer,
@@ -8996,14 +9073,52 @@ mod test_edge_filter {
             TestVariants::All,
         );
     }
+
+    #[test]
+    fn test_is_self_loop_edge_window() {
+        // window has no effect on is_self_loop and because we are using an `EdgeFilter` as the
+        // entrypoint, the window is only applied to the edges, not the graph
+        let filter = EdgeFilter.window(1, 3).is_self_loop();
+        let expected_results_self_loop = vec!["Bangalore->Bangalore"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids_del,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results_self_loop,
+            TestVariants::All,
+        );
+
+        // window doesn't make a difference for `is_self_loop`
+        assert_select_edges_results(
+            init_edges_graph_with_str_ids_del,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results_self_loop,
+            TestVariants::All,
+        );
+
+        let filter = EdgeFilter.window(1, 6).is_self_loop();
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids_del,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results_self_loop,
+            TestVariants::All,
+        );
+        assert_select_edges_results(
+            init_edges_graph_with_str_ids_del,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results_self_loop,
+            TestVariants::All,
+        );
+    }
 }
 
 mod test_edge_property_filter {
     use crate::{init_edges_graph, init_edges_graph2, IdentityGraphTransformer};
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter,
-        property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-        ComposableFilter, PropertyExprFactory, ViewWrapOps,
+        edge_filter::EdgeFilter, ComposableFilter, PropertyExprFactory, ViewWrapOps,
     };
 
     use raphtory::prelude::{EntityAggOps, EntityExprFilterOps};
@@ -10306,10 +10421,12 @@ mod test_edge_property_filter {
 
 // TODO: delete when search is dropped and graphql composite path is gone
 mod composite_edge_filter_tests {
-    use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps, not_filter::NotFilter,
-        property_filter::ops::PropertyFilterOps, ComposableFilter, NodeFilterFactory,
-        PropertyExprFactory,
+    use raphtory::{
+        db::graph::views::filter::model::{
+            edge_filter::EdgeFilter, not_filter::NotFilter, ComposableFilter, NodeFilterFactory,
+            PropertyExprFactory,
+        },
+        prelude::EntityExprFilterOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, TestGraphVariants, TestVariants,

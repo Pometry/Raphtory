@@ -14,25 +14,13 @@ use raphtory::{
         },
         graph::views::filter::{
             model::{
-                degree_filter::DegreeFilter,
-                edge_filter::{CompositeEdgeFilter, EdgeFilter},
-                exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+                edge_filter::CompositeEdgeFilter,
+                exploded_edge_filter::CompositeExplodedEdgeFilter,
                 filter::{Filter, FilterValue},
                 filter_operator::FilterOperator,
                 graph_filter::GraphFilter,
-                is_active_edge_filter::IsActiveEdge,
-                is_active_node_filter::IsActiveNode,
-                is_deleted_filter::IsDeletedEdge,
-                is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge,
-                latest_filter::Latest as LatestWrap,
-                layered_filter::Layered,
-                node_filter::{CompositeNodeFilter, NodeFilter},
+                node_filter::CompositeNodeFilter,
                 property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-                snapshot_filter::{
-                    SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap,
-                },
-                windowed_filter::Windowed,
                 ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
             },
             CreateFilter,
@@ -43,7 +31,6 @@ use raphtory::{
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
     Direction,
 };
 use serde::{Deserialize, Serialize};
@@ -2585,9 +2572,6 @@ mod gql_filter_serde_tests {
 #[cfg(test)]
 mod fuzzy_search_tests {
     use super::*;
-    use raphtory::db::graph::views::filter::model::node_filter::{
-        ops::NodeFilterOps, NodeFilter as NodeFilterBuilder,
-    };
 
     // The wire shape is externally tagged camelCase, like every other condition.
     #[test]
@@ -2632,12 +2616,12 @@ mod fuzzy_search_tests {
         );
     }
 
-    // Local node-name builder → wire condition (the reverse conversion the
+    // Local node-name filter → wire condition (the reverse conversion the
     // Python remote client rides) preserves the fuzzy parameters.
     #[test]
     fn node_name_fuzzy_round_trips_through_the_wire() {
-        let core = NodeFilterBuilder::name().fuzzy_search("ben", 1, true);
-        let GqlNodeFilter::Name(wire) = filter_to_node_field(core.0).unwrap() else {
+        let core = Filter::fuzzy_search("node_name", "ben", 1, true);
+        let GqlNodeFilter::Name(wire) = filter_to_node_field(core).unwrap() else {
             panic!("expected the per-field name variant");
         };
         let NodeFieldCondition::FuzzySearch(ref f) = wire.where_ else {
@@ -2653,6 +2637,7 @@ mod fuzzy_search_tests {
 #[cfg(test)]
 mod conversion_hole_tests {
     use super::*;
+    use raphtory::db::graph::views::filter::model::layered_filter::Layered;
 
     // `isSome: false` lowers to the IsNone operator (and vice versa) instead
     // of erroring — the two spellings are the same predicate.
@@ -2720,7 +2705,8 @@ mod exploded_edge_filter_tests {
     use super::*;
     use raphtory::{
         db::graph::views::filter::model::{
-            layered_filter::Layered, windowed_filter::Windowed, FilterOperator,
+            is_valid_filter::IsValidEdge, layered_filter::Layered, windowed_filter::Windowed,
+            ExplodedEdgeFilter, FilterOperator,
         },
         prelude::Prop,
     };

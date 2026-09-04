@@ -7,8 +7,8 @@
 //!   - extends the chain by producing another `Arc<dyn DynPropertyExpr>`
 //!     (selectors / aggregators / quantifiers).
 //!
-//! Used by the Python `PyPropertyExprBuilder` and `PyPropertyFilterBuilder`
-//! wrappers to dispatch chain calls at runtime through typed expressions.
+//! Used by the Python `PyExpr` and `PyPropertyExpr` wrappers to dispatch
+//! chain calls at runtime through typed expressions.
 //!
 //! ## Chain methods are currently panic stubs
 //!

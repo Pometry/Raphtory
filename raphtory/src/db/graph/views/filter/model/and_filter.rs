@@ -5,13 +5,7 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            and_filtered_graph::AndFilteredGraph,
-            model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
-            },
-            CreateFilter,
+            and_filtered_graph::AndFilteredGraph, model::ComposableFilter, CreateFilter,
         },
     },
     errors::GraphError,
