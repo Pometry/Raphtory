@@ -120,30 +120,30 @@ fn max_concurrent() -> usize {
         .unwrap_or_else(|| (COMPUTE_POOL.current_num_threads() / 2).max(1))
 }
 
+/// Take a queued job if an admission slot is free, counting it as running.
+fn next_job() -> Option<Job> {
+    let mut s = SCHEDULER.lock().expect("scheduler lock");
+    if s.running >= max_concurrent() || s.queue.is_empty() {
+        return None;
+    }
+    s.dispatched += 1;
+    let old_waiter = s
+        .queue
+        .front()
+        .is_some_and(|(queued, _)| queued.elapsed() > PROMOTE_AFTER);
+    let take_oldest = !settings().newest_first || (old_waiter && s.dispatched % PROMOTE_EVERY == 0);
+    let (_, job) = if take_oldest {
+        s.queue.pop_front()
+    } else {
+        s.queue.pop_back()
+    }?;
+    s.running += 1;
+    Some(job)
+}
+
 /// Fill free admission slots from the queue; runs on every submission and completion.
 fn pump() {
-    loop {
-        let job = {
-            let mut s = SCHEDULER.lock().expect("scheduler lock");
-            if s.running >= max_concurrent() {
-                return;
-            }
-            s.dispatched += 1;
-            let promote_old = s.dispatched % PROMOTE_EVERY == 0;
-            let job = if settings().newest_first {
-                match s.queue.front() {
-                    Some((queued, _)) if promote_old && queued.elapsed() > PROMOTE_AFTER => {
-                        s.queue.pop_front()
-                    }
-                    _ => s.queue.pop_back(),
-                }
-            } else {
-                s.queue.pop_front()
-            };
-            let Some((_, job)) = job else { return };
-            s.running += 1;
-            job
-        };
+    while let Some(job) = next_job() {
         COMPUTE_POOL.spawn(move || {
             job();
             SCHEDULER.lock().expect("scheduler lock").running -= 1;
