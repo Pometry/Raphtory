@@ -34,8 +34,21 @@ def find_max_rate(scenario_name):
     # perf = valid_trend.loc[max_rate_index]
     # return pd.Series(perf, name=scenario_name)
 
+# The scheduling pair runs under deliberate saturation, so the p95-gated max-rate is meaningless
+# for it; report the steady completed rate instead (collapses if short queries starve).
+UNDER_LOAD_SCENARIOS = {"heavy_load", "short_queries_under_heavy_load"}
+
+def steady_rate(scenario_name):
+    scenario = output[output["scenario"] == scenario_name]
+    req_duration = scenario[scenario["metric_name"] == "http_req_duration"]
+    rate = req_duration["metric_value"].resample('1s').count()
+    return rate.iloc[10:].mean() # discard first 10 seconds
+
 scenarios = output["scenario"].unique()[1:] # first element is nan
-max_rates = [find_max_rate(scenario) for scenario in scenarios]
+max_rates = [
+    steady_rate(scenario) if scenario in UNDER_LOAD_SCENARIOS else find_max_rate(scenario)
+    for scenario in scenarios
+]
 
 results = [{"name": name, "unit": "req/s", "value": value} for (name, value) in zip(scenarios, max_rates)]
 df = pd.DataFrame(results)
