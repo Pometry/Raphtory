@@ -28,8 +28,15 @@ const execs = [
   nodePropsByName,
   nodeNeighboursByName,
   readAndWriteNodeProperties,
+  shortestPathSingleSource,
+  pagerank,
+  degreeCentrality,
 ];
-const rampingScenarios = execs.map(
+
+// Run a subset of the ramping scenarios, e.g. k6 run -e ONLY=pagerank,degreeCentrality dist/bench.js
+const only = __ENV.ONLY ? new Set(String(__ENV.ONLY).split(",")) : null;
+const enabledExecs = only ? execs.filter((e) => only.has(e.name)) : execs;
+const rampingScenarios = enabledExecs.map(
   (exec, index) =>
     [
       exec.name,
@@ -55,7 +62,7 @@ const rampingScenarios = execs.map(
 // collapses; if short queries get slots promptly, the rate matches the offered rate.
 // Run only this pair (30s) with: k6 run -e SCHEDULING_ONLY=1 dist/bench.js
 const schedulingOnly = Boolean(__ENV.SCHEDULING_ONLY);
-const schedulingStart = schedulingOnly ? "0s" : `${execs.length * minutesPerScenario}m`;
+const schedulingStart = schedulingOnly ? "0s" : `${enabledExecs.length * minutesPerScenario}m`;
 const schedulingDuration = schedulingOnly ? "30s" : "2m";
 const schedulingScenarios = {
   heavy_load: {
@@ -82,7 +89,7 @@ const schedulingScenarios = {
 export const options = {
   scenarios: {
     ...(schedulingOnly ? {} : Object.fromEntries(rampingScenarios)),
-    ...schedulingScenarios,
+    ...(only ? {} : schedulingScenarios),
   },
   // Empty thresholds split these out in the end-of-run summary, so the short queries' latency
   // under load is visible directly rather than folded into the heavy queries' distribution.
@@ -243,6 +250,46 @@ export function nodeNeighboursByName() {
           list: {
             name: true,
           },
+        },
+      },
+    },
+  });
+}
+
+export function shortestPathSingleSource() {
+  fetchAndCheck(errorRate, {
+    graph: {
+      __args: { path: "master" },
+      algorithm: {
+        singleSourceShortestPath: {
+          __args: { source: "SPARK-22386" },
+          count: true,
+        },
+      },
+    },
+  });
+}
+
+export function pagerank() {
+  fetchAndCheck(errorRate, {
+    graph: {
+      __args: { path: "master" },
+      algorithm: {
+        pagerank: {
+          count: true,
+        },
+      },
+    },
+  });
+}
+
+export function degreeCentrality() {
+  fetchAndCheck(errorRate, {
+    graph: {
+      __args: { path: "master" },
+      algorithm: {
+        degreeCentrality: {
+          count: true,
         },
       },
     },

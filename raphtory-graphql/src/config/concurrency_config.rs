@@ -49,16 +49,6 @@ pub struct ConcurrencyConfig {
     /// the compute pool so they stay responsive while heavy queries saturate it.
     pub express_threads: usize,
 
-    /// Max query closures running on the compute pool at once; the rest queue. Prevents heavy
-    /// queries time-sharing every thread, so slots free up quickly. `None` = half the compute
-    /// threads: raising it amplifies storage-lock contention faster than it adds parallelism.
-    pub max_concurrent_queries: Option<usize>,
-
-    /// Dispatch queued queries newest-first, so a fresh short query jumps a backlog of heavy ones
-    /// instead of waiting for it to drain. Old waiters are periodically dispatched first so a
-    /// sustained backlog cannot starve them.
-    pub newest_first_scheduling: bool,
-
     /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
     /// at least 2.
@@ -75,8 +65,6 @@ impl Default for ConcurrencyConfig {
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
             express_threads: default_express_threads(),
-            max_concurrent_queries: None,
-            newest_first_scheduling: true,
             max_concurrent_loads: None,
         }
     }

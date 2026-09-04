@@ -1,9 +1,7 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::{
-    collections::VecDeque,
-    sync::{LazyLock, Mutex, OnceLock},
-    time::{Duration, Instant},
-};
+#[cfg(test)]
+use std::sync::Mutex;
+use std::sync::{LazyLock, OnceLock};
 use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
@@ -12,11 +10,6 @@ use tracing::warn;
 pub struct PoolSettings {
     /// Reserved for [`EXPRESS_POOL`], taken out of the compute pool.
     pub express_threads: usize,
-    /// Max queries running at once; the rest queue. `None` = half the compute threads:
-    /// raising it amplifies storage-lock contention faster than it adds parallelism.
-    pub max_concurrent_queries: Option<usize>,
-    /// Dispatch queued queries newest-first instead of FIFO.
-    pub newest_first: bool,
     /// Max graph loads decoding at once; bounds peak memory. `None` = cores / 4, at least 2.
     pub max_concurrent_loads: Option<usize>,
 }
@@ -25,8 +18,6 @@ impl Default for PoolSettings {
     fn default() -> Self {
         PoolSettings {
             express_threads: default_express_threads(),
-            max_concurrent_queries: None,
-            newest_first: true,
             max_concurrent_loads: None,
         }
     }
@@ -40,7 +31,6 @@ pub fn default_express_threads() -> usize {
         1
     }
 }
-const PROMOTE_AFTER: Duration = Duration::from_secs(1);
 
 static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
 
@@ -96,78 +86,14 @@ pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-type Job = Box<dyn FnOnce() + Send + 'static>;
-
-struct Scheduler {
-    queue: VecDeque<(Instant, Job)>,
-    running: usize,
-    dispatched: u64,
-}
-
-static SCHEDULER: LazyLock<Mutex<Scheduler>> = LazyLock::new(|| {
-    Mutex::new(Scheduler {
-        queue: VecDeque::new(),
-        running: 0,
-        dispatched: 0,
-    })
-});
-
-/// Rationed: under a backlog the queue front is always old, so promoting it every dispatch is FIFO.
-const PROMOTE_EVERY: u64 = 4;
-
-fn max_concurrent() -> usize {
-    settings()
-        .max_concurrent_queries
-        .unwrap_or_else(|| (COMPUTE_POOL.current_num_threads() / 2).max(1))
-}
-
-/// Take a queued job if an admission slot is free, counting it as running.
-fn next_job() -> Option<Job> {
-    let mut s = SCHEDULER.lock().expect("scheduler lock");
-    if s.running >= max_concurrent() || s.queue.is_empty() {
-        return None;
-    }
-    s.dispatched += 1;
-    let old_waiter = s
-        .queue
-        .front()
-        .is_some_and(|(queued, _)| queued.elapsed() > PROMOTE_AFTER);
-    let take_oldest = !settings().newest_first || (old_waiter && s.dispatched % PROMOTE_EVERY == 0);
-    let (_, job) = if take_oldest {
-        s.queue.pop_front()
-    } else {
-        s.queue.pop_back()
-    }?;
-    s.running += 1;
-    Some(job)
-}
-
-/// Fill free admission slots from the queue; runs on every submission and completion.
-fn pump() {
-    while let Some(job) = next_job() {
-        COMPUTE_POOL.spawn(move || {
-            job();
-            SCHEDULER.lock().expect("scheduler lock").running -= 1;
-            pump();
-        });
-    }
-}
-
-/// Query work: queues for an admission slot on the compute pool, dispatched newest-first.
+/// Query work on the compute pool.
 pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> R {
     let (send, recv) = oneshot::channel();
-    {
-        let mut s = SCHEDULER.lock().expect("scheduler lock");
-        s.queue.push_back((
-            Instant::now(),
-            Box::new(move || {
-                let _ = send.send(closure()); // this only errors if no-one is listening anymore
-            }),
-        ));
-    }
-    pump();
+    COMPUTE_POOL.spawn(move || {
+        let _ = send.send(closure()); // this only errors if no-one is listening anymore
+    });
     recv.await.expect("Function panicked in rayon::spawn")
 }
 
@@ -277,31 +203,7 @@ mod deadlock_tests {
 #[cfg(test)]
 mod scheduler_tests {
     use super::*;
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn a_new_short_task_jumps_a_heavy_backlog() {
-        let _serial = TEST_SERIAL.lock();
-        let heavies: Vec<_> = (0..COMPUTE_POOL.current_num_threads() * 4)
-            .map(|_| {
-                tokio::spawn(blocking_compute(|| {
-                    std::thread::sleep(Duration::from_millis(200))
-                }))
-            })
-            .collect();
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        let t0 = Instant::now();
-        blocking_compute(|| {}).await;
-        let waited = t0.elapsed();
-        // Full FIFO drain would be seconds; one admission slot freeing is a few hundred ms.
-        assert!(
-            waited < Duration::from_millis(1500),
-            "short task waited {waited:?} behind the heavy backlog"
-        );
-        for h in heavies {
-            let _ = h.await;
-        }
-    }
+    use std::time::{Duration, Instant};
 
     #[tokio::test(flavor = "multi_thread")]
     async fn concurrent_loads_are_bounded() {

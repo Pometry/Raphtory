@@ -147,8 +147,6 @@ impl GraphServer {
         let config = app_config.unwrap_or_default();
         configure_pools(PoolSettings {
             express_threads: config.concurrency.express_threads,
-            max_concurrent_queries: config.concurrency.max_concurrent_queries,
-            newest_first: config.concurrency.newest_first_scheduling,
             max_concurrent_loads: config.concurrency.max_concurrent_loads,
         });
         let extensions = config.extensions.clone();

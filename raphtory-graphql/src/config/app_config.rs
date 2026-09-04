@@ -381,18 +381,6 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            ConcurrencyConfigFieldName::MaxConcurrentQueries => {
-                                self.with_max_concurrent_queries(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
-                            ConcurrencyConfigFieldName::NewestFirstScheduling => {
-                                self.with_newest_first_scheduling(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
                             ConcurrencyConfigFieldName::MaxConcurrentLoads => {
                                 self.with_max_concurrent_loads(
                                     Deserialize::deserialize(value)
@@ -610,19 +598,6 @@ impl AppConfigBuilder {
 
     pub fn with_express_threads(&mut self, express_threads: usize) -> &mut Self {
         self.config.concurrency.express_threads = express_threads;
-        self
-    }
-
-    pub fn with_max_concurrent_queries(
-        &mut self,
-        max_concurrent_queries: Option<usize>,
-    ) -> &mut Self {
-        self.config.concurrency.max_concurrent_queries = max_concurrent_queries;
-        self
-    }
-
-    pub fn with_newest_first_scheduling(&mut self, newest_first_scheduling: bool) -> &mut Self {
-        self.config.concurrency.newest_first_scheduling = newest_first_scheduling;
         self
     }
 
