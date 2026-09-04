@@ -1,3 +1,4 @@
+use dashmap::mapref::multiple::RefMulti;
 use itertools::Itertools;
 use raphtory_api::core::storage::FxDashMap;
 use raphtory_core::entities::VID;
@@ -96,18 +97,12 @@ impl MemNodeTypeIndex {
     }
 
     /// Returns `(type_id, vids)` in ascending `type_id` order with ascending `VID`s per type.
-    pub fn sorted_entries(&self) -> Vec<(usize, Vec<VID>)> {
-        let mut type_ids: Vec<usize> = self.map.iter().map(|entry| *entry.key()).collect();
-        type_ids.sort_unstable();
+    // TODO: We are exposing dashmap here, return a better type for this.
+    pub fn sorted_entries(&self) -> Vec<RefMulti<'_, usize, BTreeSet<VID>>> {
+        let mut entries: Vec<_> = self.map.iter().collect();
+        entries.sort_unstable_by_key(|entry| entry.key().clone());
 
-        type_ids
-            .into_iter()
-            .filter_map(|type_id| {
-                self.map
-                    .get(&type_id)
-                    .map(|set| (type_id, set.iter().copied().collect()))
-            })
-            .collect()
+        entries
     }
 }
 
@@ -187,7 +182,16 @@ mod tests {
         index.insert(2, VID(1));
         index.insert(0, VID(1));
 
-        let collected: Vec<(usize, Vec<VID>)> = index.sorted_entries();
+        let entries = index.sorted_entries();
+        let collected = entries
+            .iter()
+            .map(|entry| {
+                (
+                    *entry.key(),
+                    entry.value().iter().copied().collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
 
         assert_eq!(
             collected,

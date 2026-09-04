@@ -1,7 +1,4 @@
-use crate::{
-    LocalPOS, error::StorageError,
-    segments::edge::segment::MemEdgeSegment, wal::LSN,
-};
+use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::{
     LayerId,
