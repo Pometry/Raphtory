@@ -39,6 +39,7 @@ use crate::vectors::embeddings::EmbeddingError;
 
 #[cfg(any(feature = "vectors", feature = "io"))]
 use tempfile::PersistError;
+use crate::algorithms::pathing::all_paths::AllPathsError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -201,6 +202,9 @@ pub enum GraphError {
 
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),
+
+    #[error(transparent)]
+    AllPathsError(AllPathsError),
 
     #[error("Node Type Error {0}")]
     NodeTypeError(String),
