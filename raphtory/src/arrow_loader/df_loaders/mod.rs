@@ -30,6 +30,8 @@ pub mod edge_props;
 pub mod edges;
 pub mod nodes;
 
+pub(crate) mod node_resolve_cache;
+
 #[cfg(feature = "progress")]
 fn progress_bars_enabled() -> bool {
     std::env::var("RAPHTORY_PROGRESS_BARS_ENABLED")
@@ -282,29 +284,6 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
         |gid, _, _| {
             let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
             Ok(vid)
-        },
-    )
-}
-
-fn resolve_nodes_and_type_with_cache<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
-    cols_to_resolve: &[&'a NodeCol],
-    node_types: &[&'a [usize]],
-    resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<FxDashMap<GidRef<'a>, (VID, usize)>, GraphError> {
-    resolve_nodes_with_cache_generic(
-        cols_to_resolve,
-        |vid: &(VID, usize), row, col_idx| {
-            let (vid, _) = vid;
-            resolved_cols[col_idx][row].store(vid.index(), Ordering::Relaxed);
-        },
-        |gid, row, col_idx| {
-            let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            let node_type = node_types[col_idx][row];
-            Ok((vid, node_type))
         },
     )
 }

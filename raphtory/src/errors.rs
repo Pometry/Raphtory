@@ -101,6 +101,12 @@ pub enum LoadError {
     MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
     NodeIdTypeError { existing: GidType, new: GidType },
+    #[error("Node {gid} was given conflicting node types, {existing} and {new}")]
+    ConflictingNodeType {
+        gid: GID,
+        existing: String,
+        new: String,
+    },
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
 }

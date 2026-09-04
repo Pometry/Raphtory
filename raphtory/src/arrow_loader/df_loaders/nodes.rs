@@ -13,7 +13,7 @@ use raphtory_api::{
             properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
             LayerId,
         },
-        storage::timeindex::EventTime,
+        storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
 use raphtory_core::{
@@ -24,15 +24,10 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc,
-    },
+    sync::{atomic::Ordering, mpsc},
 };
 use storage::{
-    api::nodes::NodeSegmentOps,
-    pages::{locked::nodes::LockedNodePage, resolve_pos},
-    Extension,
+    api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension,
 };
 
 #[cfg(feature = "progress")]
@@ -40,8 +35,8 @@ use crate::arrow_loader::df_loaders::build_progress_bar;
 use crate::arrow_loader::{
     dataframe::{DFChunk, DFView},
     df_loaders::{
-        extract_secondary_index_col, group_rows_by_vid_segment, process_shared_properties,
-        resolve_nodes_and_type_with_cache, secondary_index_at,
+        extract_secondary_index_col, group_rows_by_vid_segment,
+        node_resolve_cache::NodeResolveCache, process_shared_properties, secondary_index_at,
     },
     layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
     node_col::NodeCol,
@@ -179,27 +174,28 @@ pub fn load_nodes_from_df<
         let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
         let mut node_col_resolved = vec![];
-
-        let mut node_segments_touched = (0..graph.core_graph().num_node_segments())
-            .map(|_| AtomicBool::new(false))
-            .collect::<Vec<_>>();
+        let mut node_resolve_cache: Option<NodeResolveCache<(VID, usize)>> = None;
 
         for chunk in df_view.chunks {
             let df = chunk?;
+
             let prop_cols =
                 combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                     session
                         .resolve_node_property(key, dtype, false)
                         .map_err(into_graph_err)
                 })?;
+
             let metadata_cols =
                 combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
                     session
                         .resolve_node_property(key, dtype, true)
                         .map_err(into_graph_err)
                 })?;
+
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
+
             // Two paths:
             // Fast path (parquet round-trip) when both layer_col and layer_id_col are provided.
             // Slow path (user-facing CSV/parquet without numeric ids) resolve by name
@@ -232,6 +228,7 @@ pub fn load_nodes_from_df<
             let (src_vids, gid_str_cache) = get_or_resolve_node_vids::<G>(
                 graph,
                 node_id_index,
+                &mut node_resolve_cache,
                 &mut node_col_resolved,
                 &node_type_col_resolved,
                 resolve_nodes,
@@ -240,37 +237,7 @@ pub fn load_nodes_from_df<
             )?;
 
             let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-            node_segments_touched
-                .resize_with(write_locked_graph.nodes.len(), || AtomicBool::new(true));
-
-            let max_node_segment_len = write_locked_graph
-                .graph()
-                .storage()
-                .nodes()
-                .max_segment_len() as usize;
-
-            if !gid_str_cache.is_empty() {
-                for (_, (vid, _)) in &gid_str_cache {
-                    let (node_segment, _) = resolve_pos(vid.index(), max_node_segment_len as u32);
-                    node_segments_touched[node_segment].store(true, Ordering::Relaxed);
-                }
-            } else {
-                let mut last_vid = VID::default();
-                for vid in src_vids {
-                    if *vid != last_vid {
-                        let (node_segment, _) =
-                            resolve_pos(vid.index(), max_node_segment_len as u32);
-                        node_segments_touched[node_segment].store(true, Ordering::Relaxed);
-                    }
-                    last_vid = *vid
-                }
-            }
-
             let node_stats = write_locked_graph.node_stats().clone();
-            let update_time = |time: EventTime| {
-                let time = time.t();
-                node_stats.update_time(time);
-            };
 
             let max_node_segment_len = write_locked_graph
                 .graph()
@@ -325,7 +292,7 @@ pub fn load_nodes_from_df<
                                 .as_ref()
                                 .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[row]));
 
-                            update_time(t);
+                            node_stats.update_time(t.t());
 
                             let t_props = prop_cols.iter_row(row);
                             let c_props = metadata_cols.iter_row(row).chain(
@@ -339,7 +306,6 @@ pub fn load_nodes_from_df<
                         };
                     }
 
-                    node_segments_touched[segment_id].store(false, Ordering::Relaxed);
                     Ok::<_, GraphError>(())
                 })?;
 
@@ -512,6 +478,7 @@ fn get_or_resolve_node_vids<
 >(
     graph: &G,
     src_index: usize,
+    node_resolve_cache: &mut Option<NodeResolveCache<(VID, usize)>>,
     src_col_resolved: &'a mut Vec<VID>,
     node_type_resolved: &'a [usize],
     resolve_nodes: bool,
@@ -519,21 +486,17 @@ fn get_or_resolve_node_vids<
     src_col: &'a NodeCol,
 ) -> Result<(&'c [VID], Vec<Resolved<'a>>), GraphError> {
     let (src_vids, gid_str_cache) = if resolve_nodes {
-        src_col_resolved.resize_with(df.len(), Default::default);
+        let cache = node_resolve_cache
+            .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
 
-        let atomic_src_col = atomic_vid_from_mut_slice(src_col_resolved);
-
-        let gid_str_cache = resolve_nodes_and_type_with_cache::<G>(
+        resolve_node_vids_and_types_with_cache(
             graph,
-            [src_col].as_ref(),
-            [node_type_resolved].as_ref(),
-            [atomic_src_col].as_ref(),
-        )?;
-
-        (
-            src_col_resolved.as_slice(),
-            gid_str_cache.into_iter().collect(),
-        )
+            cache,
+            src_col_resolved,
+            src_col,
+            node_type_resolved,
+            df.len(),
+        )?
     } else {
         let srcs = df.chunk[src_index]
             .as_primitive_opt::<UInt64Type>()
@@ -543,6 +506,81 @@ fn get_or_resolve_node_vids<
         (bytemuck::cast_slice(srcs), vec![])
     };
     Ok((src_vids, gid_str_cache))
+}
+
+/// Resolves node GIDs and types using `NodeResolveCache`.
+///
+/// The returned list only contains GIDs that were *newly* inserted into the cache, since anything
+/// already cached had its node ID and type written to the segments by an earlier chunk. A GID that
+/// reappears with a different node type is rejected.
+fn resolve_node_vids_and_types_with_cache<
+    'a,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    cache: &mut NodeResolveCache<(VID, usize)>,
+    node_col_resolved: &'a mut Vec<VID>,
+    node_col: &'a NodeCol,
+    node_types: &[usize],
+    len: usize,
+) -> Result<(&'a [VID], Vec<Resolved<'a>>), GraphError> {
+    node_col_resolved.resize_with(len, Default::default);
+    let atomic_node_col = atomic_vid_from_mut_slice(node_col_resolved);
+
+    let new_gids_by_shard = cache
+        .par_iter_mut()
+        .map(|mut shard| {
+            let mut new_gids = vec![];
+
+            for (row, (gid, vid_slot)) in node_col.iter().zip(atomic_node_col.iter()).enumerate() {
+                if !shard.is_in_shard(gid) {
+                    continue;
+                }
+
+                let node_type = node_types[row];
+                let resolved = shard.resolve_with(gid, || {
+                    let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+                    Ok((vid, node_type))
+                })?;
+
+                let (vid, cached_node_type) = match resolved {
+                    MaybeNew::New(entry) => {
+                        new_gids.push((gid, entry));
+                        entry
+                    }
+                    MaybeNew::Existing(entry) => entry,
+                };
+
+                if cached_node_type != node_type {
+                    return Err(GraphError::LoadError {
+                        source: LoadError::ConflictingNodeType {
+                            gid: gid.into(),
+                            existing: node_type_name(graph, cached_node_type),
+                            new: node_type_name(graph, node_type),
+                        },
+                    });
+                }
+
+                vid_slot.store(vid.0, Ordering::Relaxed);
+            }
+
+            Ok(new_gids)
+        })
+        .collect::<Result<Vec<_>, GraphError>>()?;
+
+    // Shards own disjoint gids, so concatenating is already deduplicated.
+    Ok((node_col_resolved.as_slice(), new_gids_by_shard.concat()))
+}
+
+fn node_type_name<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    graph: &G,
+    node_type: usize,
+) -> String {
+    graph
+        .node_meta()
+        .get_node_type_name_by_id(node_type)
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| "no type".to_string())
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -703,6 +741,7 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
+
     for (gid, (vid, node_type)) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
             writer.store_node_id_and_node_type(src_pos, Some(*gid), *node_type);

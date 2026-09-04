@@ -17,14 +17,16 @@ mod test {
                 nodes::load_nodes_from_df,
             },
         },
+        errors::{GraphError, LoadError},
         prelude::*,
     };
     use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
+    use itertools::Itertools;
     use raphtory_api::core::{
         entities::GID,
         storage::{arc_str::ArcStr, timeindex::AsTime},
     };
-    use std::sync::Arc;
+    use std::{sync::Arc, vec::IntoIter};
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -208,6 +210,185 @@ mod test {
                     Some(Prop::str("b")),
                     Some(ArcStr::from("node_type"))
                 ),
+            ]
+        );
+    }
+
+    /// Builds a node dataframe with an `id`/`node_type`/`time` column per chunk.
+    fn node_type_df(
+        chunks: Vec<(Vec<u64>, Vec<Option<&str>>, Vec<i64>)>,
+    ) -> DFView<IntoIter<Result<DFChunk, GraphError>>> {
+        let num_rows = chunks.iter().map(|(ids, ..)| ids.len()).sum();
+
+        DFView {
+            names: ["id", "node_type", "time"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            chunks: chunks
+                .into_iter()
+                .map(|(ids, node_types, times)| {
+                    Ok(DFChunk {
+                        chunk: vec![
+                            Arc::new(UInt64Array::from(ids)),
+                            Arc::new(StringArray::from(node_types)),
+                            Arc::new(Int64Array::from(times)),
+                        ],
+                    })
+                })
+                .collect::<Vec<_>>()
+                .into_iter(),
+            num_rows: Some(num_rows),
+        }
+    }
+
+    fn load_nodes_with_type_col(
+        graph: &Graph,
+        df: DFView<IntoIter<Result<DFChunk, GraphError>>>,
+    ) -> Result<(), GraphError> {
+        load_nodes_from_df(
+            df,
+            "time",
+            None,
+            "id",
+            &[],
+            &[],
+            None,
+            None,
+            Some("node_type"),
+            graph,
+            true,
+            None,
+            None,
+            None,
+        )
+    }
+
+    fn node_types(graph: &Graph) -> Vec<(GID, Option<ArcStr>)> {
+        graph
+            .nodes()
+            .iter()
+            .map(|n| (n.id(), n.node_type()))
+            .sorted_by_key(|(id, _)| id.to_str().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn node_ids_repeated_across_chunks_keep_their_type() {
+        let graph = Graph::new();
+
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![
+                (vec![1, 2], vec![Some("a"), Some("b")], vec![1, 1]),
+                (vec![1, 2], vec![Some("a"), Some("b")], vec![2, 2]),
+            ]),
+        )
+        .expect("failed to load nodes");
+
+        assert_eq!(
+            node_types(&graph),
+            vec![
+                (GID::U64(1), Some(ArcStr::from("a"))),
+                (GID::U64(2), Some(ArcStr::from("b"))),
+            ]
+        );
+
+        // Both chunks' updates land even though only the first wrote the node id/type.
+        let mut history = graph
+            .nodes()
+            .iter()
+            .map(|n| (n.id(), n.history().iter().map(|t| t.t()).collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
+
+        history.sort();
+        assert_eq!(
+            history,
+            vec![(GID::U64(1), vec![1, 2]), (GID::U64(2), vec![1, 2])]
+        );
+    }
+
+    #[test]
+    fn conflicting_node_type_within_a_chunk_is_rejected() {
+        let graph = Graph::new();
+
+        let err = load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1, 1], vec![Some("a"), Some("b")], vec![1, 2])]),
+        )
+        .expect_err("expected a conflicting node type error");
+
+        assert!(
+            matches!(
+                &err,
+                GraphError::LoadError {
+                    source: LoadError::ConflictingNodeType { gid, .. }
+                } if gid == &GID::U64(1)
+            ),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn conflicting_node_type_across_chunks_is_rejected() {
+        let graph = Graph::new();
+
+        let err = load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![
+                (vec![1], vec![Some("a")], vec![1]),
+                (vec![1], vec![Some("b")], vec![2]),
+            ]),
+        )
+        .expect_err("expected a conflicting node type error");
+
+        assert!(
+            matches!(
+                &err,
+                GraphError::LoadError {
+                    source: LoadError::ConflictingNodeType { existing, new, .. }
+                } if existing == "a" && new == "b"
+            ),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn str_node_ids_are_cached_across_chunks() {
+        let graph = Graph::new();
+
+        let df = DFView {
+            names: ["id", "node_type", "time"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            chunks: vec![
+                Ok(DFChunk {
+                    chunk: vec![
+                        Arc::new(StringArray::from(vec!["a", "b"])),
+                        Arc::new(StringArray::from(vec!["t1", "t2"])),
+                        Arc::new(Int64Array::from(vec![1i64, 1])),
+                    ],
+                }),
+                Ok(DFChunk {
+                    chunk: vec![
+                        Arc::new(StringArray::from(vec!["a", "b"])),
+                        Arc::new(StringArray::from(vec!["t1", "t2"])),
+                        Arc::new(Int64Array::from(vec![2i64, 2])),
+                    ],
+                }),
+            ]
+            .into_iter(),
+            num_rows: Some(4),
+        };
+
+        load_nodes_with_type_col(&graph, df).expect("failed to load str nodes");
+
+        assert_eq!(
+            node_types(&graph),
+            vec![
+                (GID::Str("a".to_string()), Some(ArcStr::from("t1"))),
+                (GID::Str("b".to_string()), Some(ArcStr::from("t2"))),
             ]
         );
     }

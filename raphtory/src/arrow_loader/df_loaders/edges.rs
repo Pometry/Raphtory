@@ -7,7 +7,8 @@ use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            extract_secondary_index_col, group_rows_by_vid_segment, process_shared_properties,
+            extract_secondary_index_col, group_rows_by_vid_segment,
+            node_resolve_cache::NodeResolveCache, process_shared_properties,
             resolve_nodes_with_cache, secondary_index_at,
         },
         layer_col::lift_layer_col,
@@ -20,25 +21,21 @@ use crate::{
     prelude::*,
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
-use arrow_schema::DataType;
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
-use either::Either;
 use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{properties::prop::AsPropRef, GidType, LayerId, EID},
+        entities::{properties::prop::AsPropRef, LayerId, EID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
-use rustc_hash::FxHasher;
 use std::{
     collections::HashMap,
-    hash::{Hash, Hasher},
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc,
@@ -228,7 +225,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eid_col_resolved: Vec<EID> = vec![];
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
-    let mut node_resolve_cache: Option<NodeResolveCache> = None;
+    let mut node_resolve_cache: Option<NodeResolveCache<VID>> = None;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -265,7 +262,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
             let cache = node_resolve_cache
                 .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
-            resolve_node_vids_with_quick_cache(
+            resolve_node_vids_with_cache(
                 graph,
                 cache,
                 &mut src_col_resolved,
@@ -484,156 +481,13 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     Ok::<_, GraphError>(())
 }
 
-enum NodeResolveCache {
-    U64 {
-        len: usize,
-        caches: Vec<quick_cache::unsync::Cache<u64, VID>>,
-    },
-    Str {
-        len: usize,
-        caches: Vec<quick_cache::unsync::Cache<String, VID>>,
-    },
-}
-
-impl NodeResolveCache {
-    fn new(chunk_rows: usize, gid_type: GidType) -> Self {
-        let num_cores = std::thread::available_parallelism().unwrap().get();
-        let rows_per_shard = chunk_rows.max(100_000);
-        match gid_type {
-            GidType::U64 => {
-                let mut caches = Vec::with_capacity(num_cores);
-                caches.resize_with(num_cores, || {
-                    quick_cache::unsync::Cache::new(rows_per_shard)
-                });
-                NodeResolveCache::U64 {
-                    len: caches.len(),
-                    caches,
-                }
-            }
-            GidType::Str => {
-                let mut caches = Vec::with_capacity(num_cores);
-                caches.resize_with(num_cores, || {
-                    quick_cache::unsync::Cache::new(rows_per_shard)
-                });
-                NodeResolveCache::Str {
-                    len: caches.len(),
-                    caches,
-                }
-            }
-        }
-    }
-}
-
-impl NodeResolveCache {
-    fn par_iter_mut<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-        &'b mut self,
-        g: &'b G,
-    ) -> impl ParallelIterator<Item = LockedCacheShard<'b, G>> {
-        match self {
-            NodeResolveCache::U64 { len, caches } => {
-                let iter = caches
-                    .par_iter_mut()
-                    .enumerate()
-                    .map(move |(shard_id, lock)| LockedCacheShard {
-                        cache: CacheShard::U64(lock),
-                        id: shard_id as u64,
-                        len: *len,
-                        g,
-                    });
-                Either::Left(iter)
-            }
-            NodeResolveCache::Str { len, caches } => {
-                let iter = caches
-                    .par_iter_mut()
-                    .enumerate()
-                    .map(move |(shard_id, lock)| LockedCacheShard {
-                        cache: CacheShard::Str(lock),
-                        id: shard_id as u64,
-                        len: *len,
-                        g,
-                    });
-                Either::Right(iter)
-            }
-        }
-    }
-}
-
-enum CacheShard<'a> {
-    U64(&'a mut quick_cache::unsync::Cache<u64, VID>),
-    Str(&'a mut quick_cache::unsync::Cache<String, VID>),
-}
-
-struct LockedCacheShard<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> {
-    cache: CacheShard<'b>,
-    id: u64,
-    len: usize,
-    g: &'b G,
-}
-
-impl<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> LockedCacheShard<'b, G> {
-    fn resolve(&mut self, gid: GidRef<'_>) -> Result<VID, GraphError> {
-        match (gid, self) {
-            (
-                GidRef::U64(gid),
-                LockedCacheShard {
-                    cache: CacheShard::U64(cache),
-                    g,
-                    ..
-                },
-            ) => match cache.get_ref_or_guard(&gid) {
-                Ok(vid) => Ok(*vid),
-                Err(guard) => {
-                    let vid = unsafe {
-                        g.bulk_load_resolve_node(GidRef::U64(gid))
-                            .map_err(into_graph_err)?
-                    };
-                    guard.insert(vid);
-                    Ok(vid)
-                }
-            },
-            (
-                GidRef::Str(gid),
-                LockedCacheShard {
-                    cache: CacheShard::Str(cache),
-                    g,
-                    ..
-                },
-            ) => match cache.get_ref_or_guard(gid) {
-                Ok(vid) => Ok(*vid),
-                Err(guard) => {
-                    let vid = unsafe {
-                        g.bulk_load_resolve_node(GidRef::Str(gid))
-                            .map_err(into_graph_err)?
-                    };
-                    guard.insert(vid);
-                    Ok(vid)
-                }
-            },
-            (gid, _) => Result::Err(GraphError::LoadError {
-                source: LoadError::InvalidNodeIdType(match gid {
-                    GidRef::U64(_) => DataType::UInt64,
-                    GidRef::Str(_) => DataType::Utf8View,
-                }),
-            }),
-        }
-    }
-
-    fn is_in_shard(&self, gid: GidRef<'_>) -> bool {
-        let mut hasher = FxHasher::default();
-        gid.hash(&mut hasher);
-        let hash = hasher.finish();
-        let idx = hash % self.len as u64;
-        idx == self.id
-    }
-}
-
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn resolve_node_vids_with_quick_cache<
+fn resolve_node_vids_with_cache<
     'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
-    locked_node_cache: &mut NodeResolveCache,
+    node_cache: &mut NodeResolveCache<VID>,
     src_col_resolved: &'a mut Vec<VID>,
     dst_col_resolved: &'a mut Vec<VID>,
     src_col: &'a NodeCol,
@@ -646,8 +500,14 @@ fn resolve_node_vids_with_quick_cache<
     let atomic_src_col = atomic_vid_from_mut_slice(src_col_resolved);
     let atomic_dst_col = atomic_vid_from_mut_slice(dst_col_resolved);
 
-    locked_node_cache
-        .par_iter_mut(graph)
+    let resolve_gid = |gid: GidRef<'_>| unsafe {
+        graph
+            .bulk_load_resolve_node(gid)
+            .map_err(into_graph_err)
+    };
+
+    node_cache
+        .par_iter_mut()
         .try_for_each(|mut shard| {
             let iter = izip!(
                 src_col.iter(),
@@ -658,12 +518,12 @@ fn resolve_node_vids_with_quick_cache<
 
             for (src, dst, src_vid, dst_vid) in iter {
                 if shard.is_in_shard(src) {
-                    let vid = shard.resolve(src)?;
+                    let vid = shard.resolve_with(src, || resolve_gid(src))?.inner();
                     src_vid.store(vid.0, Ordering::Relaxed);
                 }
 
                 if shard.is_in_shard(dst) {
-                    let vid = shard.resolve(dst)?;
+                    let vid = shard.resolve_with(dst, || resolve_gid(dst))?.inner();
                     dst_vid.store(vid.0, Ordering::Relaxed);
                 }
             }
@@ -854,9 +714,9 @@ fn add_and_resolve_outbound_edges<
     for (row, src, dst, time, secondary_index, layer) in zip {
         if let Some(src_pos) = writer.resolve_pos(src) {
             let t = EventTime(time, secondary_index);
+
             // find the original EID in the static graph if it exists
             // otherwise create a new one
-
             let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, dst, LayerId(0)) {
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                 eids_exist[row].store(true, Ordering::Relaxed);
