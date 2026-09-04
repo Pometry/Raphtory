@@ -1,6 +1,36 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::sync::LazyLock;
-use tokio::sync::oneshot;
+#[cfg(test)]
+use std::sync::Mutex;
+use std::sync::{LazyLock, OnceLock};
+use tokio::sync::{oneshot, Semaphore};
+use tracing::warn;
+
+/// Process-global: set once by the first server, shared by every later one.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct PoolSettings {
+    /// Max graph loads decoding at once; bounds peak memory. `None` = cores / 4, at least 2.
+    pub max_concurrent_loads: Option<usize>,
+}
+
+static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
+
+/// First caller wins; a later, different configuration is ignored with a warning.
+pub fn configure_pools(settings: PoolSettings) {
+    let applied = SETTINGS.get_or_init(|| settings.clone());
+    if *applied != settings {
+        warn!(?applied, ignored = ?settings, "rayon pools already configured; keeping the first configuration");
+    }
+}
+
+fn settings() -> &'static PoolSettings {
+    SETTINGS.get_or_init(PoolSettings::default)
+}
+
+fn cores() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8)
+}
 
 pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
@@ -12,6 +42,7 @@ pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
+        .num_threads(cores().max(2))
         .thread_name(|t| format!("RAP-compute-{t}"))
         .build()
         .unwrap()
@@ -26,9 +57,7 @@ pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Use the rayon threadpool to execute a task
-///
-/// Use this for long-running, compute-heavy work
+/// Query work on the compute pool.
 pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> R {
@@ -36,8 +65,25 @@ pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'stat
     COMPUTE_POOL.spawn(move || {
         let _ = send.send(closure()); // this only errors if no-one is listening anymore
     });
-
     recv.await.expect("Function panicked in rayon::spawn")
+}
+
+static LOAD_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| {
+    let permits = settings()
+        .max_concurrent_loads
+        .unwrap_or_else(|| (cores() / 4).max(2));
+    Semaphore::new(permits.max(1))
+});
+
+/// Graph loads: off the query pools, bounded because each in-flight load holds a whole graph.
+pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
+    let _permit = LOAD_PERMITS
+        .acquire()
+        .await
+        .expect("load semaphore is never closed");
+    tokio::task::spawn_blocking(closure)
+        .await
+        .expect("graph load panicked")
 }
 
 /// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks
@@ -48,6 +94,10 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
     });
     recv.await.expect("Function panicked in rayon::spawn")
 }
+
+/// The pools are process-global, so tests that jam or saturate them must not overlap.
+#[cfg(test)]
+static TEST_SERIAL: Mutex<()> = Mutex::new(());
 
 #[cfg(test)]
 mod deadlock_tests {
@@ -83,6 +133,7 @@ mod deadlock_tests {
     }
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
+        let _serial = super::TEST_SERIAL.lock();
         let tempdir = TempDir::new().unwrap();
         let server = GraphServer::new(tempdir.path().to_path_buf(), None, Config::default())
             .await
@@ -106,5 +157,40 @@ mod deadlock_tests {
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
         assert_eq!(health.healthy, false);
+    }
+}
+
+#[cfg(test)]
+mod scheduler_tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn concurrent_loads_are_bounded() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let _serial = TEST_SERIAL.lock();
+        static IN_FLIGHT: AtomicUsize = AtomicUsize::new(0);
+        static PEAK: AtomicUsize = AtomicUsize::new(0);
+        let loads: Vec<_> = (0..16)
+            .map(|_| {
+                tokio::spawn(blocking_load(|| {
+                    let now = IN_FLIGHT.fetch_add(1, Ordering::SeqCst) + 1;
+                    PEAK.fetch_max(now, Ordering::SeqCst);
+                    std::thread::sleep(Duration::from_millis(50));
+                    IN_FLIGHT.fetch_sub(1, Ordering::SeqCst);
+                }))
+            })
+            .collect();
+        for l in loads {
+            let _ = l.await;
+        }
+        let cap = settings()
+            .max_concurrent_loads
+            .unwrap_or_else(|| (cores() / 4).max(2));
+        assert!(
+            PEAK.load(Ordering::SeqCst) <= cap,
+            "peak {} loads exceeded the cap {cap}",
+            PEAK.load(Ordering::SeqCst)
+        );
     }
 }

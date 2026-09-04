@@ -1,5 +1,5 @@
 use crate::{
-    auth::{AuthenticatedGraphQL, MutationAuth},
+    auth::{AuthenticatedGraphQL, KeyResolver, MutationAuth},
     auth_policy::AuthorizationPolicy,
     cli::ServerArgs,
     config::{
@@ -10,6 +10,7 @@ use crate::{
     model::App,
     observability::open_telemetry::OpenTelemetry,
     plugin::schema::RegisterPlugin,
+    rayon::{configure_pools, PoolSettings},
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
@@ -37,6 +38,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
+    sync::{Arc, Mutex},
     task::{Context, Poll},
 };
 use thiserror::Error;
@@ -112,7 +114,7 @@ impl From<ServerError> for io::Error {
     }
 }
 
-type SchemaDataInjector = std::sync::Arc<
+type SchemaDataInjector = Arc<
     dyn Fn(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder
         + Send
         + Sync,
@@ -125,7 +127,7 @@ pub struct GraphServer {
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
-    key_resolver: Option<std::sync::Arc<dyn crate::auth::KeyResolver>>,
+    key_resolver: Option<Arc<dyn KeyResolver>>,
     schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
 
@@ -143,6 +145,9 @@ impl GraphServer {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
+        configure_pools(PoolSettings {
+            max_concurrent_loads: config.concurrency.max_concurrent_loads,
+        });
         let extensions = config.extensions.clone();
         let data = Data::new(work_dir.as_path(), &config, graph_config);
         let server = Self {
@@ -170,10 +175,7 @@ impl GraphServer {
 
     /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
     /// set, it replaces the static `auth.public_key` for token verification.
-    pub fn with_key_resolver(
-        mut self,
-        resolver: std::sync::Arc<dyn crate::auth::KeyResolver>,
-    ) -> Self {
+    pub fn with_key_resolver(mut self, resolver: Arc<dyn KeyResolver>) -> Self {
         self.key_resolver = Some(resolver);
         self
     }
@@ -184,15 +186,15 @@ impl GraphServer {
     }
 
     /// Set the authorization policy used for graph access checks.
-    pub fn with_auth_policy(mut self, policy: std::sync::Arc<dyn AuthorizationPolicy>) -> Self {
+    pub fn with_auth_policy(mut self, policy: Arc<dyn AuthorizationPolicy>) -> Self {
         self.data.set_auth_policy(policy);
         self
     }
 
     /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
     pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
-        let data = std::sync::Arc::new(std::sync::Mutex::new(Some(data)));
-        self.schema_data.push(std::sync::Arc::new(move |sb| {
+        let data = Arc::new(Mutex::new(Some(data)));
+        self.schema_data.push(Arc::new(move |sb| {
             let data = data
                 .lock()
                 .unwrap()
