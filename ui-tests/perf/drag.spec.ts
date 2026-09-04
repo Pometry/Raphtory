@@ -1,12 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
 import { expect, test } from './fixtures';
 
-const BASELINE_DIR = path.join(
-    __dirname,
-    'baselines',
-    new Date().toISOString().slice(0, 10),
-);
+const BASELINE_DIR = path.join(__dirname, 'baselines', new Date().toISOString().slice(0, 10));
 
 test.describe('drag perf', () => {
     test('drag a node for ~2s on big graph', async ({
@@ -116,10 +113,7 @@ test.describe('drag perf', () => {
         const warmedUp = samples.slice(1);
         const sortedFps = [...warmedUp].map((s) => s.fps).sort((a, b) => a - b);
         const median = sortedFps[Math.floor(sortedFps.length / 2)] ?? 0;
-        const p95Index = Math.min(
-            Math.floor(sortedFps.length * 0.95),
-            sortedFps.length - 1,
-        );
+        const p95Index = Math.min(Math.floor(sortedFps.length * 0.95), sortedFps.length - 1);
         const p95 = sortedFps[p95Index] ?? 0;
 
         fs.mkdirSync(BASELINE_DIR, { recursive: true });
@@ -128,9 +122,7 @@ test.describe('drag perf', () => {
             JSON.stringify({ samples, median, p95 }, null, 2),
         );
 
-        console.log(
-            `[drag perf] median ${median.toFixed(1)} FPS, p95 ${p95.toFixed(1)} FPS`,
-        );
+        console.log(`[drag perf] median ${median.toFixed(1)} FPS, p95 ${p95.toFixed(1)} FPS`);
 
         expect(samples.length).toBeGreaterThan(0);
     });

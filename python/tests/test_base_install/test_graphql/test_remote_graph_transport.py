@@ -2066,11 +2066,9 @@ def test_filter_nodes_preserves_membership():
         assert all_ids == ["alice", "ben", "bob", "hamza"]
 
 
-def test_filter_nodes_defers_on_node_id():
-    """A name/id filter behaves like any other predicate on `.filter()`: it
-    keeps every member and defers to traversals, exactly as local raphtory
-    does. Narrowing membership by name is spelled `nodes[...]`/`select` (or a
-    graph-level `g.filter(...)`), never `.filter()`."""
+def test_filter_by_node_id_keeps_membership_but_getitem_narrows():
+    """`.filter()` on a collection keeps every member for a name/id filter too — `[]` and the
+    graph-level `.filter()` are the ones that narrow. Matches local raphtory."""
     from raphtory.filter import Node
 
     with _make_filter_graph() as rg:
@@ -2081,6 +2079,7 @@ def test_filter_nodes_defers_on_node_id():
             "hamza",
         ]
         assert sorted(rg.nodes[Node.name() == "ben"].id) == ["ben"]
+        assert sorted(rg.filter(Node.name() == "ben").nodes.id) == ["ben"]
 
 
 def test_temporal_multi_op_filter_preserves_op_order_e2e():

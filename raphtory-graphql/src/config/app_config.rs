@@ -38,6 +38,19 @@ pub struct AppConfig {
     pub extensions: ArgExtensions,
 }
 
+impl AppConfig {
+    /// The config with each extension replaced by its full schema (every field, not only the set ones).
+    pub fn config_schema_json(&self) -> Result<serde_json::Value, ServerError> {
+        let mut value = serde_json::to_value(self).map_err(ServerError::config_error)?;
+        if let serde_json::Value::Object(map) = &mut value {
+            for ext in self.extensions.iter() {
+                map.insert(ext.name().to_string(), ext.config_schema()?);
+            }
+        }
+        Ok(value)
+    }
+}
+
 pub struct AppConfigBuilder {
     config: AppConfig,
 }

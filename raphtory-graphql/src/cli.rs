@@ -215,6 +215,12 @@ pub struct ServerArgs {
     #[arg(long, help = "Print the configuration and exit.")]
     pub print_config: bool,
 
+    #[arg(
+        long,
+        help = "Print the full config schema (every field every extension accepts) and exit."
+    )]
+    pub print_config_schema: bool,
+
     #[command(flatten)]
     pub config_args: ConfigArgs,
 
@@ -232,8 +238,12 @@ where
         Commands::Server(server_args) => {
             let port = server_args.port;
             let print_config = server_args.print_config;
+            let print_config_schema = server_args.print_config_schema;
             let server = GraphServer::new_from_args(server_args).await?;
-            if print_config {
+            if print_config_schema {
+                let schema = server.config().config_schema_json()?;
+                println!("{}", schema);
+            } else if print_config {
                 let config = json!(server.config());
                 println!("{}", config);
             } else {

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+
 import {
     clickSavedGraphsGraph,
     navigateInSavedGraphs,
@@ -12,19 +13,15 @@ test('Saved graphs table is visible', async ({ page }) => {
     await navigateInSavedGraphs(page, { namespace: 'vanilla' });
     await clickSavedGraphsGraph(page, 'event');
     await page.getByRole('button', { name: 'event GRAPH' }).click();
-    await expect(
-        page.getByRole('heading', { name: 'vanilla/event', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'vanilla/event', exact: true })).toBeVisible();
     await expect(page.getByText('PREVIEW')).toBeVisible();
-    await expect(page.getByText('METADATA')).toBeVisible();
+    await expect(page.getByText('GRAPH INFO')).toBeVisible();
 });
 
 test(`Card view has N cards per page`, async ({ page }) => {
     await navigateInSavedGraphs(page, { namespace: 'vanilla' });
     await expect(page.getByText(`1-${PAGE_SIZE} of`)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'GRAPH' })).toHaveCount(
-        PAGE_SIZE,
-    );
+    await expect(page.getByRole('button', { name: 'GRAPH' })).toHaveCount(PAGE_SIZE);
 });
 
 test('Page index is preserved in URL and survives reload', async ({ page }) => {
@@ -43,79 +40,37 @@ test('Page index is preserved in URL and survives reload', async ({ page }) => {
 });
 
 test('Row sorting on saved graphs table by columns', async ({ page }) => {
-    await navigateInSavedGraphs(
-        page,
-        { namespace: 'vanilla' },
-        { view: 'table' },
-    );
-    const table = await page.getByRole('table');
+    await navigateInSavedGraphs(page, { namespace: 'vanilla' }, { view: 'table' });
+    const table = page.getByRole('table');
+    // Sorting is applied server-side, so every header click refetches. These use
+    // web-first assertions rather than reading textContent once, which would race
+    // the response and see the previous ordering.
+    const firstRowCell = (column: number) =>
+        table.locator('tbody tr').first().locator('td').nth(column);
+    const NAME = 1;
+    const NODE_COUNT = 2;
+    const EDGE_COUNT = 3;
 
     // Name
     await page.getByRole('button', { name: 'Sort by Name ascending' }).click();
-    const firstRowAscending = table.locator('tbody tr').first();
-    const firstRowAscendingName = await firstRowAscending
-        .locator('td')
-        .nth(1)
-        .textContent();
-    await expect(firstRowAscendingName).toBe('event');
-    await page
-        .getByRole('button', { name: 'Sorted by Name ascending' })
-        .click();
-    const firstRowDescending = table.locator('tbody tr').first();
-    const firstRowDescendingName = await firstRowDescending
-        .locator('td')
-        .nth(1)
-        .textContent();
-    await expect(firstRowDescendingName).toBe('variant_test');
-    await page
-        .getByRole('button', { name: 'Sorted by Name descending' })
-        .click();
-    const firstRowBackToNormal = table.locator('tbody tr').first();
-    const firstRowBackToNormalName = await firstRowBackToNormal
-        .locator('td')
-        .nth(1)
-        .textContent();
-    await expect(firstRowBackToNormalName).toBe('event');
+    await expect(firstRowCell(NAME)).toHaveText('event');
+    await page.getByRole('button', { name: 'Sorted by Name ascending' }).click();
+    await expect(firstRowCell(NAME)).toHaveText('variant_test');
+    // Third click removes the sort, leaving the collection's natural order.
+    await page.getByRole('button', { name: 'Sorted by Name descending' }).click();
+    await expect(firstRowCell(NAME)).toHaveText('event');
 
     // Node Count
-    await page
-        .getByRole('button', { name: 'Sort by Node Count descending' })
-        .click();
-    const firstRowNodeCountDescending = table.locator('tbody tr').first();
-    const firstRowNodeCountDescendingName = await firstRowNodeCountDescending
-        .locator('td')
-        .nth(2)
-        .textContent();
-    await expect(firstRowNodeCountDescendingName).toBe('501');
-    await page
-        .getByRole('button', { name: 'Sorted by Node Count descending' })
-        .click();
-    const firstRowNodeCountAscending = table.locator('tbody tr').first();
-    const firstRowNodeCountAscendingName = await firstRowNodeCountAscending
-        .locator('td')
-        .nth(2)
-        .textContent();
-    await expect(firstRowNodeCountAscendingName).toBe('2');
+    await page.getByRole('button', { name: 'Sort by Node Count descending' }).click();
+    await expect(firstRowCell(NODE_COUNT)).toHaveText('501');
+    await page.getByRole('button', { name: 'Sorted by Node Count descending' }).click();
+    await expect(firstRowCell(NODE_COUNT)).toHaveText('2');
 
     // Edge Count
-    await page
-        .getByRole('button', { name: 'Sort by Edge Count descending' })
-        .click();
-    const firstRowEdgeCountAscending = table.locator('tbody tr').first();
-    const firstRowEdgeCountAscendingName = await firstRowEdgeCountAscending
-        .locator('td')
-        .nth(3)
-        .textContent();
-    await expect(firstRowEdgeCountAscendingName).toBe('500');
-    await page
-        .getByRole('button', { name: 'Sorted by Edge Count descending' })
-        .click();
-    const firstRowEdgeCountDescending = table.locator('tbody tr').first();
-    const firstRowEdgeCountDescendingName = await firstRowEdgeCountDescending
-        .locator('td')
-        .nth(3)
-        .textContent();
-    await expect(firstRowEdgeCountDescendingName).toBe('0');
+    await page.getByRole('button', { name: 'Sort by Edge Count descending' }).click();
+    await expect(firstRowCell(EDGE_COUNT)).toHaveText('500');
+    await page.getByRole('button', { name: 'Sorted by Edge Count descending' }).click();
+    await expect(firstRowCell(EDGE_COUNT)).toHaveText('0');
 });
 
 test('Open graph by all available methods', async ({ page }) => {
@@ -131,14 +86,8 @@ test('Open graph by all available methods', async ({ page }) => {
     }
 });
 
-test('Search saved graphs table, clear search and hide search', async ({
-    page,
-}) => {
-    await navigateInSavedGraphs(
-        page,
-        { namespace: 'vanilla' },
-        { view: 'table' },
-    );
+test('Search saved graphs table, clear search and hide search', async ({ page }) => {
+    await navigateInSavedGraphs(page, { namespace: 'vanilla' }, { view: 'table' });
     const table = await page.getByRole('table');
     await page.getByRole('button', { name: 'Show/Hide search' }).click();
     const searchInput = page.getByRole('textbox', {
@@ -155,11 +104,7 @@ test('Search saved graphs table, clear search and hide search', async ({
 });
 
 test('Filter by Columns', async ({ page }) => {
-    await navigateInSavedGraphs(
-        page,
-        { namespace: 'vanilla' },
-        { view: 'table' },
-    );
+    await navigateInSavedGraphs(page, { namespace: 'vanilla' }, { view: 'table' });
     const table = await page.getByRole('table');
     await page.getByRole('button', { name: 'Show/Hide filters' }).click();
     const filterNameInput = page.getByPlaceholder('Filter by Name');
@@ -168,18 +113,22 @@ test('Filter by Columns', async ({ page }) => {
     await expect(rows).toHaveCount(1);
     const firstRowName = await rows.first().locator('td').nth(1).textContent();
     await expect(firstRowName).toBe('event');
-    await page
-        .locator('button[aria-label="Clear filter"]:not(:disabled)')
-        .click();
+    await page.locator('button[aria-label="Clear filter"]:not(:disabled)').click();
     const filterNodeCountInput = page.getByPlaceholder('Filter by Node Count');
     await filterNodeCountInput.fill('501');
     await expect(rows).toHaveCount(1);
-    await page
-        .locator('button[aria-label="Clear filter"]:not(:disabled)')
-        .click();
+    // Assert the row's content, not just the count: an empty table still renders
+    // one "no records" row, so a bare toHaveCount(1) passes on zero matches.
+    await expect(rows.first().locator('td').nth(1)).toHaveText('large');
+    await page.locator('button[aria-label="Clear filter"]:not(:disabled)').click();
+    // event and persistent both have 6 edges; no other vanilla fixture
+    // shares an edge count matching '6'.
     const filterEdgeCountInput = page.getByPlaceholder('Filter by Edge Count');
-    await filterEdgeCountInput.fill('4');
+    await filterEdgeCountInput.fill('6');
     await expect(rows).toHaveCount(2);
+    // Order isn't asserted: no explicit sort is active here, so check membership.
+    await expect(table.getByText('event', { exact: true })).toBeVisible();
+    await expect(table.getByText('persistent', { exact: true })).toBeVisible();
 });
 
 test('Switching between previews', async ({ page }) => {

@@ -41,3 +41,8 @@ pyrightconfig.json
 # Coverage
 /.nyc_output/
 /coverage/
+
+# Screenshots are only ever compared on CI, which runs Linux. macOS renders
+# text and antialiasing differently, so darwin baselines can never match and
+# are not committed.
+*-darwin.png
