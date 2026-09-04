@@ -1313,7 +1313,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// create a new NodeState from a HashMap of values
     pub fn new_from_map<R: NodeStateValue, S: BuildHasher, V: NodeStateValue>(
         graph: G,
-        mut values: HashMap<VID, R, S>,
+        values: HashMap<VID, R, S>,
         map: impl Fn(R) -> V,
         node_cols: Option<
             HashMap<
@@ -1326,29 +1326,38 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         >,
     ) -> Self {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
-        if values.len() == graph.count_nodes() {
-            let values: Vec<_> = graph
-                .nodes()
-                .iter()
-                .map(|node| map(values.remove(&node.node).unwrap()))
-                .collect();
-            let values = to_record_batch(&fields, &values).unwrap();
-            Self::new_from_values(graph, values, node_cols)
-        } else {
-            let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = values
-                .into_iter()
-                .filter_map(|(node, value)| {
-                    if graph.has_node(node) {
-                        Some((node, map(value)))
-                    } else {
-                        None
-                    }
-                })
-                .unzip();
+        Self::new_from_map_with_schema(graph, values, map, node_cols, fields)
+    }
 
-            let values = to_record_batch(&fields, &values).unwrap();
-            Self::new(graph.clone(), values, Index::new(index), node_cols)
-        }
+    /// create a new NodeState from a HashMap of values
+    pub fn new_from_map_with_schema<R: NodeStateValue, S: BuildHasher, V: NodeStateValue>(
+        graph: G,
+        values: HashMap<VID, R, S>,
+        map: impl Fn(R) -> V,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
+        fields: Vec<FieldRef>,
+    ) -> Self {
+        let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = values
+            .into_iter()
+            .filter_map(|(node, value)| {
+                if graph.has_node(node) {
+                    Some((node, map(value)))
+                } else {
+                    None
+                }
+            })
+            .unzip();
+
+        let values = to_record_batch(&fields, &values).unwrap();
+        Self::new(graph.clone(), values, Index::new(index), node_cols)
     }
 
     #[cfg(feature = "datafusion")]

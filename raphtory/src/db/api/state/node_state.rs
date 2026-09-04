@@ -45,6 +45,12 @@ impl<K> From<StateIndex<K>> for Index<K> {
     }
 }
 
+impl<K> From<IndexSet<K, ahash::RandomState>> for Index<K> {
+    fn from(value: IndexSet<K, ahash::RandomState>) -> Self {
+        Self::Partial(Arc::new(value))
+    }
+}
+
 impl<K> Default for Index<K> {
     fn default() -> Self {
         Self::Partial(Arc::new(Default::default()))

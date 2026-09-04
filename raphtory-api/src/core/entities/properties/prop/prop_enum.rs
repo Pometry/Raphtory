@@ -22,6 +22,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use num_traits::{Bounded, FromPrimitive, ToPrimitive, Zero};
+use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
     ser::{Error, SerializeMap, SerializeSeq},
@@ -199,6 +200,18 @@ impl<'a> From<PropRef<'a>> for Prop {
                 Prop::Decimal(BigDecimal::from_bigint(num.into(), scale as i64))
             }
         }
+    }
+}
+
+impl From<OrderedFloat<f32>> for Prop {
+    fn from(value: OrderedFloat<f32>) -> Self {
+        Prop::F32(value.0)
+    }
+}
+
+impl From<OrderedFloat<f64>> for Prop {
+    fn from(value: OrderedFloat<f64>) -> Self {
+        Prop::F64(value.0)
     }
 }
 
