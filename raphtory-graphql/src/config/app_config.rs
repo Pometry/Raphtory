@@ -234,6 +234,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            CacheConfigFieldName::ReadOnly => {
+                                self.with_cache_read_only(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -365,6 +371,12 @@ impl AppConfigBuilder {
                             }
                             ConcurrencyConfigFieldName::DisableLists => {
                                 self.with_disable_lists(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::MaxConcurrentLoads => {
+                                self.with_max_concurrent_loads(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -513,6 +525,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_cache_read_only(&mut self, read_only: bool) -> &mut Self {
+        self.config.cache.read_only = read_only;
+        self
+    }
+
     pub fn with_auth_public_key(
         &mut self,
         public_key: Option<String>,
@@ -570,6 +587,11 @@ impl AppConfigBuilder {
 
     pub fn with_max_page_size(&mut self, max_page_size: Option<usize>) -> &mut Self {
         self.config.concurrency.max_page_size = max_page_size;
+        self
+    }
+
+    pub fn with_max_concurrent_loads(&mut self, max_concurrent_loads: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_concurrent_loads = max_concurrent_loads;
         self
     }
 
