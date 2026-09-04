@@ -84,6 +84,30 @@ def _singles(graph):
     return {name: _ids(graph.edges[expr]) for name, expr in _atoms().items()}
 
 
+def _assert_discriminating(graph, single, names):
+    """Reject reference sets that cannot tell a right answer from a wrong one.
+
+    The set-algebra expectations below are derived from single-filter results, so
+    a single filter that selects everything (or nothing) makes the derived
+    expectation degenerate: `EVERYTHING & X == X` is equally consistent with a
+    correct `and` and with one that dropped a term. That is not hypothetical —
+    on a build where a single view filter fails open, every `view & pred`
+    expectation collapses onto the predicate alone, so a broken combination
+    matches its expectation and the pins below would report it as fixed.
+
+    Asserting up front that each baseline is a proper subset keeps the pins
+    honest wherever this file is run, instead of only on a build where the
+    singles happen to be correct.
+    """
+    every = _ids(graph.edges)
+    for name in names:
+        assert single[name], f"baseline edges[{name}] selects nothing on this build"
+        assert single[name] != every, (
+            f"baseline edges[{name}] selects every edge on this build, so any "
+            f"expectation derived from it cannot discriminate"
+        )
+
+
 @with_variants(_init)
 def test_single_filters_match_graph_filter_and_chained_views():
     def check(graph):
@@ -259,6 +283,11 @@ def test_broken_combination_classes_are_still_broken():
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         every = _ids(graph.edges)
+        _assert_discriminating(
+            graph,
+            single,
+            ["window", "layer", "edge_prop", "node_prop", "node_name"],
+        )
         representatives = {
             "and drops a time view": (
                 atoms["window"] & atoms["edge_prop"],
