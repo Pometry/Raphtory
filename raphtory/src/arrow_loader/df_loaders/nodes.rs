@@ -515,8 +515,10 @@ fn get_or_resolve_node_vids<
             .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[src_index].data_type().clone()))?
             .values()
             .as_ref();
+
         (bytemuck::cast_slice(srcs), vec![])
     };
+
     Ok((src_vids, gid_str_cache))
 }
 

@@ -292,15 +292,7 @@ where
         node_types: I,
     ) -> Nodes<'graph, G, GH, AndOp<F, NodeTypeFilterOp>> {
         let node_types_filter = NodeTypeFilterOp::from_values(node_types, &self.graph);
-        let predicate = self.predicate.clone().and(node_types_filter);
-
-        Nodes {
-            base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
-            predicate,
-            nodes: self.nodes.clone(),
-            _marker: PhantomData,
-        }
+        self.apply_iter_filter(node_types_filter)
     }
 
     pub fn id_filter(
