@@ -54,7 +54,6 @@ use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     fs::File,
-    hash::BuildHasher,
     marker::PhantomData,
     path::Path,
     sync::Arc,
@@ -1311,9 +1310,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     }
 
     /// create a new NodeState from a HashMap of values
-    pub fn new_from_map<R: NodeStateValue, S: BuildHasher, V: NodeStateValue>(
+    pub fn new_from_map<R: NodeStateValue, V: NodeStateValue>(
         graph: G,
-        values: HashMap<VID, R, S>,
+        values: impl IntoIterator<Item = (VID, R)>,
         map: impl Fn(R) -> V,
         node_cols: Option<
             HashMap<
@@ -1330,9 +1329,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     }
 
     /// create a new NodeState from a HashMap of values
-    pub fn new_from_map_with_schema<R: NodeStateValue, S: BuildHasher, V: NodeStateValue>(
+    pub fn new_from_map_with_schema<R: NodeStateValue, V: NodeStateValue>(
         graph: G,
-        values: HashMap<VID, R, S>,
+        values: impl IntoIterator<Item = (VID, R)>,
         map: impl Fn(R) -> V,
         node_cols: Option<
             HashMap<
