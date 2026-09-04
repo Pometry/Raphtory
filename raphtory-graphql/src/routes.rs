@@ -10,7 +10,7 @@ use rust_embed::Embed;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::Duration};
 
-use crate::rayon::{blocking_compute, blocking_write};
+use crate::rayon::{blocking_compute, blocking_express, blocking_write};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Health {
@@ -29,10 +29,14 @@ struct HealthQuery {
 
 #[handler]
 pub(crate) async fn health(Query(params): Query<HealthQuery>) -> impl IntoResponse {
-    // using blocking_compute and blocking_write to identify deadlocks on any of the two rayon pools
+    // Round-trips every pool to identify a deadlock. A merely busy compute pool answers fast:
+    // the no-op jumps the pending queue and runs as soon as an admission slot frees.
     let result = tokio::time::timeout(
         Duration::from_secs(params.timeout.unwrap_or(10)),
-        join(blocking_compute(|| {}), blocking_write(|| {})),
+        join(
+            blocking_compute(|| {}),
+            join(blocking_express(|| {}), blocking_write(|| {})),
+        ),
     )
     .await;
     match result {

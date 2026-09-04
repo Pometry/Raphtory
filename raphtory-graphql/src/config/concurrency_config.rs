@@ -1,3 +1,4 @@
+use crate::rayon::default_express_threads;
 use field_types::FieldName;
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +44,24 @@ pub struct ConcurrencyConfig {
     /// of `page` so clients can't circumvent `disable_lists` by requesting huge pages.
     /// `None` means unlimited.
     pub max_page_size: Option<usize>,
+
+    /// Threads reserved for the express pool (health checks and cheap resolvers), taken out of
+    /// the compute pool so they stay responsive while heavy queries saturate it.
+    pub express_threads: usize,
+
+    /// Max query closures running on the compute pool at once; the rest queue. Prevents heavy
+    /// queries time-sharing every thread, so slots free up quickly. `None` = compute threads / 2.
+    pub max_concurrent_queries: Option<usize>,
+
+    /// Dispatch queued queries newest-first, so a fresh short query jumps a backlog of heavy ones
+    /// instead of waiting for it to drain. Old waiters are periodically dispatched first so a
+    /// sustained backlog cannot starve them.
+    pub newest_first_scheduling: bool,
+
+    /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
+    /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
+    /// at least 2.
+    pub max_concurrent_loads: Option<usize>,
 }
 
 impl Default for ConcurrencyConfig {
@@ -54,6 +73,10 @@ impl Default for ConcurrencyConfig {
             max_batch_size: Some(DEFAULT_MAX_BATCH_SIZE),
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
+            express_threads: default_express_threads(),
+            max_concurrent_queries: None,
+            newest_first_scheduling: true,
+            max_concurrent_loads: None,
         }
     }
 }

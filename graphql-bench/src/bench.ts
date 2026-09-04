@@ -29,7 +29,7 @@ const execs = [
   nodeNeighboursByName,
   readAndWriteNodeProperties,
 ];
-const scenarios = execs.map(
+const rampingScenarios = execs.map(
   (exec, index) =>
     [
       exec.name,
@@ -49,8 +49,47 @@ const scenarios = execs.map(
     ] as const,
 );
 
+// Scheduling scenario: full-graph scans saturate the server's compute pool while short
+// queries arrive at a fixed rate. The tracked metric is the short queries' completed rate: if the
+// scheduler starves them behind the scans, probe VUs jam on in-flight requests and the rate
+// collapses; if short queries get slots promptly, the rate matches the offered rate.
+// Run only this pair (30s) with: k6 run -e SCHEDULING_ONLY=1 dist/bench.js
+const schedulingOnly = Boolean(__ENV.SCHEDULING_ONLY);
+const schedulingStart = schedulingOnly ? "0s" : `${execs.length * minutesPerScenario}m`;
+const schedulingDuration = schedulingOnly ? "30s" : "2m";
+const schedulingScenarios = {
+  heavy_load: {
+    executor: "constant-vus",
+    exec: "heavyNameScan",
+    vus: 24,
+    duration: schedulingDuration,
+    startTime: schedulingStart,
+  },
+  short_queries_under_heavy_load: {
+    executor: "constant-arrival-rate",
+    exec: "shortCountNodes",
+    // Below the dispatch capacity under heavy load: this models occasional short queries (health
+    // checks, dashboards) during sustained heavy traffic, not a short-query flood.
+    rate: 2,
+    timeUnit: "1s",
+    duration: schedulingDuration,
+    preAllocatedVUs: 5,
+    maxVUs: 25,
+    startTime: schedulingStart,
+  },
+};
+
 export const options = {
-  scenarios: Object.fromEntries(scenarios),
+  scenarios: {
+    ...(schedulingOnly ? {} : Object.fromEntries(rampingScenarios)),
+    ...schedulingScenarios,
+  },
+  // Empty thresholds split these out in the end-of-run summary, so the short queries' latency
+  // under load is visible directly rather than folded into the heavy queries' distribution.
+  thresholds: {
+    "http_req_duration{scenario:heavy_load}": [],
+    "http_req_duration{scenario:short_queries_under_heavy_load}": [],
+  },
 };
 
 type SetupData = {
@@ -81,6 +120,17 @@ export function setup(): SetupData {
     graph: {
       __args: {
         path: "empty",
+      },
+      countNodes: true,
+    },
+  });
+
+  // Load the generated `big` graph before the scheduling scenarios start, so their measurements
+  // reflect scheduling rather than the one-off multi-second graph load.
+  fetchAndCheck(errorRate, {
+    graph: {
+      __args: {
+        path: "big",
       },
       countNodes: true,
     },
@@ -248,4 +298,27 @@ export function readAndWriteNodeProperties(input: SetupData) {
       },
     });
   }
+}
+
+// A full name scan over the generated `big` graph: one long uninterrupted parallel task per
+// request, the load shape that monopolises the compute pool.
+export function heavyNameScan() {
+  fetchAndCheck(errorRate, {
+    graph: {
+      __args: { path: "big" },
+      nodes: {
+        __args: { select: { name: { where: { contains: { str: "99999" } } } } },
+        count: true,
+      },
+    },
+  });
+}
+
+export function shortCountNodes() {
+  fetchAndCheck(errorRate, {
+    graph: {
+      __args: { path: "big" },
+      countNodes: true,
+    },
+  });
 }

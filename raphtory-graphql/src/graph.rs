@@ -1,6 +1,6 @@
 use crate::{
     paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
-    rayon::blocking_compute,
+    rayon::blocking_load,
 };
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
@@ -185,12 +185,12 @@ impl GraphWithVectors {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
-            blocking_compute(move || {
+            blocking_load(move || {
                 MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
             })
             .await?
         } else {
-            blocking_compute(move || {
+            blocking_load(move || {
                 MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
             })
             .await?
