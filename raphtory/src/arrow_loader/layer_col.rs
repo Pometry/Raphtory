@@ -79,6 +79,7 @@ impl<'a> LayerCol<'a> {
                 } else {
                     DEFAULT_NODE_TYPE_ID
                 };
+
                 Ok(Cow::Owned(vec![node_type_id; len]))
             }
             col => {
@@ -87,6 +88,7 @@ impl<'a> LayerCol<'a> {
                 let mut locked_node_type_mapper = node_type_mapper.write();
                 let mut last = None;
                 let mut last_id = DEFAULT_NODE_TYPE_ID;
+
                 for (row, name) in col.iter().enumerate() {
                     let node_type_id = if let Some(name) = name {
                         if last != Some(name) {
@@ -97,10 +99,12 @@ impl<'a> LayerCol<'a> {
                     } else {
                         DEFAULT_NODE_TYPE_ID
                     };
+
                     res[row] = node_type_id;
                     last = name;
                     last_id = node_type_id;
                 }
+
                 Ok(Cow::Owned(res))
             }
         }
