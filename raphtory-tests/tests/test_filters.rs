@@ -8055,23 +8055,30 @@ mod test_node_property_filter_agg {
         let expected: Vec<&str> = vec!["n5"];
         apply_assertion(filter, &expected);
 
-        // A constant is validated by value-castability against the list's
-        // element type, so a sum that only exists past that type's range
-        // cannot be matched with a wider constant.
+        // A sum widens past its element type, so the constant it is compared
+        // against is measured against the widened type.
         let filter = NodeFilter.property("p_u8s_max").sum().eq(Prop::U64(510));
-        apply_assertion_err(filter, "cannot be coerced to U8");
+        apply_assertion(filter, &["n1"]);
 
         let filter = NodeFilter
             .property("p_u16s_max")
             .sum()
             .eq(Prop::U64(131070));
-        apply_assertion_err(filter, "cannot be coerced to U16");
+        apply_assertion(filter, &["n1"]);
 
         let filter = NodeFilter
             .property("p_u32s_max")
             .sum()
             .eq(Prop::U64(8589934590));
-        apply_assertion_err(filter, "cannot be coerced to U32");
+        apply_assertion(filter, &["n1"]);
+
+        // Reductions that return an element keep the element type, so a
+        // constant outside its range still cannot match.
+        let filter = NodeFilter.property("p_u8s_max").max().eq(Prop::U64(510));
+        apply_assertion_err(filter, "cannot be coerced to U8");
+
+        let filter = NodeFilter.property("p_u8s_max").min().eq(Prop::U64(510));
+        apply_assertion_err(filter, "cannot be coerced to U8");
 
         let filter = NodeFilter.property("p_u64s_max").sum().gt(Prop::U64(0));
         let expected: Vec<&str> = vec!["n1", "n5"];

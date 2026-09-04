@@ -48,6 +48,13 @@ pub use ops::*;
 /// ```
 ///
 pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
+    /// Whether this expression selects the node id field. Comparisons against
+    /// constants use it to narrow the evaluation domain to the named nodes
+    /// instead of scanning every node.
+    fn selects_node_id(&self) -> bool {
+        false
+    }
+
     /// Compile the expression against a specific graph view.
     ///
     /// Any name→ID resolution (property, metadata) happens here, once.

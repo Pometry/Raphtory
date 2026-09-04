@@ -125,6 +125,10 @@ impl EntityExpr for Id {
 impl EntityExprBuilder for Id {}
 
 impl CreateOp for Id {
+    fn selects_node_id(&self) -> bool {
+        true
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

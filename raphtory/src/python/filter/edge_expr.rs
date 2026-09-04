@@ -58,6 +58,9 @@ impl PyEdgeEndpoint {
 #[pymethods]
 impl PyEdgeEndpoint {
     /// Selects the endpoint node ID field for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn id(&self) -> PyExpr {
         PyExpr::new(
             Arc::new(self.0.id()),
@@ -66,6 +69,9 @@ impl PyEdgeEndpoint {
     }
 
     /// Selects the endpoint node name field for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn name(&self) -> PyExpr {
         PyExpr::new(
             Arc::new(self.0.name()),
@@ -74,6 +80,9 @@ impl PyEdgeEndpoint {
     }
 
     /// Selects the endpoint node type field for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
         PyExpr::new(
             Arc::new(self.0.node_type()),
@@ -85,6 +94,9 @@ impl PyEdgeEndpoint {
     ///
     /// Arguments:
     ///     name (str): Property key.
+    ///
+    /// Returns:
+    ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
         PyPropertyExpr::new(Arc::new(self.0.property(name)), Some(lhs))
@@ -94,6 +106,9 @@ impl PyEdgeEndpoint {
     ///
     /// Arguments:
     ///     name (str): Metadata key.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Metadata(name.clone())));
         PyExpr::new(

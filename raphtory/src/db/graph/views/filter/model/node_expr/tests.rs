@@ -1,7 +1,13 @@
 use super::*;
 use crate::{
     db::{
-        api::{state::ops::Id, view::filter_ops::Select},
+        api::{
+            state::ops::{Id, Name, NodeOp},
+            view::{
+                filter_ops::Select,
+                internal::{CoreGraphOps, NodeList},
+            },
+        },
         graph::views::filter::{
             model::{
                 filter_operator::BinaryOp, node_filter::NodeFilter, PropertyExprFactory,
@@ -15,7 +21,7 @@ use crate::{
 use raphtory_api::core::{
     entities::{
         properties::prop::{IntoProp, Prop},
-        GID,
+        GID, VID,
     },
     Direction,
 };
@@ -573,4 +579,122 @@ fn ordering_op_on_bool_prop_returns_error() {
         result.is_err(),
         "expected Err for ordering op on boolean property"
     );
+}
+
+// ── Domain narrowing for id comparisons ──────────────────────────────────
+
+/// The nodes a compiled node filter will actually visit.
+fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
+where
+    F: CreateFilter + Clone,
+    for<'g> F::NodeFilter<'g, Graph, F::FilteredGraph<'g, Graph>>: NodeOp<Output = bool>,
+{
+    let fg = filter.clone().filter_graph_view(g.clone()).unwrap();
+    let op = filter.create_node_filter(g.clone(), fg).unwrap();
+    op.domain(&g.core_graph().lock())
+}
+
+#[test]
+fn id_eq_visits_only_the_named_node() {
+    let g = build_test_graph();
+    let vid = g.node("b").unwrap().node;
+    match filter_domain(Id.eq("b"), &g) {
+        NodeList::List { elems } => {
+            assert_eq!(elems.into_iter().collect::<Vec<_>>(), vec![vid])
+        }
+        other => panic!("id equality should narrow the domain, got {other:?}"),
+    }
+}
+
+#[test]
+fn id_is_in_visits_only_the_named_nodes() {
+    let g = build_test_graph();
+    let mut expected: Vec<VID> = ["a", "c"].iter().map(|n| g.node(n).unwrap().node).collect();
+    expected.sort();
+    match filter_domain(Id.is_in(vec!["a".into_prop(), "c".into_prop()]), &g) {
+        NodeList::List { elems } => {
+            let mut got: Vec<VID> = elems.into_iter().collect();
+            got.sort();
+            assert_eq!(got, expected);
+        }
+        other => panic!("id set membership should narrow the domain, got {other:?}"),
+    }
+}
+
+#[test]
+fn id_eq_for_an_absent_node_visits_nothing() {
+    let g = build_test_graph();
+    match filter_domain(Id.eq("nope"), &g) {
+        NodeList::List { elems } => {
+            assert!(elems.into_iter().next().is_none())
+        }
+        other => panic!("an absent id should narrow to nothing, got {other:?}"),
+    }
+}
+
+#[test]
+fn non_id_and_inequality_filters_keep_the_full_domain() {
+    let g = build_test_graph();
+    // Only equality and set membership name specific nodes; everything else
+    // has to be evaluated per node.
+    for (label, domain) in [
+        ("id != b", filter_domain(Id.ne("b"), &g)),
+        ("name == b", filter_domain(Name.eq("b"), &g)),
+        (
+            "degree == 2",
+            filter_domain(
+                DegreeExpr {
+                    dir: Direction::BOTH,
+                    view_expr: NodeFilter,
+                }
+                .eq(2usize),
+                &g,
+            ),
+        ),
+    ] {
+        assert!(
+            matches!(domain, NodeList::All),
+            "{label} must keep the full domain, got {domain:?}"
+        );
+    }
+}
+
+// ── Sum widens past its element type ─────────────────────────────────────
+
+/// A graph whose node `n` carries `prop` as a list, so a sum over it exceeds
+/// the range of the element type.
+fn graph_with_list(prop: &str, values: Vec<Prop>) -> Graph {
+    let g = Graph::new();
+    g.add_node(0, "n", [(prop, Prop::List(values.into()))], None, None)
+        .unwrap();
+    g
+}
+
+#[test]
+fn sum_of_signed_elements_matches_a_wider_constant() {
+    let g = graph_with_list("xs", vec![Prop::I32(i32::MAX), Prop::I32(i32::MAX)]);
+    let filter = NodeFilter.property("xs").sum().eq(i64::from(i32::MAX) * 2);
+    assert_eq!(filtered_names(filter, g), vec!["n"]);
+}
+
+#[test]
+fn sum_of_float_elements_compares_in_f64() {
+    let g = graph_with_list("xs", vec![Prop::F32(1.5), Prop::F32(2.25)]);
+    let filter = NodeFilter.property("xs").sum().eq(3.75f64);
+    assert_eq!(filtered_names(filter, g), vec!["n"]);
+}
+
+#[test]
+fn sum_over_a_nested_list_widens_only_the_innermost_level() {
+    // The outer level survives for a pending qualifier, so the comparison is
+    // element-wise against the widened inner sums.
+    let g = graph_with_list(
+        "xs",
+        vec![
+            Prop::List(vec![Prop::U8(u8::MAX), Prop::U8(u8::MAX)].into()),
+            Prop::List(vec![Prop::U8(1), Prop::U8(1)].into()),
+        ],
+    );
+    let filter = NodeFilter.property("xs").sum().eq(510u64).any();
+    assert_eq!(filtered_names(filter, g), vec!["n"]);
 }

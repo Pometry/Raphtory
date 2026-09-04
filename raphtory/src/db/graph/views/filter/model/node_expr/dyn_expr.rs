@@ -87,6 +87,8 @@ where
 }
 
 pub trait DynCreateOp: DynEntityExpr {
+    fn dyn_selects_node_id(&self) -> bool;
+
     fn dyn_create_node_op<'g>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'g>,
@@ -109,6 +111,10 @@ pub trait DynCreateOp: DynEntityExpr {
 }
 
 impl<E: CreateOp> DynCreateOp for E {
+    fn dyn_selects_node_id(&self) -> bool {
+        self.selects_node_id()
+    }
+
     fn dyn_create_node_op<'g>(
         &self,
         graph: Arc<dyn BoxableGraphView + 'g>,
@@ -157,6 +163,10 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
 impl<T: DynEntityExpr + ?Sized> EntityExprBuilder for Arc<T> {}
 
 impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
+    fn selects_node_id(&self) -> bool {
+        self.as_ref().dyn_selects_node_id()
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

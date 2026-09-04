@@ -512,7 +512,7 @@ impl PyNodeFilter {
     /// Selects the node ID field for filtering.
     ///
     /// Returns:
-    ///     filter.NodeIdFilterBuilder:
+    ///     filter.Expr:
     fn id(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_id(),
@@ -523,7 +523,7 @@ impl PyNodeFilter {
     /// Selects the node name field for filtering.
     ///
     /// Returns:
-    ///     filter.NodeNameFilterBuilder:
+    ///     filter.Expr:
     fn name(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_name(),
@@ -534,7 +534,7 @@ impl PyNodeFilter {
     /// Selects the node type field for filtering.
     ///
     /// Returns:
-    ///     filter.NodeTypeFilterBuilder:
+    ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_node_type(),
@@ -545,7 +545,7 @@ impl PyNodeFilter {
     /// Selects incoming node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.Expr:
     fn in_degree(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_in_degree(),
@@ -556,7 +556,7 @@ impl PyNodeFilter {
     /// Selects total node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.Expr:
     fn degree(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_degree(),
@@ -567,7 +567,7 @@ impl PyNodeFilter {
     /// Selects outgoing node degree for filtering.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.Expr:
     fn out_degree(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_out_degree(),
@@ -583,7 +583,7 @@ impl PyNodeFilter {
     ///     name (str): Property key.
     ///
     /// Returns:
-    ///     filter.PropertyFilterOps:
+    ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
         PyPropertyExpr(self.0.dyn_property(name), Some(lhs))
@@ -597,7 +597,7 @@ impl PyNodeFilter {
     ///     name (str): Metadata key.
     ///
     /// Returns:
-    ///     filter.FilterOps:
+    ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Metadata(name.clone())));
         PyExpr(self.0.dyn_metadata(name), Some(lhs))
@@ -612,7 +612,7 @@ impl PyNodeFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn window(&self, start: EventTime, end: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().window(start, end),
@@ -626,7 +626,7 @@ impl PyNodeFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn at(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().at(time),
@@ -640,7 +640,7 @@ impl PyNodeFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn after(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().after(time),
@@ -657,7 +657,7 @@ impl PyNodeFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn before(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().before(time),
@@ -668,7 +668,7 @@ impl PyNodeFilter {
     /// Evaluates filters against the latest available state of each node.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn latest(&self) -> PyNodeFilter {
         self.wrap(self.0.clone().latest(), WireView::Latest)
     }
@@ -679,7 +679,7 @@ impl PyNodeFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn snapshot_at(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(self.0.clone().snapshot_at(time), WireView::SnapshotAt(time))
     }
@@ -687,7 +687,7 @@ impl PyNodeFilter {
     /// Evaluates filters against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn snapshot_latest(&self) -> PyNodeFilter {
         self.wrap(self.0.clone().snapshot_latest(), WireView::SnapshotLatest)
     }
@@ -698,7 +698,7 @@ impl PyNodeFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn layer(&self, layer: String) -> PyNodeFilter {
         self.wrap(
             self.0.clone().layer(vec![layer.clone()]),
@@ -712,7 +712,7 @@ impl PyNodeFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder:
+    ///     filter.Node:
     fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
         let layers = layers.to_vec();
         self.wrap(

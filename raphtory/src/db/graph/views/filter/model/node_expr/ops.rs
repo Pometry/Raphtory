@@ -38,6 +38,7 @@
 
 use super::EdgeOp;
 use crate::{
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             properties::PropertiesOps,
@@ -60,7 +61,7 @@ use bigdecimal::BigDecimal;
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef,
     properties::prop::{IntoProp, Prop, PropArray, PropType},
-    VID,
+    GidType, GID, VID,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
@@ -157,8 +158,8 @@ impl<T: NodeOp> NodeOp for WithPropType<T> {
         self.inner.const_value()
     }
 
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
-        self.inner.const_value_in_domain()
+    fn const_value_in_domain(&self, storage: &GraphStorage) -> Option<Self::Output> {
+        self.inner.const_value_in_domain(storage)
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -224,16 +225,72 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Aggregations collapse the innermost list level; outer levels survive so a
-/// pending qualifier still sees per-element results. `scalar` names the type a
-/// single aggregation step produces (`None` keeps the element type, as for
-/// sum/min/max/first/last).
-fn agg_out_type(pt: PropType, scalar: Option<PropType>) -> PropType {
+/// pending qualifier still sees per-element results. `elem_out` names the type a
+/// single aggregation step produces from the element type it collapses.
+fn agg_out_type_with(pt: PropType, elem_out: &dyn Fn(PropType) -> PropType) -> PropType {
     match pt {
         PropType::List(inner) => match *inner {
-            nested @ PropType::List(_) => PropType::List(Box::new(agg_out_type(nested, scalar))),
-            elem => scalar.unwrap_or(elem),
+            nested @ PropType::List(_) => {
+                PropType::List(Box::new(agg_out_type_with(nested, elem_out)))
+            }
+            elem => elem_out(elem),
         },
         other => other,
+    }
+}
+
+/// `scalar` names a fixed output type (`None` keeps the element type, as for
+/// min/max/first/last).
+fn agg_out_type(pt: PropType, scalar: Option<PropType>) -> PropType {
+    agg_out_type_with(pt, &|elem| scalar.clone().unwrap_or(elem))
+}
+
+/// The type a sum produces from its element type. Summing widens: the
+/// evaluator below accumulates every unsigned width into a `U64`, every signed
+/// width into an `I64`, and either into a `Decimal` when that overflows, so a
+/// narrow element type would understate what the sum can hold. Keep the arms
+/// in step with the evaluator's.
+fn sum_out_type(pt: PropType) -> PropType {
+    agg_out_type_with(pt, &|elem| match elem {
+        PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => PropType::U64,
+        PropType::I32 | PropType::I64 => PropType::I64,
+        PropType::F32 | PropType::F64 => PropType::F64,
+        other => other,
+    })
+}
+
+#[cfg(test)]
+mod sum_out_type_tests {
+    use super::{sum_out_type, PropType};
+
+    fn list(inner: PropType) -> PropType {
+        PropType::List(Box::new(inner))
+    }
+
+    // The declared type has to hold every value the evaluator can produce, or
+    // a constant comparison is validated against a range the sum can exceed.
+    #[test]
+    fn narrow_numeric_elements_widen() {
+        for elem in [PropType::U8, PropType::U16, PropType::U32, PropType::U64] {
+            assert_eq!(sum_out_type(list(elem)), PropType::U64);
+        }
+        for elem in [PropType::I32, PropType::I64] {
+            assert_eq!(sum_out_type(list(elem)), PropType::I64);
+        }
+        for elem in [PropType::F32, PropType::F64] {
+            assert_eq!(sum_out_type(list(elem)), PropType::F64);
+        }
+    }
+
+    #[test]
+    fn non_numeric_elements_and_scalars_are_unchanged() {
+        assert_eq!(sum_out_type(list(PropType::Str)), PropType::Str);
+        assert_eq!(sum_out_type(PropType::U8), PropType::U8);
+    }
+
+    #[test]
+    fn only_the_innermost_list_level_collapses() {
+        assert_eq!(sum_out_type(list(list(PropType::U8))), list(PropType::U64));
     }
 }
 
@@ -279,7 +336,7 @@ macro_rules! impl_agg_entity_op {
     };
 }
 
-impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| agg_out_type(pt, None), |vals| {
+impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| sum_out_type(pt), |vals| {
     aggregate_list_values(vals, &|pi| {
         let mut vals = pi.peekable();
         if vals.peek().is_none() {
@@ -679,6 +736,66 @@ impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinaryCmpNode
 
     fn prop_type(&self) -> PropType {
         PropType::Bool
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IdDomainNodeOp<'g> — id comparisons resolve their domain directly
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The GID to look up for an id comparison against `value`, or `None` when the
+/// constant's type does not match the graph's id type. `domain` must be a
+/// superset of the matches, so a constant that only compares equal after value
+/// coercion falls back to the unrestricted domain instead of guessing.
+pub(crate) fn gid_for_id_lookup(id_type: Option<GidType>, value: &Prop) -> Option<GID> {
+    match (id_type?, value) {
+        (GidType::Str, Prop::Str(s)) => Some(GID::Str(s.to_string())),
+        (GidType::U64, Prop::U64(n)) => Some(GID::U64(*n)),
+        (GidType::U64, Prop::U32(n)) => Some(GID::U64(*n as u64)),
+        (GidType::U64, Prop::U16(n)) => Some(GID::U64(*n as u64)),
+        (GidType::U64, Prop::U8(n)) => Some(GID::U64(*n as u64)),
+        (GidType::U64, Prop::I64(n)) => u64::try_from(*n).ok().map(GID::U64),
+        (GidType::U64, Prop::I32(n)) => u64::try_from(*n).ok().map(GID::U64),
+        _ => None,
+    }
+}
+
+/// Wraps a compiled boolean filter whose only possible matches are the nodes
+/// with the given ids: `domain` resolves them directly instead of scanning
+/// every node. An id that does not exist simply resolves to nothing.
+#[derive(Clone)]
+pub struct IdDomainNodeOp<'g> {
+    pub(crate) gids: Arc<[GID]>,
+    pub(crate) inner: Arc<dyn NodeOp<Output = bool> + 'g>,
+}
+
+impl<'g> NodeOp for IdDomainNodeOp<'g> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
+        self.inner.apply(storage, node)
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        NodeList::List {
+            elems: self
+                .gids
+                .iter()
+                .filter_map(|gid| storage.internalise_node(gid.as_node_ref()))
+                .collect(),
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        self.inner.const_value()
+    }
+
+    fn const_value_in_domain(&self, storage: &GraphStorage) -> Option<Self::Output> {
+        self.inner.const_value_in_domain(storage)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.inner.prop_type()
     }
 }
 

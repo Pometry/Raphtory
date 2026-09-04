@@ -42,8 +42,9 @@
 
 use super::{
     ops::{
-        AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, ListAwareCmpNodeOp, ListAwareSetNodeOp,
-        ListAwareStringNodeOp, ListAwareUnaryNodeOp, PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
+        gid_for_id_lookup, AllNodeOp, AnyNodeOp, BinaryCmpNodeOp, IdDomainNodeOp,
+        ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp, ListAwareUnaryNodeOp,
+        PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
     CreateOp, EntityExpr, EntityExprBuilder, Marker,
 };
@@ -75,7 +76,10 @@ use crate::{
     errors::GraphError,
     prelude::{EdgeFilter, NodeFilter},
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropType},
+    GID,
+};
 use std::sync::Arc;
 // ─────────────────────────────────────────────────────────────────────────────
 // BinaryCmpExpr<L, R> — binary expression filter
@@ -219,6 +223,7 @@ where
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.left.prop_type();
+        let id_type = filtered.id_type();
         let (left, quals) = self.left.create_qualified_node_op(filtered.clone())?;
         let right = self.right.create_node_op(filtered)?;
         let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len())?;
@@ -229,11 +234,22 @@ where
             None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
         }
         if quals.is_empty() {
-            Ok(Arc::new(BinaryCmpNodeOp {
+            let cmp: Arc<dyn NodeOp<Output = bool> + 'graph> = Arc::new(BinaryCmpNodeOp {
                 left,
-                right,
+                right: right.clone(),
                 op: self.op,
-            }))
+            });
+            if self.op == BinaryOp::Eq && self.left.selects_node_id() {
+                if let Some(Some(value)) = right.const_value() {
+                    if let Some(gid) = gid_for_id_lookup(id_type, &value) {
+                        return Ok(Arc::new(IdDomainNodeOp {
+                            gids: Arc::from([gid]),
+                            inner: cmp,
+                        }));
+                    }
+                }
+            }
+            Ok(cmp)
         } else {
             let elemwise = Arc::new(ListAwareCmpNodeOp {
                 left,
@@ -793,15 +809,31 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         let expr_pt = self.expr.prop_type();
+        let id_type = filtered.id_type();
         let (inner, quals) = self.expr.create_qualified_node_op(filtered)?;
         let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
         let values = coerce_set_values(&lhs_pt, self.values)?;
         if quals.is_empty() {
-            Ok(Arc::new(PropValueSetNodeOp {
+            let gids: Option<Vec<GID>> = (self.op == SetOp::IsIn && self.expr.selects_node_id())
+                .then(|| {
+                    values
+                        .iter()
+                        .map(|v| gid_for_id_lookup(id_type, v))
+                        .collect()
+                })
+                .flatten();
+            let set_op: Arc<dyn NodeOp<Output = bool> + 'graph> = Arc::new(PropValueSetNodeOp {
                 inner,
                 values,
                 op: self.op,
-            }))
+            });
+            match gids {
+                Some(gids) => Ok(Arc::new(IdDomainNodeOp {
+                    gids: gids.into(),
+                    inner: set_op,
+                })),
+                None => Ok(set_op),
+            }
         } else {
             let elemwise = Arc::new(ListAwareSetNodeOp {
                 inner,
