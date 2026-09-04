@@ -50,7 +50,8 @@ pub struct ConcurrencyConfig {
     pub express_threads: usize,
 
     /// Max query closures running on the compute pool at once; the rest queue. Prevents heavy
-    /// queries time-sharing every thread, so slots free up quickly. `None` = one per compute thread.
+    /// queries time-sharing every thread, so slots free up quickly. `None` = half the compute
+    /// threads: raising it amplifies storage-lock contention faster than it adds parallelism.
     pub max_concurrent_queries: Option<usize>,
 
     /// Dispatch queued queries newest-first, so a fresh short query jumps a backlog of heavy ones
