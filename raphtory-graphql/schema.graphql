@@ -656,30 +656,6 @@ enum Direction {
 }
 
 """
-Document in a vector graph
-"""
-type Document {
-	"""
-	Entity associated with document.
-	"""
-	entity: DocumentEntity!
-	"""
-	Content of the document.
-	"""
-	content: String!
-	"""
-	Similarity score with a specified query
-	"""
-	embedding: [Float!]!
-	score: Float!
-}
-
-"""
-Entity associated with document.
-"""
-union DocumentEntity = Node | Edge
-
-"""
 Raphtory graph edge.
 """
 type Edge {
@@ -1864,13 +1840,6 @@ type EdgesWindowSet {
 	endpoints are disabled; use `page` for paginated access instead.
 	"""
 	list: [Edges!]!
-}
-
-input EmbeddingModel @oneOf {
-	"""
-	OpenAI embedding models or compatible providers
-	"""
-	openAI: OpenAIConfig
 }
 
 """
@@ -3207,17 +3176,6 @@ type HistoryTimestamp {
 		"""
 		pageIndex: Int
 	): [Int!]!
-}
-
-input InputEdge {
-	"""
-	Source node id (string or non-negative integer).
-	"""
-	src: NodeId!
-	"""
-	Destination node id (string or non-negative integer).
-	"""
-	dst: NodeId!
 }
 
 """
@@ -6072,14 +6030,6 @@ input ObjectEntry {
 	value: Value!
 }
 
-input OpenAIConfig {
-	model: String!
-	apiBase: String
-	apiKeyEnv: String
-	orgId: String
-	projectId: String
-}
-
 """
 A nested collection of nodes anchored to a source collection — the result of
 collection-level traversals like `nodes.neighbours`, `inNeighbours`, or
@@ -7183,67 +7133,6 @@ type QueryRoot {
 	Version string of the running `raphtory-graphql` server build.
 	"""
 	version: String!
-	"""
-	Update graph query, has side effects to update graph state
-	
-	Returns:: GqlMutableGraph
-	"""
-	vectoriseGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Optional embedding model; defaults to OpenAI's standard model.
-		"""
-		model: EmbeddingModel,
-		"""
-		Optional node-document template (which fields go into each node's text representation); defaults to the built-in template.
-		"""
-		nodes: Template,
-		"""
-		Optional edge-document template; defaults to the built-in template.
-		"""
-		edges: Template
-	): Boolean!
-	"""
-	Index only the entities that are missing from an existing vector index, leaving what is
-	already indexed untouched. Cheap enough to run routinely, and never destructive.
-	
-	Fails if the graph has no index yet, or if the template or model differs from the one the
-	index was built with — `vectoriseGraph` is what covers those, by rebuilding.
-	
-	Returns:: bool
-	"""
-	vectoriseMissing(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!,
-		"""
-		Embedding model; must match the one the index was built with.
-		"""
-		model: EmbeddingModel,
-		"""
-		Node-document template; must match the one the index was built with.
-		"""
-		nodes: Template,
-		"""
-		Edge-document template; must match the one the index was built with.
-		"""
-		edges: Template
-	): Boolean!
-	"""
-	Create vectorised graph in the format used for queries
-	
-	Returns:: GqlVectorisedGraph
-	"""
-	vectorisedGraph(
-		"""
-		Graph path relative to the root namespace.
-		"""
-		path: String!
-	): VectorisedGraph
 }
 
 """
@@ -7285,17 +7174,6 @@ enum SpecialFloat {
 	NAN
 	INFINITY
 	NEG_INFINITY
-}
-
-input Template @oneOf {
-	"""
-	The default template.
-	"""
-	enabled: Boolean
-	"""
-	A custom template.
-	"""
-	custom: String
 }
 
 """
@@ -7545,205 +7423,6 @@ input Value @oneOf {
 	a `Prop` is an error rather than a silent default.
 	"""
 	claim: String
-}
-
-"""
-A working set of documents / nodes / edges built up via similarity
-searches on a `VectorisedGraph`. Selections are mutable: you can grow
-them with more hops (`expand*`), dereference the contents (`nodes`,
-`edges`, `getDocuments`), or start fresh with `emptySelection`.
-"""
-type VectorSelection {
-	"""
-	Returns a list of nodes in the current selection.
-	"""
-	nodes: [Node!]!
-	"""
-	Returns a list of edges in the current selection.
-	"""
-	edges: [Edge!]!
-	"""
-	Returns a list of documents in the current selection.
-	"""
-	getDocuments: [Document!]!
-	"""
-	Add every document associated with the named nodes to the selection.
-	Documents added this way receive a score of 0 (no similarity ranking).
-	"""
-	addNodes(
-		"""
-		Node ids whose documents to include.
-		"""
-		nodes: [NodeId!]!
-	): VectorSelection!
-	"""
-	Add every document associated with the named edges to the selection.
-	Documents added this way receive a score of 0 (no similarity ranking).
-	"""
-	addEdges(
-		"""
-		List of `{src, dst}` pairs identifying the edges.
-		"""
-		edges: [InputEdge!]!
-	): VectorSelection!
-	"""
-	Grow the selection by including documents that are within `hops` of any
-	document already in the selection. Two documents are 1 hop apart if
-	they're on the same entity or on a connected node/edge pair.
-	"""
-	expand(
-		"""
-		Number of expansion rounds (1 = direct neighbours).
-		"""
-		hops: Int!,
-		"""
-		Optional `{start, end}` to restrict expansion to entities active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-	"""
-	Iteratively expand the selection by similarity to a natural-language
-	query. Each pass takes the one-hop neighbour set of the current
-	selection and adds the highest-scoring entities (mixed nodes and
-	edges); the loop continues until `limit` entities have been added.
-	"""
-	expandEntitiesBySimilarity(
-		"""
-		Natural-language search string; embedded by the server.
-		"""
-		query: String!,
-		"""
-		Total number of entities to add across all passes.
-		"""
-		limit: Int!,
-		"""
-		Optional `{start, end}` to restrict matches to entities active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-	"""
-	Like `expandEntitiesBySimilarity` but restricted to nodes — iteratively
-	add the highest-scoring adjacent nodes to the selection.
-	"""
-	expandNodesBySimilarity(
-		"""
-		Natural-language search string; embedded by the server.
-		"""
-		query: String!,
-		"""
-		Total number of nodes to add across all passes.
-		"""
-		limit: Int!,
-		"""
-		Optional `{start, end}` to restrict matches to nodes active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-	"""
-	Like `expandEntitiesBySimilarity` but restricted to edges — iteratively
-	add the highest-scoring adjacent edges to the selection.
-	"""
-	expandEdgesBySimilarity(
-		"""
-		Natural-language search string; embedded by the server.
-		"""
-		query: String!,
-		"""
-		Total number of edges to add across all passes.
-		"""
-		limit: Int!,
-		"""
-		Optional `{start, end}` to restrict matches to edges active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-}
-
-"""
-A graph with embedded vector representations for its nodes and edges.
-Exposes similarity search over documents, nodes, and edges, plus
-selection building (`emptySelection`) and index maintenance
-(`optimizeIndex`).
-"""
-type VectorisedGraph {
-	"""
-	Rebuild (or incrementally update) the on-disk vector indexes for nodes
-	and edges so subsequent similarity searches hit the fresh embeddings.
-	Safe to call repeatedly; returns true on success.
-	"""
-	optimizeIndex: Boolean!
-	"""
-	Returns an empty selection of documents.
-	"""
-	emptySelection: VectorSelection!
-	"""
-	Find the highest-scoring nodes *and* edges (mixed) by similarity to a
-	natural-language query. The query is embedded server-side and matched
-	against indexed entity vectors.
-	"""
-	entitiesBySimilarity(
-		"""
-		Natural-language search string; embedded by the server.
-		"""
-		query: String!,
-		"""
-		Maximum number of results to return.
-		"""
-		limit: Int!,
-		"""
-		Optional `{start, end}` to restrict matches to entities active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-	"""
-	Find the highest-scoring nodes by similarity to a natural-language
-	query. The query is embedded server-side and matched against indexed
-	node vectors.
-	"""
-	nodesBySimilarity(
-		"""
-		Natural-language search string; embedded by the server.
-		"""
-		query: String!,
-		"""
-		Maximum number of nodes to return.
-		"""
-		limit: Int!,
-		"""
-		Optional `{start, end}` to restrict matches to nodes active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-	"""
-	Find the highest-scoring edges by similarity to a natural-language
-	query. The query is embedded server-side and matched against indexed
-	edge vectors.
-	"""
-	edgesBySimilarity(
-		"""
-		Natural-language search string; embedded by the server.
-		"""
-		query: String!,
-		"""
-		Maximum number of edges to return.
-		"""
-		limit: Int!,
-		"""
-		Optional `{start, end}` to restrict matches to edges active in that interval.
-		"""
-		window: VectorisedGraphWindow
-	): VectorSelection!
-}
-
-input VectorisedGraphWindow {
-	"""
-	Inclusive lower bound of the search window.
-	"""
-	start: TimeInput!
-	"""
-	Exclusive upper bound of the search window.
-	"""
-	end: TimeInput!
 }
 
 input Window {

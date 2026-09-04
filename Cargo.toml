@@ -21,7 +21,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.18.0"
+version = "0.18.13"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -58,17 +58,17 @@ opt-level = 1 # much smaller files
 
 
 [workspace.dependencies]
-db4-graph = { version = "0.18.0", path = "db4-graph", default-features = false }
-db4-storage = { version = "0.18.0", path = "db4-storage" }
-raphtory = { version = "0.18.0", path = "raphtory", default-features = false }
+db4-graph = { version = "0.18.13", path = "db4-graph", default-features = false }
+db4-storage = { version = "0.18.13", path = "db4-storage" }
+raphtory = { version = "0.18.13", path = "raphtory", default-features = false }
 raphtory-tests = { path = "raphtory-tests", default-features = false }
-raphtory-api = { version = "0.18.0", path = "raphtory-api", default-features = false }
-raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", default-features = false }
-raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
-raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
-raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
-raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
-drop-logging = { version = "0.18.0", path = "drop-logging" }
+raphtory-api = { version = "0.18.13", path = "raphtory-api", default-features = false }
+raphtory-api-macros = { version = "0.18.13", path = "raphtory-api-macros", default-features = false }
+raphtory-core = { version = "0.18.13", path = "raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.18.13", path = "raphtory-graphql", default-features = false }
+raphtory-storage = { version = "0.18.13", path = "raphtory-storage", default-features = false }
+raphtory-itertools = { version = "0.18.13", path = "raphtory-itertools" }
+drop-logging = { version = "0.18.13", path = "drop-logging" }
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"

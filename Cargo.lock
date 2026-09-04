@@ -2177,7 +2177,7 @@ dependencies = [
 
 [[package]]
 name = "db4-graph"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "db4-storage",
  "raphtory-api",
@@ -2187,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "db4-storage"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "arrow-array",
  "arrow-schema",
@@ -2438,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "drop-logging"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "tracing",
 ]
@@ -6228,7 +6228,7 @@ checksum = "a611d15b50743feb4c76b7d03edcb0e64f399c26961e4efe6975bc398be6aa3d"
 
 [[package]]
 name = "raphtory"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "ahash",
  "arrow",
@@ -6312,7 +6312,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -6352,7 +6352,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api-macros"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "proc-macro2 1.0.107",
  "quote 1.0.47",
@@ -6361,11 +6361,11 @@ dependencies = [
 
 [[package]]
 name = "raphtory-auth-noop"
-version = "0.18.0"
+version = "0.18.13"
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "chrono",
  "criterion",
@@ -6384,7 +6384,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -6409,7 +6409,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "ahash",
  "arrow",
@@ -6470,7 +6470,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql-tests"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "clap",
  "dynamic-graphql",
@@ -6487,7 +6487,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-itertools"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -6497,7 +6497,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -6530,7 +6530,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-server"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "raphtory-auth-noop",
  "raphtory-graphql",
@@ -6542,7 +6542,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "db4-graph",
  "db4-storage",
@@ -6559,7 +6559,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-tests"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "ahash",
  "arrow",
@@ -6597,7 +6597,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -6925,7 +6925,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.18.0"
+version = "0.18.13"
 dependencies = [
  "chrono",
  "itertools 0.15.0",
