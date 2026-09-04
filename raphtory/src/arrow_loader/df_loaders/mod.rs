@@ -30,7 +30,7 @@ pub mod edge_props;
 pub mod edges;
 pub mod nodes;
 
-pub(crate) mod node_resolve_cache;
+pub(crate) mod cache;
 
 #[cfg(feature = "progress")]
 fn progress_bars_enabled() -> bool {

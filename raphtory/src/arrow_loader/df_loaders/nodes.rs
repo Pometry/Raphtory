@@ -42,7 +42,7 @@ use crate::arrow_loader::{
     dataframe::{DFChunk, DFView},
     df_loaders::{
         extract_secondary_index_col, group_rows_by_vid_segment,
-        node_resolve_cache::NodeResolveCache, process_shared_properties, secondary_index_at,
+        cache::NodeResolveCache, process_shared_properties, secondary_index_at,
     },
     layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
     node_col::NodeCol,
