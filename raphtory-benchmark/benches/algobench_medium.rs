@@ -230,6 +230,7 @@ pub fn graphgen_dijkstra(c: &mut Criterion) {
                 vec![dst.clone()],
                 None,
                 Direction::BOTH,
+                None,
             )
             .unwrap()
         },
