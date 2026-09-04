@@ -42,20 +42,8 @@ pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
-        .num_threads(cores().saturating_sub(EXPRESS_THREADS).max(2))
+        .num_threads(cores().max(2))
         .thread_name(|t| format!("RAP-compute-{t}"))
-        .build()
-        .unwrap()
-});
-
-/// Reserved out of the compute pool for work that must stay responsive while it is saturated.
-const EXPRESS_THREADS: usize = 1;
-
-/// Never submit graph work here — one scan removes the reservation for everything else.
-pub static EXPRESS_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
-    ThreadPoolBuilder::new()
-        .num_threads(EXPRESS_THREADS)
-        .thread_name(|t| format!("RAP-express-{t}"))
         .build()
         .unwrap()
 });
@@ -96,17 +84,6 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
     tokio::task::spawn_blocking(closure)
         .await
         .expect("graph load panicked")
-}
-
-/// Immediate, bypassing the scheduler. Only for always-cheap work — never graph work.
-pub async fn blocking_express<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
-    closure: F,
-) -> R {
-    let (send, recv) = oneshot::channel();
-    EXPRESS_POOL.spawn(move || {
-        let _ = send.send(closure()); // this only errors if no-one is listening anymore
-    });
-    recv.await.expect("Function panicked in rayon::spawn")
 }
 
 /// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks
@@ -186,7 +163,7 @@ mod deadlock_tests {
 #[cfg(test)]
 mod scheduler_tests {
     use super::*;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn concurrent_loads_are_bounded() {
@@ -214,29 +191,6 @@ mod scheduler_tests {
             PEAK.load(Ordering::SeqCst) <= cap,
             "peak {} loads exceeded the cap {cap}",
             PEAK.load(Ordering::SeqCst)
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn express_is_immediate_while_compute_is_saturated() {
-        let _serial = TEST_SERIAL.lock();
-        let heavies: Vec<_> = (0..COMPUTE_POOL.current_num_threads() * 4)
-            .map(|_| {
-                tokio::spawn(blocking_compute(|| {
-                    std::thread::sleep(Duration::from_millis(200))
-                }))
-            })
-            .collect();
-        let t0 = Instant::now();
-        blocking_express(|| {}).await;
-        let waited = t0.elapsed();
-        // Drain the backlog before releasing the serial guard, so no jobs leak into other tests.
-        for h in heavies {
-            let _ = h.await;
-        }
-        assert!(
-            waited < Duration::from_millis(100),
-            "express waited {waited:?}"
         );
     }
 }
