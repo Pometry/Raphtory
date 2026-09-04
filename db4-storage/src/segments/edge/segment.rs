@@ -3,7 +3,6 @@ use crate::{
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    properties::PropMutEntry,
     segments::{
         HasRow, SegmentContainer,
         edge::entry::{MemEdgeEntry, MemEdgeRef},
@@ -189,6 +188,34 @@ impl MemEdgeSegment {
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) -> bool {
+        self.insert_edge_internal_impl(t, edge_pos, src, dst, layer_id, props, true)
+    }
+
+    /// As [`Self::insert_edge_internal`] but skips per-append presence marking,
+    /// for bulk loaders that mark the chunk's `(layer, prop)` set up front.
+    pub fn insert_edge_internal_bulk<T: AsTime, P: AsPropRef>(
+        &mut self,
+        t: T,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) -> bool {
+        self.insert_edge_internal_impl(t, edge_pos, src, dst, layer_id, props, false)
+    }
+
+    #[inline]
+    fn insert_edge_internal_impl<T: AsTime, P: AsPropRef>(
+        &mut self,
+        t: T,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
+    ) -> bool {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id.0].est_size();
@@ -197,12 +224,13 @@ impl MemEdgeSegment {
             .reserve_local_row(edge_pos, src, dst, layer_id)
             .into_inner_with_status();
 
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
-            .properties_mut()
-            .get_mut_entry(local_row);
-
         let ts = EventTime::new(t.t(), t.i());
-        prop_entry.append_t_props(ts, props);
+        if mark {
+            self.layers[layer_id.0].mark_and_append_t_props(local_row, layer_id, ts, props);
+        } else {
+            // doesn't mark this prop's presence at this layer in the bitset, used in bulk ingestion
+            self.layers[layer_id.0].append_t_props(local_row, ts, props);
+        }
 
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
@@ -320,14 +348,42 @@ impl MemEdgeSegment {
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
+        self.update_const_properties_impl(edge_pos, src, dst, layer_id, props, true)
+    }
+
+    /// As [`Self::update_const_properties`] but skips per-prop layer-presence
+    /// marking, for bulk loaders that mark the chunk's set up front.
+    pub fn update_const_properties_bulk<P: AsPropRef>(
+        &mut self,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        self.update_const_properties_impl(edge_pos, src, dst, layer_id, props, false)
+    }
+
+    #[inline]
+    fn update_const_properties_impl<P: AsPropRef>(
+        &mut self,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
+    ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id.0].est_size();
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id).inner();
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
-            .properties_mut()
-            .get_mut_entry(local_row);
-        prop_entry.append_const_props(props);
+        if mark {
+            self.layers[layer_id.0].mark_and_append_const_props(local_row, layer_id, props);
+        } else {
+            // doesn't mark this const prop's presence at this layer in the bitset, used in bulk ingestion
+            self.layers[layer_id.0].append_const_props(local_row, props);
+        }
 
         let layer_est_size = self.layers[layer_id.0].est_size() + 8;
         self.est_size += layer_est_size.saturating_sub(est_size);

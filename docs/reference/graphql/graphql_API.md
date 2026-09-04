@@ -2869,61 +2869,6 @@ Layer name to pin to.
 </tbody>
 </table>
 
-### EdgeSchema
-
-Describes edges between a specific pair of node types — the property and
-metadata keys seen on such edges, along with their observed value types.
-One `EdgeSchema` per `(srcType, dstType)` pair per layer.
-
-<table>
-<thead>
-<tr>
-<th align="left">Field</th>
-<th align="right">Argument</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeschema.srctype">srcType</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Returns the type of source for these edges
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeschema.dsttype">dstType</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Returns the type of destination for these edges
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeschema.properties">properties</strong></td>
-<td valign="top">[<a href="#propertyschema">PropertySchema</a>!]!</td>
-<td>
-
-Returns the list of property schemas for edges connecting these types of nodes
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeschema.metadata">metadata</strong></td>
-<td valign="top">[<a href="#propertyschema">PropertySchema</a>!]!</td>
-<td>
-
-Returns the list of metadata schemas for edges connecting these types of nodes
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### EdgeWindowSet
 
 A lazy sequence of per-window views of a single edge, produced by
@@ -5574,8 +5519,8 @@ Compute the minimum interval between consecutive timestamps. Returns None if few
 
 ### LayerSchema
 
-Describes a single edge layer — its name and the per `(srcType, dstType)`
-edge schemas observed within it.
+Describes a single edge layer: its name and the edge property/metadata keys
+present in it, with observed variants (property values) on small graphs
 
 <table>
 <thead>
@@ -5597,11 +5542,20 @@ Returns the name of the layer with this schema
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="layerschema.edges">edges</strong></td>
-<td valign="top">[<a href="#edgeschema">EdgeSchema</a>!]!</td>
+<td colspan="2" valign="top"><strong id="layerschema.properties">properties</strong></td>
+<td valign="top">[<a href="#propertyschema">PropertySchema</a>!]!</td>
 <td>
 
-Returns the list of edge schemas for this edge layer
+Returns the list of property schemas present on edges in this layer
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="layerschema.metadata">metadata</strong></td>
+<td valign="top">[<a href="#propertyschema">PropertySchema</a>!]!</td>
+<td>
+
+Returns the list of metadata schemas present on edges in this layer
 
 </td>
 </tr>

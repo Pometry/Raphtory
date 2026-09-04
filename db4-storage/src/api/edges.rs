@@ -193,4 +193,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn edge_id(&self) -> EID;
     fn edge_ref(self, dir: Dir) -> Option<EdgeRef>;
+
+    /// Graph-wide edge `Meta`
+    fn edge_meta(&self) -> &'a Arc<Meta>;
 }

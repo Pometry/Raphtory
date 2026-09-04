@@ -174,6 +174,8 @@ pub fn load_nodes_from_df<
                 .resolve_node_property(key, dtype, true)
                 .map_err(into_graph_err)
         })?;
+        // resolved outside the chunk's columns, so marked separately below
+        let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
         #[cfg(feature = "progress")]
         let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
@@ -220,6 +222,16 @@ pub fn load_nodes_from_df<
             } else {
                 None
             };
+
+            // mark this chunk's (layer, prop) presence once
+            mark_chunk_prop_presence(
+                graph.node_meta(),
+                layer_col_resolved.as_deref(),
+                STATIC_GRAPH_LAYER_ID,
+                &prop_cols,
+                &metadata_cols,
+                &shared_metadata_ids,
+            );
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
@@ -329,8 +341,9 @@ pub fn load_nodes_from_df<
                                     .map(|(id, prop)| (*id, prop.as_prop_ref())),
                             );
 
-                            writer.add_props(t, mut_node, layer_id, t_props);
-                            writer.update_c_props(mut_node, layer_id, c_props);
+                            // `*_bulk` doesn't mark props in layers: presence already marked per chunk above
+                            writer.add_props_bulk(t, mut_node, layer_id, t_props);
+                            writer.update_c_props_bulk(mut_node, layer_id, c_props);
                         };
                     }
 

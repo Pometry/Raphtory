@@ -360,6 +360,7 @@ pub fn materialize_impl(
     // Preserve property mappers from the source graph so that
     // windowed views expose the same prop mappings even for keys with no
     // values inside the window.
+    // `deep_clone` doesn't copy the per-layer property presence bitset because filters can hide properties/layers.
     node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
     node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
     edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
@@ -418,7 +419,6 @@ pub fn materialize_impl(
     let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
-    // let mut scope_result = Ok(());
     // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
     // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
     std::thread::scope(|scope| {

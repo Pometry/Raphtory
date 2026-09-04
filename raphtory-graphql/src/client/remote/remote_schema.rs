@@ -5,7 +5,7 @@
 //! tree is small — realistic graphs have a bounded set of node types and
 //! layers — and users always want the full descriptor at once.
 //!
-//! The five types here are pure data (no `expr` / `base_graph` fields, no
+//! The four types here are pure data (no `expr` / `base_graph` fields, no
 //! transport handle). They're built from a single response payload by
 //! walking the nested `Prop::Map` / `Prop::List` tree that
 //! `parse_read` decoded.
@@ -26,22 +26,13 @@ pub struct RemotePropertySchema {
     pub variants: Vec<String>,
 }
 
-/// Schema for edges between a specific `(src_type, dst_type)` pair within
-/// one layer.
-#[derive(Clone, Debug, PartialEq)]
-pub struct RemoteEdgeSchema {
-    pub src_type: String,
-    pub dst_type: String,
-    pub properties: Vec<RemotePropertySchema>,
-    pub metadata: Vec<RemotePropertySchema>,
-}
-
-/// Schema for a single edge layer — its name and the per `(srcType, dstType)`
-/// edge schemas observed within it.
+/// Schema for a single edge layer — its name and the property and metadata
+/// keys observed on edges in it, with their types.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemoteLayerSchema {
     pub name: String,
-    pub edges: Vec<RemoteEdgeSchema>,
+    pub properties: Vec<RemotePropertySchema>,
+    pub metadata: Vec<RemotePropertySchema>,
 }
 
 /// Schema for nodes of a specific type — its property and metadata keys
@@ -97,20 +88,6 @@ impl RemoteLayerSchema {
         let map = expect_map(prop, "layerSchema")?;
         Ok(Self {
             name: prop_str(prop_map_get(&map, "name")?, "layerSchema.name")?,
-            edges: prop_list(prop_map_get(&map, "edges")?, "layerSchema.edges")?
-                .into_iter()
-                .map(RemoteEdgeSchema::from_prop)
-                .collect::<Result<_, _>>()?,
-        })
-    }
-}
-
-impl RemoteEdgeSchema {
-    fn from_prop(prop: Prop) -> Result<Self, ClientError> {
-        let map = expect_map(prop, "edgeSchema")?;
-        Ok(Self {
-            src_type: prop_str(prop_map_get(&map, "srcType")?, "edgeSchema.srcType")?,
-            dst_type: prop_str(prop_map_get(&map, "dstType")?, "edgeSchema.dstType")?,
             properties: decode_property_schemas(prop_map_get(&map, "properties")?)?,
             metadata: decode_property_schemas(prop_map_get(&map, "metadata")?)?,
         })

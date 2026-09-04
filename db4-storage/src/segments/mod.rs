@@ -1,9 +1,12 @@
 use super::properties::{PropEntry, Properties};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
-    entities::properties::{
-        meta::Meta,
-        prop::{AsPropRef, Prop},
+    entities::{
+        LayerId,
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop},
+        },
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -153,6 +156,7 @@ impl<T: HasRow> SparseVec<T> {
     }
 }
 
+/// A single layer's data in a Mem(Edge/Node)Segment. Only accessed through a RwLock, so no concurrent writing.
 #[derive(Debug)]
 pub struct SegmentContainer<T> {
     segment_id: usize,
@@ -162,6 +166,25 @@ pub struct SegmentContainer<T> {
     meta: Arc<Meta>,
     out_count: usize, // used to count num edges
     inb_count: usize, // used to count num edges
+    /// Record of which prop ids have already been marked by this container, indexed by prop id,
+    /// so Meta's (global) lock is touched once per prop instead of once per append.
+    t_props_seen: Vec<bool>,
+    /// As [`Self::t_props_seen`], for metadata (const) props.
+    c_props_seen: Vec<bool>,
+}
+
+/// Records `prop_id` in `seen`, returning `true` only the first time it is seen.
+#[inline]
+fn first_sight(seen: &mut Vec<bool>, prop_id: usize) -> bool {
+    if seen.len() <= prop_id {
+        seen.resize(prop_id + 1, false);
+    }
+    if seen[prop_id] {
+        false
+    } else {
+        seen[prop_id] = true;
+        true
+    }
 }
 
 pub trait HasRow: Default + Send + Sync + Sized {
@@ -182,6 +205,8 @@ impl<T: HasRow> SegmentContainer<T> {
             meta,
             out_count: 0,
             inb_count: 0,
+            t_props_seen: Vec::new(),
+            c_props_seen: Vec::new(),
         }
     }
 
@@ -276,6 +301,83 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn properties_mut(&mut self) -> &mut Properties {
         &mut self.properties
+    }
+
+    /// Append temporal props to `local_row` **without** touching the per-layer
+    /// presence bitset.
+    pub(crate) fn append_t_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        t: EventTime,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        self.properties
+            .get_mut_entry(local_row)
+            .append_t_props(t, props);
+    }
+
+    /// Append const (metadata) props **without** touching the presence bitset.
+    pub(crate) fn append_const_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        self.properties
+            .get_mut_entry(local_row)
+            .append_const_props(props);
+    }
+
+    /// Append temporal props to `local_row`, marking each `(layer_id, prop_id)`
+    /// in this segment's `Meta` per-layer property presence bitset as the
+    /// iterator is consumed.
+    pub(crate) fn mark_and_append_t_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        layer_id: LayerId,
+        t: EventTime,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        let Self {
+            properties,
+            meta,
+            t_props_seen,
+            ..
+        } = self;
+        let mapper = meta.temporal_prop_mapper();
+        let props = props.into_iter().inspect(|(prop_id, _)| {
+            // Only mark props the first time they're seen in this container. Greatly speeds up the
+            // hot path by avoiding acquiring many read_recursive locks which can starve the writers from marking.
+            if first_sight(t_props_seen, *prop_id) {
+                mapper.mark_prop_in_layer(layer_id, *prop_id);
+            }
+        });
+        properties.get_mut_entry(local_row).append_t_props(t, props);
+    }
+
+    /// Append const (metadata) props to `local_row`, marking each
+    /// `(layer_id, prop_id)` in the metadata presence bitset as the iterator is
+    /// consumed. See [`Self::mark_and_append_t_props`].
+    pub(crate) fn mark_and_append_const_props<P: AsPropRef>(
+        &mut self,
+        local_row: usize,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        let Self {
+            properties,
+            meta,
+            c_props_seen,
+            ..
+        } = self;
+        let mapper = meta.metadata_mapper();
+        let props = props.into_iter().inspect(|(prop_id, _)| {
+            if first_sight(c_props_seen, *prop_id) {
+                mapper.mark_prop_in_layer(layer_id, *prop_id);
+            }
+        });
+        properties
+            .get_mut_entry(local_row)
+            .append_const_props(props);
     }
 
     pub fn check_metadata<P: AsPropRef>(

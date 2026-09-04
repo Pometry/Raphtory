@@ -198,13 +198,13 @@ impl QueryRoot {
     ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
         // Ok(None) = permission denied (hides existence/access level); Err = load failed.
-        let Some((folder, graph)) = data
+        let Some((folder, graph, schema_cache)) = data
             .get_graph_with_read_permission(ctx, path, graph_type)
             .await?
         else {
             return Ok(None);
         };
-        Ok(Some(GqlGraph::new(folder, graph)))
+        Ok(Some(GqlGraph::new_cached(folder, graph, schema_cache)))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.

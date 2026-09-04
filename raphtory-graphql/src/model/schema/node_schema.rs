@@ -1,34 +1,47 @@
-use crate::model::schema::{property_schema::PropertySchema, DEFAULT_NODE_TYPE};
+use crate::{
+    model::schema::{
+        cache::SchemaCache, collect_variants, property_schema::PropertySchema, DEFAULT_NODE_TYPE,
+        MAX_DETAILED_SCHEMA_ENTITIES, MAX_NODE_VARIANTS,
+    },
+    rayon::blocking_compute,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::{
             properties::internal::NodePropertySchemaOps,
-            state::ops::{filter::MaskOp, TypeId},
+            state::ops::{
+                filter::{MaskOp, NodeTypeFilterOp},
+                TypeId,
+            },
             view::DynamicGraph,
         },
         graph::views::filter::node_filtered_graph::NodeFilteredGraph,
     },
     prelude::*,
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::core::entities::{properties::meta::PropMapper, LayerIds};
 use raphtory_storage::core_ops::CoreGraphOps;
-use rayon::prelude::*;
+use std::sync::Arc;
 
 /// Describes nodes of a specific type in a graph — its property keys and
 /// observed value types (and, for string-valued properties, the set of
 /// distinct values seen). One `NodeSchema` per node type.
-#[derive(ResolvedObject)]
+#[derive(Clone, ResolvedObject)]
 pub(crate) struct NodeSchema {
-    pub(crate) type_id: usize,
+    /// node type id; also the schema-cache lookup key
+    type_id: usize,
     graph: DynamicGraph,
+    // schema cache for the base graph, `None` for filtered/derived views
+    cache: Option<Arc<SchemaCache>>,
 }
 
 impl NodeSchema {
-    pub fn new(node_type: usize, graph: DynamicGraph) -> Self {
+    pub fn new(node_type: usize, graph: DynamicGraph, cache: Option<Arc<SchemaCache>>) -> Self {
         Self {
             type_id: node_type,
             graph,
+            cache,
         }
     }
 }
@@ -45,13 +58,35 @@ impl NodeSchema {
     /// ever set on a node of this type, with its observed `PropertyType` and (for
     /// string-valued properties) the set of distinct values.
     pub async fn properties(&self) -> Vec<PropertySchema> {
-        self.properties_inner()
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.node().get_properties(self.type_id) {
+                return hit;
+            }
+        }
+        // not found in cache, so calculate it and cache it
+        let self_clone = self.clone();
+        let result = blocking_compute(move || self_clone.properties_inner()).await;
+        if let Some(cache) = &self.cache {
+            cache.node().store_properties(self.type_id, result.clone());
+        }
+        result
     }
 
     /// Metadata schemas seen on nodes of this type — like `properties`, but
     /// covering metadata fields rather than temporal properties.
     pub async fn metadata(&self) -> Vec<PropertySchema> {
-        self.metadata_inner()
+        if let Some(cache) = &self.cache {
+            if let Some(hit) = cache.node().get_metadata(self.type_id) {
+                return hit;
+            }
+        }
+        // not found in cache, so calculate it and cache it
+        let self_clone = self.clone();
+        let result = blocking_compute(move || self_clone.metadata_inner()).await;
+        if let Some(cache) = &self.cache {
+            cache.node().store_metadata(self.type_id, result.clone());
+        }
+        result
     }
 }
 
@@ -63,104 +98,67 @@ impl NodeSchema {
             .map(|type_name| type_name.to_string())
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
-    fn properties_inner(&self) -> Vec<PropertySchema> {
-        let visible: std::collections::HashSet<usize> =
-            self.graph.node_visible_temporal_prop_ids().collect();
-        let (keys, property_types): (Vec<_>, Vec<_>) = self
-            .graph
-            .node_meta()
-            .temporal_prop_mapper()
+    /// Filter only keeps the nodes carrying this schema's node type. Built once per resolution.
+    fn nodes_of_type(&self) -> NodeFilteredGraph<DynamicGraph, NodeTypeFilterOp> {
+        let mut node_types_filter =
+            vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
+        node_types_filter[self.type_id] = true;
+        NodeFilteredGraph::new(self.graph.clone(), TypeId.mask(node_types_filter.into()))
+    }
+
+    /// Keys this view may report: visible here and marked in the per-layer presence bitset.
+    ///
+    /// Materialized graphs `deep_clone` the `PropMapper`, so prop names/ids can
+    /// leak in from the source graph. The presence bitset is not cloned, so it is
+    /// what tells us whether the property has values in *this* graph.
+    fn reportable(mapper: &PropMapper, visible: ahash::HashSet<usize>) -> impl Fn(usize) -> bool {
+        let present = mapper.props_in_any_layer();
+        move |id| visible.contains(&id) && present.get(id) == Some(&true)
+    }
+
+    /// Keys and types only, no value scan - for graphs too big to sample.
+    fn keys_and_types(mapper: &PropMapper, keep: impl Fn(usize) -> bool) -> Vec<PropertySchema> {
+        mapper
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id))
-            .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
-            .unzip();
+            .filter(|(id, _, _)| keep(*id))
+            .map(|(_, name, dtype)| PropertySchema::new(name.to_string(), dtype.clone(), vec![]))
+            .collect()
+    }
 
-        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
-            // large graph, do not collect detailed schema as it is expensive
-            keys.into_iter()
-                .zip(property_types)
-                .map(|(key, dtype)| PropertySchema::new(key, dtype, vec![]))
-                .collect()
+    fn properties_inner(&self) -> Vec<PropertySchema> {
+        let mapper = self.graph.node_meta().temporal_prop_mapper();
+        let keep = Self::reportable(
+            mapper,
+            self.graph.node_visible_temporal_prop_ids().collect(),
+        );
+
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
+            Self::keys_and_types(mapper, keep)
         } else {
-            keys.into_par_iter()
-                .zip(property_types)
-                .filter_map(|(key, dtype)| {
-                    let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
-                    let filter = TypeId.mask(node_types_filter.into());
-                    let unique_values: ahash::HashSet<_> =
-                        NodeFilteredGraph::new(self.graph.clone(), filter)
-                            .nodes()
-                            .properties()
-                            .into_iter_values()
-                            .filter_map(|props| props.get(&key).map(|v| v.to_string()))
-                            .collect();
-                    if unique_values.is_empty() {
-                        None
-                    } else {
-                        let mut variants = if unique_values.len() <= 100 {
-                            Vec::from_iter(unique_values)
-                        } else {
-                            vec![]
-                        };
-                        variants.sort();
-                        Some(PropertySchema::new(key, dtype, variants))
-                    }
-                })
-                .collect()
+            // one pass over this type's nodes
+            collect_variants(
+                self.nodes_of_type().nodes().properties().into_iter_values(),
+                mapper,
+                MAX_NODE_VARIANTS,
+                keep,
+            )
         }
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
-        let visible: std::collections::HashSet<usize> =
-            self.graph.node_visible_metadata_ids().collect();
-        let (keys, property_types): (Vec<_>, Vec<_>) = self
-            .graph
-            .node_meta()
-            .metadata_mapper()
-            .locked()
-            .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id))
-            .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
-            .unzip();
+        let mapper = self.graph.node_meta().metadata_mapper();
+        let keep = Self::reportable(mapper, self.graph.node_visible_metadata_ids().collect());
 
-        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
-            // large graph, do not collect detailed schema as it is expensive
-            keys.into_iter()
-                .zip(property_types)
-                .map(|(key, dtype)| PropertySchema::new(key, dtype, vec![]))
-                .collect()
-        } else {
-            keys.into_par_iter()
-                .zip(property_types)
-                .filter_map(|(key, dtype)| {
-                    let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
-                    let filter = TypeId.mask(node_types_filter.into());
-                    let unique_values: ahash::HashSet<_> =
-                        NodeFilteredGraph::new(self.graph.clone(), filter)
-                            .nodes()
-                            .metadata()
-                            .into_iter_values()
-                            .filter_map(|props| props.get(&key).map(|v| v.to_string()))
-                            .collect();
-                    if unique_values.is_empty() {
-                        None
-                    } else {
-                        let mut variants = if unique_values.len() <= 100 {
-                            Vec::from_iter(unique_values)
-                        } else {
-                            vec![]
-                        };
-                        variants.sort();
-                        Some(PropertySchema::new(key, dtype, variants))
-                    }
-                })
-                .collect()
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES {
+            return Self::keys_and_types(mapper, keep);
         }
+        collect_variants(
+            self.nodes_of_type().nodes().metadata().into_iter_values(),
+            mapper,
+            MAX_NODE_VARIANTS,
+            keep,
+        )
     }
 }
 
@@ -169,10 +167,13 @@ mod test {
     use itertools::Itertools;
     use raphtory::{db::api::view::IntoDynamic, prelude::*};
 
-    use crate::model::schema::{graph_schema::GraphSchema, node_schema::PropertySchema};
+    use crate::model::schema::{
+        graph_schema::GraphSchema, node_schema::PropertySchema, MAX_DETAILED_SCHEMA_ENTITIES,
+    };
     use pretty_assertions::assert_eq;
     use raphtory::errors::GraphError;
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_api::core::entities::{properties::prop::PropType, LayerIds};
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {
@@ -223,7 +224,7 @@ mod test {
     }
 
     fn check_schema(g: &Graph) {
-        let gs = GraphSchema::new(&g.clone().into_dynamic());
+        let gs = GraphSchema::new(&g.clone().into_dynamic(), None);
 
         let mut actual: Vec<(String, Vec<PropertySchema>, Vec<PropertySchema>)> = gs
             .nodes
@@ -282,5 +283,48 @@ mod test {
             ),
         ];
         assert_eq!(actual, expected);
+    }
+
+    /// Materializing a filtered view keeps the source's prop mappers, so ids and
+    /// dtypes for keys with no values in the result stay registered. The schema
+    /// must not report those - the presence bitset is the only thing
+    /// separating "registered" from "actually has values here".
+    #[test]
+    fn filtered_out_props_are_not_reported_on_large_graphs() -> Result<(), GraphError> {
+        let g = Graph::new();
+        // over the detailed-schema threshold, so the keys/types-only branch runs
+        let num_nodes = MAX_DETAILED_SCHEMA_ENTITIES + 1;
+        for id in 0..num_nodes {
+            g.add_node(0, id as u64, [("kept", Prop::I64(1))], Some("t"), None)?;
+        }
+        // only ever set outside the window below
+        let late = g.add_node(100, u64::MAX, [("dropped", Prop::I64(2))], Some("t"), None)?;
+        late.add_metadata([("dropped_meta", Prop::I64(3))])?;
+
+        let mat = g.window(0, 50).materialize()?;
+        assert!(mat.unfiltered_num_nodes(&LayerIds::All) > MAX_DETAILED_SCHEMA_ENTITIES);
+
+        // the mappers still know the filtered-out keys...
+        let node_meta = mat.node_meta();
+        assert!(node_meta.temporal_prop_mapper().get_id("dropped").is_some());
+        assert!(node_meta.metadata_mapper().get_id("dropped_meta").is_some());
+
+        // ...but only the key with values inside the window is reported
+        let gs = GraphSchema::new(&mat.into_dynamic(), None);
+        let t = gs
+            .nodes
+            .iter()
+            .find(|n| n.type_name_inner() == "t")
+            .expect("node type t");
+        assert_eq!(
+            t.properties_inner(),
+            vec![PropertySchema::new(
+                "kept".to_string(),
+                PropType::I64,
+                vec![]
+            )]
+        );
+        assert_eq!(t.metadata_inner(), vec![]);
+        Ok(())
     }
 }

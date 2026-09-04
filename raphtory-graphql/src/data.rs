@@ -11,6 +11,7 @@ use crate::{
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
+        schema::cache::SchemaCache,
     },
     paths::{
         mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
@@ -983,11 +984,16 @@ impl Data {
         path: &str,
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
+    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph, Option<Arc<SchemaCache>>)> {
         let gwv = self.get_graph_unchecked(path).await?;
+        // Cache can't be used if we change the graph type; a type override produces a different view
+        let mut cacheable = graph_type.is_none();
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
-                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
+                MaterializedGraph::EventGraph(g) => {
+                    cacheable = true;
+                    MaterializedGraph::EventGraph(g.clone())
+                }
                 MaterializedGraph::PersistentGraph(g) => {
                     MaterializedGraph::EventGraph(g.event_graph())
                 }
@@ -997,6 +1003,7 @@ impl Data {
                     MaterializedGraph::PersistentGraph(g.persistent_graph())
                 }
                 MaterializedGraph::PersistentGraph(g) => {
+                    cacheable = true;
                     MaterializedGraph::PersistentGraph(g.clone())
                 }
             },
@@ -1007,11 +1014,14 @@ impl Data {
             filter: Some(ref f),
         } = perm
         {
+            // a redacted view hides keys, and a cached schema could leak redacted information/properties
+            cacheable = false;
             apply_access_filter(raw, f).await?
         } else {
             raw
         };
-        Ok((gwv.folder().clone(), graph))
+        let schema_cache = cacheable.then(|| gwv.schema_cache());
+        Ok((gwv.folder().clone(), graph, schema_cache))
     }
 
     /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
@@ -1021,7 +1031,8 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
         graph_type: Option<GqlGraphType>,
-    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
+    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph, Option<Arc<SchemaCache>>)>>
+    {
         match require_at_least_read(ctx, &self.auth_policy, path) {
             Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
                 Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
@@ -1044,7 +1055,8 @@ impl Data {
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         let perm = refine(ctx, &self.auth_policy, path, perm).await?;
-        self.load_and_filter(path, perm, graph_type).await
+        let (folder, graph, _cache) = self.load_and_filter(path, perm, graph_type).await?;
+        Ok((folder, graph))
     }
 
     /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).

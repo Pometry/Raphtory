@@ -155,7 +155,7 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type EdgeAdditions = NodeEdgeAdditions<'a>;
     type TProps = NodeTProps<'a>;
 
-    fn node_meta(&self) -> &Arc<Meta> {
+    fn node_meta(&self) -> &'a Arc<Meta> {
         self.ns.node_meta()
     }
 

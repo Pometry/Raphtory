@@ -681,7 +681,7 @@ fn unify_types(
     } else {
         meta.temporal_prop_mapper()
     };
-    let mut write_locked_mapper = prop_mapper.write_locked();
+    let mut write_locked_mapper = prop_mapper.write_locked_mappers();
     for (prop_name, prop_id, prop_value) in props {
         write_locked_mapper.set_or_unify_id_and_dtype(
             prop_name.as_ref(),

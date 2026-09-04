@@ -1,7 +1,10 @@
 use crate::db::api::view::BoxedLIter;
 use raphtory_api::{
     core::{
-        entities::properties::prop::{Prop, PropType},
+        entities::{
+            properties::prop::{Prop, PropType},
+            LayerId,
+        },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
     inherit::Base,
@@ -20,6 +23,10 @@ pub trait NodePropertySchemaOps: Send + Sync {
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
+    /// O(1) check: is temporal-prop `prop_id` present on any node in `layer_id`?
+    fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
+    /// O(1) check: is metadata-prop `prop_id` present on any node in `layer_id`?
+    fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool;
 }
 
 /// Same as `NodePropertySchemaOps` but for edge properties.
@@ -32,6 +39,10 @@ pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_visible_metadata_id(&self, name: &str) -> Option<usize>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
+    /// O(1) check: is temporal-prop `prop_id` present on any edge in `layer_id`?
+    fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
+    /// O(1) check: is metadata-prop `prop_id` present on any edge in `layer_id`?
+    fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool;
 }
 
 /// Marker: delegate `NodePropertySchemaOps` through `Base`.
@@ -67,6 +78,14 @@ where
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_metadata_name(id)
     }
+    #[inline]
+    fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().node_layer_has_temporal_prop(layer_id, prop_id)
+    }
+    #[inline]
+    fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().node_layer_has_metadata(layer_id, prop_id)
+    }
 }
 
 impl<G: InheritEdgePropertySchemaOps + Send + Sync> EdgePropertySchemaOps for G
@@ -96,6 +115,14 @@ where
     #[inline]
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().edge_visible_metadata_name(id)
+    }
+    #[inline]
+    fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().edge_layer_has_temporal_prop(layer_id, prop_id)
+    }
+    #[inline]
+    fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().edge_layer_has_metadata(layer_id, prop_id)
     }
 }
 

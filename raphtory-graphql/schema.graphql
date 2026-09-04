@@ -1246,30 +1246,6 @@ input EdgeLayersExpr {
 	expr: EdgeFilter!
 }
 
-"""
-Describes edges between a specific pair of node types — the property and
-metadata keys seen on such edges, along with their observed value types.
-One `EdgeSchema` per `(srcType, dstType)` pair per layer.
-"""
-type EdgeSchema {
-	"""
-	Returns the type of source for these edges
-	"""
-	srcType: String!
-	"""
-	Returns the type of destination for these edges
-	"""
-	dstType: String!
-	"""
-	Returns the list of property schemas for edges connecting these types of nodes
-	"""
-	properties: [PropertySchema!]!
-	"""
-	Returns the list of metadata schemas for edges connecting these types of nodes
-	"""
-	metadata: [PropertySchema!]!
-}
-
 input EdgeSortBy {
 	"""
 	Reverse order. Applies to the `time` / `property` keys; the node keys
@@ -3302,8 +3278,8 @@ type Intervals {
 }
 
 """
-Describes a single edge layer — its name and the per `(srcType, dstType)`
-edge schemas observed within it.
+Describes a single edge layer: its name and the edge property/metadata keys
+present in it, with observed variants (property values) on small graphs
 """
 type LayerSchema {
 	"""
@@ -3311,9 +3287,13 @@ type LayerSchema {
 	"""
 	name: String!
 	"""
-	Returns the list of edge schemas for this edge layer
+	Returns the list of property schemas present on edges in this layer
 	"""
-	edges: [EdgeSchema!]!
+	properties: [PropertySchema!]!
+	"""
+	Returns the list of metadata schemas present on edges in this layer
+	"""
+	metadata: [PropertySchema!]!
 }
 
 """

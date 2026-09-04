@@ -2,7 +2,7 @@ use crate::model::graph::property::GqlPropTypeOutput;
 use dynamic_graphql::SimpleObject;
 use raphtory_api::core::entities::properties::prop::PropType;
 
-#[derive(SimpleObject, Debug)]
+#[derive(SimpleObject, Clone, Debug)]
 pub struct PropertySchema {
     key: String,
     /// The type rendered as text — kept for existing consumers; prefer `dtype`.

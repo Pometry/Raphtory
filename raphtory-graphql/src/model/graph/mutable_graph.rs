@@ -596,6 +596,7 @@ impl GqlMutableGraph {
     /// Post mutation operations.
     async fn post_mutation_ops(&self) {
         self.graph.set_dirty(true);
+        self.graph.invalidate_schema_cache();
     }
 }
 
@@ -727,6 +728,7 @@ impl GqlMutableNode {
     /// Post mutation operations.
     async fn post_mutation_ops(&self) {
         self.node.graph.set_dirty(true);
+        self.node.graph.invalidate_schema_cache();
     }
 }
 
@@ -908,6 +910,7 @@ impl GqlMutableEdge {
     /// Post mutation operations.
     async fn post_mutation_ops(&self) {
         self.edge.graph.set_dirty(true);
+        self.edge.graph.invalidate_schema_cache();
     }
 }
 
