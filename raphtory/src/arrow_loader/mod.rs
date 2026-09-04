@@ -21,6 +21,7 @@ mod test {
         prelude::*,
     };
     use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
+    use indexmap::IndexSet;
     use itertools::Itertools;
     use raphtory_api::core::{
         entities::GID,
@@ -313,6 +314,16 @@ mod test {
             history,
             vec![(GID::U64(1), vec![1, 2]), (GID::U64(2), vec![1, 2])]
         );
+
+        // Make sure the duplicate entries are not stored in the index.
+        let storage = graph.core_graph();
+        let a_id = graph.node_meta().get_node_type_id("a").unwrap();
+        let b_id = graph.node_meta().get_node_type_id("b").unwrap();
+        let a_nodes = storage.node_type_index().nodes_of_type(&[a_id]);
+        let b_nodes = storage.node_type_index().nodes_of_type(&[b_id]);
+
+        assert_eq!(a_nodes, IndexSet::from([graph.node(1u64).unwrap().node]));
+        assert_eq!(b_nodes, IndexSet::from([graph.node(2u64).unwrap().node]));
     }
 
     #[test]
