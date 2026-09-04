@@ -24,7 +24,10 @@ mod test {
     use indexmap::IndexSet;
     use itertools::Itertools;
     use raphtory_api::core::{
-        entities::GID,
+        entities::{
+            properties::meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX},
+            GID,
+        },
         storage::{arc_str::ArcStr, timeindex::AsTime},
     };
     use raphtory_storage::core_ops::CoreGraphOps;
@@ -504,6 +507,60 @@ mod test {
         assert_eq!(b_nodes.len(), 1);
         assert!(a_nodes.contains(&graph.node(1u64).unwrap().node));
         assert!(b_nodes.contains(&graph.node(2u64).unwrap().node));
+    }
+
+    #[test]
+    fn default_node_types_are_not_stored_or_indexed() {
+        let graph = Graph::new();
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(
+                vec![1, 2, 3],
+                vec![Some("a"), None, Some("b")],
+                vec![1, 1, 1],
+            )]),
+        )
+        .expect("failed to load nodes");
+
+        assert_eq!(
+            node_types(&graph),
+            vec![
+                (GID::U64(1), Some(ArcStr::from("a"))),
+                (GID::U64(2), None),
+                (GID::U64(3), Some(ArcStr::from("b"))),
+            ]
+        );
+
+        let storage = graph.core_graph();
+        let typed_a = graph.node(1u64).unwrap().node;
+        let untyped = graph.node(2u64).unwrap().node;
+        let typed_b = graph.node(3u64).unwrap().node;
+        let a_id = graph.node_meta().get_node_type_id("a").unwrap();
+        let b_id = graph.node_meta().get_node_type_id("b").unwrap();
+
+        assert_eq!(
+            storage.node_metadata(typed_a, NODE_TYPE_IDX),
+            Some(Prop::U64(a_id as u64))
+        );
+        assert_eq!(storage.node_metadata(untyped, NODE_TYPE_IDX), None);
+        assert_eq!(
+            storage.node_metadata(typed_b, NODE_TYPE_IDX),
+            Some(Prop::U64(b_id as u64))
+        );
+
+        assert!(storage
+            .node_type_index()
+            .nodes_of_type(&[DEFAULT_NODE_TYPE_ID])
+            .is_empty());
+        assert_eq!(storage.node_type_index().head().num_entries(), 2);
+        assert_eq!(
+            storage.node_type_index().nodes_of_type(&[a_id]),
+            IndexSet::from([typed_a])
+        );
+        assert_eq!(
+            storage.node_type_index().nodes_of_type(&[b_id]),
+            IndexSet::from([typed_b])
+        );
     }
 
     #[test]

@@ -11,7 +11,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{
-                meta::{NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+                meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
                 prop::AsPropRef,
             },
             LayerId,
@@ -555,8 +555,10 @@ fn resolve_node_vids_and_types_with_cache<
 
                 let node_type = node_types[row];
                 let mut should_store = false;
+
                 let resolved = shard.resolve_with(gid, || {
                     let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+
                     match vid {
                         MaybeNew::New(vid) => {
                             should_store = true;
@@ -802,6 +804,11 @@ fn populate_node_type_index(gid_str_cache: &[Resolved<'_>], index: &MemNodeTypeI
     let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
 
     for (_, (vid, node_type)) in gid_str_cache {
+        // Nodes with default type don't need to be indexed.
+        if *node_type == DEFAULT_NODE_TYPE_ID {
+            continue;
+        }
+
         by_type.entry(*node_type).or_default().push(*vid);
     }
 
