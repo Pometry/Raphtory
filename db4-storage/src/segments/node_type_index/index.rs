@@ -48,6 +48,27 @@ impl MemNodeTypeIndex {
         }
     }
 
+    /// Bulk-inserts `vids` for a single `type_id`.
+    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
+        let mut entry = self.map.entry(type_id).or_default();
+        let mut added = 0;
+
+        for vid in vids {
+            if entry.insert(vid) {
+                added += 1;
+            }
+        }
+
+        if added > 0 {
+            self.entry_count.fetch_add(added, Ordering::Relaxed);
+
+            // TODO: Refine est_size calculation.
+            let entry_size = std::mem::size_of::<usize>() + std::mem::size_of::<VID>();
+            self.est_size
+                .fetch_add(added * entry_size, Ordering::Relaxed);
+        }
+    }
+
     /// Returns the sorted VIDs for `type_ids`.
     pub fn nodes_of_type(&self, type_ids: &[usize]) -> Vec<VID> {
         if type_ids.is_empty() {
@@ -172,6 +193,19 @@ mod tests {
         index.insert(3, VID(0));
 
         assert_eq!(index.num_entries(), 3);
+    }
+
+    #[test]
+    fn insert_batch_is_idempotent_and_counts_unique_pairs() {
+        let index = MemNodeTypeIndex::new();
+
+        index.insert_batch(1, [VID(2), VID(1), VID(1)]);
+        index.insert_batch(1, [VID(1), VID(3)]);
+        index.insert_batch(2, [VID(4)]);
+
+        assert_eq!(index.num_entries(), 4);
+        assert_eq!(index.nodes_of_type(&[1]), vec![VID(1), VID(2), VID(3)]);
+        assert_eq!(index.nodes_of_type(&[2]), vec![VID(4)]);
     }
 
     #[test]

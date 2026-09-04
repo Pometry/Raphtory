@@ -26,7 +26,9 @@ mod test {
         entities::GID,
         storage::{arc_str::ArcStr, timeindex::AsTime},
     };
+    use raphtory_storage::core_ops::CoreGraphOps;
     use std::{sync::Arc, vec::IntoIter};
+    use storage::api::node_type_index::NodeTypeIndexOps;
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -470,6 +472,80 @@ mod test {
             graph.node(1u64).unwrap().node_type(),
             Some(ArcStr::from("Person"))
         );
+    }
+
+    #[test]
+    fn load_nodes_fills_node_type_index() {
+        let graph = Graph::new();
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1, 2], vec![Some("a"), Some("b")], vec![1, 1])]),
+        )
+        .expect("failed to load nodes");
+
+        let a_id = graph.node_meta().get_node_type_id("a").unwrap();
+        let b_id = graph.node_meta().get_node_type_id("b").unwrap();
+        let storage = graph.core_graph();
+        let a_nodes = storage.node_type_index().nodes_of_type(&[a_id]);
+        let b_nodes = storage.node_type_index().nodes_of_type(&[b_id]);
+
+        assert_eq!(a_nodes.len(), 1);
+        assert_eq!(b_nodes.len(), 1);
+        assert!(a_nodes.contains(&graph.node(1u64).unwrap().node));
+        assert!(b_nodes.contains(&graph.node(2u64).unwrap().node));
+    }
+
+    #[test]
+    fn load_nodes_does_not_duplicate_index_on_reload() {
+        let graph = Graph::new();
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1, 2], vec![Some("a"), Some("b")], vec![1, 1])]),
+        )
+        .expect("failed to load nodes");
+
+        let entries_before = graph.core_graph().node_type_index().head().num_entries();
+
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1, 2], vec![Some("a"), Some("b")], vec![2, 2])]),
+        )
+        .expect("failed to reload nodes");
+
+        let storage = graph.core_graph();
+        let a_id = graph.node_meta().get_node_type_id("a").unwrap();
+        let b_id = graph.node_meta().get_node_type_id("b").unwrap();
+
+        assert_eq!(
+            storage.node_type_index().head().num_entries(),
+            entries_before
+        );
+        assert_eq!(entries_before, 2);
+        assert_eq!(storage.node_type_index().nodes_of_type(&[a_id]).len(), 1);
+        assert_eq!(storage.node_type_index().nodes_of_type(&[b_id]).len(), 1);
+    }
+
+    #[test]
+    fn load_nodes_indexes_type_on_untyped_existing_node() {
+        let graph = Graph::new();
+        graph
+            .add_edge(1, 1u64, 2u64, NO_PROPS, None)
+            .expect("failed to add edge");
+
+        load_nodes_with_type_col(
+            &graph,
+            node_type_df(vec![(vec![1], vec![Some("Person")], vec![2])]),
+        )
+        .expect("first type assignment on an untyped node should succeed");
+
+        let person_id = graph.node_meta().get_node_type_id("Person").unwrap();
+        let indexed = graph
+            .core_graph()
+            .node_type_index()
+            .nodes_of_type(&[person_id]);
+
+        assert!(indexed.contains(&graph.node(1u64).unwrap().node));
+        assert_eq!(indexed.len(), 1);
     }
 }
 

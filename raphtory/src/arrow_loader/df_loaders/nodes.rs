@@ -29,7 +29,12 @@ use std::{
     collections::HashMap,
     sync::{atomic::Ordering, mpsc},
 };
-use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};
+use storage::{
+    api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
+    pages::locked::nodes::LockedNodePage,
+    segments::node_type_index::index::MemNodeTypeIndex,
+    Extension,
+};
 
 #[cfg(feature = "progress")]
 use crate::arrow_loader::df_loaders::build_progress_bar;
@@ -236,6 +241,12 @@ pub fn load_nodes_from_df<
                 &df,
                 &node_col,
             )?;
+
+            if resolve_nodes && !gid_str_cache.is_empty() {
+                let index = graph.core_graph().node_type_index();
+                populate_node_type_index(&gid_str_cache, &index.head());
+                index.notify_write();
+            }
 
             let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
             let node_stats = write_locked_graph.node_stats().clone();
@@ -783,4 +794,16 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
             writer.store_node_id_and_node_type(src_pos, Some(*gid), *node_type);
         }
     }
+}
+
+fn populate_node_type_index(gid_str_cache: &[Resolved<'_>], index: &MemNodeTypeIndex) {
+    let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
+
+    for (_, (vid, node_type)) in gid_str_cache {
+        by_type.entry(*node_type).or_default().push(*vid);
+    }
+
+    by_type.par_iter().for_each(|(node_type, vids)| {
+        index.insert_batch(*node_type, vids.iter().copied());
+    });
 }
