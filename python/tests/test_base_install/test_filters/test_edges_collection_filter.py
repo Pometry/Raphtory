@@ -76,12 +76,85 @@ def _not_is_broken(a):
     return a in VIEWS or a in NODE_KIND
 
 
+def _not_composite_is_broken(a, b):
+    # `~(A & B)` and `~(A | B)`: negating a *composite* reaches the same wrappers
+    # through the negation, so `~(A & view)` degenerates to `~A` and loses the
+    # view entirely. Only a composite of two edge predicates survives.
+    return _kind(a) != "edge" or _kind(b) != "edge"
+
+
 def _ids(collection):
     return frozenset(e.id for e in collection)
 
 
+def _view_references(graph):
+    """Each view atom spelled as the equivalent chained view."""
+    return {
+        "layer": graph.layers(["work"]),
+        "layers2": graph.layers(["work", "friends"]),
+        "before": graph.before(10),
+        "after": graph.after(8),
+        "window": graph.window(3, 12),
+        "at": graph.at(10),
+        "latest": graph.latest(),
+        "snap_at": graph.snapshot_at(10),
+        "snap_latest": graph.snapshot_latest(),
+    }
+
+
+# What each non-view atom selects, evaluated directly over the collection. Node
+# filters keep the edges whose *both* endpoints pass, which is how a node filter
+# reduces onto an edge.
+def _node_scores(graph, threshold):
+    return {
+        node.name
+        for node in graph.nodes
+        if (node.properties.get("score") or 0) > threshold
+    }
+
+
+def _both_endpoints(graph, names):
+    return {
+        edge.id
+        for edge in graph.edges
+        if edge.src.name in names and edge.dst.name in names
+    }
+
+
+def _predicate_references(graph):
+    return {
+        "edge_prop": {
+            e.id for e in graph.edges if (e.properties.get("weight") or 0) > 5
+        },
+        "src": {e.id for e in graph.edges if e.src.name == "a"},
+        "dst": {e.id for e in graph.edges if e.dst.name == "c"},
+        "node_prop": _both_endpoints(graph, _node_scores(graph, 15)),
+        "node_name": _both_endpoints(graph, {"b", "c"}),
+        "is_valid": {e.id for e in graph.edges if e.is_valid()},
+        "is_deleted": {e.id for e in graph.edges if e.is_deleted()},
+        "is_active": {e.id for e in graph.edges if e.is_active()},
+        "self_loop": {e.id for e in graph.edges if e.src.name == e.dst.name},
+    }
+
+
 def _singles(graph):
-    return {name: _ids(graph.edges[expr]) for name, expr in _atoms().items()}
+    """What each atom selects, computed *without* the subscript under test.
+
+    Reading these back through `graph.edges[atom]` would make the expectations
+    below agree with the thing they are meant to check: where a single filter
+    fails open, `EVERYTHING & X == X`, so a combination that dropped a term
+    matches its expectation and the pins report a live bug as fixed. Views are
+    referenced through the equivalent chained view instead, and predicates are
+    evaluated over the collection directly.
+    """
+    views = _view_references(graph)
+    singles = {
+        name: frozenset(ids) for name, ids in _predicate_references(graph).items()
+    }
+    singles.update({name: _ids(view.edges) for name, view in views.items()})
+    missing = set(_atoms()) - set(singles)
+    assert not missing, f"no independent reference for {sorted(missing)}"
+    return singles
 
 
 def _assert_discriminating(graph, single, names):
@@ -157,6 +230,21 @@ def test_working_combinations_follow_set_algebra():
                 cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             if not _or_is_broken(a, b):
                 cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
+            if not _not_composite_is_broken(a, b):
+                cases.append(
+                    (
+                        f"~({a} & {b})",
+                        ~(atoms[a] & atoms[b]),
+                        every - (single[a] & single[b]),
+                    )
+                )
+                cases.append(
+                    (
+                        f"~({a} | {b})",
+                        ~(atoms[a] | atoms[b]),
+                        every - (single[a] | single[b]),
+                    )
+                )
         for a in atoms:
             if not _not_is_broken(a):
                 cases.append((f"~{a}", ~atoms[a], every - single[a]))
@@ -308,6 +396,17 @@ def test_broken_combination_classes_are_still_broken():
             "not of a node filter is not the complement": (
                 ~atoms["node_name"],
                 every - single["node_name"],
+            ),
+            # Negating a composite that contains a view: the pairwise rules
+            # above only ever negate a single atom, so these shapes need their
+            # own representatives.
+            "not of an and containing a view loses the view": (
+                ~(atoms["edge_prop"] & atoms["layer"]),
+                every - (single["edge_prop"] & single["layer"]),
+            ),
+            "not of an or containing a view returns every edge": (
+                ~(atoms["edge_prop"] | atoms["layer"]),
+                every - (single["edge_prop"] | single["layer"]),
             ),
         }
         fixed = []
