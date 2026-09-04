@@ -230,7 +230,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut node_resolve_cache: Option<NodeResolveCache> = None;
 
-    for chunk in df_view.chunks.into_iter() {
+    for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {

@@ -277,6 +277,7 @@ pub fn load_nodes_from_df<
                 .storage()
                 .nodes()
                 .max_segment_len() as usize;
+
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
                 max_node_segment_len as u32,
@@ -291,12 +292,15 @@ pub fn load_nodes_from_df<
                     let node_rows = &rows_by_segment[segment_id];
 
                     if node_rows.is_empty() {
-                        // we need to graph a writer nevertheless as it may have old data that needs to flush
+                        // Grab a writer to force a drop -> flush check as the segment might have
+                        // writes from previous chunks that need to be flushed.
                         if shard.segment().is_dirty() {
                             let _writer = shard.writer();
                         }
+
                         return Ok::<_, GraphError>(());
                     }
+
                     // Zip all columns for iteration.
                     let zip = node_rows.iter().map(|&row| {
                         let vid = &src_vids[row];
@@ -311,6 +315,7 @@ pub fn load_nodes_from_df<
                     if resolve_nodes {
                         store_node_ids_and_type(&gid_str_cache, shard);
                     }
+
                     let mut writer = shard.writer();
 
                     for (row, vid, time, secondary_index) in zip {
@@ -341,6 +346,7 @@ pub fn load_nodes_from_df<
             #[cfg(feature = "progress")]
             let _ = pb.update(df.len());
         }
+
         Ok::<_, GraphError>(())
     })?;
 
