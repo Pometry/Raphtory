@@ -1,4 +1,3 @@
-use crate::rayon::default_express_threads;
 use field_types::FieldName;
 use serde::{Deserialize, Serialize};
 
@@ -45,10 +44,6 @@ pub struct ConcurrencyConfig {
     /// `None` means unlimited.
     pub max_page_size: Option<usize>,
 
-    /// Threads reserved for the express pool (health checks and cheap resolvers), taken out of
-    /// the compute pool so they stay responsive while heavy queries saturate it.
-    pub express_threads: usize,
-
     /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
     /// at least 2.
@@ -64,7 +59,6 @@ impl Default for ConcurrencyConfig {
             max_batch_size: Some(DEFAULT_MAX_BATCH_SIZE),
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
-            express_threads: default_express_threads(),
             max_concurrent_loads: None,
         }
     }

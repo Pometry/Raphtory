@@ -6,30 +6,10 @@ use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
 /// Process-global: set once by the first server, shared by every later one.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct PoolSettings {
-    /// Reserved for [`EXPRESS_POOL`], taken out of the compute pool.
-    pub express_threads: usize,
     /// Max graph loads decoding at once; bounds peak memory. `None` = cores / 4, at least 2.
     pub max_concurrent_loads: Option<usize>,
-}
-
-impl Default for PoolSettings {
-    fn default() -> Self {
-        PoolSettings {
-            express_threads: default_express_threads(),
-            max_concurrent_loads: None,
-        }
-    }
-}
-
-/// One thread below 8 cores, so a small machine keeps most of its compute pool.
-pub fn default_express_threads() -> usize {
-    if cores() >= 8 {
-        2
-    } else {
-        1
-    }
 }
 
 static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
@@ -62,16 +42,19 @@ pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
-        .num_threads(cores().saturating_sub(settings().express_threads).max(2))
+        .num_threads(cores().saturating_sub(EXPRESS_THREADS).max(2))
         .thread_name(|t| format!("RAP-compute-{t}"))
         .build()
         .unwrap()
 });
 
+/// Reserved out of the compute pool for work that must stay responsive while it is saturated.
+const EXPRESS_THREADS: usize = 1;
+
 /// Never submit graph work here — one scan removes the reservation for everything else.
 pub static EXPRESS_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
-        .num_threads(settings().express_threads.max(1))
+        .num_threads(EXPRESS_THREADS)
         .thread_name(|t| format!("RAP-express-{t}"))
         .build()
         .unwrap()

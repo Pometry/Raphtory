@@ -375,12 +375,6 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
-                            ConcurrencyConfigFieldName::ExpressThreads => {
-                                self.with_express_threads(
-                                    Deserialize::deserialize(value)
-                                        .map_err(|e| invalid_value([path, sub_path], e))?,
-                                );
-                            }
                             ConcurrencyConfigFieldName::MaxConcurrentLoads => {
                                 self.with_max_concurrent_loads(
                                     Deserialize::deserialize(value)
@@ -593,11 +587,6 @@ impl AppConfigBuilder {
 
     pub fn with_max_page_size(&mut self, max_page_size: Option<usize>) -> &mut Self {
         self.config.concurrency.max_page_size = max_page_size;
-        self
-    }
-
-    pub fn with_express_threads(&mut self, express_threads: usize) -> &mut Self {
-        self.config.concurrency.express_threads = express_threads;
         self
     }
 
