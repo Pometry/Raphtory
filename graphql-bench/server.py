@@ -20,15 +20,15 @@ if not os.path.exists(BIG_PATH):
     for start in range(0, BIG_NODES, chunk):
         hi = min(start + chunk, BIG_NODES)
         g.load_nodes(
-            pd.DataFrame({"id": np.arange(start, hi, dtype="uint64"), "time": 1}),
+            pd.DataFrame({"id": np.arange(start, hi).astype(str), "time": 1}),
             time="time",
             id="id",
         )
         g.load_edges(
             pd.DataFrame(
                 {
-                    "src": rng.integers(0, hi, size=hi - start, dtype="uint64"),
-                    "dst": rng.integers(0, hi, size=hi - start, dtype="uint64"),
+                    "src": rng.integers(0, hi, size=hi - start).astype(str),
+                    "dst": rng.integers(0, hi, size=hi - start).astype(str),
                     "time": 1,
                 }
             ),

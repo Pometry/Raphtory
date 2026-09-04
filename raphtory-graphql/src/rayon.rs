@@ -12,7 +12,7 @@ use tracing::warn;
 pub struct PoolSettings {
     /// Reserved for [`EXPRESS_POOL`], taken out of the compute pool.
     pub express_threads: usize,
-    /// Max queries running at once; the rest queue. `None` = half the compute threads.
+    /// Max queries running at once; the rest queue. `None` = one per compute thread.
     pub max_concurrent_queries: Option<usize>,
     /// Dispatch queued queries newest-first instead of FIFO.
     pub newest_first: bool,
@@ -117,7 +117,7 @@ const PROMOTE_EVERY: u64 = 4;
 fn max_concurrent() -> usize {
     settings()
         .max_concurrent_queries
-        .unwrap_or_else(|| (COMPUTE_POOL.current_num_threads() / 2).max(1))
+        .unwrap_or_else(|| COMPUTE_POOL.current_num_threads().max(1))
 }
 
 /// Take a queued job if an admission slot is free, counting it as running.

@@ -98,6 +98,23 @@ impl GraphWithVectors {
         });
         future.await
     }
+    /// Swap in a read-only handle for the graph. No-op with a warning if the inner
+    /// state is unexpectedly shared (only call right after construction).
+    pub(crate) fn into_read_only(self) -> Self {
+        match Arc::try_unwrap(self.inner) {
+            Ok(mut inner) => {
+                inner.graph = inner.graph.read_only();
+                Self {
+                    inner: Arc::new(inner),
+                }
+            }
+            Err(inner) => {
+                tracing::warn!("graph handle shared during load; serving it without read-only");
+                Self { inner }
+            }
+        }
+    }
+
     pub fn graph(&self) -> &MaterializedGraph {
         &self.inner.graph
     }

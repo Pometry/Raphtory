@@ -234,6 +234,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            CacheConfigFieldName::ReadOnly => {
+                                self.with_cache_read_only(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -534,6 +540,11 @@ impl AppConfigBuilder {
 
     pub fn with_cache_capacity(&mut self, cache_capacity: u64) -> &mut Self {
         self.config.cache.capacity = cache_capacity;
+        self
+    }
+
+    pub fn with_cache_read_only(&mut self, read_only: bool) -> &mut Self {
+        self.config.cache.read_only = read_only;
         self
     }
 
