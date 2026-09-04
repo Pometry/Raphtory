@@ -1,16 +1,10 @@
 use crate::python::{
     filter::{
-        edge_filter_builders::{
-            PyEdgeEndpoint, PyEdgeEndpointIdFilterBuilder, PyEdgeEndpointNameFilterBuilder,
-            PyEdgeEndpointTypeFilterBuilder, PyEdgeFilter,
-        },
-        exploded_edge_filter_builder::PyExplodedEdgeFilter,
+        edge_expr::{PyEdgeEndpoint, PyEdgeFilter},
+        exploded_edge_expr::PyExplodedEdgeFilter,
         filter_expr::PyFilterExpr,
         graph_filter::PyGraphFilter,
-        node_filter_builders::{
-            PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
-        },
-        property_filter_builders::{PyPropertyExprBuilder, PyPropertyFilterBuilder},
+        node_expr::PyNodeFilter,
     },
     types::iterable::FromIterable,
 };
@@ -20,12 +14,12 @@ use pyo3::{
 };
 use raphtory_api::core::entities::Layer;
 
-pub mod edge_filter_builders;
-pub mod exploded_edge_filter_builder;
+pub mod edge_expr;
+pub mod exploded_edge_expr;
 pub mod filter_expr;
 pub mod graph_filter;
-pub mod node_filter_builders;
-pub mod property_filter_builders;
+pub mod node_expr;
+pub(crate) mod wire;
 
 impl From<FromIterable<String>> for Layer {
     fn from(iter: FromIterable<String>) -> Self {
@@ -37,22 +31,22 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     let filter_module = PyModule::new(py, "filter")?;
 
     filter_module.add_class::<PyFilterExpr>()?;
-    filter_module.add_class::<PyPropertyExprBuilder>()?;
-    filter_module.add_class::<PyPropertyFilterBuilder>()?;
 
     filter_module.add_class::<PyNodeFilter>()?;
-    filter_module.add_class::<PyNodeIdFilterBuilder>()?;
-    filter_module.add_class::<PyNodeNameFilterBuilder>()?;
-    filter_module.add_class::<PyNodeTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
-    filter_module.add_class::<PyEdgeEndpointIdFilterBuilder>()?;
-    filter_module.add_class::<PyEdgeEndpointNameFilterBuilder>()?;
-    filter_module.add_class::<PyEdgeEndpointTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
     filter_module.add_class::<PyGraphFilter>()?;
+
+    // The entry points are instances: `filter.Edge.src()` chains through
+    // instance methods, so the module attributes shadow the classes with
+    // ready-made roots.
+    filter_module.add("Node", PyNodeFilter::root())?;
+    filter_module.add("Edge", PyEdgeFilter::root())?;
+    filter_module.add("ExplodedEdge", PyExplodedEdgeFilter::root())?;
+    filter_module.add("Graph", PyGraphFilter::root())?;
 
     Ok(filter_module)
 }

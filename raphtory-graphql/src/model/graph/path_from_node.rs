@@ -17,10 +17,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{
-            path::PathFromNode,
-            views::filter::model::{CompositeNodeFilter, DynFilter},
-        },
+        graph::{path::PathFromNode, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -535,7 +532,7 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
+            let nf = GqlFilter::Node(expr);
             let narrowed = blocking_compute(move || base.select(nf)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
@@ -550,7 +547,7 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
+            let nf = GqlFilter::Node(expr);
             let narrowed = blocking_compute(move || base.select(nf)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
@@ -565,7 +562,7 @@ impl GqlPathFromNode {
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
+            let nf = GqlFilter::Node(expr);
             let narrowed = blocking_compute(move || base.select(nf)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }

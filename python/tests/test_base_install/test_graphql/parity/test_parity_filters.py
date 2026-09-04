@@ -450,6 +450,11 @@ VIEW_EXPRS = {
     "view.and_mixed": lambda: f.Graph.window(2, 8)
     & (f.Node.node_type() != "bot")
     & f.Edge.property("weight").is_some(),
+    # window+latest does not commute: these two must stay distinct on both
+    # sides (the wire nests views in application order; a regression here
+    # inverts the chain remotely while local stays correct).
+    "view.chain_window_latest": lambda: f.Graph.window(2, 5).latest(),
+    "view.chain_latest_window": lambda: f.Graph.latest().window(11, 13),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -468,6 +473,13 @@ SCOPED_EXPRS = {
     "scoped.node.layers": lambda: f.Node.layers(["knows", "works"]).property("score")
     > 15,
     "scoped.node.metadata": lambda: f.Node.window(1, 6).metadata("region") == "eu",
+    # Non-commuting view chains (see view.chain_window_latest above).
+    "scoped.node.window_then_latest": (
+        lambda: f.Node.window(1, 6).latest().property("score") > 1
+    ),
+    "scoped.node.latest_then_window": (
+        lambda: f.Node.latest().window(11, 13).property("score") > 15
+    ),
     "scoped.node.is_active": lambda: f.Node.window(1, 3).is_active(),
     "scoped.edge.window": lambda: f.Edge.window(2, 5).property("weight") > 2.0,
     "scoped.edge.at": lambda: f.Edge.at(3).property("weight") > 2.0,
@@ -482,6 +494,13 @@ SCOPED_EXPRS = {
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
     "scoped.edge.is_deleted": lambda: f.Edge.window(2, 11).is_deleted(),
     "scoped.exploded.is_valid": lambda: f.ExplodedEdge.window(2, 4).is_valid(),
+    # Non-commuting view chains (see view.chain_window_latest above).
+    "scoped.edge.window_then_latest": (
+        lambda: f.Edge.window(2, 6).latest().property("weight") > 2.0
+    ),
+    "scoped.edge.latest_then_window": (
+        lambda: f.Edge.latest().window(11, 13).property("weight") > 2.0
+    ),
 }
 
 PREDICATE_EXPRS = {
@@ -1032,6 +1051,11 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
+    # One element on purpose: the wire carries sets unordered, so with several
+    # bad values local and server may name different offenders in the error.
+    "reject.is_in_mistyped_values": lambda: f.Node.property("score").is_in(
+        ["banana"]
+    ),
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 
@@ -1113,29 +1137,6 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
         f"  local : {local_exc.value}\n"
         f"  remote: {remote_exc.value}"
     )
-
-
-def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
-    """`is_in` with values of the wrong type is empty, not an error.
-
-    Unlike `>` against a mistyped value — which both sides reject — a mistyped
-    `is_in` list is accepted and simply matches no node. That asymmetry is
-    surprising enough to pin, and it has to be the *same* surprise on both
-    sides, since a caller cannot tell "no matches" from "bad query" otherwise.
-    """
-    build = lambda: f.Node.property("score").is_in(["not", "numbers"])
-    assert_parity(
-        filter_pair, lambda g: sorted(n.name for n in g.filter(build()).nodes)
-    )
-
-    for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
-    ):
-        assert [n.name for n in side.filter(build()).nodes] == [], (
-            f"{side_name}: a mistyped is_in matched nodes; if this now raises "
-            f"or filters, move the case into REJECTED_EXPRS"
-        )
 
 
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now

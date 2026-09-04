@@ -14,10 +14,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue}
 use raphtory::{
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{
-            path::PathFromGraph,
-            views::filter::model::{CompositeNodeFilter, DynFilter},
-        },
+        graph::{path::PathFromGraph, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -546,7 +543,7 @@ impl GqlPathFromGraph {
     pub async fn neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
+            let nf = GqlFilter::Node(expr);
             let narrowed = blocking_compute(move || base.select(nf)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
@@ -558,7 +555,7 @@ impl GqlPathFromGraph {
     pub async fn in_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
+            let nf = GqlFilter::Node(expr);
             let narrowed = blocking_compute(move || base.select(nf)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
@@ -570,7 +567,7 @@ impl GqlPathFromGraph {
     pub async fn out_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
+            let nf = GqlFilter::Node(expr);
             let narrowed = blocking_compute(move || base.select(nf)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }

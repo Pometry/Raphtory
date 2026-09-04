@@ -4950,9 +4950,16 @@ mod tests {
     #[tokio::test]
     async fn test_filtered_collect_matches_columnar_reads() {
         use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::db::{
-            api::storage::storage::Config,
-            graph::views::filter::model::node_filter::CompositeNodeFilter,
+        use raphtory::{
+            db::{
+                api::storage::storage::Config,
+                graph::views::filter::model::{
+                    node_filter::{CompositeNodeFilter, NodeFilter},
+                    property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef},
+                    FilterOperator,
+                },
+            },
+            prelude::Prop,
         };
         use reqwest::Url;
         use std::collections::HashMap as Map;
@@ -5048,7 +5055,13 @@ mod tests {
         // select() narrows membership only — handles see the unfiltered graph.
         // Passed as a composite to pin that kind-typed callers still satisfy
         // the widened `TryInto<GqlFilter>` bound.
-        let score_gt_15_composite = CompositeNodeFilter::try_from(score_gt_15.clone()).unwrap();
+        let score_gt_15_composite = CompositeNodeFilter::Property(PropertyFilter {
+            prop_ref: PropertyRef::Property("score".into()),
+            prop_value: PropertyFilterValue::Single(Prop::I64(15)),
+            operator: FilterOperator::Gt,
+            ops: vec![],
+            entity: NodeFilter,
+        });
         let selected = rg.nodes().select(score_gt_15_composite).unwrap();
         let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();

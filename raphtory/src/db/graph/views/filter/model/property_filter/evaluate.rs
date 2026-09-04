@@ -1,5 +1,9 @@
-use crate::{db::graph::views::filter::model::Op, prelude::PropertyFilter};
-use raphtory_api::core::{entities::properties::prop::Prop, utils::generalised_reduce};
+use crate::{db::graph::views::filter::model::property_filter::Op, prelude::PropertyFilter};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType},
+    utils::generalised_reduce,
+};
+use std::borrow::Borrow;
 
 enum ValueType {
     Seq(Vec<Prop>),
@@ -327,5 +331,101 @@ impl<M> PropertyFilter<M> {
     pub fn eval_temporal_and_apply(&self, props: Vec<Prop>) -> bool {
         let (r, s, q, is_t) = self.eval_ops(ValueType::Seq(props));
         self.apply_eval(r, s, q, is_t)
+    }
+}
+
+// ── numeric scan helpers for expr aggregates ──
+
+pub fn scan_u64_sum<P: Borrow<Prop>>(
+    vals: impl IntoIterator<Item = P>,
+) -> Option<(bool, u64, u128, usize)> {
+    let mut sum64: u64 = 0;
+    let mut sum128: u128 = 0;
+    let mut promoted = false;
+    let mut count = 0usize;
+
+    for p in vals {
+        let p = p.borrow();
+        let x = p.as_u64_lossless()?;
+        if !promoted {
+            if let Some(s) = sum64.checked_add(x) {
+                sum64 = s;
+            } else {
+                promoted = true;
+                sum128 = (sum64 as u128) + (x as u128);
+            }
+        } else {
+            sum128 += x as u128;
+        }
+        count += 1;
+    }
+    Some((promoted, sum64, sum128, count))
+}
+
+pub fn scan_i64_sum<P: Borrow<Prop>>(
+    vals: impl IntoIterator<Item = P>,
+) -> Option<(bool, i64, i128, usize)> {
+    let mut sum64: i64 = 0;
+    let mut sum128: i128 = 0;
+    let mut promoted = false;
+    let mut count = 0;
+
+    for p in vals {
+        let p = p.borrow();
+        let x = p.as_i64_lossless()?;
+        if !promoted {
+            if let Some(s) = sum64.checked_add(x) {
+                sum64 = s;
+            } else {
+                promoted = true;
+                sum128 = (sum64 as i128) + (x as i128);
+            }
+        } else {
+            sum128 += x as i128;
+        }
+        count += 1;
+    }
+    Some((promoted, sum64, sum128, count))
+}
+
+pub fn scan_f64_sum_count<P: Borrow<Prop>>(
+    vals: impl IntoIterator<Item = P>,
+) -> Option<(f64, u64)> {
+    let mut sum = 0.0f64;
+    let mut count = 0u64;
+    for p in vals {
+        let p = p.borrow();
+        let x = p.as_f64_lossless()?;
+        if !x.is_finite() {
+            return None;
+        }
+        sum += x;
+        count += 1;
+    }
+    Some((sum, count))
+}
+
+/// List-aware aggregation for the expr layer: descends one level into list
+/// properties and applies `op` per element list.
+pub fn aggregate_list_values(
+    vals: Option<Prop>,
+    op: &dyn Fn(Box<dyn Iterator<Item = Prop>>) -> Option<Prop>,
+) -> Option<Prop> {
+    match vals? {
+        Prop::List(x) => match x.dtype() {
+            PropType::List(_) => {
+                let s = x
+                    .iter_all()
+                    .map(|y| aggregate_list_values(y, op))
+                    .flatten()
+                    .collect();
+                Some(Prop::List(s))
+            }
+            _ => {
+                let items: Vec<Prop> = x.iter().collect();
+                op(Box::new(items.into_iter()))
+            }
+        },
+        _ => None,
     }
 }

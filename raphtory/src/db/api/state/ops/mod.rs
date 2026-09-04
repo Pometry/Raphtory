@@ -3,20 +3,30 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::db::api::{
-    state::ops::filter::{AndOp, NotOp, OrOp},
-    view::internal::NodeList,
+use crate::db::{
+    api::{
+        state::ops::filter::{AndOp, NotOp, OrOp},
+        view::internal::NodeList,
+    },
+    graph::views::filter::model::{node_expr::BinaryCmpNodeOp, BinaryOp, Comparable},
 };
 pub use history::*;
 pub use node::*;
 pub use properties::*;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::prop::PropType, VID};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
+// this probably needs the 'graph lifetime to make bin_cmp work with ops that capture the graph
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
+
+    /// The output type of this operation used for validation.
+    /// Returns `PropType::Empty` by default (unknown type).
+    fn prop_type(&self) -> PropType {
+        PropType::Empty
+    }
 
     /// The domain of validity for this node op
     fn domain(&self, _storage: &GraphStorage) -> NodeList;
@@ -39,7 +49,41 @@ pub trait NodeOp: Send + Sync {
     {
         Map { op: self, map }
     }
+
+    /// Override if binary comparison can be optimized
+    fn bin_cmp(
+        &self,
+        op: BinaryOp,
+        rhs: Arc<dyn NodeOp<Output = Self::Output>>,
+    ) -> Arc<dyn NodeOp<Output = bool>>
+    where
+        Self: Clone + 'static,
+        Self::Output: Comparable,
+    {
+        Arc::new(BinaryCmpNodeOp {
+            left: Arc::new(self.clone()),
+            right: rhs,
+            op,
+        })
+    }
 }
+
+// impl<T: NodeOp + Clone> EntityExpr for T {
+//     type Marker = NodeFilter;
+//
+//     fn entity(&self) -> Self::Marker {
+//         NodeFilter
+//     }
+// }
+//
+// impl<T: NodeOp + Clone> CreateOp for T {
+//     fn create_node_op<'g, G: GraphView + 'g>(
+//         &self,
+//         _graph: G,
+//     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+//         Ok(Arc::new(self.clone()))
+//     }
+// }
 
 pub trait IntoArrowNodeOp: NodeOp + Sized {
     fn into_arrow_node_op<A: InputNodeStateValue<Self::Output>>(self) -> ArrowMap<Self, A> {
@@ -140,6 +184,10 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
         self.op.domain(storage)
     }
 
+    fn prop_type(&self) -> PropType {
+        self.op.prop_type()
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         (self.map)(self.op.apply(storage, node))
     }
@@ -172,6 +220,10 @@ impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     type Output = V;
     fn apply(&self, storage: &GraphStorage, node: VID) -> V {
         self.deref().apply(storage, node)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.deref().prop_type()
     }
 
     fn const_value(&self) -> Option<Self::Output> {

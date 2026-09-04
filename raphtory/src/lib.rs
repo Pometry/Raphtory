@@ -144,9 +144,7 @@ pub mod prelude {
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        filter::Filter,
-                        node_filter::{ops::*, NodeFilter},
-                        property_filter::{ops::PropertyFilterOps, PropertyFilter},
+                        filter::Filter, node_filter::NodeFilter, property_filter::PropertyFilter,
                         EdgeFilter,
                     },
                     property_redacted_graph::PropertyRedaction,
@@ -155,6 +153,11 @@ pub mod prelude {
             },
         },
     };
+
+    pub use crate::db::graph::views::filter::model::{
+        node_filter::NodeFilterFactory, EntityAggOps, EntityExprFilterOps,
+    };
+
     pub use storage::{persist::config::ConfigOps, Config};
 
     #[cfg(feature = "io")]

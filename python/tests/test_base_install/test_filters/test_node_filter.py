@@ -342,94 +342,96 @@ def test_degree_filter_is_not_in(value):
 def test_degree_filter_with_invalid_expressions():
     graph = degree_graph_with_add_node_and_add_edge(Graph())
     invalid_filters = [
-        filter.Node.degree().is_none(),
-        filter.Node.degree().is_some(),
-        filter.Node.degree().starts_with("1"),
-        filter.Node.degree().ends_with("1"),
-        filter.Node.degree().contains("1"),
-        filter.Node.degree().not_contains("1"),
-        filter.Node.degree().fuzzy_search("1", 1, False),
-        filter.Node.in_degree().is_none(),
-        filter.Node.in_degree().is_some(),
-        filter.Node.in_degree().starts_with("1"),
-        filter.Node.in_degree().ends_with("1"),
-        filter.Node.in_degree().contains("1"),
-        filter.Node.in_degree().not_contains("1"),
-        filter.Node.in_degree().fuzzy_search("1", 1, False),
-        filter.Node.out_degree().is_none(),
-        filter.Node.out_degree().is_some(),
-        filter.Node.out_degree().starts_with("1"),
-        filter.Node.out_degree().ends_with("1"),
-        filter.Node.out_degree().contains("1"),
-        filter.Node.out_degree().not_contains("1"),
-        filter.Node.out_degree().fuzzy_search("1", 1, False),
-        filter.Node.degree().any() == 1,
-        filter.Node.degree().all() == 1,
-        filter.Node.degree().len() > 0,
-        filter.Node.degree().sum() == 1,
-        filter.Node.degree().avg() == 1,
-        filter.Node.degree().min() == 1,
-        filter.Node.degree().max() == 1,
-        filter.Node.degree().first() == 1,
-        filter.Node.degree().last() == 1,
-        filter.Node.in_degree().any() == 1,
-        filter.Node.in_degree().all() == 1,
-        filter.Node.in_degree().len() > 0,
-        filter.Node.in_degree().sum() == 1,
-        filter.Node.in_degree().avg() == 1,
-        filter.Node.in_degree().min() == 1,
-        filter.Node.in_degree().max() == 1,
-        filter.Node.in_degree().first() == 1,
-        filter.Node.in_degree().last() == 1,
-        filter.Node.out_degree().any() == 1,
-        filter.Node.out_degree().all() == 1,
-        filter.Node.out_degree().len() > 0,
-        filter.Node.out_degree().sum() == 1,
-        filter.Node.out_degree().avg() == 1,
-        filter.Node.out_degree().min() == 1,
-        filter.Node.out_degree().max() == 1,
-        filter.Node.out_degree().first() == 1,
-        filter.Node.out_degree().last() == 1,
+        lambda: filter.Node.degree().is_none(),
+        lambda: filter.Node.degree().is_some(),
+        lambda: filter.Node.degree().starts_with("1"),
+        lambda: filter.Node.degree().ends_with("1"),
+        lambda: filter.Node.degree().contains("1"),
+        lambda: filter.Node.degree().not_contains("1"),
+        lambda: filter.Node.degree().fuzzy_search("1", 1, False),
+        lambda: filter.Node.in_degree().is_none(),
+        lambda: filter.Node.in_degree().is_some(),
+        lambda: filter.Node.in_degree().starts_with("1"),
+        lambda: filter.Node.in_degree().ends_with("1"),
+        lambda: filter.Node.in_degree().contains("1"),
+        lambda: filter.Node.in_degree().not_contains("1"),
+        lambda: filter.Node.in_degree().fuzzy_search("1", 1, False),
+        lambda: filter.Node.out_degree().is_none(),
+        lambda: filter.Node.out_degree().is_some(),
+        lambda: filter.Node.out_degree().starts_with("1"),
+        lambda: filter.Node.out_degree().ends_with("1"),
+        lambda: filter.Node.out_degree().contains("1"),
+        lambda: filter.Node.out_degree().not_contains("1"),
+        lambda: filter.Node.out_degree().fuzzy_search("1", 1, False),
+        lambda: filter.Node.degree().any() == 1,
+        lambda: filter.Node.degree().all() == 1,
+        lambda: filter.Node.degree().len() > 0,
+        lambda: filter.Node.degree().sum() == 1,
+        lambda: filter.Node.degree().avg() == 1,
+        lambda: filter.Node.degree().min() == 1,
+        lambda: filter.Node.degree().max() == 1,
+        lambda: filter.Node.degree().first() == 1,
+        lambda: filter.Node.degree().last() == 1,
+        lambda: filter.Node.in_degree().any() == 1,
+        lambda: filter.Node.in_degree().all() == 1,
+        lambda: filter.Node.in_degree().len() > 0,
+        lambda: filter.Node.in_degree().sum() == 1,
+        lambda: filter.Node.in_degree().avg() == 1,
+        lambda: filter.Node.in_degree().min() == 1,
+        lambda: filter.Node.in_degree().max() == 1,
+        lambda: filter.Node.in_degree().first() == 1,
+        lambda: filter.Node.in_degree().last() == 1,
+        lambda: filter.Node.out_degree().any() == 1,
+        lambda: filter.Node.out_degree().all() == 1,
+        lambda: filter.Node.out_degree().len() > 0,
+        lambda: filter.Node.out_degree().sum() == 1,
+        lambda: filter.Node.out_degree().avg() == 1,
+        lambda: filter.Node.out_degree().min() == 1,
+        lambda: filter.Node.out_degree().max() == 1,
+        lambda: filter.Node.out_degree().first() == 1,
+        lambda: filter.Node.out_degree().last() == 1,
     ]
 
-    for filter_expr in invalid_filters:
-        with pytest.raises(Exception, match=r"Invalid filter"):
-            graph.filter(filter_expr).nodes.id
+    for make_filter in invalid_filters:
+        with pytest.raises(Exception, match=r"Invalid filter|not comparable"):
+            graph.filter(make_filter()).nodes.id
 
 
 @pytest.mark.parametrize("value_a, value_b", [("a", "b"), ("foo", "bar")])
 def test_degree_filter_with_invalid_string_values(value_a, value_b):
     graph = degree_graph_with_add_node_and_add_edge(Graph())
     invalid_filters = [
-        filter.Node.degree() < value_a,
-        filter.Node.degree() <= value_a,
-        filter.Node.degree() == value_a,
-        filter.Node.degree() != value_a,
-        filter.Node.degree() >= value_a,
-        filter.Node.degree() > value_a,
-        filter.Node.in_degree() < value_a,
-        filter.Node.in_degree() <= value_a,
-        filter.Node.in_degree() == value_a,
-        filter.Node.in_degree() != value_a,
-        filter.Node.in_degree() >= value_a,
-        filter.Node.in_degree() > value_a,
-        filter.Node.out_degree() < value_a,
-        filter.Node.out_degree() <= value_a,
-        filter.Node.out_degree() == value_a,
-        filter.Node.out_degree() != value_a,
-        filter.Node.out_degree() >= value_a,
-        filter.Node.out_degree() > value_a,
-        filter.Node.degree().is_in([value_a, value_b]),
-        filter.Node.degree().is_not_in([value_a, value_b]),
-        filter.Node.in_degree().is_in([value_a, value_b]),
-        filter.Node.in_degree().is_not_in([value_a, value_b]),
-        filter.Node.out_degree().is_in([value_a, value_b]),
-        filter.Node.out_degree().is_not_in([value_a, value_b]),
+        lambda: filter.Node.degree() < value_a,
+        lambda: filter.Node.degree() <= value_a,
+        lambda: filter.Node.degree() == value_a,
+        lambda: filter.Node.degree() != value_a,
+        lambda: filter.Node.degree() >= value_a,
+        lambda: filter.Node.degree() > value_a,
+        lambda: filter.Node.in_degree() < value_a,
+        lambda: filter.Node.in_degree() <= value_a,
+        lambda: filter.Node.in_degree() == value_a,
+        lambda: filter.Node.in_degree() != value_a,
+        lambda: filter.Node.in_degree() >= value_a,
+        lambda: filter.Node.in_degree() > value_a,
+        lambda: filter.Node.out_degree() < value_a,
+        lambda: filter.Node.out_degree() <= value_a,
+        lambda: filter.Node.out_degree() == value_a,
+        lambda: filter.Node.out_degree() != value_a,
+        lambda: filter.Node.out_degree() >= value_a,
+        lambda: filter.Node.out_degree() > value_a,
+        lambda: filter.Node.degree().is_in([value_a, value_b]),
+        lambda: filter.Node.degree().is_not_in([value_a, value_b]),
+        lambda: filter.Node.in_degree().is_in([value_a, value_b]),
+        lambda: filter.Node.in_degree().is_not_in([value_a, value_b]),
+        lambda: filter.Node.out_degree().is_in([value_a, value_b]),
+        lambda: filter.Node.out_degree().is_not_in([value_a, value_b]),
     ]
 
-    for filter_expr in invalid_filters:
-        with pytest.raises(Exception, match=r"Invalid filter"):
-            graph.filter(filter_expr).nodes.id
+    for make_filter in invalid_filters:
+        # Mistyped constants fail at the comparison when the expression type is
+        # statically known, and at filter() otherwise.
+        with pytest.raises(Exception, match=r"Invalid filter|not comparable"):
+            graph.filter(make_filter()).nodes.id
 
 
 @pytest.mark.parametrize("value", range(0, 15))
@@ -1120,7 +1122,7 @@ def test_filter_nodes_with_str_ids_error():
         filter_expr = filter.Node.id() == 3
         with pytest.raises(
             Exception,
-            match='Invalid filter: Filter value type does not match node ID type. Expected Str but got "U64"',
+            match=r"Invalid filter: value I64\(3\) of type I64 cannot be coerced to Str",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1130,12 +1132,10 @@ def test_filter_nodes_with_str_ids_error():
 @with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_error():
     def check(graph):
+        # A numeric string coerces to the numeric id type, consistent with the
+        # castable-constant rule used across the expression comparisons.
         filter_expr = filter.Node.id() == "3"
-        with pytest.raises(
-            Exception,
-            match='Invalid filter: Filter value type does not match node ID type. Expected U64 but got "Str"',
-        ):
-            graph.filter(filter_expr).nodes.id
+        assert sorted(graph.filter(filter_expr).nodes.id) == [3]
 
     return check
 
@@ -1290,8 +1290,14 @@ def test_filter_nodes_by_column():
 @with_variants(init_graph)
 def test_filter_nodes_for_node_name_all_is_invalid():
     def check(graph):
-        with pytest.raises(AttributeError, match=r"has no attribute 'all'"):
-            filter.Node.name().all()
+        # The expression builds (the python surface is one Expr type); applying
+        # it rejects the qualifier on a scalar field.
+        filter_expr = filter.Node.name().all() == True
+        with pytest.raises(
+            Exception,
+            match=r"any\(\)/all\(\) require list or temporal values, found Str",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -1299,7 +1305,11 @@ def test_filter_nodes_for_node_name_all_is_invalid():
 @with_variants(init_graph)
 def test_filter_nodes_for_node_name_len_is_invalid():
     def check(graph):
-        with pytest.raises(AttributeError, match=r"has no attribute 'len'"):
-            filter.Node.name().len()
+        filter_expr = filter.Node.name().len() == 1
+        with pytest.raises(
+            Exception,
+            match=r"len\(\) is not valid on a scalar expression of type Str",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check

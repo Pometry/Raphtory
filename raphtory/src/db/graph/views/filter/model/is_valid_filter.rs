@@ -3,12 +3,7 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
-                edge_filtered_graph::EdgeFilteredGraph,
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
-                },
-                CreateFilter,
+                edge_filtered_graph::EdgeFilteredGraph, model::ComposableFilter, CreateFilter,
             },
             valid_graph::ValidGraph,
         },
@@ -73,18 +68,37 @@ impl CreateFilter for IsValidEdge {
 
 impl ComposableFilter for IsValidEdge {}
 
-impl TryAsCompositeFilter for IsValidEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+// ── expr layer: the predicate as a boolean expression over the eval view ──
+
+use crate::db::graph::views::filter::model::{
+    edge_expr::{ops::IsValidEdgePropOp, EdgeOp},
+    edge_filter::EdgeFilter as EdgeFilterMarker,
+    node_expr::{CreateOp, EntityExpr},
+};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::sync::Arc;
+
+impl EntityExpr for IsValidEdge {
+    type Marker = EdgeFilterMarker;
+
+    fn entity(&self) -> EdgeFilterMarker {
+        EdgeFilterMarker
     }
 
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge))
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
     }
 
-    fn try_as_composite_exploded_edge_filter(
+    fn nullable(&self) -> bool {
+        false
+    }
+}
+
+impl CreateOp for IsValidEdge {
+    fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsValidEdge(IsValidEdge))
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
+        Ok(Arc::new(IsValidEdgePropOp { graph }))
     }
 }

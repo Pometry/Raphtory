@@ -332,8 +332,11 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
-    #[error("Node filter expected")]
+    #[error("Expression is not a node filter")]
     NotNodeFilter,
+
+    #[error("Expression is not an edge filter")]
+    NotEdgeFilter,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
