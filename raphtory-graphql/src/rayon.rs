@@ -7,21 +7,16 @@ use std::{
 use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
-/// How the compute pool schedules query work. The pools are process-global statics, so this is
-/// set once from the first server's `ConcurrencyConfig`; every later server in the process shares it.
+/// Process-global: set once by the first server, shared by every later one.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PoolSettings {
-    /// Threads taken out of the compute pool and reserved for [`EXPRESS_POOL`].
+    /// Reserved for [`EXPRESS_POOL`], taken out of the compute pool.
     pub express_threads: usize,
-    /// Maximum number of [`blocking_compute`] closures executing at once; further submissions
-    /// queue in the [`SCHEDULER`]. `None` = half the compute pool's threads.
+    /// Max queries running at once; the rest queue. `None` = half the compute threads.
     pub max_concurrent_queries: Option<usize>,
-    /// When true, queued submissions are dispatched newest-first (with rationed promotion of old
-    /// waiters — see [`pump`]); when false, strictly first-in first-out.
+    /// Dispatch queued queries newest-first instead of FIFO.
     pub newest_first: bool,
-    /// Maximum graph loads decoding at once via [`blocking_load`]. Each in-flight load holds a
-    /// whole graph in memory, so this bounds peak memory during a load stampede.
-    /// `None` = cores / 4, at least 2.
+    /// Max graph loads decoding at once; bounds peak memory. `None` = cores / 4, at least 2.
     pub max_concurrent_loads: Option<usize>,
 }
 
@@ -36,8 +31,7 @@ impl Default for PoolSettings {
     }
 }
 
-/// Two reserved threads on an 8+-core machine; one below that, so a small machine does not give
-/// up a large share of its compute pool for the reservation.
+/// One thread below 8 cores, so a small machine keeps most of its compute pool.
 pub fn default_express_threads() -> usize {
     if cores() >= 8 {
         2
@@ -49,8 +43,7 @@ const PROMOTE_AFTER: Duration = Duration::from_secs(1);
 
 static SETTINGS: OnceLock<PoolSettings> = OnceLock::new();
 
-/// First caller wins (the pools are process-global); a later, different configuration is ignored
-/// with a warning.
+/// First caller wins; a later, different configuration is ignored with a warning.
 pub fn configure_pools(settings: PoolSettings) {
     let applied = SETTINGS.get_or_init(|| settings.clone());
     if *applied != settings {
@@ -84,9 +77,7 @@ pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Threads reserved for work that must stay responsive while the compute pool is saturated:
-/// the `/health` round-trip and cheap store/metadata resolvers. Nothing submitted here may do
-/// graph work — one scan on this pool removes the reservation for everything else.
+/// Never submit graph work here — one scan removes the reservation for everything else.
 pub static EXPRESS_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .num_threads(settings().express_threads.max(1))
@@ -120,10 +111,7 @@ static SCHEDULER: LazyLock<Mutex<Scheduler>> = LazyLock::new(|| {
     })
 });
 
-/// One dispatch in this many takes the oldest waiter (if older than [`PROMOTE_AFTER`]) instead of
-/// the newest. Promotion must be rationed: under a sustained backlog the front of the queue is
-/// always old, so promoting it on every dispatch is exactly first-in first-out and newest-first
-/// never happens.
+/// Rationed: under a backlog the queue front is always old, so promoting it every dispatch is FIFO.
 const PROMOTE_EVERY: u64 = 4;
 
 fn max_concurrent() -> usize {
@@ -132,11 +120,7 @@ fn max_concurrent() -> usize {
         .unwrap_or_else(|| (COMPUTE_POOL.current_num_threads() / 2).max(1))
 }
 
-/// Dispatch queued jobs until every admission slot is in use, then return; runs again after each
-/// job completes and on every submission. Admission (at most [`max_concurrent`] jobs running)
-/// stops queries time-sharing the whole pool, so a slot frees as soon as one query finishes;
-/// newest-first dispatch then hands that slot to the most recently submitted query, so a short
-/// query arriving into a backlog waits for one slot, not for the whole backlog to drain.
+/// Fill free admission slots from the queue; runs on every submission and completion.
 fn pump() {
     loop {
         let job = {
@@ -168,9 +152,7 @@ fn pump() {
     }
 }
 
-/// Run `closure` on the compute pool, scheduled: the job queues in the [`SCHEDULER`] and starts
-/// when an admission slot is free, dispatched newest-first (see [`pump`]). Use for query work,
-/// which may be arbitrarily heavy.
+/// Query work: queues for an admission slot on the compute pool, dispatched newest-first.
 pub async fn blocking_compute<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> R {
@@ -195,10 +177,7 @@ static LOAD_PERMITS: LazyLock<Semaphore> = LazyLock::new(|| {
     Semaphore::new(permits.max(1))
 });
 
-/// Run a graph load: on tokio's blocking pool (so it never holds a query admission slot), bounded
-/// by [`LOAD_PERMITS`] (each in-flight load holds a decoded graph in memory, so unbounded
-/// concurrency is a memory blow-up under a load stampede). Internal parallelism uses rayon's
-/// global pool, which the query path never touches.
+/// Graph loads: off the query pools, bounded because each in-flight load holds a whole graph.
 pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
     let _permit = LOAD_PERMITS
         .acquire()
@@ -209,8 +188,7 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
         .expect("graph load panicked")
 }
 
-/// Run `closure` immediately on the reserved [`EXPRESS_POOL`], bypassing the scheduler. Only for
-/// work that is always cheap (health checks, store/metadata reads) — never graph work.
+/// Immediate, bypassing the scheduler. Only for always-cheap work — never graph work.
 pub async fn blocking_express<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(
     closure: F,
 ) -> R {
@@ -299,7 +277,6 @@ mod deadlock_tests {
 mod scheduler_tests {
     use super::*;
 
-    /// A short task submitted behind a backlog of long ones runs long before the backlog drains.
     #[tokio::test(flavor = "multi_thread")]
     async fn a_new_short_task_jumps_a_heavy_backlog() {
         let _serial = TEST_SERIAL.lock();
