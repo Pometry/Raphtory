@@ -1335,11 +1335,17 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             let values = to_record_batch(&fields, &values).unwrap();
             Self::new_from_values(graph, values, node_cols)
         } else {
-            let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = graph
-                .nodes()
-                .iter()
-                .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
+            let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = values
+                .into_iter()
+                .filter_map(|(node, value)| {
+                    if graph.has_node(node) {
+                        Some((node, map(value)))
+                    } else {
+                        None
+                    }
+                })
                 .unzip();
+
             let values = to_record_batch(&fields, &values).unwrap();
             Self::new(graph.clone(), values, Index::new(index), node_cols)
         }
