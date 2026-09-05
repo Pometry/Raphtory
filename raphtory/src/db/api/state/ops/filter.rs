@@ -167,16 +167,9 @@ impl NodeNameFilterOp {
 }
 
 impl NodeNameFilterOp {
-    /// A node's name is its external id, stored as a metadata property at
-    /// `NODE_ID_PROP_ID`, so a secondary index over that column can serve the
+    /// A node's name is its external id (GID), so an index over it can serve the
     /// pattern operators — the ones `domain` would otherwise answer with
     /// `All`, i.e. a scan of every node.
-    ///
-    /// Only the pattern operators: `Eq`/`IsIn` are already resolved by the id
-    /// resolver, which beats any index. Candidates are never claimed exact —
-    /// metadata columns carry no latest-value flags — so `apply` still checks
-    /// every one, and a graph with numeric ids simply gets `Unservable` back
-    /// from a string predicate and scans.
     fn index_candidates(&self, storage: &GraphStorage) -> Option<NodeGlobalPropCandidates> {
         let FilterValue::Single(pattern) = &self.filter.field_value else {
             return None;
