@@ -1,3 +1,4 @@
+use quad_rand::ChooseRandom;
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     errors::GraphError,
@@ -5,13 +6,25 @@ use raphtory::{
     prelude::*,
 };
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::{Duration, Instant},
+};
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
 fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
     parquet_dir.join(format!("{}.parquet", name))
 }
 
+use raphtory::{
+    algorithms::{
+        components::{in_component, out_component},
+        pathing::dijkstra::dijkstra_single_source_shortest_paths,
+    },
+    db::{api::view::Filter, graph::views::filter::model::PropertyFilterFactory},
+};
+use raphtory_api::core::Direction;
+use raphtory_storage::core_ops::CoreGraphOps;
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
 
@@ -148,7 +161,7 @@ fn load_snb_graph_v2(
 /// Load SNB data from Parquet files into a Raphtory Graph.
 fn load_snb_graph(
     parquet_dir: &Path,
-    filter: Option<Filter>,
+    filter: Option<NodeEdgeFilter>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let node_inputs = [
@@ -453,7 +466,7 @@ fn load_snb_graph(
 }
 
 #[derive(Deserialize)]
-struct Filter {
+struct NodeEdgeFilter {
     nodes: Option<Vec<String>>,
     edges: Option<Vec<String>>,
 }
@@ -465,7 +478,7 @@ fn main() {
         .unwrap_or_else(|| panic!("Usage: snb_loader <data_dir>"));
     let filter = std::env::args()
         .nth(2)
-        .map(|s| serde_json::from_str::<Filter>(&s))
+        .map(|s| serde_json::from_str::<NodeEdgeFilter>(&s))
         .transpose()
         .unwrap();
 
@@ -473,10 +486,125 @@ fn main() {
         .nth(3)
         .map(|graph| PathBuf::from(graph))
         .unwrap_or_else(|| parquet_dir.join("..").join("graph"));
-    let graph = if !graph_path.exists() {
-        Graph::new_at_path(&graph_path).unwrap()
+    if !graph_path.exists() {
+        let graph = Graph::new_at_path(&graph_path).unwrap();
+        load_snb_graph(&parquet_dir, filter, &graph).unwrap()
     } else {
-        Graph::load(&graph_path).unwrap()
+        let graph = Graph::load(&graph_path).unwrap();
+        let graph = graph.layers(["KNOWS"]).unwrap();
+        let now = Instant::now();
+        graph
+            .core_graph()
+            .build_node_prop_index(
+                Some(vec![
+                    "content".to_string(),
+                    "browserUsed".to_string(),
+                    "language".to_string(),
+                    "name".to_string(),
+                    "url".to_string(),
+                    "type".to_string(),
+                    "length".to_string(),
+                ]),
+                false,
+            )
+            .unwrap();
+        println!("Built node index in {:?}", now.elapsed());
+        let now = Instant::now();
+        println!(
+            "Prop names: {:?}",
+            graph
+                .node_meta()
+                .get_all_property_names(false)
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+        let needle = "George Frideric";
+        // let needle = "blerg";
+        let filtered_node_count = graph
+            .filter(NodeFilter.property("content").contains(needle))
+            .unwrap()
+            .count_nodes();
+        println!(
+            "Counting filtered nodes took {:?} and found {filtered_node_count}",
+            now.elapsed()
+        );
+        let now = Instant::now();
+        for node in graph
+            .filter(NodeFilter.property("content").contains(needle))
+            .unwrap()
+            .nodes()
+            .into_iter()
+            .take(5)
+        {
+            println!("Node: {:?}", node.properties().get("content"));
+        }
+        println!("Finished filtering nodes took {:?}", now.elapsed());
+
+        // let all_node_types = graph
+        //     .node_meta()
+        //     .node_type_meta()
+        //     .keys()
+        //     .into_iter()
+        //     .collect::<Vec<_>>();
+        // println!("All node types: {:?}", all_node_types);
+        // let mut persons = graph.nodes().type_filter(["Person"]).collect();
+        // assert!(!persons.is_empty());
+        // println!("Found {} persons", persons.len());
+        // let mut rng = rand::rng();
+        // persons.shuffle();
+        // let mut duration = Duration::default();
+        // let num_queries = 1000;
+        // let knows_graph = graph.layers(["KNOWS"]).unwrap();
+        // for (src, dst) in persons.iter().zip(persons.iter().rev()).take(num_queries) {
+        //     let now = Instant::now();
+        //     let out_c = out_component(src.clone())
+        //         .iter_values()
+        //         .map(|t| t.distance)
+        //         .collect::<Vec<_>>();
+        //     // let res =
+        //     //     dijkstra_single_source_shortest_paths(&graph, src, vec![dst], None, Direction::OUT)
+        //     //         .unwrap()
+        //     //         .iter_values().map(|distance| distance.path.len()).collect::<Vec<_>>();
+        //     let elapsed = now.elapsed();
+        //     duration += elapsed;
+        //     // println!(
+        //     //     "Shortest path from {:?} to {:?} is {:?} took {elapsed:?}",
+        //     //     src.id(),
+        //     //     dst.id(),
+        //     //     res
+        //     // );
+        //     println!(
+        //         "OUTC took {:?} found {:?} nodes on node {:?}",
+        //         elapsed,
+        //         out_c.len(),
+        //         src.id()
+        //     );
+        // }
+        // println!(
+        //     "Average shortest path query time: {:?}",
+        //     Duration::from_nanos((duration.as_nanos() / num_queries as u128) as u64)
+        // );
+
+        // graph.core_graph().build_node_prop_index(None).unwrap();
+        // println!("Building node index took {:?}", now.elapsed());
     };
-    load_snb_graph(&parquet_dir, filter, &graph).unwrap()
 }
+// Cold path no index nothing found
+// Counting filtered nodes took 1.448971041s and found 0
+// Finished filtering nodes took 10.495203542s
+// Warm path no index nothing found
+// Counting filtered nodes took 872.545583ms and found 0
+// Finished filtering nodes took 9.979714791s
+
+// Index nothing found
+// Counting filtered nodes took 1.663917ms and found 0
+// Finished filtering nodes took 918.875µs
+
+// [Raphtory/raphtory/src/db/api/state/ops/filter.rs:311:13] msg = "found and selected index for property \"content\" (19475 candidates, exact=true)"
+// Counting filtered nodes took 13.918667ms and found 19475
+// [Raphtory/raphtory/src/db/api/state/ops/filter.rs:311:13] msg = "found and selected index for property \"content\" (19475 candidates, exact=true)"
+// Node: Some(Str(ArcStr("About Augustine of Hippo,  the patron of the AugustinianAbout George Frideric Handel, st fifty years, he died a respAb")))
+// Node: Some(Str(ArcStr("About George Frideric Handel, artly successful with his performances of English Oratorio on mythical and biblical themes, b")))
+// Node: Some(Str(ArcStr("About George Frideric Handel, but by the moral ideals of humanity. Almost blind, and having lived in England ")))
+// Node: Some(Str(ArcStr("About George Frideric Handel, g Hospital (1750) the critique ended. The pathos of Handel's oratorios is an ethical one. They are hallowed not by liturgical dignity but by the moral ideals of hum")))
+// Node: Some(Str(ArcStr("About Haile Selassie I, ssie is revered About George Frideric Handel, ance of Messiah About John Milton, age; t")))
