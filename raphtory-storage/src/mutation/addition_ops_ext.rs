@@ -28,11 +28,7 @@ use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{
-        node_page::writer::{NodeWriters},
-        resolve_pos,
-        session::EdgeWriteSession,
-    },
+    pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},

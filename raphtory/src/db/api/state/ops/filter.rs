@@ -27,8 +27,10 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{nodes::node_storage_ops::NodeStorageOps},
-    graph::graph::{GraphStorage, NodeGlobalPropCandidates, NodePropPredicate, NodePropSemantics},
+    graph::{
+        graph::{GraphStorage, NodeGlobalPropCandidates, NodePropPredicate, NodePropSemantics},
+        nodes::node_storage_ops::NodeStorageOps,
+    },
 };
 use std::sync::Arc;
 use storage::api::node_type_index::NodeTypeIndexOps;

@@ -2,10 +2,10 @@ use crate::{
     api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
+        node_type_index::NodeTypeIndexOps,
         nodes::{
             GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
         },
-        node_type_index::NodeTypeIndexOps,
     },
     error::StorageError,
     persist::{

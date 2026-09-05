@@ -23,8 +23,7 @@ use storage::{
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
     state::StateIndex,
-    Extension, GIDResolver, GraphPropEntry,
-    NTI,
+    Extension, GIDResolver, GraphPropEntry, NTI,
 };
 use thiserror::Error;
 
