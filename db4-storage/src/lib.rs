@@ -20,6 +20,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
+        node_type_index::NodeTypeIndexView,
     },
 };
 use parking_lot::RwLock;
@@ -51,6 +52,7 @@ pub type Extension = NoOpStrategy;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type GS<P> = GraphPropSegmentView<P>;
+pub type NTI<P> = NodeTypeIndexView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type Wal = <Extension as PersistenceStrategy>::Wal;

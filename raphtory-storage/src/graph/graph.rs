@@ -19,7 +19,7 @@ use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
     error::StorageError, pages::SegmentCounts, persist::strategy::PersistenceStrategy,
-    state::StateIndex, Extension, GIDResolver, GraphPropEntry,
+    state::StateIndex, Extension, GIDResolver, GraphPropEntry, NTI,
 };
 use thiserror::Error;
 
@@ -148,6 +148,13 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.storage().nodes().num_segments(),
             GraphStorage::Unlocked(storage) => storage.storage().nodes().num_segments(),
+        }
+    }
+
+    pub fn node_type_index(&self) -> &NTI<Extension> {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().node_type_index(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().node_type_index(),
         }
     }
 
