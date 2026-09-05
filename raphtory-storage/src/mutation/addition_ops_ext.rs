@@ -10,7 +10,7 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
             prop::{Prop, PropType, PropUnwrap},
         },
         LayerId,
@@ -199,7 +199,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
 
     fn get_type(&self) -> usize {
         self.writer
-            .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
+            .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
             .into_u64()
             .map(|u| u as usize)
             .unwrap_or(DEFAULT_NODE_TYPE_ID)
@@ -281,7 +281,7 @@ impl InternalAdditionOps for TemporalGraph {
             }
             Some(node_type) => {
                 let existing_type_id = writer
-                    .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
+                    .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
                     .into_u64();
 
                 match existing_type_id {

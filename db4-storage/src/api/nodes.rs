@@ -4,7 +4,7 @@ use raphtory_api::{
     core::{
         Direction,
         entities::properties::{
-            meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
+            meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID},
             prop::{AsPropRef, Prop, PropUnwrap},
             tprop::TPropOps,
         },
@@ -126,9 +126,9 @@ impl SelectedProps {
     pub fn includes(&self, temporal: bool, prop_id: usize) -> bool {
         if !temporal {
             match prop_id {
-                NODE_TYPE_IDX => return false,
+                NODE_TYPE_PROP_ID => return false,
                 // selected by the flag, not by name, and regardless of it
-                NODE_ID_IDX => return self.gid,
+                NODE_ID_PROP_ID => return self.gid,
                 _ => {}
             }
         }
@@ -550,17 +550,17 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn gid(&self) -> GidRef<'a> {
-        self.c_prop_str(LayerId(0), NODE_ID_IDX)
+        self.c_prop_str(LayerId(0), NODE_ID_PROP_ID)
             .map(GidRef::Str)
             .or_else(|| {
-                self.c_prop(LayerId(0), NODE_ID_IDX)
+                self.c_prop(LayerId(0), NODE_ID_PROP_ID)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
             .unwrap_or_else(|| panic!("GID should be present, for node {:?}", self.vid()))
     }
 
     fn node_type_id(&self) -> usize {
-        self.c_prop(LayerId(0), NODE_TYPE_IDX)
+        self.c_prop(LayerId(0), NODE_TYPE_PROP_ID)
             .and_then(|prop| prop.into_u64())
             .map_or(0, |id| id as usize)
     }

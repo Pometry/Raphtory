@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use raphtory_api::core::entities::properties::{
-    meta::{NODE_ID_IDX, STATIC_GRAPH_LAYER_ID},
+    meta::{NODE_ID_PROP_ID, STATIC_GRAPH_LAYER_ID},
     prop::Prop,
 };
 use raphtory_core::{
@@ -126,7 +126,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
             GID::U64(id) => Prop::U64(id),
             GID::Str(s) => Prop::str(s),
         };
-        let props = [(NODE_ID_IDX, gid)];
+        let props = [(NODE_ID_PROP_ID, gid)];
         self.nw
             .update_c_props_inner(pos, STATIC_GRAPH_LAYER_ID, props, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);

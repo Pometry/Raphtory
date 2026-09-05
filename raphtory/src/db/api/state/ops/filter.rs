@@ -21,7 +21,7 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::entities::{
-    properties::{meta::NODE_ID_IDX, prop::Prop},
+    properties::{meta::NODE_ID_PROP_ID, prop::Prop},
     VID,
 };
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
@@ -188,7 +188,7 @@ impl NodeNameFilterOp {
             _ => return None,
         };
         let mut candidates = storage.node_prop_candidates(
-            NODE_ID_IDX,
+            NODE_ID_PROP_ID,
             true,
             &predicate,
             NodePropSemantics::Latest,
