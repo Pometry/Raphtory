@@ -27,6 +27,7 @@ use raphtory_api::core::{
 use roaring::RoaringTreemap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
+    cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
     ops::Add,
 };
@@ -132,11 +133,12 @@ fn dijkstra_inner<
     weight_fn: impl Fn(EdgeView<&'a G>) -> V,
     neighbours_fn: impl Fn(NodeView<'a, &'a G>) -> Edges<'a, &'a G>,
 ) -> GenericNodeState<'static, G> {
+    // BinaryHeap is a max-heap; Reverse makes it pop the lowest cost first
     let mut heap = BinaryHeap::new();
-    heap.push(State {
+    heap.push(Reverse(State {
         cost: V::zero(),
         node: source,
-    });
+    }));
 
     let mut index = IndexSet::<VID, ahash::RandomState>::with_capacity_and_hasher(
         targets.len(),
@@ -150,10 +152,10 @@ fn dijkstra_inner<
 
     predecessor_and_dist.insert(source, (VID::default(), V::zero()));
 
-    while let Some(State {
+    while let Some(Reverse(State {
         cost,
         node: node_vid,
-    }) = heap.pop()
+    })) = heap.pop()
     {
         if targets.remove(node_vid) {
             index.insert(node_vid);
@@ -205,10 +207,10 @@ fn dijkstra_inner<
                     true
                 }
             } {
-                heap.push(State {
+                heap.push(Reverse(State {
                     cost: next_cost,
                     node: next_node_vid,
-                });
+                }));
             }
         }
     }
