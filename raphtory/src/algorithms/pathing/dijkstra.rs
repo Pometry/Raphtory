@@ -19,7 +19,7 @@ use num_traits::{One, Zero};
 use ordered_float::OrderedFloat;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{PropType, PropUntagged, PropUnwrap, SerdeArrowProp},
+        properties::prop::{PropExact, PropType, PropUnwrap, SerdeArrowProp},
         VID,
     },
     Direction,
@@ -37,7 +37,7 @@ fn prop_serialize<S: Serializer>(v: &Prop, s: S) -> Result<S::Ok, S::Error> {
 }
 
 fn prop_deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Prop, D::Error> {
-    PropUntagged::deserialize(d).map(|v| v.0)
+    PropExact::deserialize(d).map(|v| v.0)
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]

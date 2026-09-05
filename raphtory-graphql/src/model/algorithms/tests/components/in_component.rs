@@ -30,17 +30,22 @@ async fn test_algorithm_in_component() {
         "#;
     let res = setup.schema.execute(Request::new(query)).await;
     assert_eq!(res.errors, vec![], "{:?}", res.errors);
-    // a (3), b (2), c (1) can reach d; rows follow discovery order from d (c, b, a)
-    assert_eq!(
-        res.data.into_json().unwrap(),
-        json!({
-            "graph": { "algorithm": { "inComponent": {
-                "nodes": { "list": [{ "id": "c" }, { "id": "b" }, { "id": "a" }] },
-                "columns": [{
-                    "name": "distance",
-                    "values": [{ "prop": 1 }, { "prop": 2 }, { "prop": 3 }]
-                }]
-            } } }
+    // a (3), b (2), c (1) can reach d; row order is not guaranteed
+    let data = res.data.into_json().unwrap();
+    let result = &data["graph"]["algorithm"]["inComponent"];
+    assert_eq!(result["columns"][0]["name"], "distance");
+    let mut rows: Vec<_> = result["nodes"]["list"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(result["columns"][0]["values"].as_array().unwrap())
+        .map(|(node, distance)| {
+            (
+                node["id"].as_str().unwrap(),
+                distance["prop"].as_i64().unwrap(),
+            )
         })
-    );
+        .collect();
+    rows.sort();
+    assert_eq!(rows, vec![("a", 3), ("b", 2), ("c", 1)]);
 }
