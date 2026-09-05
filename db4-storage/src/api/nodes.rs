@@ -81,9 +81,9 @@ pub enum PropSemantics {
 /// Two metadata columns are not user properties and are handled here rather
 /// than by name:
 ///
-/// - `NODE_TYPE_IDX` is never indexed; nothing queries it through the
+/// - `NODE_TYPE_PROP_ID` is never indexed; nothing queries it through the
 ///   property filters.
-/// - `NODE_ID_IDX` holds the node's external id (its GID, `U64` or `Str`).
+/// - `NODE_ID_PROP_ID` holds the node's external id (its GID, `U64` or `Str`).
 ///   It has no user-facing name, so it is selected by its own flag and is
 ///   independent of the named selection: `gid` alone is enough to index it
 ///   even when `columns` names nothing.

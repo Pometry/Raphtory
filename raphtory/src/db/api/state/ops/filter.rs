@@ -168,7 +168,7 @@ impl NodeNameFilterOp {
 
 impl NodeNameFilterOp {
     /// A node's name is its external id, stored as a metadata property at
-    /// `NODE_ID_IDX`, so a secondary index over that column can serve the
+    /// `NODE_ID_PROP_ID`, so a secondary index over that column can serve the
     /// pattern operators — the ones `domain` would otherwise answer with
     /// `All`, i.e. a scan of every node.
     ///
