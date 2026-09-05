@@ -30,15 +30,15 @@ async fn test_algorithm_in_component() {
         "#;
     let res = setup.schema.execute(Request::new(query)).await;
     assert_eq!(res.errors, vec![], "{:?}", res.errors);
-    // a (3), b (2), c (1) can reach d; row order follows the key index (a, b, c)
+    // a (3), b (2), c (1) can reach d; rows follow discovery order from d (c, b, a)
     assert_eq!(
         res.data.into_json().unwrap(),
         json!({
             "graph": { "algorithm": { "inComponent": {
-                "nodes": { "list": [{ "id": "a" }, { "id": "b" }, { "id": "c" }] },
+                "nodes": { "list": [{ "id": "c" }, { "id": "b" }, { "id": "a" }] },
                 "columns": [{
                     "name": "distance",
-                    "values": [{ "prop": 3 }, { "prop": 2 }, { "prop": 1 }]
+                    "values": [{ "prop": 1 }, { "prop": 2 }, { "prop": 3 }]
                 }]
             } } }
         })
