@@ -114,6 +114,7 @@ pub struct TypeId;
 pub struct TypeIdStruct {
     type_id: usize,
 }
+
 impl From<usize> for TypeIdStruct {
     fn from(type_id: usize) -> Self {
         TypeIdStruct { type_id }

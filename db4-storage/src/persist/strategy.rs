@@ -5,6 +5,7 @@ use crate::{
         nodes::{
             GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
         },
+        node_type_index::NodeTypeIndexOps,
     },
     error::StorageError,
     persist::{
@@ -15,6 +16,7 @@ use crate::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
+        node_type_index::NodeTypeIndexView,
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
@@ -32,6 +34,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
     type ES: EdgeSegmentOps;
     type GS: GraphPropSegmentOps;
+    type NTI: NodeTypeIndexOps<Extension = Self>;
     type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
     type ControlFile: ControlFileOps;
@@ -73,6 +76,10 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
+    fn persist_node_type_index(&self, node_type_index: &Self::NTI)
+    where
+        Self: Sized;
+
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
 
@@ -88,7 +95,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     fn should_pause(&self) -> bool;
 
     /// Resolve a node property predicate to a global candidate superset using
-    /// secondary indexes, if this strategy maintains them. `metadata` selects
+    /// property indexes, if this strategy maintains them. `metadata` selects
     /// the metadata prop-id space over the temporal one; `max_segment_len` is
     /// the VID stride. `None` means the predicate cannot be served and the
     /// caller should scan as usual. Candidates may include non-matching nodes
@@ -109,7 +116,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         None
     }
 
-    /// Rebuild the secondary property indexes over `selected`. A no-op for
+    /// Rebuild the property indexes over `selected`. A no-op for
     /// strategies without index support.
     fn build_node_prop_index<'a>(
         &self,
@@ -160,6 +167,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type NS = NodeSegmentView<Self>;
     type ES = EdgeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
+    type NTI = NodeTypeIndexView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
     type ControlFile = NoControlFile;
@@ -218,6 +226,10 @@ impl PersistenceStrategy for NoOpStrategy {
         _graph_segment: &Self::GS,
         _writer: MP,
     ) {
+        // No operation
+    }
+
+    fn persist_node_type_index(&self, _node_type_index: &Self::NTI) {
         // No operation
     }
 

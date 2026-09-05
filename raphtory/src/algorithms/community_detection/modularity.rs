@@ -1,4 +1,5 @@
 use crate::{core::entities::VID, prelude::*};
+use rustc_hash::FxHashMap;
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     mem,
@@ -171,7 +172,7 @@ pub struct ModularityUnDir {
     adj: Vec<Vec<(VID, f64)>>,
     self_loops: Vec<f64>,
     k: Vec<f64>,
-    adj_com: Vec<HashMap<ComID, f64>>,
+    adj_com: Vec<FxHashMap<ComID, f64>>,
     k_com: Vec<f64>,
     m2: f64,
     tol: f64,
@@ -229,7 +230,7 @@ impl ModularityFunction for ModularityUnDir {
             .iter()
             .enumerate()
             .map(|(index, neighbours)| {
-                let mut com_neighbours = HashMap::new();
+                let mut com_neighbours = FxHashMap::default();
                 for (n, w) in neighbours {
                     com_neighbours
                         .entry(partition.com(n))
@@ -352,7 +353,7 @@ impl ModularityFunction for ModularityUnDir {
         let adj_com: Vec<_> = new_partition
             .coms()
             .map(|(_c_new, com)| {
-                let mut neighbours = HashMap::new();
+                let mut neighbours = FxHashMap::default();
                 for n in com {
                     for (c_old, w) in &self.adj_com[n.index()] {
                         *neighbours.entry(old_to_new[c_old]).or_insert(0.0) += w;

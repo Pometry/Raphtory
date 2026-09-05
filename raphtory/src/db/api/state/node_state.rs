@@ -19,6 +19,7 @@ use crate::{
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
+use ahash::RandomState;
 use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use itertools::Itertools;
@@ -37,7 +38,7 @@ use storage::state::{StateIndex, StateIndexIter};
 #[derive(Debug)]
 pub enum Index<K> {
     Full(Arc<StateIndex<K>>),
-    Partial(Arc<IndexSet<K, ahash::RandomState>>),
+    Partial(Arc<IndexSet<K, RandomState>>),
     /// Keys in ascending `usize`-key order, deduplicated; positions are ranks
     /// in that order (membership by binary search, no hashing). `exact` means
     /// every key is known to satisfy the filter that produced this index, so
@@ -52,8 +53,10 @@ pub enum Index<K> {
 fn sorted_intersect<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> Vec<K> {
     let mut out = Vec::new();
     let (mut i, mut j) = (0, 0);
+
     while i < a.len() && j < b.len() {
         let (ka, kb): (usize, usize) = (a[i].into(), b[j].into());
+
         match ka.cmp(&kb) {
             std::cmp::Ordering::Less => i += 1,
             std::cmp::Ordering::Greater => j += 1,
@@ -64,6 +67,7 @@ fn sorted_intersect<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> Vec<K> {
             }
         }
     }
+
     out
 }
 
@@ -74,13 +78,19 @@ fn sorted_rank<K: Copy + Into<usize>>(keys: &[K], key: &K) -> Option<usize> {
 
 impl<K> From<StateIndex<K>> for Index<K> {
     fn from(index: StateIndex<K>) -> Self {
-        Self::Full(index.into())
+        Self::Full(Arc::new(index))
+    }
+}
+
+impl<K> From<IndexSet<K, RandomState>> for Index<K> {
+    fn from(index: IndexSet<K, RandomState>) -> Self {
+        Self::Partial(Arc::new(index))
     }
 }
 
 impl<K> Default for Index<K> {
     fn default() -> Self {
-        Self::Partial(Arc::new(Default::default()))
+        Self::Partial(Arc::new(IndexSet::default()))
     }
 }
 
@@ -102,6 +112,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
         Self::Partial(Arc::new(IndexSet::from_iter(iter)))
     }
 }
+
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let (node_list, trusted) = graph.trusted_node_list();
@@ -117,7 +128,7 @@ impl Index<VID> {
 }
 
 impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
-    pub fn new(keys: impl Into<Arc<IndexSet<K, ahash::RandomState>>>) -> Self {
+    pub fn new(keys: impl Into<Arc<IndexSet<K, RandomState>>>) -> Self {
         Self::Partial(keys.into())
     }
 
@@ -178,7 +189,6 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
 
     #[inline]
     pub fn index(&self, key: &K) -> Option<usize> {
-        // self.index.get_index_of(key)
         match self {
             Index::Full(index) => index.resolve(*key),
             Index::Partial(index) => index.get_index_of(key),
@@ -354,7 +364,7 @@ fn sorted_is_subset<K: Copy + Into<usize>>(a: &[K], b: &[K]) -> bool {
 #[derive(Clone)]
 pub struct PartialIndexIntoIter<K> {
     range: Range<usize>,
-    index: Arc<IndexSet<K, ahash::RandomState>>,
+    index: Arc<IndexSet<K, RandomState>>,
 }
 
 impl<K: Eq + Hash + Copy> Iterator for PartialIndexIntoIter<K> {
@@ -624,7 +634,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
                 .collect();
             Self::new_from_values(graph, values)
         } else {
-            let (index, values): (IndexSet<VID, ahash::RandomState>, Vec<_>) = graph
+            let (index, values): (IndexSet<VID, RandomState>, Vec<_>) = graph
                 .nodes()
                 .iter()
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
@@ -778,7 +788,7 @@ impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
         &self,
         base_graph: Self::BaseGraph,
         _graph: Self::Graph,
-        keys: IndexSet<VID, ahash::RandomState>,
+        keys: IndexSet<VID, RandomState>,
         values: Vec<Self::OwnedValue>,
     ) -> Self
     where

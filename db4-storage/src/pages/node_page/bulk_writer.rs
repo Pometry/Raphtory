@@ -121,14 +121,14 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
     }
 
     #[inline(always)]
-    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: LayerId, gid: GID) {
+    pub fn store_node_id(&mut self, pos: LocalPOS, gid: GID) {
         let gid = match gid {
             GID::U64(id) => Prop::U64(id),
             GID::Str(s) => Prop::str(s),
         };
         let props = [(NODE_ID_IDX, gid)];
         self.nw
-            .update_c_props_inner(pos, layer_id, props, |layer_id| {
+            .update_c_props_inner(pos, STATIC_GRAPH_LAYER_ID, props, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
     }

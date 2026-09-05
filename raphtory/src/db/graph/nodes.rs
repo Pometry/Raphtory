@@ -152,7 +152,7 @@ where
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
             elems @ (Index::Partial(_) | Index::Sorted { .. }) => NodeList::List { elems },
-            _ => self.base_graph.node_list(),
+            Index::Full(_) => self.base_graph.node_list(),
         }
     }
 
@@ -302,15 +302,8 @@ where
         &self,
         node_types: I,
     ) -> Nodes<'graph, G, GH, AndOp<F, NodeTypeFilterOp>> {
-        let node_types_filter = NodeTypeFilterOp::new_from_values(node_types, &self.graph);
-        let predicate = self.predicate.clone().and(node_types_filter);
-        Nodes {
-            base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
-            predicate,
-            nodes: self.nodes.clone(),
-            _marker: PhantomData,
-        }
+        let node_types_filter = NodeTypeFilterOp::from_values(node_types, &self.graph);
+        self.apply_iter_filter(node_types_filter)
     }
 
     pub fn id_filter(
@@ -321,6 +314,7 @@ where
             .into_iter()
             .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
+
         self.indexed(index)
     }
 

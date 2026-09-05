@@ -29,7 +29,7 @@ use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{
-        node_page::writer::{node_info_as_props, NodeWriters},
+        node_page::writer::{NodeWriters},
         resolve_pos,
         session::EdgeWriteSession,
     },
@@ -211,8 +211,8 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
 
     fn set_type(&mut self, node_type: usize) {
         let pos = self.local_pos();
-        self.writer
-            .store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type)
+
+        self.writer.store_node_type(pos, node_type)
     }
 
     fn set_lsn(&mut self, lsn: LSN) {
@@ -277,39 +277,40 @@ impl InternalAdditionOps for TemporalGraph {
 
         let node_type_id = match node_type {
             None => {
-                writer.update_c_props(
-                    local_pos,
-                    STATIC_GRAPH_LAYER_ID,
-                    node_info_as_props(id.as_gid_ref(), None),
-                );
-                MaybeNew::Existing(0)
+                if let Some(gid) = id.as_gid_ref() {
+                    writer.store_node_id(local_pos, gid.to_owned());
+                }
+
+                MaybeNew::Existing(DEFAULT_NODE_TYPE_ID)
             }
             Some(node_type) => {
-                let old_type_id = writer
+                let existing_type_id = writer
                     .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
                     .into_u64();
 
-                match old_type_id {
+                match existing_type_id {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
 
-                        writer.update_c_props(
+                        writer.store_node_id_and_node_type(
                             local_pos,
-                            STATIC_GRAPH_LAYER_ID,
-                            node_info_as_props(
-                                id.as_gid_ref(),
-                                Some(node_type_id.inner()).filter(|&id| id != 0),
-                            ),
+                            id.as_gid_ref(),
+                            node_type_id.inner(),
                         );
 
                         node_type_id
                     }
-                    Some(old_type_id) => MaybeNew::Existing(
-                        self.node_meta()
+                    Some(existing_type_id) => {
+                        // Node types cannot be changed once set.
+                        // Fail if trying to set a different type_id.
+                        let node_type_id = self
+                            .node_meta()
                             .get_node_type_id(node_type)
-                            .filter(|&new_id| new_id == old_type_id as usize)
-                            .ok_or(MutationError::NodeTypeError)?,
-                    ),
+                            .filter(|&node_type_id| node_type_id == existing_type_id as usize)
+                            .ok_or(MutationError::NodeTypeError)?;
+
+                        MaybeNew::Existing(node_type_id)
+                    }
                 }
             }
         };
@@ -333,9 +334,9 @@ impl InternalAdditionOps for TemporalGraph {
         Ok((vid, node_type_id))
     }
 
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
         let vid = match self.logical_to_physical.get(id) {
-            Some(vid) => vid,
+            Some(vid) => MaybeNew::Existing(vid),
             None => {
                 let (seg, pos) = self
                     .storage()
@@ -343,7 +344,7 @@ impl InternalAdditionOps for TemporalGraph {
                     .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                 self.logical_to_physical.set(id, new_vid)?;
-                new_vid
+                MaybeNew::New(new_vid)
             }
         };
 
@@ -599,21 +600,17 @@ impl InternalAdditionOps for TemporalGraph {
 
         if src_id.is_new() {
             if let Some(gid) = src.as_gid_ref() {
-                node_writers.get_mut_src().store_node_id(
-                    src_pos,
-                    STATIC_GRAPH_LAYER_ID,
-                    gid.to_owned(),
-                );
+                node_writers
+                    .get_mut_src()
+                    .store_node_id(src_pos, gid.to_owned());
             }
         }
 
         if dst_id.is_new() {
             if let Some(gid) = dst.as_gid_ref() {
-                node_writers.get_mut_dst().store_node_id(
-                    dst_pos,
-                    STATIC_GRAPH_LAYER_ID,
-                    gid.to_owned(),
-                );
+                node_writers
+                    .get_mut_dst()
+                    .store_node_id(dst_pos, gid.to_owned());
             }
         }
 
@@ -672,9 +669,11 @@ impl InternalAdditionOps for TemporalGraph {
                         self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                         1,
                     );
-                    writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());
+                    writer.store_node_id(pos, gid.to_owned());
+
                     let vid = pos.as_vid(writer.segment.segment_id(), writer.writer.max_page_len());
                     init.init(vid)?;
+
                     return Ok(AtomicAddNode {
                         writer,
                         vid: MaybeNew::New(vid),

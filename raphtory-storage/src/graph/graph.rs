@@ -24,6 +24,7 @@ use storage::{
     persist::strategy::PersistenceStrategy,
     state::StateIndex,
     Extension, GIDResolver, GraphPropEntry,
+    NTI,
 };
 use thiserror::Error;
 
@@ -160,6 +161,13 @@ impl GraphStorage {
         }
     }
 
+    pub fn node_type_index(&self) -> &NTI<Extension> {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().node_type_index(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().node_type_index(),
+        }
+    }
+
     pub fn num_edge_segments(&self) -> usize {
         match self {
             GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
@@ -175,7 +183,7 @@ impl GraphStorage {
     }
 
     /// Resolve a node property predicate to a candidate VID superset using the
-    /// storage backend's secondary indexes, if it has them for this property.
+    /// storage backend's property indexes, if it has them for this property.
     /// `metadata` selects the metadata prop-id space over the temporal one.
     /// `None` means the predicate cannot be served and callers should scan.
     /// Candidates may include non-matching nodes — callers must still verify.
@@ -198,7 +206,7 @@ impl GraphStorage {
         )
     }
 
-    /// Rebuild the secondary node property indexes. A no-op for backends
+    /// Rebuild the node property indexes. A no-op for backends
     /// without index support.
     ///
     /// `props` replaces the persisted selection of property names before
