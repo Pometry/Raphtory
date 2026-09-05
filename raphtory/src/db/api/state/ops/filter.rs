@@ -346,7 +346,10 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
             };
             return list.intersection(&self.graph.node_list());
         }
-        self.graph.node_list()
+        // No index could serve this filter, so it has not been applied to
+        // anything: the inner list may be exact for the filters that built it,
+        // but it cannot claim to be exact for this one as well.
+        self.graph.node_list().into_inexact()
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {

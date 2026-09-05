@@ -142,6 +142,17 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         matches!(self, Index::Sorted { exact: true, .. })
     }
 
+    /// Drops any exactness claim, for when a filter that is *not* reflected in
+    /// the keys is applied on top of this index. `exact` means every key
+    /// satisfies the filter that produced the index, so it stops being true
+    /// the moment the caller's predicate grows past that filter.
+    pub fn into_inexact(self) -> Self {
+        match self {
+            Index::Sorted { keys, exact: true } => Index::Sorted { keys, exact: false },
+            other => other,
+        }
+    }
+
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = K> + '_ {
         match self {
@@ -302,7 +313,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             // `Full` holds every key, so it contains anything
             (_, Index::Full(_)) => true,
             // and nothing else is known to hold every key
-            (Index::Full(_), Index::Partial(_)) => false,
+            (Index::Full(_), _) => false,
             (Index::Partial(a), Index::Partial(b)) => a.is_subset(b.as_ref()),
             (Index::Sorted { keys: a, .. }, Index::Partial(b)) => {
                 a.iter().all(|key| b.contains(key))

@@ -48,6 +48,16 @@ impl<I> Clone for List<I> {
 }
 
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
+    /// Drops any exactness claim; see [`Index::into_inexact`].
+    pub fn into_inexact(self) -> List<I> {
+        match self {
+            List::All => List::All,
+            List::List { elems } => List::List {
+                elems: elems.into_inexact(),
+            },
+        }
+    }
+
     pub fn intersection(&self, other: &List<I>) -> List<I> {
         match (self, other) {
             (List::All, List::All) => List::All,
