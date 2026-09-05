@@ -302,7 +302,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             // `Full` holds every key, so it contains anything
             (_, Index::Full(_)) => true,
             // and nothing else is known to hold every key
-            (Index::Full(_), _) => false,
+            (Index::Full(_), Index::Partial(_)) => false,
             (Index::Partial(a), Index::Partial(b)) => a.is_subset(b.as_ref()),
             (Index::Sorted { keys: a, .. }, Index::Partial(b)) => {
                 a.iter().all(|key| b.contains(key))

@@ -5,6 +5,7 @@ use raphtory::{
         modularity::{ComID, ModularityFunction, ModularityUnDir, Partition},
     },
     core::entities::VID,
+    graphgen::random_attachment::random_attachment,
     logging::global_info_logger,
     prelude::*,
 };
@@ -161,6 +162,25 @@ fn lfr_test() {
     test_storage!(&graph, |graph| {
         let _ = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, Some(42));
         // TODO: Add assertions
+    });
+}
+
+#[test]
+fn test_louvain_deterministic() {
+    let graph = Graph::new();
+    random_attachment(&graph, 10_000, 5, Some([7; 32]));
+
+    test_storage!(&graph, |graph| {
+        let seed = Some(42);
+        let first = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, seed);
+
+        for _ in 0..100 {
+            let result = louvain::<ModularityUnDir, _>(graph, 1.0, None, None, seed);
+            assert!(
+                result == first,
+                "louvain produced different clusters across runs with the same seed"
+            );
+        }
     });
 }
 

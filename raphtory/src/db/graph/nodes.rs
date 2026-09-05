@@ -271,7 +271,8 @@ where
         } else {
             match &self.nodes {
                 Index::Full(_) => self.base_graph.count_nodes(),
-                Index::Partial(_) | Index::Sorted { .. } => self.nodes.len(),
+                Index::Partial(nodes) => nodes.len(),
+                Index::Sorted { .. } => self.nodes.len(),
             }
         }
     }
