@@ -4181,7 +4181,7 @@ type MutableGraph {
 	`props` replaces the saved selection of property names to index, which
 	later builds reuse; omit it to keep the saved one.
 	"""
-	buildPropertyIndex(props: [String!]): Boolean!
+	buildPropertyIndex(props: [String!], indexGid: Boolean): Boolean!
 	"""
 	The node property names that index builds consider, or null when every
 	supported property is indexed.
