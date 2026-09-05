@@ -581,10 +581,12 @@ impl GqlMutableGraph {
     pub async fn build_property_index(
         &self,
         props: Option<Vec<String>>,
+        index_gid: Option<bool>,
     ) -> Result<bool, GraphError> {
         let graph = self.graph.graph().clone();
+        let index_gid = index_gid.unwrap_or(false);
         blocking_write(move || {
-            graph.core_graph().build_node_prop_index(props)?;
+            graph.core_graph().build_node_prop_index(props, index_gid)?;
             Ok(true)
         })
         .await

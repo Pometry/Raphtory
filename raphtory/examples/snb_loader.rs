@@ -1,3 +1,4 @@
+use quad_rand::ChooseRandom;
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     errors::GraphError,
@@ -7,7 +8,7 @@ use raphtory::{
 use serde::Deserialize;
 use std::{
     path::{Path, PathBuf},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
@@ -15,7 +16,14 @@ fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
     parquet_dir.join(format!("{}.parquet", name))
 }
 
-use raphtory::db::{api::view::Filter, graph::views::filter::model::PropertyFilterFactory};
+use raphtory::{
+    algorithms::{
+        components::{in_component, out_component},
+        pathing::dijkstra::dijkstra_single_source_shortest_paths,
+    },
+    db::{api::view::Filter, graph::views::filter::model::PropertyFilterFactory},
+};
+use raphtory_api::core::Direction;
 use raphtory_storage::core_ops::CoreGraphOps;
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
@@ -483,9 +491,24 @@ fn main() {
         load_snb_graph(&parquet_dir, filter, &graph).unwrap()
     } else {
         let graph = Graph::load(&graph_path).unwrap();
-        // let now = Instant::now();
-        // graph.core_graph().build_node_prop_index(Some(vec!["content".to_string(), "browserUsed".to_string(), "language".to_string(), "name".to_string(), "url".to_string(), "type".to_string(), "length".to_string()])).unwrap();
-        // println!("Built node index in {:?}", now.elapsed());
+        let graph = graph.layers(["KNOWS"]).unwrap();
+        let now = Instant::now();
+        graph
+            .core_graph()
+            .build_node_prop_index(
+                Some(vec![
+                    "content".to_string(),
+                    "browserUsed".to_string(),
+                    "language".to_string(),
+                    "name".to_string(),
+                    "url".to_string(),
+                    "type".to_string(),
+                    "length".to_string(),
+                ]),
+                false,
+            )
+            .unwrap();
+        println!("Built node index in {:?}", now.elapsed());
         let now = Instant::now();
         println!(
             "Prop names: {:?}",
@@ -516,6 +539,52 @@ fn main() {
             println!("Node: {:?}", node.properties().get("content"));
         }
         println!("Finished filtering nodes took {:?}", now.elapsed());
+
+        // let all_node_types = graph
+        //     .node_meta()
+        //     .node_type_meta()
+        //     .keys()
+        //     .into_iter()
+        //     .collect::<Vec<_>>();
+        // println!("All node types: {:?}", all_node_types);
+        // let mut persons = graph.nodes().type_filter(["Person"]).collect();
+        // assert!(!persons.is_empty());
+        // println!("Found {} persons", persons.len());
+        // let mut rng = rand::rng();
+        // persons.shuffle();
+        // let mut duration = Duration::default();
+        // let num_queries = 1000;
+        // let knows_graph = graph.layers(["KNOWS"]).unwrap();
+        // for (src, dst) in persons.iter().zip(persons.iter().rev()).take(num_queries) {
+        //     let now = Instant::now();
+        //     let out_c = out_component(src.clone())
+        //         .iter_values()
+        //         .map(|t| t.distance)
+        //         .collect::<Vec<_>>();
+        //     // let res =
+        //     //     dijkstra_single_source_shortest_paths(&graph, src, vec![dst], None, Direction::OUT)
+        //     //         .unwrap()
+        //     //         .iter_values().map(|distance| distance.path.len()).collect::<Vec<_>>();
+        //     let elapsed = now.elapsed();
+        //     duration += elapsed;
+        //     // println!(
+        //     //     "Shortest path from {:?} to {:?} is {:?} took {elapsed:?}",
+        //     //     src.id(),
+        //     //     dst.id(),
+        //     //     res
+        //     // );
+        //     println!(
+        //         "OUTC took {:?} found {:?} nodes on node {:?}",
+        //         elapsed,
+        //         out_c.len(),
+        //         src.id()
+        //     );
+        // }
+        // println!(
+        //     "Average shortest path query time: {:?}",
+        //     Duration::from_nanos((duration.as_nanos() / num_queries as u128) as u64)
+        // );
+
         // graph.core_graph().build_node_prop_index(None).unwrap();
         // println!("Building node index took {:?}", now.elapsed());
     };

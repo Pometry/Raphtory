@@ -124,10 +124,15 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
         Ok(())
     }
 
-    /// Replace the persisted set of node property names that index builds
-    /// consider; `None` restores "every indexable property". Takes effect at
-    /// the next build, and survives reopening the graph.
-    fn set_indexed_node_props(&self, _names: Option<Vec<String>>) -> Result<(), StorageError> {
+    /// Replace the persisted selection: the node property names index builds
+    /// consider (`None` = every indexable property), and whether the node id
+    /// (GID) column is indexed. Takes effect at the next build, and survives
+    /// reopening the graph.
+    fn set_indexed_node_props(
+        &self,
+        _names: Option<Vec<String>>,
+        _index_gid: bool,
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -135,6 +140,11 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// `None` when every indexable property is considered.
     fn indexed_node_props(&self) -> Option<Vec<String>> {
         None
+    }
+
+    /// Whether the persisted selection includes the node id (GID) column.
+    fn indexed_gid(&self) -> bool {
+        false
     }
 }
 

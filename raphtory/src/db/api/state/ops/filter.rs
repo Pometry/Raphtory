@@ -20,7 +20,10 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::entities::{properties::prop::Prop, VID};
+use raphtory_api::core::entities::{
+    properties::{meta::NODE_ID_IDX, prop::Prop},
+    VID,
+};
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::graph::{
     graph::{GraphStorage, NodeGlobalPropCandidates, NodePropPredicate, NodePropSemantics},
@@ -159,6 +162,38 @@ impl NodeNameFilterOp {
     }
 }
 
+impl NodeNameFilterOp {
+    /// A node's name is its external id, stored as a metadata property at
+    /// `NODE_ID_IDX`, so a secondary index over that column can serve the
+    /// pattern operators — the ones `domain` would otherwise answer with
+    /// `All`, i.e. a scan of every node.
+    ///
+    /// Only the pattern operators: `Eq`/`IsIn` are already resolved by the id
+    /// resolver, which beats any index. Candidates are never claimed exact —
+    /// metadata columns carry no latest-value flags — so `apply` still checks
+    /// every one, and a graph with numeric ids simply gets `Unservable` back
+    /// from a string predicate and scans.
+    fn index_candidates(&self, storage: &GraphStorage) -> Option<NodeGlobalPropCandidates> {
+        let FilterValue::Single(pattern) = &self.filter.field_value else {
+            return None;
+        };
+        let predicate = match &self.filter.operator {
+            FilterOperator::StartsWith => NodePropPredicate::StartsWith(pattern),
+            FilterOperator::EndsWith => NodePropPredicate::EndsWith(pattern),
+            FilterOperator::Contains => NodePropPredicate::Contains(pattern),
+            _ => return None,
+        };
+        let mut candidates = storage.node_prop_candidates(
+            NODE_ID_IDX,
+            true,
+            &predicate,
+            NodePropSemantics::Latest,
+        )?;
+        candidates.exact = false;
+        Some(candidates)
+    }
+}
+
 impl NodeOp for NodeNameFilterOp {
     type Output = bool;
 
@@ -186,7 +221,13 @@ impl NodeOp for NodeNameFilterOp {
             FilterOperator::IsNone => NodeList::List {
                 elems: Index::default(),
             },
-            _ => NodeList::All,
+            _ => match self.index_candidates(storage) {
+                Some(candidates) => NodeList::List {
+                    elems: Index::from_sorted(candidates.vids, candidates.exact),
+                }
+                .intersection(&NodeList::All),
+                None => NodeList::All,
+            },
         }
     }
 

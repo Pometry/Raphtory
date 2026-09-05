@@ -71,12 +71,29 @@ pub enum PropSemantics {
 
 /// Which node property columns an index build considers.
 ///
-/// Selection is configured by property *name* and persisted, so it can name a
-/// property that does not exist yet; the names are resolved to prop ids once
-/// per build, which is what this carries. A property left out is simply not
-/// indexed — filters over it fall back to a scan and must still be correct.
+/// Named columns are configured by property *name* and persisted, so a
+/// selection can name a property that does not exist yet; the names are
+/// resolved to prop ids once per build, which is what `columns` carries. A
+/// property left out is simply not indexed — filters over it fall back to a
+/// scan and must still be correct.
+///
+/// Two metadata columns are not user properties and are handled here rather
+/// than by name:
+///
+/// - `NODE_TYPE_IDX` is never indexed; nothing queries it through the
+///   property filters.
+/// - `NODE_ID_IDX` holds the node's external id (its GID, `U64` or `Str`).
+///   It has no user-facing name, so it is selected by its own flag and is
+///   independent of the named selection: `gid` alone is enough to index it
+///   even when `columns` names nothing.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub enum SelectedProps {
+pub struct SelectedProps {
+    columns: SelectedColumns,
+    gid: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+enum SelectedColumns {
     /// Every indexable column, the default for a graph that never configured
     /// a selection.
     #[default]
@@ -89,10 +106,34 @@ pub enum SelectedProps {
 }
 
 impl SelectedProps {
+    /// Every indexable column.
+    pub fn all(gid: bool) -> Self {
+        Self {
+            columns: SelectedColumns::All,
+            gid,
+        }
+    }
+
+    /// Only the given prop ids, per id space.
+    pub fn only(temporal: HashSet<usize>, metadata: HashSet<usize>, gid: bool) -> Self {
+        Self {
+            columns: SelectedColumns::Only { temporal, metadata },
+            gid,
+        }
+    }
+
     pub fn includes(&self, temporal: bool, prop_id: usize) -> bool {
-        match self {
-            SelectedProps::All => true,
-            SelectedProps::Only {
+        if !temporal {
+            match prop_id {
+                NODE_TYPE_IDX => return false,
+                // selected by the flag, not by name, and regardless of it
+                NODE_ID_IDX => return self.gid,
+                _ => {}
+            }
+        }
+        match &self.columns {
+            SelectedColumns::All => true,
+            SelectedColumns::Only {
                 temporal: t,
                 metadata: m,
             } => {
@@ -105,11 +146,19 @@ impl SelectedProps {
         }
     }
 
+    /// Whether the node id column is selected.
+    pub fn gid(&self) -> bool {
+        self.gid
+    }
+
     /// True when nothing at all is selected, so a build has no work to do.
     pub fn is_empty(&self) -> bool {
-        match self {
-            SelectedProps::All => false,
-            SelectedProps::Only { temporal, metadata } => {
+        if self.gid {
+            return false;
+        }
+        match &self.columns {
+            SelectedColumns::All => false,
+            SelectedColumns::Only { temporal, metadata } => {
                 temporal.is_empty() && metadata.is_empty()
             }
         }

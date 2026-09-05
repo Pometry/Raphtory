@@ -194,12 +194,22 @@ impl PyPersistentGraph {
     ///         to change what the next build considers. Defaults to None,
     ///         which keeps the saved selection (or indexes every supported
     ///         property if none was ever set).
+    ///     index_gid (bool, optional): also index each node's id, so filters
+    ///         over it can be served from the index instead of a scan. The id
+    ///         has no property name, so it cannot be named in `props`. Always
+    ///         takes effect and is saved with the graph. Defaults to False.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
-    #[pyo3(signature = (props = None))]
-    pub fn build_property_index(&self, props: Option<Vec<String>>) -> Result<(), GraphError> {
-        self.graph.core_graph().build_node_prop_index(props)?;
+    #[pyo3(signature = (props = None, index_gid = false))]
+    pub fn build_property_index(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), GraphError> {
+        self.graph
+            .core_graph()
+            .build_node_prop_index(props, index_gid)?;
         Ok(())
     }
 
@@ -211,12 +221,20 @@ impl PyPersistentGraph {
     ///         list indexes nothing. Defaults to None, which restores
     ///         indexing every supported property — the way back after a
     ///         selection has been set.
+    ///     index_gid (bool, optional): whether to index each node's id.
+    ///         Defaults to False.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
-    #[pyo3(signature = (props = None))]
-    pub fn set_indexed_properties(&self, props: Option<Vec<String>>) -> Result<(), GraphError> {
-        self.graph.core_graph().set_indexed_node_props(props)?;
+    #[pyo3(signature = (props = None, index_gid = false))]
+    pub fn set_indexed_properties(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), GraphError> {
+        self.graph
+            .core_graph()
+            .set_indexed_node_props(props, index_gid)?;
         Ok(())
     }
 
@@ -227,6 +245,14 @@ impl PyPersistentGraph {
     ///         property is indexed.
     pub fn indexed_properties(&self) -> Option<Vec<String>> {
         self.graph.core_graph().indexed_node_props()
+    }
+
+    /// Whether index builds cover each node's id.
+    ///
+    /// Returns:
+    ///     bool: True when the node id is indexed.
+    pub fn indexed_gid(&self) -> bool {
+        self.graph.core_graph().indexed_gid()
     }
 
     /// Return a read-only handle to this graph.

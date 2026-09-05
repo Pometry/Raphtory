@@ -207,17 +207,30 @@ impl GraphStorage {
     /// property. Properties left out are not indexed, and filters over them
     /// fall back to a scan.
     ///
+    /// `index_gid` covers the node's external id, which is stored as a
+    /// metadata property with no user-facing name and so cannot be selected
+    /// through `props`. It always takes effect and is always persisted, so a
+    /// later `build_node_prop_index(None, ..)` keeps whatever was last asked
+    /// for.
+    ///
     /// Names are resolved to prop ids here, per build: a name no property has
     /// yet selects nothing now, and starts selecting the column as soon as
     /// something creates it.
-    pub fn build_node_prop_index(&self, props: Option<Vec<String>>) -> Result<(), StorageError> {
+    pub fn build_node_prop_index(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), StorageError> {
         let storage = self.temporal_graph().storage();
-        if props.is_some() {
-            storage.extension().set_indexed_node_props(props)?;
-        }
+        // `None` keeps the stored names; the flag is explicit every time
+        let names = props.or_else(|| storage.extension().indexed_node_props());
+        storage
+            .extension()
+            .set_indexed_node_props(names.clone(), index_gid)?;
+
         let nodes = storage.nodes();
-        let selected = match storage.extension().indexed_node_props() {
-            None => SelectedProps::All,
+        let selected = match names {
+            None => SelectedProps::all(index_gid),
             Some(names) => {
                 let meta = nodes.prop_meta();
                 let mut temporal = HashSet::new();
@@ -230,7 +243,7 @@ impl GraphStorage {
                         metadata.insert(id);
                     }
                 }
-                SelectedProps::Only { temporal, metadata }
+                SelectedProps::only(temporal, metadata, index_gid)
             }
         };
         storage.extension().build_node_prop_index(
@@ -240,14 +253,18 @@ impl GraphStorage {
         )
     }
 
-    /// Replace the persisted selection without building. `None` restores
-    /// "every indexable property", which is the only way back once a
+    /// Replace the persisted selection without building. `props: None`
+    /// restores "every indexable property", which is the only way back once a
     /// selection has been set — an empty list means "index nothing".
-    pub fn set_indexed_node_props(&self, props: Option<Vec<String>>) -> Result<(), StorageError> {
+    pub fn set_indexed_node_props(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), StorageError> {
         self.temporal_graph()
             .storage()
             .extension()
-            .set_indexed_node_props(props)
+            .set_indexed_node_props(props, index_gid)
     }
 
     /// The persisted node property names index builds consider, or `None` when
@@ -257,6 +274,11 @@ impl GraphStorage {
             .storage()
             .extension()
             .indexed_node_props()
+    }
+
+    /// Whether index builds cover the node's external id.
+    pub fn indexed_gid(&self) -> bool {
+        self.temporal_graph().storage().extension().indexed_gid()
     }
 
     #[inline(always)]
