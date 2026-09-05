@@ -10,7 +10,7 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::{
     EID, GID, LayerId, VID,
     properties::{
-        meta::{DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        meta::{DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
         prop::{AsPropRef, Prop},
     },
 };
@@ -246,7 +246,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             GID::Str(s) => Prop::str(s),
         };
 
-        let props = [(NODE_ID_IDX, gid)];
+        let props = [(NODE_ID_PROP_ID, gid)];
         self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
     }
 
@@ -255,7 +255,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             return;
         }
 
-        let props = [(NODE_TYPE_IDX, Prop::U64(node_type as u64))];
+        let props = [(NODE_TYPE_PROP_ID, Prop::U64(node_type as u64))];
         self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
     }
 
@@ -297,10 +297,10 @@ pub fn node_info_as_props(
     gid: Option<GidRef>,
     node_type: Option<usize>,
 ) -> impl Iterator<Item = (usize, Prop)> {
-    gid.into_iter().map(|g| (NODE_ID_IDX, g.into())).chain(
+    gid.into_iter().map(|g| (NODE_ID_PROP_ID, g.into())).chain(
         node_type
             .into_iter()
-            .map(|nt| (NODE_TYPE_IDX, Prop::U64(nt as u64))),
+            .map(|nt| (NODE_TYPE_PROP_ID, Prop::U64(nt as u64))),
     )
 }
 

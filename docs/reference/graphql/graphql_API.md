@@ -6561,6 +6561,37 @@ processes attaching a read-only handle observe up-to-date data.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.buildpropertyindex">buildPropertyIndex</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Build secondary indexes over node property values to speed up property
+filters (equality, comparisons and string matching). The index covers
+the graph as of this call, so values added later need another build to
+be searchable through it; filters over uncovered properties fall back
+to a scan and stay correct either way.
+
+`props` replaces the saved selection of property names to index, which
+later builds reuse; omit it to keep the saved one.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">props</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.indexedproperties">indexedProperties</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+The node property names that index builds consider, or null when every
+supported property is indexed.
+
+</td>
+</tr>
 </tbody>
 </table>
 

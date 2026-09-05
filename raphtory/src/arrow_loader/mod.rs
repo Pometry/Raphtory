@@ -25,7 +25,7 @@ mod test {
     use itertools::Itertools;
     use raphtory_api::core::{
         entities::{
-            properties::meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX},
+            properties::meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID},
             GID,
         },
         storage::{arc_str::ArcStr, timeindex::AsTime},
@@ -539,12 +539,12 @@ mod test {
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
 
         assert_eq!(
-            storage.node_metadata(typed_a, NODE_TYPE_IDX),
+            storage.node_metadata(typed_a, NODE_TYPE_PROP_ID),
             Some(Prop::U64(a_id as u64))
         );
-        assert_eq!(storage.node_metadata(untyped, NODE_TYPE_IDX), None);
+        assert_eq!(storage.node_metadata(untyped, NODE_TYPE_PROP_ID), None);
         assert_eq!(
-            storage.node_metadata(typed_b, NODE_TYPE_IDX),
+            storage.node_metadata(typed_b, NODE_TYPE_PROP_ID),
             Some(Prop::U64(b_id as u64))
         );
 

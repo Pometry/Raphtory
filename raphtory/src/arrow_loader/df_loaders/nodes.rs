@@ -11,7 +11,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{
-                meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+                meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
                 prop::AsPropRef,
             },
             LayerId,
@@ -613,7 +613,7 @@ fn existing_stored_node_type<G: StaticGraphViewOps + PropertyAdditionOps + Addit
     vid: VID,
 ) -> Option<usize> {
     graph
-        .node_metadata(vid, NODE_TYPE_IDX)
+        .node_metadata(vid, NODE_TYPE_PROP_ID)
         .and_then(|prop| prop.into_u64())
         .map(|id| id as usize)
 }

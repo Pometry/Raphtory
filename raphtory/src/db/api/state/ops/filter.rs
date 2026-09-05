@@ -5,7 +5,7 @@ use crate::{
                 ops::{Const, Degree, IntoDynNodeOp, NodeOp},
                 Index,
             },
-            view::internal::{GraphView, NodeList},
+            view::internal::{GraphView, InnerFilterOps, NodeList},
         },
         graph::{
             create_node_type_filter,
@@ -13,18 +13,24 @@ use crate::{
                 degree_filter::DegreeFilter,
                 filter::{Filter, FilterValue},
                 node_filter::NodeFilter,
-                property_filter::PropertyFilterValue,
+                property_filter::{Op, PropertyFilterValue, PropertyRef},
                 FilterOperator,
             },
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::entities::{properties::prop::Prop, VID};
+use raphtory_api::core::entities::{
+    properties::{meta::NODE_ID_PROP_ID, prop::Prop},
+    VID,
+};
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
+    graph::{
+        graph::{GraphStorage, NodeGlobalPropCandidates, NodePropPredicate, NodePropSemantics},
+        nodes::node_storage_ops::NodeStorageOps,
+    },
 };
 use std::sync::Arc;
 use storage::api::node_type_index::NodeTypeIndexOps;
@@ -160,6 +166,31 @@ impl NodeNameFilterOp {
     }
 }
 
+impl NodeNameFilterOp {
+    /// A node's name is its external id (GID), so an index over it can serve the
+    /// pattern operators — the ones `domain` would otherwise answer with
+    /// `All`, i.e. a scan of every node.
+    fn index_candidates(&self, storage: &GraphStorage) -> Option<NodeGlobalPropCandidates> {
+        let FilterValue::Single(pattern) = &self.filter.field_value else {
+            return None;
+        };
+        let predicate = match &self.filter.operator {
+            FilterOperator::StartsWith => NodePropPredicate::StartsWith(pattern),
+            FilterOperator::EndsWith => NodePropPredicate::EndsWith(pattern),
+            FilterOperator::Contains => NodePropPredicate::Contains(pattern),
+            _ => return None,
+        };
+        let mut candidates = storage.node_prop_candidates(
+            NODE_ID_PROP_ID,
+            true,
+            &predicate,
+            NodePropSemantics::Latest,
+        )?;
+        candidates.exact = false;
+        Some(candidates)
+    }
+}
+
 impl NodeOp for NodeNameFilterOp {
     type Output = bool;
 
@@ -187,7 +218,13 @@ impl NodeOp for NodeNameFilterOp {
             FilterOperator::IsNone => NodeList::List {
                 elems: Index::default(),
             },
-            _ => NodeList::All,
+            _ => match self.index_candidates(storage) {
+                Some(candidates) => NodeList::List {
+                    elems: Index::from_sorted(candidates.vids, candidates.exact),
+                }
+                .intersection(&NodeList::All),
+                None => NodeList::All,
+            },
         }
     }
 
@@ -229,13 +266,85 @@ impl<G> NodePropertyFilterOp<G> {
             filter,
         }
     }
+
+    /// The storage-level predicate for index pushdown, when the filter shape
+    /// allows it: no value-transforming ops and a positive operator. The
+    /// candidates the storage returns are supersets, so `apply` still runs on
+    /// every candidate (`const_value_in_domain` stays `None`).
+    fn pushdown_predicate(&self) -> Option<NodePropPredicate<'_>> {
+        match (&self.filter.operator, &self.filter.prop_value) {
+            (FilterOperator::Eq, PropertyFilterValue::Single(v)) => Some(NodePropPredicate::Eq(v)),
+            (FilterOperator::Lt, PropertyFilterValue::Single(v)) => Some(NodePropPredicate::Lt(v)),
+            (FilterOperator::Le, PropertyFilterValue::Single(v)) => Some(NodePropPredicate::Le(v)),
+            (FilterOperator::Gt, PropertyFilterValue::Single(v)) => Some(NodePropPredicate::Gt(v)),
+            (FilterOperator::Ge, PropertyFilterValue::Single(v)) => Some(NodePropPredicate::Ge(v)),
+            (FilterOperator::IsIn, PropertyFilterValue::Set(values)) => {
+                Some(NodePropPredicate::In(values.as_ref()))
+            }
+            (FilterOperator::StartsWith, PropertyFilterValue::Single(Prop::Str(p))) => {
+                Some(NodePropPredicate::StartsWith(&**p))
+            }
+            (FilterOperator::EndsWith, PropertyFilterValue::Single(Prop::Str(p))) => {
+                Some(NodePropPredicate::EndsWith(&**p))
+            }
+            (FilterOperator::Contains, PropertyFilterValue::Single(Prop::Str(p))) => {
+                Some(NodePropPredicate::Contains(&**p))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl<G: GraphView> NodePropertyFilterOp<G> {
+    /// The value semantics to request from the storage index, plus whether
+    /// its exactness claim may be kept. Latest-flag candidates are a SUBSET
+    /// of what windowed or layer-restricted views need (a row's visible
+    /// latest can differ from its global latest), so restricted views fall
+    /// back to Ever candidates — a superset for every view — with exactness
+    /// off. `temporal().any()` is served by Ever directly; aggregating
+    /// chains are not served.
+    fn pushdown_semantics(&self) -> Option<(NodePropSemantics, bool)> {
+        let plain_view = !self.graph.window_filtered() && !self.graph.is_layer_filtered();
+        match (&self.filter.prop_ref, self.filter.ops.as_slice()) {
+            (PropertyRef::Property(_) | PropertyRef::Metadata(_), [])
+            | (PropertyRef::TemporalProperty(_), [Op::Last]) => Some(if plain_view {
+                (NodePropSemantics::Latest, true)
+            } else {
+                (NodePropSemantics::Ever, false)
+            }),
+            (PropertyRef::TemporalProperty(_), [Op::Any]) => {
+                Some((NodePropSemantics::Ever, plain_view))
+            }
+            _ => None,
+        }
+    }
+
+    fn index_candidates(&self, storage: &GraphStorage) -> Option<NodeGlobalPropCandidates> {
+        let (semantics, exact_allowed) = self.pushdown_semantics()?;
+        let predicate = self.pushdown_predicate()?;
+        let metadata = matches!(self.filter.prop_ref, PropertyRef::Metadata(_));
+        let mut candidates =
+            storage.node_prop_candidates(self.prop_id, metadata, &predicate, semantics)?;
+        candidates.exact &= exact_allowed;
+        Some(candidates)
+    }
 }
 
 impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
     type Output = bool;
 
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        self.graph.node_list()
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        if let Some(candidates) = self.index_candidates(storage) {
+            // index candidates are ascending and deduplicated, as `from_sorted` requires
+            let list = NodeList::List {
+                elems: Index::from_sorted(candidates.vids, candidates.exact),
+            };
+            return list.intersection(&self.graph.node_list());
+        }
+        // No index could serve this filter, so it has not been applied to
+        // anything: the inner list may be exact for the filters that built it,
+        // but it cannot claim to be exact for this one as well.
+        self.graph.node_list().into_inexact()
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -513,15 +622,19 @@ mod test {
 
     impl NodeOp for Stub {
         type Output = bool;
+
         fn domain(&self, _storage: &GraphStorage) -> NodeList {
             self.domain.clone()
         }
+
         fn apply(&self, _storage: &GraphStorage, _node: VID) -> bool {
             true
         }
+
         fn const_value(&self) -> Option<bool> {
             self.cv
         }
+
         fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<bool> {
             self.cvid
         }

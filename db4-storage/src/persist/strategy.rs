@@ -1,7 +1,11 @@
 use crate::{
     api::{
-        edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, node_type_index::NodeTypeIndexOps,
-        nodes::NodeSegmentOps,
+        edges::EdgeSegmentOps,
+        graph_props::GraphPropSegmentOps,
+        node_type_index::NodeTypeIndexOps,
+        nodes::{
+            GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
+        },
     },
     error::StorageError,
     persist::{
@@ -89,6 +93,66 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
     fn should_pause(&self) -> bool;
+
+    /// Resolve a node property predicate to a global candidate superset using
+    /// property indexes, if this strategy maintains them. `metadata` selects
+    /// the metadata prop-id space over the temporal one; `max_segment_len` is
+    /// the VID stride. `None` means the predicate cannot be served and the
+    /// caller should scan as usual. Candidates may include non-matching nodes
+    /// — callers must verify every candidate.
+    fn node_prop_candidates<'a>(
+        &self,
+        _segments: impl Iterator<Item = &'a Self::NS>,
+        _max_segment_len: u32,
+        _prop_id: usize,
+        _metadata: bool,
+        _predicate: &PropPredicate,
+        _semantics: PropSemantics,
+    ) -> Option<GlobalPropCandidates>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+    {
+        None
+    }
+
+    /// Rebuild the property indexes over `selected`. A no-op for
+    /// strategies without index support.
+    fn build_node_prop_index<'a>(
+        &self,
+        _segments: impl Iterator<Item = &'a Self::NS> + Send,
+        _max_segment_len: u32,
+        _selected: &SelectedProps,
+    ) -> Result<(), StorageError>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+    {
+        Ok(())
+    }
+
+    /// Replace the persisted selection: the node property names index builds
+    /// consider (`None` = every indexable property), and whether the node id
+    /// (GID) column is indexed. Takes effect at the next build, and survives
+    /// reopening the graph.
+    fn set_indexed_node_props(
+        &self,
+        _names: Option<Vec<String>>,
+        _index_gid: bool,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    /// The persisted set of node property names index builds consider, or
+    /// `None` when every indexable property is considered.
+    fn indexed_node_props(&self) -> Option<Vec<String>> {
+        None
+    }
+
+    /// Whether the persisted selection includes the node id (GID) column.
+    fn indexed_gid(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone)]

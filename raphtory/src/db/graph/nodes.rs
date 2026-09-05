@@ -151,7 +151,7 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            elems @ Index::Partial(_) => NodeList::List { elems },
+            elems @ (Index::Partial(_) | Index::Sorted { .. }) => NodeList::List { elems },
             Index::Full(_) => self.base_graph.node_list(),
         }
     }
@@ -265,6 +265,16 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
+        // An exact index has already had the whole predicate applied to every
+        // key — `apply_iter_filter` drops the claim as soon as a conjunct is
+        // not reflected in the keys — so the only thing that could still
+        // remove one is the view's own node filtering. Same pair of conditions
+        // `GraphViewOps::count_nodes` uses via `trusted_node_list`.
+        if let Index::Sorted { keys, exact: true } = &self.nodes {
+            if self.base_graph.node_list_trusted() {
+                return keys.len();
+            }
+        }
         if self.is_list_filtered() {
             let g = self.locked_storage();
             self.par_iter_refs(g).count()
@@ -272,6 +282,7 @@ where
             match &self.nodes {
                 Index::Full(_) => self.base_graph.count_nodes(),
                 Index::Partial(nodes) => nodes.len(),
+                Index::Sorted { keys, .. } => keys.len(),
             }
         }
     }
@@ -361,6 +372,9 @@ where
     ) -> Self::IterFiltered<Filter> {
         let domain = filter.domain(self.graph.core_graph());
         let nodes = match domain {
+            // `filter` is not reflected in the keys, so an exactness claim
+            // from an earlier filter no longer covers the whole predicate
+            NodeList::All if filter.is_filtered() => self.nodes.clone().into_inexact(),
             NodeList::All => self.nodes.clone(),
             NodeList::List { elems } => self.nodes.intersection(&elems),
         };
