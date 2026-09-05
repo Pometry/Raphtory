@@ -20,8 +20,9 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use indexmap::{map::Entry, IndexMap};
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct OutState {
@@ -191,7 +192,7 @@ where
     F: CreateFilter + 'graph,
     F::EntityFiltered<'graph, G, F::FilteredGraph<'graph, G>>: GraphViewOps<'graph>,
 {
-    let mut out_components = HashMap::new();
+    let mut out_components = IndexMap::with_hasher(ahash::RandomState::new());
     let mut to_check_stack = VecDeque::new();
     let filtered = node.filter(filter)?;
     filtered.out_neighbours().iter().for_each(|node| {

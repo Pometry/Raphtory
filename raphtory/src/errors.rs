@@ -178,6 +178,9 @@ pub enum GraphError {
     #[error("{reason}")]
     InvalidProperty { reason: String },
 
+    #[error("Invalid value: {reason}")]
+    InvalidValue { reason: String },
+
     #[error("Failed to parse time string: {source}")]
     ParseTime {
         #[from]
