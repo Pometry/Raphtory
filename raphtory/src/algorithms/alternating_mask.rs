@@ -32,6 +32,7 @@ pub fn alternating_mask<G: StaticGraphViewOps>(
         });
     }
 
-    let state = GenericNodeState::new_from_eval_with_index(g.clone(), values, Index::new(index), None);
+    let state =
+        GenericNodeState::new_from_eval_with_index(g.clone(), values, Index::new(index), None);
     TypedNodeState::new(state)
 }
