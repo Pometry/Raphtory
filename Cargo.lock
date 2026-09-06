@@ -2189,6 +2189,7 @@ dependencies = [
 name = "db4-storage"
 version = "0.18.13"
 dependencies = [
+ "ahash",
  "arrow-array",
  "arrow-schema",
  "bigdecimal",
@@ -2198,6 +2199,7 @@ dependencies = [
  "dashmap",
  "drop-logging",
  "either",
+ "indexmap 2.14.0",
  "iter-enum",
  "itertools 0.15.0",
  "lock_api",
@@ -5259,6 +5261,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c7c9e0d9b23589f26070720bac724174bfec1083e82f7854cdd0267518343c0"
 dependencies = [
  "num-traits",
+ "rand 0.8.8",
+ "serde",
 ]
 
 [[package]]
@@ -6116,6 +6120,7 @@ dependencies = [
  "libc",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
+ "serde",
 ]
 
 [[package]]
@@ -6166,6 +6171,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.17",
+ "serde",
 ]
 
 [[package]]
@@ -6331,6 +6337,7 @@ dependencies = [
  "minijinja",
  "num-traits",
  "numpy",
+ "ordered-float 5.5.0",
  "parking_lot",
  "proptest",
  "pyo3",

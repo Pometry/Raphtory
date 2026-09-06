@@ -197,13 +197,17 @@ type Algorithms {
 		"""
 		targets: [NodeId!]!,
 		"""
-		Edge property to use as weight. If unset, all edges have weight 1.
+		Edge property to use as weight.
 		"""
 		weight: String,
 		"""
 		Edge direction to follow. Defaults to BOTH.
 		"""
-		direction: Direction
+		direction: Direction,
+		"""
+		Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1.
+		"""
+		defaultWeight: Value
 	): NodeState!
 	"""
 	Returns the local reciprocity of every node.
@@ -4125,6 +4129,22 @@ type MutableGraph {
 	processes attaching a read-only handle observe up-to-date data.
 	"""
 	flush: Boolean!
+	"""
+	Build secondary indexes over node property values to speed up property
+	filters (equality, comparisons and string matching). The index covers
+	the graph as of this call, so values added later need another build to
+	be searchable through it; filters over uncovered properties fall back
+	to a scan and stay correct either way.
+	
+	`props` replaces the saved selection of property names to index, which
+	later builds reuse; omit it to keep the saved one.
+	"""
+	buildPropertyIndex(props: [String!], indexGid: Boolean): Boolean!
+	"""
+	The node property names that index builds consider, or null when every
+	supported property is indexed.
+	"""
+	indexedProperties: [String!]
 }
 
 """

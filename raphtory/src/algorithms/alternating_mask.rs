@@ -1,13 +1,13 @@
 use crate::{
     db::api::{
-        state::{GenericNodeState, TypedNodeState},
+        state::{GenericNodeState, Index, TypedNodeState},
         view::StaticGraphViewOps,
     },
     prelude::GraphViewOps,
 };
+use indexmap::IndexSet;
 use raphtory_api::core::entities::VID;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// This is a mock algorithm for test purposes only!
 /// A per-node boolean mask value.
@@ -22,17 +22,17 @@ pub struct AlternatingMask {
 pub fn alternating_mask<G: StaticGraphViewOps>(
     g: &G,
 ) -> TypedNodeState<'static, AlternatingMask, G> {
-    let mut map: HashMap<VID, AlternatingMask> = HashMap::new();
+    let mut index = IndexSet::<VID, ahash::RandomState>::default();
+    let mut values = Vec::new();
 
     for (i, node) in g.nodes().iter().enumerate() {
-        map.insert(
-            node.node,
-            AlternatingMask {
-                bool_col: i % 2 != 0,
-            },
-        );
+        index.insert(node.node);
+        values.push(AlternatingMask {
+            bool_col: i % 2 != 0,
+        });
     }
 
-    let state = GenericNodeState::new_from_map(g.clone(), map, |v| v, None);
+    let state =
+        GenericNodeState::new_from_eval_with_index(g.clone(), values, Index::new(index), None);
     TypedNodeState::new(state)
 }

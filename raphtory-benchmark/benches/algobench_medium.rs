@@ -36,10 +36,11 @@ use raphtory::{
 };
 use raphtory_api::core::Direction;
 use raphtory_benchmark::algobench_common::{
-    first_node_id, graph_benchmark, graph_benchmark_with_setup, medium_random_attachment_filtered,
-    medium_random_attachment_graph, medium_random_attachment_layered,
-    medium_random_attachment_subgraph, medium_typed_random_attachment_graph,
-    medium_weighted_random_attachment_graph,
+    first_node_id, graph_benchmark, graph_benchmark_with_setup,
+    large_dense_random_attachment_graph, large_random_attachment_graph,
+    medium_random_attachment_filtered, medium_random_attachment_graph,
+    medium_random_attachment_layered, medium_random_attachment_subgraph,
+    medium_typed_random_attachment_graph, medium_weighted_random_attachment_graph,
 };
 
 pub fn graphgen_clustering_coeff(c: &mut Criterion) {
@@ -215,7 +216,7 @@ pub fn graphgen_dijkstra(c: &mut Criterion) {
         "graphgen_dijkstra",
         5,
         10,
-        medium_random_attachment_graph,
+        large_dense_random_attachment_graph,
         |graph| {
             (
                 first_node_id(graph),
@@ -229,6 +230,7 @@ pub fn graphgen_dijkstra(c: &mut Criterion) {
                 vec![dst.clone()],
                 None,
                 Direction::BOTH,
+                None,
             )
             .unwrap()
         },
