@@ -230,10 +230,10 @@ impl PyGraph {
     ///         to change what the next build considers. Defaults to None,
     ///         which keeps the saved selection (or indexes every supported
     ///         property if none was ever set).
-    ///     index_gid (bool, optional): also index each node's id, so filters
-    ///         over it can be served from the index instead of a scan. The id
-    ///         has no property name, so it cannot be named in `props`. Always
-    ///         takes effect and is saved with the graph. Defaults to False.
+    ///     index_gid (bool, optional): also index each node's id. Defaults to False.
+    ///         Filters over the id can then be served from the index instead
+    ///         of a scan. The id has no property name, so it cannot be named
+    ///         in `props`. Always takes effect and is saved with the graph.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -257,8 +257,7 @@ impl PyGraph {
     ///         list indexes nothing. Defaults to None, which restores
     ///         indexing every supported property — the way back after a
     ///         selection has been set.
-    ///     index_gid (bool, optional): whether to index each node's id.
-    ///         Defaults to False.
+    ///     index_gid (bool, optional): whether to index each node's id. Defaults to False.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
