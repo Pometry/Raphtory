@@ -16,12 +16,21 @@ use raphtory_api::core::entities::{
     properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
-use std::{fmt::Debug, iter, path::Path, sync::Arc};
+use std::{collections::HashSet, fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, persist::strategy::PersistenceStrategy,
-    state::StateIndex, Extension, GIDResolver, GraphPropEntry,
+    api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
+    error::StorageError,
+    pages::SegmentCounts,
+    persist::strategy::PersistenceStrategy,
+    state::StateIndex,
+    Extension, GIDResolver, GraphPropEntry, NTI,
 };
 use thiserror::Error;
+
+pub use storage::api::nodes::{
+    GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
+    PropSemantics as NodePropSemantics,
+};
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
@@ -151,11 +160,132 @@ impl GraphStorage {
         }
     }
 
+    pub fn node_type_index(&self) -> &NTI<Extension> {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().node_type_index(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().node_type_index(),
+        }
+    }
+
     pub fn num_edge_segments(&self) -> usize {
         match self {
             GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
             GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
+    }
+
+    fn temporal_graph(&self) -> &TemporalGraph {
+        match self {
+            GraphStorage::Mem(storage) => &storage.graph,
+            GraphStorage::Unlocked(storage) => storage,
+        }
+    }
+
+    /// Resolve a node property predicate to a candidate VID superset using the
+    /// storage backend's property indexes, if it has them for this property.
+    /// `metadata` selects the metadata prop-id space over the temporal one.
+    /// `None` means the predicate cannot be served and callers should scan.
+    /// Candidates may include non-matching nodes — callers must still verify.
+    pub fn node_prop_candidates(
+        &self,
+        prop_id: usize,
+        metadata: bool,
+        predicate: &PropPredicate,
+        semantics: PropSemantics,
+    ) -> Option<GlobalPropCandidates> {
+        let storage = self.temporal_graph().storage();
+        let nodes = storage.nodes();
+        storage.extension().node_prop_candidates(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            prop_id,
+            metadata,
+            predicate,
+            semantics,
+        )
+    }
+
+    /// Rebuild the node property indexes. A no-op for backends
+    /// without index support.
+    ///
+    /// `props` replaces the persisted selection of property names before
+    /// building; pass `None` to build with whatever selection is already
+    /// stored. A graph that has never had one indexes every indexable
+    /// property. Properties left out are not indexed, and filters over them
+    /// fall back to a scan.
+    ///
+    /// `index_gid` covers the node's external id, which is stored as a
+    /// metadata property with no user-facing name and so cannot be selected
+    /// through `props`. It always takes effect and is always persisted, so a
+    /// later `build_node_prop_index(None, ..)` keeps whatever was last asked
+    /// for.
+    ///
+    /// Names are resolved to prop ids here, per build: a name no property has
+    /// yet selects nothing now, and starts selecting the column as soon as
+    /// something creates it.
+    pub fn build_node_prop_index(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), StorageError> {
+        let storage = self.temporal_graph().storage();
+        // `None` keeps the stored names; the flag is explicit every time
+        let names = props.or_else(|| storage.extension().indexed_node_props());
+        storage
+            .extension()
+            .set_indexed_node_props(names.clone(), index_gid)?;
+
+        let nodes = storage.nodes();
+        let selected = match names {
+            None => SelectedProps::all(index_gid),
+            Some(names) => {
+                let meta = nodes.prop_meta();
+                let mut temporal = HashSet::new();
+                let mut metadata = HashSet::new();
+                for name in &names {
+                    if let Some(id) = meta.get_prop_id(name, false) {
+                        temporal.insert(id);
+                    }
+                    if let Some(id) = meta.get_prop_id(name, true) {
+                        metadata.insert(id);
+                    }
+                }
+                SelectedProps::only(temporal, metadata, index_gid)
+            }
+        };
+        storage.extension().build_node_prop_index(
+            nodes.segments_iter(),
+            nodes.max_segment_len(),
+            &selected,
+        )
+    }
+
+    /// Replace the persisted selection without building. `props: None`
+    /// restores "every indexable property", which is the only way back once a
+    /// selection has been set — an empty list means "index nothing".
+    pub fn set_indexed_node_props(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), StorageError> {
+        self.temporal_graph()
+            .storage()
+            .extension()
+            .set_indexed_node_props(props, index_gid)
+    }
+
+    /// The persisted node property names index builds consider, or `None` when
+    /// every indexable property is considered.
+    pub fn indexed_node_props(&self) -> Option<Vec<String>> {
+        self.temporal_graph()
+            .storage()
+            .extension()
+            .indexed_node_props()
+    }
+
+    /// Whether index builds cover the node's external id.
+    pub fn indexed_gid(&self) -> bool {
+        self.temporal_graph().storage().extension().indexed_gid()
     }
 
     #[inline(always)]

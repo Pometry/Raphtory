@@ -7,7 +7,7 @@ use proptest_derive::Arbitrary;
 use rand::seq::SliceRandom;
 use raphtory::{
     db::{
-        api::storage::storage::Storage,
+        api::{storage::storage::Storage, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -1087,7 +1087,21 @@ pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
 
 pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
+    apply_graph_fixture(&g, graph_fix, 0);
+    g
+}
+
+/// Applies a fixture's updates to an existing graph, offsetting every node id
+/// by `id_offset`.
+pub fn apply_graph_fixture<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
+>(
+    g: &G,
+    graph_fix: &GraphFixture,
+    id_offset: u64,
+) {
     for ((src, dst, layer), updates) in graph_fix.edges() {
+        let (src, dst) = (src + id_offset, dst + id_offset);
         for (t, props) in updates.props.t_props.iter() {
             g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
         }
@@ -1103,6 +1117,7 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     }
 
     for (node, updates) in graph_fix.nodes() {
+        let node = node + id_offset;
         let node_layer = updates.node_layer.as_str();
         for (t, props) in updates.props.t_props.iter() {
             g.add_node(*t, node, props.clone(), None, node_layer)
@@ -1115,8 +1130,6 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
             }
         }
     }
-
-    g
 }
 
 pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {

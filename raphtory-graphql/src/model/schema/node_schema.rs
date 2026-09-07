@@ -3,8 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::{
-            properties::internal::NodePropertySchemaOps,
-            state::ops::{filter::MaskOp, TypeId},
+            properties::internal::NodePropertySchemaOps, state::ops::filter::NodeTypeFilterOp,
             view::DynamicGraph,
         },
         graph::views::filter::node_filtered_graph::NodeFilteredGraph,
@@ -63,9 +62,11 @@ impl NodeSchema {
             .map(|type_name| type_name.to_string())
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
+
     fn properties_inner(&self) -> Vec<PropertySchema> {
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_temporal_prop_ids().collect();
+
         let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
@@ -86,10 +87,13 @@ impl NodeSchema {
             keys.into_par_iter()
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
-                    let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
-                    let filter = TypeId.mask(node_types_filter.into());
+                    let num_type_ids = self.graph.node_meta().node_type_meta().num_all_fields();
+                    let mut node_types_mask = vec![false; num_type_ids];
+                    node_types_mask[self.type_id] = true;
+
+                    let filter =
+                        NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
+
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
                             .nodes()
@@ -97,6 +101,7 @@ impl NodeSchema {
                             .into_iter_values()
                             .filter_map(|props| props.get(&key).map(|v| v.to_string()))
                             .collect();
+
                     if unique_values.is_empty() {
                         None
                     } else {
@@ -105,6 +110,7 @@ impl NodeSchema {
                         } else {
                             vec![]
                         };
+
                         variants.sort();
                         Some(PropertySchema::new(key, dtype, variants))
                     }
@@ -136,10 +142,13 @@ impl NodeSchema {
             keys.into_par_iter()
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
-                    let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
-                    let filter = TypeId.mask(node_types_filter.into());
+                    let num_type_ids = self.graph.node_meta().node_type_meta().num_all_fields();
+                    let mut node_types_mask = vec![false; num_type_ids];
+                    node_types_mask[self.type_id] = true;
+
+                    let filter =
+                        NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
+
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
                             .nodes()
@@ -147,6 +156,7 @@ impl NodeSchema {
                             .into_iter_values()
                             .filter_map(|props| props.get(&key).map(|v| v.to_string()))
                             .collect();
+
                     if unique_values.is_empty() {
                         None
                     } else {
@@ -155,6 +165,7 @@ impl NodeSchema {
                         } else {
                             vec![]
                         };
+
                         variants.sort();
                         Some(PropertySchema::new(key, dtype, variants))
                     }

@@ -1,5 +1,12 @@
 use crate::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps,
+        graph_props::GraphPropSegmentOps,
+        node_type_index::NodeTypeIndexOps,
+        nodes::{
+            GlobalPropCandidates, NodeSegmentOps, PropPredicate, PropSemantics, SelectedProps,
+        },
+    },
     error::StorageError,
     persist::{
         config::{BaseConfig, ConfigOps},
@@ -9,6 +16,7 @@ use crate::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
+        node_type_index::NodeTypeIndexView,
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
@@ -26,6 +34,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
     type ES: EdgeSegmentOps;
     type GS: GraphPropSegmentOps;
+    type NTI: NodeTypeIndexOps<Extension = Self>;
     type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
     type ControlFile: ControlFileOps;
@@ -67,6 +76,10 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
+    fn persist_node_type_index(&self, node_type_index: &Self::NTI)
+    where
+        Self: Sized;
+
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
 
@@ -80,6 +93,66 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
     fn should_pause(&self) -> bool;
+
+    /// Resolve a node property predicate to a global candidate superset using
+    /// property indexes, if this strategy maintains them. `metadata` selects
+    /// the metadata prop-id space over the temporal one; `max_segment_len` is
+    /// the VID stride. `None` means the predicate cannot be served and the
+    /// caller should scan as usual. Candidates may include non-matching nodes
+    /// — callers must verify every candidate.
+    fn node_prop_candidates<'a>(
+        &self,
+        _segments: impl Iterator<Item = &'a Self::NS>,
+        _max_segment_len: u32,
+        _prop_id: usize,
+        _metadata: bool,
+        _predicate: &PropPredicate,
+        _semantics: PropSemantics,
+    ) -> Option<GlobalPropCandidates>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+    {
+        None
+    }
+
+    /// Rebuild the property indexes over `selected`. A no-op for
+    /// strategies without index support.
+    fn build_node_prop_index<'a>(
+        &self,
+        _segments: impl Iterator<Item = &'a Self::NS> + Send,
+        _max_segment_len: u32,
+        _selected: &SelectedProps,
+    ) -> Result<(), StorageError>
+    where
+        Self: Sized,
+        Self::NS: 'a,
+    {
+        Ok(())
+    }
+
+    /// Replace the persisted selection: the node property names index builds
+    /// consider (`None` = every indexable property), and whether the node id
+    /// (GID) column is indexed. Takes effect at the next build, and survives
+    /// reopening the graph.
+    fn set_indexed_node_props(
+        &self,
+        _names: Option<Vec<String>>,
+        _index_gid: bool,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    /// The persisted set of node property names index builds consider, or
+    /// `None` when every indexable property is considered.
+    fn indexed_node_props(&self) -> Option<Vec<String>> {
+        None
+    }
+
+    /// Whether the persisted selection includes the node id (GID) column.
+    fn indexed_gid(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -94,6 +167,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type NS = NodeSegmentView<Self>;
     type ES = EdgeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
+    type NTI = NodeTypeIndexView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
     type ControlFile = NoControlFile;
@@ -152,6 +226,10 @@ impl PersistenceStrategy for NoOpStrategy {
         _graph_segment: &Self::GS,
         _writer: MP,
     ) {
+        // No operation
+    }
+
+    fn persist_node_type_index(&self, _node_type_index: &Self::NTI) {
         // No operation
     }
 
