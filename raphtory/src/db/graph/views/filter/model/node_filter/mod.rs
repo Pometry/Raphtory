@@ -15,6 +15,7 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
+            edge_test::{EdgeTest, EdgeTestExt, ExistsIn},
             model::{
                 degree_filter::{DegreeFilter, DegreeFilterBuilder, DegreeFilterFactory},
                 edge_filter::CompositeEdgeFilter,
@@ -423,6 +424,50 @@ impl CreateFilter for CompositeNodeFilter {
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let filter = self.create_node_filter(graph.clone(), filtered)?;
         Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    /// A node-kind composite lifts onto edges one leaf at a time.
+    ///
+    /// Each leaf keeps the usual meaning — both endpoints pass — and `and`,
+    /// `or` and `not` then compose those *edge-level* answers. Lowering the
+    /// whole composite to a single per-node boolean and testing both endpoints
+    /// with it instead gives a different answer for `not` and `or`:
+    /// `not` becomes "both endpoints fail" rather than the complement, and
+    /// `or` becomes "each endpoint satisfies one of the branches" rather than
+    /// the union of the two edge sets. This recursion is also what makes
+    /// `~expr` and `node: {not: expr}` mean the same thing, since the
+    /// expression-level tree collapses into this composite before it is
+    /// lowered.
+    fn is_edge_composite(&self) -> bool {
+        true
+    }
+
+    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        match self {
+            CompositeNodeFilter::And(left, right) => {
+                let left = left.create_edge_test(graph.clone(), filtered.clone())?;
+                let right = right.create_edge_test(graph, filtered)?;
+                Ok(Arc::new(left.and(right)))
+            }
+            CompositeNodeFilter::Or(left, right) => {
+                let left = left.create_edge_test(graph.clone(), filtered.clone())?;
+                let right = right.create_edge_test(graph, filtered)?;
+                Ok(Arc::new(left.or(right)))
+            }
+            CompositeNodeFilter::Not(inner) => {
+                Ok(Arc::new(inner.create_edge_test(graph, filtered)?.negate()))
+            }
+            leaf => Ok(Arc::new(ExistsIn::new(
+                leaf.create_filter(graph, filtered)?,
+            ))),
+        }
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
