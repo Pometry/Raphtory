@@ -13,7 +13,7 @@ use raphtory::{
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
-            edge_test::EdgeTest,
+            edge_op::EdgeFilterOp,
             model::{
                 degree_filter::DegreeFilter,
                 edge_filter::{CompositeEdgeFilter, EdgeFilter},
@@ -711,12 +711,12 @@ impl CreateFilter for GqlFilter {
     /// building its wrapper graph, which is the composition that loses a view
     /// operand inside `and`, `or` and `not`. Without this the server answers a
     /// composite differently from the local API.
-    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
         filtered: F,
-    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError> {
-        DynFilter::try_from(self)?.create_edge_test(graph, filtered)
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError> {
+        DynFilter::try_from(self)?.create_edge_filter(graph, filtered)
     }
 
     fn is_edge_composite(&self) -> bool {

@@ -5,7 +5,7 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            edge_test::{EdgeTest, EdgeTestExt},
+            edge_op::{EdgeFilterOp, EdgeFilterOpExt},
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
@@ -80,19 +80,19 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
         !self.is_exploded_edge_filter()
     }
 
-    /// Negate the operand's *test*, which is the set complement. The wrapper
+    /// Negate the operand's *boolean*, which is the set complement. The wrapper
     /// form negates one hook of a graph whose other hooks still impose the
     /// operand's restrictions, so it is not a complement.
-    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
         filtered: F,
-    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
     where
         Self: 'graph,
     {
         let f = self.0.filter_graph_view(filtered.clone())?;
-        Ok(Arc::new(self.0.create_edge_test(filtered, f)?.negate()))
+        Ok(Arc::new(self.0.create_edge_filter(filtered, f)?.negate()))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

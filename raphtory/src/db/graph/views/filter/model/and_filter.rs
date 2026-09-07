@@ -6,7 +6,7 @@ use crate::{
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
-            edge_test::{EdgeTest, EdgeTestExt},
+            edge_op::{EdgeFilterOp, EdgeFilterOpExt},
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
@@ -96,21 +96,21 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         !self.is_exploded_edge_filter()
     }
 
-    /// Combine the operands' *tests*, not their wrapper graphs: nesting the
+    /// Combine the operands' *booleans*, not their wrapper graphs: nesting the
     /// graphs drops a view operand's restriction, because a wrapper takes its
     /// time semantics from the graph it wraps.
-    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
         filtered: F,
-    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
     where
         Self: 'graph,
     {
         let l = self.left.filter_graph_view(filtered.clone())?;
         let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_edge_test(graph.clone(), l)?;
-        let right = self.right.create_edge_test(graph, r)?;
+        let left = self.left.create_edge_filter(graph.clone(), l)?;
+        let right = self.right.create_edge_filter(graph, r)?;
         Ok(Arc::new(left.and(right)))
     }
 

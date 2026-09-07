@@ -13,7 +13,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::{edge_test::EdgeTestFilteredGraph, CreateFilter},
+            views::filter::{edge_op::EdgeOpFilteredGraph, CreateFilter},
         },
     },
     errors::GraphError,
@@ -242,13 +242,13 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         // AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
         // after/snapshot) on the right operand is silently dropped and the collection fails open.
         //
-        // Lower to a per-edge test rather than a stack of wrapper graphs: composing graphs cannot
+        // Lower to a per-edge boolean rather than a stack of wrapper graphs: composing graphs cannot
         // express `or` or `not` over operands of different kinds, and drops a view operand's
-        // restriction. See `views::filter::edge_test`.
+        // restriction. See `views::filter::edge_op`.
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
         let filtered_graph: DynGraphArc = if filter.is_edge_composite() {
-            let test = filter.create_edge_test(self.select.clone(), filtered_graph)?;
-            Arc::new(EdgeTestFilteredGraph::new(self.select.clone(), test))
+            let test = filter.create_edge_filter(self.select.clone(), filtered_graph)?;
+            Arc::new(EdgeOpFilteredGraph::new(self.select.clone(), test))
         } else {
             Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
         };
@@ -444,8 +444,8 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
     ) -> Result<Self::IterFiltered<F>, GraphError> {
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
         let filtered_graph: DynGraphArc = if filter.is_edge_composite() {
-            let test = filter.create_edge_test(self.select.clone(), filtered_graph)?;
-            Arc::new(EdgeTestFilteredGraph::new(self.select.clone(), test))
+            let test = filter.create_edge_filter(self.select.clone(), filtered_graph)?;
+            Arc::new(EdgeOpFilteredGraph::new(self.select.clone(), test))
         } else {
             Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
         };

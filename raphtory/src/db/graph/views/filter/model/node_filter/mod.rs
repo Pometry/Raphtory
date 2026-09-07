@@ -15,7 +15,7 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            edge_test::{EdgeTest, EdgeTestExt, ExistsIn},
+            edge_op::{EdgeExistsOp, EdgeFilterOp, EdgeFilterOpExt},
             model::{
                 degree_filter::{DegreeFilter, DegreeFilterBuilder, DegreeFilterFactory},
                 edge_filter::CompositeEdgeFilter,
@@ -442,29 +442,29 @@ impl CreateFilter for CompositeNodeFilter {
         true
     }
 
-    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
         filtered: F,
-    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
     where
         Self: 'graph,
     {
         match self {
             CompositeNodeFilter::And(left, right) => {
-                let left = left.create_edge_test(graph.clone(), filtered.clone())?;
-                let right = right.create_edge_test(graph, filtered)?;
+                let left = left.create_edge_filter(graph.clone(), filtered.clone())?;
+                let right = right.create_edge_filter(graph, filtered)?;
                 Ok(Arc::new(left.and(right)))
             }
             CompositeNodeFilter::Or(left, right) => {
-                let left = left.create_edge_test(graph.clone(), filtered.clone())?;
-                let right = right.create_edge_test(graph, filtered)?;
+                let left = left.create_edge_filter(graph.clone(), filtered.clone())?;
+                let right = right.create_edge_filter(graph, filtered)?;
                 Ok(Arc::new(left.or(right)))
             }
-            CompositeNodeFilter::Not(inner) => {
-                Ok(Arc::new(inner.create_edge_test(graph, filtered)?.negate()))
-            }
-            leaf => Ok(Arc::new(ExistsIn::new(
+            CompositeNodeFilter::Not(inner) => Ok(Arc::new(
+                inner.create_edge_filter(graph, filtered)?.negate(),
+            )),
+            leaf => Ok(Arc::new(EdgeExistsOp::new(
                 leaf.create_filter(graph, filtered)?,
             ))),
         }

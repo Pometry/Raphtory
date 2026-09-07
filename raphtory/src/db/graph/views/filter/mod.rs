@@ -13,8 +13,8 @@ use crate::{
 pub mod and_filtered_graph;
 pub mod edge_filtered_graph;
 pub mod edge_node_filtered_graph;
+pub mod edge_op;
 pub mod edge_property_filtered_graph;
-pub mod edge_test;
 pub mod exploded_edge_filtered_graph;
 pub mod exploded_edge_node_filtered_graph;
 pub mod exploded_edge_property_filter;
@@ -23,7 +23,7 @@ pub mod node_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
-use crate::db::graph::views::filter::edge_test::{EdgeTest, ExistsIn};
+use crate::db::graph::views::filter::edge_op::{EdgeExistsOp, EdgeFilterOp};
 use std::sync::Arc;
 
 pub struct Exists;
@@ -117,7 +117,7 @@ pub trait CreateFilter: Sized {
 
     /// Whether this filter is a boolean composite of other filters.
     ///
-    /// Composites must be lowered to a per-edge test, because composing their
+    /// Composites must be lowered to a per-edge boolean, because composing their
     /// operands' wrapper graphs loses a view operand's restriction. Everything
     /// else keeps its wrapper graph, which carries exact per-layer and
     /// per-event semantics that a single edge-level boolean cannot express —
@@ -127,26 +127,26 @@ pub trait CreateFilter: Sized {
         false
     }
 
-    /// Lower this filter to a per-edge test.
+    /// Lower this filter to a per-edge boolean.
     ///
     /// The default is correct for any filter that is not itself a composite:
     /// build the wrapper graph this filter already produces, then ask it
     /// whether an edge is in its view. Composites must override this to combine
-    /// their operands' *tests* — combining their wrapper graphs is what loses a
-    /// view operand's restriction. See [`edge_test`] for why.
+    /// their operands' *booleans* — combining their wrapper graphs is what loses a
+    /// view operand's restriction. See [`edge_op`] for why.
     ///
     /// Boxed rather than an associated type so that adding this to the trait
     /// does not require boilerplate in every implementation; only the three
     /// composites need to say anything.
-    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
         filtered: F,
-    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
     where
         Self: 'graph,
     {
-        Ok(Arc::new(ExistsIn::new(
+        Ok(Arc::new(EdgeExistsOp::new(
             self.create_filter(graph, filtered)?,
         )))
     }

@@ -5,7 +5,7 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            edge_test::EdgeTest,
+            edge_op::EdgeFilterOp,
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
@@ -100,12 +100,12 @@ impl CreateFilter for PyFilterExpr {
     /// Delegate rather than take the default: the default would lower this
     /// expression by building its wrapper graph, which is exactly the
     /// composition that loses a view operand inside `&`, `|` and `~`.
-    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
         filtered: F,
-    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError> {
-        self.0.create_edge_test(graph, filtered)
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError> {
+        self.0.create_edge_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
