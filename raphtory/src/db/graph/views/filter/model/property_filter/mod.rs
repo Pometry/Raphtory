@@ -454,8 +454,6 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
         _graph: G,
         _filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        // Raising for an edge predicate on the node axis is the open question in
-        // Pometry/Raphtory#2728; pinned as an error, not endorsed.
         Err(GraphError::NotNodeFilter)
     }
 
@@ -502,8 +500,6 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         _graph: G,
         _filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        // Raising for an edge predicate on the node axis is the open question in
-        // Pometry/Raphtory#2728; pinned as an error, not endorsed.
         Err(GraphError::NotNodeFilter)
     }
 
