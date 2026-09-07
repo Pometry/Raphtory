@@ -416,11 +416,12 @@ def test_graph_filter_is_an_induced_subgraph():
 def test_nested_edge_collection_matches_the_graph_filter():
     def check(graph):
         atoms = _atoms()
-        # Node-kind filters fail open on the nested path — pinned in the broken-classes test.
-        working = {n: e for n, e in atoms.items() if n not in NODE_KIND}
+        working = dict(atoms)
         working["edge_prop & layer"] = atoms["edge_prop"] & atoms["layer"]
         working["edge_prop | src"] = atoms["edge_prop"] | atoms["src"]
         working["~edge_prop"] = ~atoms["edge_prop"]
+        working["node_prop & node_name"] = atoms["node_prop"] & atoms["node_name"]
+        working["~node_name"] = ~atoms["node_name"]
         for label, expr in working.items():
             indexed = sorted(e.id for es in graph.nodes.edges[expr] for e in es)
             reference = sorted(
@@ -446,6 +447,11 @@ def _subset(atoms):
 
 @with_variants(_init)
 def test_single_node_edge_collection_selects_incident_edges():
+    """Per-node edge collections test both endpoints of each edge, the anchor
+    included. `a` fails both node predicates, so its collection under them is
+    empty; `b` passes, so only its edge to `c` survives.
+    """
+
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         every = _ids(graph.edges)
@@ -457,17 +463,30 @@ def test_single_node_edge_collection_selects_incident_edges():
             "edge_prop & layer": single["edge_prop"] & single["layer"],
             "edge_prop | dst": single["edge_prop"] | single["dst"],
             "~edge_prop": every - single["edge_prop"],
+            "node_prop": single["node_prop"],
+            "node_name": single["node_name"],
+            "node_prop & node_name": single["node_prop"] & single["node_name"],
         }
-        # Node-kind filters fail open here too when the anchor node fails the predicate — pinned
-        # in the broken-classes test.
-        exprs = _subset(atoms)
+        exprs = dict(_subset(atoms))
+        exprs.update(
+            {
+                "node_prop": atoms["node_prop"],
+                "node_name": atoms["node_name"],
+                "node_prop & node_name": atoms["node_prop"] & atoms["node_name"],
+            }
+        )
         for name in ("a", "b"):
             node = graph.node(name)
             incident = _ids(node.edges)
             for label, expr in exprs.items():
                 got = _ids(node.edges[expr])
                 assert got == incident & want_sets[label], f"node {name}: {label}"
-                reference = _ids(graph.filter(expr).node(name).edges)
+                filtered_node = graph.filter(expr).node(name)
+                reference = (
+                    _ids(filtered_node.edges)
+                    if filtered_node is not None
+                    else frozenset()
+                )
                 assert got == reference, f"node {name}: {label} vs graph filter"
 
     return check
@@ -576,28 +595,5 @@ def test_edge_predicates_say_nothing_about_nodes():
         for label, (expr, want) in cases.items():
             got = frozenset(graph.filter(expr).nodes.name)
             assert got == want, f"{label}: got {sorted(got)} want {sorted(want)}"
-
-    return check
-
-
-@with_variants(_init)
-def test_per_node_edge_collections_with_a_node_filter_are_still_broken():
-    """`nodes.edges[node-filter]` and `node(x).edges[node-filter]` still fail
-    open when the anchor fails the predicate. When that is fixed this fails:
-    drop the `NODE_KIND` exclusions in the nested and single-node tests above.
-    """
-
-    def check(graph):
-        atoms = _atoms()
-        nested = sorted(
-            e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es
-        )
-        nested_ref = sorted(
-            e.id for es in graph.filter(atoms["node_prop"]).nodes.edges for e in es
-        )
-        per_node = _ids(graph.node("a").edges[atoms["node_prop"]])
-        assert not (
-            nested == nested_ref and per_node == frozenset()
-        ), "now FIXED: per-node/nested edges with a node filter — drop the NODE_KIND exclusions"
 
     return check

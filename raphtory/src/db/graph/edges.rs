@@ -246,12 +246,19 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         // express `or` or `not` over operands of different kinds, and drops a view operand's
         // restriction. See `views::filter::edge_op`.
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph: DynGraphArc = if filter.is_edge_composite() {
-            let test = filter.create_edge_filter(self.select.clone(), filtered_graph)?;
-            Arc::new(EdgeOpFilteredGraph::new(self.select.clone(), test))
-        } else {
-            Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
-        };
+        // A node expression must take the boolean route too. Its wrapper graph
+        // filters *nodes*, and iterating a node's edges through a node-filtered
+        // graph tests only the far endpoint -- the traversal rule, where the node
+        // walked from is exempt. A collection subscript asks whether each *edge*
+        // passes, and an edge passes a node test when both endpoints do, the
+        // anchor included. The boolean route asks exactly that.
+        let filtered_graph: DynGraphArc =
+            if filter.is_edge_composite() || filter.leaf_kinds().node_only() {
+                let test = filter.create_edge_filter(self.select.clone(), filtered_graph)?;
+                Arc::new(EdgeOpFilteredGraph::new(self.select.clone(), test))
+            } else {
+                Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
+            };
         Ok(Edges {
             base_graph: self.base_graph.clone(),
             select: filtered_graph,
@@ -443,12 +450,19 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph: DynGraphArc = if filter.is_edge_composite() {
-            let test = filter.create_edge_filter(self.select.clone(), filtered_graph)?;
-            Arc::new(EdgeOpFilteredGraph::new(self.select.clone(), test))
-        } else {
-            Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
-        };
+        // A node expression must take the boolean route too. Its wrapper graph
+        // filters *nodes*, and iterating a node's edges through a node-filtered
+        // graph tests only the far endpoint -- the traversal rule, where the node
+        // walked from is exempt. A collection subscript asks whether each *edge*
+        // passes, and an edge passes a node test when both endpoints do, the
+        // anchor included. The boolean route asks exactly that.
+        let filtered_graph: DynGraphArc =
+            if filter.is_edge_composite() || filter.leaf_kinds().node_only() {
+                let test = filter.create_edge_filter(self.select.clone(), filtered_graph)?;
+                Arc::new(EdgeOpFilteredGraph::new(self.select.clone(), test))
+            } else {
+                Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
+            };
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
