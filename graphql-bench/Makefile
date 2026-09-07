@@ -6,7 +6,7 @@ RAPHTORY_IP=$(shell terraform output raphtory_ip | jq -r '.')
 
 
 build:
-	pnpm install --frozen-lockfile
+	pnpm install --no-frozen-lockfile
 	pnpm build
 
 bench-local: build
@@ -24,6 +24,14 @@ bench: deploy push-graphs build-raphtory
 
 stress-test: build
 	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
+
+# Samples request/response pairs into $(SAMPLES) as JSONL (appends across runs).
+# SAMPLE_RATE is the chance of recording any given pair; failures are always recorded.
+SAMPLES ?= samples.jsonl
+SAMPLE_RATE ?= 0.01
+stress-test-sampled: build
+	SAMPLE_RATE=$(SAMPLE_RATE) K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html \
+		k6 run --log-format=raw --console-output=$(SAMPLES) dist/stress-test.js
 
 stress-test-multiple: build # 12 x 10m = 2h
 	for _ in $(seq 1 12); do \

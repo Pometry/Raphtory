@@ -3,7 +3,7 @@ use crate::{
     LocalPOS,
     api::{
         node_type_index::NodeTypeIndexOps,
-        nodes::{LockedNSSegment, NodeSegmentOps},
+        nodes::{LockedNSSegment, NodeEntryOps, NodeRefOps, NodeSegmentOps},
     },
     error::StorageError,
     pages::{
@@ -181,6 +181,22 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         })
     }
 
+    pub fn node_entries(&self) -> impl Iterator<Item = FakeNodeEntry<NS, EXT>> {
+        let count = self.segments.count();
+        (0..count).flat_map(|id| {
+            let ns = self
+                .get_segment(id)
+                .expect("segment should exist given count");
+            let locked = Arc::new(ns.locked());
+            (0..locked.num_nodes())
+                .map(LocalPOS)
+                .map(move |pos| FakeNodeEntry::<NS, EXT> {
+                    locked: locked.clone(),
+                    pos,
+                })
+        })
+    }
+
     pub fn num_segments(&self) -> usize {
         self.segments.count()
     }
@@ -188,10 +204,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn t_len(&self) -> usize {
         self.segments.iter().map(|(_, page)| page.t_len()).sum()
     }
-
-    // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
-    //     &self.segments
-    // }
 
     pub fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
         let len = self.segments.count();
@@ -211,6 +223,28 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn max_segment_len(&self) -> u32 {
         self.ext.config().max_node_page_len()
+    }
+}
+
+pub struct FakeNodeEntry<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>> {
+    pos: LocalPOS,
+    locked: Arc<NS::ArcLockedSegment>,
+}
+
+impl<'a, NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>> NodeEntryOps<'a>
+    for FakeNodeEntry<NS, EXT>
+{
+    type Ref<'b>
+        = <NS::ArcLockedSegment as LockedNSSegment>::EntryRef<'b>
+    where
+        'a: 'b,
+        Self: 'b;
+
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
+    where
+        'a: 'b,
+    {
+        self.locked.entry_ref(self.pos)
     }
 }
 

@@ -17,7 +17,7 @@ use raphtory_api::core::{
     entities::{
         EID, LayerId, VID,
         properties::{
-            meta::Meta,
+            meta::{Meta, STATIC_GRAPH_LAYER_ID},
             prop::{AsPropRef, Prop},
         },
     },
