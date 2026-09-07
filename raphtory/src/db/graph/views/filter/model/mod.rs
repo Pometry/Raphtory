@@ -7,20 +7,23 @@ use crate::db::{
         },
         view::internal::DynGraphArc,
     },
-    graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
-        is_active_edge_filter::IsActiveEdge,
-        is_active_node_filter::IsActiveNode,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        latest_filter::Latest,
-        layered_filter::Layered,
-        property_filter::{
-            builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+    graph::views::filter::{
+        edge_test::EdgeTest,
+        model::{
+            edge_filter::CompositeEdgeFilter,
+            is_active_edge_filter::IsActiveEdge,
+            is_active_node_filter::IsActiveNode,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            latest_filter::Latest,
+            layered_filter::Layered,
+            property_filter::{
+                builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+            },
+            snapshot_filter::{SnapshotAt, SnapshotLatest},
+            windowed_filter::Windowed,
         },
-        snapshot_filter::{SnapshotAt, SnapshotLatest},
-        windowed_filter::Windowed,
     },
 };
 pub use crate::{
@@ -205,6 +208,20 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
         &self,
         graph: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError>;
+
+    /// Object-safe mirror of [`CreateFilter::create_edge_test`], so a filter
+    /// behind `Arc<dyn DynCreateFilter>` — which is how every filter built from
+    /// Python arrives — lowers structurally rather than falling back to the
+    /// default and re-composing wrapper graphs.
+    fn create_dyn_edge_test<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>;
+
+    fn dyn_is_edge_composite(&self) -> bool;
+
+    fn dyn_is_exploded_edge_filter(&self) -> bool;
 }
 
 impl<T> DynCreateFilter for T
@@ -225,6 +242,22 @@ where
         filtered: DynGraphArc<'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
         Ok(Arc::new(self.clone().create_node_filter(graph, filtered)?))
+    }
+
+    fn create_dyn_edge_test<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError> {
+        self.clone().create_edge_test(graph, filtered)
+    }
+
+    fn dyn_is_edge_composite(&self) -> bool {
+        CreateFilter::is_edge_composite(self)
+    }
+
+    fn dyn_is_exploded_edge_filter(&self) -> bool {
+        CreateFilter::is_exploded_edge_filter(self)
     }
 
     fn dyn_filter_graph_view<'graph>(
@@ -266,6 +299,26 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         self.deref()
             .create_dyn_node_filter(Arc::new(graph), Arc::new(filtered))
+    }
+
+    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.deref()
+            .create_dyn_edge_test(Arc::new(graph), Arc::new(filtered))
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        self.deref().dyn_is_edge_composite()
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.deref().dyn_is_exploded_edge_filter()
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
