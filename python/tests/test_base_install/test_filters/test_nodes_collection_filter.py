@@ -59,8 +59,9 @@ def _rich(graph):
 
 @with_variants(_rich)
 def test_node_collection_combinations_follow_set_algebra():
-    """A representative subset of filter families combined with `&`/`|`/`~`: node collections
-    (unlike edge collections today) obey set algebra for all of them."""
+    """A representative subset of filter families combined with `&`/`|`/`~`,
+    on `nodes[...]` and on `graph.filter(...)`: both obey set algebra for all of
+    them."""
 
     def check(graph):
         atoms = {
@@ -70,7 +71,20 @@ def test_node_collection_combinations_follow_set_algebra():
             "before": Graph.before(12),
             "layer": Graph.layer("work"),
         }
-        single = {n: frozenset(graph.nodes[e].name) for n, e in atoms.items()}
+        # References computed without `nodes[...]`, which is the thing under
+        # test: views come from the equivalent chained view, predicates are
+        # evaluated over the collection. Reading them back through the subscript
+        # would make these expectations agree with it by construction.
+        single = {
+            "name": frozenset({"a", "b"}) & frozenset(graph.nodes.name),
+            "prop": frozenset(
+                n.name for n in graph.nodes if (n.properties.get("score") or 0) > 15
+            ),
+            "window": frozenset(graph.window(3, 12).nodes.name),
+            "before": frozenset(graph.before(12).nodes.name),
+            "layer": frozenset(graph.layer("work").nodes.name),
+        }
+        assert set(single) == set(atoms), "every atom needs an independent reference"
         every = frozenset(graph.nodes.name)
         cases = []
         for a, b in combinations(atoms, 2):
@@ -78,35 +92,12 @@ def test_node_collection_combinations_follow_set_algebra():
             cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
         for a in atoms:
             cases.append((f"~{a}", ~atoms[a], every - single[a]))
-        views = {"window", "before", "layer"}
-
-        def filter_path_reliable(label):
-            # `graph.filter()` goes through the entity-filter path, which fails open on the same
-            # composite classes as edge collections: `|` with a view, view & view, and `~view`.
-            # `nodes[...]` is immune, so it is asserted for everything.
-            if label.startswith("~"):
-                return label[1:] not in views
-            a, op, b = label.split(" ")
-            if op == "|":
-                return a not in views and b not in views
-            return not (a in views and b in views)
-
         mismatches = []
         for label, expr, want in cases:
             if frozenset(graph.nodes[expr].name) != want:
                 mismatches.append(f"[nodes[]] {label}")
-            if filter_path_reliable(label):
-                if frozenset(graph.filter(expr).nodes.name) != want:
-                    mismatches.append(f"[filter()] {label}")
+            if frozenset(graph.filter(expr).nodes.name) != want:
+                mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
-        # Pin the skip: when the entity path is fixed these fire — delete `filter_path_reliable`.
-        assert (
-            frozenset(graph.filter(~atoms["window"]).nodes.name)
-            != every - single["window"]
-        )
-        assert (
-            frozenset(graph.filter(atoms["name"] | atoms["window"]).nodes.name)
-            != single["name"] | single["window"]
-        )
 
     return check

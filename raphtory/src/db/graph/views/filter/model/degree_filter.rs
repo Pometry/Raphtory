@@ -12,7 +12,7 @@ use crate::{
                 InternalPropertyFilterBuilder, NodeFilter, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -47,6 +47,8 @@ pub struct DegreeFilter {
 }
 
 impl CreateFilter for DegreeFilter {
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeDegreeFilterOp<F>>;
 

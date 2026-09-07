@@ -13,7 +13,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::CreateFilter,
+            views::filter::{edge_op::EdgeOpFilteredGraph, CreateFilter},
         },
     },
     errors::GraphError,
@@ -231,6 +231,38 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static> From<Edges<'static, G>>
     }
 }
 
+/// The select graph a collection select lowers `filter` to, chained onto the
+/// current `select`.
+///
+/// Chain onto the current select rather than AND a fresh filter with the base graph:
+/// AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
+/// after/snapshot) on the right operand is silently dropped and the collection fails open.
+///
+/// Lower to a per-edge boolean rather than a stack of wrapper graphs: composing graphs cannot
+/// express `or` or `not` over operands of different kinds, and drops a view operand's
+/// restriction. See `views::filter::edge_op`.
+///
+/// A node expression must take the boolean route too. Its wrapper graph
+/// filters *nodes*, and iterating a node's edges through a node-filtered
+/// graph tests only the far endpoint -- the traversal rule, where the node
+/// walked from is exempt. A collection subscript asks whether each *edge*
+/// passes, and an edge passes a node test when both endpoints do, the
+/// anchor included. The boolean route asks exactly that.
+fn lowered_select_graph<'graph, F: CreateFilter + 'graph>(
+    select: &DynGraphArc<'graph>,
+    filter: F,
+) -> Result<DynGraphArc<'graph>, GraphError> {
+    let filtered_graph = filter.filter_graph_view(select.clone())?;
+    if filter.lowers_to_edge_boolean() {
+        let test = filter.create_edge_filter(select.clone(), filtered_graph)?;
+        Ok(Arc::new(EdgeOpFilteredGraph::new(select.clone(), test)))
+    } else {
+        Ok(Arc::new(
+            filter.create_filter(select.clone(), filtered_graph)?,
+        ))
+    }
+}
+
 impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
     type IterFiltered<Filter: CreateFilter + 'graph> = Edges<'graph, G>;
 
@@ -238,14 +270,10 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        // Chain onto the current select rather than AND a fresh filter with the base graph:
-        // AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
-        // after/snapshot) on the right operand is silently dropped and the collection fails open.
-        let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
+        let filtered_graph = lowered_select_graph(&self.select, filter)?;
         Ok(Edges {
             base_graph: self.base_graph.clone(),
-            select: Arc::new(filtered_graph),
+            select: filtered_graph,
             edges: self.edges.clone(),
         })
     }
@@ -433,12 +461,11 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
+        let filtered_graph = lowered_select_graph(&self.select, filter)?;
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            select: Arc::new(filtered_graph),
+            select: filtered_graph,
             edges: self.edges.clone(),
         })
     }

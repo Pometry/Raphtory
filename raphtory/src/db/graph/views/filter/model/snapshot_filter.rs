@@ -1,8 +1,12 @@
 use crate::{
     db::{
-        api::view::{internal::GraphView, time::TimeOps},
+        api::{
+            state::ops::node::NodeOp,
+            view::{internal::GraphView, time::TimeOps},
+        },
         graph::views::{
             filter::{
+                edge_op::EdgeFilterOp,
                 model::{
                     edge_filter::CompositeEdgeFilter,
                     is_active_edge_filter::IsActiveEdge,
@@ -18,7 +22,7 @@ use crate::{
                     InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
                     TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
-                CreateFilter,
+                CreateFilter, LeafKinds,
             },
             window_graph::WindowedGraph,
         },
@@ -26,7 +30,7 @@ use crate::{
     errors::GraphError,
 };
 use raphtory_api::core::{storage::timeindex::EventTime, utils::time::IntoTime};
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnapshotAt<M> {
@@ -134,6 +138,37 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotAt<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotAt<T> {
+    /// Delegates: this view is already applied to the graph by
+    /// `filter_graph_view`, so the inner filter answers against the viewed
+    /// graph. Building a wrapper graph here instead would re-compose the inner
+    /// expression and lose a view operand nested inside it.
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_edge_filter(graph, filtered)
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.inner.leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_node_membership(graph, filtered, polarity)
+    }
+
     type EntityFiltered<'graph, G, F>
         = T::EntityFiltered<'graph, G, F>
     where
@@ -341,6 +376,37 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for SnapshotLatest<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotLatest<T> {
+    /// Delegates: this view is already applied to the graph by
+    /// `filter_graph_view`, so the inner filter answers against the viewed
+    /// graph. Building a wrapper graph here instead would re-compose the inner
+    /// expression and lose a view operand nested inside it.
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_edge_filter(graph, filtered)
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.inner.leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_node_membership(graph, filtered, polarity)
+    }
+
     type EntityFiltered<'graph, G, F>
         = T::EntityFiltered<'graph, G, F>
     where

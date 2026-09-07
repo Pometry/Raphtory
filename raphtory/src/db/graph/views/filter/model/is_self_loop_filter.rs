@@ -7,7 +7,7 @@ use crate::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
                     CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
                 },
-                CreateFilter,
+                CreateFilter, LeafKinds,
             },
             is_self_loop_graph::IsSelfLoopGraph,
         },
@@ -26,6 +26,8 @@ impl fmt::Display for IsSelfLoopEdge {
 }
 
 impl CreateFilter for IsSelfLoopEdge {
+    crate::leaf_filter_lowering!(LeafKinds::EDGES);
+
     type EntityFiltered<'graph, G, F>
         = IsSelfLoopGraph<G>
     // self loop doesn't depend on view filtering, can simplify

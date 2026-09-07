@@ -7,20 +7,24 @@ use crate::db::{
         },
         view::internal::DynGraphArc,
     },
-    graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
-        is_active_edge_filter::IsActiveEdge,
-        is_active_node_filter::IsActiveNode,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        latest_filter::Latest,
-        layered_filter::Layered,
-        property_filter::{
-            builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+    graph::views::filter::{
+        edge_op::EdgeFilterOp,
+        model::{
+            edge_filter::CompositeEdgeFilter,
+            is_active_edge_filter::IsActiveEdge,
+            is_active_node_filter::IsActiveNode,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            latest_filter::Latest,
+            layered_filter::Layered,
+            property_filter::{
+                builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+            },
+            snapshot_filter::{SnapshotAt, SnapshotLatest},
+            windowed_filter::Windowed,
         },
-        snapshot_filter::{SnapshotAt, SnapshotLatest},
-        windowed_filter::Windowed,
+        LeafKinds,
     },
 };
 pub use crate::{
@@ -81,6 +85,8 @@ pub mod windowed_filter;
 pub struct Unfiltered;
 
 impl CreateFilter for Unfiltered {
+    crate::leaf_filter_lowering!(LeafKinds::NONE);
+
     type EntityFiltered<'graph, G, F>
         = G
     where
@@ -205,6 +211,29 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
         &self,
         graph: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError>;
+
+    /// Object-safe mirror of [`CreateFilter::create_edge_filter`], so a filter
+    /// behind `Arc<dyn DynCreateFilter>` — which is how every filter built from
+    /// Python arrives — lowers structurally rather than falling back to the
+    /// default and re-composing wrapper graphs.
+    fn create_dyn_edge_filter<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>;
+
+    fn dyn_is_edge_composite(&self) -> bool;
+
+    fn dyn_is_exploded_edge_filter(&self) -> bool;
+
+    fn dyn_leaf_kinds(&self) -> LeafKinds;
+
+    fn create_dyn_node_membership<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
@@ -225,6 +254,36 @@ where
         filtered: DynGraphArc<'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
         Ok(Arc::new(self.clone().create_node_filter(graph, filtered)?))
+    }
+
+    fn create_dyn_edge_filter<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError> {
+        self.clone().create_edge_filter(graph, filtered)
+    }
+
+    fn dyn_is_edge_composite(&self) -> bool {
+        CreateFilter::is_edge_composite(self)
+    }
+
+    fn dyn_is_exploded_edge_filter(&self) -> bool {
+        CreateFilter::is_exploded_edge_filter(self)
+    }
+
+    fn dyn_leaf_kinds(&self) -> LeafKinds {
+        CreateFilter::leaf_kinds(self)
+    }
+
+    fn create_dyn_node_membership<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+        self.clone()
+            .create_node_membership(graph, filtered, polarity)
     }
 
     fn dyn_filter_graph_view<'graph>(
@@ -266,6 +325,43 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         self.deref()
             .create_dyn_node_filter(Arc::new(graph), Arc::new(filtered))
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.deref()
+            .create_dyn_edge_filter(Arc::new(graph), Arc::new(filtered))
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        self.deref().dyn_is_edge_composite()
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.deref().dyn_is_exploded_edge_filter()
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.deref().dyn_leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.deref()
+            .create_dyn_node_membership(Arc::new(graph), Arc::new(filtered), polarity)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

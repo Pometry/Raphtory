@@ -5,12 +5,13 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
+            edge_op::EdgeFilterOp,
             model::{
                 edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
                 TryAsCompositeFilter,
             },
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -90,6 +91,38 @@ impl CreateFilter for PyFilterExpr {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         self.0.create_node_filter(graph, filtered)
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        self.0.is_edge_composite()
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.0.is_exploded_edge_filter()
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.0.leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+        self.0.create_node_membership(graph, filtered, polarity)
+    }
+
+    /// Delegate rather than take the default: the default would lower this
+    /// expression by building its wrapper graph, which is exactly the
+    /// composition that loses a view operand inside `&`, `|` and `~`.
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError> {
+        self.0.create_edge_filter(graph, filtered)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

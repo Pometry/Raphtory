@@ -68,7 +68,10 @@ use raphtory::{
         },
     },
     core::entities::nodes::node_ref::AsNodeRef,
-    db::{api::view::DynamicGraph, graph::node::NodeView},
+    db::{
+        api::view::DynamicGraph,
+        graph::{node::NodeView, views::filter::model::DynFilter},
+    },
     errors::GraphError,
     prelude::{GraphViewOps, TimeOps},
 };
@@ -193,7 +196,9 @@ impl GqlAlgorithms {
         Ok(self
             .run(move |graph| match filter {
                 None => Ok(in_components(&graph, threads)),
-                Some(filter) => in_components_filtered(&graph, threads, filter),
+                Some(filter) => {
+                    in_components_filtered(&graph, threads, DynFilter::try_from(filter)?)
+                }
             })
             .await?
             .into())
@@ -213,7 +218,9 @@ impl GqlAlgorithms {
         Ok(self
             .run(move |graph| match filter {
                 None => Ok(out_components(&graph, threads)),
-                Some(filter) => out_components_filtered(&graph, threads, filter),
+                Some(filter) => {
+                    out_components_filtered(&graph, threads, DynFilter::try_from(filter)?)
+                }
             })
             .await?
             .into())
@@ -233,7 +240,7 @@ impl GqlAlgorithms {
                 let node = get_node(graph, node)?;
                 match filter {
                     None => Ok(in_component(node)),
-                    Some(filter) => in_component_filtered(node, filter),
+                    Some(filter) => in_component_filtered(node, DynFilter::try_from(filter)?),
                 }
             })
             .await?
@@ -254,7 +261,7 @@ impl GqlAlgorithms {
                 let node = get_node(graph, node)?;
                 match filter {
                     None => Ok(out_component(node)),
-                    Some(filter) => out_component_filtered(node, filter),
+                    Some(filter) => out_component_filtered(node, DynFilter::try_from(filter)?),
                 }
             })
             .await?

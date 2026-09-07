@@ -7,7 +7,7 @@ use crate::{
                 CompositeNodeFilter, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -24,6 +24,8 @@ impl fmt::Display for IsActiveNode {
 }
 
 impl CreateFilter for IsActiveNode {
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G, F>
         = NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>
     where

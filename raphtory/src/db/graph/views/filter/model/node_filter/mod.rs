@@ -34,7 +34,7 @@ use crate::{
                 NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -159,6 +159,8 @@ impl From<Filter> for NodeIdFilter {
 impl ComposableFilter for NodeIdFilter {}
 
 impl CreateFilter for NodeIdFilter {
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeIdFilterOp>;
 
@@ -230,6 +232,8 @@ impl From<Filter> for NodeNameFilter {
 impl ComposableFilter for NodeNameFilter {}
 
 impl CreateFilter for NodeNameFilter {
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeNameFilterOp>;
 
@@ -299,6 +303,8 @@ impl From<Filter> for NodeTypeFilter {
 impl ComposableFilter for NodeTypeFilter {}
 
 impl CreateFilter for NodeTypeFilter {
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeTypeFilterOp>;
 
@@ -404,6 +410,13 @@ impl Display for CompositeNodeFilter {
 }
 
 impl CreateFilter for CompositeNodeFilter {
+    // One node test, whatever its shape. On edges it selects those whose
+    // endpoints both pass it, which is what `~N` ("neither endpoint passes N")
+    // and `N1 | N2` ("both endpoints are N1 or N2 nodes") mean. Lowering the
+    // leaves one at a time and composing at edge level would read them as the
+    // complement and as a union of edge sets instead.
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
 
