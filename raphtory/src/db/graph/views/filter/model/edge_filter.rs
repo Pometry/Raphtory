@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::ops::NotANodeFilter,
+            state::ops::{node::NodeOp, Const, NotANodeFilter},
             view::{
                 internal::{DynGraphArc, GraphView},
                 BoxableGraphView,
@@ -37,7 +37,7 @@ use crate::{
                 InternalPropertyFilterBuilder, InternalPropertyFilterFactory, InternalViewWrapOps,
                 NotFilter, OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -250,7 +250,7 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EdgeEnd
 impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EdgeEndpointWrapper<T> {}
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::EDGES);
 
     type EntityFiltered<'graph, G, F>
         = EdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
@@ -409,6 +409,23 @@ impl CreateFilter for CompositeEdgeFilter {
                 | CompositeEdgeFilter::Or(..)
                 | CompositeEdgeFilter::Not(..)
         )
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        LeafKinds::EDGES
+    }
+
+    /// An edge predicate says nothing about nodes.
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        _graph: G,
+        _filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        Ok(Arc::new(Const(polarity)))
     }
 
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =

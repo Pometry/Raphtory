@@ -8,7 +8,7 @@ use crate::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
                     CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
                 },
-                CreateFilter,
+                CreateFilter, LeafKinds,
             },
             valid_graph::ValidGraph,
         },
@@ -27,7 +27,7 @@ impl fmt::Display for IsValidEdge {
 }
 
 impl CreateFilter for IsValidEdge {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::EDGES);
 
     type EntityFiltered<'graph, G, F>
         = EdgeFilteredGraph<G, ValidGraph<F>>

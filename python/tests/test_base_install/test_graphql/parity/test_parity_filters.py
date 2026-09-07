@@ -419,6 +419,16 @@ COMBINATOR_EXPRS = {
     # Node and edge predicates in one expression — the headline capability.
     "comb.mixed_and": lambda: (f.Node.property("score") > 5)
     & (f.Edge.property("weight") > 2.0),
+    # A node OR an edge predicate: edges pass if heavy or between "iso" nodes,
+    # nodes pass unless definitely excluded — the edge branch says nothing about
+    # a node — so a node goes only when it has no activity left.
+    "comb.mixed_or": lambda: (f.Node.name() == "iso")
+    | (f.Edge.property("weight") > 3.0),
+    # Two view scopes: the union of what each admits.
+    "view.or": lambda: f.Graph.at(3) | f.Graph.at(5),
+    # A negated time view: what lies outside it — nodes with no activity at 3,
+    # and edges among them (#2718, option 1).
+    "view.not": lambda: ~f.Graph.at(3),
     "comb.mixed_not": lambda: ~(
         (f.Node.property("score") > 5) & (f.Edge.property("weight") > 2.0)
     ),
@@ -652,10 +662,6 @@ def _baseline(pair, key, probe, reach):
 # (`scoped.edge.is_valid`, `scoped.node.is_active`) or negated
 # (`pred.edge.is_deleted`) — those prove the validity and activity axes really
 # do cross the wire.
-#
-# The last three are a property of the combinator lowering: a disjunction or a
-# negation across two *different* scopes cannot exclude anything, because each
-# branch leaves the other scope unconstrained.
 _UNIVERSAL_EXPRS = {
     "universal.node.is_active": (
         lambda: f.Node.is_active(),
@@ -672,21 +678,6 @@ _UNIVERSAL_EXPRS = {
     "universal.view.snapshot_latest": (
         lambda: f.Graph.snapshot_latest(),
         "the latest snapshot of an EVENT graph is the whole graph",
-    ),
-    "universal.mixed_or": (
-        lambda: (f.Node.name() == "iso") | (f.Edge.property("weight") > 3.0),
-        "a node OR an edge predicate: each branch leaves the other entity "
-        "type unconstrained, so the disjunction admits everything",
-    ),
-    "universal.view_or": (
-        lambda: f.Graph.at(3) | f.Graph.at(5),
-        "a disjunction of two view scopes widens rather than narrows",
-    ),
-    "universal.view_not": (
-        lambda: ~f.Graph.layer("knows"),
-        "negating a view scope does not exclude entities from the result; the "
-        "intended semantics are undecided (#2718), so this pins today's no-op "
-        "rather than endorsing it",
     ),
 }
 
@@ -710,6 +701,38 @@ def test_expr_discriminates(filter_pair, name):
         _assert_discriminates(
             side_name, f"filter({name})", probed, baseline[side_name], name
         )
+
+
+def test_negating_a_layer_view_is_set_algebra_over_its_nodes(filter_pair):
+    """`~layer(x)` selects what the layer view leaves out, on both sides.
+
+    A layer view does restrict nodes: a node whose only events are edges in
+    other layers is not in it. Here every node is added with `add_node`, so
+    every node has events of its own and survives *any* layer view — which
+    makes the negation select no nodes, and so no edges. That is the set algebra
+    working, not a degenerate case being papered over, and the assertion below
+    ties it to the un-negated view rather than hard-coding "empty".
+
+    On a graph whose nodes are implied by their edges, the same rule gives the
+    useful answer instead: for `a-knows-b`, `c-likes-d`, `~layer("knows")`
+    selects `c` and `d` and the edge between them.
+    """
+    view = lambda: f.Graph.layer("knows")
+    build = lambda: ~view()
+    assert_parity(filter_pair, lambda g: _probe_graph(g.filter(build())))
+    for side_name, side in (
+        ("local", filter_pair.local),
+        ("remote", filter_pair.remote),
+    ):
+        kept = frozenset(side.filter(build()).nodes.name)
+        in_view = frozenset(side.filter(view()).nodes.name)
+        every = frozenset(side.nodes.name)
+        assert in_view == every, f"{side_name}: fixture no longer saturates the view"
+        assert kept == every - in_view, f"{side_name}: {sorted(kept)}"
+        # The edge *collection* is not a graph, so it is not held to the
+        # surviving nodes and does select the other layers' edges.
+        others = side.edges[build()]
+        assert len(others) > 0 and len(others) < len(side.edges), side_name
 
 
 @pytest.mark.parametrize("name", sorted(_UNIVERSAL_EXPRS), ids=sorted(_UNIVERSAL_EXPRS))

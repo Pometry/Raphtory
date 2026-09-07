@@ -8,7 +8,7 @@ use crate::{
                     edge_filter::CompositeEdgeFilter, ComposableFilter,
                     CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
                 },
-                CreateFilter,
+                CreateFilter, LeafKinds,
             },
             is_deleted_graph::IsDeletedGraph,
         },
@@ -27,7 +27,7 @@ impl fmt::Display for IsDeletedEdge {
 }
 
 impl CreateFilter for IsDeletedEdge {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::EDGES);
 
     type EntityFiltered<'graph, G, F>
         = EdgeFilteredGraph<G, IsDeletedGraph<F>>

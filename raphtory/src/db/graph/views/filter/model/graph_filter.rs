@@ -7,7 +7,7 @@ use crate::{
                 CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
                 TryAsCompositeFilter, Wrap,
             },
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -40,7 +40,7 @@ impl InternalViewWrapOps for GraphFilter {
 }
 
 impl CreateFilter for GraphFilter {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::VIEW);
 
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = F;
 

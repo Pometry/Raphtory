@@ -1,10 +1,21 @@
 """Edge-collection filtering across every filter type and combination.
 
-Singles are checked against the graph-level filter and the chained-view references. Combinations
-are checked against set algebra over the single-filter results (`&` = intersection, `|` = union,
-`~` = complement), which is how node collections already behave. The combination classes that are
-known broken on edges are pinned by `test_broken_combination_classes_are_still_broken` — when a fix
-lands, that test fails and the class moves into the working set by deleting its rule below.
+Singles are checked against the graph-level filter and the chained-view
+references. Combinations are checked against expectations derived by `_Oracle`
+from the single-filter results, under two rules:
+
+* A node expression — a node predicate, or `&`/`|`/`~` of nothing but node
+  predicates — is one node test. Applied to edges it selects the edges whose
+  endpoints both pass it, so `~N` is "neither endpoint passes N" and `N1 | N2`
+  is "both endpoints are N1-or-N2 nodes".
+* Everything else is set algebra over edge sets: `&` is intersection, `|` is
+  union, `~` is complement, with each maximal node expression contributing the
+  edge set above.
+
+`edges[expr]` returns exactly that edge set. `graph.filter(expr)` returns a
+graph, so it additionally keeps only edges whose endpoints it kept: nodes are
+decided first (an edge predicate says nothing about a node, so it excludes
+none), and edges are the edge set induced on those nodes.
 """
 
 from itertools import combinations
@@ -31,6 +42,13 @@ def _init(graph):
     graph.add_edge(12, "d", "d", {"weight": 4})
     graph.delete_edge(20, "a", "b", layer="work")
     return graph
+
+
+# `d` is never added as a node; it exists only through its self-loop. A node
+# whose every event is an edge event disappears from a filtered graph once those
+# edges are filtered out — it has no activity left — exactly as under a single
+# edge filter. The oracle models that; the other nodes have events of their own.
+EDGE_ONLY_NODES = frozenset({"d"})
 
 
 def _atoms():
@@ -60,33 +78,146 @@ def _kind(name):
     return "view" if name in VIEWS else ("node" if name in NODE_KIND else "edge")
 
 
-# `edges[...]` lowers a composite to one per-edge boolean and obeys set algebra
-# for every combination. `graph.filter(...)` still composes wrapper graphs, where
-# a view operand's restriction is inherited from the unviewed base and vanishes,
-# so these rules describe *that* path only and are consulted per path below.
+class _Shape:
+    """A filter expression and a symbolic mirror of it, built together, so an
+    expectation can be derived from the mirror without evaluating the filter."""
+
+    def __init__(self, label, expr, tree):
+        self.label, self.expr, self.tree = label, expr, tree
+
+    def __and__(self, other):
+        return _Shape(
+            f"({self.label} & {other.label})",
+            self.expr & other.expr,
+            ("and", self.tree, other.tree),
+        )
+
+    def __or__(self, other):
+        return _Shape(
+            f"({self.label} | {other.label})",
+            self.expr | other.expr,
+            ("or", self.tree, other.tree),
+        )
+
+    def __invert__(self):
+        return _Shape(f"~{self.label}", ~self.expr, ("not", self.tree))
 
 
-def _and_is_broken(a, b):
-    # A time view combined with anything via `and` is silently ignored.
-    return a in TIME_VIEWS or b in TIME_VIEWS
+def _leaves(tree):
+    return {tree[1]} if tree[0] == "atom" else set().union(*map(_leaves, tree[1:]))
 
 
-def _or_is_broken(a, b):
-    # An `or` involving any graph view, or mixing edge- and node-kind operands, returns every edge.
-    return a in VIEWS or b in VIEWS or _kind(a) != _kind(b)
+def _is_node_expression(tree):
+    return _leaves(tree) <= NODE_KIND
 
 
-def _not_is_broken(a):
-    # `~view` returns every edge; `~node-filter` distributes the negation into the endpoints
-    # instead of complementing the matching edge set.
-    return a in VIEWS or a in NODE_KIND
+def _shapes(atoms):
+    """Every pair under `&`, `|`, `~(&)` and `~(|)`, every atom negated, and a
+    few deeper nestings, mixing kinds freely."""
+    leaf = {name: _Shape(name, expr, ("atom", name)) for name, expr in atoms.items()}
+    shapes = []
+    for a, b in combinations(leaf, 2):
+        shapes += [
+            leaf[a] & leaf[b],
+            leaf[a] | leaf[b],
+            ~(leaf[a] & leaf[b]),
+            ~(leaf[a] | leaf[b]),
+        ]
+    shapes += [~leaf[a] for a in leaf]
+    shapes += [
+        leaf["layer"] & (leaf["edge_prop"] | leaf["src"]),
+        (leaf["node_prop"] | leaf["node_name"]) & leaf["edge_prop"],
+        ~(leaf["node_prop"] | leaf["node_name"]) & leaf["window"],
+        ~(~leaf["node_name"] & leaf["layer"]),
+        leaf["edge_prop"] | ~(leaf["node_prop"] & leaf["node_name"]),
+    ]
+    return shapes
 
 
-def _not_composite_is_broken(a, b):
-    # `~(A & B)` and `~(A | B)`: negating a *composite* reaches the same wrappers
-    # through the negation, so `~(A & view)` degenerates to `~A` and loses the
-    # view entirely. Only a composite of two edge predicates survives.
-    return _kind(a) != "edge" or _kind(b) != "edge"
+class _Oracle:
+    """Expected results for a shape, from the two rules in the module docstring.
+
+    Fed only with references computed *without* the paths under test (chained
+    views for view atoms, direct evaluation for predicates) so an agreement
+    means something.
+    """
+
+    def __init__(self, graph, single):
+        self.single = single
+        self.every_edges = _ids(graph.edges)
+        self.every_nodes = frozenset(graph.nodes.name)
+        self.endpoints = {e.id: (e.src.name, e.dst.name) for e in graph.edges}
+        views = _view_references(graph)
+        self.node_sets = {
+            "node_prop": frozenset(_node_scores(graph, 15)),
+            "node_name": frozenset({"b", "c"}) & self.every_nodes,
+            **{name: frozenset(view.nodes.name) for name, view in views.items()},
+        }
+
+    def _both_endpoints_in(self, nodes):
+        return frozenset(
+            eid for eid, (s, d) in self.endpoints.items() if s in nodes and d in nodes
+        )
+
+    def node_set(self, tree):
+        """A node expression as a set of nodes: plain set algebra."""
+        kind = tree[0]
+        if kind == "atom":
+            return self.node_sets[tree[1]]
+        if kind == "and":
+            return self.node_set(tree[1]) & self.node_set(tree[2])
+        if kind == "or":
+            return self.node_set(tree[1]) | self.node_set(tree[2])
+        return self.every_nodes - self.node_set(tree[1])
+
+    def edge_set(self, tree):
+        """What `edges[expr]` selects."""
+        if _is_node_expression(tree):
+            return self._both_endpoints_in(self.node_set(tree))
+        kind = tree[0]
+        if kind == "atom":
+            return frozenset(self.single[tree[1]])
+        if kind == "and":
+            return self.edge_set(tree[1]) & self.edge_set(tree[2])
+        if kind == "or":
+            return self.edge_set(tree[1]) | self.edge_set(tree[2])
+        return self.every_edges - self.edge_set(tree[1])
+
+    def _membership(self, tree):
+        """Nodes of `graph.filter(expr)` as a (lo, hi) pair of node sets.
+
+        An edge predicate is *unknown* for a node — it neither admits nor
+        excludes it — so it spans (nothing, everything); a node predicate or a
+        view is definite. `and`/`or` combine bound by bound and `not` swaps
+        them. A node is kept unless the expression is definitely false about
+        it, which is `hi`.
+        """
+        kind = tree[0]
+        if kind == "atom":
+            if _kind(tree[1]) == "edge":
+                return frozenset(), self.every_nodes
+            nodes = self.node_sets[tree[1]]
+            return nodes, nodes
+        if kind == "and":
+            (l1, h1), (l2, h2) = self._membership(tree[1]), self._membership(tree[2])
+            return l1 & l2, h1 & h2
+        if kind == "or":
+            (l1, h1), (l2, h2) = self._membership(tree[1]), self._membership(tree[2])
+            return l1 | l2, h1 | h2
+        lo, hi = self._membership(tree[1])
+        return self.every_nodes - hi, self.every_nodes - lo
+
+    def graph_edges(self, tree):
+        """What `graph.filter(expr).edges` selects: the edge set, induced on the
+        nodes the expression admits."""
+        return self.edge_set(tree) & self._both_endpoints_in(self._membership(tree)[1])
+
+    def graph_nodes(self, tree):
+        """What `graph.filter(expr).nodes` selects: the nodes the expression
+        admits, minus any node that has no activity left (see `EDGE_ONLY_NODES`)."""
+        admitted = self._membership(tree)[1]
+        touched = {name for eid in self.graph_edges(tree) for name in self.endpoints[eid]}
+        return frozenset(n for n in admitted if n not in EDGE_ONLY_NODES or n in touched)
 
 
 def _ids(collection):
@@ -226,55 +357,57 @@ def test_edge_collection_time_view_actually_narrows():
 
 
 @with_variants(_init)
-def test_working_combinations_follow_set_algebra():
+def test_composites_follow_the_two_rules_on_both_paths():
+    """Every shape in `_shapes`, on `edges[...]` and on `graph.filter(...)`.
+
+    A case whose expectation is the whole collection cannot tell a correct
+    answer from one that ignored the filter, so those are skipped per side.
+    """
+
     def check(graph):
-        atoms, single = _atoms(), _singles(graph)
-        every = _ids(graph.edges)
-        cases = []
-        for a, b in combinations(atoms, 2):
-            if not _and_is_broken(a, b):
-                cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
-            if not _or_is_broken(a, b):
-                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
-            if not _not_composite_is_broken(a, b):
-                cases.append(
-                    (
-                        f"~({a} & {b})",
-                        ~(atoms[a] & atoms[b]),
-                        every - (single[a] & single[b]),
-                    )
-                )
-                cases.append(
-                    (
-                        f"~({a} | {b})",
-                        ~(atoms[a] | atoms[b]),
-                        every - (single[a] | single[b]),
-                    )
-                )
-        for a in atoms:
-            if not _not_is_broken(a):
-                cases.append((f"~{a}", ~atoms[a], every - single[a]))
-        cases.append(
-            (
-                "layer & (edge_prop | src)",
-                atoms["layer"] & (atoms["edge_prop"] | atoms["src"]),
-                single["layer"] & (single["edge_prop"] | single["src"]),
-            )
-        )
+        oracle = _Oracle(graph, _singles(graph))
         mismatches = []
-        for label, expr, want in cases:
-            # Both paths, since these are the combinations the entity path also
-            # gets right. `edges[]` is covered for *every* shape by
-            # `test_edge_subscript_composites_follow_set_algebra`.
-            for path, got in (
-                ("edges[]", _ids(graph.edges[expr])),
-                ("filter()", _ids(graph.filter(expr).edges)),
-            ):
+        for shape in _shapes(_atoms()):
+            want = oracle.edge_set(shape.tree)
+            if want != oracle.every_edges:
+                got = _ids(graph.edges[shape.expr])
                 if got != want:
                     mismatches.append(
-                        f"[{path}] {label}: got {sorted(got)} want {sorted(want)}"
+                        f"[edges[]] {shape.label}: got {sorted(got)} want {sorted(want)}"
+                    )
+            filtered = graph.filter(shape.expr)
+            want = oracle.graph_edges(shape.tree)
+            if want != oracle.every_edges:
+                got = _ids(filtered.edges)
+                if got != want:
+                    mismatches.append(
+                        f"[filter().edges] {shape.label}: got {sorted(got)} want {sorted(want)}"
+                    )
+            want = oracle.graph_nodes(shape.tree)
+            if want != oracle.every_nodes:
+                got = frozenset(filtered.nodes.name)
+                if got != want:
+                    mismatches.append(
+                        f"[filter().nodes] {shape.label}: got {sorted(got)} want {sorted(want)}"
                     )
         assert not mismatches, "\n".join(mismatches)
+
+    return check
+
+
+@with_variants(_init)
+def test_graph_filter_is_an_induced_subgraph():
+    """A filtered graph never holds an edge whose endpoint it dropped."""
+
+    def check(graph):
+        dangling = []
+        for shape in _shapes(_atoms()):
+            filtered = graph.filter(shape.expr)
+            nodes = frozenset(filtered.nodes.name)
+            for e in filtered.edges:
+                if e.src.name not in nodes or e.dst.name not in nodes:
+                    dangling.append(f"{shape.label}: {e.id}")
+        assert not dangling, dangling
 
     return check
 
@@ -372,138 +505,90 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 
 @with_variants(_init)
-def test_edge_subscript_composites_follow_set_algebra():
-    """`edges[...]` obeys set algebra for every composite, including the shapes
-    `graph.filter(...)` still gets wrong.
-
-    The subscript lowers a composite to a single per-edge boolean — each operand
-    asked "is this edge in your view?" and the answers combined — so `&` is
-    intersection, `|` is union and `~` is complement regardless of what the
-    operands are. Expectations come from `_singles`, which is computed without
-    the subscript (chained views for view atoms, direct evaluation for
-    predicates), so a filter that failed open could not make them agree.
+def test_negating_a_node_filter_selects_edges_among_the_remaining_nodes():
+    """`~N` is one node test — the nodes that fail N — and an edge passes a node
+    test when both its endpoints do. So `edges[~N]` is the edges among the
+    failing nodes, not the complement of `edges[N]`, which would keep every edge
+    that merely touches one failing node. Both spellings agree.
     """
 
     def check(graph):
-        atoms, single = _atoms(), _singles(graph)
-        every = _ids(graph.edges)
-        cases = []
-        for a, b in combinations(atoms, 2):
-            cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
-            cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
-            cases.append(
-                (
-                    f"~({a} & {b})",
-                    ~(atoms[a] & atoms[b]),
-                    every - (single[a] & single[b]),
-                )
-            )
-            cases.append(
-                (
-                    f"~({a} | {b})",
-                    ~(atoms[a] | atoms[b]),
-                    every - (single[a] | single[b]),
-                )
-            )
-        for a in atoms:
-            cases.append((f"~{a}", ~atoms[a], every - single[a]))
-
-        mismatches = []
-        for label, expr, want in cases:
-            # A case whose expectation is every edge cannot tell a correct
-            # answer from one that ignored the filter.
-            if want == every:
-                continue
-            got = _ids(graph.edges[expr])
-            if got != want:
-                mismatches.append(f"{label}: got {sorted(got)} want {sorted(want)}")
-        assert not mismatches, "\n".join(mismatches)
-
-    return check
-
-
-@with_variants(_init)
-def test_negating_a_node_filter_complements_the_edge_set():
-    """`~node-filter` on edges is the complement, not the negation of each endpoint.
-
-    These differ whenever an edge's endpoints disagree about the filter, and the
-    endpoint reading is the stronger one — it drops edges that belong in the
-    result. `~(P(src) and P(dst))` is `not P(src) or not P(dst)`, so one failing
-    endpoint is enough.
-    """
-
-    def check(graph):
-        atoms, single = _atoms(), _singles(graph)
-        every = _ids(graph.edges)
+        atoms, oracle = _atoms(), _Oracle(graph, _singles(graph))
         for name in NODE_KIND:
-            kept = _ids(graph.edges[~atoms[name]])
-            assert kept == every - single[name], (
-                f"~{name}: got {sorted(kept)}, want the complement "
-                f"{sorted(every - single[name])}"
-            )
-            # Not the endpoint-wise reading, which is a strict subset whenever
-            # some edge has one passing and one failing endpoint.
-            assert kept != _ids(
-                graph.edges[atoms[name]]
-            ), f"~{name} returned the unnegated set"
+            remaining = oracle.every_nodes - oracle.node_sets[name]
+            want = oracle.edge_set(("not", ("atom", name)))
+            assert want == oracle._both_endpoints_in(remaining)
+            # The two readings differ on this graph, so the assertions below
+            # discriminate.
+            assert want != oracle.every_edges - oracle.single[name]
+            assert _ids(graph.edges[~atoms[name]]) == want, f"edges[~{name}]"
+            assert _ids(graph.filter(~atoms[name]).edges) == want, f"filter(~{name})"
 
     return check
 
 
 @with_variants(_init)
-def test_broken_combination_classes_are_still_broken():
-    """One discriminating representative per known-broken class. When a class is fixed this fails:
-    delete its `_*_is_broken` rule above so the combinations join the set-algebra test.
+def test_node_expression_does_not_test_the_node_stood_on():
+    """Walking from a node through a node-filtered graph tests the neighbours,
+    not the node walked from — for a composite exactly as for a single filter.
+    `a` fails both predicates here; its in-neighbour `c` passes both."""
+
+    def check(graph):
+        atoms = _atoms()
+        single = frozenset(graph.node("a").filter(atoms["node_prop"]).in_neighbours.name)
+        assert single == {"c"}
+        for label, expr in (
+            ("&", atoms["node_prop"] & atoms["node_name"]),
+            ("|", atoms["node_prop"] | atoms["node_name"]),
+            ("~~", ~~atoms["node_prop"]),
+        ):
+            got = frozenset(graph.node("a").filter(expr).in_neighbours.name)
+            assert got == single, f"{label}: {sorted(got)}"
+
+    return check
+
+
+@with_variants(_init)
+def test_edge_predicates_say_nothing_about_nodes():
+    """In `graph.filter(expr).nodes`, an edge predicate neither admits nor
+    excludes a node: a node goes only when the expression is definitely false
+    about it, or when it has no activity left. That keeps de Morgan: `~(P & N)`
+    and `~P | ~N` agree."""
+
+    def check(graph):
+        atoms, oracle = _atoms(), _Oracle(graph, _singles(graph))
+        every, high = oracle.every_nodes, oracle.node_sets["node_prop"]
+        P, N = atoms["edge_prop"], atoms["node_prop"]
+        assert high and high != every
+        # `d` has no activity of its own and `P | N` drops its only edge, so it
+        # goes — as it does under `P` alone, which is the point of comparison.
+        under_p_alone = frozenset(graph.filter(P).nodes.name)
+        assert under_p_alone == every - EDGE_ONLY_NODES
+        cases = {
+            "P & N": (P & N, high),
+            "P | N": (P | N, under_p_alone),
+            "~P": (~P, every),
+            "~(P & N)": (~(P & N), every),
+            "~P | ~N": (~P | ~N, every),
+            "~(P | N)": (~(P | N), every - high),
+            "~P & ~N": (~P & ~N, every - high),
+        }
+        for label, (expr, want) in cases.items():
+            got = frozenset(graph.filter(expr).nodes.name)
+            assert got == want, f"{label}: got {sorted(got)} want {sorted(want)}"
+
+    return check
+
+
+@with_variants(_init)
+def test_per_node_edge_collections_with_a_node_filter_are_still_broken():
+    """`nodes.edges[node-filter]` and `node(x).edges[node-filter]` still fail
+    open when the anchor fails the predicate. When that is fixed this fails:
+    drop the `NODE_KIND` exclusions in the nested and single-node tests above.
     """
 
     def check(graph):
-        atoms, single = _atoms(), _singles(graph)
-        every = _ids(graph.edges)
-        _assert_discriminating(
-            graph,
-            single,
-            ["window", "layer", "edge_prop", "node_prop", "node_name"],
-        )
-        representatives = {
-            "and drops a time view": (
-                atoms["window"] & atoms["edge_prop"],
-                single["window"] & single["edge_prop"],
-            ),
-            "or with a view returns every edge": (
-                atoms["edge_prop"] | atoms["layer"],
-                single["edge_prop"] | single["layer"],
-            ),
-            "or of mixed kinds returns every edge": (
-                atoms["edge_prop"] | atoms["node_prop"],
-                single["edge_prop"] | single["node_prop"],
-            ),
-            "not of a view returns every edge": (
-                ~atoms["layer"],
-                every - single["layer"],
-            ),
-            "not of a node filter is not the complement": (
-                ~atoms["node_name"],
-                every - single["node_name"],
-            ),
-            # Negating a composite that contains a view: the pairwise rules
-            # above only ever negate a single atom, so these shapes need their
-            # own representatives.
-            "not of an and containing a view loses the view": (
-                ~(atoms["edge_prop"] & atoms["layer"]),
-                every - (single["edge_prop"] & single["layer"]),
-            ),
-            "not of an or containing a view returns every edge": (
-                ~(atoms["edge_prop"] | atoms["layer"]),
-                every - (single["edge_prop"] | single["layer"]),
-            ),
-        }
-        # Judged on `graph.filter(...)` alone: the subscript path already obeys
-        # set algebra for all of these, so requiring both would keep every class
-        # pinned even once it is fixed there.
-        fixed = []
-        for label, (expr, want) in representatives.items():
-            if _ids(graph.filter(expr).edges) == want:
-                fixed.append(label)
+        atoms = _atoms()
         nested = sorted(
             e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es
         )
@@ -511,10 +596,8 @@ def test_broken_combination_classes_are_still_broken():
             e.id for es in graph.filter(atoms["node_prop"]).nodes.edges for e in es
         )
         per_node = _ids(graph.node("a").edges[atoms["node_prop"]])
-        if nested == nested_ref and per_node == frozenset():
-            fixed.append("per-node/nested edges with a node filter")
-        assert (
-            not fixed
-        ), f"now FIXED: {fixed} — move the class into the working set by deleting its rule"
+        assert not (
+            nested == nested_ref and per_node == frozenset()
+        ), "now FIXED: per-node/nested edges with a node filter — drop the NODE_KIND exclusions"
 
     return check

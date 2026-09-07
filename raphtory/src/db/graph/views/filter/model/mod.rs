@@ -24,6 +24,7 @@ use crate::db::{
             snapshot_filter::{SnapshotAt, SnapshotLatest},
             windowed_filter::Windowed,
         },
+        LeafKinds,
     },
 };
 pub use crate::{
@@ -84,7 +85,7 @@ pub mod windowed_filter;
 pub struct Unfiltered;
 
 impl CreateFilter for Unfiltered {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::NONE);
 
     type EntityFiltered<'graph, G, F>
         = G
@@ -224,6 +225,15 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
     fn dyn_is_edge_composite(&self) -> bool;
 
     fn dyn_is_exploded_edge_filter(&self) -> bool;
+
+    fn dyn_leaf_kinds(&self) -> LeafKinds;
+
+    fn create_dyn_node_membership<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
@@ -260,6 +270,20 @@ where
 
     fn dyn_is_exploded_edge_filter(&self) -> bool {
         CreateFilter::is_exploded_edge_filter(self)
+    }
+
+    fn dyn_leaf_kinds(&self) -> LeafKinds {
+        CreateFilter::leaf_kinds(self)
+    }
+
+    fn create_dyn_node_membership<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+        self.clone()
+            .create_node_membership(graph, filtered, polarity)
     }
 
     fn dyn_filter_graph_view<'graph>(
@@ -321,6 +345,23 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
 
     fn is_exploded_edge_filter(&self) -> bool {
         self.deref().dyn_is_exploded_edge_filter()
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.deref().dyn_leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.deref()
+            .create_dyn_node_membership(Arc::new(graph), Arc::new(filtered), polarity)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

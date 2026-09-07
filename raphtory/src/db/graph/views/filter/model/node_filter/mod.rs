@@ -15,7 +15,6 @@ use crate::{
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
-            edge_op::{EdgeExistsOp, EdgeFilterOp, EdgeFilterOpExt},
             model::{
                 degree_filter::{DegreeFilter, DegreeFilterBuilder, DegreeFilterFactory},
                 edge_filter::CompositeEdgeFilter,
@@ -36,7 +35,7 @@ use crate::{
                 NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -161,7 +160,7 @@ impl From<Filter> for NodeIdFilter {
 impl ComposableFilter for NodeIdFilter {}
 
 impl CreateFilter for NodeIdFilter {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
 
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeIdFilterOp>;
@@ -234,7 +233,7 @@ impl From<Filter> for NodeNameFilter {
 impl ComposableFilter for NodeNameFilter {}
 
 impl CreateFilter for NodeNameFilter {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
 
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeNameFilterOp>;
@@ -305,7 +304,7 @@ impl From<Filter> for NodeTypeFilter {
 impl ComposableFilter for NodeTypeFilter {}
 
 impl CreateFilter for NodeTypeFilter {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
 
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeTypeFilterOp>;
@@ -411,6 +410,13 @@ impl Display for CompositeNodeFilter {
 }
 
 impl CreateFilter for CompositeNodeFilter {
+    // One node test, whatever its shape. On edges it selects those whose
+    // endpoints both pass it, which is what `~N` ("neither endpoint passes N")
+    // and `N1 | N2` ("both endpoints are N1 or N2 nodes") mean. Lowering the
+    // leaves one at a time and composing at edge level would read them as the
+    // complement and as a union of edge sets instead.
+    crate::leaf_filter_lowering!(LeafKinds::NODES);
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>;
 
@@ -430,50 +436,6 @@ impl CreateFilter for CompositeNodeFilter {
     ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         let filter = self.create_node_filter(graph.clone(), filtered)?;
         Ok(NodeFilteredGraph::new(graph, filter))
-    }
-
-    /// A node-kind composite lifts onto edges one leaf at a time.
-    ///
-    /// Each leaf keeps the usual meaning — both endpoints pass — and `and`,
-    /// `or` and `not` then compose those *edge-level* answers. Lowering the
-    /// whole composite to a single per-node boolean and testing both endpoints
-    /// with it instead gives a different answer for `not` and `or`:
-    /// `not` becomes "both endpoints fail" rather than the complement, and
-    /// `or` becomes "each endpoint satisfies one of the branches" rather than
-    /// the union of the two edge sets. This recursion is also what makes
-    /// `~expr` and `node: {not: expr}` mean the same thing, since the
-    /// expression-level tree collapses into this composite before it is
-    /// lowered.
-    fn is_edge_composite(&self) -> bool {
-        true
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
-    where
-        Self: 'graph,
-    {
-        match self {
-            CompositeNodeFilter::And(left, right) => {
-                let left = left.create_edge_filter(graph.clone(), filtered.clone())?;
-                let right = right.create_edge_filter(graph, filtered)?;
-                Ok(Arc::new(left.and(right)))
-            }
-            CompositeNodeFilter::Or(left, right) => {
-                let left = left.create_edge_filter(graph.clone(), filtered.clone())?;
-                let right = right.create_edge_filter(graph, filtered)?;
-                Ok(Arc::new(left.or(right)))
-            }
-            CompositeNodeFilter::Not(inner) => Ok(Arc::new(
-                inner.create_edge_filter(graph, filtered)?.negate(),
-            )),
-            leaf => Ok(Arc::new(EdgeExistsOp::new(
-                leaf.create_filter(graph, filtered)?,
-            ))),
-        }
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(

@@ -1,9 +1,12 @@
 use crate::{
     db::{
-        api::view::{internal::GraphView, time::TimeOps},
+        api::{
+            state::ops::node::NodeOp,
+            view::{internal::GraphView, time::TimeOps},
+        },
         graph::views::{
             filter::{
-                edge_op::{EdgeExistsOp, EdgeFilterOp, EdgeFilterOpExt},
+                edge_op::EdgeFilterOp,
                 model::{
                     edge_filter::CompositeEdgeFilter,
                     is_active_edge_filter::IsActiveEdge,
@@ -19,7 +22,7 @@ use crate::{
                     InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
                     TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
                 },
-                CreateFilter,
+                CreateFilter, LeafKinds,
             },
             window_graph::WindowedGraph,
         },
@@ -148,6 +151,22 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotA
         Self: 'graph,
     {
         self.inner.create_edge_filter(graph, filtered)
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.inner.leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_node_membership(graph, filtered, polarity)
     }
 
     type EntityFiltered<'graph, G, F>
@@ -370,6 +389,22 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for SnapshotL
         Self: 'graph,
     {
         self.inner.create_edge_filter(graph, filtered)
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.inner.leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_node_membership(graph, filtered, polarity)
     }
 
     type EntityFiltered<'graph, G, F>

@@ -1,19 +1,21 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::OrOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::ops::{filter::OrOp, node::NodeOp, NodeFilterOp},
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
-            edge_op::{EdgeFilterOp, EdgeFilterOpExt},
+            edge_op::{EdgeExistsOp, EdgeFilterOp, EdgeFilterOpExt},
+            entity_op_filtered_graph::EntityOpFilteredGraph,
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
                 TryAsCompositeFilter,
             },
+            node_filtered_graph::NodeFilteredGraph,
             or_filtered_graph::OrFilteredGraph,
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -34,13 +36,13 @@ impl<L: Display, R: Display> Display for OrFilter<L, R> {
 
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
-impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
+impl<L: CreateFilter + Clone, R: CreateFilter + Clone> CreateFilter for OrFilter<L, R> {
+    /// Boxed: an exploded composite keeps the wrapper graphs, whose per-event
+    /// semantics a per-edge boolean cannot express, while every other composite
+    /// lowers to one graph carrying a node test and an edge test — and those
+    /// are different types.
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = OrFilteredGraph<
-        G,
-        L::EntityFiltered<'graph, F, L::FilteredGraph<'graph, F>>,
-        R::EntityFiltered<'graph, F, R::FilteredGraph<'graph, F>>,
-    >
+        = DynGraphArc<'graph>
     where
         Self: 'graph;
 
@@ -61,12 +63,33 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         self,
         graph: G,
         filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered.clone())?;
-        let left = self.left.create_filter(filtered.clone(), l)?;
-        let right = self.right.create_filter(filtered, r)?;
-        Ok(OrFilteredGraph { graph, left, right })
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
+    where
+        Self: 'graph,
+    {
+        if self.is_exploded_edge_filter() {
+            let l = self.left.filter_graph_view(filtered.clone())?;
+            let r = self.right.filter_graph_view(filtered.clone())?;
+            let left = self.left.create_filter(filtered.clone(), l)?;
+            let right = self.right.create_filter(filtered, r)?;
+            return Ok(Arc::new(OrFilteredGraph { graph, left, right }));
+        }
+        // Install only the tests the expression speaks about — see `LeafKinds`.
+        let kinds = self.leaf_kinds();
+        let node_op = kinds
+            .nodes
+            .then(|| {
+                self.clone()
+                    .create_node_membership(graph.clone(), filtered.clone(), true)
+            })
+            .transpose()?;
+        let edge_op = kinds
+            .edges
+            .then(|| self.create_edge_filter(graph.clone(), filtered))
+            .transpose()?;
+        Ok(Arc::new(EntityOpFilteredGraph::new(
+            graph, node_op, edge_op,
+        )))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
@@ -79,6 +102,30 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         let left = self.left.create_node_filter(filtered.clone(), l)?;
         let right = self.right.create_node_filter(filtered.clone(), r)?;
         Ok(left.or(right))
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.left.leaf_kinds().union(self.right.leaf_kinds())
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        _graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let l = self.left.filter_graph_view(filtered.clone())?;
+        let r = self.right.filter_graph_view(filtered.clone())?;
+        let left = self
+            .left
+            .create_node_membership(filtered.clone(), l, polarity)?;
+        let right = self
+            .right
+            .create_node_membership(filtered.clone(), r, polarity)?;
+        Ok(Arc::new(left.or(right)))
     }
 
     fn is_exploded_edge_filter(&self) -> bool {
@@ -96,12 +143,24 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
     /// own, so each side's edge check passes and the result is every edge.
     fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        _graph: G,
+        graph: G,
         filtered: F,
     ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
     where
         Self: 'graph,
     {
+        if self.leaf_kinds().node_only() {
+            // One node test, however it is spelled: the edges are those whose
+            // endpoints both pass it. Composing the operands at edge level
+            // instead would read `~N` as "not (both endpoints pass N)" — every
+            // edge that merely touches a failing node — and `N1 | N2` as "both
+            // pass N1, or both pass N2", dropping an edge from an N1 node to an
+            // N2 node.
+            let op = self.create_node_filter(graph.clone(), filtered)?;
+            return Ok(Arc::new(EdgeExistsOp::new(NodeFilteredGraph::new(
+                graph, op,
+            ))));
+        }
         let l = self.left.filter_graph_view(filtered.clone())?;
         let r = self.right.filter_graph_view(filtered.clone())?;
         let left = self.left.create_edge_filter(filtered.clone(), l)?;

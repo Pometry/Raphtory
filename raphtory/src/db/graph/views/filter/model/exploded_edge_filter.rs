@@ -33,7 +33,7 @@ use crate::{
                 InternalPropertyFilterBuilder, InternalPropertyFilterFactory, InternalViewWrapOps,
                 NotFilter, OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -227,7 +227,7 @@ impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
 }
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::EDGES);
 
     /// This filter selects individual edge events, so a composite containing it
     /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
@@ -356,7 +356,7 @@ impl Display for CompositeExplodedEdgeFilter {
 }
 
 impl CreateFilter for CompositeExplodedEdgeFilter {
-    crate::edge_filter_from_wrapper!();
+    crate::leaf_filter_lowering!(LeafKinds::EDGES);
 
     /// This filter selects individual edge events, so a composite containing it
     /// keeps its wrapper graphs rather than lowering to a per-edge boolean.

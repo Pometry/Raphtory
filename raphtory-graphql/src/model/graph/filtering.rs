@@ -36,7 +36,7 @@ use raphtory::{
                 windowed_filter::Windowed,
                 ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
             },
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -729,6 +729,24 @@ impl CreateFilter for GqlFilter {
         DynFilter::try_from(self.clone())
             .map(|f| f.is_exploded_edge_filter())
             .unwrap_or(false)
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        // A filter that does not convert cannot lower either. Claim both kinds
+        // so the conversion error surfaces from the lowering that follows,
+        // rather than the expression silently restricting nothing.
+        DynFilter::try_from(self.clone())
+            .map(|f| f.leaf_kinds())
+            .unwrap_or(LeafKinds::VIEW)
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+        DynFilter::try_from(self)?.create_node_membership(graph, filtered, polarity)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

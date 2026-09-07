@@ -11,7 +11,7 @@ use crate::{
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
                 TryAsCompositeFilter,
             },
-            CreateFilter,
+            CreateFilter, LeafKinds,
         },
     },
     errors::GraphError,
@@ -95,6 +95,23 @@ impl CreateFilter for PyFilterExpr {
 
     fn is_edge_composite(&self) -> bool {
         self.0.is_edge_composite()
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.0.is_exploded_edge_filter()
+    }
+
+    fn leaf_kinds(&self) -> LeafKinds {
+        self.0.leaf_kinds()
+    }
+
+    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+        polarity: bool,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+        self.0.create_node_membership(graph, filtered, polarity)
     }
 
     /// Delegate rather than take the default: the default would lower this
