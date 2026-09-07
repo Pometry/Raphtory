@@ -26,6 +26,8 @@ impl fmt::Display for IsSelfLoopEdge {
 }
 
 impl CreateFilter for IsSelfLoopEdge {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = IsSelfLoopGraph<G>
     // self loop doesn't depend on view filtering, can simplify

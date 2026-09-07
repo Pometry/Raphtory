@@ -40,6 +40,8 @@ impl InternalViewWrapOps for GraphFilter {
 }
 
 impl CreateFilter for GraphFilter {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = F;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodeExistsOp<F>;

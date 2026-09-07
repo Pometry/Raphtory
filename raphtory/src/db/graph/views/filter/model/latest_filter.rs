@@ -3,6 +3,7 @@ use crate::{
         api::view::internal::GraphView,
         graph::views::{
             filter::{
+                edge_op::{EdgeExistsOp, EdgeFilterOp, EdgeFilterOpExt},
                 model::{
                     edge_filter::CompositeEdgeFilter,
                     is_active_edge_filter::IsActiveEdge,
@@ -30,7 +31,7 @@ use crate::{
     prelude::TimeOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Latest<M> {
@@ -142,6 +143,21 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
 }
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T> {
+    /// Delegates: this view is already applied to the graph by
+    /// `filter_graph_view`, so the inner filter answers against the viewed
+    /// graph. Building a wrapper graph here instead would re-compose the inner
+    /// expression and lose a view operand nested inside it.
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        self.inner.create_edge_filter(graph, filtered)
+    }
+
     type EntityFiltered<'graph, G, F>
         = T::EntityFiltered<'graph, G, F>
     where

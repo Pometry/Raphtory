@@ -24,6 +24,8 @@ impl fmt::Display for IsActiveNode {
 }
 
 impl CreateFilter for IsActiveNode {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>
     where

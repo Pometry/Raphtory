@@ -27,6 +27,8 @@ impl fmt::Display for IsActiveEdge {
 }
 
 impl CreateFilter for IsActiveEdge {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = EdgeFilteredGraph<G, IsActiveGraph<F>>
     where

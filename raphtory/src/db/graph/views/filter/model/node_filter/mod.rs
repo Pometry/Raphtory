@@ -161,6 +161,8 @@ impl From<Filter> for NodeIdFilter {
 impl ComposableFilter for NodeIdFilter {}
 
 impl CreateFilter for NodeIdFilter {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeIdFilterOp>;
 
@@ -232,6 +234,8 @@ impl From<Filter> for NodeNameFilter {
 impl ComposableFilter for NodeNameFilter {}
 
 impl CreateFilter for NodeNameFilter {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeNameFilterOp>;
 
@@ -301,6 +305,8 @@ impl From<Filter> for NodeTypeFilter {
 impl ComposableFilter for NodeTypeFilter {}
 
 impl CreateFilter for NodeTypeFilter {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeTypeFilterOp>;
 

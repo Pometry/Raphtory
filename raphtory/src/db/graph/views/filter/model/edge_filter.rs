@@ -9,6 +9,7 @@ use crate::{
         },
         graph::views::filter::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
+            edge_op::{EdgeExistsOp, EdgeFilterOp, EdgeFilterOpExt},
             model::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
                 is_active_edge_filter::IsActiveEdge,
@@ -249,6 +250,8 @@ impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for EdgeEnd
 impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for EdgeEndpointWrapper<T> {}
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = EdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
     where
@@ -362,6 +365,52 @@ impl Display for CompositeEdgeFilter {
 }
 
 impl CreateFilter for CompositeEdgeFilter {
+    /// Recurses over `and`, `or` and `not` so a view nested inside a composite
+    /// keeps its restriction. Everything else is a leaf and lowers through its
+    /// own wrapper graph.
+    ///
+    /// For operands that are plain edge predicates this agrees with lowering
+    /// the whole composite as one graph — `and` is still intersection, `not`
+    /// still the complement. It differs, and is the point, when an operand is a
+    /// view: nesting the graphs takes the composite's time semantics from the
+    /// unviewed base and the operand's window simply disappears.
+    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        match self {
+            CompositeEdgeFilter::And(left, right) => {
+                let left = left.create_edge_filter(graph.clone(), filtered.clone())?;
+                let right = right.create_edge_filter(graph, filtered)?;
+                Ok(Arc::new(left.and(right)))
+            }
+            CompositeEdgeFilter::Or(left, right) => {
+                let left = left.create_edge_filter(graph.clone(), filtered.clone())?;
+                let right = right.create_edge_filter(graph, filtered)?;
+                Ok(Arc::new(left.or(right)))
+            }
+            CompositeEdgeFilter::Not(inner) => Ok(Arc::new(
+                inner.create_edge_filter(graph, filtered)?.negate(),
+            )),
+            leaf => Ok(Arc::new(EdgeExistsOp::new(
+                leaf.create_filter(graph, filtered)?,
+            ))),
+        }
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        matches!(
+            self,
+            CompositeEdgeFilter::And(..)
+                | CompositeEdgeFilter::Or(..)
+                | CompositeEdgeFilter::Not(..)
+        )
+    }
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         Arc<dyn BoxableGraphView + 'graph>;
 

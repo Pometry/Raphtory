@@ -47,6 +47,8 @@ pub struct DegreeFilter {
 }
 
 impl CreateFilter for DegreeFilter {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodeDegreeFilterOp<F>>;
 

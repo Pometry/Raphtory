@@ -384,6 +384,8 @@ impl<M> PropertyFilter<M> {
 }
 
 impl CreateFilter for PropertyFilter<NodeFilter> {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         NodeFilteredGraph<G, NodePropertyFilterOp<F>>;
 
@@ -422,6 +424,8 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         EdgeFilteredGraph<G, EdgePropertyFilteredGraph<F>>;
 
@@ -462,6 +466,8 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
+    crate::edge_filter_from_wrapper!();
+
     /// This filter selects individual edge events, so a composite containing it
     /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
     fn is_exploded_edge_filter(&self) -> bool {

@@ -84,6 +84,8 @@ pub mod windowed_filter;
 pub struct Unfiltered;
 
 impl CreateFilter for Unfiltered {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = G
     where

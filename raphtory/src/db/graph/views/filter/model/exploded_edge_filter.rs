@@ -227,6 +227,8 @@ impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
 }
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {
+    crate::edge_filter_from_wrapper!();
+
     /// This filter selects individual edge events, so a composite containing it
     /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
     fn is_exploded_edge_filter(&self) -> bool {
@@ -354,6 +356,8 @@ impl Display for CompositeExplodedEdgeFilter {
 }
 
 impl CreateFilter for CompositeExplodedEdgeFilter {
+    crate::edge_filter_from_wrapper!();
+
     /// This filter selects individual edge events, so a composite containing it
     /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
     fn is_exploded_edge_filter(&self) -> bool {

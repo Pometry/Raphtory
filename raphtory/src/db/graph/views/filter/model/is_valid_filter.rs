@@ -27,6 +27,8 @@ impl fmt::Display for IsValidEdge {
 }
 
 impl CreateFilter for IsValidEdge {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = EdgeFilteredGraph<G, ValidGraph<F>>
     where

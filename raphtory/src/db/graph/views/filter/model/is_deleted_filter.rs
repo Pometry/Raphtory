@@ -27,6 +27,8 @@ impl fmt::Display for IsDeletedEdge {
 }
 
 impl CreateFilter for IsDeletedEdge {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = EdgeFilteredGraph<G, IsDeletedGraph<F>>
     where

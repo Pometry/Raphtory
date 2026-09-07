@@ -29,6 +29,8 @@ use std::sync::Arc;
 pub struct Exists;
 
 impl CreateFilter for Exists {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G, F>
         = F
     where
@@ -69,6 +71,40 @@ impl CreateFilter for Exists {
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
     }
+}
+
+/// Lowers a filter that holds no other filters: build the wrapper graph it
+/// already produces, then ask that graph whether an edge is in its view.
+///
+/// Wrong for anything that wraps another filter — a composite, a view applied
+/// to an inner expression, or a type that delegates to a boxed filter — because
+/// it rebuilds the very wrapper composition the per-edge boolean exists to
+/// avoid. Those must delegate to their inner filter instead.
+#[macro_export]
+macro_rules! edge_filter_from_wrapper {
+    () => {
+        fn create_edge_filter<
+            'graph,
+            G: $crate::db::api::state::ops::GraphView + 'graph,
+            F: $crate::db::api::state::ops::GraphView + 'graph,
+        >(
+            self,
+            graph: G,
+            filtered: F,
+        ) -> Result<
+            std::sync::Arc<dyn $crate::db::graph::views::filter::edge_op::EdgeFilterOp + 'graph>,
+            $crate::errors::GraphError,
+        >
+        where
+            Self: 'graph,
+        {
+            Ok(std::sync::Arc::new(
+                $crate::db::graph::views::filter::edge_op::EdgeExistsOp::new(
+                    self.create_filter(graph, filtered)?,
+                ),
+            ))
+        }
+    };
 }
 
 pub trait CreateFilter: Sized {
@@ -129,30 +165,29 @@ pub trait CreateFilter: Sized {
 
     /// Lower this filter to a per-edge boolean.
     ///
-    /// The default is correct for any filter that is not itself a composite:
-    /// build the wrapper graph this filter already produces, then ask it
-    /// whether an edge is in its view. Composites must override this to combine
-    /// their operands' *booleans* — combining their wrapper graphs is what loses a
-    /// view operand's restriction. See [`edge_op`] for why.
+    /// Required rather than defaulted, deliberately. A filter that holds other
+    /// filters has to *delegate* this — asking each inner filter for its own
+    /// boolean — while a filter that stands alone builds its wrapper graph and
+    /// asks whether an edge is in its view ([`edge_filter_from_wrapper!`]
+    /// writes that one out). A default could only be one of the two, and every
+    /// type that wanted the other would compile silently and be wrong: the
+    /// composition it was supposed to fix would quietly come back. Leaving it
+    /// required turns each of those into a compile error instead.
     ///
-    /// Boxed rather than an associated type so that adding this to the trait
-    /// does not require boilerplate in every implementation; only the three
-    /// composites need to say anything.
+    /// Boxed rather than an associated type so an implementation is one line
+    /// instead of a type definition.
     fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
         filtered: F,
     ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError>
     where
-        Self: 'graph,
-    {
-        Ok(Arc::new(EdgeExistsOp::new(
-            self.create_filter(graph, filtered)?,
-        )))
-    }
+        Self: 'graph;
 }
 
 impl<T: NodeFilterOp> CreateFilter for T {
+    crate::edge_filter_from_wrapper!();
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = NodeFilteredGraph<G, T>
     where
