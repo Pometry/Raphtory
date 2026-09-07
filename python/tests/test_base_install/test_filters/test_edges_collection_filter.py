@@ -60,6 +60,12 @@ def _kind(name):
     return "view" if name in VIEWS else ("node" if name in NODE_KIND else "edge")
 
 
+# `edges[...]` lowers a composite to one per-edge boolean and obeys set algebra
+# for every combination. `graph.filter(...)` still composes wrapper graphs, where
+# a view operand's restriction is inherited from the unviewed base and vanishes,
+# so these rules describe *that* path only and are consulted per path below.
+
+
 def _and_is_broken(a, b):
     # A time view combined with anything via `and` is silently ignored.
     return a in TIME_VIEWS or b in TIME_VIEWS
@@ -257,6 +263,9 @@ def test_working_combinations_follow_set_algebra():
         )
         mismatches = []
         for label, expr, want in cases:
+            # Both paths, since these are the combinations the entity path also
+            # gets right. `edges[]` is covered for *every* shape by
+            # `test_edge_subscript_composites_follow_set_algebra`.
             for path, got in (
                 ("edges[]", _ids(graph.edges[expr])),
                 ("filter()", _ids(graph.filter(expr).edges)),
@@ -363,6 +372,85 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 
 @with_variants(_init)
+def test_edge_subscript_composites_follow_set_algebra():
+    """`edges[...]` obeys set algebra for every composite, including the shapes
+    `graph.filter(...)` still gets wrong.
+
+    The subscript lowers a composite to a single per-edge boolean — each operand
+    asked "is this edge in your view?" and the answers combined — so `&` is
+    intersection, `|` is union and `~` is complement regardless of what the
+    operands are. Expectations come from `_singles`, which is computed without
+    the subscript (chained views for view atoms, direct evaluation for
+    predicates), so a filter that failed open could not make them agree.
+    """
+
+    def check(graph):
+        atoms, single = _atoms(), _singles(graph)
+        every = _ids(graph.edges)
+        cases = []
+        for a, b in combinations(atoms, 2):
+            cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
+            cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
+            cases.append(
+                (
+                    f"~({a} & {b})",
+                    ~(atoms[a] & atoms[b]),
+                    every - (single[a] & single[b]),
+                )
+            )
+            cases.append(
+                (
+                    f"~({a} | {b})",
+                    ~(atoms[a] | atoms[b]),
+                    every - (single[a] | single[b]),
+                )
+            )
+        for a in atoms:
+            cases.append((f"~{a}", ~atoms[a], every - single[a]))
+
+        mismatches = []
+        for label, expr, want in cases:
+            # A case whose expectation is every edge cannot tell a correct
+            # answer from one that ignored the filter.
+            if want == every:
+                continue
+            got = _ids(graph.edges[expr])
+            if got != want:
+                mismatches.append(f"{label}: got {sorted(got)} want {sorted(want)}")
+        assert not mismatches, "\n".join(mismatches)
+
+    return check
+
+
+@with_variants(_init)
+def test_negating_a_node_filter_complements_the_edge_set():
+    """`~node-filter` on edges is the complement, not the negation of each endpoint.
+
+    These differ whenever an edge's endpoints disagree about the filter, and the
+    endpoint reading is the stronger one — it drops edges that belong in the
+    result. `~(P(src) and P(dst))` is `not P(src) or not P(dst)`, so one failing
+    endpoint is enough.
+    """
+
+    def check(graph):
+        atoms, single = _atoms(), _singles(graph)
+        every = _ids(graph.edges)
+        for name in NODE_KIND:
+            kept = _ids(graph.edges[~atoms[name]])
+            assert kept == every - single[name], (
+                f"~{name}: got {sorted(kept)}, want the complement "
+                f"{sorted(every - single[name])}"
+            )
+            # Not the endpoint-wise reading, which is a strict subset whenever
+            # some edge has one passing and one failing endpoint.
+            assert kept != _ids(
+                graph.edges[atoms[name]]
+            ), f"~{name} returned the unnegated set"
+
+    return check
+
+
+@with_variants(_init)
 def test_broken_combination_classes_are_still_broken():
     """One discriminating representative per known-broken class. When a class is fixed this fails:
     delete its `_*_is_broken` rule above so the combinations join the set-algebra test.
@@ -409,12 +497,12 @@ def test_broken_combination_classes_are_still_broken():
                 every - (single["edge_prop"] | single["layer"]),
             ),
         }
+        # Judged on `graph.filter(...)` alone: the subscript path already obeys
+        # set algebra for all of these, so requiring both would keep every class
+        # pinned even once it is fixed there.
         fixed = []
         for label, (expr, want) in representatives.items():
-            if (
-                _ids(graph.edges[expr]) == want
-                and _ids(graph.filter(expr).edges) == want
-            ):
+            if _ids(graph.filter(expr).edges) == want:
                 fixed.append(label)
         nested = sorted(
             e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es
