@@ -6,6 +6,7 @@ use crate::{
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
+            edge_test::{EdgeTest, EdgeTestExt},
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
@@ -18,7 +19,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
@@ -83,6 +84,34 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         let left = self.left.create_node_filter(graph.clone(), l)?;
         let right = self.right.create_node_filter(graph, r)?;
         Ok(left.and(right))
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.left.is_exploded_edge_filter() || self.right.is_exploded_edge_filter()
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        // Exploded operands narrow which *events* of an edge survive, which a
+        // per-edge boolean cannot express, so those keep their wrapper graphs.
+        !self.is_exploded_edge_filter()
+    }
+
+    /// Combine the operands' *tests*, not their wrapper graphs: nesting the
+    /// graphs drops a view operand's restriction, because a wrapper takes its
+    /// time semantics from the graph it wraps.
+    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let l = self.left.filter_graph_view(filtered.clone())?;
+        let r = self.right.filter_graph_view(filtered)?;
+        let left = self.left.create_edge_test(graph.clone(), l)?;
+        let right = self.right.create_edge_test(graph, r)?;
+        Ok(Arc::new(left.and(right)))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

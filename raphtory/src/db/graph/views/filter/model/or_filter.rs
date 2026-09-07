@@ -5,6 +5,7 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
+            edge_test::{EdgeTest, EdgeTestExt},
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
@@ -17,7 +18,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrFilter<L, R> {
@@ -78,6 +79,34 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
         let left = self.left.create_node_filter(filtered.clone(), l)?;
         let right = self.right.create_node_filter(filtered.clone(), r)?;
         Ok(left.or(right))
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.left.is_exploded_edge_filter() || self.right.is_exploded_edge_filter()
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        // Exploded operands narrow which *events* of an edge survive, which a
+        // per-edge boolean cannot express, so those keep their wrapper graphs.
+        !self.is_exploded_edge_filter()
+    }
+
+    /// Combine the operands' *tests*. Composing wrapper graphs cannot express a
+    /// union at all: a node-filtered operand imposes no edge restriction of its
+    /// own, so each side's edge check passes and the result is every edge.
+    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        _graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let l = self.left.filter_graph_view(filtered.clone())?;
+        let r = self.right.filter_graph_view(filtered.clone())?;
+        let left = self.left.create_edge_test(filtered.clone(), l)?;
+        let right = self.right.create_edge_test(filtered, r)?;
+        Ok(Arc::new(left.or(right)))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

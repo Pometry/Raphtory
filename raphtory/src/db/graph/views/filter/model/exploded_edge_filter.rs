@@ -227,6 +227,12 @@ impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
 }
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {
+    /// This filter selects individual edge events, so a composite containing it
+    /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
+    fn is_exploded_edge_filter(&self) -> bool {
+        true
+    }
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
     where
@@ -348,6 +354,12 @@ impl Display for CompositeExplodedEdgeFilter {
 }
 
 impl CreateFilter for CompositeExplodedEdgeFilter {
+    /// This filter selects individual edge events, so a composite containing it
+    /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
+    fn is_exploded_edge_filter(&self) -> bool {
+        true
+    }
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         Arc<dyn BoxableGraphView + 'graph>;
     type NodeFilter<'graph, G, F>

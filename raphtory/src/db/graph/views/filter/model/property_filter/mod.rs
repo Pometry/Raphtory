@@ -462,6 +462,12 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
+    /// This filter selects individual edge events, so a composite containing it
+    /// keeps its wrapper graphs rather than lowering to a per-edge boolean.
+    fn is_exploded_edge_filter(&self) -> bool {
+        true
+    }
+
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
         ExplodedEdgeFilteredGraph<G, ExplodedEdgePropertyFilteredGraph<F>>;
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;

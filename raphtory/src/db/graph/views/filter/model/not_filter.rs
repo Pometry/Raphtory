@@ -5,6 +5,7 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
+            edge_test::{EdgeTest, EdgeTestExt},
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
@@ -17,7 +18,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotFilter<T>(pub T);
@@ -67,6 +68,31 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
     {
         let f = self.0.filter_graph_view(filtered.clone())?;
         Ok(self.0.create_node_filter(filtered, f)?.not())
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        self.0.is_exploded_edge_filter()
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        // Exploded operands narrow which *events* of an edge survive, which a
+        // per-edge boolean cannot express, so those keep their wrapper graphs.
+        !self.is_exploded_edge_filter()
+    }
+
+    /// Negate the operand's *test*, which is the set complement. The wrapper
+    /// form negates one hook of a graph whose other hooks still impose the
+    /// operand's restrictions, so it is not a complement.
+    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        _graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let f = self.0.filter_graph_view(filtered.clone())?;
+        Ok(Arc::new(self.0.create_edge_test(filtered, f)?.negate()))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
