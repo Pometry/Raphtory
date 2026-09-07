@@ -75,6 +75,11 @@ impl Partition {
             .map(|(index, com)| (ComID(index), com))
     }
 
+    /// Community assigned to each node, indexed by `VID`
+    pub fn node_to_com(&self) -> &[ComID] {
+        &self.node_to_com
+    }
+
     pub fn move_node(&mut self, node: &VID, new_com: ComID) {
         let old_com = self.com(node);
         if old_com != new_com {
@@ -239,10 +244,10 @@ impl ModularityFunction for ModularityUnDir {
                 com_neighbours
             })
             .collect();
-        let k_com: Vec<f64> = partition
-            .coms()
-            .map(|(_, com)| com.iter().map(|node| k[node.index()]).sum())
-            .collect();
+        let mut k_com = vec![0.0; partition.num_coms()];
+        for (node_idx, com) in partition.node_to_com().iter().enumerate() {
+            k_com[com.index()] += k[node_idx];
+        }
         let m2: f64 = k_com.iter().sum();
         Self {
             partition,
