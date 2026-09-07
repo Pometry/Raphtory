@@ -13,6 +13,7 @@ use raphtory::{
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
+            edge_test::EdgeTest,
             model::{
                 degree_filter::DegreeFilter,
                 edge_filter::{CompositeEdgeFilter, EdgeFilter},
@@ -704,6 +705,30 @@ impl CreateFilter for GqlFilter {
         filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         DynFilter::try_from(self)?.create_node_filter(graph, filtered)
+    }
+
+    /// Delegate like the others: the default would lower this expression by
+    /// building its wrapper graph, which is the composition that loses a view
+    /// operand inside `and`, `or` and `not`. Without this the server answers a
+    /// composite differently from the local API.
+    fn create_edge_test<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Arc<dyn EdgeTest + 'graph>, GraphError> {
+        DynFilter::try_from(self)?.create_edge_test(graph, filtered)
+    }
+
+    fn is_edge_composite(&self) -> bool {
+        DynFilter::try_from(self.clone())
+            .map(|f| f.is_edge_composite())
+            .unwrap_or(false)
+    }
+
+    fn is_exploded_edge_filter(&self) -> bool {
+        DynFilter::try_from(self.clone())
+            .map(|f| f.is_exploded_edge_filter())
+            .unwrap_or(false)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

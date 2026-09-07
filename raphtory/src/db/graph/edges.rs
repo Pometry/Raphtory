@@ -13,7 +13,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::CreateFilter,
+            views::filter::{edge_test::EdgeTestFilteredGraph, CreateFilter},
         },
     },
     errors::GraphError,
@@ -241,11 +241,20 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         // Chain onto the current select rather than AND a fresh filter with the base graph:
         // AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
         // after/snapshot) on the right operand is silently dropped and the collection fails open.
+        //
+        // Lower to a per-edge test rather than a stack of wrapper graphs: composing graphs cannot
+        // express `or` or `not` over operands of different kinds, and drops a view operand's
+        // restriction. See `views::filter::edge_test`.
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
+        let filtered_graph: DynGraphArc = if filter.is_edge_composite() {
+            let test = filter.create_edge_test(self.select.clone(), filtered_graph)?;
+            Arc::new(EdgeTestFilteredGraph::new(self.select.clone(), test))
+        } else {
+            Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
+        };
         Ok(Edges {
             base_graph: self.base_graph.clone(),
-            select: Arc::new(filtered_graph),
+            select: filtered_graph,
             edges: self.edges.clone(),
         })
     }
@@ -434,11 +443,16 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
+        let filtered_graph: DynGraphArc = if filter.is_edge_composite() {
+            let test = filter.create_edge_test(self.select.clone(), filtered_graph)?;
+            Arc::new(EdgeTestFilteredGraph::new(self.select.clone(), test))
+        } else {
+            Arc::new(filter.create_filter(self.select.clone(), filtered_graph)?)
+        };
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            select: Arc::new(filtered_graph),
+            select: filtered_graph,
             edges: self.edges.clone(),
         })
     }
