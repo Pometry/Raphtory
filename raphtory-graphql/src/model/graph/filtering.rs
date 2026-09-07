@@ -7,37 +7,25 @@ use dynamic_graphql::{
     Enum, InputObject, OneOfInput,
 };
 use raphtory::{
-    db::{
-        api::{
-            state::NodeOp,
-            view::internal::{DynGraphArc, GraphView},
-        },
-        graph::views::filter::{
-            edge_op::EdgeFilterOp,
-            model::{
-                degree_filter::DegreeFilter,
-                edge_filter::{CompositeEdgeFilter, EdgeFilter},
-                exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-                filter::{Filter, FilterValue},
-                filter_operator::FilterOperator,
-                graph_filter::GraphFilter,
-                is_active_edge_filter::IsActiveEdge,
-                is_active_node_filter::IsActiveNode,
-                is_deleted_filter::IsDeletedEdge,
-                is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge,
-                latest_filter::Latest as LatestWrap,
-                layered_filter::Layered,
-                node_filter::{CompositeNodeFilter, NodeFilter},
-                property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-                snapshot_filter::{
-                    SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap,
-                },
-                windowed_filter::Windowed,
-                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
-            },
-            CreateFilter, LeafKinds,
-        },
+    db::graph::views::filter::model::{
+        degree_filter::DegreeFilter,
+        edge_filter::{CompositeEdgeFilter, EdgeFilter},
+        exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+        filter::{Filter, FilterValue},
+        filter_operator::FilterOperator,
+        graph_filter::GraphFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
+        latest_filter::Latest as LatestWrap,
+        layered_filter::Layered,
+        node_filter::{CompositeNodeFilter, NodeFilter},
+        property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
+        snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
+        windowed_filter::Windowed,
+        ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -673,87 +661,6 @@ impl TryFrom<GqlGraphFilter> for GqlFilter {
     type Error = GraphError;
     fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
         Ok(GqlFilter::Graph(f))
-    }
-}
-
-impl CreateFilter for GqlFilter {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn NodeOp<Output = bool> + 'graph>;
-
-    type FilteredGraph<'graph, G>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        DynFilter::try_from(self)?.create_filter(graph, filtered)
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        DynFilter::try_from(self)?.create_node_filter(graph, filtered)
-    }
-
-    /// Delegate like the others: the default would lower this expression by
-    /// building its wrapper graph, which is the composition that loses a view
-    /// operand inside `and`, `or` and `not`. Without this the server answers a
-    /// composite differently from the local API.
-    fn create_edge_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Arc<dyn EdgeFilterOp + 'graph>, GraphError> {
-        DynFilter::try_from(self)?.create_edge_filter(graph, filtered)
-    }
-
-    fn is_edge_composite(&self) -> bool {
-        DynFilter::try_from(self.clone())
-            .map(|f| f.is_edge_composite())
-            .unwrap_or(false)
-    }
-
-    fn is_exploded_edge_filter(&self) -> bool {
-        DynFilter::try_from(self.clone())
-            .map(|f| f.is_exploded_edge_filter())
-            .unwrap_or(false)
-    }
-
-    fn leaf_kinds(&self) -> LeafKinds {
-        // A filter that does not convert cannot lower either. Claim both kinds
-        // so the conversion error surfaces from the lowering that follows,
-        // rather than the expression silently restricting nothing.
-        DynFilter::try_from(self.clone())
-            .map(|f| f.leaf_kinds())
-            .unwrap_or(LeafKinds::VIEW)
-    }
-
-    fn create_node_membership<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-        polarity: bool,
-    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        DynFilter::try_from(self)?.create_node_membership(graph, filtered, polarity)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        DynFilter::try_from(self.clone())?.filter_graph_view(graph)
     }
 }
 

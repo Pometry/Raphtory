@@ -15,7 +15,9 @@ from the single-filter results, under two rules:
 `edges[expr]` returns exactly that edge set. `graph.filter(expr)` returns a
 graph, so it additionally keeps only edges whose endpoints it kept: nodes are
 decided first (an edge predicate says nothing about a node, so it excludes
-none), and edges are the edge set induced on those nodes.
+none on its own; a node whose only events were on edges that are filtered out
+has nothing left and goes — see `EDGE_ONLY_NODES`), and edges are the edge set
+induced on those nodes.
 """
 
 from itertools import combinations
@@ -154,7 +156,7 @@ class _Oracle:
             **{name: frozenset(view.nodes.name) for name, view in views.items()},
         }
 
-    def _both_endpoints_in(self, nodes):
+    def both_endpoints_in(self, nodes):
         return frozenset(
             eid for eid, (s, d) in self.endpoints.items() if s in nodes and d in nodes
         )
@@ -173,7 +175,7 @@ class _Oracle:
     def edge_set(self, tree):
         """What `edges[expr]` selects."""
         if _is_node_expression(tree):
-            return self._both_endpoints_in(self.node_set(tree))
+            return self.both_endpoints_in(self.node_set(tree))
         kind = tree[0]
         if kind == "atom":
             return frozenset(self.single[tree[1]])
@@ -210,7 +212,7 @@ class _Oracle:
     def graph_edges(self, tree):
         """What `graph.filter(expr).edges` selects: the edge set, induced on the
         nodes the expression admits."""
-        return self.edge_set(tree) & self._both_endpoints_in(self._membership(tree)[1])
+        return self.edge_set(tree) & self.both_endpoints_in(self._membership(tree)[1])
 
     def graph_nodes(self, tree):
         """What `graph.filter(expr).nodes` selects: the nodes the expression
@@ -536,7 +538,7 @@ def test_negating_a_node_filter_selects_edges_among_the_remaining_nodes():
         for name in NODE_KIND:
             remaining = oracle.every_nodes - oracle.node_sets[name]
             want = oracle.edge_set(("not", ("atom", name)))
-            assert want == oracle._both_endpoints_in(remaining)
+            assert want == oracle.both_endpoints_in(remaining)
             # The two readings differ on this graph, so the assertions below
             # discriminate.
             assert want != oracle.every_edges - oracle.single[name]

@@ -523,7 +523,8 @@ impl GqlEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filtered = self_clone.ee.select(expr)?;
+            let filter: DynFilter = expr.try_into()?;
+            let filtered = self_clone.ee.select(filter)?;
             Ok(self_clone.update(filtered))
         })
         .await

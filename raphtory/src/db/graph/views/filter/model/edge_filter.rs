@@ -286,6 +286,8 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> 
         _graph: G,
         _filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        // Raising for an edge predicate on the node axis is the open question in
+        // Pometry/Raphtory#2728; pinned as an error, not endorsed.
         Err(GraphError::NotNodeFilter)
     }
 
@@ -299,6 +301,8 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> 
 
 impl<T: TryAsCompositeFilter> TryAsCompositeFilter for EdgeEndpointWrapper<T> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        // Raising for an edge predicate on the node axis is the open question in
+        // Pometry/Raphtory#2728; pinned as an error, not endorsed.
         Err(GraphError::NotNodeFilter)
     }
 
@@ -518,6 +522,8 @@ impl CreateFilter for CompositeEdgeFilter {
         _graph: G,
         _filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        // Raising for an edge predicate on the node axis is the open question in
+        // Pometry/Raphtory#2728; pinned as an error, not endorsed.
         Err(GraphError::NotNodeFilter)
     }
 

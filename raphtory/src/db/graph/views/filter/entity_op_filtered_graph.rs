@@ -68,6 +68,24 @@ impl<'graph, G: GraphView> EntityOpFilteredGraph<'graph, G> {
             edge_op,
         }
     }
+
+    /// Whether the node op actually removes nodes, rather than being absent or
+    /// provably always true. Mirrors `EdgeOpFilteredGraph`, which asks its test
+    /// the same question.
+    #[inline]
+    fn node_op_filters(&self) -> bool {
+        self.node_op
+            .as_ref()
+            .is_some_and(|op| op.const_value() != Some(true))
+    }
+
+    /// Whether the edge op actually removes edges, rather than being absent or
+    /// letting everything through. Mirrors `EdgeOpFilteredGraph`, which asks its
+    /// test the same question.
+    #[inline]
+    fn edge_op_filters(&self) -> bool {
+        self.edge_op.as_ref().is_some_and(|op| op.is_filtered())
+    }
 }
 
 impl<'graph, G> Base for EntityOpFilteredGraph<'graph, G> {
@@ -98,7 +116,7 @@ impl<'graph, G: GraphView> InheritExplodedEdgeFilterOps for EntityOpFilteredGrap
 impl<'graph, G: GraphView> InternalNodeFilterOps for EntityOpFilteredGraph<'graph, G> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
-        self.node_op.is_some() || self.graph.internal_nodes_filtered()
+        self.node_op_filters() || self.graph.internal_nodes_filtered()
     }
 
     #[inline]
@@ -112,19 +130,19 @@ impl<'graph, G: GraphView> InternalNodeFilterOps for EntityOpFilteredGraph<'grap
 
     #[inline]
     fn internal_node_list_trusted(&self) -> bool {
-        self.node_op.is_none() && self.graph.internal_node_list_trusted()
+        !self.node_op_filters() && self.graph.internal_node_list_trusted()
     }
 }
 
 impl<'graph, G: GraphView> InternalEdgeFilterOps for EntityOpFilteredGraph<'graph, G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.edge_op.is_some() || self.graph.internal_edge_filtered()
+        self.edge_op_filters() || self.graph.internal_edge_filtered()
     }
 
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
-        self.edge_op.is_none() && self.graph.internal_edge_list_trusted()
+        !self.edge_op_filters() && self.graph.internal_edge_list_trusted()
     }
 
     #[inline]

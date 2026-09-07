@@ -244,13 +244,28 @@ pub trait CreateFilter: Sized {
     /// Whether this filter is a boolean composite of other filters.
     ///
     /// Composites must be lowered to a per-edge boolean, because composing their
-    /// operands' wrapper graphs loses a view operand's restriction. Everything
-    /// else keeps its wrapper graph, which carries exact per-layer and
-    /// per-event semantics that a single edge-level boolean cannot express —
-    /// an exploded-edge property filter, for instance, narrows which *events*
-    /// of an edge survive, not just which edges.
+    /// operands' wrapper graphs loses a view operand's restriction. Node
+    /// expressions must too on a collection select — see
+    /// [`lowers_to_edge_boolean`](Self::lowers_to_edge_boolean). Single edge
+    /// filters and exploded composites keep their wrapper graphs, which carry
+    /// exact per-layer and per-event semantics that a single edge-level boolean
+    /// cannot express — an exploded-edge property filter, for instance, narrows
+    /// which *events* of an edge survive, not just which edges.
     fn is_edge_composite(&self) -> bool {
         false
+    }
+
+    /// Whether a collection select lowers this filter to a per-edge boolean
+    /// rather than using its wrapper graph as the select graph.
+    ///
+    /// Composites must, because composing their operands' wrapper graphs loses
+    /// a view operand's restriction and cannot express `or` or `not`. A node
+    /// expression must too: iterating a node's edges through a node-filtered
+    /// wrapper tests only the far endpoint, where the boolean tests both. Single
+    /// edge filters and exploded composites keep their wrapper graphs, whose
+    /// per-layer and per-event semantics a per-edge boolean cannot express.
+    fn lowers_to_edge_boolean(&self) -> bool {
+        self.is_edge_composite() || self.leaf_kinds().node_only()
     }
 
     /// Which entities this filter speaks about — see [`LeafKinds`].

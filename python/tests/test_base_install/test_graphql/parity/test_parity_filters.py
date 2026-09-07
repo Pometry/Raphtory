@@ -427,7 +427,8 @@ COMBINATOR_EXPRS = {
     # Two view scopes: the union of what each admits.
     "view.or": lambda: f.Graph.at(3) | f.Graph.at(5),
     # A negated time view: what lies outside it — nodes with no activity at 3,
-    # and edges among them (#2718, option 1).
+    # and edges among them (#2718; entity-level — an entity with events on both
+    # sides of the view is excluded, not kept with its outside events).
     "view.not": lambda: ~f.Graph.at(3),
     "comb.mixed_not": lambda: ~(
         (f.Node.property("score") > 5) & (f.Edge.property("weight") > 2.0)
