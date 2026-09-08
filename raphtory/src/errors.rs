@@ -37,9 +37,9 @@ use zip::result::ZipError;
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
 
+use crate::algorithms::pathing::all_paths::AllPathsError;
 #[cfg(any(feature = "vectors", feature = "io"))]
 use tempfile::PersistError;
-use crate::algorithms::pathing::all_paths::AllPathsError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -204,7 +204,7 @@ pub enum GraphError {
     NodeMissingError(GID),
 
     #[error(transparent)]
-    AllPathsError(AllPathsError),
+    AllPathsError(#[from] AllPathsError),
 
     #[error("Node Type Error {0}")]
     NodeTypeError(String),

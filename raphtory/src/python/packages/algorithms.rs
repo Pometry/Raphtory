@@ -50,6 +50,7 @@ use crate::{
             temporal_rich_club_coefficient::temporal_rich_club_coefficient as temporal_rich_club_rs,
         },
         pathing::{
+            all_paths::all_simple_paths as all_simple_paths_rs,
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
@@ -68,7 +69,7 @@ use crate::{
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
-        utils::PyNodeRef,
+        utils::{PyGenericIterator, PyNodeRef},
     },
 };
 use pyo3::{prelude::*, types::PyList};
@@ -763,6 +764,28 @@ pub fn dijkstra_single_source_shortest_paths(
         default_weight,
     )
     .map(|result| result.to_output_nodestate())
+}
+
+/// Find all simple (i.e., loop-less) paths between a pair of nodes.
+///
+/// This algorithm generates paths lazily in order from shortest to longest.
+/// The number of paths between a pair of nodes can be extremely large, it is
+/// typically not recommended to list all of them!
+///
+/// Arguments:
+///     graph (GraphView): The input graph view
+///     source (NodeInput): The source node for the paths
+///     target (NodeInput): The target node for the paths
+///
+/// Returns:
+///     Iterator[Nodes]: An iterator of paths from shortest to longest
+#[pyfunction]
+pub fn all_simple_paths(
+    graph: &PyGraphView,
+    source: PyNodeRef,
+    target: PyNodeRef,
+) -> Result<PyGenericIterator, GraphError> {
+    Ok(all_simple_paths_rs(&graph.graph, source, target)?.into())
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.

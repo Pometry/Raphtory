@@ -463,7 +463,7 @@ mod dijkstra_tests {
 
 mod all_paths_tests {
     use indexmap::{IndexMap, IndexSet};
-    use raphtory::{algorithms::pathing::all_paths::k_shortest_paths, prelude::*};
+    use raphtory::{algorithms::pathing::all_paths::all_simple_paths, prelude::*};
     #[test]
     fn test_all_paths() {
         let g = Graph::new();
@@ -483,7 +483,7 @@ mod all_paths_tests {
         for (src, dst) in edges {
             g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
-        let path_map: IndexSet<_> = k_shortest_paths(&g, 1, 3)
+        let path_map: IndexSet<_> = all_simple_paths(&g, 1, 3)
             .unwrap()
             .map(|p| {
                 p.id()

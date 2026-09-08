@@ -1,22 +1,14 @@
 use crate::{
     algorithms::pathing::dijkstra::dijkstra_single_source_shortest_paths,
-    db::{
-        api::{
-            state::Index,
-            view::{internal::GraphView, StaticGraphViewOps},
-        },
-        graph::nodes::Nodes,
-    },
-    errors::GraphError,
+    db::{api::view::StaticGraphViewOps, graph::nodes::Nodes},
     prelude::{GraphViewOps, NodeStateOps},
 };
 use ahash::{HashSet, HashSetExt};
 use indexmap::IndexSet;
-use itertools::{EitherOrBoth, Itertools};
 use raphtory_api::core::{entities::VID, Direction};
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use std::{
-    cmp::{Ordering, Reverse},
+    cmp::Ordering,
     collections::BinaryHeap,
     hash::{Hash, Hasher},
     sync::Arc,
@@ -30,7 +22,14 @@ pub enum AllPathsError {
     DstNodeMissing,
 }
 
-pub fn k_shortest_paths<G: StaticGraphViewOps>(
+/// Find all simple (loop-free) paths between a pair of nodes.
+///
+/// Returns an iterator returning simple paths from shortest to longest
+///
+/// Based on the algorithm in
+///     Yen, Jin Y. “Finding the K Shortest Loopless Paths in a Network.”
+///     Management Science 17, no. 11 (1971): 712–16. https://www.jstor.org/stable/2629312.
+pub fn all_simple_paths<G: StaticGraphViewOps>(
     view: &G,
     src: impl AsNodeRef,
     dst: impl AsNodeRef,
@@ -134,12 +133,9 @@ impl<V: Ord> PathHeap<V> {
 
 pub struct PathIterator<G, V> {
     graph: G,
-    src: VID,
     dst: VID,
     list_a: Vec<Path>,
     list_b: PathHeap<V>,
-    k: usize,
-    i: usize,
 }
 
 fn shortest_path<G: StaticGraphViewOps>(
@@ -166,12 +162,9 @@ impl<G: StaticGraphViewOps> PathIterator<G, usize> {
 
         Self {
             graph,
-            src,
             dst,
             list_a,
             list_b,
-            k: 1,
-            i: 0,
         }
     }
 }
@@ -180,7 +173,7 @@ impl<G: StaticGraphViewOps> Iterator for PathIterator<G, usize> {
     type Item = Nodes<'static, G>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (cost, prev_path) = self.list_b.pop()?;
+        let (_cost, prev_path) = self.list_b.pop()?;
         self.list_a.push(prev_path.clone());
         let mut ignore_nodes = HashSet::new();
         let mut ignore_edges = HashSet::new();
