@@ -140,3 +140,25 @@ def test_layered_view_scopes_the_aggregation():
     assert g.layer("_default").edge("b", "c").id in _ids(
         g.layer("_default").edges[Edge.is_deleted()]
     )
+
+
+def test_a_later_layer_restriction_does_not_rescope_the_filter():
+    """`filter(...)` then `.layer(...)` is not `.layer(...)` then `filter(...)`.
+
+    The filter answers against the view it was applied to. An edge alive on
+    another layer is not deleted, so it is already excluded, and restricting to
+    a layer afterwards only narrows what survived — it does not re-ask the
+    predicate within that layer. Applying the layer first genuinely changes the
+    view, and there the same edge is deleted.
+    """
+    g = PersistentGraph()
+    g.delete_edge(0, 1, 2, layer="1")
+    g.add_edge(0, 1, 2, layer="2")
+    edge_id = g.edge(1, 2).id
+
+    # Alive on "2", so not deleted — and a later `layer("1")` cannot bring it back.
+    assert edge_id not in _ids(g.filter(Edge.is_deleted()).edges)
+    assert list(g.filter(Edge.is_deleted()).layer("1").edges) == []
+
+    # The other order: layer "1" is the whole view, and there it is deleted.
+    assert edge_id in _ids(g.layer("1").filter(Edge.is_deleted()).edges)
