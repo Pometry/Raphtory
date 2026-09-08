@@ -203,6 +203,11 @@ async fn test_open_telemetry_spans_minimal() {
 async fn test_open_telemetry_spans() {
     // The following tests share the same global in-memory exporters and are run
     // sequentially to prevent spans and logs from getting mangled.
+    //
+    // NOTE: The server emits warnings mentioning
+    // 'global default trace dispatcher has already been set' after the first test.
+    // These are harmless since subsequent tests reuse the same global exporters
+    // that are already set.
     test_open_telemetry_spans_complete().await;
     test_open_telemetry_spans_essential().await;
     test_open_telemetry_spans_minimal().await;

@@ -274,15 +274,18 @@ impl GraphServer {
         let acceptor = TcpListener::bind(format!("0.0.0.0:{port}"))
             .into_acceptor()
             .await?;
-        // set up opentelemetry first of all
+
+        // Setup opentelemetry tracing and logging providers.
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.service_name.clone();
         let tp = config.tracing.tracer_provider().await?;
-        // Create the base registry
-        let registry = Registry::default().with(filter).with(
-            fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
-        );
+
+        // Create the base registry.
+        let registry = Registry::default()
+            .with(filter)
+            .with(fmt::layer().pretty().with_span_events(FmtSpan::NONE));
+
         match tp.clone() {
             Some((span, log)) => {
                 registry
@@ -292,7 +295,7 @@ impl GraphServer {
                     )
                     .with(OpenTelemetryTracingBridge::new(&log))
                     .try_init()
-                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
+                    .unwrap_or_else(|err| warn!("Failed to initialise tracing subscriber: {err}"));
             }
             None => {
                 registry.try_init().ok();
