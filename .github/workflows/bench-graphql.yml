@@ -38,13 +38,13 @@ jobs:
           k6-version: "1.0.0"
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
-      # Runs even when the bench failed: `make bench-local` runs the server and k6 under
+      # Failure only, so green runs stay quiet. `make bench-local` runs the server and k6 under
       # `concurrently --kill-others`, so a server that died (or was still building its bench graph
       # when k6's setup() tried to connect) shows up only in these logs.
       - name: Print bench diagnostics
-        if: always()
+        if: failure()
         run: |
-          cd graphql-bench
+          cd graphql-bench || exit 0
           echo "::group::output.json"
           cat output.json || echo "(no output.json was produced)"
           echo "::endgroup::"
@@ -64,7 +64,7 @@ jobs:
           ls -la data/apache || echo "(no data/apache)"
           echo "::endgroup::"
       - name: Upload bench diagnostics
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: graphql-bench-diagnostics
@@ -79,6 +79,8 @@ jobs:
         run: |
           git restore Cargo.lock # modified by build; github-action-benchmark can't switch to gh-pages with dirty working tree
           git restore graphql-bench/data/apache/master # otherwise github-action-benchmark fails to create the commit
+      - name: Print bench results
+        run: cat graphql-bench/output.json
       - name: Store benchmark results from master branch
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
