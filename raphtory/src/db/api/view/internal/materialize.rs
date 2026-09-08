@@ -12,8 +12,7 @@ use std::ops::Range;
 
 #[cfg(feature = "io")]
 use {
-    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths,
-    storage::Args,
+    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args,
 };
 
 #[derive(Clone)]
