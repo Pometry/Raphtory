@@ -16,15 +16,17 @@ use crate::{
 };
 use rand::Rng;
 use raphtory_api::core::utils::hashing::calculate_hash;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
 use std::{
+    cell::RefCell,
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
 };
+use tracing::debug;
 
 /// Label carried by a node that has not (yet) been assigned a community.
 ///
@@ -33,14 +35,18 @@ use std::{
 /// marker (see `VID::is_initialised`), so it can never collide with a node index.
 const NO_LABEL: usize = usize::MAX;
 
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+#[derive(Copy, Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct LabelPropState {
-    #[serde(skip)]
-    nbors: HashMap<usize, usize>,
     pub community_id: usize,
     pub alternate_id: Option<usize>, // set to previous value when community_id has changed; None once settled
     #[serde(skip)]
     is_changed: bool, // derive(Default) initializes to false
+}
+
+// Per-thread scratch tally for `step3` vote counts. Keeping them out of `LabelPropState` spares
+// the runner a deep `HashMap` clone per node per superstep.
+thread_local! {
+    static LABEL_COUNTS: RefCell<FxHashMap<usize, usize>> = RefCell::new(FxHashMap::default());
 }
 
 /// Deterministic pseudorandom rank for `label` as seen by `node`, used only to break vote-count
@@ -139,41 +145,40 @@ where
         }
 
         let id = s.node.index();
-        let prev_id = s.prev().community_id;
-        let nbor_iter = s.neighbours();
-        let state: &mut LabelPropState = s.get_mut();
-        // each node votes for its own label but only if it's initialised
-        state.nbors = if prev_id != NO_LABEL {
-            HashMap::from([(prev_id, 1)])
-        } else {
-            HashMap::new()
-        };
-        // get labels from neighbors
-        for nbor in nbor_iter {
-            let nbor_id = nbor.prev().community_id;
-            if nbor_id == NO_LABEL {
-                continue; // unlabelled neihbours don't cast a vote
+        let prev_label = s.prev().community_id;
+        let winner_label = LABEL_COUNTS.with(|counts| {
+            let mut counts = counts.borrow_mut();
+            counts.clear();
+            if prev_label != NO_LABEL {
+                // initialised nodes vote for their own label
+                counts.insert(prev_label, 1);
             }
-            // below could be written instead as:
-            // *state.nbors.entry(nbor_id).or_insert(0) += 1;
-            state
-                .nbors
-                .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&0) + 1);
-        }
-        if let Some((&label, _)) = state
-            .nbors
-            .iter()
-            // REMOVED: get max label (use usize ID to resolve tie)
-            // .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
-            // NEW BEHAVIOUR: a tie is settled by pseudorandom rank, which draws the winner uniformly
-            // from all the top-tied labels.
-            .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
-        {
+            for nbor in s.neighbours() {
+                let nbor_label = nbor.prev().community_id;
+                if nbor_label == NO_LABEL {
+                    continue; // unlabelled neighbours don't cast a vote
+                }
+                let count = counts.entry(nbor_label).or_insert(0);
+                *count += 1;
+            }
+            counts
+                .iter()
+                // REMOVED: get max label (use usize ID to resolve tie)
+                // .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
+                // NEW BEHAVIOUR: a tie is settled by pseudorandom rank, which draws the winner uniformly
+                // from all the top-tied labels.
+                .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
+                .map(|(&label, _)| label)
+        });
+
+        let state: &mut LabelPropState = s.get_mut();
+        // No votes at all (unlabelled node, no labelled neighbours) leaves community_id standing.
+        if let Some(label) = winner_label {
             state.community_id = label;
         }
-        state.is_changed = state.community_id != prev_id;
+        state.is_changed = state.community_id != prev_label;
         if state.is_changed {
-            state.alternate_id = (prev_id != NO_LABEL).then_some(prev_id);
+            state.alternate_id = (prev_label != NO_LABEL).then_some(prev_label);
             s.global_update(&global_diff, 1);
         } else {
             state.alternate_id = None;
