@@ -173,31 +173,33 @@ impl<G: StaticGraphViewOps> Iterator for PathIterator<G, usize> {
     type Item = Nodes<'static, G>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(prev_path) = self.list_a.last() {
+            let mut ignore_nodes = HashSet::new();
+            let mut ignore_edges = HashSet::new();
+            for k in 1..prev_path.len() {
+                let spur_root = prev_path.node(k - 1);
+                for path in self.list_a.iter() {
+                    if prev_path.same_root(path, k) {
+                        ignore_edges.insert((path.node(k - 1), path.node(k)));
+                    }
+                    if let Some(spur) = shortest_path(
+                        &self
+                            .graph
+                            .exclude_nodes(ignore_nodes.iter().copied())
+                            .exclude_edges(ignore_edges.iter().copied()),
+                        spur_root,
+                        self.dst,
+                    ) {
+                        let len = k - 1 + spur.len();
+                        let path = prev_path.root_iter(k - 1).chain(spur).collect();
+                        self.list_b.push(len, path)
+                    }
+                }
+                ignore_nodes.insert(spur_root);
+            }
+        }
         let (_cost, prev_path) = self.list_b.pop()?;
         self.list_a.push(prev_path.clone());
-        let mut ignore_nodes = HashSet::new();
-        let mut ignore_edges = HashSet::new();
-        for k in 1..prev_path.len() {
-            let spur_root = prev_path.node(k - 1);
-            for path in self.list_a.iter() {
-                if prev_path.same_root(path, k) {
-                    ignore_edges.insert((path.node(k - 1), path.node(k)));
-                }
-                if let Some(spur) = shortest_path(
-                    &self
-                        .graph
-                        .exclude_nodes(ignore_nodes.iter().copied())
-                        .exclude_edges(ignore_edges.iter().copied()),
-                    spur_root,
-                    self.dst,
-                ) {
-                    let len = k - 1 + spur.len();
-                    let path = prev_path.root_iter(k - 1).chain(spur).collect();
-                    self.list_b.push(len, path)
-                }
-            }
-            ignore_nodes.insert(spur_root);
-        }
         Some(Nodes::new_indexed(self.graph.clone(), prev_path.0.into()))
     }
 }
