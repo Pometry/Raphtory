@@ -321,12 +321,29 @@ impl GqlAlgorithms {
     pub async fn label_propagation(
         &self,
         #[graphql(desc = "Number of iterations to run. Defaults to 20.")] iter_count: Option<usize>,
+        #[graphql(desc = "Seed for the tie-break draw. If unset, seeded from the OS.")]
+        seed: Option<u64>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
             usize,
         >,
+        #[graphql(
+            desc = "Relative-improvement threshold used to track convergence. Defaults to 3e-4."
+        )]
+        rel_tol: Option<f64>,
+        #[graphql(desc = "Stop after this many iterations without progress. Defaults to 10.")]
+        patience: Option<usize>,
     ) -> GqlNodeState {
         self.run(move |graph| {
-            label_propagation(&graph, iter_count.unwrap_or(20), None, threads).into()
+            label_propagation(
+                &graph,
+                iter_count.unwrap_or(20),
+                seed,
+                threads,
+                None,
+                rel_tol,
+                patience,
+            )
+            .into()
         })
         .await
     }
