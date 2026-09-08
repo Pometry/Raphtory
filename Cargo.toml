@@ -16,7 +16,8 @@ members = [
     "raphtory-tests",
     "raphtory-itertools",
     "drop-logging",
-    "raphtory-graphql-tests"]
+    "raphtory-graphql-tests"
+]
 default-members = ["raphtory"]
 resolver = "2"
 
