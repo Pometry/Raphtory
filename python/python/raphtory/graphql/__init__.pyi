@@ -123,6 +123,14 @@ class GraphServer(object):
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
+    def config_schema(self) -> dict:
+        """
+        The full config schema as a nested dict: every field, including ones unset by default.
+
+        Returns:
+            dict: the configuration schema.
+        """
+
     def run(self, port: Optional[int] = None, timeout_ms: int = 180000) -> None:
         """
         Run the server until completion.

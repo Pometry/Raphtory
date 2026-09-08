@@ -40,6 +40,11 @@ pub trait ServerExtension: Debug + Send + Sync + 'static {
 
     /// serialise config to json
     fn to_json(&self) -> Result<Value, ServerError>;
+
+    /// The full config schema: every field, including ones unset by default. Defaults to `to_json`.
+    fn config_schema(&self) -> Result<Value, ServerError> {
+        self.to_json()
+    }
 }
 
 #[derive(Debug)]

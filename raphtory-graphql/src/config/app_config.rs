@@ -40,6 +40,19 @@ pub struct AppConfig {
     pub extensions: ArgExtensions,
 }
 
+impl AppConfig {
+    /// The config with each extension replaced by its full schema (every field, not only the set ones).
+    pub fn config_schema_json(&self) -> Result<serde_json::Value, ServerError> {
+        let mut value = serde_json::to_value(self).map_err(ServerError::config_error)?;
+        if let serde_json::Value::Object(map) = &mut value {
+            for ext in self.extensions.iter() {
+                map.insert(ext.name().to_string(), ext.config_schema()?);
+            }
+        }
+        Ok(value)
+    }
+}
+
 pub struct AppConfigBuilder {
     config: AppConfig,
 }
@@ -170,8 +183,6 @@ impl AppConfigBuilder {
             // A key naming no built-in section names a server extension, whose settings sit at
             // the top level alongside the built-ins. An unregistered name still errors, exactly as
             // an unknown section did.
-            //
-
             let field = match AppConfigFieldName::by_name(path) {
                 None => {
                     // A name that is not a known field is checked against the registered extensions
@@ -208,6 +219,12 @@ impl AppConfigBuilder {
                         {
                             CacheConfigFieldName::Capacity => {
                                 self.with_cache_capacity(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            CacheConfigFieldName::ReadOnly => {
+                                self.with_cache_read_only(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -343,6 +360,12 @@ impl AppConfigBuilder {
                             }
                             ConcurrencyConfigFieldName::DisableLists => {
                                 self.with_disable_lists(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::MaxConcurrentLoads => {
+                                self.with_max_concurrent_loads(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -490,6 +513,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_cache_read_only(&mut self, read_only: bool) -> &mut Self {
+        self.config.cache.read_only = read_only;
+        self
+    }
+
     pub fn with_auth_public_key(
         &mut self,
         public_key: Option<String>,
@@ -547,6 +575,11 @@ impl AppConfigBuilder {
 
     pub fn with_max_page_size(&mut self, max_page_size: Option<usize>) -> &mut Self {
         self.config.concurrency.max_page_size = max_page_size;
+        self
+    }
+
+    pub fn with_max_concurrent_loads(&mut self, max_concurrent_loads: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_concurrent_loads = max_concurrent_loads;
         self
     }
 

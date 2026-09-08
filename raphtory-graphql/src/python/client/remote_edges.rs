@@ -99,7 +99,7 @@ impl PyRemoteEdges {
     /// and mixed combinations all apply. Lazy — no RPC.
     ///
     /// Arguments:
-    ///     filter (FilterExpr): a filter expression from `raphtory.filter`.
+    ///     filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
     ///
     /// Returns:
     ///     RemoteEdges: a new collection narrowed to matching edges.

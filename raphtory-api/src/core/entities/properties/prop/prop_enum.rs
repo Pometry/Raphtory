@@ -22,10 +22,12 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use num_traits::{Bounded, FromPrimitive, ToPrimitive, Zero};
+use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
+    de::{MapAccess, SeqAccess, Visitor},
     ser::{Error, SerializeMap, SerializeSeq},
-    Deserialize, Serialize, Serializer,
+    Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_arrow::ArrayBuilder;
 use std::{
@@ -145,6 +147,89 @@ impl PartialEq<Prop> for PropUntagged {
     }
 }
 
+/// Preserves the exact numeric width reported by the deserializer, unlike untagged
+/// deserialization which coerces (e.g. f32 -> f64) and narrows in-range integers.
+pub struct PropExact(pub Prop);
+
+impl From<PropExact> for Prop {
+    fn from(p: PropExact) -> Self {
+        p.0
+    }
+}
+
+impl<'de> Deserialize<'de> for PropExact {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PropVisitor;
+
+        impl<'de> Visitor<'de> for PropVisitor {
+            type Value = Prop;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a property value")
+            }
+
+            fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<Prop, E> {
+                Ok(Prop::Bool(v))
+            }
+            fn visit_u8<E: serde::de::Error>(self, v: u8) -> Result<Prop, E> {
+                Ok(Prop::U8(v))
+            }
+            fn visit_u16<E: serde::de::Error>(self, v: u16) -> Result<Prop, E> {
+                Ok(Prop::U16(v))
+            }
+            fn visit_u32<E: serde::de::Error>(self, v: u32) -> Result<Prop, E> {
+                Ok(Prop::U32(v))
+            }
+            fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Prop, E> {
+                Ok(Prop::U64(v))
+            }
+            fn visit_i8<E: serde::de::Error>(self, v: i8) -> Result<Prop, E> {
+                Ok(Prop::I32(v as i32))
+            }
+            fn visit_i16<E: serde::de::Error>(self, v: i16) -> Result<Prop, E> {
+                Ok(Prop::I32(v as i32))
+            }
+            fn visit_i32<E: serde::de::Error>(self, v: i32) -> Result<Prop, E> {
+                Ok(Prop::I32(v))
+            }
+            fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Prop, E> {
+                Ok(Prop::I64(v))
+            }
+            fn visit_f32<E: serde::de::Error>(self, v: f32) -> Result<Prop, E> {
+                Ok(Prop::F32(v))
+            }
+            fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<Prop, E> {
+                Ok(Prop::F64(v))
+            }
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Prop, E> {
+                Ok(Prop::Str(v.into()))
+            }
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Prop, E> {
+                Ok(Prop::Str(v.into()))
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Prop, A::Error> {
+                let mut values: Vec<Prop> = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(v) = seq.next_element::<PropExact>()? {
+                    values.push(v.0);
+                }
+                Ok(Prop::list(values))
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Prop, A::Error> {
+                let mut values = PropMap::default();
+                while let Some((k, v)) = map.next_entry::<ArcStr, PropExact>()? {
+                    values.insert(k, v.0);
+                }
+                Ok(Prop::Map(Arc::new(values)))
+            }
+        }
+
+        deserializer.deserialize_any(PropVisitor).map(PropExact)
+    }
+}
+
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, derive_more::From)]
 pub enum Prop {
@@ -199,6 +284,18 @@ impl<'a> From<PropRef<'a>> for Prop {
                 Prop::Decimal(BigDecimal::from_bigint(num.into(), scale as i64))
             }
         }
+    }
+}
+
+impl From<OrderedFloat<f32>> for Prop {
+    fn from(value: OrderedFloat<f32>) -> Self {
+        Prop::F32(value.0)
+    }
+}
+
+impl From<OrderedFloat<f64>> for Prop {
+    fn from(value: OrderedFloat<f64>) -> Self {
+        Prop::F64(value.0)
     }
 }
 

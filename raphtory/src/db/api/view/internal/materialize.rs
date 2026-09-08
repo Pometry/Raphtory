@@ -86,6 +86,17 @@ impl Debug for MaterializedGraph {
 impl Static for MaterializedGraph {}
 
 impl MaterializedGraph {
+    /// A read-only handle to this graph: reads skip per-access segment locking and
+    /// mutations fail with `Immutable::ReadLockedImmutable`.
+    pub fn read_only(&self) -> Self {
+        match self {
+            MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.read_only()),
+            MaterializedGraph::PersistentGraph(g) => {
+                MaterializedGraph::PersistentGraph(g.read_only())
+            }
+        }
+    }
+
     pub fn into_events(self) -> Option<Graph> {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),

@@ -9,10 +9,7 @@ const NAVBAR_STORAGE_KEY = 'pometry-navbar-expanded';
  * app (or a click) has stored a value, the script becomes a no-op and reloads
  * preserve the real state. Caller is responsible for the subsequent navigation.
  */
-export async function setNavbarExpanded(
-    page: Page,
-    expanded: boolean,
-): Promise<void> {
+export async function setNavbarExpanded(page: Page, expanded: boolean): Promise<void> {
     await page.addInitScript(
         ({ key, value }) => {
             if (window.localStorage.getItem(key) !== null) return;
@@ -27,14 +24,10 @@ export async function waitForLayoutToFinish(
     queryTimeout?: number,
     layoutTimeout?: number,
 ) {
-    await expect(
-        page.getByRole('progressbar', { name: 'Querying for graph...' }),
-    ).toBeHidden({
+    await expect(page.getByRole('progressbar', { name: 'Querying for graph...' })).toBeHidden({
         timeout: queryTimeout,
     });
-    await expect(
-        page.getByRole('progressbar', { name: 'Computing layout...' }),
-    ).toBeHidden({
+    await expect(page.getByRole('progressbar', { name: 'Computing layout...' })).toBeHidden({
         timeout: layoutTimeout,
     });
     // this extra timeout is to account for the animation
@@ -55,8 +48,7 @@ export async function clickAfterPaginating(
     nextPageButtonProvided?: Locator,
 ): Promise<void> {
     const nextPageButton =
-        nextPageButtonProvided ??
-        page.getByRole('button', { name: 'Next page', exact: true });
+        nextPageButtonProvided ?? page.getByRole('button', { name: 'Next page', exact: true });
     const MAX_PAGES = 100;
     const PAGE_LOAD_TIMEOUT = 5000;
     for (let i = 0; i < MAX_PAGES; i++) {

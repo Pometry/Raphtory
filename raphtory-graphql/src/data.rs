@@ -165,6 +165,7 @@ pub struct DataInner {
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_args: Args,
+    pub(crate) read_only: bool,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -296,7 +297,6 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig, graph_args: Args) -> Self {
         let cache_configs = &configs.cache;
-
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
         Self {
@@ -306,6 +306,7 @@ impl Data {
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_args,
+                read_only: cache_configs.read_only,
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
@@ -393,6 +394,7 @@ impl Data {
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
         let args = self.graph_args.clone();
+        let read_only = self.read_only;
 
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
@@ -402,11 +404,16 @@ impl Data {
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
-                    Ok::<_, InsertionError>(graph)
+                    Ok::<_, InsertionError>(if read_only {
+                        graph.into_read_only()
+                    } else {
+                        graph
+                    })
                 })
                 .await
             })
             .await?;
+
         Ok(())
     }
 
@@ -620,13 +627,18 @@ impl Data {
         let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
-        GraphWithVectors::read_from_folder(
+        let graph = GraphWithVectors::read_from_folder(
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
             args,
         )
-        .await
+        .await?;
+        Ok(if self.read_only {
+            graph.into_read_only()
+        } else {
+            graph
+        })
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
@@ -641,10 +653,14 @@ impl Data {
 // ---------------------------------------------------------------------------
 
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum PermissionError {
+pub enum PermissionError {
     /// Graph exists but caller has no namespace visibility — hide graph existence.
     #[error("Graph does not exist")]
     GraphNotFound,
+    /// Caller has no grant on the graph at all, and can already see its namespace, so
+    /// saying so discloses nothing they could not learn from a listing.
+    #[error("Access denied: no permission for graph '{graph}'")]
+    GraphAccessDenied { graph: String },
     /// Caller has introspect-only access; cannot read graph data.
     #[error(
         "Access denied: introspect-only access to graph '{graph}' — \
@@ -675,27 +691,28 @@ pub(crate) enum PermissionError {
 /// `GRAPH_NOT_FOUND` must be emitted for both a genuinely missing graph and a
 /// forbidden-but-hidden graph, so the two are byte-for-byte indistinguishable to
 /// an unauthorized caller.
-pub(crate) const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
-pub(crate) const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+pub const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
+pub const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
 
 /// Build an `async_graphql::Error` carrying a `code` in its extensions. The
 /// human-readable message is preserved unchanged; only the structured code is
 /// added, so the client can branch on it without parsing message text.
-pub(crate) fn gql_error_with_code(
-    message: impl Into<String>,
+pub fn gql_error_with_code(
+    error: impl Into<async_graphql::Error>,
     code: &'static str,
 ) -> async_graphql::Error {
-    async_graphql::Error::new(message.into()).extend_with(|_, ext| ext.set("code", code))
+    error.into().extend_with(|_, ext| ext.set("code", code))
 }
 
 impl PermissionError {
     /// The `extensions.code` this denial surfaces to the client. `GraphNotFound`
     /// deliberately shares the code a genuinely missing graph produces so a
     /// forbidden graph cannot be distinguished from a nonexistent one.
-    pub(crate) fn code(&self) -> &'static str {
+    pub fn code(&self) -> &'static str {
         match self {
             PermissionError::GraphNotFound => CODE_GRAPH_NOT_FOUND,
-            PermissionError::IntrospectOnly { .. }
+            PermissionError::GraphAccessDenied { .. }
+            | PermissionError::IntrospectOnly { .. }
             | PermissionError::GraphWriteRequired { .. }
             | PermissionError::GraphUnfilteredReadRequired { .. }
             | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
@@ -703,7 +720,7 @@ impl PermissionError {
     }
 
     /// Convert into an `async_graphql::Error` tagged with the matching `code`.
-    pub(crate) fn into_gql_error(self) -> async_graphql::Error {
+    pub fn into_gql_error(self) -> async_graphql::Error {
         let code = self.code();
         gql_error_with_code(self.to_string(), code)
     }
@@ -763,16 +780,42 @@ fn require_at_least_read(
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
         return match policy.graph_permissions(ctx, path) {
-            Err(msg) => {
+            Err(e) => {
+                error!(
+                    graph = path,
+                    error = %e,
+                    "Authorization policy could not resolve graph permissions"
+                );
+                Err(PermissionError::GraphNotFound.into_gql_error())
+            }
+            Ok(None) => {
                 warn!(graph = path, "Access denied by auth policy");
-                let ns = parent_namespace(path);
-                if policy.namespace_permissions(ctx, ns).is_some() {
-                    Err(gql_error_with_code(msg.to_string(), CODE_ACCESS_DENIED))
+                // Admitting the denial admits the graph exists, so it is only safe for a
+                // caller who can already see the namespace. A fault resolving the namespace
+                // is reported and treated as invisible, never as permission to disclose.
+                let namespace = parent_namespace(path);
+                let disclosable = match policy.namespace_permissions(ctx, namespace) {
+                    Ok(perm) => perm.is_some(),
+                    Err(e) => {
+                        error!(
+                            namespace,
+                            error = %e,
+                            "Authorization policy could not resolve namespace permissions; \
+                             hiding the graph"
+                        );
+                        false
+                    }
+                };
+                if disclosable {
+                    Err(PermissionError::GraphAccessDenied {
+                        graph: path.to_string(),
+                    }
+                    .into_gql_error())
                 } else {
                     Err(PermissionError::GraphNotFound.into_gql_error())
                 }
             }
-            Ok(perm) => {
+            Ok(Some(perm)) => {
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
@@ -818,7 +861,7 @@ pub(crate) fn require_graph_write(
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
 ) -> async_graphql::Result<()> {
-    if crate::auth::is_read_only(ctx) {
+    if ctx.is_read_only() {
         return Err(gql_error_with_code(
             "Access denied: this context may not write",
             CODE_ACCESS_DENIED,
@@ -830,8 +873,15 @@ pub(crate) fn require_graph_write(
             .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             p.graph_permissions(ctx, path)
-                .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED))?
-                .at_least_write()
+                .map_err(|e| {
+                    error!(
+                        graph = path,
+                        error = %e,
+                        "Authorization policy could not resolve graph permissions"
+                    );
+                    gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)
+                })?
+                .and_then(|perm| perm.at_least_write())
                 .ok_or_else(|| {
                     PermissionError::GraphWriteRequired {
                         graph: path.to_string(),
@@ -864,7 +914,7 @@ fn apply_row_filter_sync(
         if filters.is_empty() {
             error!("empty 'and' access filter restricts nothing");
             return Err(async_graphql::Error::new(
-                "internal error applying access filter",
+                "access filter could not be applied; the grant is misconfigured",
             ));
         }
         return filters
@@ -872,14 +922,16 @@ fn apply_row_filter_sync(
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
     }
     let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "filter conversion failed");
-        async_graphql::Error::new("internal error applying access filter")
+        error!(error = %e, "access filter conversion failed");
+        async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
     })?;
     Ok(graph
         .filter(dyn_filter)
         .map_err(|e| {
-            error!(error = %e, "failed to apply filter");
-            async_graphql::Error::new("internal error applying access filter")
+            error!(error = %e, "access filter application failed");
+            async_graphql::Error::new(
+                "access filter could not be applied; the grant is misconfigured",
+            )
         })?
         .into_dynamic())
 }
@@ -1082,6 +1134,29 @@ pub(crate) mod data_tests {
             data.insert_graph(folder, graph.clone()).await?;
         }
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_read_only_graphs_reject_mutations_and_serve_reads() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let path = tmp_work_dir.path().join("g");
+        fs::create_dir_all(&path).unwrap();
+        graph.encode(&path).unwrap();
+
+        let config = AppConfigBuilder::new().with_cache_read_only(true).build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        let served = data.get_graph_for_test("g").await.unwrap();
+        let served = served.graph().clone().into_events().unwrap();
+        assert_eq!(served.count_nodes(), 2);
+        assert!(served.add_node(1, 3, NO_PROPS, None, None).is_err());
+
+        let config = AppConfigBuilder::new().build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        let served = data.get_graph_for_test("g").await.unwrap();
+        let served = served.graph().clone().into_events().unwrap();
+        assert!(served.add_node(1, 3, NO_PROPS, None, None).is_ok());
     }
 
     #[tokio::test]

@@ -11,7 +11,10 @@ use raphtory::{
     prelude::{GraphViewOps, PropertiesOps},
     serialise::{metadata::build_graph_metadata, parquet::decode_graph_metadata},
 };
-use raphtory_api::core::storage::graph_folder::{GraphMetadata, GraphPaths};
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::graph_folder::{GraphMetadata, GraphPaths},
+};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
@@ -71,10 +74,113 @@ impl MetaGraph {
 
     /// Whether the caller has unfiltered read; gates the summary fields below, which are read from
     /// stored metadata without the access filter applied.
-    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> bool {
-        data.auth_policy
-            .as_ref()
-            .map_or(true, |p| p.full_read(ctx, self.folder.local_path()))
+    fn caller_has_full_read(&self, ctx: &Context<'_>, data: &Data) -> Result<bool> {
+        match data.auth_policy.as_ref() {
+            None => Ok(true),
+            Some(p) => Ok(p.full_read(ctx, self.folder.local_path())?),
+        }
+    }
+
+    /// Key/value metadata pairs, read the cheap way: from the in-memory cache if
+    /// the graph is already loaded, otherwise directly from disk (parquet metadata
+    /// for parquet-backed graphs, the `graph_props` segment for disk-backed ones).
+    /// This keeps `MetaGraph.metadata` cheap for namespace listings of many graphs,
+    /// and lets those listings filter and sort by metadata without materialising
+    /// the whole collection for the client.
+    ///
+    /// `None` when the caller lacks unfiltered read, so a filter or sort can no
+    /// more observe a value than the `metadata` field can return it.
+    pub(crate) async fn metadata_pairs(
+        &self,
+        ctx: &Context<'_>,
+        data: &Data,
+    ) -> Result<Option<Vec<(String, Prop)>>> {
+        if !self.caller_has_full_read(ctx, data)? {
+            return Ok(None);
+        }
+
+        if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
+            return Ok(Some(
+                graph
+                    .graph()
+                    .metadata()
+                    .iter()
+                    .filter_map(|(key, value)| value.map(|prop| (key.to_string(), prop)))
+                    .collect(),
+            ));
+        }
+
+        if self.meta(data).await?.is_diskgraph {
+            let graph_path = self
+                .folder
+                .graph_folder()
+                .graph_path()
+                .map_err(GraphError::from)?;
+            let pairs = read_constant_graph_properties(&graph_path).map_err(GraphError::from)?;
+            return Ok(Some(
+                pairs
+                    .into_iter()
+                    .map(|(key, prop)| (key.to_string(), prop))
+                    .collect(),
+            ));
+        }
+
+        Ok(Some(
+            decode_graph_metadata(self.folder.graph_folder())?
+                .into_iter()
+                .filter_map(|(key, value)| value.map(|prop| (key, prop)))
+                .collect(),
+        ))
+    }
+
+    /// Value of a single metadata key, or `None` when the graph doesn't carry it
+    /// (or the caller may not read it).
+    pub(crate) async fn metadata_value(
+        &self,
+        ctx: &Context<'_>,
+        data: &Data,
+        key: &str,
+    ) -> Result<Option<Prop>> {
+        Ok(self
+            .metadata_pairs(ctx, data)
+            .await?
+            .unwrap_or_default()
+            .into_iter()
+            .find_map(|(k, prop)| (k == key).then_some(prop)))
+    }
+
+    pub(crate) async fn created_value(&self) -> Result<i64> {
+        Ok(self.folder.created_async().await?)
+    }
+
+    pub(crate) async fn last_updated_value(&self) -> Result<i64> {
+        Ok(self.folder.last_updated_async().await?)
+    }
+
+    pub(crate) async fn node_count_value(
+        &self,
+        ctx: &Context<'_>,
+        data: &Data,
+    ) -> Result<Option<usize>> {
+        if !self.caller_has_full_read(ctx, data)? {
+            return Ok(None);
+        }
+        Ok(Some(self.meta(data).await?.node_count))
+    }
+
+    pub(crate) async fn edge_count_value(
+        &self,
+        ctx: &Context<'_>,
+        data: &Data,
+    ) -> Result<Option<usize>> {
+        if !self.caller_has_full_read(ctx, data)? {
+            return Ok(None);
+        }
+        Ok(Some(self.meta(data).await?.edge_count))
+    }
+
+    pub(crate) fn name_value(&self) -> Option<String> {
+        self.folder.get_graph_name().ok()
     }
 }
 
@@ -109,7 +215,7 @@ impl MetaGraph {
     /// Returns the number of nodes in the graph, or null if the caller lacks unfiltered read.
     pub async fn node_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.node_count))
@@ -121,7 +227,7 @@ impl MetaGraph {
     ///     int:
     pub async fn edge_count(&self, ctx: &Context<'_>) -> Result<Option<usize>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
+        if !self.caller_has_full_read(ctx, data)? {
             return Ok(None);
         }
         Ok(Some(self.meta(data).await?.edge_count))
@@ -136,40 +242,9 @@ impl MetaGraph {
     /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
     pub async fn metadata(&self, ctx: &Context<'_>) -> Result<Option<Vec<GqlProperty>>> {
         let data: &Data = ctx.data_unchecked();
-        if !self.caller_has_full_read(ctx, data) {
-            return Ok(None);
-        }
-        if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
-            return Ok(Some(
-                graph
-                    .graph()
-                    .metadata()
-                    .iter()
-                    .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
-                    .collect(),
-            ));
-        }
-
-        if self.meta(data).await?.is_diskgraph {
-            let graph_path = self
-                .folder
-                .graph_folder()
-                .graph_path()
-                .map_err(GraphError::from)?;
-            let pairs = read_constant_graph_properties(&graph_path).map_err(GraphError::from)?;
-            return Ok(Some(
-                pairs
-                    .into_iter()
-                    .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
-                    .collect(),
-            ));
-        }
-
-        Ok(Some(
-            decode_graph_metadata(self.folder.graph_folder())?
-                .into_iter()
-                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
-                .collect(),
-        ))
+        Ok(self
+            .metadata_pairs(ctx, data)
+            .await?
+            .map(|pairs| pairs.into_iter().map(GqlProperty::from).collect()))
     }
 }

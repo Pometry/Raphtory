@@ -61,13 +61,9 @@ pub(crate) async fn run_mutation(schema: &Schema, query: &str) -> async_graphql:
 }
 
 pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_graphql::Response {
-    // No `Access::Rw` injected, so the policy decides allow/deny.
-    // A role (`Option<String>`) is injected because `write_denied` in
-    // `model/mod.rs` returns the specific policy error message only when a
-    // role is present; with `None` it returns the generic
-    // `AuthError::RequireWrite` string, which would fail tests that assert on
-    // the policy-specific text.
-    let req = Request::new(query).data(Some("test-user".to_string()));
+    // No `Access::Rw` injected, so the policy decides allow/deny. `FakePolicy` resolves
+    // permissions by path alone, so no identity needs to travel in the request.
+    let req = Request::new(query);
     schema.execute(req).await
 }
 

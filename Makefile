@@ -75,12 +75,18 @@ rust-test-all: rust-check
 ##########
 
 build-wheel:
-	cd python && maturin build
+	cd python && maturin build -r
+
+build-minimal-wheel:
+	cd python && maturin build -r --no-default-features
 
 clean:
 	cargo clean
 
 install-python: build-wheel
+	pip install target/wheels/*.whl
+
+install-minimal-python: build-minimal-wheel
 	pip install target/wheels/*.whl
 
 build-python:
