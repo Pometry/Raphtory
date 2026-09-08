@@ -46,21 +46,6 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
     }
 }
 
-// impl<'b> NodeStorageEntry<'b> {
-//     pub fn into_edges_iter<'a: 'b>(
-//         self,
-//         layers: &'a LayerIds,
-//         dir: Direction,
-//     ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'b {
-//         match self {
-//             NodeStorageEntry::Mem(entry) => {
-//                 Iter2::I1(nodes::NodeRefOps::edges_iter(entry, layers, dir))
-//             }
-//             NodeStorageEntry::Unlocked(entry) => Iter2::I2(entry.into_edges(layers, dir)),
-//         }
-//     }
-// }
-
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         self.as_ref().degree(layers, dir)
