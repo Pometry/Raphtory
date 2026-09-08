@@ -60,9 +60,6 @@ jobs:
           echo "--- header + first rows ---"
           { gzip -dc output.csv.gz 2>/dev/null || true; } | head -n 5 || true
           echo "::endgroup::"
-          echo "::group::graphs in data/apache"
-          ls -la data/apache || echo "(no data/apache)"
-          echo "::endgroup::"
       - name: Upload bench diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
@@ -71,6 +68,7 @@ jobs:
           path: |
             graphql-bench/output.json
             graphql-bench/output.csv.gz
+            graphql-bench/build.log
             graphql-bench/server.log
             graphql-bench/k6.log
           if-no-files-found: warn

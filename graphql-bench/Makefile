@@ -5,18 +5,20 @@ K6_IP=$(shell terraform output k6_ip | jq -r '.')
 RAPHTORY_IP=$(shell terraform output raphtory_ip | jq -r '.')
 
 
-build:
-	pnpm install --no-frozen-lockfile
-	pnpm build
-
-# Logs from the last `bench-local` run. Both are tee'd rather than swallowed because
-# `--kill-others` means a server that dies (or is still building its graph when k6 starts) takes
-# k6 down with it, and the two logs are the only way to tell that apart from a bench that ran and
-# simply measured nothing. process-k6-output.py tails them when it finds no results.
+# Logs from the last run. Nothing in here reaches the terminal on a run that worked: the server
+# and the bench are both noisy (tsc/tsup, the graph load, k6's own summary), and `--kill-others`
+# means a server that dies takes k6 down with it, so what you want is the whole lot on disk and
+# surfaced only when something breaks. process-k6-output.py prints them when it finds no results;
+# BENCH_VERBOSE=1 prints its report on a good run too, and `tail -f k6.log` follows a run live.
+BUILD_LOG ?= build.log
 SERVER_LOG ?= server.log
 K6_LOG ?= k6.log
 
-# Purely informational, so nothing in here is allowed to fail the run.
+build:
+	@{ pnpm install --no-frozen-lockfile && pnpm build ; } > $(BUILD_LOG) 2>&1 \
+		|| { echo ">>> build failed:"; cat $(BUILD_LOG); exit 1; }
+
+# Purely informational, so nothing in here is allowed to fail.
 bench-env:
 	@echo ">>> bench environment"
 	@k6 version || echo "k6 not on PATH"
@@ -25,13 +27,18 @@ bench-env:
 	@echo ">>> graphs available to the server:"
 	@ls -la data/apache 2>&1 || true
 
-bench-local: build bench-env
-	rm -f output.csv.gz output.json $(SERVER_LOG) $(K6_LOG)
-	pnpm concurrently --raw --kill-others --names 'raphtory,bench' \
-		'python -u server.py 2>&1 | tee $(SERVER_LOG)' \
-		'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js 2>&1 | tee $(K6_LOG)' \
-		; echo ">>> concurrently exited with status $$?"
-	BENCH_SERVER_LOG=$(SERVER_LOG) BENCH_K6_LOG=$(K6_LOG) python process-k6-output.py
+bench-local: build
+	@rm -f output.csv.gz output.json $(SERVER_LOG) $(K6_LOG)
+	@$(MAKE) --no-print-directory bench-env > $(K6_LOG) 2>&1 || true
+	@k6 version > /dev/null 2>&1 || echo ">>> WARNING: k6 is not on PATH"
+	@python -c 'import pandas' > /dev/null 2>&1 \
+		|| echo ">>> WARNING: pandas is not importable, results cannot be processed"
+	@echo ">>> running the bench; follow along in $(K6_LOG) and $(SERVER_LOG)"
+	@pnpm concurrently --raw --kill-others --names 'raphtory,bench' \
+		'python -u server.py > $(SERVER_LOG) 2>&1' \
+		'{ sh wait-for-server.sh && k6 run --out csv=output.csv.gz dist/bench.js ; } >> $(K6_LOG) 2>&1' \
+		; echo ">>> concurrently exited with status $$?" >> $(K6_LOG)
+	@BENCH_SERVER_LOG=$(SERVER_LOG) BENCH_K6_LOG=$(K6_LOG) python process-k6-output.py
 
 # call this like: make bench-e2-standard-16
 bench-%:

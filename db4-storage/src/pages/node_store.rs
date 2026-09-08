@@ -269,7 +269,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
             node_type_index,
-            free_segments: free_segments.try_into().unwrap(),
+            free_segments,
             nodes_path,
             node_meta,
             edge_meta,

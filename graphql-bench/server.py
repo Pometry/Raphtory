@@ -2,9 +2,11 @@ import logging
 import os
 import time
 
-import numpy as np
-import pandas as pd
-from raphtory import Graph, graphql
+os.environ.setdefault("RAPHTORY_PROGRESS_BARS_ENABLED", "0")
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+from raphtory import Graph, graphql  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -42,12 +44,6 @@ else:
             time="time",
             src="src",
             dst="dst",
-        )
-        logging.info(
-            "loaded %s of %s nodes (%.1fs elapsed)",
-            hi,
-            BIG_NODES,
-            time.monotonic() - build_started,
         )
     g.save_to_file(BIG_PATH)
     logging.info(

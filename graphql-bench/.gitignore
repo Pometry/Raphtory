@@ -21,5 +21,6 @@ slow_req.log
 stress-test-report.html
 
 # bench-local run logs
+build.log
 server.log
 k6.log

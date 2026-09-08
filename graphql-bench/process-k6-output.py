@@ -8,14 +8,32 @@ CSV = "output.csv.gz"
 OUT = "output.json"
 SERVER_LOG = os.environ.get("BENCH_SERVER_LOG", "server.log")
 K6_LOG = os.environ.get("BENCH_K6_LOG", "k6.log")
-K6_SUMMARY = os.environ.get("BENCH_K6_SUMMARY", "k6-summary.json")
 TAIL = int(os.environ.get("BENCH_LOG_TAIL", "100"))
+VERBOSE = os.environ.get("BENCH_VERBOSE", "").strip().lower() in {"1", "true", "yes"}
 
 NEEDED_COLS = ["timestamp", "metric_name", "metric_value", "scenario"]
 
+# Everything interesting about a run is recorded, but a run that worked does not need to say so:
+# the report is buffered and only printed if we end up failing (or if BENCH_VERBOSE is set).
+_report = []
+
 
 def log(msg=""):
+    """Record a line for the failure report."""
+    _report.append(msg)
+    if VERBOSE:
+        print(msg, flush=True)
+
+
+def out(msg=""):
+    """Print a line whatever happens: results, and warnings worth seeing on a green run."""
     print(msg, flush=True)
+
+
+def flush_report():
+    if not VERBOSE:
+        for line in _report:
+            print(line, flush=True)
 
 
 def section(title):
@@ -66,12 +84,9 @@ def bail(reason, extra=()):
     )
     tail_file(K6_LOG)
     tail_file(SERVER_LOG)
-    if os.path.exists(K6_SUMMARY):
-        section(K6_SUMMARY)
-        with open(K6_SUMMARY, errors="replace") as f:
-            log(f.read())
-    log()
-    log(f"refusing to write an empty {OUT}; failing so this is visible in CI")
+    flush_report()
+    out()
+    out(f"refusing to write an empty {OUT}; failing so this is visible in CI")
     sys.exit(1)
 
 
@@ -204,9 +219,6 @@ results = [
     if pd.notna(value)
 ]
 dropped = [name for (name, value) in zip(scenarios, max_rates) if pd.isna(value)]
-if dropped:
-    log()
-    log(f"WARNING: no usable value for {dropped} — dropped from {OUT}")
 
 if not results:
     bail(
@@ -217,5 +229,12 @@ if not results:
 with open(OUT, "w") as f:
     json.dump(results, f)
 
-section(f"wrote {OUT}")
-log(json.dumps(results, indent=2))
+width = max(len(r["name"]) for r in results)
+out(f"{OUT} ({len(results)} scenario(s), req/s):")
+for r in results:
+    out(f"  {r['name']:<{width}}  {r['value']:.1f}")
+if dropped:
+    # a scenario that ran but measured nothing is worth saying out loud on a green run
+    out()
+    out(f"WARNING: no usable value for {dropped} — dropped from {OUT}")
+    out(f"         re-run with BENCH_VERBOSE=1, or see {K6_LOG}, for why")
