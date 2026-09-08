@@ -461,6 +461,46 @@ mod dijkstra_tests {
     }
 }
 
+mod all_paths_tests {
+    use indexmap::{IndexMap, IndexSet};
+    use raphtory::{algorithms::pathing::all_paths::k_shortest_paths, prelude::*};
+    #[test]
+    fn test_all_paths() {
+        let g = Graph::new();
+        let edges = [
+            (1, 2),
+            (2, 3),
+            (1, 4),
+            (2, 4),
+            (4, 5),
+            (5, 6),
+            (2, 7),
+            (7, 8),
+            (8, 3),
+            (1, 9),
+            (9, 3),
+        ];
+        for (src, dst) in edges {
+            g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+        }
+        let path_map: IndexSet<_> = k_shortest_paths(&g, 1, 3)
+            .unwrap()
+            .map(|p| {
+                p.id()
+                    .iter_values()
+                    .map(|id| id.as_u64().unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        dbg!(&path_map);
+        assert!(path_map.iter().map(|p| p.len()).is_sorted());
+        let expected: IndexSet<_> = [vec![1, 2, 3], vec![1, 9, 3], vec![1, 2, 7, 8, 3]]
+            .into_iter()
+            .collect();
+        assert_eq!(path_map, expected);
+    }
+}
+
 mod sssp_tests {
     use itertools::Itertools;
     use raphtory::{

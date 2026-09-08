@@ -88,6 +88,12 @@ impl<K> From<IndexSet<K, RandomState>> for Index<K> {
     }
 }
 
+impl<K> From<Arc<IndexSet<K, RandomState>>> for Index<K> {
+    fn from(index: Arc<IndexSet<K, RandomState>>) -> Self {
+        Self::Partial(index)
+    }
+}
+
 impl<K> Default for Index<K> {
     fn default() -> Self {
         Self::Partial(Arc::new(IndexSet::default()))

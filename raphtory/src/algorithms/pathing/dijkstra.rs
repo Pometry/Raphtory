@@ -17,14 +17,16 @@ use bigdecimal::BigDecimal;
 use indexmap::IndexSet;
 use num_traits::{One, Zero};
 use ordered_float::OrderedFloat;
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{PropExact, PropType, PropUnwrap, SerdeArrowProp},
-        VID,
+use raphtory_api::{
+    core::{
+        entities::{
+            properties::prop::{PropExact, PropType, PropUnwrap, SerdeArrowProp},
+            VID,
+        },
+        Direction,
     },
-    Direction,
+    roaring::RoaringNodeMap,
 };
-use roaring::RoaringTreemap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     cmp::Reverse,
@@ -47,7 +49,7 @@ pub struct DistanceState {
         deserialize_with = "prop_deserialize"
     )]
     pub distance: Prop,
-    pub path: Vec<VID>,
+    pub path: IndexSet<VID, ahash::RandomState>,
 }
 
 #[derive(Clone, Debug)]
@@ -79,7 +81,7 @@ impl DistanceState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.path),
+                Index::from(value.path),
             ),
         }
     }
@@ -92,36 +94,6 @@ struct State<V> {
     node: VID,
 }
 
-#[derive(Default, Debug)]
-struct TreeMapIndex {
-    map: RoaringTreemap,
-}
-
-impl FromIterator<VID> for TreeMapIndex {
-    fn from_iter<T: IntoIterator<Item = VID>>(iter: T) -> Self {
-        let map = RoaringTreemap::from_iter(iter.into_iter().map(|v| v.as_u64()));
-        Self { map }
-    }
-}
-
-impl TreeMapIndex {
-    fn is_empty(&self) -> bool {
-        self.map.is_empty()
-    }
-
-    fn remove(&mut self, v: VID) -> bool {
-        self.map.remove(v.as_u64())
-    }
-
-    fn insert(&mut self, v: VID) -> bool {
-        self.map.insert(v.as_u64())
-    }
-
-    fn len(&self) -> usize {
-        self.map.len() as usize
-    }
-}
-
 fn dijkstra_inner<
     'a,
     G: StaticGraphViewOps,
@@ -129,7 +101,7 @@ fn dijkstra_inner<
 >(
     g: &'a G,
     source: VID,
-    mut targets: TreeMapIndex,
+    mut targets: RoaringNodeMap,
     weight_fn: impl Fn(EdgeView<&'a G>) -> V,
     neighbours_fn: impl Fn(NodeView<'a, &'a G>) -> Edges<'a, &'a G>,
 ) -> GenericNodeState<'static, G> {
@@ -148,7 +120,7 @@ fn dijkstra_inner<
 
     // map from node to predecessor in path and distance from src
     let mut predecessor_and_dist = AHashMap::new();
-    let mut visited = TreeMapIndex::default();
+    let mut visited = RoaringNodeMap::default();
 
     predecessor_and_dist.insert(source, (VID::default(), V::zero()));
 
@@ -263,7 +235,7 @@ pub fn dijkstra_single_source_shortest_paths<'a, G: StaticGraphViewOps, T: AsNod
         }
     };
 
-    let target_nodes: TreeMapIndex = targets
+    let target_nodes: RoaringNodeMap = targets
         .into_iter()
         .filter_map(|target| (&g).node(target).map(|n| n.node))
         .collect();

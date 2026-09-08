@@ -11,7 +11,7 @@ use crate::{
         },
         LOAD_POOL,
     },
-    core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
+    core::entities::{nodes::node_ref::AsNodeRef, LayerIds},
     db::{
         api::{
             properties::{Metadata, Properties},
@@ -25,6 +25,7 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
+                masked_edge_graph::MaskedEdgeGraph, masked_node_graph::MaskedNodeGraph,
                 node_subgraph::NodeSubgraph, property_redacted_graph::PropertyRedaction,
                 valid_graph::ValidGraph, PropertyRedactedGraph,
             },
@@ -57,7 +58,6 @@ use raphtory_storage::graph::{
     nodes::node_storage_ops::NodeStorageOps,
 };
 use rayon::prelude::*;
-use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
@@ -109,10 +109,17 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
         nodes_types: I,
     ) -> NodeFilteredGraph<Self, NodeTypeFilterOp>;
 
+    /// Exclude nodes from the graph view
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
         &self,
         nodes: I,
-    ) -> NodeSubgraph<Self>;
+    ) -> MaskedNodeGraph<Self>;
+
+    /// Exclude edges from the graph view
+    fn exclude_edges<I: IntoIterator<Item = (V, V)>, V: AsNodeRef>(
+        &self,
+        edges: I,
+    ) -> MaskedEdgeGraph<Self>;
 
     /// Create a view that hides the property keys specified in `redaction`.
     /// Build the redaction with [`PropertyRedaction`]'s `with_*` methods, e.g.:
@@ -727,21 +734,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         )
     }
 
-    fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
-        let _layer_ids = self.layer_ids();
+    fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
+        &self,
+        nodes: I,
+    ) -> MaskedNodeGraph<G> {
+        MaskedNodeGraph::new(self.clone(), nodes)
+    }
 
-        let nodes_to_exclude: FxHashSet<VID> = nodes
-            .into_iter()
-            .flat_map(|v| (&self).node(v).map(|v| v.node))
-            .collect();
-
-        let nodes_to_include = self
-            .nodes()
-            .into_iter()
-            .filter(|node| !nodes_to_exclude.contains(&node.node))
-            .map(|node| node.node);
-
-        NodeSubgraph::new(self.clone(), nodes_to_include)
+    fn exclude_edges<I: IntoIterator<Item = (V, V)>, V: AsNodeRef>(
+        &self,
+        edges: I,
+    ) -> MaskedEdgeGraph<Self> {
+        // Keep all edges that are included in the underlying storage as checking the mask will
+        // be more efficient than view filtering
+        MaskedEdgeGraph::new(
+            self.clone(),
+            edges
+                .into_iter()
+                .filter_map(|(src, dst)| (&self.core_graph()).edge(src, dst))
+                .map(|e| e.edge.pid()),
+        )
     }
 
     fn exclude_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<G> {
