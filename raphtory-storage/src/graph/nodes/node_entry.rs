@@ -7,14 +7,14 @@ use raphtory_api::core::{
 };
 use raphtory_core::storage::timeindex::EventTime;
 use storage::{
-    api::nodes::NodeEntryOps, generic_time_ops::LayerIter, pages::node_store::FakeNodeEntry,
-    Extension, NodeEntry, NodeEntryRef, NS,
+    api::nodes::NodeEntryOps, generic_time_ops::LayerIter,
+    pages::node_store::SegmentLockedNodeEntry, Extension, NodeEntry, NodeEntryRef, NS,
 };
 
 pub enum NodeStorageEntry<'a> {
     Mem(NodeEntryRef<'a>),
     Unlocked(NodeEntry<'a>),
-    Fake(FakeNodeEntry<NS<Extension>, Extension>),
+    Segment(SegmentLockedNodeEntry<NS<Extension>, Extension>),
 }
 
 impl<'a> From<NodeEntryRef<'a>> for NodeStorageEntry<'a> {
@@ -35,7 +35,7 @@ impl<'a> NodeStorageEntry<'a> {
         match self {
             NodeStorageEntry::Mem(entry) => *entry,
             NodeStorageEntry::Unlocked(entry) => entry.as_ref(),
-            NodeStorageEntry::Fake(entry) => entry.as_ref(),
+            NodeStorageEntry::Segment(entry) => entry.as_ref(),
         }
     }
 }

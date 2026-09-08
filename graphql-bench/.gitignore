@@ -16,3 +16,10 @@ dist
 output.csv.gz
 data
 
+samples.jsonl
+slow_req.log
+stress-test-report.html
+
+# bench-local run logs
+server.log
+k6.log

@@ -9,9 +9,29 @@ build:
 	pnpm install --no-frozen-lockfile
 	pnpm build
 
-bench-local: build
-	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
-	python process-k6-output.py
+# Logs from the last `bench-local` run. Both are tee'd rather than swallowed because
+# `--kill-others` means a server that dies (or is still building its graph when k6 starts) takes
+# k6 down with it, and the two logs are the only way to tell that apart from a bench that ran and
+# simply measured nothing. process-k6-output.py tails them when it finds no results.
+SERVER_LOG ?= server.log
+K6_LOG ?= k6.log
+
+# Purely informational, so nothing in here is allowed to fail the run.
+bench-env:
+	@echo ">>> bench environment"
+	@k6 version || echo "k6 not on PATH"
+	@python -V || true
+	@python -c 'import pandas; print("pandas", pandas.__version__)' || echo "pandas not importable"
+	@echo ">>> graphs available to the server:"
+	@ls -la data/apache 2>&1 || true
+
+bench-local: build bench-env
+	rm -f output.csv.gz output.json $(SERVER_LOG) $(K6_LOG)
+	pnpm concurrently --raw --kill-others --names 'raphtory,bench' \
+		'python -u server.py 2>&1 | tee $(SERVER_LOG)' \
+		'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js 2>&1 | tee $(K6_LOG)' \
+		; echo ">>> concurrently exited with status $$?"
+	BENCH_SERVER_LOG=$(SERVER_LOG) BENCH_K6_LOG=$(K6_LOG) python process-k6-output.py
 
 # call this like: make bench-e2-standard-16
 bench-%:
@@ -26,12 +46,26 @@ stress-test: build
 	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
 
 # Samples request/response pairs into $(SAMPLES) as JSONL (appends across runs).
-# SAMPLE_RATE is the chance of recording any given pair; failures are always recorded.
+# SAMPLE_RATE is the chance of recording any given pair; failures and requests slower than
+# SLOW_MS are recorded whatever the rate, so `SAMPLE_RATE=0 make stress-test-sampled` keeps just
+# those two. The slow ones are pretty printed into $(SLOW_LOG) when the run ends.
 SAMPLES ?= samples.jsonl
 SAMPLE_RATE ?= 0.01
+SLOW_MS ?= 1000
+SLOW_LOG ?= slow_req.log
 stress-test-sampled: build
-	SAMPLE_RATE=$(SAMPLE_RATE) K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html \
-		k6 run --log-format=raw --console-output=$(SAMPLES) dist/stress-test.js
+	SAMPLE_RATE=$(SAMPLE_RATE) SLOW_MS=$(SLOW_MS) K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html \
+		k6 run --log-format=raw --console-output=$(SAMPLES) dist/stress-test.js; \
+		status=$$?; python slow_requests.py $(SAMPLES) --output $(SLOW_LOG); exit $$status
+
+# Appends the slow requests from $(SAMPLES) to $(SLOW_LOG), slowest first: the query behind the
+# max the summary reports, its variables, and whether the time went on the server (waiting) or
+# somewhere between k6 and it. Entries already in the log are skipped, so this is safe to repeat.
+# N limits how many are appended (0 = all), MIN_MS overrides the run's own SLOW_MS threshold.
+N ?= 0
+MIN_MS ?= 0
+slowest:
+	python slow_requests.py $(SAMPLES) --output $(SLOW_LOG) --top $(N) --min-ms $(MIN_MS)
 
 stress-test-multiple: build # 12 x 10m = 2h
 	for _ in $(seq 1 12); do \

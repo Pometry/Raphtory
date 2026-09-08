@@ -205,19 +205,6 @@ where
         self.iter_vids(g)
     }
 
-    pub(crate) fn iter_vids2(
-        &self,
-        g: GraphStorage,
-    ) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
-        let view = self.base_graph.clone();
-        let selector = self.predicate.clone();
-
-        self.node_list().nodes_iter(&g).filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
-        })
-    }
-
     pub(crate) fn iter_vids(
         &self,
         g: GraphStorage,

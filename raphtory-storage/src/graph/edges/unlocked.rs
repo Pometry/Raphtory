@@ -20,10 +20,7 @@ impl<'a> UnlockedEdges<'a> {
     }
 
     pub fn iter_layer(self, layer_id: LayerId) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
-        self.0
-            .edges()
-            .iter(layer_id)
-            .map(EdgeStorageEntry::Unlocked)
+        self.0.edges().iter(layer_id).map(EdgeStorageEntry::Segment)
     }
 
     #[box_on_debug_lifetime]

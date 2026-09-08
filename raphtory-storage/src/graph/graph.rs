@@ -28,7 +28,6 @@ use storage::{
 };
 use thiserror::Error;
 
-use storage::api::nodes::NodeEntryOps;
 pub use storage::api::nodes::{
     GlobalPropCandidates as NodeGlobalPropCandidates, PropPredicate as NodePropPredicate,
     PropSemantics as NodePropSemantics,
@@ -464,7 +463,7 @@ impl GraphStorage {
                     .storage()
                     .nodes()
                     .node_entries()
-                    .map(NodeStorageEntry::Fake),
+                    .map(NodeStorageEntry::Segment),
             ),
         }
     }

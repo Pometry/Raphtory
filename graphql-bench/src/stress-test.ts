@@ -6,7 +6,13 @@ import {
   NodeGenqlSelection,
   PathFromNodeViewCollection,
 } from "./__generated";
-import { fetchAndCheck, fetchAndParse, mutate, mutateAndCheck } from "./utils";
+import {
+  defineOp,
+  fetchAndCheck,
+  fetchAndParse,
+  mutate,
+  mutateAndCheck,
+} from "./utils";
 
 // Global
 const VUS = 50;
@@ -117,6 +123,23 @@ const randomConstKey = () => pickRandom(CONST_KEYS);
 
 export const errorRate = new Rate("errors");
 
+// Labels for every request the test makes. Reads and writes are reported separately
+// (`read_duration`/`write_duration`, `read_reqs`/`write_reqs`, `read_errors`/`write_errors`) and
+// each op also gets its own `op_<name>` trend, since an iteration mixes very different requests:
+// `read_query` is the composed traversal under test, while `graph_size`, `entity_ids` and
+// `edge_page` are the small lookups used to pick its arguments and would otherwise drag the read
+// median down. Must stay at module level: k6 rejects metrics created after init.
+const OP = {
+  addEdge: defineOp("add_edge", "write"),
+  addNode: defineOp("add_node", "write"),
+  deleteEdge: defineOp("delete_edge", "write"),
+  readQuery: defineOp("read_query", "read"),
+  graphSize: defineOp("graph_size", "read"),
+  entityIds: defineOp("entity_ids", "read"),
+  edgePage: defineOp("edge_page", "read"),
+  setup: defineOp("setup", "write"),
+};
+
 const thresholdConf = {
   abortOnFail: true,
   delayAbortEval: "10s",
@@ -124,7 +147,7 @@ const thresholdConf = {
 export const options = {
   executor: "constant-vus",
   vus: VUS,
-  duration: "10m",
+  duration: "7m",
   thresholds: {
     errors: [
       {
@@ -148,21 +171,28 @@ export const options = {
 };
 
 export function setup() {
-  mutate({
-    deleteGraph: {
-      __args: {
-        path: "empty",
+  mutate(
+    {
+      deleteGraph: {
+        __args: {
+          path: "empty",
+        },
       },
     },
-  });
-  mutateAndCheck(errorRate, {
-    newGraph: {
-      __args: {
-        path: "empty",
-        graphType: "EVENT",
+    OP.setup,
+  );
+  mutateAndCheck(
+    errorRate,
+    {
+      newGraph: {
+        __args: {
+          path: "empty",
+          graphType: "EVENT",
+        },
       },
     },
-  });
+    OP.setup,
+  );
 }
 
 const QUERIES: Option<() => void>[] = [
@@ -178,69 +208,80 @@ export default function randomReadWriteQuery() {
 }
 
 function addEdge() {
-  fetchAndCheck(errorRate, {
-    updateGraph: {
-      __args: {
-        path: "empty",
-      },
-      addEdges: {
+  fetchAndCheck(
+    errorRate,
+    {
+      updateGraph: {
         __args: {
-          edges: [
-            {
-              src: randomNodeName(),
-              dst: randomNodeName(),
-              layer: randomLayer(),
-              updates: [
-                {
-                  time: randomTime(),
-                  properties: [
-                    { key: randomTempKey(), value: { str: randomStr() } },
-                  ],
-                },
-              ],
-            },
-          ],
+          path: "empty",
+        },
+        addEdges: {
+          __args: {
+            edges: [
+              {
+                src: randomNodeName(),
+                dst: randomNodeName(),
+                layer: randomLayer(),
+                updates: [
+                  {
+                    time: randomTime(),
+                    properties: [
+                      { key: randomTempKey(), value: { str: randomStr() } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
         },
       },
     },
-  });
+    OP.addEdge,
+  );
 }
 
 function addNode() {
-  fetchAndCheck(errorRate, {
-    updateGraph: {
-      __args: {
-        path: "empty",
-      },
-      addNodes: {
+  fetchAndCheck(
+    errorRate,
+    {
+      updateGraph: {
         __args: {
-          nodes: [
-            {
-              name: randomNodeName(),
-              updates: [
-                {
-                  time: randomTime(),
-                  properties: [
-                    { key: randomTempKey(), value: { str: randomStr() } },
-                  ],
-                },
-              ],
-            },
-          ],
+          path: "empty",
+        },
+        addNodes: {
+          __args: {
+            nodes: [
+              {
+                name: randomNodeName(),
+                updates: [
+                  {
+                    time: randomTime(),
+                    properties: [
+                      { key: randomTempKey(), value: { str: randomStr() } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
         },
       },
     },
-  });
+    OP.addNode,
+  );
 }
 
 function queryGraphSize(path: string) {
-  const response = fetchAndParse({
-    graph: {
-      __args: { path },
-      countNodes: true,
-      countEdges: true,
+  const response = fetchAndParse(
+    {
+      graph: {
+        __args: { path },
+        countNodes: true,
+        countEdges: true,
+      },
     },
-  });
+    OP.graphSize,
+  );
   return {
     numNodes: response.data.graph.countNodes as number,
     numEdges: response.data.graph.countEdges as number,
@@ -252,35 +293,42 @@ function deleteEdge() {
   if (!numEdges || numEdges <= 0) return;
 
   const edgeIndex = randomInt(numEdges);
-  const response = fetchAndParse({
-    graph: {
-      __args: { path: "empty" },
-      edges: {
-        page: {
-          __args: { limit: 1, offset: edgeIndex },
-          src: { name: true },
-          dst: { name: true },
+  const response = fetchAndParse(
+    {
+      graph: {
+        __args: { path: "empty" },
+        edges: {
+          page: {
+            __args: { limit: 1, offset: edgeIndex },
+            src: { name: true },
+            dst: { name: true },
+          },
         },
       },
     },
-  });
+    OP.edgePage,
+  );
 
   const edge = response?.data?.graph?.edges?.page?.[0];
   if (!edge?.src?.name || !edge?.dst?.name) return;
 
-  fetchAndCheck(errorRate, {
-    updateGraph: {
-      __args: { path: "empty" },
-      deleteEdge: {
-        __args: {
-          time: randomTime(),
-          src: edge.src.name,
-          dst: edge.dst.name,
+  fetchAndCheck(
+    errorRate,
+    {
+      updateGraph: {
+        __args: { path: "empty" },
+        deleteEdge: {
+          __args: {
+            time: randomTime(),
+            src: edge.src.name,
+            dst: edge.dst.name,
+          },
+          success: true,
         },
-        success: true,
       },
     },
-  });
+    OP.deleteEdge,
+  );
 }
 
 function getRandomEntityIds({
@@ -294,32 +342,35 @@ function getRandomEntityIds({
     return { src: undefined, dst: undefined, name: undefined };
   }
 
-  const response = fetchAndParse({
-    graph: {
-      __args: { path: "empty" },
-      ...(numNodes > 0
-        ? {
-            nodes: {
-              page: {
-                __args: { limit: 1, offset: randomInt(numNodes) },
-                name: true,
+  const response = fetchAndParse(
+    {
+      graph: {
+        __args: { path: "empty" },
+        ...(numNodes > 0
+          ? {
+              nodes: {
+                page: {
+                  __args: { limit: 1, offset: randomInt(numNodes) },
+                  name: true,
+                },
               },
-            },
-          }
-        : {}),
-      ...(numEdges > 0
-        ? {
-            edges: {
-              page: {
-                __args: { limit: 1, offset: randomInt(numEdges) },
-                src: { name: true },
-                dst: { name: true },
+            }
+          : {}),
+        ...(numEdges > 0
+          ? {
+              edges: {
+                page: {
+                  __args: { limit: 1, offset: randomInt(numEdges) },
+                  src: { name: true },
+                  dst: { name: true },
+                },
               },
-            },
-          }
-        : {}),
+            }
+          : {}),
+      },
     },
-  });
+    OP.entityIds,
+  );
 
   const node = response?.data?.graph?.nodes?.page?.[0]?.name as
     | string
@@ -377,19 +428,23 @@ function randomInt(n: number) {
 // ---------------------------------------------------
 
 function randomComposedReadQuery() {
-  fetchAndCheck(errorRate, {
-    graph: {
-      __args: {
-        path: "empty",
-      },
-      applyViews: {
-        name: true,
-        ...randomPropertyQuery(GRAPH_PROPERTY_RATE),
-        ...randomView(GRAPH_VIEW_RATES),
-        ...randomEntityQuery(),
+  fetchAndCheck(
+    errorRate,
+    {
+      graph: {
+        __args: {
+          path: "empty",
+        },
+        applyViews: {
+          name: true,
+          ...randomPropertyQuery(GRAPH_PROPERTY_RATE),
+          ...randomView(GRAPH_VIEW_RATES),
+          ...randomEntityQuery(),
+        },
       },
     },
-  });
+    OP.readQuery,
+  );
 }
 
 function randomEntityQuery(): GraphGenqlSelection {

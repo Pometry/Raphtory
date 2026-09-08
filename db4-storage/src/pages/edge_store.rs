@@ -1,7 +1,7 @@
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
+    api::edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::{
         SegmentCounts,
@@ -644,13 +644,24 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         })
     }
 
-    pub fn iter(&self, layer: LayerId) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
+    pub fn iter(
+        &self,
+        layer: LayerId,
+    ) -> impl Iterator<Item = SegmentLockedEdgeEntry<ES, EXT>> + '_ {
         (0..self.segments.count())
             .filter_map(move |page_id| self.segments.get(page_id))
             .flat_map(move |page| {
-                (0..page.num_edges()).filter_map(move |local_edge| {
-                    page.layer_entry(LocalPOS(local_edge), layer, Some(page.head()))
-                })
+                let locked = Arc::new(page.locked());
+                (0..locked.num_edges())
+                    .map(LocalPOS)
+                    .map(move |pos| SegmentLockedEdgeEntry {
+                        locked: locked.clone(),
+                        pos,
+                    })
+                    .filter(move |edge| {
+                        let edge_ref: <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> = edge.as_ref();
+                        edge_ref.has_layer_inner(layer)
+                    })
             })
     }
 
@@ -683,5 +694,31 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     pub fn flush(&self) -> Result<(), StorageError> {
         self.par_iter_segments().try_for_each(|seg| seg.flush())
+    }
+}
+
+#[derive(Debug)]
+pub struct SegmentLockedEdgeEntry<
+    ES: EdgeSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<ES = ES>,
+> {
+    pos: LocalPOS,
+    locked: Arc<ES::ArcLockedSegment>,
+}
+
+impl<'a, ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>> EdgeEntryOps<'a>
+    for SegmentLockedEdgeEntry<ES, EXT>
+{
+    type Ref<'b>
+        = <ES::ArcLockedSegment as LockedESegment>::EntryRef<'b>
+    where
+        'a: 'b,
+        Self: 'b;
+
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
+    where
+        'a: 'b,
+    {
+        self.locked.entry_ref(self.pos, None)
     }
 }

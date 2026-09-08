@@ -3,7 +3,7 @@ use crate::{
     LocalPOS,
     api::{
         node_type_index::NodeTypeIndexOps,
-        nodes::{LockedNSSegment, NodeEntryOps, NodeRefOps, NodeSegmentOps},
+        nodes::{LockedNSSegment, NodeEntryOps, NodeSegmentOps},
     },
     error::StorageError,
     pages::{
@@ -181,19 +181,19 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         })
     }
 
-    pub fn node_entries(&self) -> impl Iterator<Item = FakeNodeEntry<NS, EXT>> {
+    pub fn node_entries(&self) -> impl Iterator<Item = SegmentLockedNodeEntry<NS, EXT>> {
         let count = self.segments.count();
         (0..count).flat_map(|id| {
             let ns = self
                 .get_segment(id)
                 .expect("segment should exist given count");
             let locked = Arc::new(ns.locked());
-            (0..locked.num_nodes())
-                .map(LocalPOS)
-                .map(move |pos| FakeNodeEntry::<NS, EXT> {
+            (0..locked.num_nodes()).map(LocalPOS).map(
+                move |pos| SegmentLockedNodeEntry::<NS, EXT> {
                     locked: locked.clone(),
                     pos,
-                })
+                },
+            )
         })
     }
 
@@ -226,13 +226,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 }
 
-pub struct FakeNodeEntry<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>> {
+pub struct SegmentLockedNodeEntry<
+    NS: NodeSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS>,
+> {
     pos: LocalPOS,
     locked: Arc<NS::ArcLockedSegment>,
 }
 
 impl<'a, NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>> NodeEntryOps<'a>
-    for FakeNodeEntry<NS, EXT>
+    for SegmentLockedNodeEntry<NS, EXT>
 {
     type Ref<'b>
         = <NS::ArcLockedSegment as LockedNSSegment>::EntryRef<'b>
