@@ -1,4 +1,6 @@
-// OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests since the span and log exporters are set globally.
+//! OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests
+//! since the span and log exporters are set globally.
+
 use raphtory::{
     db::api::storage::storage::Args,
     prelude::{Graph, StableEncode},
@@ -61,6 +63,7 @@ async fn setup_for_span_tests(
     // Reset logs and spans for next test.
     span_exporter.reset();
     log_exporter.reset();
+
     let tmp_dir = tempdir().unwrap();
     let graph = Graph::new();
     graph.encode(tmp_dir.path().join("g")).unwrap();
@@ -198,7 +201,7 @@ async fn test_open_telemetry_spans_minimal() {
 
 #[tokio::test]
 async fn test_open_telemetry_spans() {
-    // The following tests share the same global in-memory exporters and hence need to be run
+    // The following tests share the same global in-memory exporters and are run
     // sequentially to prevent spans and logs from getting mangled.
     test_open_telemetry_spans_complete().await;
     test_open_telemetry_spans_essential().await;

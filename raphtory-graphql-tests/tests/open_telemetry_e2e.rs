@@ -41,26 +41,40 @@ async fn test_open_telemetry_http_tracing_server() {
     )
     .await
     .unwrap();
-    let handler = server.start_with_port(0).await.unwrap();
 
+    let handler = server.start_with_port(0).await.unwrap();
     let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
     let client = RemoteClient::new(endpoint, None);
     let open_telemetry_query = "query {
-	updateGraph(path: \"g\") {
-		addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
-			success
-			node { id }
-		}
-		addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
-			success
-		}
-		graph {
-			countNodes
-			hasNode(name: 1)
-		}
-		flush
-	}
-}".to_string();
+        updateGraph(path: \"g\") {
+            addNode(
+                time: 1,
+                name: 1,
+                properties: [{ key: \"seed\", value: { str: \"yes\" } }],
+                nodeType: \"seed\",
+                layer: \"main\"
+            ) {
+                success
+                node { id }
+            }
+            addEdge(
+                time: 5,
+                src: 1,
+                dst: 2,
+                properties: [{ key: \"weight\", value: { f64: 1.5 } }],
+                layer: \"main\"
+            ) {
+                success
+            }
+            graph {
+                countNodes
+                hasNode(name: 1)
+            }
+            flush
+        }
+    }"
+    .to_string();
+
     let _ = client
         .query(&open_telemetry_query, Default::default())
         .await
@@ -73,6 +87,7 @@ async fn test_open_telemetry_http_tracing_server() {
         .wait_for_spans(1, Duration::from_secs(50))
         .await
         .unwrap();
+
     tracing_server
         .wait_for_logs(1, Duration::from_secs(50))
         .await
@@ -85,6 +100,7 @@ async fn test_open_telemetry_http_tracing_server() {
                 .iter()
                 .map(|span| span.span().name.clone())
                 .collect();
+
             assert_eq!(
                 all_spans,
                 HashSet::from([
@@ -99,6 +115,7 @@ async fn test_open_telemetry_http_tracing_server() {
                     "validation".to_string(),
                 ])
             );
+
             assert!(collector.log_count() > 0);
         })
         .await;
