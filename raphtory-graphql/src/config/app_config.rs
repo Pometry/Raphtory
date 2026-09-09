@@ -178,7 +178,7 @@ impl AppConfigBuilder {
         for (path, value) in map {
             // An non-built-in key potentially represents a server extension, whose settings sit at
             // the top level alongside the built-ins. If the key is not registered as a known
-            // extension, it raises an error exactly as an unknown section does.
+            // extension, it throws an error.
             let field = match AppConfigFieldName::by_name(path) {
                 None => {
                     // A name that is not a known field is checked against the registered extensions
