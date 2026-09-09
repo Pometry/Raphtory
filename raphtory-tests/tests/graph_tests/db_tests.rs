@@ -3629,7 +3629,9 @@ fn test_indexed_proptest() {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
         let nodes = graph.nodes().id_filter(nodes);
-        assert_eq!(nodes.id(), expected_node_ids);
+        let mut actual = nodes.id().collect_vec();
+        actual.sort();
+        assert_eq!(actual, expected_node_ids);
     })
 }
 

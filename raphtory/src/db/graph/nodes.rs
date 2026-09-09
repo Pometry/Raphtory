@@ -211,13 +211,17 @@ where
     ) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
-        GenLockedIter::from((g, view, selector), |(g, view, selector)| {
-            Box::new(g.node_entries().filter_map(move |node| {
-                let node_ref = node.as_ref();
-                let vid = node_ref.vid();
-                (view.filter_node(node_ref) && selector.apply(g, vid)).then_some(vid)
-            }))
-        })
+        let node_list = self.node_list();
+        GenLockedIter::from(
+            (g, view, selector, node_list),
+            |(g, view, selector, node_list)| {
+                Box::new(node_list.clone().node_entries(g).filter_map(move |node| {
+                    let node_ref = node.as_ref();
+                    let vid = node_ref.vid();
+                    (view.filter_node(node_ref) && selector.apply(g, vid)).then_some(vid)
+                }))
+            },
+        )
     }
 
     #[inline]

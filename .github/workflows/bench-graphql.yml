@@ -52,7 +52,8 @@ jobs:
           tail -n 300 server.log || echo "(no server.log)"
           echo "::endgroup::"
           echo "::group::k6 log (last 300 lines)"
-          tail -n 300 k6.log || echo "(no k6.log)"
+          # gzipped as it is written; a long run's log is far too big to keep uncompressed
+          gzip -dc k6.log.gz 2>/dev/null | tail -n 300 || echo "(no k6.log.gz)"
           echo "::endgroup::"
           echo "::group::k6 csv output"
           ls -la output.csv.gz || echo "(no output.csv.gz)"
@@ -70,7 +71,7 @@ jobs:
             graphql-bench/output.csv.gz
             graphql-bench/build.log
             graphql-bench/server.log
-            graphql-bench/k6.log
+            graphql-bench/k6.log.gz
           if-no-files-found: warn
           retention-days: 7
       - name: Restore modified files

@@ -1,3 +1,4 @@
+import gzip
 import json
 import os
 import sys
@@ -7,7 +8,7 @@ import pandas as pd
 CSV = "output.csv.gz"
 OUT = "output.json"
 SERVER_LOG = os.environ.get("BENCH_SERVER_LOG", "server.log")
-K6_LOG = os.environ.get("BENCH_K6_LOG", "k6.log")
+K6_LOG = os.environ.get("BENCH_K6_LOG", "k6.log.gz")
 TAIL = int(os.environ.get("BENCH_LOG_TAIL", "100"))
 VERBOSE = os.environ.get("BENCH_VERBOSE", "").strip().lower() in {"1", "true", "yes"}
 
@@ -46,8 +47,15 @@ def tail_file(path, lines=TAIL):
     if not os.path.exists(path):
         log(f"(missing: {path})")
         return
-    with open(path, errors="replace") as f:
-        content = f.readlines()
+    # the k6 log is gzipped as it is written, so it can be hundreds of MB uncompressed
+    opener = gzip.open if path.endswith(".gz") else open
+    try:
+        with opener(path, "rt", errors="replace") as f:
+            content = f.readlines()
+    except (OSError, EOFError) as e:
+        # a run killed mid-write can leave the last gzip member truncated
+        log(f"(could not read {path}: {e})")
+        return
     if not content:
         log(f"(empty: {path})")
         return

@@ -24,3 +24,4 @@ stress-test-report.html
 build.log
 server.log
 k6.log
+k6.log.gz

@@ -81,15 +81,19 @@ function recordStats({ label, response }: Exchange, ok: boolean) {
 //
 // A pair is recorded when it fails, when it is slower than SLOW_MS, or with probability
 // SAMPLE_RATE; `reason` says which of the three it was. Slow capture is what turns a `max=3.5s`
-// in the summary into the actual query text that took 3.5s, so it is on by default (and reads
-// nothing back: sort the file by `.timings.duration` afterwards, e.g. `make slowest`).
+// in the summary into the actual query text that took 3.5s -- but every sample is a whole
+// request/response blob (up to SAMPLE_MAX_CHARS), so a run where lots of requests are slow
+// writes hundreds of MB of them. It is therefore OFF unless SLOW_MS is set: `make
+// stress-test-sampled` sets it, and it reads nothing back, so sort the file by
+// `.timings.duration` afterwards (e.g. `make slowest`).
 
 // chance of recording any given request/response pair, 0 disables sampling
 const SAMPLE_RATE = Number(__ENV.SAMPLE_RATE ?? "0");
 // record every failing pair regardless of SAMPLE_RATE
 const SAMPLE_ERRORS = (__ENV.SAMPLE_ERRORS ?? "true") !== "false";
-// record every pair at least this slow (in ms) regardless of SAMPLE_RATE, 0 disables
-const SLOW_MS = Number(__ENV.SLOW_MS ?? "1000");
+// record every pair at least this slow (in ms) regardless of SAMPLE_RATE, 0 (the default)
+// disables it -- see the note above on how much this writes when it is on
+const SLOW_MS = Number(__ENV.SLOW_MS ?? "0");
 // responses longer than this are stored as a truncated string instead of parsed JSON
 const SAMPLE_MAX_CHARS = Number(__ENV.SAMPLE_MAX_CHARS ?? "20000");
 

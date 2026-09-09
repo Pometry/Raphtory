@@ -8,11 +8,15 @@ RAPHTORY_IP=$(shell terraform output raphtory_ip | jq -r '.')
 # Logs from the last run. Nothing in here reaches the terminal on a run that worked: the server
 # and the bench are both noisy (tsc/tsup, the graph load, k6's own summary), and `--kill-others`
 # means a server that dies takes k6 down with it, so what you want is the whole lot on disk and
-# surfaced only when something breaks. process-k6-output.py prints them when it finds no results;
-# BENCH_VERBOSE=1 prints its report on a good run too, and `tail -f k6.log` follows a run live.
+# surfaced only when something breaks. process-k6-output.py prints them when it finds no results,
+# and BENCH_VERBOSE=1 prints its report on a good run too.
+#
+# The k6 log is gzipped as it is written: a long run emits a lot of progress lines, and any
+# request/response sampling that is switched on emits a whole JSON blob per sample, which reached
+# 200MB uncompressed. Read it with `gzip -dc k6.log.gz | less` (or `| tail -n 100`).
 BUILD_LOG ?= build.log
 SERVER_LOG ?= server.log
-K6_LOG ?= k6.log
+K6_LOG ?= k6.log.gz
 
 build:
 	@{ pnpm install --no-frozen-lockfile && pnpm build ; } > $(BUILD_LOG) 2>&1 \
@@ -29,15 +33,15 @@ bench-env:
 
 bench-local: build
 	@rm -f output.csv.gz output.json $(SERVER_LOG) $(K6_LOG)
-	@$(MAKE) --no-print-directory bench-env > $(K6_LOG) 2>&1 || true
+	@$(MAKE) --no-print-directory bench-env 2>&1 | gzip > $(K6_LOG) || true
 	@k6 version > /dev/null 2>&1 || echo ">>> WARNING: k6 is not on PATH"
 	@python -c 'import pandas' > /dev/null 2>&1 \
 		|| echo ">>> WARNING: pandas is not importable, results cannot be processed"
-	@echo ">>> running the bench; follow along in $(K6_LOG) and $(SERVER_LOG)"
+	@echo ">>> running the bench; $(K6_LOG) and $(SERVER_LOG) have the details"
 	@pnpm concurrently --raw --kill-others --names 'raphtory,bench' \
 		'python -u server.py > $(SERVER_LOG) 2>&1' \
-		'{ sh wait-for-server.sh && k6 run --out csv=output.csv.gz dist/bench.js ; } >> $(K6_LOG) 2>&1' \
-		; echo ">>> concurrently exited with status $$?" >> $(K6_LOG)
+		'{ sh wait-for-server.sh && k6 run --out csv=output.csv.gz dist/bench.js ; } 2>&1 | gzip >> $(K6_LOG)' \
+		; echo ">>> concurrently exited with status $$?" | gzip >> $(K6_LOG)
 	@BENCH_SERVER_LOG=$(SERVER_LOG) BENCH_K6_LOG=$(K6_LOG) python process-k6-output.py
 
 # call this like: make bench-e2-standard-16
