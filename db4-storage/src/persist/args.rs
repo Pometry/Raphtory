@@ -136,25 +136,19 @@ impl ArgsOps for BaseArgs {
     type Config = BaseConfig;
 
     fn merge(&mut self, new_args: Self) -> Result<(), StorageError> {
-        if let Some(v) = new_args.max_node_page_len {
-            self.max_node_page_len = Some(v);
-        }
-        if let Some(v) = new_args.max_edge_page_len {
-            self.max_edge_page_len = Some(v);
+        if new_args.max_node_page_len.is_some() || new_args.max_edge_page_len.is_some() {
+            return Err(StorageError::GenericFailure(
+                "Page sizes cannot be overridden after graph creation".to_string(),
+            ));
         }
 
         Ok(())
     }
 
     fn apply_to_config(self, config: Self::Config) -> Result<Self::Config, StorageError> {
-        if self.max_node_page_len.is_some() || self.max_edge_page_len.is_some() {
-            return Err(StorageError::GenericFailure(
-                "Page sizes cannot be overridden after graph creation".to_string(),
-            ));
-        }
-
         let mut args = Self::from(config);
         args.merge(self)?;
+
         let new_config: BaseConfig = args.into();
         Ok(new_config)
     }
