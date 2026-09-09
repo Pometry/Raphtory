@@ -175,6 +175,7 @@ impl ArgExtensions {
                 ext.update_from_json(value)?;
             }
         }
+
         Ok(())
     }
 }

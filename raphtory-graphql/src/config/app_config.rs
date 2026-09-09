@@ -83,10 +83,6 @@ fn invalid_value(path: impl IntoIterator<Item: Display>, err: impl Error) -> Ser
     )))
 }
 
-fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError {
-    ServerError::ConfigError(ConfigError::Foreign(Box::new(error)))
-}
-
 impl AppConfigBuilder {
     pub fn new() -> Self {
         AppConfig::default().into()
@@ -180,9 +176,9 @@ impl AppConfigBuilder {
             .ok_or_else(|| ConfigError::Message(format!("Invalid config: {value}")))?;
 
         for (path, value) in map {
-            // A key naming no built-in section names a server extension, whose settings sit at
-            // the top level alongside the built-ins. An unregistered name still errors, exactly as
-            // an unknown section did.
+            // An non-built-in key potentially represents a server extension, whose settings sit at
+            // the top level alongside the built-ins. If the key is not registered as a known
+            // extension, it raises an error exactly as an unknown section does.
             let field = match AppConfigFieldName::by_name(path) {
                 None => {
                     // A name that is not a known field is checked against the registered extensions
@@ -191,6 +187,7 @@ impl AppConfigBuilder {
                 }
                 Some(field) => field,
             };
+
             match field {
                 AppConfigFieldName::Logging => {
                     let map = value.as_object().ok_or_else(|| {
