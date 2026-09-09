@@ -49,14 +49,14 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub round_robin_counter: AtomicUsize,
-    storage: Arc<Layer<EXT>>,
     // NOTE: Do not change the order of fields as this affects storage correctness during drop.
     // The resolver needs to be dropped before storage to ensure that node IDs are not lost
     // on recovery.
     // TODO: Move resolver inside storage?
     /// Stores mapping between logical to physical node IDs.
     pub gid_resolver: Arc<GIDResolver>,
+    pub round_robin_counter: AtomicUsize,
+    storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
 }
