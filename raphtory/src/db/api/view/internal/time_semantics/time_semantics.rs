@@ -1,8 +1,9 @@
 use crate::db::api::view::internal::{
     time_semantics::{
         base_time_semantics::BaseTimeSemantics, event_semantics::EventSemantics,
-        persistent_semantics::PersistentSemantics, time_semantics_ops::NodeTimeSemanticsOps,
-        window_time_semantics::WindowTimeSemantics,
+        multi_window_time_semantics::MultiWindowTimeSemantics,
+        persistent_semantics::PersistentSemantics, time_ranges::TimeRanges,
+        time_semantics_ops::NodeTimeSemanticsOps, window_time_semantics::WindowTimeSemantics,
     },
     EdgeTimeSemanticsOps, GraphView,
 };
@@ -19,6 +20,7 @@ use storage::EdgeEntryRef;
 pub enum TimeSemantics {
     Base(BaseTimeSemantics),
     Window(WindowTimeSemantics),
+    MultiWindow(MultiWindowTimeSemantics),
 }
 
 macro_rules! for_all {
@@ -26,14 +28,16 @@ macro_rules! for_all {
         match $value {
             TimeSemantics::Base($pattern) => $result,
             TimeSemantics::Window($pattern) => $result,
+            TimeSemantics::MultiWindow($pattern) => $result,
         }
     };
 }
 
 #[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
-pub enum TimeSemanticsVariants<Base, Window> {
+pub enum TimeSemanticsVariants<Base, Window, MultiWindow> {
     Base(Base),
     Window(Window),
+    MultiWindow(MultiWindow),
 }
 
 macro_rules! for_all_iter {
@@ -41,6 +45,7 @@ macro_rules! for_all_iter {
         match $value {
             TimeSemantics::Base($pattern) => TimeSemanticsVariants::Base($result),
             TimeSemantics::Window($pattern) => TimeSemanticsVariants::Window($result),
+            TimeSemantics::MultiWindow($pattern) => TimeSemanticsVariants::MultiWindow($result),
         }
     };
 }
@@ -798,13 +803,46 @@ impl TimeSemantics {
         TimeSemantics::Base(BaseTimeSemantics::Event(EventSemantics))
     }
 
-    pub fn window(self, w: Range<EventTime>) -> Self {
-        match self {
-            TimeSemantics::Base(semantics) => TimeSemantics::Window(WindowTimeSemantics {
+    /// Restrict to `ranges`, intersected with any restriction already present.
+    ///
+    /// The number of ranges left selects the variant: none is the empty window
+    /// (`start..start`, as `WindowTimeSemantics::window` already produces), one
+    /// is `Window`, more is `MultiWindow`.
+    pub fn restrict(self, ranges: TimeRanges) -> Self {
+        let (semantics, ranges) = match self {
+            TimeSemantics::Base(semantics) => (semantics, ranges),
+            TimeSemantics::Window(window) => (window.semantics, ranges.clipped_to(&window.window)),
+            TimeSemantics::MultiWindow(multi) => {
+                (multi.semantics, ranges.intersect(&multi.windows))
+            }
+        };
+        match ranges.as_slice() {
+            [] => TimeSemantics::Window(WindowTimeSemantics {
                 semantics,
-                window: w,
+                window: EventTime::MIN..EventTime::MIN,
             }),
-            TimeSemantics::Window(semantics) => TimeSemantics::Window(semantics.window(w)),
+            [window] => TimeSemantics::Window(WindowTimeSemantics {
+                semantics,
+                window: window.clone(),
+            }),
+            _ => TimeSemantics::MultiWindow(MultiWindowTimeSemantics {
+                semantics,
+                windows: ranges,
+            }),
+        }
+    }
+
+    pub fn window(self, w: Range<EventTime>) -> Self {
+        self.restrict(TimeRanges::single(w))
+    }
+
+    /// The time ranges these semantics are bounded to: everything for `Base`,
+    /// the window for `Window`, the range set for `MultiWindow`.
+    pub fn ranges(&self) -> TimeRanges {
+        match self {
+            TimeSemantics::Base(_) => TimeRanges::all(),
+            TimeSemantics::Window(window) => TimeRanges::single(window.window.clone()),
+            TimeSemantics::MultiWindow(multi) => multi.windows.clone(),
         }
     }
 }
