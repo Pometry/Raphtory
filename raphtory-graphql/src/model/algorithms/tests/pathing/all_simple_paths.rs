@@ -70,7 +70,7 @@ async fn test_algorithm_all_simple_paths_max_len() {
         {
           graph(path: "g") {
             algorithm {
-              allSimplePaths(source: "a", target: "c", limit: 10, maxLen: 1) {
+              allSimplePaths(source: "a", target: "c", limit: 10, maxLen: 2) {
                 list {
                     id
                  }

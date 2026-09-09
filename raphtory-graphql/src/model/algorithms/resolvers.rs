@@ -188,7 +188,9 @@ impl GqlAlgorithms {
         #[graphql(desc = "Target node id.")] target: GqlNodeId,
         #[graphql(desc = "Number of paths to skip. Defaults to 0.")] offset: Option<usize>,
         #[graphql(desc = "Maximum number of paths to return.")] limit: usize,
-        #[graphql(desc = "Maximum length of paths to return.")] max_len: Option<usize>,
+        #[graphql(desc = "Do not return paths with more than `maxLen` nodes.")] max_len: Option<
+            usize,
+        >,
     ) -> Result<Vec<GqlNodes>> {
         check_page_limit(ctx, limit)?;
         Ok(self
