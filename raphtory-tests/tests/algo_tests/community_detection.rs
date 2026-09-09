@@ -70,6 +70,48 @@ fn lpa_test() {
     });
 }
 
+/// The vote share behind each label.
+///
+/// The graph is small enough to count by hand: X neighbours two A-seeds and one B-seed, Y neighbours
+/// the B-seed alone, and Z—W is a component no seed can reach.
+#[test]
+fn lpa_vote_share() {
+    let graph: Graph = Graph::new();
+    for (src, dst) in [
+        ("A1", "X"),
+        ("A2", "X"),
+        ("B1", "X"),
+        ("B1", "Y"),
+        ("Z", "W"),
+    ] {
+        graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+    }
+    test_storage!(&graph, |graph| {
+        let vid = |name: &str| graph.node(name).unwrap().node.0;
+        let seeds: HashMap<usize, usize> =
+            HashMap::from([(vid("A1"), 0), (vid("A2"), 0), (vid("B1"), 1)]);
+        let out = label_propagation(graph, 20, Some(6), None, Some(seeds), None, None)
+            .to_hashmap(|value| (value.community_id, value.confidence));
+
+        let close = |got: (usize, f64), label: usize, share: f64| {
+            assert_eq!(got.0, label, "{got:?}");
+            assert!((got.1 - share).abs() < 1e-9, "{got:?} wanted {share}");
+        };
+
+        // X has no label of its own to add on its first pass, so it divides the seeds' three votes.
+        close(out["X"], 0, 2.0 / 3.0);
+        // Y hears from one seed and nothing else.
+        assert_eq!(out["Y"], (1, 1.0));
+        // The A-seeds re-evaluate once X has a label and find it agrees with them.
+        assert_eq!(out["A1"], (0, 1.0));
+        // The B-seed weighs X's A-label against its own vote and Y's, and keeps its label on 2 of 3.
+        close(out["B1"], 1, 2.0 / 3.0);
+        // Unreachable: never cast or received a vote, which is what the 0.0 means.
+        assert_eq!(out["Z"], (usize::MAX, 0.0));
+        assert_eq!(out["W"], (usize::MAX, 0.0));
+    });
+}
+
 use proptest::prelude::*;
 
 #[test]

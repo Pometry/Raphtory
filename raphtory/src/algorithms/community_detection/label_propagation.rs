@@ -39,6 +39,10 @@ const NO_LABEL: usize = usize::MAX;
 pub struct LabelPropState {
     pub community_id: usize,
     pub alternate_id: Option<usize>, // set to previous value when community_id has changed; None once settled
+    /// Votes for `community_id` as a share of the votes cast, from the last super-step in which this
+    /// node re-evaluated -- so it always describes the vote that produced the standing label. A
+    /// winner always holds a vote, which is what leaves the `Default` 0.0 free to mean "never voted".
+    pub confidence: f64,
     #[serde(skip)]
     is_changed: bool, // derive(Default) initializes to false
 }
@@ -80,7 +84,8 @@ fn tie_rank(seed: u64, node: usize, label: usize) -> u64 {
 ///
 /// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
 /// `alternate_id` (the previous label it swaps with while oscillating; `None` once converged, and
-/// also `None` until the node has been labeled a whole iteration.
+/// also `None` until the node has been labeled a whole iteration, and `confidence`, the share of
+/// its votes that went to `community_id`.
 pub fn label_propagation<G>(
     g: &G,
     iter_count: usize,
@@ -118,6 +123,10 @@ where
                 let seed = map.get(&id).copied();
                 state.community_id = seed.unwrap_or(NO_LABEL);
                 state.is_changed = seed.is_some();
+                if seed.is_some() {
+                    // A seed's label is GIVEN, not inferred, so it starts fully confident.
+                    state.confidence = 1.0;
+                }
             }
         }
         Step::Continue
@@ -140,13 +149,13 @@ where
             let state = s.get_mut();
             state.is_changed = false;
             state.alternate_id = None; // clear any stale value from a prior iter
-                                       // NB: state.community_id unchanged
+                                       // NB: state.community_id and state.confidence unchanged
             return Step::Continue;
         }
 
         let id = s.node.index();
         let prev_label = s.prev().community_id;
-        let winner_label = LABEL_COUNTS.with(|counts| {
+        let winner = LABEL_COUNTS.with(|counts| {
             let mut counts = counts.borrow_mut();
             counts.clear();
             if prev_label != NO_LABEL {
@@ -161,6 +170,10 @@ where
                 let count = counts.entry(nbor_label).or_insert(0);
                 *count += 1;
             }
+            // The denominator of `confidence`, taken before the argmax consumes the borrow. It is the
+            // votes CAST -- labelled neighbours plus the self-vote -- and not the degree, since an
+            // unlabelled neighbour is skipped above and has no opinion to divide by.
+            let total: usize = counts.values().sum();
             counts
                 .iter()
                 // REMOVED: get max label (use usize ID to resolve tie)
@@ -168,13 +181,17 @@ where
                 // NEW BEHAVIOUR: a tie is settled by pseudorandom rank, which draws the winner uniformly
                 // from all the top-tied labels.
                 .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
-                .map(|(&label, _)| label)
+                // A non-empty map has a winner holding at least one of `total` votes, so the division
+                // is neither by zero nor ever NaN.
+                .map(|(&label, &count)| (label, count as f64 / total as f64))
         });
 
         let state: &mut LabelPropState = s.get_mut();
-        // No votes at all (unlabelled node, no labelled neighbours) leaves community_id standing.
-        if let Some(label) = winner_label {
+        // No votes at all (unlabelled node, no labelled neighbours) leaves community_id standing --
+        // and its confidence with it, so the two always describe the same vote.
+        if let Some((label, confidence)) = winner {
             state.community_id = label;
+            state.confidence = confidence;
         }
         state.is_changed = state.community_id != prev_label;
         if state.is_changed {

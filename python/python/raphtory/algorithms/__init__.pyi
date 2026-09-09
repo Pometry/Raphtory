@@ -664,7 +664,12 @@ def balance(
     """
 
 def label_propagation(
-    graph: GraphView, iter_count: int = 20, seed: Optional[bytes] = None
+    graph: GraphView,
+    iter_count: int = 20,
+    seed: Optional[int] = None,
+    init_state: Optional[dict] = None,
+    rel_tol: Optional[float] = None,
+    patience: Optional[int] = None,
 ) -> OutputNodeState:
     """
     Computes components using a label propagation algorithm
@@ -672,10 +677,16 @@ def label_propagation(
     Arguments:
         graph (GraphView): A reference to the graph
         iter_count (int): Number of iterations. Defaults to 20.
-        seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
+        seed (int, optional): Seeds the tie-break draw. Pass it back to reproduce a run.
+        init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
+        rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
+        patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
 
     Returns:
-        OutputNodeState: NodeState mapping nodes to community id
+        OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
+
+    Raises:
+        ValueError: If a key of `init_state` is not a node in `graph`.
 
     """
 
