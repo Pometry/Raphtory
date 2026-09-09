@@ -1,12 +1,11 @@
 use crate::{
-    db::graph::views::filter::model::{graph_filter::GraphFilter, ViewWrapOps},
+    db::graph::views::filter::model::graph_filter::GraphFilter,
     python::{
         filter::property_filter_builders::PyViewFilterBuilder, types::iterable::FromIterable,
     },
 };
 use pyo3::{pyclass, pymethods};
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::sync::Arc;
 
 /// Entry point for constructing **graph-level view filters**.
 ///
@@ -41,7 +40,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn window(start: EventTime, end: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.window(start, end)))
+        PyViewFilterBuilder(GraphFilter.window(start, end))
     }
 
     /// Restricts evaluation to a single point in time.
@@ -53,7 +52,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn at(time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.at(time)))
+        PyViewFilterBuilder(GraphFilter.at(time))
     }
 
     /// Restricts evaluation to times strictly after the given time.
@@ -65,7 +64,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn after(time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.after(time)))
+        PyViewFilterBuilder(GraphFilter.after(time))
     }
 
     /// Restricts evaluation to times strictly before the given time.
@@ -77,7 +76,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn before(time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.before(time)))
+        PyViewFilterBuilder(GraphFilter.before(time))
     }
 
     /// Evaluates filters against the latest available state of the graph.
@@ -86,7 +85,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn latest() -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.latest()))
+        PyViewFilterBuilder(GraphFilter.latest())
     }
 
     /// Evaluates filters against a snapshot of the graph at a given time.
@@ -98,7 +97,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn snapshot_at(time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.snapshot_at(time)))
+        PyViewFilterBuilder(GraphFilter.snapshot_at(time))
     }
 
     /// Evaluates filters against the most recent snapshot of the graph.
@@ -107,7 +106,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn snapshot_latest() -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.snapshot_latest()))
+        PyViewFilterBuilder(GraphFilter.snapshot_latest())
     }
 
     /// Restricts evaluation to a single layer.
@@ -119,7 +118,7 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn layer(layer: String) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.layer(layer)))
+        PyViewFilterBuilder(GraphFilter.layer(layer))
     }
 
     /// Restricts evaluation to any of the given layers.
@@ -131,6 +130,6 @@ impl PyGraphFilter {
     ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(GraphFilter.layer(layers)))
+        PyViewFilterBuilder(GraphFilter.layer(layers))
     }
 }

@@ -238,9 +238,9 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        // Chain onto the current select rather than AND a fresh filter with the base graph:
-        // AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
-        // after/snapshot) on the right operand is silently dropped and the collection fails open.
+        // Chain onto the current select rather than AND a fresh filter with the
+        // base graph, so a time view already applied to this collection stays
+        // applied to what the new filter is evaluated against.
         let filtered_graph = filter.filter_graph_view(self.select.clone())?;
         let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
         Ok(Edges {

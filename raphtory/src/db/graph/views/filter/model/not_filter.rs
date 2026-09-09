@@ -1,8 +1,8 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::NotOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::ops::{filter::NodeExistsOp, NodeFilterOp, NodeOp},
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
@@ -12,12 +12,13 @@ use crate::{
                 TryAsCompositeFilter,
             },
             not_filtered_graph::NotFilteredGraph,
+            resolved_view::ViewBounds,
             CreateFilter,
         },
     },
     errors::GraphError,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotFilter<T>(pub T);
@@ -32,12 +33,12 @@ impl<T> ComposableFilter for NotFilter<T> {}
 
 impl<T: CreateFilter> CreateFilter for NotFilter<T> {
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = NotFilteredGraph<G, T::EntityFiltered<'graph, F, T::FilteredGraph<'graph, F>>>
+        = DynGraphArc<'graph>
     where
         Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = NotOp<T::NodeFilter<'graph, F, T::FilteredGraph<'graph, F>>>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
     where
         Self: 'graph;
 
@@ -47,26 +48,44 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
         Self: 'graph,
         G: GraphView + 'graph;
 
+    // The result is what the negation resolves to: the complement of a views_only
+    // view, which is the whole answer, or the hull of a mixed expression,
+    // within which the inner expression is built over `graph` and negated.
     fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let f = self.0.filter_graph_view(filtered.clone())?;
-        let filter = self.0.create_filter(filtered, f)?;
-        Ok(NotFilteredGraph { graph, filter })
+        _filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let bounds = self.view_bounds(graph.clone())?;
+        let views_only = bounds.is_view_only();
+        let complement = bounds.apply(graph.clone())?;
+        if views_only {
+            return Ok(complement);
+        }
+        let inner_scope = self.0.filter_graph_view(graph.clone())?;
+        let inner = self.0.create_filter(graph, inner_scope)?;
+        Ok(Arc::new(NotFilteredGraph::new(complement, inner)))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        _graph: G,
-        filtered: F,
+        graph: G,
+        _filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
     where
         Self: 'graph,
     {
-        let f = self.0.filter_graph_view(filtered.clone())?;
-        Ok(self.0.create_node_filter(filtered, f)?.not())
+        let bounds = self.view_bounds(graph.clone())?;
+        if bounds.is_view_only() {
+            return Ok(Arc::new(NodeExistsOp::new(bounds.apply(graph)?)));
+        }
+        let inner_scope = self.0.filter_graph_view(graph.clone())?;
+        Ok(Arc::new(
+            self.0.create_node_filter(graph, inner_scope)?.not(),
+        ))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -77,6 +96,13 @@ impl<T: CreateFilter> CreateFilter for NotFilter<T> {
         Self: 'graph,
     {
         Ok(graph)
+    }
+
+    fn view_bounds<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<ViewBounds, GraphError> {
+        self.0.view_bounds(graph.clone())?.not(graph)
     }
 }
 

@@ -903,8 +903,9 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
-    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
+    // And sub-filters are applied sequentially so that a view sub-filter
+    // (window/snapshot/layer) restricts the graph before the node/edge
+    // predicate filters after it are evaluated.
     if let GqlFilter::And(filters) = filter {
         // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
         // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
