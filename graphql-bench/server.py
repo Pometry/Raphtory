@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 # Graph for the heavy_load / short_queries_under_heavy_load scenarios: big enough that a full
 # name scan takes hundreds of milliseconds. Built once and cached.
-BIG_NODES = int(os.environ.get("BENCH_BIG_NODES", "5000000"))
+BIG_NODES = int(os.environ.get("BENCH_BIG_NODES", "500000"))
 BIG_PATH = os.path.join("data", "apache", "big")
 
 if os.path.exists(BIG_PATH):
@@ -25,7 +25,7 @@ else:
     build_started = time.monotonic()
     rng = np.random.default_rng(seed=42)
     g = Graph()
-    chunk = 1_000_000
+    chunk = 100_000
     for start in range(0, BIG_NODES, chunk):
         hi = min(start + chunk, BIG_NODES)
         g.load_nodes(
