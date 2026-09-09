@@ -2,7 +2,7 @@ use clap::{CommandFactory, Parser};
 use dynamic_graphql::{
     internal::Registry, Context, ExpandObject, ExpandObjectFields, Request, Result,
 };
-use raphtory::prelude::Config;
+use raphtory::prelude::Args;
 use raphtory_graphql::{
     cli::Commands,
     config::app_config::AppConfigBuilder,
@@ -146,9 +146,11 @@ async fn test_extension_via_conf() {
             test: Some("test2".to_string()),
         })
         .build();
-    let server = GraphServer::new(PathBuf::new(), Some(args), Config::default())
+
+    let server = GraphServer::new(PathBuf::new(), Some(args), Args::default())
         .await
         .unwrap();
+
     // check the processing works
     let schema = server.build_schema(None).await.unwrap();
     let query = r"{ test }";
@@ -158,7 +160,7 @@ async fn test_extension_via_conf() {
     assert_eq!(result.data.into_json().unwrap(), json!({ "test": "test2"}));
 
     // check the plugins are local so a server without the test argument doesn't have the query
-    let server = GraphServer::new(PathBuf::new(), None, Config::default())
+    let server = GraphServer::new(PathBuf::new(), None, Args::default())
         .await
         .unwrap();
 

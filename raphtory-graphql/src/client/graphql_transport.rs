@@ -4299,10 +4299,16 @@ mod tests {
             filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
             property::Value as GqlValue,
         },
+        server::GraphServer,
     };
-    use raphtory::prelude::NO_PROPS;
+    use raphtory::{
+        db::graph::views::filter::model::node_filter::CompositeNodeFilter,
+        prelude::{Args, NO_PROPS},
+    };
     use raphtory_api::core::storage::timeindex::AsTime;
-    use std::{str::FromStr, sync::Arc};
+    use reqwest::Url;
+    use std::{collections::HashMap as Map, str::FromStr, sync::Arc};
+    use tempfile::tempdir;
 
     // ============ Unit tests for the read pipeline ============
 
@@ -4843,13 +4849,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_end_to_end_add_node_and_degree() {
-        use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::db::api::storage::storage::Config;
-        use reqwest::Url;
-        use tempfile::tempdir;
-
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
@@ -4949,17 +4950,8 @@ mod tests {
     /// degrees a=2 (b, c both match), b=1 (a dropped), c=1 (a dropped).
     #[tokio::test]
     async fn test_filtered_collect_matches_columnar_reads() {
-        use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::db::{
-            api::storage::storage::Config,
-            graph::views::filter::model::node_filter::CompositeNodeFilter,
-        };
-        use reqwest::Url;
-        use std::collections::HashMap as Map;
-        use tempfile::tempdir;
-
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
@@ -5126,13 +5118,8 @@ mod tests {
     /// pinned to their layer (`.layer_name()` resolves, `.time()` unavailable).
     #[tokio::test]
     async fn test_exploded_collect_pins_events() {
-        use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::db::api::storage::storage::Config;
-        use reqwest::Url;
-        use tempfile::tempdir;
-
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
