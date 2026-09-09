@@ -74,10 +74,17 @@ jobs:
             graphql-bench/k6.log.gz
           if-no-files-found: warn
           retention-days: 7
+      # github-action-benchmark below has to `git switch gh-pages`, which aborts if any tracked
+      # file is dirty. The bench dirties several: Cargo.lock from the build, pnpm-lock.yaml from
+      # `pnpm install --no-frozen-lockfile`, and graphql-bench/data/apache/master from the server
+      # writing to the graph it serves. Restoring them path by path meant each newly dirtied file
+      # broke the run, so reset the whole tree instead. This only touches tracked files, so the
+      # bench outputs the later steps read (output.json above all) are left alone.
       - name: Restore modified files
         run: |
-          git restore Cargo.lock # modified by build; github-action-benchmark can't switch to gh-pages with dirty working tree
-          git restore graphql-bench/data/apache/master # otherwise github-action-benchmark fails to create the commit
+          git reset --hard
+          echo "worktree after reset (empty means clean):"
+          git status --porcelain
       - name: Print bench results
         run: cat graphql-bench/output.json
       - name: Store benchmark results from master branch
