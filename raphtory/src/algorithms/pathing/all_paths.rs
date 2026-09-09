@@ -136,6 +136,7 @@ pub struct PathIterator<G, V> {
     dst: VID,
     list_a: Vec<Path>,
     list_b: PathHeap<V>,
+    exhausted: bool,
 }
 
 fn shortest_path<G: StaticGraphViewOps>(
@@ -165,6 +166,7 @@ impl<G: StaticGraphViewOps> PathIterator<G, usize> {
             dst,
             list_a,
             list_b,
+            exhausted: false,
         }
     }
 }
@@ -173,6 +175,9 @@ impl<G: StaticGraphViewOps> Iterator for PathIterator<G, usize> {
     type Item = Nodes<'static, G>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.exhausted {
+            return None;
+        }
         if let Some(prev_path) = self.list_a.last() {
             let mut ignore_nodes = HashSet::new();
             let mut ignore_edges = HashSet::new();
@@ -198,7 +203,13 @@ impl<G: StaticGraphViewOps> Iterator for PathIterator<G, usize> {
                 ignore_nodes.insert(spur_root);
             }
         }
-        let (_cost, prev_path) = self.list_b.pop()?;
+        let (_cost, prev_path) = match self.list_b.pop() {
+            Some(p) => p,
+            None => {
+                self.exhausted = true;
+                return None;
+            }
+        };
         self.list_a.push(prev_path.clone());
         Some(Nodes::new_indexed(self.graph.clone(), prev_path.0.into()))
     }
