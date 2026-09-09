@@ -82,7 +82,8 @@ impl<G: GraphView> InternalEdgeFilterOps for MaskedNodeGraph<G> {
     }
 
     fn node_filter_includes_edge_filter(&self) -> bool {
-        self.graph.node_filter_includes_edge_filter()
+        // removing one edge endpoint might lead to removing the other from the graph as well
+        false
     }
 
     #[inline]
