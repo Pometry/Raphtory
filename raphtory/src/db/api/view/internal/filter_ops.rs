@@ -10,8 +10,9 @@ use raphtory_api::core::{
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    nodes::node_ref::NodeStorageRef,
 };
+use storage::api::nodes::{NodeEntryOps, NodeRefOps};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FilterState {

@@ -12,6 +12,7 @@ use raphtory_api::core::{entities::VID, storage::timeindex::EventTime};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use storage::api::nodes::NodeEntryOps;
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {

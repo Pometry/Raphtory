@@ -1,8 +1,10 @@
 use crate::{
-    LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
+    LocalPOS, NodeDeletions, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
     generic_t_props::WithTProps,
-    generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
+    generic_time_ops::{
+        DeletionCellsRef, EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells,
+    },
     segments::{additions::MemTimeCell, node::segment::MemNodeSegment},
 };
 use itertools::Itertools;
@@ -20,7 +22,11 @@ use raphtory_core::{
     entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use std::{ops::Deref, sync::Arc};
+use std::{
+    borrow::Cow,
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 pub struct MemNodeEntry<'a, MNS> {
     pos: LocalPOS,
@@ -38,7 +44,7 @@ impl<'a, MNS: Deref<Target = MemNodeSegment>> MemNodeEntry<'a, MNS> {
     }
 }
 
-impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps<'a>
+impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps
     for MemNodeEntry<'a, MNS>
 {
     type Ref<'b>
@@ -47,10 +53,7 @@ impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps<'a
         'a: 'b,
         MNS: 'b;
 
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b,
-    {
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b> {
         MemNodeRef {
             pos: self.pos,
             ns: self.ns.deref(),
@@ -153,9 +156,11 @@ impl<'a> WithTProps<'a> for MemNodeRef<'a> {
 impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type Additions = NodePropAdditions<'a>;
     type EdgeAdditions = NodeEdgeAdditions<'a>;
+
+    type Deletions = NodeDeletions<'a>;
     type TProps = NodeTProps<'a>;
 
-    fn node_meta(&self) -> &Arc<Meta> {
+    fn node_meta(self) -> &'a Arc<Meta> {
         self.ns.node_meta()
     }
 
@@ -199,6 +204,10 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn edge_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::EdgeAdditions {
         NodeEdgeAdditions::new_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
+    }
+
+    fn node_deletions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Deletions {
+        NodeDeletions::new_with_layer(DeletionCellsRef::new(self), layer_id)
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
@@ -247,15 +256,15 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
     }
 
-    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
+    fn t_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
         NodeTProps::new_with_layer(self, layer_id, prop_id)
     }
 
-    fn internal_num_layers(&self) -> usize {
+    fn num_layers(&self) -> usize {
         self.ns.as_ref().len()
     }
 
-    fn has_layer_inner(self, layer_id: LayerId) -> bool {
+    fn has_layer(self, layer_id: LayerId) -> bool {
         self.ns
             .as_ref()
             .get(layer_id.0)

@@ -1,16 +1,16 @@
 use std::{ops::Range, sync::Arc};
 
-use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
+use crate::graph::nodes::node_ref::NodeStorageRef;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
     Direction,
 };
 use raphtory_core::storage::timeindex::EventTime;
 use storage::{
-    api::nodes::{self, NodeEntryOps},
+    api::nodes::{self, IntoEdges, NodeEntryOps},
     generic_time_ops::LayerIter,
     utils::Iter2,
-    NodeEntry, NodeEntryRef,
+    NodeDeletions, NodeEntry, NodeEntryRef,
 };
 
 pub enum NodeStorageEntry<'a> {
@@ -30,9 +30,14 @@ impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
     }
 }
 
-impl<'a> NodeStorageEntry<'a> {
+impl<'a> NodeEntryOps for NodeStorageEntry<'a> {
+    type Ref<'b>
+        = NodeStorageRef<'b>
+    where
+        Self: 'b;
+
     #[inline]
-    pub fn as_ref(&self) -> NodeStorageRef<'_> {
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b> {
         match self {
             NodeStorageEntry::Mem(entry) => *entry,
             NodeStorageEntry::Unlocked(entry) => entry.as_ref(),
@@ -43,113 +48,5 @@ impl<'a> NodeStorageEntry<'a> {
 impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
     fn from(value: &'a NodeStorageEntry<'b>) -> Self {
         value.as_ref()
-    }
-}
-
-impl<'b> NodeStorageEntry<'b> {
-    pub fn into_edges_iter<'a: 'b>(
-        self,
-        layers: &'a LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'b {
-        match self {
-            NodeStorageEntry::Mem(entry) => {
-                Iter2::I1(nodes::NodeRefOps::edges_iter(entry, layers, dir))
-            }
-            NodeStorageEntry::Unlocked(entry) => Iter2::I2(entry.into_edges(layers, dir)),
-        }
-    }
-
-    // pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
-    //     match self {
-    //         NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
-    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-    //             Box::new(e.as_ref().node().const_prop_ids())
-    //         })),
-    //     }
-    // }
-
-    // pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
-    //     match self {
-    //         NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
-    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-    //             Box::new(e.as_ref().temporal_prop_ids())
-    //         })),
-    //     }
-    // }
-}
-
-impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
-    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-        self.as_ref().degree(layers, dir)
-    }
-
-    fn edges_iter(
-        self,
-        layers: &LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a {
-        self.as_ref().edges_iter(layers, dir)
-    }
-
-    fn node_type_id(self) -> usize {
-        self.as_ref().node_type_id()
-    }
-
-    fn vid(self) -> VID {
-        self.as_ref().vid()
-    }
-
-    fn id(self) -> GidRef<'a> {
-        self.as_ref().id()
-    }
-
-    fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        self.as_ref().find_edge(dst, layer_ids)
-    }
-
-    fn layer_ids_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
-        self.as_ref().layer_ids_iter(layer_ids)
-    }
-
-    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
-        self.as_ref().temporal_prop_layer(layer_id, prop_id)
-    }
-
-    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
-        self.as_ref().constant_prop_layer(layer_id, prop_id)
-    }
-
-    fn temp_prop_rows_range(
-        self,
-        w: Option<Range<EventTime>>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.as_ref().temp_prop_rows_range(w, prop_ids)
-    }
-
-    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
-        self.as_ref().tprop(prop_id)
-    }
-
-    fn num_layers(self) -> usize {
-        self.as_ref().num_layers()
-    }
-
-    fn node_prop_additions<L: Into<LayerIter<'a>>>(
-        self,
-        layer_id: L,
-    ) -> storage::NodePropAdditions<'a> {
-        self.as_ref().node_prop_additions(layer_id)
-    }
-
-    fn node_edge_additions<L: Into<LayerIter<'a>>>(
-        self,
-        layer_id: L,
-    ) -> storage::NodeEdgeAdditions<'a> {
-        self.as_ref().node_edge_additions(layer_id)
     }
 }

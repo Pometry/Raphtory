@@ -26,10 +26,11 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{
         edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+        nodes::node_ref::NodeStorageRef,
     },
 };
 use std::fmt::{Debug, Formatter};
+use storage::api::nodes::NodeRefOps;
 
 #[derive(Clone, Debug)]
 pub struct UnfilteredSubgraph<G> {

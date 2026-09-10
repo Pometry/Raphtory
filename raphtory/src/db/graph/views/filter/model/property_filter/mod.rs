@@ -40,9 +40,10 @@ use raphtory_api::core::{
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    nodes::node_ref::NodeStorageRef,
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use storage::api::nodes::{NodeEntryOps, NodeRefOps};
 
 pub mod builders;
 mod evaluate;

@@ -24,11 +24,13 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
 };
 use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    edges::edge_storage_ops::EdgeStorageOps, nodes::node_ref::NodeStorageRef,
 };
 use std::{iter, ops::Range, sync::Arc};
-use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    EdgeAdditions, EdgeDeletions, EdgeEntryRef,
+};
 
 fn alive_before<
     'a,
@@ -388,7 +390,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         _view: G,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows(prop_ids)
+        node.t_prop_rows(None, prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -412,12 +414,12 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
         exact_layers.flat_map(move |layer_id| {
             let mut rows = node
-                .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
+                .t_prop_rows(Some(w.clone()), prop_ids.clone())
                 .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
                 .collect_vec();
 
             let has_prior_addition = node
-                .node_prop_additions(layer_id)
+                .node_additions(layer_id)
                 .range(EventTime::MIN..w.start)
                 .iter()
                 .next()
@@ -479,7 +481,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter())
             .kmerge_by(|(a, _), (b, _)| a <= b)
     }
@@ -490,7 +492,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter_rev())
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
@@ -502,7 +504,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node.t_prop_iter_layers(view.layer_ids(), prop_id).collect();
         let first = tprops
             .iter()
             .copied()
@@ -528,7 +530,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node.t_prop_iter_layers(view.layer_ids(), prop_id).collect();
         let first = tprops
             .iter()
             .copied()
@@ -553,7 +555,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last())
             .max_by_key(|(t, _)| *t)
     }
@@ -565,7 +567,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_before(w.end))
             .max_by_key(|(t, _)| *t)
     }
@@ -577,7 +579,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
     }
@@ -591,7 +593,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            node.tprop_iter_layers(view.layer_ids(), prop_id)
+            node.t_prop_iter_layers(view.layer_ids(), prop_id)
                 .filter_map(|prop| prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v)))
                 .max_by_key(|(t, _)| *t)
         } else {
