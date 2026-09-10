@@ -1,6 +1,6 @@
 use raphtory::{
     algorithms::community_detection::{
-        label_propagation::label_propagation,
+        label_propagation::{label_propagation, label_propagation_fast},
         louvain::louvain,
         modularity::{ComID, ModularityFunction, ModularityUnDir, Partition},
     },
@@ -109,6 +109,87 @@ fn lpa_vote_share() {
         // Unreachable: never cast or received a vote, which is what the 0.0 means.
         assert_eq!(out["Z"], (usize::MAX, 0.0));
         assert_eq!(out["W"], (usize::MAX, 0.0));
+    });
+}
+
+/// `label_propagation_fast` must agree with `label_propagation` node for node. It only runs the
+/// seeded case, so both are given an explicit `init_state`: the identity map, which reproduces the
+/// unseeded start, and a partial map, which exercises the `NO_LABEL` front advancing from a couple
+/// of seeds. Both are deterministic given `seed`, including across thread counts.
+#[test]
+fn lpa_fast_matches_lpa() {
+    let graph: Graph = Graph::new();
+    let edges = vec![
+        (1, "R1", "R2"),
+        (1, "R1", "R3"),
+        (1, "R2", "R3"),
+        (1, "R3", "G"),
+        (1, "G", "B1"),
+        (1, "G", "B3"),
+        (1, "B1", "B2"),
+        (1, "B2", "B3"),
+        (1, "B2", "B4"),
+        (1, "B3", "B4"),
+        (1, "B3", "B5"),
+        (1, "B4", "B5"),
+    ];
+    for (ts, src, dst) in edges {
+        graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+    }
+    test_storage!(&graph, |graph| {
+        let identity: HashMap<usize, usize> =
+            graph.nodes().iter().map(|n| (n.node.0, n.node.0)).collect();
+        let partial: HashMap<usize, usize> = ["R1", "B5"]
+            .iter()
+            .enumerate()
+            .map(|(label, name)| (graph.node(*name).unwrap().node.0, label))
+            .collect();
+
+        for init_state in [identity, partial] {
+            for seed in [8u64, 42] {
+                for threads in [None, Some(4)] {
+                    let expected = label_propagation(
+                        graph,
+                        20,
+                        Some(seed),
+                        threads,
+                        Some(init_state.clone()),
+                        None,
+                        None,
+                    )
+                    .to_hashmap(|value| (value.community_id, value.confidence));
+                    let actual = label_propagation_fast(
+                        graph,
+                        20,
+                        Some(seed),
+                        threads,
+                        init_state.clone(),
+                        None,
+                        None,
+                    )
+                    .to_hashmap(|value| (value.community_id, value.confidence));
+                    // Labels exactly; shares within a tolerance. Both sides divide the same two
+                    // integers, so this should be bit-identical -- the tolerance is here so that a
+                    // genuine disagreement reports as one rather than as a last-bit artefact.
+                    assert_eq!(
+                        expected.keys().collect::<HashSet<_>>(),
+                        actual.keys().collect::<HashSet<_>>(),
+                        "seed={seed} threads={threads:?}"
+                    );
+                    for (name, (want_label, want_conf)) in expected.iter() {
+                        let (got_label, got_conf) = actual[name];
+                        assert_eq!(
+                            got_label, *want_label,
+                            "{name} seed={seed} threads={threads:?}"
+                        );
+                        assert!(
+                            (got_conf - want_conf).abs() < 1e-12,
+                            "{name} share {got_conf} != {want_conf} seed={seed} threads={threads:?}"
+                        );
+                    }
+                }
+            }
+        }
     });
 }
 
