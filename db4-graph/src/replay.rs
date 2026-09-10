@@ -541,6 +541,73 @@ where
         Ok(())
     }
 
+    fn replay_delete_node(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        t: EventTime,
+        node_name: Option<GID>,
+        node_id: VID,
+        layer_name: Option<String>,
+        layer_id: LayerId,
+    ) -> Result<(), StorageError> {
+        // Insert node id into resolver.
+        if let Some(ref name) = node_name {
+            self.graph()
+                .logical_to_physical
+                .set(name.as_ref(), node_id)?;
+        }
+
+        // Make layer name -> id mapping available to both edge and node meta.
+        if let Some(name) = layer_name.as_deref() {
+            self.graph()
+                .edge_meta()
+                .layer_meta()
+                .set_id(name, layer_id.0);
+
+            self.graph()
+                .node_meta()
+                .layer_meta()
+                .set_id(name, layer_id.0);
+        }
+
+        // Resolve segment and check LSN.
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
+        self.resize_segments_to_vid(node_id);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let node_segment = self.nodes.get_mut(segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {segment_id} not found during replay_add_node"
+                ))
+            })?;
+
+            let mut node_writer = node_segment.writer();
+
+            if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
+                node_writer.increment_seg_num_nodes();
+            }
+
+            if let Some(name) = node_name {
+                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
+            }
+
+            node_writer.delete(t, pos, layer_id);
+            node_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
     fn replay_add_node_metadata(
         &mut self,
         lsn: LSN,

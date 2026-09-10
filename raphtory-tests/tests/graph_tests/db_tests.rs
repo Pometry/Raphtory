@@ -50,6 +50,7 @@ use std::{
     ops::{Deref, Range},
     sync::Arc,
 };
+use storage::api::nodes::NodeRefOps;
 use tempfile::TempDir;
 use tracing::{error, info};
 
@@ -1245,7 +1246,7 @@ fn temporal_node_rows_nodes() {
             .core_graph()
             .nodes()
             .node(n)
-            .temp_prop_rows(prop_ids.clone())
+            .t_prop_rows(None, prop_ids.clone())
             .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1277,7 +1278,7 @@ fn temporal_node_rows_window() {
                 .core_graph()
                 .nodes()
                 .node(vid)
-                .temp_prop_rows_range(Some(range), prop_ids.clone())
+                .t_prop_rows(Some(range), prop_ids.clone())
                 .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
@@ -1938,8 +1939,6 @@ fn check_node_edge_history_count() {
     assert_eq!(node.after(1).edge_history_count(), 1);
     assert_eq!(node.after(3).edge_history_count(), 0);
 }
-
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 
 #[test]
 fn check_edge_history_on_multiple_shards() {

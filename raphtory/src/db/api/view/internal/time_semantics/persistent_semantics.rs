@@ -22,13 +22,17 @@ use raphtory_api::core::{
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
+    Direction,
 };
 use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    edges::edge_storage_ops::EdgeStorageOps, nodes::node_ref::NodeStorageRef,
 };
 use std::{iter, ops::Range, sync::Arc};
-use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
+use raphtory_storage::core_ops::CoreGraphOps;
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    EdgeAdditions, EdgeDeletions, EdgeEntryRef,
+};
 
 fn alive_before<
     'a,
@@ -136,24 +140,30 @@ fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
 }
 
 fn node_has_valid_edges<'graph, G: GraphView>(
-    history: NodeEdgeHistory<'graph, G>,
+    node: NodeStorageRef<'graph>,
+    view: G,
     t: EventTime,
 ) -> bool {
-    let mut deleted = AHashSet::new();
-    history
-        .range(EventTime::MIN..t.next())
-        .history_rev()
-        .any(|(_, e)| {
-            // scan backwards in time over filtered history and keep track of deletions
-            let eid = e.eid();
-            let layer = e.layer();
-            if e.is_deletion() {
-                deleted.insert((eid, layer));
-                false
-            } else {
-                !deleted.contains(&(eid, layer))
+    let gs = view.core_graph();
+    search_start_
+    node.edges_iter(view.layer_ids(), Direction::BOTH).any(|edge_ref| {
+        let edge = gs.core_edge(Either::Right(edge_ref));
+        if view.internal_edge_filtered() && !view.internal_filter_edge(edge.as_ref(), view.layer_ids()) {
+            return false
+        }
+        let neighbour = gs.core_node(edge_ref.remote());
+        let search_start_global = neighbour.node_deletions(STATIC_GRAPH_LAYER_ID).range(EventTime::MIN..t.next()).last().max(node.node_deletions(STATIC_GRAPH_LAYER_ID).range(EventTime::MIN..t.next()).last()).map_or(EventTime::MIN, |t| t.next());
+        if edge.updates_iter(view.layer_ids()).any(|(layer, additions, deletions)| {
+            let search_start = search_start_global.max(neighbour.node_deletions(layer).range(EventTime::MIN..t.next()).last().map_or(EventTime::MIN, |t| t.next()));
+            if !view.internal_filter_edge_layer(edge.as_ref(), layer) {
+                return true
             }
-        })
+            let Some(last_edge_addition) = additions.range(EventTime::MIN..t.next()).last() else {return true}
+        }) {
+            return false
+        }
+        true
+    })
 }
 
 fn merged_deletions<'a, G: GraphView + 'a>(
@@ -251,7 +261,15 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
     ) -> Option<EventTime> {
         let history = node.history(&view, view.layer_ids());
-        let prop_earliest = history.prop_history().range(EventTime::MIN..w.end).first();
+
+        let effective_start = history
+            .deletions_history()
+            .range(EventTime::MIN..w.start.next_t())
+            .last()
+            .map_or(EventTime::MIN, |t| t.next());
+        let history = history.range(effective_start..w.end);
+
+        let prop_earliest = history.prop_history().first();
 
         if let Some(prop_earliest) = prop_earliest {
             if prop_earliest <= w.start {
@@ -265,9 +283,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
         let edge_earliest = history
             .edge_history()
-            .range(EventTime::start(w.start.t().saturating_add(1))..w.end)
+            .range(w.start.next_t()..w.end)
             .first();
-        prop_earliest.into_iter().chain(edge_earliest).min()
+        node_earliest.into_iter().chain(edge_earliest).min()
     }
 
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -388,7 +406,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         _view: G,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows(prop_ids)
+        node.t_prop_rows(None, prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -412,12 +430,12 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
         exact_layers.flat_map(move |layer_id| {
             let mut rows = node
-                .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
+                .t_prop_rows(Some(w.clone()), prop_ids.clone())
                 .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
                 .collect_vec();
 
             let has_prior_addition = node
-                .node_prop_additions(layer_id)
+                .node_additions(layer_id)
                 .range(EventTime::MIN..w.start)
                 .iter()
                 .next()
@@ -479,7 +497,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter())
             .kmerge_by(|(a, _), (b, _)| a <= b)
     }
@@ -490,7 +508,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter_rev())
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
@@ -502,7 +520,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node.t_prop_iter_layers(view.layer_ids(), prop_id).collect();
         let first = tprops
             .iter()
             .copied()
@@ -528,7 +546,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node.t_prop_iter_layers(view.layer_ids(), prop_id).collect();
         let first = tprops
             .iter()
             .copied()
@@ -553,7 +571,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last())
             .max_by_key(|(t, _)| *t)
     }
@@ -565,7 +583,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_before(w.end))
             .max_by_key(|(t, _)| *t)
     }
@@ -577,7 +595,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
     }
@@ -591,7 +609,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            node.tprop_iter_layers(view.layer_ids(), prop_id)
+            node.t_prop_iter_layers(view.layer_ids(), prop_id)
                 .filter_map(|prop| prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v)))
                 .max_by_key(|(t, _)| *t)
         } else {
