@@ -1,17 +1,21 @@
 #![recursion_limit = "256"]
 
 pub use crate::{
-    auth::{require_jwt_write_access_dynamic, Access},
-    model::graph::filtering::GraphAccessFilter,
+    auth::{
+        Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
+    },
+    model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
+
 use crate::{data::InsertionError, paths::PathValidationError};
 pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
-mod auth;
+pub mod auth;
 pub mod auth_policy;
+
 pub mod cache;
 pub mod cli;
 pub mod client;
@@ -26,9 +30,11 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
+pub mod plugin;
 #[cfg(test)]
 pub(crate) mod test_support;
 
@@ -64,7 +70,7 @@ mod graphql_test {
     use raphtory::{
         db::{
             api::{
-                storage::storage::Config,
+                storage::storage::Args,
                 view::{IntoDynamic, MaterializedGraph},
             },
             graph::views::deletion_graph::PersistentGraph,
@@ -88,7 +94,7 @@ mod graphql_test {
         let graph = Graph::new();
         graph.add_node(1, "test", NO_PROPS, None, None).unwrap();
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let namespace = tmp_dir.path().join("test");
         fs::create_dir(&namespace).unwrap();
         graph.encode(namespace.join("g3")).unwrap();
@@ -116,7 +122,7 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -229,7 +235,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -327,7 +333,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -430,6 +436,118 @@ mod graphql_test {
         graph
     }
 
+    pub(crate) fn single_component_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // chain a -> b -> c -> d
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn star_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // star out of a: a -> b, a -> c, a -> d
+        for (src, dst) in [("a", "b"), ("a", "c"), ("a", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn components_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // cycle a -> b -> c -> a (one SCC), plus d -> a (d reaches the cycle but not vice versa)
+        for (src, dst) in [("a", "b"), ("b", "c"), ("c", "a"), ("d", "a")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn community_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // two triangles joined by a single bridge edge (c -> d)
+        for (src, dst) in [
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "a"),
+            ("d", "e"),
+            ("e", "f"),
+            ("f", "d"),
+            ("c", "d"),
+        ] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn scalar_metrics_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // a <-> b reciprocated, b -> c -> a forming a triangle with a-b, and c -> d as a pendant edge,
+        // so density/reciprocity/clustering/degree are all non-trivial
+        for (src, dst) in [("a", "b"), ("b", "a"), ("b", "c"), ("c", "a"), ("c", "d")] {
+            graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        graph.into()
+    }
+
+    pub(crate) fn centrality_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        // path a -> b -> c -> d so nodes get distinct centrality scores
+        graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        graph.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        graph.add_edge(3, "c", "d", NO_PROPS, None).unwrap();
+        graph.into()
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_scalar_metrics() {
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", scalar_metrics_test_graph())], tmp_dir.path()).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            algorithm {
+              globalClusteringCoefficient
+              directedGraphDensity
+              globalReciprocity
+              averageDegree
+              maxDegree
+              minDegree
+              maxOutDegree
+              maxInDegree
+              minOutDegree
+              minInDegree
+              tripletCount
+              triangleCount
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "graph": { "algorithm": {
+                    "globalClusteringCoefficient": 0.6,
+                    "directedGraphDensity": 0.4166666666666667,
+                    "globalReciprocity": 0.4,
+                    "averageDegree": 2.0,
+                    "maxDegree": 3,
+                    "minDegree": 1,
+                    "maxOutDegree": 2,
+                    "maxInDegree": 2,
+                    "minOutDegree": 0,
+                    "minInDegree": 1,
+                    "tripletCount": 5,
+                    "triangleCount": 1
+                } }
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_degree_filter_nodes_and_select_gql() {
         let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
@@ -439,7 +557,9 @@ mod graphql_test {
         let query = r#"
         {
           graph(path: "g") {
-            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+            filterNodes: filter(
+                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+            ) {
               nodes {
                 list {
                   name
@@ -447,7 +567,7 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+              select(expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
                 list {
                   name
                 }
@@ -521,7 +641,7 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -615,7 +735,7 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -937,7 +1057,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -991,7 +1111,7 @@ mod graphql_test {
         };
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -1037,7 +1157,7 @@ mod graphql_test {
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -1045,6 +1165,7 @@ mod graphql_test {
             sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
+
         let req = Request::new(query)
             .variables(Variables::from_json(
                 json!({ "graph": graph_str, "overwrite": false }),
@@ -1086,10 +1207,9 @@ mod graphql_test {
         let res_json = res.data.into_json().unwrap();
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
         let temp_dir = tempdir().unwrap();
-        let graph_roundtrip =
-            url_decode_graph_at(graph_encoded, temp_dir.path(), Config::default())
-                .unwrap()
-                .into_dynamic();
+        let graph_roundtrip = url_decode_graph_at(graph_encoded, temp_dir.path(), Args::default())
+            .unwrap()
+            .into_dynamic();
         assert_eq!(g, graph_roundtrip);
     }
 
@@ -1114,7 +1234,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1287,7 +1407,7 @@ mod graphql_test {
             ("graph6".to_string(), graph6.into()),
         ]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -1552,7 +1672,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -1866,7 +1986,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_new_graph_rejects_hidden_path_components() {
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         // Valid paths
@@ -1912,14 +2032,14 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         let graph_name = "graph_with_node_types";
         let graphs = HashMap::from([(graph_name.to_string(), graph.into())]);
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
 
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         // Drop and reload data to mimic server restart.
         drop(data);
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data: Data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = format!(
@@ -2154,6 +2274,118 @@ mod graphql_test {
             );
 
             assert!(!work_dir.path().join("foo").exists());
+        }
+    }
+
+    /// A policy that cannot answer must fail the listing, not shorten it: an omitted row
+    /// and a row the caller has no grant on are indistinguishable once the response is
+    /// returned, so a shortened list silently misreports what the caller may see.
+    #[tokio::test]
+    async fn test_policy_fault_fails_listing_rather_than_emptying_it() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g1 = Graph::new();
+            let g1: MaterializedGraph = g1.into();
+            let g2 = Graph::new();
+            let g2: MaterializedGraph = g2.into();
+
+            // Sanity: with both graphs resolving, the listing carries both.
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_graph("g_ok", GraphPermission::Read { filter: None })
+                    .with_graph("g_bad", GraphPermission::Read { filter: None }),
+            );
+            let setup = setup_with_policy(
+                &[("g_ok", g1.clone()), ("g_bad", g2.clone())],
+                work_dir.path(),
+                policy,
+            )
+            .await;
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { root { graphs { list { path } } } }"#,
+            )
+            .await;
+            assert_eq!(res.errors, vec![]);
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({ "root": { "graphs": { "list": [ { "path": "g_bad" }, { "path": "g_ok" } ] } } }),
+            );
+        }
+        {
+            // The same listing with one graph faulting must error, not return a shorter list.
+            let policy = Arc::new(
+                FakePolicy::default()
+                    .with_namespace("", NamespacePermission::Read)
+                    .with_graph("g_ok", GraphPermission::Read { filter: None })
+                    .with_fault("g_bad"),
+            );
+            let setup = setup_with_policy(&[], work_dir.path(), policy).await;
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { root { graphs { list { path } } } }"#,
+            )
+            .await;
+            assert!(
+                !res.errors.is_empty(),
+                "a fault must fail the listing, got {:?}",
+                res.data,
+            );
+            assert!(
+                res.errors[0].message.contains("test fault"),
+                "the fault, not a denial, must surface: {}",
+                res.errors[0].message,
+            );
+        }
+    }
+
+    /// A fault while resolving a single graph must leave it as hidden as a denial does:
+    /// `graph()` resolves to null with no error, so a caller can never distinguish
+    /// "the server broke" from "no such graph" — only the log tells the operator.
+    #[tokio::test]
+    async fn test_policy_fault_on_graph_lookup_stays_hidden() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(FakePolicy::default().with_fault("g"));
+            let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
+
+            let res =
+                run_mutation_as_user(&setup.schema, r#"query { graph(path: "g") { path } }"#).await;
+            assert_eq!(
+                res.errors,
+                vec![],
+                "must not disclose the fault to the caller"
+            );
+            assert_eq!(res.data.into_json().unwrap(), json!({ "graph": null }));
+        }
+    }
+
+    /// The write gate reports a fault as an error carrying the fault's message, not as a
+    /// permission denial: a caller refused because the server is broken should not be told
+    /// they lack access.
+    #[tokio::test]
+    async fn test_policy_fault_on_write_gate_reports_the_fault() {
+        let work_dir = TempDir::new().unwrap();
+        {
+            let g = Graph::new();
+            let g: MaterializedGraph = g.into();
+            let policy = Arc::new(FakePolicy::default().with_fault("g"));
+            let setup = setup_with_policy(&[("g", g)], work_dir.path(), policy).await;
+
+            let res = run_mutation_as_user(
+                &setup.schema,
+                r#"query { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }"#,
+            )
+            .await;
+            assert!(!res.errors.is_empty(), "expected error, got {:?}", res.data);
+            assert!(
+                res.errors[0].message.contains("test fault"),
+                "the fault, not a denial, must surface: {}",
+                res.errors[0].message,
+            );
         }
     }
 
@@ -2491,7 +2723,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
 
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2582,7 +2814,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
 
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2687,7 +2919,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2722,7 +2954,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![graph_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2763,7 +2995,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(allowed_dir.path(), &app_config, Config::default());
+        let data = Data::new(allowed_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2805,7 +3037,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2873,7 +3105,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2940,7 +3172,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2967,7 +3199,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_flush() {
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let folder = data
             .work_dir_write()
             .await

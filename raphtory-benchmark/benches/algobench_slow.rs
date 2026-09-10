@@ -12,7 +12,7 @@ use raphtory::{
         },
         motifs::temporal_rich_club_coefficient::temporal_rich_club_coefficient,
     },
-    db::graph::views::filter::Unfiltered,
+    db::graph::views::filter::Exists,
     prelude::*,
 };
 use raphtory_benchmark::algobench_common::{
@@ -84,7 +84,7 @@ pub fn graphgen_in_components_filtered(c: &mut Criterion) {
         5,
         10,
         tiny_random_attachment_graph,
-        |graph, _| in_components_filtered(graph, None, Unfiltered).unwrap(),
+        |graph, _| in_components_filtered(graph, None, Exists).unwrap(),
     );
 }
 
@@ -95,7 +95,7 @@ pub fn graphgen_out_components_filtered(c: &mut Criterion) {
         5,
         10,
         tiny_random_attachment_graph,
-        |graph, _| out_components_filtered(graph, None, Unfiltered).unwrap(),
+        |graph, _| out_components_filtered(graph, None, Exists).unwrap(),
     );
 }
 

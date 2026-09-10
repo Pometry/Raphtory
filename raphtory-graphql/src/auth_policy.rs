@@ -1,4 +1,5 @@
 use crate::model::graph::filtering::GraphAccessFilter;
+use futures_util::future::BoxFuture;
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -108,25 +109,73 @@ pub enum NamespacePermission {
 
 pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective permission level for a principal on a graph.
-    /// Returns `Err(denial message)` only when access is entirely denied (not even introspect).
-    /// Admin principals (`"access": "rw"` JWT) always yield `Write`.
-    /// Empty store (no roles configured) yields `Read` — fail open for reads,
-    /// but write still requires an explicit `Write` grant.
-    /// The implementation is responsible for extracting principal identity from `ctx`.
+    ///
+    /// `Ok(None)` is a caller with no access at all, not even introspect — an ordinary answer
+    /// that callers present according to what the caller is allowed to know. `Err` means the
+    /// principal could not be established or the store could not be consulted: a server-side
+    /// fault, which callers must still fail closed on but should report as a fault rather than
+    /// record as a denial. The two are separated because a fault logged as "access denied"
+    /// points whoever debugs it at the permissions store instead of the server.
+    ///
+    /// `Err` is expected to be request-scoped — a principal that cannot be established, a store
+    /// that cannot be read — rather than specific to `path`. Listings propagate it and fail
+    /// whole rather than returning a silently shortened list, so an implementation that can
+    /// fail per-path should decide for itself whether such a failure is `Err` or `Ok(None)`.
+    ///
+    /// Admin principals (`"access": "rw"` JWT) always yield `Write`. An empty store (no roles
+    /// configured) yields `Read` — fail open for reads, but write still requires an explicit
+    /// `Write` grant. The implementation is responsible for extracting principal identity
+    /// from `ctx`.
     fn graph_permissions(
         &self,
         ctx: &async_graphql::Context<'_>,
         path: &str,
-    ) -> Result<GraphPermission, AuthPolicyError>;
+    ) -> Result<Option<GraphPermission>, AuthPolicyError>;
 
-    /// Resolves the effective namespace permission for a principal.
-    /// Returns `None` if the principal has no access to this namespace (it is invisible).
-    /// The implementation is responsible for extracting principal identity from `ctx`.
+    /// Resolves the effective permission on a namespace.
+    ///
+    /// `Ok(None)` is a caller with no grant on this namespace, which makes it invisible to
+    /// them. `Err` carries the same meaning as on [`Self::graph_permissions`]: the principal
+    /// could not be established at all, which is a server-side fault rather than a caller who
+    /// lacks access. The implementation is responsible for extracting principal identity
+    /// from `ctx`.
     fn namespace_permissions(
         &self,
         ctx: &async_graphql::Context<'_>,
         path: &str,
-    ) -> Option<NamespacePermission>;
+    ) -> Result<Option<NamespacePermission>, AuthPolicyError>;
+
+    /// Optional asynchronous refinement of an already-resolved permission.
+    ///
+    /// Called on the read path once [`Self::graph_permissions`] has granted at least read access,
+    /// and before the permission's filter is applied. Unlike `graph_permissions` this is `async`,
+    /// so an implementation may perform I/O (further lookups, queries) while deciding the final
+    /// permission.
+    ///
+    /// The default returns `perm` unchanged: policies that need no refinement — and the no-policy
+    /// case — are unaffected. Returning `Err` denies the request.
+    fn refine_permission<'a>(
+        &'a self,
+        _ctx: &'a async_graphql::Context<'_>,
+        _path: &'a str,
+        perm: GraphPermission,
+    ) -> BoxFuture<'a, Result<GraphPermission, AuthPolicyError>> {
+        Box::pin(std::future::ready(Ok(perm)))
+    }
+
+    /// Whether the principal has unfiltered read (`Write`, or `Read` with no filter) on the graph.
+    /// Gates the metadata/count summaries that are served from stored metadata without the access
+    /// filter applied. Defaults to the level reported by [`Self::graph_permissions`], and carries
+    /// its `Err` so a fault is not served as "no unfiltered read".
+    fn full_read(
+        &self,
+        ctx: &async_graphql::Context<'_>,
+        path: &str,
+    ) -> Result<bool, AuthPolicyError> {
+        Ok(self
+            .graph_permissions(ctx, path)?
+            .is_some_and(|p| p.level() >= PermissionLevel::Read))
+    }
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
@@ -136,7 +185,7 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         &self,
         _ctx: &async_graphql::Context<'_>,
         _path: &str,
-    ) -> Result<(), String> {
+    ) -> Result<(), AuthPolicyError> {
         Ok(())
     }
 }
@@ -144,17 +193,22 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
 #[cfg(test)]
 pub(crate) mod auth_policy_tests {
     use super::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     /// Test-only authorization policy: every path must be configured explicitly via
-    /// [`Self::with_namespace`] / [`Self::with_graph`]. Unknown namespaces return
-    /// `None` and unknown graphs return `Err`. This is stricter than the production
-    /// policy's fail-open contract — that's intentional, so a missing `with_*` call
-    /// in a test surfaces as an obvious failure rather than as a silent allow.
+    /// [`Self::with_namespace`] / [`Self::with_graph`]; anything unconfigured resolves to
+    /// `Ok(None)` — no access. This is stricter than the production policy's fail-open
+    /// contract — that's intentional, so a missing `with_*` call in a test surfaces as an
+    /// obvious denial rather than as a silent allow.
+    ///
+    /// Paths registered via [`Self::with_fault`] return `Err` from both resolution methods,
+    /// standing in for a policy that cannot answer (principal missing, store unreadable), so
+    /// tests can pin how a fault differs from a denial.
     #[derive(Default)]
     pub(crate) struct FakePolicy {
         namespaces: HashMap<String, NamespacePermission>,
         graphs: HashMap<String, GraphPermission>,
+        faults: HashSet<String>,
     }
 
     #[allow(dead_code)]
@@ -167,6 +221,19 @@ pub(crate) mod auth_policy_tests {
             self.graphs.insert(path.to_string(), perm);
             self
         }
+        pub(crate) fn with_fault(mut self, path: &str) -> Self {
+            self.faults.insert(path.to_string());
+            self
+        }
+        fn check_fault(&self, path: &str) -> Result<(), AuthPolicyError> {
+            if self.faults.contains(path) {
+                Err(AuthPolicyError::new(format!(
+                    "test fault resolving '{path}'"
+                )))
+            } else {
+                Ok(())
+            }
+        }
     }
 
     impl AuthorizationPolicy for FakePolicy {
@@ -174,20 +241,17 @@ pub(crate) mod auth_policy_tests {
             &self,
             _ctx: &async_graphql::Context<'_>,
             path: &str,
-        ) -> Result<GraphPermission, AuthPolicyError> {
-            match self.graphs.get(path) {
-                Some(p) => Ok(p.clone()),
-                None => Err(AuthPolicyError::new(format!(
-                    "no permission for graph {path}"
-                ))),
-            }
+        ) -> Result<Option<GraphPermission>, AuthPolicyError> {
+            self.check_fault(path)?;
+            Ok(self.graphs.get(path).cloned())
         }
         fn namespace_permissions(
             &self,
             _ctx: &async_graphql::Context<'_>,
             path: &str,
-        ) -> Option<NamespacePermission> {
-            self.namespaces.get(path).cloned()
+        ) -> Result<Option<NamespacePermission>, AuthPolicyError> {
+            self.check_fault(path)?;
+            Ok(self.namespaces.get(path).cloned())
         }
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
@@ -19,12 +19,12 @@ use crate::{
     rayon::blocking_compute,
     GQLError,
 };
-use async_graphql::Context;
+use async_graphql::{Context, ErrorExtensions};
 use dynamic_graphql::Enum;
 use raphtory::{
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
         graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
@@ -39,10 +39,11 @@ use std::{
     io::{Read, Seek},
     ops::Deref,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
 #[cfg(feature = "vectors")]
@@ -163,7 +164,8 @@ pub struct DataInner {
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_conf: Config,
+    pub(crate) graph_args: Args,
+    pub(crate) read_only: bool,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -293,9 +295,8 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_args: Args) -> Self {
         let cache_configs = &configs.cache;
-
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
         Self {
@@ -304,7 +305,8 @@ impl Data {
                 cache,
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
-                graph_conf,
+                graph_args,
+                read_only: cache_configs.read_only,
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
@@ -360,10 +362,13 @@ impl Data {
         Namespace::try_new(work_dir, ns_path.to_string())
     }
 
+    /// The graph for a folder, from the cache or from disk, with no permission check: callers here
+    /// have already been authorised.
+    ///
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
-    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
+    async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
             .get_or_insert(path, self.read_graph_from_disk(path))
             .await
@@ -375,7 +380,7 @@ impl Data {
         &self,
         path: &str,
     ) -> Result<GraphWithVectors, GQLError> {
-        self.get_graph(path).await
+        self.get_graph_unchecked(path).await
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
@@ -388,20 +393,27 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+        let read_only = self.read_only;
+
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
-                    Ok::<_, InsertionError>(graph)
+                    Ok::<_, InsertionError>(if read_only {
+                        graph.into_read_only()
+                    } else {
+                        graph
+                    })
                 })
                 .await
             })
             .await?;
+
         Ok(())
     }
 
@@ -411,12 +423,13 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        let conf = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+
         self.cache
             .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.write_graph_bytes(bytes, args)?;
                     folder.finish()
                 })
                 .await
@@ -515,32 +528,7 @@ impl Data {
         Ok(())
     }
 
-    #[cfg(feature = "vectors")]
-    async fn vectorise_with_template(
-        &self,
-        graph: MaterializedGraph,
-        folder: &impl ValidGraphPaths,
-        template: &DocumentTemplate,
-        model: CachedEmbeddingModel,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let vectors = graph
-            .vectorise(
-                model,
-                template.clone(),
-                Some(&folder.graph_folder().vectors_path().ok()?),
-                true, // verbose
-            )
-            .await;
-        match vectors {
-            Ok(vectors) => Some(vectors),
-            Err(error) => {
-                let name = folder.local_path();
-                warn!("An error occurred when trying to vectorise graph {name}: {error}");
-                None
-            }
-        }
-    }
-
+    /// Rebuild the whole index for a graph.
     #[cfg(feature = "vectors")]
     pub(crate) async fn vectorise_folder(
         &self,
@@ -548,21 +536,72 @@ impl Data {
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
+        let template = template.clone();
+        self.index_folder(folder, move |graph, path| async move {
+            graph.vectorise(model, template, Some(&path), true).await
+        })
+        .await
+    }
+
+    /// Embed only the entities missing from an existing index. Errors if there is no index yet or
+    /// the template or model has changed — rebuilding is what covers those.
+    #[cfg(feature = "vectors")]
+    pub(crate) async fn vectorise_missing_in_folder(
+        &self,
+        folder: &ExistingGraphFolder,
+        template: &DocumentTemplate,
+        model: CachedEmbeddingModel,
+    ) -> Result<(), GQLError> {
+        let template = template.clone();
+        self.index_folder(folder, move |graph, path| async move {
+            graph.vectorise_missing(model, template, &path, true).await
+        })
+        .await
+    }
+
+    /// Run an indexing operation against a graph's vectors under the cache guard, keeping the
+    /// vectors it already had if the operation fails and reporting the failure to the caller.
+    #[cfg(feature = "vectors")]
+    async fn index_folder<F, Fut>(
+        &self,
+        folder: &ExistingGraphFolder,
+        index: F,
+    ) -> Result<(), GQLError>
+    where
+        F: FnOnce(MaterializedGraph, PathBuf) -> Fut,
+        Fut: std::future::Future<Output = Result<VectorisedGraph<MaterializedGraph>, GraphError>>,
+    {
+        let vectors_path = folder
+            .graph_folder()
+            .vectors_path()
+            .map_err(GraphError::from)?;
+
+        // The indexing itself runs with no cache guard held: it embeds the whole graph, and holding
+        // the entry would block every read of this graph for the duration. Readers keep being served
+        // by the vectors currently in the entry while this runs.
+        let graph = self.get_graph_unchecked(folder.local_path()).await?;
+        let vectors = index(graph.graph().clone(), vectors_path)
+            .await
+            .map_err(|error| {
+                error!(
+                    "An error occurred when trying to vectorise graph {}: {error}",
+                    folder.local_path()
+                );
+                error
+            })?;
+
+        // Swapping the new index in is the only part that needs the guard, and it is quick. On the
+        // error path above the entry is never touched, so a failed vectorise leaves the graph with
+        // exactly the vectors it had.
         let cloned_folder = folder.clone();
+        let fallback = graph;
         self.cache
-            .insert_or_replace_with(folder.local_path(), move |old_graph| async {
-                let graph = match old_graph {
-                    None => self
-                        .read_graph_from_disk_inner(cloned_folder.clone())
-                        .await?
-                        .graph()
-                        .clone(),
-                    Some(old_graph) => old_graph.graph().clone(),
-                };
-                let vectors = self
-                    .vectorise_with_template(graph.clone(), folder, template, model)
-                    .await;
-                Ok::<_, GQLError>(GraphWithVectors::new(graph, vectors, cloned_folder))
+            .insert_or_replace_with(folder.local_path(), |old_graph| async {
+                let current = old_graph.unwrap_or(fallback);
+                let updated =
+                    GraphWithVectors::new(current.graph().clone(), Some(vectors), cloned_folder);
+                updated.set_dirty(current.is_dirty());
+                Ok::<_, GQLError>(updated)
             })
             .await?;
         Ok(())
@@ -585,16 +624,21 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
-        GraphWithVectors::read_from_folder(
+        let graph = GraphWithVectors::read_from_folder(
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
-            config,
+            args,
         )
-        .await
+        .await?;
+        Ok(if self.read_only {
+            graph.into_read_only()
+        } else {
+            graph
+        })
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
@@ -609,10 +653,14 @@ impl Data {
 // ---------------------------------------------------------------------------
 
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum PermissionError {
+pub enum PermissionError {
     /// Graph exists but caller has no namespace visibility — hide graph existence.
     #[error("Graph does not exist")]
     GraphNotFound,
+    /// Caller has no grant on the graph at all, and can already see its namespace, so
+    /// saying so discloses nothing they could not learn from a listing.
+    #[error("Access denied: no permission for graph '{graph}'")]
+    GraphAccessDenied { graph: String },
     /// Caller has introspect-only access; cannot read graph data.
     #[error(
         "Access denied: introspect-only access to graph '{graph}' — \
@@ -637,13 +685,82 @@ pub(crate) enum PermissionError {
     },
 }
 
-#[derive(Enum)]
+/// Machine-readable `extensions.code` values attached to authorization errors so
+/// the client classifies failures by structure rather than by message wording.
+///
+/// `GRAPH_NOT_FOUND` must be emitted for both a genuinely missing graph and a
+/// forbidden-but-hidden graph, so the two are byte-for-byte indistinguishable to
+/// an unauthorized caller.
+pub const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
+pub const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+
+/// Build an `async_graphql::Error` carrying a `code` in its extensions. The
+/// human-readable message is preserved unchanged; only the structured code is
+/// added, so the client can branch on it without parsing message text.
+pub fn gql_error_with_code(
+    error: impl Into<async_graphql::Error>,
+    code: &'static str,
+) -> async_graphql::Error {
+    error.into().extend_with(|_, ext| ext.set("code", code))
+}
+
+impl PermissionError {
+    /// The `extensions.code` this denial surfaces to the client. `GraphNotFound`
+    /// deliberately shares the code a genuinely missing graph produces so a
+    /// forbidden graph cannot be distinguished from a nonexistent one.
+    pub fn code(&self) -> &'static str {
+        match self {
+            PermissionError::GraphNotFound => CODE_GRAPH_NOT_FOUND,
+            PermissionError::GraphAccessDenied { .. }
+            | PermissionError::IntrospectOnly { .. }
+            | PermissionError::GraphWriteRequired { .. }
+            | PermissionError::GraphUnfilteredReadRequired { .. }
+            | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
+        }
+    }
+
+    /// Convert into an `async_graphql::Error` tagged with the matching `code`.
+    pub fn into_gql_error(self) -> async_graphql::Error {
+        let code = self.code();
+        gql_error_with_code(self.to_string(), code)
+    }
+}
+
+#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
     /// Persistent.
     Persistent,
     /// Event.
     Event,
+}
+
+impl GqlGraphType {
+    /// The GraphQL enum literal for this variant, for splicing into a query.
+    /// Unquoted by design — GraphQL enum values are not strings.
+    pub fn as_gql(&self) -> &'static str {
+        match self {
+            GqlGraphType::Persistent => "PERSISTENT",
+            GqlGraphType::Event => "EVENT",
+        }
+    }
+}
+
+impl FromStr for GqlGraphType {
+    type Err = String;
+
+    /// Parses the GraphQL literal. The error names the accepted values,
+    /// because this is the boundary where a caller's string (a Python
+    /// argument, a config value) becomes a typed graph model.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "EVENT" => Ok(GqlGraphType::Event),
+            "PERSISTENT" => Ok(GqlGraphType::Persistent),
+            other => Err(format!(
+                "invalid graph type `{other}`: expected \"EVENT\" or \"PERSISTENT\""
+            )),
+        }
+    }
 }
 
 /// Returns the namespace portion of a graph path: everything before the last `/`.
@@ -663,27 +780,55 @@ fn require_at_least_read(
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
         return match policy.graph_permissions(ctx, path) {
-            Err(msg) => {
+            Err(e) => {
+                error!(
+                    graph = path,
+                    error = %e,
+                    "Authorization policy could not resolve graph permissions"
+                );
+                Err(PermissionError::GraphNotFound.into_gql_error())
+            }
+            Ok(None) => {
                 warn!(graph = path, "Access denied by auth policy");
-                let ns = parent_namespace(path);
-                if policy.namespace_permissions(ctx, ns).is_some() {
-                    Err(msg.into())
+                // Admitting the denial admits the graph exists, so it is only safe for a
+                // caller who can already see the namespace. A fault resolving the namespace
+                // is reported and treated as invisible, never as permission to disclose.
+                let namespace = parent_namespace(path);
+                let disclosable = match policy.namespace_permissions(ctx, namespace) {
+                    Ok(perm) => perm.is_some(),
+                    Err(e) => {
+                        error!(
+                            namespace,
+                            error = %e,
+                            "Authorization policy could not resolve namespace permissions; \
+                             hiding the graph"
+                        );
+                        false
+                    }
+                };
+                if disclosable {
+                    Err(PermissionError::GraphAccessDenied {
+                        graph: path.to_string(),
+                    }
+                    .into_gql_error())
                 } else {
-                    Err(PermissionError::GraphNotFound.into())
+                    Err(PermissionError::GraphNotFound.into_gql_error())
                 }
             }
-            Ok(perm) => {
+            Ok(Some(perm)) => {
                 if let Some(p) = perm.at_least_read() {
                     Ok(p)
                 } else {
-                    warn!(
+                    warn!(graph = path, "Permission denied: introspect-only access");
+                    debug!(
                         graph = path,
-                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                        "Introspect-only grants can read graphMetadata() but not graph(); \
+                         use graphMetadata() instead or request a read grant"
                     );
                     Err(PermissionError::IntrospectOnly {
                         graph: path.to_string(),
                     }
-                    .into())
+                    .into_gql_error())
                 }
             }
         };
@@ -691,55 +836,102 @@ fn require_at_least_read(
     Ok(GraphPermission::Write)
 }
 
+/// Gives the policy an asynchronous pass at an already-granted permission before its filter is
+/// applied (see [`AuthorizationPolicy::refine_permission`]). A no-op without a policy.
+async fn refine(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+    perm: GraphPermission,
+) -> async_graphql::Result<GraphPermission> {
+    match policy {
+        Some(policy) => policy
+            .refine_permission(ctx, path, perm)
+            .await
+            .map_err(|msg| {
+                warn!(graph = path, "Access denied while refining permission");
+                msg.into()
+            }),
+        None => Ok(perm),
+    }
+}
+
 pub(crate) fn require_graph_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
 ) -> async_graphql::Result<()> {
+    if ctx.is_read_only() {
+        return Err(gql_error_with_code(
+            "Access denied: this context may not write",
+            CODE_ACCESS_DENIED,
+        ));
+    }
     match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
+        None => ctx
+            .require_jwt_write_access()
+            .map_err(|e| gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)),
         Some(p) => {
             p.graph_permissions(ctx, path)
-                .map_err(async_graphql::Error::from)?
-                .at_least_write()
+                .map_err(|e| {
+                    error!(
+                        graph = path,
+                        error = %e,
+                        "Authorization policy could not resolve graph permissions"
+                    );
+                    gql_error_with_code(e.to_string(), CODE_ACCESS_DENIED)
+                })?
+                .and_then(|perm| perm.at_least_write())
                 .ok_or_else(|| {
-                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                    PermissionError::GraphWriteRequired {
                         graph: path.to_string(),
-                    })
+                    }
+                    .into_gql_error()
                 })?;
             Ok(())
         }
     }
 }
 
-/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+/// Applies a row-level `GqlFilter` to a `DynamicGraph`.
 async fn apply_graph_filter(
     graph: DynamicGraph,
-    row_filter: GraphRowFilter,
+    row_filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
 }
 
 fn apply_row_filter_sync(
     graph: DynamicGraph,
-    filter: GraphRowFilter,
+    filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
     // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GraphRowFilter::And(filters) = filter {
+    if let GqlFilter::And(filters) = filter {
+        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
+        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
+        // combinator (which this shortcut path otherwise never reaches).
+        if filters.is_empty() {
+            error!("empty 'and' access filter restricts nothing");
+            return Err(async_graphql::Error::new(
+                "access filter could not be applied; the grant is misconfigured",
+            ));
+        }
         return filters
             .into_iter()
             .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
     }
     let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "filter conversion failed");
-        async_graphql::Error::new("internal error applying access filter")
+        error!(error = %e, "access filter conversion failed");
+        async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
     })?;
     Ok(graph
         .filter(dyn_filter)
         .map_err(|e| {
-            error!(error = %e, "failed to apply filter");
-            async_graphql::Error::new("internal error applying access filter")
+            error!(error = %e, "access filter application failed");
+            async_graphql::Error::new(
+                "access filter could not be applied; the grant is misconfigured",
+            )
         })?
         .into_dynamic())
 }
@@ -794,7 +986,7 @@ impl Data {
         perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
-        let gwv = self.get_graph(path).await?;
+        let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
                 MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
@@ -833,7 +1025,11 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
         match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
+                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+                // Refinement denied access — hide the graph, as with any other read denial.
+                Err(_) => Ok(None),
+            },
             Err(_) => Ok(None),
         }
     }
@@ -849,6 +1045,7 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        let perm = refine(ctx, &self.auth_policy, path, perm).await?;
         self.load_and_filter(path, perm, graph_type).await
     }
 
@@ -863,11 +1060,12 @@ impl Data {
     ) -> async_graphql::Result<GraphWithVectors> {
         let res = require_at_least_read(ctx, &self.auth_policy, path)?;
         if res.level() < PermissionLevel::Read {
-            Err(PermissionError::GraphUnfilteredReadRequired {
+            return Err(PermissionError::GraphUnfilteredReadRequired {
                 graph: path.to_string(),
-            })?;
+            }
+            .into_gql_error());
         }
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
     }
 
@@ -878,7 +1076,7 @@ impl Data {
         path: &str,
     ) -> async_graphql::Result<GraphWithVectors> {
         require_graph_write(ctx, &self.auth_policy, path)?;
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph)
     }
 
@@ -895,7 +1093,7 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        let graph = self.get_graph(path).await?;
+        let graph = self.get_graph_unchecked(path).await?;
         Ok(graph.vectors().cloned().map(|g| g.into()))
     }
 }
@@ -939,6 +1137,29 @@ pub(crate) mod data_tests {
     }
 
     #[tokio::test]
+    async fn test_read_only_graphs_reject_mutations_and_serve_reads() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let path = tmp_work_dir.path().join("g");
+        fs::create_dir_all(&path).unwrap();
+        graph.encode(&path).unwrap();
+
+        let config = AppConfigBuilder::new().with_cache_read_only(true).build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        let served = data.get_graph_for_test("g").await.unwrap();
+        let served = served.graph().clone().into_events().unwrap();
+        assert_eq!(served.count_nodes(), 2);
+        assert!(served.add_node(1, 3, NO_PROPS, None, None).is_err());
+
+        let config = AppConfigBuilder::new().build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        let served = data.get_graph_for_test("g").await.unwrap();
+        let served = served.graph().clone().into_events().unwrap();
+        assert!(served.add_node(1, 3, NO_PROPS, None, None).is_ok());
+    }
+
+    #[tokio::test]
     async fn test_save_graphs_to_work_dir() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
@@ -961,7 +1182,10 @@ pub(crate) mod data_tests {
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         for graph in graphs.keys() {
-            assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
+            assert!(
+                data.get_graph_unchecked(graph).await.is_ok(),
+                "could not get {graph}"
+            )
         }
     }
 
@@ -1036,6 +1260,278 @@ pub(crate) mod data_tests {
         );
     }
 
+    /// A vectorise that fails partway must not leave the graph without vectors, and the caller
+    /// has to be told: returning success while quietly dropping the index is how a live index
+    /// disappears with nothing in the response to explain it.
+    #[cfg(feature = "vectors")]
+    #[tokio::test]
+    async fn test_failed_vectorise_reports_and_keeps_the_index() {
+        use crate::paths::ExistingGraphFolder;
+        use raphtory::vectors::{
+            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+        };
+
+        fn fake_embedding(text: &str) -> Vec<f32> {
+            vec![text.len() as f32, 1.0]
+        }
+
+        fn template(prefix: &str) -> DocumentTemplate {
+            DocumentTemplate {
+                node_template: Some(format!("{prefix} {{{{ properties.doc }}}}")),
+                edge_template: None,
+            }
+        }
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let port = 1751;
+        let name = "failing_vg";
+
+        let graph = Graph::new();
+        for node in ["alice", "bob"] {
+            graph
+                .add_node(0, node, [("doc", node.to_string())], None, None)
+                .unwrap();
+        }
+        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+
+        let configs = AppConfigBuilder::new().build();
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+        let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+        let model = data
+            .vector_cache
+            .resolve()
+            .await
+            .unwrap()
+            .openai(OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}")).into())
+            .await
+            .unwrap();
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+
+        data.vectorise_folder(&folder, &template("first"), model.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            search_hits(&data, name, "first alice").await,
+            2,
+            "the first vectorise should have indexed both nodes"
+        );
+
+        // the model is already resolved, so the failure lands on the embedding calls that the
+        // vectorise itself makes rather than on setting the model up
+        embedding_server.stop().await;
+
+        let result = data
+            .vectorise_folder(&folder, &template("second"), model)
+            .await;
+        assert!(
+            result.is_err(),
+            "a vectorise that could not embed must report the failure"
+        );
+
+        let graph = data.get_graph_unchecked(name).await.unwrap();
+        assert!(
+            graph.vectors().is_some(),
+            "the graph must keep the vectors it had before the failed vectorise"
+        );
+        assert_eq!(
+            search_hits(&data, name, "first alice").await,
+            2,
+            "the previous index must still answer after a failed vectorise"
+        );
+    }
+
+    /// Number of documents a similarity search returns for `text`.
+    #[cfg(feature = "vectors")]
+    async fn search_hits(data: &Data, path: &str, text: &str) -> usize {
+        let graph = data.get_graph_unchecked(path).await.unwrap();
+        let vectors = graph.vectors().expect("graph has no vectors");
+        let embedding = vectors.embed_text(text).await.unwrap();
+        vectors
+            .nodes_by_similarity(&embedding, 10, None)
+            .execute()
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap()
+            .len()
+    }
+
+    /// Vectorising has to work on a graph whose index was loaded from disk by an earlier read,
+    /// which is what a restarted server does: something reads the graph, and only then does the
+    /// client re-vectorise it.
+    #[cfg(feature = "vectors")]
+    #[tokio::test]
+    async fn test_vectorise_after_reading_a_reloaded_graph() {
+        use crate::paths::ExistingGraphFolder;
+        use raphtory::vectors::{
+            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+        };
+
+        fn fake_embedding(text: &str) -> Vec<f32> {
+            vec![text.len() as f32, 1.0]
+        }
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let port = 1750;
+        let name = "reloaded_vg";
+
+        let graph = Graph::new();
+        graph
+            .add_node(0, name, [("doc", name.to_string())], None, None)
+            .unwrap();
+        graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+
+        let configs = AppConfigBuilder::new().build();
+        let _embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+        let template = DocumentTemplate {
+            node_template: Some("{{ properties.doc }}".to_owned()),
+            edge_template: None,
+        };
+        let embeddings = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
+
+        // first server: builds and persists the index, then goes away
+        {
+            let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+            let model = data
+                .vector_cache
+                .resolve()
+                .await
+                .unwrap()
+                .openai(embeddings.clone().into())
+                .await
+                .unwrap();
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+            data.vectorise_folder(&folder, &template, model)
+                .await
+                .unwrap();
+        }
+
+        // second server: the read loads the persisted index before anything else touches the
+        // embedding cache, and the re-vectorise afterwards must still work
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+        assert!(
+            data.get_graph_unchecked(name)
+                .await
+                .unwrap()
+                .vectors()
+                .is_some(),
+            "the persisted index should be loaded with the graph"
+        );
+
+        let model = data
+            .vector_cache
+            .resolve()
+            .await
+            .unwrap()
+            .openai(embeddings.into())
+            .await
+            .unwrap();
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+        data.vectorise_folder(&folder, &template, model)
+            .await
+            .unwrap();
+
+        let graph = data.get_graph_unchecked(name).await.unwrap();
+        let vectors = graph
+            .vectors()
+            .expect("the graph should still have vectors after re-vectorising");
+        let embedding = vectors.embed_text(name).await.unwrap();
+        let docs = vectors
+            .nodes_by_similarity(&embedding, 1, None)
+            .execute()
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap();
+        assert!(!docs.is_empty(), "index is empty after re-vectorising");
+    }
+
+    /// A vectorised graph that gets evicted has to come back with a working index when it is
+    /// next read, because the vectors are reloaded from disk by a different code path than the
+    /// one that built them.
+    #[cfg(feature = "vectors")]
+    #[tokio::test]
+    async fn test_eviction_reloads_vectorised_graph() {
+        use crate::paths::ExistingGraphFolder;
+        use raphtory::vectors::{
+            custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
+        };
+
+        fn fake_embedding(text: &str) -> Vec<f32> {
+            vec![text.len() as f32, 1.0]
+        }
+
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let port = 1749;
+
+        for name in ["test_vg", "test_vg2"] {
+            let graph = Graph::new();
+            graph
+                .add_node(0, name, [("doc", name.to_string())], None, None)
+                .unwrap();
+            graph.encode(&tmp_work_dir.path().join(name)).unwrap();
+        }
+
+        // capacity 1: reading either graph evicts the other, so the second read of each is a
+        // reload from disk
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+
+        let _embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+        let template = DocumentTemplate {
+            node_template: Some("{{ properties.doc }}".to_owned()),
+            edge_template: None,
+        };
+        let model = data
+            .vector_cache
+            .resolve()
+            .await
+            .unwrap()
+            .openai(OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}")).into())
+            .await
+            .unwrap();
+
+        for name in ["test_vg", "test_vg2"] {
+            let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, name).unwrap();
+            data.vectorise_folder(&folder, &template, model.clone())
+                .await
+                .unwrap();
+        }
+
+        // two passes: the first evicts what vectorising left cached, the second reads graphs
+        // that can only have come back from disk
+        for pass in 0..2 {
+            for name in ["test_vg", "test_vg2"] {
+                let graph = data.get_graph_unchecked(name).await.unwrap();
+                let vectors = graph
+                    .vectors()
+                    .unwrap_or_else(|| panic!("pass {pass}: {name} came back without vectors"));
+                let embedding = vectors.embed_text(name).await.unwrap();
+                let docs = vectors
+                    .nodes_by_similarity(&embedding, 1, None)
+                    .execute()
+                    .await
+                    .unwrap()
+                    .get_documents()
+                    .await
+                    .unwrap();
+                assert!(
+                    !docs.is_empty(),
+                    "pass {pass}: {name} reloaded with an empty index"
+                );
+                // the graph has to be dropped for the cache to be allowed to evict it
+                drop(graph);
+                assert_eq!(
+                    data.cache.iter().count(),
+                    1,
+                    "pass {pass}: cache should hold only {name}, so the next read reloads"
+                );
+            }
+        }
+    }
+
     #[tokio::test]
     async fn test_eviction() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
@@ -1059,11 +1555,11 @@ pub(crate) mod data_tests {
         assert!(!data.cache.contains_key("test_g2"));
 
         // Test size based eviction
-        data.get_graph("test_g2").await.unwrap();
+        data.get_graph_unchecked("test_g2").await.unwrap();
         assert!(data.cache.contains_key("test_g2"));
         assert!(!data.cache.contains_key("test_g"));
 
-        data.get_graph("test_g").await.unwrap(); // wait for any eviction
+        data.get_graph_unchecked("test_g").await.unwrap(); // wait for any eviction
         assert_eq!(data.cache.iter().count(), 1);
     }
 
@@ -1117,12 +1613,12 @@ pub(crate) mod data_tests {
         assert!(!paths.contains(&g7_path)); // Hidden path is ignored
 
         assert!(data
-            .get_graph("shivam/investigations/2024-12-22/g2")
+            .get_graph_unchecked("shivam/investigations/2024-12-22/g2")
             .await
             .is_ok());
 
-        assert!(data.get_graph("some/random/path").await.is_err());
-        assert!(data.get_graph(".graph").await.is_err());
+        assert!(data.get_graph_unchecked("some/random/path").await.is_err());
+        assert!(data.get_graph_unchecked(".graph").await.is_err());
     }
 
     #[tokio::test]
@@ -1161,8 +1657,8 @@ pub(crate) mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
-        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
-        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        let loaded_graph1 = data.get_graph_unchecked("test_graph1").await.unwrap();
+        let loaded_graph2 = data.get_graph_unchecked("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
         if loaded_graph1.graph().disk_storage_path().is_some() {
@@ -1243,7 +1739,7 @@ pub(crate) mod data_tests {
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
         // Load first graph
-        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
+        let loaded_graph1 = data.get_graph_unchecked("test_graph1").await.unwrap();
         assert!(
             !loaded_graph1.is_dirty(),
             "Graph1 should not be dirty when loaded from disk"
@@ -1258,7 +1754,7 @@ pub(crate) mod data_tests {
 
         // Load second graph
         println!("Loading second graph");
-        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        let loaded_graph2 = data.get_graph_unchecked("test_graph2").await.unwrap();
         assert!(
             !loaded_graph2.is_dirty(),
             "Graph2 should not be dirty when loaded from disk"

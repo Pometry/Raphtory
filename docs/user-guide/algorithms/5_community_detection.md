@@ -121,7 +121,10 @@ client.send_graph("cluster-graph", G, overwrite=True)
 ///
 
 ```{.python continuation hide}
-assert len(G.get_all_node_types()) == 4
+# One node type per cluster. Not a hard-coded 4: `louvain` does not always
+# return the same number of communities (see the `>= 3` assertion above), so
+# pinning the count here would fail whenever it returns three.
+assert len(G.get_all_node_types()) == len(unique_clusters)
 ```
 
 You should see that there are four distinct communities, for each node you can see it's node type in the **Node Statistics** panel of the **Selected** menu and by visual inspection verify that each node is connected mostly to it's own group.

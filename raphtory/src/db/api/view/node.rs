@@ -3,7 +3,7 @@ use crate::{
     db::api::{
         properties::internal::InternalPropertiesOps,
         state::ops::{self, ArrowNodeOp, IntoArrowNodeOp, NodeOp},
-        view::{node_edges, TimeOps},
+        view::{internal::DynGraphArc, node_edges, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
@@ -28,7 +28,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -36,7 +36,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        F: for<'a> Fn(&GraphStorage, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,

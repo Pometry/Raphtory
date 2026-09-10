@@ -90,7 +90,7 @@ def assert_expected_nodes(g):
     ]
     nodes = []
     for v in g.nodes:
-        name = v["name"]
+        name = v.properties.get("name")
         nodes.append((v.id, name))
     nodes.sort()
 
@@ -108,8 +108,8 @@ def assert_expected_edges(g):
     ]
     edges = []
     for e in g.edges:
-        weight = e["weight"]
-        marbles = e["marbles"]
+        weight = e.properties.get("weight")
+        marbles = e.properties.get("marbles")
         edges.append((e.src.id, e.dst.id, weight, marbles))
     edges.sort()
     assert edges == expected_edges

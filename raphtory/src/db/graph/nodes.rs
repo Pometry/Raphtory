@@ -10,7 +10,8 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{DynGraphArc, FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                sort::{compare_node, NodeSortBy},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -18,9 +19,11 @@ use crate::{
     },
     prelude::*,
 };
+use itertools::Itertools;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
+    cmp::Ordering,
     collections::HashSet,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
@@ -148,8 +151,8 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            elems @ Index::Partial(_) => NodeList::List { elems },
-            _ => self.graph.node_list(),
+            elems @ (Index::Partial(_) | Index::Sorted { .. }) => NodeList::List { elems },
+            Index::Full(_) => self.base_graph.node_list(),
         }
     }
 
@@ -163,6 +166,22 @@ where
             g.try_core_node(vid)
                 .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
         })
+    }
+
+    /// Reorder this collection by an ordered list of sort keys: members
+    /// compare by the first key, ties break to the next. Returns a new
+    /// collection backed by an explicit index in the sorted order.
+    pub fn sorted(&self, sort_bys: &[NodeSortBy]) -> Nodes<'graph, G, GH, F> {
+        let index: Index<VID> = self
+            .iter()
+            .sorted_by(|a, b| {
+                sort_bys.iter().fold(Ordering::Equal, |current, sort_by| {
+                    current.then_with(|| compare_node(a, b, sort_by))
+                })
+            })
+            .map(|node_view| node_view.node)
+            .collect();
+        self.indexed(index)
     }
 
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH, F> {
@@ -246,13 +265,24 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
+        // An exact index has already had the whole predicate applied to every
+        // key — `apply_iter_filter` drops the claim as soon as a conjunct is
+        // not reflected in the keys — so the only thing that could still
+        // remove one is the view's own node filtering. Same pair of conditions
+        // `GraphViewOps::count_nodes` uses via `trusted_node_list`.
+        if let Index::Sorted { keys, exact: true } = &self.nodes {
+            if self.base_graph.node_list_trusted() {
+                return keys.len();
+            }
+        }
         if self.is_list_filtered() {
             let g = self.locked_storage();
             self.par_iter_refs(g).count()
         } else {
             match &self.nodes {
-                Index::Full(_) => self.graph.count_nodes(),
+                Index::Full(_) => self.base_graph.count_nodes(),
                 Index::Partial(nodes) => nodes.len(),
+                Index::Sorted { keys, .. } => keys.len(),
             }
         }
     }
@@ -272,15 +302,8 @@ where
         &self,
         node_types: I,
     ) -> Nodes<'graph, G, GH, AndOp<F, NodeTypeFilterOp>> {
-        let node_types_filter = NodeTypeFilterOp::new_from_values(node_types, &self.graph);
-        let predicate = self.predicate.clone().and(node_types_filter);
-        Nodes {
-            base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
-            predicate,
-            nodes: self.nodes.clone(),
-            _marker: PhantomData,
-        }
+        let node_types_filter = NodeTypeFilterOp::from_values(node_types, &self.graph);
+        self.apply_iter_filter(node_types_filter)
     }
 
     pub fn id_filter(
@@ -291,6 +314,7 @@ where
             .into_iter()
             .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
+
         self.indexed(index)
     }
 
@@ -308,7 +332,8 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
+        !self.base_graph.node_list_trusted()
+            || self.predicate.is_domain_filtered(self.graph.core_graph())
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -347,6 +372,9 @@ where
     ) -> Self::IterFiltered<Filter> {
         let domain = filter.domain(self.graph.core_graph());
         let nodes = match domain {
+            // `filter` is not reflected in the keys, so an exactness claim
+            // from an earlier filter no longer covers the whole predicate
+            NodeList::All if filter.is_filtered() => self.nodes.clone().into_inexact(),
             NodeList::All => self.nodes.clone(),
             NodeList::List { elems } => self.nodes.intersection(&elems),
         };
@@ -383,39 +411,37 @@ where
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        T: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        T: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: T,
     ) -> Self::Edges {
-        let graph = self.graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        let edges = Arc::new(move |node: VID| {
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>, node: VID| {
             let cg = graph.core_graph();
             op(cg, &graph, node).into_dyn_boxed()
         });
-        NestedEdges {
-            graph: self.graph.clone(),
-            nodes,
-            edges,
-        }
+        NestedEdges::new(self.graph.clone(), nodes, edges)
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        T: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        T: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: T,
     ) -> Self::PathType {
-        let graph = self.graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        PathFromGraph::new(self.graph.clone(), nodes, move |v| {
-            let cg = graph.core_graph();
-            op(cg, &graph, v).into_dyn_boxed()
-        })
+        PathFromGraph::new(
+            self.graph.clone(),
+            nodes,
+            Arc::new(move |graph, v| {
+                let cg = graph.core_graph();
+                op(cg, &graph, v).into_dyn_boxed()
+            }),
+        )
     }
 }
 

@@ -20,7 +20,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use pyo3::{pyclass, pymethods, types::PyAnyMethods, Bound, IntoPyObject, PyAny, PyResult, Python};
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
@@ -51,8 +51,13 @@ impl PyEdgeEndpointIdFilterBuilder {
     ///
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating equality.
-    fn __eq__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.eq(value)))
+    fn __eq__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+        // Extract explicitly: with a concrete parameter type pyo3 turns a
+        // conversion failure into `NotImplemented`, so Python falls back to
+        // its default `==` and hands back a plain `bool` instead of a filter
+        // expression — the comparison silently stops being a filter.
+        let value: GID = value.extract()?;
+        Ok(PyFilterExpr(Arc::new(self.0.eq(value))))
     }
 
     /// Checks whether the endpoint ID is not equal to the given value.
@@ -62,8 +67,13 @@ impl PyEdgeEndpointIdFilterBuilder {
     ///
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating inequality.
-    fn __ne__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ne(value)))
+    fn __ne__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+        // Extract explicitly: with a concrete parameter type pyo3 turns a
+        // conversion failure into `NotImplemented`, so Python falls back to
+        // its default `==` and hands back a plain `bool` instead of a filter
+        // expression — the comparison silently stops being a filter.
+        let value: GID = value.extract()?;
+        Ok(PyFilterExpr(Arc::new(self.0.ne(value))))
     }
 
     /// Checks whether the endpoint ID is less than the given value (exclusive).

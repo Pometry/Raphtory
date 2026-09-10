@@ -1,5 +1,6 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
 use crate::{
+    cli::ConfigArgs,
     config::{
         cache_config::{CacheConfig, CacheConfigFieldName},
         concurrency_config::{ConcurrencyConfig, ConcurrencyConfigFieldName},
@@ -8,6 +9,7 @@ use crate::{
         parquet_config::{ParquetConfig, ParquetConfigFieldName},
         schema_config::{SchemaConfig, SchemaConfigFieldName},
     },
+    plugin::server::extension::{ArgExtensions, BoxedExtension, ServerExtensionImpl},
     server::ServerError,
 };
 use config::{Config, ConfigError, File};
@@ -18,6 +20,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -31,6 +34,23 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
+    // extensions are top-level and not prefixed with extensions, skip it
+    #[serde(flatten)]
+    #[field_name(skip)]
+    pub extensions: ArgExtensions,
+}
+
+impl AppConfig {
+    /// The config with each extension replaced by its full schema (every field, not only the set ones).
+    pub fn config_schema_json(&self) -> Result<serde_json::Value, ServerError> {
+        let mut value = serde_json::to_value(self).map_err(ServerError::config_error)?;
+        if let serde_json::Value::Object(map) = &mut value {
+            for ext in self.extensions.iter() {
+                map.insert(ext.name().to_string(), ext.config_schema()?);
+            }
+        }
+        Ok(value)
+    }
 }
 
 pub struct AppConfigBuilder {
@@ -63,13 +83,91 @@ fn invalid_value(path: impl IntoIterator<Item: Display>, err: impl Error) -> Ser
     )))
 }
 
-fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError {
-    ServerError::ConfigError(ConfigError::Foreign(Box::new(error)))
-}
-
 impl AppConfigBuilder {
     pub fn new() -> Self {
         AppConfig::default().into()
+    }
+
+    pub fn new_from_args(server_args: ConfigArgs) -> Result<Self, ServerError> {
+        let mut builder = Self::new();
+        // initialise extensions with parsed command line arguments
+        builder.config.extensions = server_args.extensions;
+
+        if let Some(config_file) = server_args.config_file.clone() {
+            builder.load_from_path(config_file)?;
+        };
+        if let Some(cache_capacity) = server_args.cache_capacity {
+            builder.with_cache_capacity(cache_capacity);
+        }
+        if let Some(log_level) = server_args.log_level.clone() {
+            builder.with_log_level(log_level);
+        }
+        if let Some(tracing) = server_args.tracing {
+            builder.with_tracing(tracing);
+        }
+        if let Some(tracing_level) = server_args.tracing_level.clone() {
+            builder.with_tracing_level(tracing_level);
+        }
+        if let Some(otlp_agent_host) = server_args.otlp_agent_host.clone() {
+            builder.with_otlp_agent_host(Some(otlp_agent_host));
+        }
+        if let Some(otlp_tracing_service_name) = server_args.otlp_tracing_service_name.clone() {
+            builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
+        }
+        if let Some(otlp_transport_protocol) = server_args.otlp_transport_protocol.clone() {
+            builder.with_otlp_transport_protocol(otlp_transport_protocol);
+        }
+        if let Some(otlp_transport_headers) = server_args.otlp_transport_headers.clone() {
+            builder.with_otlp_transport_headers(otlp_transport_headers);
+        }
+        if let Some(otlp_transport_certificate) = server_args.otlp_transport_certificate.clone() {
+            builder.with_otlp_transport_certificate(Some(otlp_transport_certificate));
+        }
+        if let Some(auth_public_key) = server_args.auth_public_key.clone() {
+            builder
+                .with_auth_public_key(Some(auth_public_key))
+                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+        }
+        if let Some(public_dir) = server_args.public_dir.clone() {
+            builder.with_public_dir(Some(public_dir));
+        }
+        if let Some(require_auth_for_reads) = server_args.require_auth_for_reads {
+            builder.with_require_auth_for_reads(require_auth_for_reads);
+        }
+        if let Some(heavy_query_limit) = server_args.heavy_query_limit {
+            builder.with_heavy_query_limit(Some(heavy_query_limit));
+        }
+        if let Some(exclusive_writes) = server_args.exclusive_writes {
+            builder.with_exclusive_writes(exclusive_writes);
+        }
+        if let Some(disable_batching) = server_args.disable_batching {
+            builder.with_disable_batching(disable_batching);
+        }
+        if let Some(max_batch_size) = server_args.max_batch_size {
+            builder.with_max_batch_size(Some(max_batch_size));
+        }
+        if let Some(disable_lists) = server_args.disable_lists {
+            builder.with_disable_lists(disable_lists);
+        }
+        if let Some(max_page_size) = server_args.max_page_size {
+            builder.with_max_page_size(Some(max_page_size));
+        }
+        if let Some(max_query_depth) = server_args.max_query_depth {
+            builder.with_max_query_depth(Some(max_query_depth));
+        }
+        if let Some(max_query_complexity) = server_args.max_query_complexity {
+            builder.with_max_query_complexity(Some(max_query_complexity));
+        }
+        if let Some(max_recursive_depth) = server_args.max_recursive_depth {
+            builder.with_max_recursive_depth(Some(max_recursive_depth));
+        }
+        if let Some(max_directives_per_field) = server_args.max_directives_per_field {
+            builder.with_max_directives_per_field(Some(max_directives_per_field));
+        }
+        if let Some(disable_introspection) = server_args.disable_introspection {
+            builder.with_disable_introspection(disable_introspection);
+        }
+        Ok(builder)
     }
 
     pub fn update_from_json(&mut self, value: serde_json::Value) -> Result<&mut Self, ServerError> {
@@ -78,7 +176,19 @@ impl AppConfigBuilder {
             .ok_or_else(|| ConfigError::Message(format!("Invalid config: {value}")))?;
 
         for (path, value) in map {
-            match AppConfigFieldName::by_name(path).ok_or_else(|| invalid_path([path]))? {
+            // An non-built-in key potentially represents a server extension, whose settings sit at
+            // the top level alongside the built-ins. If the key is not registered as a known
+            // extension, it throws an error.
+            let field = match AppConfigFieldName::by_name(path) {
+                None => {
+                    // A name that is not a known field is checked against the registered extensions
+                    self.config.extensions.update_from_json(path, value)?;
+                    continue;
+                }
+                Some(field) => field,
+            };
+
+            match field {
                 AppConfigFieldName::Logging => {
                     let map = value.as_object().ok_or_else(|| {
                         ConfigError::Message(format!("Invalid logging config: {value}"))
@@ -106,6 +216,12 @@ impl AppConfigBuilder {
                         {
                             CacheConfigFieldName::Capacity => {
                                 self.with_cache_capacity(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            CacheConfigFieldName::ReadOnly => {
+                                self.with_cache_read_only(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -186,6 +302,24 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            AuthConfigFieldName::Audience => {
+                                self.with_auth_audience(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::Issuer => {
+                                self.with_auth_issuer(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            AuthConfigFieldName::RoleClaim => {
+                                self.with_auth_role_claim(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -223,6 +357,12 @@ impl AppConfigBuilder {
                             }
                             ConcurrencyConfigFieldName::DisableLists => {
                                 self.with_disable_lists(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            ConcurrencyConfigFieldName::MaxConcurrentLoads => {
+                                self.with_max_concurrent_loads(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -270,6 +410,12 @@ impl AppConfigBuilder {
                             }
                             SchemaConfigFieldName::DisableIntrospection => {
                                 self.with_disable_introspection(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            SchemaConfigFieldName::DisableUi => {
+                                self.with_disable_ui(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -364,6 +510,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_cache_read_only(&mut self, read_only: bool) -> &mut Self {
+        self.config.cache.read_only = read_only;
+        self
+    }
+
     pub fn with_auth_public_key(
         &mut self,
         public_key: Option<String>,
@@ -376,6 +527,21 @@ impl AppConfigBuilder {
 
     pub fn with_require_auth_for_reads(&mut self, require_auth_for_reads: bool) -> &mut Self {
         self.config.auth.require_auth_for_reads = require_auth_for_reads;
+        self
+    }
+
+    pub fn with_auth_audience(&mut self, audience: Option<String>) -> &mut Self {
+        self.config.auth.audience = audience;
+        self
+    }
+
+    pub fn with_auth_issuer(&mut self, issuer: Option<String>) -> &mut Self {
+        self.config.auth.issuer = issuer;
+        self
+    }
+
+    pub fn with_auth_role_claim(&mut self, role_claim: Option<String>) -> &mut Self {
+        self.config.auth.role_claim = role_claim;
         self
     }
 
@@ -409,6 +575,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_max_concurrent_loads(&mut self, max_concurrent_loads: Option<usize>) -> &mut Self {
+        self.config.concurrency.max_concurrent_loads = max_concurrent_loads;
+        self
+    }
+
     pub fn with_max_query_depth(&mut self, max_query_depth: Option<usize>) -> &mut Self {
         self.config.schema.max_query_depth = max_query_depth;
         self
@@ -437,6 +608,11 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_disable_ui(&mut self, disable_ui: bool) -> &mut Self {
+        self.config.schema.disable_ui = disable_ui;
+        self
+    }
+
     pub fn with_allowed_parquet_paths(&mut self, allowed_paths: Vec<PathBuf>) -> &mut Self {
         self.config.parquet.allowed_paths = allowed_paths;
         self
@@ -444,6 +620,15 @@ impl AppConfigBuilder {
 
     pub fn with_public_dir(&mut self, public_dir: Option<PathBuf>) -> &mut Self {
         self.config.public_dir = public_dir;
+        self
+    }
+
+    pub fn with_extension(&mut self, extension: impl ServerExtensionImpl) -> &mut Self {
+        self.with_boxed_extension(Box::new(extension))
+    }
+
+    pub fn with_boxed_extension(&mut self, extension: BoxedExtension) -> &mut Self {
+        self.config.extensions.push_boxed(extension);
         self
     }
 

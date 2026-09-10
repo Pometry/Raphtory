@@ -5,7 +5,7 @@ use raphtory::{db::api::view::DynamicGraph, prelude::*};
 use raphtory_storage::core_ops::CoreGraphOps;
 
 #[derive(SimpleObject)]
-pub(crate) struct GraphSchema {
+pub struct GraphSchema {
     pub(crate) nodes: Vec<NodeSchema>,
     layers: Vec<LayerSchema<DynamicGraph>>,
 }

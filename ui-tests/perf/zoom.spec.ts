@@ -1,12 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
 import { expect, test } from './fixtures';
 
-const BASELINE_DIR = path.join(
-    __dirname,
-    'baselines',
-    new Date().toISOString().slice(0, 10),
-);
+const BASELINE_DIR = path.join(__dirname, 'baselines', new Date().toISOString().slice(0, 10));
 
 // Sweep zoom-in from a fully-zoomed-out start ratio then back out in
 // equal ticks. The midpoint is well past the edge-label fontSize
@@ -185,10 +182,7 @@ test.describe('zoom perf', () => {
         const warmedUp = samples.slice(1);
         const sortedFps = [...warmedUp].map((s) => s.fps).sort((a, b) => a - b);
         const median = sortedFps[Math.floor(sortedFps.length / 2)] ?? 0;
-        const p95Index = Math.min(
-            Math.floor(sortedFps.length * 0.95),
-            sortedFps.length - 1,
-        );
+        const p95Index = Math.min(Math.floor(sortedFps.length * 0.95), sortedFps.length - 1);
         const p95 = sortedFps[p95Index] ?? 0;
 
         fs.mkdirSync(BASELINE_DIR, { recursive: true });
@@ -197,9 +191,7 @@ test.describe('zoom perf', () => {
             JSON.stringify({ samples, median, p95 }, null, 2),
         );
 
-        console.log(
-            `[zoom perf] median ${median.toFixed(1)} FPS, p95 ${p95.toFixed(1)} FPS`,
-        );
+        console.log(`[zoom perf] median ${median.toFixed(1)} FPS, p95 ${p95.toFixed(1)} FPS`);
 
         expect(samples.length).toBeGreaterThan(0);
     });

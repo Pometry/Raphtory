@@ -1,6 +1,8 @@
 use crate::{
     core::{
-        entities::properties::prop::{IntoPropList, Prop, PropArray, PropMapRef, PropNum, PropRef},
+        entities::properties::prop::{
+            IntoPropList, Prop, PropArray, PropMap, PropMapRef, PropNum, PropRef,
+        },
         storage::arc_str::ArcStr,
     },
     iter::IntoDynBoxed,
@@ -20,7 +22,6 @@ use arrow_buffer::NullBuffer;
 use arrow_schema::{DataType, Field, TimeUnit};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use rustc_hash::FxHashMap;
 use std::{borrow::Cow, sync::Arc};
 
 pub trait PropCol: Send + Sync + std::fmt::Debug {
@@ -603,7 +604,7 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
                         col.get(i)
                             .map(|prop| (ArcStr::from(field.name().as_str()), prop))
                     })
-                    .collect::<FxHashMap<_, _>>();
+                    .collect::<PropMap>();
                 props.push(Prop::Map(fields.into()));
             }
 

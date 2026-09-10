@@ -582,13 +582,42 @@ def test_filter_edges_is_valid():
     return check
 
 
-@with_variants(init_graph4)
+# `init_graph4` adds (3, 4) on layer `fire_nation` and then deletes it without
+# naming a layer, so the tombstone lands on `_default` while the edge stays alive
+# on `fire_nation`. The two graph models read that state differently, so the
+# variants are asserted separately.
+@with_variants(init_graph4, variants=["graph"])
 def test_filter_edges_is_deleted():
     def check(graph):
+        # On an event graph `is_deleted` says a deletion event exists, which it
+        # does for (3, 4) regardless of which layer recorded it.
         filter_expr = filter.Edge.is_deleted()
         result_ids = sorted(graph.after(2).filter(filter_expr).edges.id)
         expected_ids = sorted([(3, 4)])
         assert result_ids == expected_ids
+
+    return check
+
+
+@with_variants(init_graph4, variants=["persistent_graph"])
+def test_filter_edges_is_deleted_persistent():
+    def check(graph):
+        """On a persistent graph an edge alive on any layer is not deleted.
+
+        (3, 4) is still alive on `fire_nation`, so it is not deleted in the
+        unlayered view; the `_default` view, which holds the tombstone, does
+        report it. Both spellings are checked against `is_deleted()` so the
+        filter and the method cannot drift apart.
+        """
+        filter_expr = filter.Edge.is_deleted()
+        view = graph.after(2)
+
+        assert view.edge(3, 4).is_deleted() is False
+        assert sorted(view.filter(filter_expr).edges.id) == []
+
+        default_layer = view.layer("_default")
+        assert default_layer.edge(3, 4).is_deleted() is True
+        assert sorted(default_layer.filter(filter_expr).edges.id) == sorted([(3, 4)])
 
     return check
 

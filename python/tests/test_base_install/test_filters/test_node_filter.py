@@ -884,6 +884,24 @@ def test_filter_nodes_for_node_type_eq():
     return check
 
 
+def test_node_type_comparison_to_a_non_string_type_is_a_python_error():
+    """`node_type() == 5` never becomes an expression.
+
+    The comparison itself raises, rather than falling back to Python's default
+    `==` and yielding a plain `bool`. That fallback was the dangerous shape: it
+    turned a mistyped comparison into a value that is not a filter at all, and
+    would silently become a match-everything filter the day a bare `bool` is
+    accepted as one. Failing at the comparison also puts the error where the
+    mistake is, instead of at some later `filter()` call.
+    """
+    with pytest.raises(TypeError):
+        filter.Node.node_type() == 5
+    with pytest.raises(TypeError):
+        filter.Node.node_type() != 5
+    # A correctly typed comparison still builds an expression.
+    assert isinstance(filter.Node.node_type() == "person", filter.FilterExpr)
+
+
 @with_variants(init_graph)
 def test_filter_nodes_for_node_type_ne():
     def check(graph):

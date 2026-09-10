@@ -10,7 +10,7 @@ use crate::{
 };
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
-use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
+use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
 use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
 use std::{path::Path, sync::Arc};
 
@@ -23,7 +23,7 @@ pub(crate) async fn setup_with_graphs(
     graphs: &[(&str, MaterializedGraph)],
     work_dir: &Path,
 ) -> TestSetup {
-    let data = Data::new(work_dir, &AppConfig::default(), Config::default());
+    let data = Data::new(work_dir, &AppConfig::default(), Args::default());
     for (path, graph) in graphs {
         let folder = data
             .work_dir_write()
@@ -41,7 +41,7 @@ pub(crate) async fn setup_with_policy(
     work_dir: &Path,
     policy: Arc<dyn AuthorizationPolicy>,
 ) -> TestSetup {
-    let mut data = Data::new(work_dir, &AppConfig::default(), Config::default());
+    let mut data = Data::new(work_dir, &AppConfig::default(), Args::default());
     for (path, graph) in graphs {
         let folder = data
             .work_dir_write()
@@ -61,13 +61,9 @@ pub(crate) async fn run_mutation(schema: &Schema, query: &str) -> async_graphql:
 }
 
 pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_graphql::Response {
-    // No `Access::Rw` injected, so the policy decides allow/deny.
-    // A role (`Option<String>`) is injected because `write_denied` in
-    // `model/mod.rs` returns the specific policy error message only when a
-    // role is present; with `None` it returns the generic
-    // `AuthError::RequireWrite` string, which would fail tests that assert on
-    // the policy-specific text.
-    let req = Request::new(query).data(Some("test-user".to_string()));
+    // No `Access::Rw` injected, so the policy decides allow/deny. `FakePolicy` resolves
+    // permissions by path alone, so no identity needs to travel in the request.
+    let req = Request::new(query);
     schema.execute(req).await
 }
 

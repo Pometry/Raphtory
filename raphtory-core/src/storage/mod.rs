@@ -5,11 +5,9 @@ use crate::{
 use arrow_schema::ArrowError;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use lazy_vec::LazyVec;
-use raphtory_api::core::{
-    entities::properties::prop::{prop_col::PropCol, AsPropRef, Prop, PropRef, PropType},
-    storage::arc_str::ArcStr,
+use raphtory_api::core::entities::properties::prop::{
+    prop_col::PropCol, AsPropRef, Prop, PropMap, PropRef, PropType,
 };
-use rustc_hash::FxHashMap;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
@@ -124,7 +122,7 @@ pub enum PropColumn {
     F64(LazyVec<f64>),
     Str(StringCol),
     List(LazyVec<PropArray>),
-    Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
+    Map(LazyVec<Arc<PropMap>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
     DTime(LazyVec<chrono::DateTime<chrono::Utc>>),
     Decimal(LazyVec<BigDecimal>),

@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+        api::{
+            state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+            view::internal::NodeList,
+        },
         graph::views::filter::model::{
             edge_filter::CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
             TryAsCompositeFilter,
@@ -63,6 +66,11 @@ impl NodeStateBoolColOp {
 
 impl NodeOp for NodeStateBoolColOp {
     type Output = bool;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        let elems = self.keys.clone();
+        NodeList::List { elems }
+    }
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> bool {
         let row = match self.row_index(node) {

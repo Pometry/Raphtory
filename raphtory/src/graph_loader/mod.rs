@@ -1,4 +1,4 @@
-//! Module for loading graphs into raphtory from various sources, like csv, neo4j, etc.
+//! Module for loading graphs into raphtory from various sources, like csv, parquet, etc.
 //!
 //! Provides the `GraphLoader` trait and some default implementations for loading a graph.
 //! This base class is used to load in-built graphs such as the LOTR, reddit and StackOverflow.
@@ -109,7 +109,6 @@ use zip::read::ZipArchive;
 pub mod company_house;
 pub mod karate_club;
 pub mod lotr_graph;
-pub mod neo4j_examples;
 pub mod reddit_hyperlinks;
 pub mod stable_coins;
 pub mod sx_superuser_graph;

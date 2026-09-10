@@ -16,7 +16,6 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
-from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
@@ -1581,14 +1580,6 @@ class HistoryTimestampIterable(object):
             list[NDArray[np.int64]]: NumPy NDArray of timestamps in milliseconds per history.
         """
 
-    def to_list(self) -> list[list[int]]:
-        """
-        Collect timestamps for each history into a list.
-
-        Returns:
-            list[list[int]]: List of timestamps in milliseconds per history.
-        """
-
 class IntervalsIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
@@ -1607,14 +1598,6 @@ class IntervalsIterable(object):
             list[NDArray[np.int64]]: NumPy NDArray of intervals per history.
         """
 
-    def to_list(self) -> list[list[int]]:
-        """
-        Collect intervals between each history's consecutive timestamps in milliseconds into a list.
-
-        Returns:
-            list[list[int]]: List of intervals per history.
-        """
-
 class HistoryEventIdIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
@@ -1631,14 +1614,6 @@ class HistoryEventIdIterable(object):
 
         Returns:
             list[NDArray[np.uintp]]: NumPy NDArray of event ids per history.
-        """
-
-    def to_list(self) -> list[list[int]]:
-        """
-        Collect event ids for each history into a list.
-
-        Returns:
-            list[list[int]]: List of event ids per history.
         """
 
 class HistoryDateTimeIterable(object):
@@ -1852,14 +1827,6 @@ class NestedHistoryTimestampIterable(object):
             list[int]: List of timestamps in milliseconds.
         """
 
-    def to_list(self) -> list[list[list[int]]]:
-        """
-        Collect timestamps for each history in each nested iterable into a list.
-
-        Returns:
-            list[list[list[int]]]: List of timestamps in milliseconds per nested history.
-        """
-
 class NestedIntervalsIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
@@ -1894,14 +1861,6 @@ class NestedIntervalsIterable(object):
             list[int]: List of intervals.
         """
 
-    def to_list(self) -> list[list[list[int]]]:
-        """
-        Collect intervals between each nested history's consecutive timestamps in milliseconds into a list.
-
-        Returns:
-            list[list[list[int]]]: List of intervals per nested history.
-        """
-
 class NestedHistoryEventIdIterable(object):
     def __iter__(self):
         """Implement iter(self)."""
@@ -1934,14 +1893,6 @@ class NestedHistoryEventIdIterable(object):
 
         Returns:
             list[int]: List of timestamps in milliseconds.
-        """
-
-    def to_list(self) -> list[list[list[int]]]:
-        """
-        Collect event ids for each history in each nested iterable into a list.
-
-        Returns:
-            list[list[list[int]]]: List of event ids per nested history.
         """
 
 class NestedHistoryDateTimeIterable(object):

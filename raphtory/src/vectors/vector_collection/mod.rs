@@ -2,6 +2,8 @@ use std::{future::Future, path::Path, sync::Arc};
 
 pub(crate) mod lancedb;
 
+pub(super) use lancedb::LanceDbCollection;
+
 use crate::{errors::GraphResult, vectors::Embedding};
 
 pub(super) type CollectionPath = Arc<dyn AsRef<Path> + Send + Sync>;
@@ -28,6 +30,9 @@ pub(super) trait VectorCollection: Sized + Clone + Send + Sync {
         ids: Vec<u64>,
         vectors: impl Iterator<Item = Embedding>,
     ) -> crate::errors::GraphResult<()>;
+    /// Ids already stored, so a partial index can skip them without rendering their documents.
+    /// A bitmap rather than a hash set: these are dense entity ids, and a graph can have millions
+    async fn existing_ids(&self) -> GraphResult<roaring::RoaringTreemap>;
     async fn get_id(&self, id: u64) -> GraphResult<Option<Embedding>>;
     fn top_k_with_distances(
         &self,

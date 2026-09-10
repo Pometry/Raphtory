@@ -36,7 +36,7 @@ use storage::{
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::{GraphWalOps, WalOps},
-    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
+    Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
@@ -59,14 +59,6 @@ where
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
-}
-
-impl Default for TemporalGraph<Extension> {
-    fn default() -> Self {
-        let config = Config::default();
-        let graph_dir = None;
-        Self::new(Extension::new(config, graph_dir).unwrap()).unwrap()
-    }
 }
 
 impl<EXT> TemporalGraph<EXT>

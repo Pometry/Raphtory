@@ -41,7 +41,7 @@ all = ["raphtory[export,plot]"]
 #   CI is unaffected either way: it installs the tox tool in its own environment and `tox run` builds
 #   isolated testenvs, so tox and pyiceberg never coexist there.
 dev = ["raphtory[all,test,tox]", "docstring_parser >= 0.16", "pandas-stubs", "pyarrow-stubs", "maturin>=1.8.3", "tox>=4.25,<4.36"]
-test = ["requests >= 2.34.2", "pyjwt[crypto] >= 2.13.0", "pytz>=2025.2", "polars >= 1.35.2", "duckdb >= 1.5.3", "pyiceberg[sql-sqlite] >= 0.8.0", "deltalake >= 1.0"]
+test = ["requests >= 2.34.2", "pyjwt[crypto] >= 2.13.0", "hypothesis >= 6.100", "pytz>=2025.2", "polars >= 1.35.2", "duckdb >= 1.5.3", "pyiceberg[sql-sqlite] >= 0.8.0", "deltalake >= 1.0"]
 tox = ["nbmake", "pytest >= 8", "pytest-benchmark >= 5.1.0"]
 
 [tool.maturin]

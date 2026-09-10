@@ -115,6 +115,16 @@ impl Debug for PublicKey {
 pub struct AuthConfig {
     pub public_key: Option<PublicKey>,
     pub require_auth_for_reads: bool,
+    /// Expected `aud`. When set, a token's audience must match. When unset, the audience check is
+    /// disabled so tokens carrying an `aud` are accepted — required for SSO/OIDC tokens, which
+    /// always set `aud`.
+    pub audience: Option<String>,
+    /// Expected `iss`. Validated when set.
+    pub issuer: Option<String>,
+    /// Name of the claim carrying the caller's role(s). Defaults to `role`. The claim may be a
+    /// string, or an array of strings (e.g. Entra's `roles`/`groups`); every entry is taken as a
+    /// role and the authorization policy merges their grants (most-permissive-wins).
+    pub role_claim: Option<String>,
 }
 
 impl Default for AuthConfig {
@@ -122,6 +132,9 @@ impl Default for AuthConfig {
         Self {
             public_key: None,
             require_auth_for_reads: DEFAULT_REQUIRE_AUTH_FOR_READS,
+            audience: None,
+            issuer: None,
+            role_claim: None,
         }
     }
 }

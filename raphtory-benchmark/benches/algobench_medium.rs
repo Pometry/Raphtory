@@ -31,15 +31,16 @@ use raphtory::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection,
     },
-    db::graph::views::filter::Unfiltered,
+    db::graph::views::filter::Exists,
     prelude::*,
 };
 use raphtory_api::core::Direction;
 use raphtory_benchmark::algobench_common::{
-    first_node_id, graph_benchmark, graph_benchmark_with_setup, medium_random_attachment_filtered,
-    medium_random_attachment_graph, medium_random_attachment_layered,
-    medium_random_attachment_subgraph, medium_typed_random_attachment_graph,
-    medium_weighted_random_attachment_graph,
+    first_node_id, graph_benchmark, graph_benchmark_with_setup,
+    large_dense_random_attachment_graph, large_random_attachment_graph,
+    medium_random_attachment_filtered, medium_random_attachment_graph,
+    medium_random_attachment_layered, medium_random_attachment_subgraph,
+    medium_typed_random_attachment_graph, medium_weighted_random_attachment_graph,
 };
 
 pub fn graphgen_clustering_coeff(c: &mut Criterion) {
@@ -215,15 +216,21 @@ pub fn graphgen_dijkstra(c: &mut Criterion) {
         "graphgen_dijkstra",
         5,
         10,
-        medium_random_attachment_graph,
-        first_node_id,
-        |graph, source| {
+        large_dense_random_attachment_graph,
+        |graph| {
+            (
+                first_node_id(graph),
+                graph.nodes().id().iter_values().last().unwrap(),
+            )
+        },
+        |graph, (source, dst)| {
             dijkstra_single_source_shortest_paths(
                 graph,
                 source.clone(),
-                vec![source.clone()],
+                vec![dst.clone()],
                 None,
                 Direction::BOTH,
+                None,
             )
             .unwrap()
         },
@@ -267,7 +274,7 @@ pub fn graphgen_in_component_filtered(c: &mut Criterion) {
         first_node_id,
         |graph, source| {
             let node = graph.node(source.clone()).expect("source node exists");
-            in_component_filtered(node, Unfiltered).unwrap()
+            in_component_filtered(node, Exists).unwrap()
         },
     );
 }

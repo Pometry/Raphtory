@@ -18,7 +18,8 @@ use crate::{
             state::ops::ArrowNodeOp,
             view::{
                 internal::{
-                    GraphTimeSemanticsOps, GraphView, InternalFilter, NodeTimeSemanticsOps, Static,
+                    DynGraphArc, GraphTimeSemanticsOps, GraphView, InternalFilter,
+                    NodeTimeSemanticsOps, Static,
                 },
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
@@ -367,36 +368,34 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Edges {
-        let graph = self.graph.clone();
         let node = self.node;
-        let edges = Arc::new(move || {
+        let edges = Arc::new(move |graph: DynGraphArc<'graph>| {
             let cg = graph.core_graph();
             op(cg, &graph, node).into_dyn_boxed()
         });
-        Edges {
-            base_graph: self.graph.clone(),
-            edges,
-        }
+        Edges::new(self.graph.clone(), edges)
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + Sync + 'graph,
-        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &DynGraphArc<'graph>, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::PathType {
-        let graph = self.graph.clone();
         let node = self.node;
-        PathFromNode::new(self.graph.clone(), move || {
-            let cg = graph.core_graph();
-            op(cg, &graph, node).into_dyn_boxed()
-        })
+        PathFromNode::new(
+            self.graph.clone(),
+            Arc::new(move |graph| {
+                let cg = graph.core_graph();
+                op(cg, &graph, node).into_dyn_boxed()
+            }),
+        )
     }
 }
 

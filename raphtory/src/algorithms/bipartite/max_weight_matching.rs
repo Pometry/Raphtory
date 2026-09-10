@@ -1471,7 +1471,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
     pub fn edges(&self) -> Edges<'graph, G> {
         let storage = self.graph.core_graph().clone();
         let forward_map = self.forward_map.clone();
-        let edges_iter = Arc::new(move || {
+        let edges_iter = Arc::new(move |_| {
             let storage = storage.clone();
             let forward_map = forward_map.clone();
             GenLockedIter::from(forward_map, move |forward_map| {
@@ -1482,10 +1482,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             })
             .into_dyn_boxed()
         });
-        Edges {
-            base_graph: self.graph.clone(),
-            edges: edges_iter,
-        }
+        Edges::new(self.graph.clone(), edges_iter)
     }
 
     pub fn contains<N: AsNodeRef>(&self, src: N, dst: N) -> bool {

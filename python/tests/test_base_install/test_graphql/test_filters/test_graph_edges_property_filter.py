@@ -17,14 +17,12 @@ def test_graph_edge_property_filter_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop5"
               where: { eq: { list: [{i64: 1},{i64: 2},{i64: 3}] } }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -45,14 +43,12 @@ def test_graph_edge_property_filter_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop5"
               where: { eq: { i64: 1 } }
             }
-          }
-        ) {
+          } }) {
           nodes { list { name } }
         }
       }
@@ -69,14 +65,12 @@ def test_graph_edge_property_filter_not_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop4"
               where: { ne: { bool: true } }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -97,14 +91,12 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop4"
               where: { ne: { i64: 1 } }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -121,14 +113,12 @@ def test_graph_edge_property_filter_greater_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop1"
               where: { ge: { i64: 60 } }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -149,14 +139,12 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop1"
               where: { ge: { bool: true } }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -173,14 +161,12 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: {
+        filterEdges: filter(expr: { edge: {
             property: {
               name: "eprop1"
               where: { le: { i64: 30 } }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -206,9 +192,7 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { le: { str: "shivam" } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { le: { str: "shivam" } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -225,9 +209,7 @@ def test_graph_edge_property_filter_greater_than(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { gt: { i64: 30 } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { gt: { i64: 30 } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -248,9 +230,7 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { gt: { str: "shivam" } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { gt: { str: "shivam" } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -267,9 +247,7 @@ def test_graph_edge_property_filter_less_than(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { lt: { i64: 30 } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { lt: { i64: 30 } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -290,9 +268,7 @@ def test_graph_edge_property_filter_less_than_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { lt: { str: "shivam" } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { lt: { str: "shivam" } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -309,9 +285,7 @@ def test_graph_edge_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop5", where: { isNone: true } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop5", where: { isNone: true } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -326,9 +300,7 @@ def test_graph_edge_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop5", where: { isSome: true } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop5", where: { isSome: true } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -355,9 +327,7 @@ def test_graph_edge_property_filter_is_in(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { isIn: { list: [{i64: 10},{i64: 20},{i64: 30}] } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { isIn: { list: [{i64: 10},{i64: 20},{i64: 30}] } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -383,9 +353,7 @@ def test_graph_edge_property_filter_is_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { isIn: { list: [] } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { isIn: { list: [] } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -400,9 +368,7 @@ def test_graph_edge_property_filter_is_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { isIn: { str: "shivam" } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { isIn: { str: "shivam" } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -419,9 +385,7 @@ def test_graph_edge_property_filter_is_not_in(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { isNotIn: { list: [{i64: 10},{i64: 20},{i64: 30}] } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { isNotIn: { list: [{i64: 10},{i64: 20},{i64: 30}] } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -442,9 +406,7 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { isNotIn: { list: [] } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { isNotIn: { list: [] } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -471,9 +433,7 @@ def test_graph_edge_property_filter_is_not_in_type_error(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(
-          expr: { property: { name: "eprop1", where: { isNotIn: { str: "shivam" } } } }
-        ) {
+        filterEdges: filter(expr: { edge: { property: { name: "eprop1", where: { isNotIn: { str: "shivam" } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -490,16 +450,14 @@ def test_graph_edge_not_property_filter(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges (
-          expr: {
+        filterEdges: filter(expr: { edge: {
             not: {
               property: {
                 name: "eprop5"
                 where: { eq: { list: [{i64: 1},{i64: 2}] } }
               }
             }
-          }
-        ) {
+          } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -526,12 +484,12 @@ def test_edges_property_filter_starts_with(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           property: {
             name: "eprop3"
             where: { startsWith: { str: "xyz" } }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -558,12 +516,12 @@ def test_edges_property_filter_ends_with(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           property: {
             name: "eprop3"
             where: { endsWith: { str: "123" } }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -622,9 +580,9 @@ def test_edges_selection_edges_filter_paired(graph):
     query {
       graph(path: "g") {
         edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
-          filter(expr:{
+          filter(expr: { edge: {
             property: { name: "p3", where: { eq:{ i64: 5 } } }
-          }) {
+          } }) {
             list { src { name } dst { name } }
           }
         }
@@ -654,15 +612,14 @@ def test_edges_chained_selection_edges_filter_paired(graph):
     query {
       graph(path: "g") {
         edges(select: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
-          select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
-            filter(expr: {
+          select(expr: { edge: { property: { name: "p2", where: { lt: { i64: 5 } } } } }) {
+            filter(expr: { edge: {
               dst: {
-                node: {
-                  field: NODE_ID
+                id: {
                   where: { eq: { u64: 2 } }
                 }
               }
-            }) {
+            } }) {
               list { src { name } dst { name } }
             }
           }
@@ -688,16 +645,15 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
     query {
       graph(path: "g") {
         edges {
-          select(expr: { property: { name: "p2", where: { gt: { i64: 3 } } } }) {
-            select(expr: { property: { name: "p2", where: { lt: { i64: 5 } } } }) {
-              filter(expr: {
+          select(expr: { edge: { property: { name: "p2", where: { gt: { i64: 3 } } } } }) {
+            select(expr: { edge: { property: { name: "p2", where: { lt: { i64: 5 } } } } }) {
+              filter(expr: { edge: {
                 dst: {
-                  node: {
-                    field: NODE_ID
+                  id: {
                     where: { eq: { u64: 2 } }
                   }
                 }
-              }) {
+              } }) {
                 list { src { name } dst { name } }
               }
             }
@@ -727,7 +683,7 @@ def test_edge_temporal_property_filter_empty_layers(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           layers: {
             names: []
             expr: {
@@ -737,7 +693,7 @@ def test_edge_temporal_property_filter_empty_layers(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -753,7 +709,7 @@ def test_edges_temporal_property_last_with_single_layer(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           layers: {
             names: ["air_nomads"]
             expr: {
@@ -763,7 +719,7 @@ def test_edges_temporal_property_last_with_single_layer(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -787,7 +743,7 @@ def test_edges_temporal_property_last_with_multiple_layers(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           layers: {
             names: ["fire_nation", "air_nomads"]
             expr: {
@@ -797,7 +753,7 @@ def test_edges_temporal_property_last_with_multiple_layers(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -820,7 +776,7 @@ def test_edges_temporal_property_last_with_default_layer(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           layers: {
             names: ["_default"]
             expr: {
@@ -830,7 +786,7 @@ def test_edges_temporal_property_last_with_default_layer(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -853,7 +809,7 @@ def test_edges_at_temporal_last(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           at: {
             time: 1
             expr: {
@@ -863,7 +819,7 @@ def test_edges_at_temporal_last(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -885,7 +841,7 @@ def test_edges_before_temporal_last(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           before: {
             time: 2
             expr: {
@@ -895,7 +851,7 @@ def test_edges_before_temporal_last(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -917,7 +873,7 @@ def test_edges_after_temporal_last(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           after: {
             time: 2
             expr: {
@@ -927,7 +883,7 @@ def test_edges_after_temporal_last(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -949,7 +905,7 @@ def test_edges_latest_temporal_last(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           latest: {
             expr: {
               temporalProperty: {
@@ -958,7 +914,7 @@ def test_edges_latest_temporal_last(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -979,7 +935,7 @@ def test_edges_snapshot_at_temporal_last(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           snapshotAt: {
             time: 2
             expr: {
@@ -989,7 +945,7 @@ def test_edges_snapshot_at_temporal_last(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -1010,7 +966,7 @@ def test_edges_snapshot_latest_temporal_last(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges(expr: {
+        filterEdges: filter(expr: { edge: {
           snapshotLatest: {
             expr: {
               temporalProperty: {
@@ -1019,7 +975,7 @@ def test_edges_snapshot_latest_temporal_last(graph):
               }
             }
           }
-        }) {
+        } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -1040,7 +996,7 @@ def test_edges_graph_filter_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filter(expr:  {
+        filter(expr: {
            window: {
               start: 1
               end: 4
@@ -1050,7 +1006,7 @@ def test_edges_graph_filter_gql(graph):
                  }
               }
             }
-        }) 
+        })
         {
           nodes {
             list {

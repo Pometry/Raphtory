@@ -12,7 +12,7 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
 };
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 
 pub fn graph_benchmark_with_setup<G, BuildGraph, Setup, Run, SetupData, Output>(
     c: &mut Criterion,
@@ -84,11 +84,23 @@ pub fn build_large_random_attachment_graph() -> Graph {
     graph
 }
 
+pub fn build_large_dense_random_attachment_graph() -> Graph {
+    let graph = Graph::new();
+    let seed: [u8; 32] = [1; 32];
+    random_attachment(&graph, 100000, 20, Some(seed));
+    graph
+}
+
 pub fn large_random_attachment_graph() -> Graph {
     static GRAPH: OnceLock<Graph> = OnceLock::new();
     GRAPH
         .get_or_init(build_large_random_attachment_graph)
         .clone()
+}
+
+pub fn large_dense_random_attachment_graph() -> Graph {
+    static GRAPH: LazyLock<Graph> = LazyLock::new(build_large_dense_random_attachment_graph);
+    GRAPH.clone()
 }
 
 pub fn large_random_attachment_subgraph() -> NodeSubgraph<Graph> {

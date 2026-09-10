@@ -1,7 +1,6 @@
 RaphtoryBench = None
 KuzuBench = None
 NetworkXBench = None
-Neo4jBench = None
 GraphToolBench = None
 MemgraphBench = None
 CozoDBBench = None
@@ -25,13 +24,6 @@ try:
 
     NetworkXBench = NetworkXBench()
 except ImportError as e:
-    pass
-
-try:
-    from neo4j_bench import Neo4jBench
-
-    Neo4jBench = Neo4jBench()
-except ImportError:
     pass
 
 try:

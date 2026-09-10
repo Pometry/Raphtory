@@ -9,10 +9,17 @@ impl TryFrom<Value> for Prop {
         match value {
             Value::Null => Err("Null property not valid".to_string()),
             Value::Bool(value) => Ok(value.into()),
+            // Preserve integer width: try i64, then u64 (values in i64::MAX+1..=u64::MAX stay
+            // exact rather than dropping to f64), then f64.
+            // Beyond u64::MAX there is no exact path here: serde_json (no arbitrary_precision) has
+            // already parsed the number to f64, so the digits are gone before this runs. Preserving
+            // those as Prop::Decimal needs arbitrary_precision enabled and the raw string parsed to
+            // BigDecimal.
             Value::Number(value) => value
                 .as_i64()
-                .map(|num| num.into())
-                .or_else(|| value.as_f64().map(|num| num.into()))
+                .map(Prop::I64)
+                .or_else(|| value.as_u64().map(Prop::U64))
+                .or_else(|| value.as_f64().map(Prop::F64))
                 .ok_or(format!("Number conversion error for: {}", value)),
             Value::String(value) => Ok(value.as_str().into()),
             Value::Array(value) => value

@@ -2,9 +2,9 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::{
-        api::view::filter_ops::{Filter, NodeSelect},
+        api::view::filter_ops::{Filter, Select},
         graph::{
-            graph::assert_edges_equal,
+            assertions::assert_edges_equal,
             views::filter::model::{
                 node_filter::{ops::NodeFilterOps, NodeFilter},
                 property_filter::ops::PropertyFilterOps,

@@ -21,11 +21,11 @@ use std::{
     sync::Arc,
 };
 
+pub mod additions;
 pub mod edge;
 pub mod graph_prop;
 pub mod node;
-
-pub mod additions;
+pub mod node_type_index;
 
 pub type PageIndexT = u32;
 

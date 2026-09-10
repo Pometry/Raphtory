@@ -19,9 +19,7 @@ pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
     /// The domain of validity for this node op
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
+    fn domain(&self, _storage: &GraphStorage) -> NodeList;
 
     /// Returns `Some(value)` if the node op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
@@ -29,7 +27,7 @@ pub trait NodeOp: Send + Sync {
     }
 
     /// Returns `Some(value)` if the node op has a constant value over the domain
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
+    fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<Self::Output> {
         self.const_value()
     }
 
@@ -73,7 +71,7 @@ pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
 
-    fn is_domain_filtered(&self) -> bool;
+    fn is_domain_filtered(&self, storage: &GraphStorage) -> bool;
 
     fn and<T>(self, other: T) -> AndOp<Self, T>;
 
@@ -88,8 +86,8 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
         self.const_value().is_none_or(|v| !v)
     }
 
-    fn is_domain_filtered(&self) -> bool {
-        self.const_value_in_domain().is_none_or(|v| !v)
+    fn is_domain_filtered(&self, storage: &GraphStorage) -> bool {
+        self.const_value_in_domain(storage).is_none_or(|v| !v)
     }
 
     fn and<T>(self, other: T) -> AndOp<Self, T> {
@@ -138,6 +136,10 @@ pub struct ArrowMap<Op: NodeOp, A> {
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
     type Output = V;
 
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.op.domain(storage)
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         (self.map)(self.op.apply(storage, node))
     }
@@ -151,6 +153,10 @@ impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> ArrowNodeOp for ArrowMap<Op
 
 impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> NodeOp for ArrowMap<Op, A> {
     type Output = Op::Output;
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.op.domain(storage)
+    }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.op.apply(storage, node)
@@ -172,8 +178,8 @@ impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
         self.deref().const_value()
     }
 
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
-        self.deref().const_value_in_domain()
+    fn const_value_in_domain(&self, storage: &GraphStorage) -> Option<Self::Output> {
+        self.deref().const_value_in_domain(storage)
     }
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {
@@ -189,6 +195,10 @@ where
     V: Send + Sync + Clone,
 {
     type Output = V;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn const_value(&self) -> Option<Self::Output> {
         Some(self.0.clone())
@@ -214,6 +224,12 @@ where
 {
     type Output = bool;
 
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.left
+            .domain(storage)
+            .intersection(&self.right.domain(storage))
+    }
+
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) == self.right.apply(storage, node)
     }
@@ -222,10 +238,15 @@ where
 impl<Left, Right> IntoDynNodeOp for Eq<Left, Right> where Eq<Left, Right>: NodeOp + 'static {}
 
 #[derive(Clone)]
-pub struct NotANodeFilter;
+/// Never type for filters that are not node filters. This can never be constructed (enum with no variants).
+pub enum NotANodeFilter {}
 
 impl NodeOp for NotANodeFilter {
     type Output = bool;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn apply(&self, _storage: &GraphStorage, _node: VID) -> Self::Output {
         panic!("Not a node filter")

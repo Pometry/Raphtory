@@ -3,8 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::{
-            properties::internal::NodePropertySchemaOps,
-            state::ops::{filter::MaskOp, TypeId},
+            properties::internal::NodePropertySchemaOps, state::ops::filter::NodeTypeFilterOp,
             view::DynamicGraph,
         },
         graph::views::filter::node_filtered_graph::NodeFilteredGraph,
@@ -37,20 +36,20 @@ impl NodeSchema {
 impl NodeSchema {
     /// The node type this schema describes (e.g. `"person"`, `"org"`).
     /// Falls back to the default node type for untyped nodes.
-    async fn type_name(&self) -> String {
+    pub async fn type_name(&self) -> String {
         self.type_name_inner()
     }
 
     /// Property schemas seen on nodes of this type — one entry per property key
     /// ever set on a node of this type, with its observed `PropertyType` and (for
     /// string-valued properties) the set of distinct values.
-    async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Vec<PropertySchema> {
         self.properties_inner()
     }
 
     /// Metadata schemas seen on nodes of this type — like `properties`, but
     /// covering metadata fields rather than temporal properties.
-    async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Vec<PropertySchema> {
         self.metadata_inner()
     }
 }
@@ -63,9 +62,11 @@ impl NodeSchema {
             .map(|type_name| type_name.to_string())
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
+
     fn properties_inner(&self) -> Vec<PropertySchema> {
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_temporal_prop_ids().collect();
+
         let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
@@ -73,7 +74,7 @@ impl NodeSchema {
             .locked()
             .iter_ids_and_types()
             .filter(|(id, _, _)| visible.contains(id))
-            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
+            .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
             .unzip();
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
@@ -86,10 +87,13 @@ impl NodeSchema {
             keys.into_par_iter()
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
-                    let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
-                    let filter = TypeId.mask(node_types_filter.into());
+                    let num_type_ids = self.graph.node_meta().node_type_meta().num_all_fields();
+                    let mut node_types_mask = vec![false; num_type_ids];
+                    node_types_mask[self.type_id] = true;
+
+                    let filter =
+                        NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
+
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
                             .nodes()
@@ -97,6 +101,7 @@ impl NodeSchema {
                             .into_iter_values()
                             .filter_map(|props| props.get(&key).map(|v| v.to_string()))
                             .collect();
+
                     if unique_values.is_empty() {
                         None
                     } else {
@@ -105,6 +110,7 @@ impl NodeSchema {
                         } else {
                             vec![]
                         };
+
                         variants.sort();
                         Some(PropertySchema::new(key, dtype, variants))
                     }
@@ -123,7 +129,7 @@ impl NodeSchema {
             .locked()
             .iter_ids_and_types()
             .filter(|(id, _, _)| visible.contains(id))
-            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
+            .map(|(_, name, dtype)| (name.to_string(), dtype.clone()))
             .unzip();
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
@@ -136,10 +142,13 @@ impl NodeSchema {
             keys.into_par_iter()
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
-                    let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-                    node_types_filter[self.type_id] = true;
-                    let filter = TypeId.mask(node_types_filter.into());
+                    let num_type_ids = self.graph.node_meta().node_type_meta().num_all_fields();
+                    let mut node_types_mask = vec![false; num_type_ids];
+                    node_types_mask[self.type_id] = true;
+
+                    let filter =
+                        NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
+
                     let unique_values: ahash::HashSet<_> =
                         NodeFilteredGraph::new(self.graph.clone(), filter)
                             .nodes()
@@ -147,6 +156,7 @@ impl NodeSchema {
                             .into_iter_values()
                             .filter_map(|props| props.get(&key).map(|v| v.to_string()))
                             .collect();
+
                     if unique_values.is_empty() {
                         None
                     } else {
@@ -155,6 +165,7 @@ impl NodeSchema {
                         } else {
                             vec![]
                         };
+
                         variants.sort();
                         Some(PropertySchema::new(key, dtype, variants))
                     }
@@ -172,6 +183,7 @@ mod test {
     use crate::model::schema::{graph_schema::GraphSchema, node_schema::PropertySchema};
     use pretty_assertions::assert_eq;
     use raphtory::errors::GraphError;
+    use raphtory_api::core::entities::properties::prop::PropType;
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {
@@ -246,29 +258,36 @@ mod test {
         let expected = vec![
             (
                 "None".to_string(),
-                vec![(("t", "Str"), ["person"]).into()],
+                vec![(("t", PropType::Str), ["person"]).into()],
                 vec![],
             ),
             (
                 "a".to_string(),
                 vec![
-                    (("cost", "F64"), ["99.5"]).into(),
-                    (("t", "Str"), ["wallet"]).into(),
+                    (("cost", PropType::F64), ["99.5"]).into(),
+                    (("t", PropType::Str), ["wallet"]).into(),
                 ],
-                vec![(("lol", "Str"), ["smile"]).into()],
+                vec![(("lol", PropType::Str), ["smile"]).into()],
             ),
             (
                 "b".to_string(),
                 vec![
-                    (("bool_prop", "Bool"), ["true"]).into(),
-                    (("cost_b", "F64"), ["76"]).into(),
-                    (("list_prop", "List<F64>"), ["[1.1, 2.2, 3.3]"]).into(),
+                    (("bool_prop", PropType::Bool), ["true"]).into(),
+                    (("cost_b", PropType::F64), ["76"]).into(),
                     (
-                        ("map_prop", "Map{ a: F64, b: F64 }"),
+                        ("list_prop", PropType::List(Box::new(PropType::F64))),
+                        ["[1.1, 2.2, 3.3]"],
+                    )
+                        .into(),
+                    (
+                        (
+                            "map_prop",
+                            PropType::map([("a", PropType::F64), ("b", PropType::F64)]),
+                        ),
                         ["{\"a\": 1, \"b\": 2}"],
                     )
                         .into(),
-                    (("str_prop", "Str"), ["hello"]).into(),
+                    (("str_prop", PropType::Str), ["hello"]).into(),
                 ],
                 vec![],
             ),

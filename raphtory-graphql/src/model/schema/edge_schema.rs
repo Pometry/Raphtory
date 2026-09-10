@@ -44,17 +44,17 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
 #[ResolvedObjectFields]
 impl<G: StaticGraphViewOps> EdgeSchema<G> {
     /// Returns the type of source for these edges
-    async fn src_type(&self) -> String {
+    pub async fn src_type(&self) -> String {
         self.src_type.clone()
     }
 
     /// Returns the type of destination for these edges
-    async fn dst_type(&self) -> String {
+    pub async fn dst_type(&self) -> String {
         self.dst_type.clone()
     }
 
     /// Returns the list of property schemas for edges connecting these types of nodes
-    async fn properties(&self) -> Vec<PropertySchema> {
+    pub async fn properties(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
             let schema: SchemaAggregate = cloned
@@ -67,7 +67,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         .await
     }
     /// Returns the list of metadata schemas for edges connecting these types of nodes
-    async fn metadata(&self) -> Vec<PropertySchema> {
+    pub async fn metadata(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
             let schema: SchemaAggregate = cloned
@@ -91,8 +91,7 @@ fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggr
                 key.to_string(),
                 mapper
                     .get_dtype(id)
-                    .expect("type for internal id should always exist")
-                    .to_string(),
+                    .expect("type for internal id should always exist"),
             );
             Some((key_with_prop_type, HashSet::from([value.to_string()])))
         })

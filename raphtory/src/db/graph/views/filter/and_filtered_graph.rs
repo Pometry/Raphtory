@@ -4,9 +4,10 @@ use crate::{
             InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
         },
         view::internal::{
-            EdgeList, Immutable, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
-            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-            InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
+            EdgeList, GraphView, Immutable, InheritMaterialize, InheritStorageOps,
+            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+            InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, ListOps,
+            NodeList, Static,
         },
     },
     prelude::GraphViewOps,
@@ -29,6 +30,18 @@ pub struct AndFilteredGraph<G, L, R> {
     pub(crate) left: L,
     pub(crate) right: R,
     pub(crate) layer_ids: LayerIds,
+}
+
+impl<G: GraphView, L: GraphView, R: GraphView> AndFilteredGraph<G, L, R> {
+    pub fn new(graph: G, left: L, right: R) -> Self {
+        let layer_ids = left.layer_ids().intersect(right.layer_ids());
+        Self {
+            graph,
+            left,
+            right,
+            layer_ids,
+        }
+    }
 }
 
 impl<G, L, R> Base for AndFilteredGraph<G, L, R> {

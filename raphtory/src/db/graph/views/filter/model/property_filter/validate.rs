@@ -105,6 +105,11 @@ impl<M> PropertyFilter<M> {
                 return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
             }
         };
+        // A numeric filter value may target any numeric property: `Prop::compare` widens across the
+        // numeric variants, so an exact-type match isn't required (str-vs-numeric still errors).
+        if expected.is_numeric() && filter_dtype.is_numeric() {
+            return Ok(filter_dtype);
+        }
         unify_types(expected, &filter_dtype, &mut false)
             .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
         Ok(filter_dtype)

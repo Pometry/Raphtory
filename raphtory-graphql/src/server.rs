@@ -1,18 +1,20 @@
 use crate::{
-    auth::{AuthenticatedGraphQL, MutationAuth},
+    auth::{AuthenticatedGraphQL, KeyResolver, MutationAuth},
     auth_policy::AuthorizationPolicy,
-    config::{app_config::AppConfig, auth_config::PublicKeyError},
-    data::Data,
-    model::{
-        plugins::{entry_point::EntryPoint, operation::Operation},
-        App,
+    cli::ServerArgs,
+    config::{
+        app_config::{AppConfig, AppConfigBuilder},
+        auth_config::PublicKeyError,
     },
+    data::Data,
+    model::App,
     observability::open_telemetry::OpenTelemetry,
+    plugin::schema::RegisterPlugin,
+    rayon::{configure_pools, PoolSettings},
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
-use config::ConfigError;
-use once_cell::sync::Lazy;
+use async_graphql::dynamic::Schema;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::{
@@ -26,16 +28,17 @@ use poem::{
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
 use std::{
+    error::Error,
     fs::create_dir_all,
     future::Future,
     io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
-    sync::RwLock,
+    sync::{Arc, Mutex},
     task::{Context, Poll},
 };
 use thiserror::Error;
@@ -60,30 +63,14 @@ use url::ParseError;
 
 #[cfg(feature = "vectors")]
 use {
-    crate::{model::graph::vectorised_graph::VectorQuery, paths::ExistingGraphFolder, GQLError},
-    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate, VectorsQuery},
+    crate::{paths::ExistingGraphFolder, GQLError},
+    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
+use crate::plugin::server::PluginRegistrationError;
+pub use config::ConfigError;
+
 pub const DEFAULT_PORT: u16 = 1736;
-
-type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
-
-static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
-
-pub fn register_server_extension(f: ServerExtensionFn) {
-    *SERVER_EXTENSION.write().unwrap() = Some(f);
-}
-
-pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
-    match SERVER_EXTENSION.read().unwrap().as_ref() {
-        Some(ext) => ext(server, path),
-        None => server,
-    }
-}
-
-pub fn has_server_extension() -> bool {
-    SERVER_EXTENSION.read().unwrap().is_some()
-}
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -111,6 +98,14 @@ pub enum ServerError {
     SchemaError(String),
     #[error("Failed to create endpoints: {0}")]
     EndpointError(String),
+    #[error(transparent)]
+    CliPluginRegistrationError(#[from] PluginRegistrationError),
+}
+
+impl ServerError {
+    pub fn config_error(err: impl Error + Send + Sync + 'static) -> Self {
+        Self::ConfigError(ConfigError::Foreign(Box::new(err)))
+    }
 }
 
 impl From<ServerError> for io::Error {
@@ -119,7 +114,7 @@ impl From<ServerError> for io::Error {
     }
 }
 
-type SchemaDataInjector = std::sync::Arc<
+type SchemaDataInjector = Arc<
     dyn Fn(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder
         + Send
         + Sync,
@@ -132,26 +127,8 @@ pub struct GraphServer {
     work_dir: PathBuf,
     config: AppConfig,
     schema_data: Vec<SchemaDataInjector>,
-}
-
-pub fn register_query_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
-}
-
-pub fn register_mutation_plugin<
-    'a,
-    E: EntryPoint<'a> + 'static + Send,
-    A: Operation<'a, E> + 'static + Send,
->(
-    name: &str,
-) {
-    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+    key_resolver: Option<Arc<dyn KeyResolver>>,
+    schema_plugins: Vec<Box<dyn RegisterPlugin>>,
 }
 
 impl GraphServer {
@@ -162,19 +139,33 @@ impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
-        graph_config: Config,
-    ) -> IoResult<Self> {
+        graph_args: Args,
+    ) -> Result<Self, ServerError> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = app_config.unwrap_or_default();
-        let data = Data::new(work_dir.as_path(), &config, graph_config);
-        Ok(Self {
+        configure_pools(PoolSettings {
+            max_concurrent_loads: config.concurrency.max_concurrent_loads,
+        });
+        let extensions = config.extensions.clone();
+        let data = Data::new(work_dir.as_path(), &config, graph_args);
+        let server = Self {
             work_dir,
             data,
             config,
             schema_data: Vec::new(),
-        })
+            key_resolver: None,
+            schema_plugins: Vec::new(),
+        };
+        extensions.process(server)
+    }
+
+    pub async fn new_from_args(args: ServerArgs) -> Result<Self, ServerError> {
+        let app_config = AppConfigBuilder::new_from_args(args.config_args)?.build();
+        let work_dir = args.work_dir;
+        let graph_config = args.graph_config;
+        GraphServer::new(work_dir, Some(app_config), graph_config).await
     }
 
     /// Returns the working directory for this server.
@@ -182,16 +173,28 @@ impl GraphServer {
         &self.work_dir
     }
 
+    /// Register a custom JWT key resolver (e.g. an SSO/JWKS resolver from an auth extension). When
+    /// set, it replaces the static `auth.public_key` for token verification.
+    pub fn with_key_resolver(mut self, resolver: Arc<dyn KeyResolver>) -> Self {
+        self.key_resolver = Some(resolver);
+        self
+    }
+
+    /// Returns the resolved application config.
+    pub fn config(&self) -> &AppConfig {
+        &self.config
+    }
+
     /// Set the authorization policy used for graph access checks.
-    pub fn with_auth_policy(mut self, policy: std::sync::Arc<dyn AuthorizationPolicy>) -> Self {
+    pub fn with_auth_policy(mut self, policy: Arc<dyn AuthorizationPolicy>) -> Self {
         self.data.set_auth_policy(policy);
         self
     }
 
     /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
     pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
-        let data = std::sync::Arc::new(std::sync::Mutex::new(Some(data)));
-        self.schema_data.push(std::sync::Arc::new(move |sb| {
+        let data = Arc::new(Mutex::new(Some(data)));
+        self.schema_data.push(Arc::new(move |sb| {
             let data = data
                 .lock()
                 .unwrap()
@@ -199,6 +202,12 @@ impl GraphServer {
                 .expect("schema data injector called more than once");
             sb.data(data)
         }));
+        self
+    }
+
+    /// Inject resolver plugins into hte GQL schema
+    pub fn with_schema_plugin(mut self, plugin: impl RegisterPlugin) -> Self {
+        self.schema_plugins.push(Box::new(plugin));
         self
     }
 
@@ -265,15 +274,18 @@ impl GraphServer {
         let acceptor = TcpListener::bind(format!("0.0.0.0:{port}"))
             .into_acceptor()
             .await?;
-        // set up opentelemetry first of all
+
+        // Setup opentelemetry tracing and logging providers.
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
         let tracer_name = config.tracing.service_name.clone();
         let tp = config.tracing.tracer_provider().await?;
-        // Create the base registry
-        let registry = Registry::default().with(filter).with(
-            fmt::layer().pretty().with_span_events(FmtSpan::NONE), //(FULL, NEW, ENTER, EXIT, CLOSE)
-        );
+
+        // Create the base registry.
+        let registry = Registry::default()
+            .with(filter)
+            .with(fmt::layer().pretty().with_span_events(FmtSpan::NONE));
+
         match tp.clone() {
             Some((span, log)) => {
                 registry
@@ -283,7 +295,7 @@ impl GraphServer {
                     )
                     .with(OpenTelemetryTracingBridge::new(&log))
                     .try_init()
-                    .unwrap_or_else(|err| error!("Failed to initialise tracer provider: {err}"));
+                    .unwrap_or_else(|err| warn!("Failed to initialise tracing subscriber: {err}"));
             }
             None => {
                 registry.try_init().ok();
@@ -330,13 +342,10 @@ impl GraphServer {
         })
     }
 
-    async fn generate_endpoint(
-        &self,
-        tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    pub async fn build_schema(&self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
-        let mut schema_builder = App::create_schema()
+        let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
             .data(self.data.clone())
             .data(self.config.concurrency.clone());
 
@@ -360,21 +369,33 @@ impl GraphServer {
             schema_builder = schema_builder.disable_introspection();
         }
         let trace_level = self.config.tracing.level.clone();
-        let schema = if let Some(t) = tracer {
+        if let Some(t) = tracer {
             schema_builder
                 .extension(OpenTelemetry::new(t, trace_level))
                 .finish()
         } else {
             schema_builder.finish()
         }
-        .map_err(|e| SchemaError(e.to_string()))?;
+        .map_err(|e| SchemaError(e.to_string()))
+    }
+
+    async fn generate_endpoint(
+        &self,
+        tracer: Option<Tracer>,
+    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let schema = self.build_schema(tracer).await?;
 
         let app = Route::new()
             .nest(
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.clone()),
+                    self.config.schema.disable_ui,
+                    AuthenticatedGraphQL::new(
+                        schema,
+                        self.config.clone(),
+                        self.key_resolver.clone(),
+                    ),
                 ),
             )
             .at("/health", get(health))
@@ -476,13 +497,12 @@ async fn server_termination(
         _ = terminate => {},
         _ = internal_terminate => {},
     }
+    // Stop global tracing exporters on server shutdown, except for when running
+    // integration tests, where they are reused across multiple tests.
     #[cfg(not(feature = "integration-test"))]
     match tp {
         None => {}
         Some((tp, lp)) => {
-            /* Avoid shutting down global tracing exporters on server shutdown during integration tests
-               since they are reused across multiple tests.
-            */
             tokio::task::spawn_blocking(move || {
                 let res = tp.shutdown();
                 if let Err(e) = res {
@@ -503,7 +523,7 @@ async fn server_termination(
 mod server_tests {
     use crate::{config::app_config::AppConfigBuilder, server::GraphServer};
     use chrono::prelude::*;
-    use raphtory::db::api::storage::storage::Config;
+    use raphtory::prelude::Args;
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
     use tokio::time::{sleep, Duration};
@@ -527,7 +547,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -541,6 +561,47 @@ mod server_tests {
             assert_eq!(resp.status(), 200, "GET {path}");
             assert_eq!(resp.text().await.unwrap(), "<html>ui</html>", "GET {path}");
         }
+
+        running.stop().await
+    }
+
+    #[tokio::test]
+    async fn test_disable_ui_serves_api_not_ui() {
+        let work_dir = tempdir().unwrap();
+        let app_config = AppConfigBuilder::new().with_disable_ui(true).build();
+        let server = GraphServer::new(
+            work_dir.path().to_path_buf(),
+            Some(app_config),
+            Args::default(),
+        )
+        .await
+        .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let port = running.port();
+
+        // The UI is gone on every GET path.
+        for path in ["/", "/graphs", "/index.html"] {
+            let resp = reqwest::get(format!("http://localhost:{port}{path}"))
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), 404, "GET {path}");
+        }
+
+        // The server still answers: health check works.
+        let health = reqwest::get(format!("http://localhost:{port}/health"))
+            .await
+            .unwrap();
+        assert_eq!(health.status(), 200);
+
+        // ...and the GraphQL API (POST) works.
+        let api = reqwest::Client::new()
+            .post(format!("http://localhost:{port}/"))
+            .header("content-type", "application/json")
+            .body(r#"{"query":"{__typename}"}"#)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(api.status(), 200);
 
         running.stop().await
     }
@@ -572,7 +633,7 @@ mod server_tests {
     async fn test_batch_size_limit_enforced() {
         let work_dir = tempdir().unwrap();
         // Default config: max_batch_size defaults to 10.
-        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(work_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let running = server.start_with_port(0).await.unwrap();
@@ -590,7 +651,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -607,7 +668,7 @@ mod server_tests {
         let server = GraphServer::new(
             work_dir.path().to_path_buf(),
             Some(app_config),
-            Config::default(),
+            Args::default(),
         )
         .await
         .unwrap();
@@ -629,7 +690,7 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         info!("Calling start at time {}", Local::now());
@@ -648,7 +709,7 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Config::default())
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
             .unwrap();
         let template = DocumentTemplate {

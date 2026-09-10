@@ -99,12 +99,17 @@ impl<I: IntoIterator<Item = V>, V: AsNodeRef + Debug> IntoSeeds for I {
 }
 
 impl IntoSeeds for Probability {
+    /// Seeds each node independently with this probability (Bernoulli sampling)
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,
-        _rng: &mut R,
+        rng: &mut R,
     ) -> Result<Vec<VID>, SeedError> {
-        Ok(graph.nodes().iter().map(|node| node.node).collect())
+        Ok(graph
+            .nodes()
+            .iter()
+            .filter_map(|node| self.sample(rng).then_some(node.node))
+            .collect())
     }
 }
 

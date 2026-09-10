@@ -4,14 +4,13 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
                 TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 
@@ -41,28 +40,30 @@ impl InternalViewWrapOps for GraphFilter {
 }
 
 impl CreateFilter for GraphFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = G;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = F;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = NodeExistsOp<G>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodeExistsOp<F>;
 
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(graph)
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        Ok(filtered)
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(graph))
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        Ok(NodeExistsOp::new(filtered))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -74,6 +75,11 @@ impl CreateFilter for GraphFilter {
 }
 
 impl TryAsCompositeFilter for GraphFilter {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        // The bare graph anchor restricts nothing — an empty view chain.
+        Ok(FilterTree::View(Vec::new()))
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }

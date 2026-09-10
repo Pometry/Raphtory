@@ -8,7 +8,7 @@ use crate::{
         graph::{
             node::NodeView,
             nodes::Nodes,
-            views::filter::{CreateFilter, Unfiltered},
+            views::filter::{CreateFilter, Exists},
         },
         task::{
             context::Context,
@@ -20,9 +20,10 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use indexmap::{map::Entry, IndexMap};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
 };
 
@@ -72,7 +73,7 @@ pub fn in_components<G>(
 where
     G: StaticGraphViewOps,
 {
-    in_components_filtered(g, threads, Unfiltered).expect("Unfiltered should never fail")
+    in_components_filtered(g, threads, Exists).expect("Unfiltered should never fail")
 }
 
 /// Computes the in components of each node in the filtered graph
@@ -91,7 +92,7 @@ pub fn in_components_filtered<G, F>(
 where
     G: StaticGraphViewOps,
     F: CreateFilter + 'static,
-    F::EntityFiltered<'static, F::FilteredGraph<'static, G>>: StaticGraphViewOps,
+    F::EntityFiltered<'static, G, F::FilteredGraph<'static, G>>: StaticGraphViewOps,
 {
     let filtered = g.filter(filter)?;
     let ctx: Context<_, _> = (&filtered).into();
@@ -171,7 +172,7 @@ pub fn in_component<'graph, G>(
 where
     G: GraphViewOps<'graph>,
 {
-    in_component_filtered(node, Unfiltered).expect("Unfiltered should never fail")
+    in_component_filtered(node, Exists).expect("Unfiltered should never fail")
 }
 
 /// Computes the in-component of a given node in the filtered graph
@@ -192,9 +193,9 @@ pub fn in_component_filtered<'graph, G, F>(
 where
     G: GraphViewOps<'graph>,
     F: CreateFilter + 'graph,
-    F::EntityFiltered<'graph, F::FilteredGraph<'graph, G>>: GraphViewOps<'graph>,
+    F::EntityFiltered<'graph, G, F::FilteredGraph<'graph, G>>: GraphViewOps<'graph>,
 {
-    let mut in_components = HashMap::new();
+    let mut in_components = IndexMap::with_hasher(ahash::RandomState::new());
     let mut to_check_stack = VecDeque::new();
     let filtered = node.filter(filter)?;
     filtered.in_neighbours().iter().for_each(|node| {

@@ -103,6 +103,39 @@ impl<'b> VectorQuery<'b> {
         }
     }
 
+    /// Index only the entities that are missing from an existing vector index, leaving what is
+    /// already indexed untouched. Cheap enough to run routinely, and never destructive.
+    ///
+    /// Fails if the graph has no index yet, or if the template or model differs from the one the
+    /// index was built with — `vectoriseGraph` is what covers those, by rebuilding.
+    ///
+    /// Returns:: bool
+    async fn vectorise_missing<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+        #[graphql(desc = "Embedding model; must match the one the index was built with.")]
+        model: Option<EmbeddingModel>,
+        #[graphql(desc = "Node-document template; must match the one the index was built with.")]
+        nodes: Option<Template>,
+        #[graphql(desc = "Edge-document template; must match the one the index was built with.")]
+        edges: Option<Template>,
+    ) -> async_graphql::Result<bool> {
+        ctx.require_jwt_write_access()?;
+        let data = ctx.data_unchecked::<Data>();
+        let template = DocumentTemplate {
+            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+        };
+        let cached_model = model
+            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+            .cache(ctx)
+            .await?;
+        let folder = ExistingGraphFolder::try_from(data.work_dir_read().await, &path)?;
+        data.vectorise_missing_in_folder(&folder, &template, cached_model)
+            .await?;
+        Ok(true)
+    }
+
     /// Create vectorised graph in the format used for queries
     ///
     /// Returns:: GqlVectorisedGraph
@@ -116,7 +149,7 @@ impl<'b> VectorQuery<'b> {
 }
 
 #[derive(InputObject)]
-pub(super) struct VectorisedGraphWindow {
+pub struct VectorisedGraphWindow {
     /// Inclusive lower bound of the search window.
     start: GqlTimeInput,
     /// Exclusive upper bound of the search window.
@@ -139,7 +172,7 @@ impl IntoWindowTuple for Option<VectorisedGraphWindow> {
 /// (`optimizeIndex`).
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorisedGraph")]
-pub(crate) struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
+pub struct GqlVectorisedGraph(VectorisedGraph<MaterializedGraph>);
 
 impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
     fn from(value: VectorisedGraph<MaterializedGraph>) -> Self {
@@ -152,20 +185,20 @@ impl GqlVectorisedGraph {
     /// Rebuild (or incrementally update) the on-disk vector indexes for nodes
     /// and edges so subsequent similarity searches hit the fresh embeddings.
     /// Safe to call repeatedly; returns true on success.
-    async fn optimize_index(&self) -> GraphResult<bool> {
+    pub async fn optimize_index(&self) -> GraphResult<bool> {
         self.0.optimize_index().await?;
         Ok(true)
     }
 
     /// Returns an empty selection of documents.
-    async fn empty_selection(&self) -> GqlVectorSelection {
+    pub async fn empty_selection(&self) -> GqlVectorSelection {
         self.0.empty_selection().into()
     }
 
     /// Find the highest-scoring nodes *and* edges (mixed) by similarity to a
     /// natural-language query. The query is embedded server-side and matched
     /// against indexed entity vectors.
-    async fn entities_by_similarity(
+    pub async fn entities_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Maximum number of results to return.")] limit: usize,
@@ -185,7 +218,7 @@ impl GqlVectorisedGraph {
     /// Find the highest-scoring nodes by similarity to a natural-language
     /// query. The query is embedded server-side and matched against indexed
     /// node vectors.
-    async fn nodes_by_similarity(
+    pub async fn nodes_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Maximum number of nodes to return.")] limit: usize,
@@ -204,7 +237,7 @@ impl GqlVectorisedGraph {
     /// Find the highest-scoring edges by similarity to a natural-language
     /// query. The query is embedded server-side and matched against indexed
     /// edge vectors.
-    async fn edges_by_similarity(
+    pub async fn edges_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
         #[graphql(desc = "Maximum number of edges to return.")] limit: usize,

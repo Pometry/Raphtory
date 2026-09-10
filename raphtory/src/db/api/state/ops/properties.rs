@@ -3,6 +3,7 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             state::ops::{ArrowNodeOp, GraphView, NodeOp},
+            view::internal::NodeList,
         },
         graph::node::NodeView,
     },
@@ -41,6 +42,10 @@ impl<'graph, G: GraphView + 'graph> From<Properties<NodeView<'graph, G>>>
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<'graph, G> {
     type Output = Properties<NodeView<'graph, G>>;
 
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Properties::new(NodeView::new_internal(self.graph.clone(), node))
     }
@@ -75,6 +80,10 @@ impl<'graph, G: GraphView + 'graph> From<Metadata<'graph, NodeView<'graph, G>>>
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetMetadata<'graph, G> {
     type Output = Metadata<'graph, NodeView<'graph, G>>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Metadata::new(NodeView::new_internal(self.graph.clone(), node))

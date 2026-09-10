@@ -95,13 +95,26 @@ def test_max_query_complexity():
 
 
 # (field path, query) pairs covering every list-returning resolver:
-# GqlCollection, GqlNodes, GqlEdges, GqlPathFromNode, GqlHistory, GqlHistoryTimestamp,
-# GqlHistoryDateTime, GqlHistoryEventId, GqlIntervals, and the six WindowSet types.
+# GqlCollection, GqlNodes, GqlEdges, GqlPathFromNode, GqlPathFromGraph, GqlHistory,
+# GqlHistoryTimestamp, GqlHistoryDateTime, GqlHistoryEventId, GqlIntervals, and the
+# six WindowSet types.
 LIST_QUERIES = [
     ("collection (namespaces)", "{ namespaces { list { path } } }"),
     ("GqlNodes", '{ graph(path: "g") { nodes { list { name } } } }'),
     ("GqlNodes.ids", '{ graph(path: "g") { nodes { ids } } }'),
     ("GqlEdges", '{ graph(path: "g") { edges { list { src { name } } } } }'),
+    (
+        "GqlNodes.degree (columnar)",
+        '{ graph(path: "g") { nodes { degree } } }',
+    ),
+    (
+        "GqlNodes.edgeHistoryCount (columnar)",
+        '{ graph(path: "g") { nodes { edgeHistoryCount } } }',
+    ),
+    (
+        "GqlPathFromNode.degree (columnar)",
+        '{ graph(path: "g") { node(name: "ben") { neighbours { degree } } } }',
+    ),
     (
         "GqlPathFromNode",
         '{ graph(path: "g") { node(name: "ben") { neighbours { list { name } } } } }',
@@ -109,6 +122,26 @@ LIST_QUERIES = [
     (
         "GqlPathFromNode.ids",
         '{ graph(path: "g") { node(name: "ben") { neighbours { ids } } } }',
+    ),
+    (
+        "GqlPathFromGraph",
+        '{ graph(path: "g") { nodes { neighbours { list { ids } } } } }',
+    ),
+    (
+        "GqlPathFromGraph.ids (columnar)",
+        '{ graph(path: "g") { nodes { neighbours { ids } } } }',
+    ),
+    (
+        "GqlPathFromGraph.degree (columnar)",
+        '{ graph(path: "g") { nodes { neighbours { degree } } } }',
+    ),
+    (
+        "GqlPathFromGraph.inDegree (columnar)",
+        '{ graph(path: "g") { nodes { neighbours { inDegree } } } }',
+    ),
+    (
+        "GqlPathFromGraph.outDegree (columnar)",
+        '{ graph(path: "g") { nodes { neighbours { outDegree } } } }',
     ),
     (
         "GqlHistory",

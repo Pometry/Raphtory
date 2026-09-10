@@ -125,7 +125,9 @@ impl MemNodeSegment {
                     head_guard.max_page_len(),
                     head_guard.meta().clone(),
                 );
+
                 std::mem::swap(&mut *head_guard, &mut old_head);
+
                 old_head
             })
             .collect::<Vec<_>>()
@@ -174,14 +176,14 @@ impl MemNodeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
-        let est_size = self.est_size;
-        self.est_size = 0;
+        let est_size = std::mem::take(&mut self.est_size);
+
         Self {
             segment_id: self.segment_id,
             max_page_len: self.max_page_len,
-            est_size,
             global_mem_tracker: self.global_mem_tracker.clone(),
             layers,
+            est_size,
             lsn: self.lsn,
         }
     }
@@ -622,6 +624,15 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
             .map_or(0, |layer| layer.len())
     }
 
+    fn get_metadata_immut(
+        &self,
+        _pos: LocalPOS,
+        _layer_id: LayerId,
+        _prop_id: usize,
+    ) -> Option<Prop> {
+        None
+    }
+
     fn check_metadata_immut<PR: AsPropRef>(
         &self,
         _pos: LocalPOS,
@@ -634,6 +645,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
 #[cfg(test)]
 mod test {
+    use super::MemNodeSegment;
     use crate::{
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
@@ -657,7 +669,7 @@ mod test {
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
         let config = BaseConfig::new(10, 10);
-        let ext = NoOpStrategy::new(config, None).unwrap();
+        let ext = NoOpStrategy::new(None, config).unwrap();
         let segment_id = 0;
         let segment = NodeSegmentView::new(
             segment_id,
@@ -666,11 +678,11 @@ mod test {
             Some(path.path().to_path_buf()),
             ext.clone(),
         );
-        let stats = GraphStats::default();
 
+        let stats = GraphStats::default();
         let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
 
-        let est_size1 = writer.mut_segment.est_size();
+        let est_size1 = writer.writer.est_size();
         assert_eq!(est_size1, 0);
 
         writer.add_outbound_edge(
@@ -680,7 +692,7 @@ mod test {
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size2 = writer.mut_segment.est_size();
+        let est_size2 = writer.writer.est_size();
         assert!(
             est_size2 > est_size1,
             "Estimated size should be greater than 0 after adding an edge"
@@ -693,7 +705,7 @@ mod test {
             EID(8).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size3 = writer.mut_segment.est_size();
+        let est_size3 = writer.writer.est_size();
         assert!(
             est_size3 > est_size2,
             "Estimated size should increase after adding an inbound edge"
@@ -707,7 +719,8 @@ mod test {
             VID(3),
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
-        let est_size4 = writer.mut_segment.est_size();
+
+        let est_size4 = writer.writer.est_size();
         assert_eq!(
             est_size4, est_size3,
             "Estimated size should not change when adding the same edge again"
@@ -727,7 +740,7 @@ mod test {
             [(prop_id, Prop::U64(73))],
         );
 
-        let est_size5 = writer.mut_segment.est_size();
+        let est_size5 = writer.writer.est_size();
         assert!(
             est_size5 > est_size4,
             "Estimated size should increase after adding constant properties"
@@ -735,7 +748,7 @@ mod test {
 
         writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), STATIC_GRAPH_LAYER_ID));
 
-        let est_size6 = writer.mut_segment.est_size();
+        let est_size6 = writer.writer.est_size();
         assert!(
             est_size6 > est_size5,
             "Estimated size should increase after updating timestamp"
@@ -755,7 +768,7 @@ mod test {
             [(prop_id, Prop::F64(4.13))],
         );
 
-        let est_size7 = writer.mut_segment.est_size();
+        let est_size7 = writer.writer.est_size();
         assert!(
             est_size7 > est_size6,
             "Estimated size should increase after adding temporal properties"
@@ -767,11 +780,13 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
             [(prop_id, Prop::F64(5.41))],
         );
-        let est_size8 = writer.mut_segment.est_size();
+
+        let est_size8 = writer.writer.est_size();
         assert!(
             est_size8 > est_size7,
             "Estimated size should increase after adding another temporal property"
         );
+
         drop(writer);
 
         // after drop the global estimated size should be the same as the last estimated size of the writer

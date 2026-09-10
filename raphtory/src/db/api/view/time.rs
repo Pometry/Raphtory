@@ -106,9 +106,6 @@ pub trait TimeOps<'graph>:
     /// set the end of the window to the smaller of `end` and `self.end()`
     fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType;
 
-    /// shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-    fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType;
-
     /// Return the size of the window covered by this view or None if the window is unbounded
     fn window_size(&self) -> Option<u64>;
 
@@ -227,12 +224,6 @@ impl<'graph, V: InternalFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeO
     fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
         let end = Some(min(end.into_time(), self.end().unwrap_or(EventTime::MAX)));
         self.internal_window(self.start(), end)
-    }
-
-    fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        let start = max(start.into_time(), self.start().unwrap_or(EventTime::MIN));
-        let end = min(end.into_time(), self.end().unwrap_or(EventTime::MAX));
-        self.internal_window(Some(start), Some(end))
     }
 
     fn window_size(&self) -> Option<u64> {

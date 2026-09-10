@@ -1,12 +1,12 @@
 use crate::{
     paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
-    rayon::blocking_compute,
+    rayon::blocking_load,
 };
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{
                 internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
@@ -34,7 +34,10 @@ use std::{
 use tracing::debug;
 
 #[cfg(feature = "vectors")]
-use raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph};
+use {
+    raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
+    tracing::error,
+};
 
 /// The element stored in the optional vectors slot of a graph. With the
 /// `vectors` feature this is a real `VectorisedGraph`; without it the slot is
@@ -95,6 +98,23 @@ impl GraphWithVectors {
         });
         future.await
     }
+    /// Swap in a read-only handle for the graph. No-op with a warning if the inner
+    /// state is unexpectedly shared (only call right after construction).
+    pub(crate) fn into_read_only(self) -> Self {
+        match Arc::try_unwrap(self.inner) {
+            Ok(mut inner) => {
+                inner.graph = inner.graph.read_only();
+                Self {
+                    inner: Arc::new(inner),
+                }
+            }
+            Err(inner) => {
+                tracing::warn!("graph handle shared during load; serving it without read-only");
+                Self { inner }
+            }
+        }
+    }
+
     pub fn graph(&self) -> &MaterializedGraph {
         &self.inner.graph
     }
@@ -177,26 +197,40 @@ impl GraphWithVectors {
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
-            blocking_compute(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+            blocking_load(move || {
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         } else {
-            blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+            blocking_load(move || {
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         };
+
         #[cfg(feature = "vectors")]
-        let vectors =
-            VectorisedGraph::read_from_path(&folder.vectors_path()?, graph.clone(), cache)
-                .await
-                .ok();
+        let vectors = {
+            let vectors_path = folder.vectors_path()?;
+            match VectorisedGraph::read_from_path(&vectors_path, graph.clone(), cache).await {
+                Ok(vectors) => Some(vectors),
+                Err(error) => {
+                    // a graph that was never vectorised has no vectors dir, that is not a failure
+                    if vectors_path.exists() {
+                        error!(
+                            "Could not load the vectors of graph {}: {error}",
+                            folder.local_path()
+                        );
+                    }
+                    None
+                }
+            }
+        };
+
         #[cfg(not(feature = "vectors"))]
         let vectors = None;
 

@@ -4,16 +4,18 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{
     core::{
-        entities::properties::prop::{Prop, PropArray, PropArrayUnwrap, PropType, PropUnwrap},
+        entities::properties::prop::{
+            Prop, PropArray, PropArrayUnwrap, PropMap, PropType, PropUnwrap,
+        },
         storage::{
             arc_str::ArcStr,
             timeindex::{AsTime, EventTime},
         },
+        utils,
         utils::time::IntoTime,
     },
     iter::BoxedLIter,
 };
-use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Debug, Formatter},
@@ -117,13 +119,13 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     /// Compute the sum of all property values, or `None` if the dtype is not additive or the
     /// property is empty.
     pub fn sum(&self) -> Option<Prop> {
-        generalised_reduce(self.values(), |a, b| a.add(b), |p| p.dtype().has_add())
+        utils::generalised_reduce(self.values(), |a, b| a.add(b), |p| p.dtype().has_add())
     }
 
     /// Find the minimum `(time, value)` pair, or `None` if the dtype is not comparable or the
     /// property is empty.
     pub fn min(&self) -> Option<(EventTime, Prop)> {
-        generalised_reduce(
+        utils::generalised_reduce(
             self.iter(),
             |a, b| {
                 if a.1.partial_cmp(&b.1)?.is_le() {
@@ -139,7 +141,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     /// Find the maximum `(time, value)` pair, or `None` if the dtype is not comparable or the
     /// property is empty.
     pub fn max(&self) -> Option<(EventTime, Prop)> {
-        generalised_reduce(
+        utils::generalised_reduce(
             self.iter(),
             |a, b| {
                 if a.1.partial_cmp(&b.1)?.is_ge() {
@@ -160,14 +162,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     /// Compute the mean of all property values as an `F64` Prop, or `None` if any value cannot be
     /// converted to `f64` or the property is empty.
     pub fn mean(&self) -> Option<Prop> {
-        let mut iter = self.values();
-        let mut sum = iter.next()?.as_f64()?;
-        let mut count = 1usize;
-        for value in iter {
-            sum += value.as_f64()?;
-            count += 1;
-        }
-        Some(Prop::F64(sum / count as f64))
+        Prop::mean(self.values())
     }
 
     /// Alias for `mean`.
@@ -364,7 +359,7 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_list()
     }
 
-    fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
+    fn into_map(self) -> Option<Arc<PropMap>> {
         self.latest().into_map()
     }
 
@@ -383,23 +378,14 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
     fn into_dtime(self) -> Option<DateTime<Utc>> {
         self.latest().into_dtime()
     }
+
+    fn as_f32(&self) -> Option<f32> {
+        self.latest().as_f32()
+    }
 }
 
 impl<P: InternalPropertiesOps + Clone> PropArrayUnwrap for TemporalPropertyView<P> {
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()
     }
-}
-
-fn generalised_reduce<V>(
-    data: impl IntoIterator<Item = V>,
-    op: impl Fn(V, V) -> Option<V>,
-    check: impl Fn(&V) -> bool,
-) -> Option<V> {
-    let mut iter = data.into_iter();
-    let first = iter.next()?;
-    if !check(&first) {
-        return None;
-    }
-    iter.try_fold(first, op)
 }

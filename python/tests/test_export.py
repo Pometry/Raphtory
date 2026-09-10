@@ -107,13 +107,13 @@ def test_graph_timestamp_list_properties():
         ],
     )
 
-    assert g.node("a")["array_column"].tolist() == [1, 2, 3]
+    assert g.node("a").properties.get("array_column").tolist() == [1, 2, 3]
 
-    assert g.node("a")["date_column_ms"] == df["date_column_ms"][0]
-    assert g.node("a")["date_column_us"] == df["date_column_us"][0]
+    assert g.node("a").properties.get("date_column_ms") == df["date_column_ms"][0]
+    assert g.node("a").properties.get("date_column_us") == df["date_column_us"][0]
 
-    assert g.node("a")["date_column"] == date_column[0]
-    assert g.node("a")["date_column_ns"] == df["date_column_ns"][0]
+    assert g.node("a").properties.get("date_column") == date_column[0]
+    assert g.node("a").properties.get("date_column_ns") == df["date_column_ns"][0]
 
 
 def test_graph_build_from_pandas_without_datetime_type():

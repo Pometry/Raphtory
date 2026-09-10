@@ -1,20 +1,17 @@
 use mock_collector::{MockServer, Protocol};
 use raphtory::{
-    db::api::storage::storage::Config,
+    db::api::storage::storage::Args,
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
-    client::raphtory_client::RaphtoryGraphQLClient,
+    client::remote_client::RemoteClient,
     config::{
         app_config::AppConfigBuilder,
         otlp_config::{TracingLevel, TracingProtocol},
     },
     server::GraphServer,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    time::Duration,
-};
+use std::{collections::HashSet, time::Duration};
 use tempfile::tempdir;
 use url::Url;
 
@@ -40,32 +37,46 @@ async fn test_open_telemetry_http_tracing_server() {
     let server = GraphServer::new(
         work_dir.path().to_path_buf(),
         Some(app_config),
-        Config::default(),
+        Args::default(),
     )
     .await
     .unwrap();
-    let handler = server.start_with_port(0).await.unwrap();
 
+    let handler = server.start_with_port(0).await.unwrap();
     let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
-    let client = RaphtoryGraphQLClient::new(endpoint, None);
+    let client = RemoteClient::new(endpoint, None);
     let open_telemetry_query = "query {
-	updateGraph(path: \"g\") {
-		addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
-			success
-			node { id }
-		}
-		addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
-			success
-		}
-		graph {
-			countNodes
-			hasNode(name: 1)
-		}
-		flush
-	}
-}".to_string();
+        updateGraph(path: \"g\") {
+            addNode(
+                time: 1,
+                name: 1,
+                properties: [{ key: \"seed\", value: { str: \"yes\" } }],
+                nodeType: \"seed\",
+                layer: \"main\"
+            ) {
+                success
+                node { id }
+            }
+            addEdge(
+                time: 5,
+                src: 1,
+                dst: 2,
+                properties: [{ key: \"weight\", value: { f64: 1.5 } }],
+                layer: \"main\"
+            ) {
+                success
+            }
+            graph {
+                countNodes
+                hasNode(name: 1)
+            }
+            flush
+        }
+    }"
+    .to_string();
+
     let _ = client
-        .query(&open_telemetry_query, HashMap::new())
+        .query(&open_telemetry_query, Default::default())
         .await
         .unwrap();
 
@@ -76,6 +87,7 @@ async fn test_open_telemetry_http_tracing_server() {
         .wait_for_spans(1, Duration::from_secs(50))
         .await
         .unwrap();
+
     tracing_server
         .wait_for_logs(1, Duration::from_secs(50))
         .await
@@ -88,6 +100,7 @@ async fn test_open_telemetry_http_tracing_server() {
                 .iter()
                 .map(|span| span.span().name.clone())
                 .collect();
+
             assert_eq!(
                 all_spans,
                 HashSet::from([
@@ -102,6 +115,7 @@ async fn test_open_telemetry_http_tracing_server() {
                     "validation".to_string(),
                 ])
             );
+
             assert!(collector.log_count() > 0);
         })
         .await;

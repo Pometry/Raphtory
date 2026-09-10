@@ -3,13 +3,13 @@ use crate::{
     python::server::{
         running_server::PyRunningGraphServer, wait_server, BridgeCommand, ServerStarted,
     },
-    server::{apply_server_extension, ServerError},
+    server::ServerError,
     GraphServer,
 };
 use crossbeam_channel::RecvTimeoutError;
 use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
-use pythonize::depythonize;
-use raphtory::{db::api::storage::storage::Config, python::utils::block_on};
+use pythonize::{depythonize, pythonize};
+use raphtory::{db::api::storage::storage::Args, python::utils::block_on};
 use raphtory_api::python::error::adapt_err_value;
 use std::{path::PathBuf, thread, time::Duration};
 
@@ -26,30 +26,45 @@ use {
 ///
 /// Arguments:
 ///     work_dir (str | PathLike): the working directory for the server
-///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-///     log_level (str, optional): the log level for the server
-///     tracing (bool, optional): whether tracing should be enabled
-///     tracing_level (str, optional): tracing verbosity (e.g. "ERROR", "WARN", "INFO", "DEBUG", "TRACE").
-///     otlp_agent_host (str, optional): OTLP agent host for tracing
-///     otlp_agent_port(str, optional): OTLP agent port for tracing
-///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
-///     config_path (str | PathLike, optional): Path to the config file
-///     auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
-///     require_auth_for_reads (bool, optional): Require auth tokens for read queries
-///     create_index (bool, optional): Build a search index on startup
-///     heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
-///     exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
-///     disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
-///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request. Defaults to 10; set to null for unlimited (subject to disable_batching).
-///     disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
-///     max_page_size (int, optional): Maximum page size allowed on paged collection queries.
-///     max_query_depth (int, optional): Maximum nesting depth of a query.
-///     max_query_complexity (int, optional): Maximum estimated cost of a query, based on the number of fields selected.
-///     max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
-///     max_directives_per_field (int, optional): Maximum number of directives on any single field.
-///     disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
-///     permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
+///     config_path (str | PathLike, optional): path to a TOML config file, loaded first
+///     config (dict, optional): configuration overrides applied on top of `config_path`, as a
+///                              dict of nested sections. Unknown section or field names raise an
+///                              error. The available sections and fields are:
+///
+///                              * `logging`: `log_level` (str)
+///                              * `cache`: `capacity` (int) - maximum number of graphs to keep
+///                                in memory at once
+///                              * `tracing`: `enabled` (bool), `level` (str, e.g. "ERROR",
+///                                "WARN", "INFO", "DEBUG", "TRACE"), `agent_host` (str),
+///                                `service_name` (str), `transport_protocol` (str),
+///                                `transport_headers` (dict[str, str]),
+///                                `transport_certificate` (str | PathLike)
+///                              * `auth`: `public_key` (str, base64-encoded key used to verify
+///                                bearer tokens), `require_auth_for_reads` (bool),
+///                                `audience` (str), `issuer` (str), `role_claim` (str)
+///                              * `concurrency`: `heavy_query_limit` (int, maximum number of
+///                                expensive traversal queries allowed to run simultaneously;
+///                                extra queries are parked on a semaphore),
+///                                `exclusive_writes` (bool, run write operations one at a time
+///                                and block reads until complete), `disable_batching` (bool,
+///                                reject batched GraphQL requests), `max_batch_size` (int, cap
+///                                on the number of queries in a batched request; null for
+///                                unlimited), `disable_lists` (bool, disable bulk `list`
+///                                endpoints so clients must use `page`), `max_page_size` (int)
+///                              * `schema`: `max_query_depth` (int), `max_query_complexity`
+///                                (int, based on the number of fields selected),
+///                                `max_recursive_depth` (int, safety limit against stack
+///                                overflows from pathologically structured queries),
+///                                `max_directives_per_field` (int),
+///                                `disable_introspection` (bool)
+///                              * `parquet`: `allowed_paths` (list[str | PathLike]) - the paths
+///                                parquet loading is restricted to
+///                              * `public_dir` (str | PathLike): directory served as static
+///                                files
+///
+///                              A section naming none of the above is taken as a server
+///                              extension's settings, so which further sections are accepted
+///                              depends on which extensions the build has.
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
@@ -91,13 +106,13 @@ impl PyGraphServer {
     #[new]
     #[pyo3(
         signature = (
-            work_dir, config_path=None,permissions_store_path=None, config=None
+            work_dir, config_path=None, config=None
         )
     )]
     fn py_new(
+        py: Python<'_>,
         work_dir: PathBuf,
         config_path: Option<PathBuf>,
-        permissions_store_path: Option<PathBuf>,
         config: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
@@ -110,9 +125,21 @@ impl PyGraphServer {
             app_config_builder.update_from_json(depythonize(config.as_any())?)?;
         }
         let app_config = Some(app_config_builder.build());
-        let server = block_on(GraphServer::new(work_dir, app_config, Config::default()))?;
-        let server = apply_server_extension(server, permissions_store_path.as_deref());
+        // An extension may block during startup (a role source syncs before the server is ready);
+        // release the GIL so it doesn't freeze the interpreter and an in-process dependency can
+        // still respond.
+        let server =
+            py.detach(|| block_on(GraphServer::new(work_dir, app_config, Args::default())))?;
         Ok(PyGraphServer(server))
+    }
+
+    /// The full config schema as a nested dict: every field, including ones unset by default.
+    ///
+    /// Returns:
+    ///     dict: the configuration schema.
+    fn config_schema<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let value = self.0.config().config_schema_json()?;
+        Ok(pythonize(py, &value)?)
     }
 
     /// Vectorise the graph name in the server working directory.

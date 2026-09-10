@@ -16,7 +16,9 @@ use crate::{
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
+use pyo3::{
+    pyclass, pymethods, types::PyAnyMethods, Bound, IntoPyObject, PyAny, PyErr, PyResult, Python,
+};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::sync::Arc;
 
@@ -50,8 +52,13 @@ impl PyPropertyExprBuilder {
     ///
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating equality.
-    fn __eq__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.eq(value))
+    fn __eq__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+        // Extract explicitly: with a concrete parameter type pyo3 turns a
+        // conversion failure into `NotImplemented`, so Python falls back to
+        // its default `==` and hands back a plain `bool` instead of a filter
+        // expression — the comparison silently stops being a filter.
+        let value: Prop = value.extract()?;
+        Ok(PyFilterExpr(self.0.eq(value)))
     }
 
     /// Checks whether the property is not equal to the given value.
@@ -61,8 +68,13 @@ impl PyPropertyExprBuilder {
     ///
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating inequality.
-    fn __ne__(&self, value: Prop) -> PyFilterExpr {
-        PyFilterExpr(self.0.ne(value))
+    fn __ne__(&self, value: &Bound<'_, PyAny>) -> PyResult<PyFilterExpr> {
+        // Extract explicitly: with a concrete parameter type pyo3 turns a
+        // conversion failure into `NotImplemented`, so Python falls back to
+        // its default `==` and hands back a plain `bool` instead of a filter
+        // expression — the comparison silently stops being a filter.
+        let value: Prop = value.extract()?;
+        Ok(PyFilterExpr(self.0.ne(value)))
     }
 
     /// Checks whether the property is less than the given value (exclusive).

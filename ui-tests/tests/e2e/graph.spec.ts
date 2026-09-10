@@ -1,4 +1,5 @@
-import { expect } from '@playwright/test';
+import { expect, type ConsoleMessage } from '@playwright/test';
+
 import { test } from '../fixtures';
 import {
     changeTab,
@@ -17,6 +18,7 @@ import {
     getGraphState,
     getInteractiveCanvas,
     getNodePositions,
+    moveLayerToTop,
     navigateToGraphPageBySearch,
     rightClickOnNode,
     save,
@@ -24,6 +26,7 @@ import {
     saveAsWithRandomName,
     selectLayout,
     style,
+    styleEdgeLayer,
 } from './graph.utils';
 import { navigateInSavedGraphs } from './saved-graphs.utils';
 import { openTimeline } from './temporalview.utils';
@@ -34,9 +37,7 @@ test('Graph page title includes the graph name', async ({ page }) => {
     await expect(page).toHaveTitle('event | Pometry UI');
 });
 
-test('Document title updates when navigating between graphs', async ({
-    page,
-}) => {
+test('Document title updates when navigating between graphs', async ({ page }) => {
     await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
     await expect(page).toHaveTitle('event | Pometry UI');
 
@@ -52,15 +53,11 @@ test('Close right hand side panel button and open again', async ({ page }) => {
     await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
 
     await page.getByRole('button', { name: 'Collapse panel' }).click();
-    await expect(
-        page.getByRole('button', { name: 'Collapse panel' }),
-    ).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Collapse panel' })).toBeHidden();
 
     await page.getByRole('button', { name: 'Expand Overview' }).click();
 
-    await expect(
-        page.getByRole('button', { name: 'Collapse panel' }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Collapse panel' })).toBeVisible();
 });
 
 test('Click save as button opens save as dialog', async ({ page }) => {
@@ -79,18 +76,11 @@ test('Highlight founds then transfers', async ({ page }) => {
     await waitForLayoutToFinish(page);
     await page.getByText('Relationships').waitFor();
 
-    await page
-        .getByText('transfers3')
-        .getByRole('button', { name: 'Highlight on graph' })
-        .click();
+    await page.getByText('transfers3').getByRole('button', { name: 'Highlight on graph' }).click();
     await waitForLayoutToFinish(page);
     // transfers edges: Hamza→Pedro, Pedro→Hamza, Ben→Hamza
     const transfersState = await getGraphState(page);
-    expect(transfersState.highlighted.map((n) => n.id).sort()).toEqual([
-        'Ben',
-        'Hamza',
-        'Pedro',
-    ]);
+    expect(transfersState.highlighted.map((n) => n.id).sort()).toEqual(['Ben', 'Hamza', 'Pedro']);
     // Highlighting must not select the endpoint nodes
     expect(transfersState.selected).toEqual([]);
 
@@ -99,18 +89,11 @@ test('Highlight founds then transfers', async ({ page }) => {
     // otherwise on webkit it lingers over the founds row directly below
     // and intercepts the next click.
     await page.mouse.move(0, 0);
-    await page
-        .getByText('founds2')
-        .getByRole('button', { name: 'Highlight on graph' })
-        .click();
+    await page.getByText('founds2').getByRole('button', { name: 'Highlight on graph' }).click();
     await waitForLayoutToFinish(page);
     // founds edges: Ben→Pometry, Hamza→Pometry
     const foundsState = await getGraphState(page);
-    expect(foundsState.highlighted.map((n) => n.id).sort()).toEqual([
-        'Ben',
-        'Hamza',
-        'Pometry',
-    ]);
+    expect(foundsState.highlighted.map((n) => n.id).sort()).toEqual(['Ben', 'Hamza', 'Pometry']);
     expect(foundsState.selected).toEqual([]);
 });
 
@@ -127,13 +110,9 @@ test('Test layouts', async ({ page }) => {
     expect(await page.screenshot()).toMatchSnapshot('concentric-layout.png');
     await selectLayout(page, 'Top-to-bottom hierarchical tree');
 
-    expect(await page.screenshot()).toMatchSnapshot(
-        'hierarchical-td-layout.png',
-    );
+    expect(await page.screenshot()).toMatchSnapshot('hierarchical-td-layout.png');
     await selectLayout(page, 'Left-to-right hierarchical tree');
-    expect(await page.screenshot()).toMatchSnapshot(
-        'hierarchical-lr-layout.png',
-    );
+    expect(await page.screenshot()).toMatchSnapshot('hierarchical-lr-layout.png');
     await selectLayout(page, 'Physics-based layout with natural clustering');
     expect(await page.screenshot()).toMatchSnapshot('default-layout.png');
 
@@ -182,16 +161,12 @@ for (const nodeName of ['Pedro', 'Hamza', 'Ben']) {
         });
         await clickOnNode(page, nodeName);
         await changeTab(page, 'Selected');
-        await expect(
-            page.getByRole('heading', { name: nodeName }),
-        ).toBeVisible();
+        await expect(page.getByRole('heading', { name: nodeName })).toBeVisible();
         await expect(page.getByText('Age', { exact: true })).toBeVisible();
     });
 }
 
-test('Expand via all entry points and restore via all hide paths', async ({
-    page,
-}) => {
+test('Expand via all entry points and restore via all hide paths', async ({ page }) => {
     // Three expand/restore iterations stack up many waitForLayoutToFinish
     // calls (each with a 2s fixed sleep), so the default 30s isn't enough.
     test.setTimeout(60000);
@@ -204,12 +179,8 @@ test('Expand via all entry points and restore via all hide paths', async ({
     const expectExpanded = async () => {
         await waitForLayoutToFinish(page);
         const state = await getGraphState(page);
-        expect(new Set(state.nodes.map((n) => n.id))).toEqual(
-            new Set(['Pedro', 'Ben', 'Hamza']),
-        );
-        expect(
-            state.nodes.find((n) => n.id === 'Pedro')?.badgeText,
-        ).toBeUndefined();
+        expect(new Set(state.nodes.map((n) => n.id))).toEqual(new Set(['Pedro', 'Ben', 'Hamza']));
+        expect(state.nodes.find((n) => n.id === 'Pedro')?.badgeText).toBeUndefined();
     };
 
     const expectCollapsed = async () => {
@@ -225,16 +196,12 @@ test('Expand via all entry points and restore via all hide paths', async ({
 
     const expandByContextMenu = async () => {
         await rightClickOnNode(page, 'Pedro');
-        await page
-            .getByRole('menuitem', { name: 'Expand', exact: true })
-            .click();
+        await page.getByRole('menuitem', { name: 'Expand', exact: true }).click();
     };
 
     const expandByFloatingExplore = async () => {
         await clickOnNode(page, 'Pedro');
-        await page
-            .getByRole('button', { name: 'Explore', exact: true })
-            .click();
+        await page.getByRole('button', { name: 'Explore', exact: true }).click();
         await page
             .getByRole('menuitem', {
                 name: 'Show all nodes directly connected to selection',
@@ -282,9 +249,7 @@ test('Expand via all entry points and restore via all hide paths', async ({
     }
 });
 
-test('Expanding a node shows the querying loading indicator', async ({
-    page,
-}) => {
+test('Expanding a node shows the querying loading indicator', async ({ page }) => {
     await navigateToGraphPageBySearch(page, {
         type: 'node',
         nodeName: 'Pedro',
@@ -319,14 +284,10 @@ test('Expanding a node shows the querying loading indicator', async ({
     await page.unrouteAll({ behavior: 'ignoreErrors' });
     await waitForLayoutToFinish(page);
     const state = await getGraphState(page);
-    expect(new Set(state.nodes.map((n) => n.id))).toEqual(
-        new Set(['Pedro', 'Ben', 'Hamza']),
-    );
+    expect(new Set(state.nodes.map((n) => n.id))).toEqual(new Set(['Pedro', 'Ben', 'Hamza']));
 });
 
-test('Expand shared neighbours by floating actions button', async ({
-    page,
-}) => {
+test('Expand shared neighbours by floating actions button', async ({ page }) => {
     await navigateToGraphPageBySearch(page, {
         type: 'edge',
         src: 'Hamza',
@@ -426,9 +387,7 @@ test('Click and deselect by floating actions', async ({ page }) => {
 
     await expect(page.getByText('Pedro').nth(0)).toBeVisible();
     await page.getByRole('button', { name: 'Selection' }).click();
-    await page
-        .getByRole('menuitem', { name: 'Clear current selection' })
-        .click();
+    await page.getByRole('menuitem', { name: 'Clear current selection' }).click();
     await waitForLayoutToFinish(page);
     await expect(page.getByText('Pedro').nth(0)).toBeHidden();
 });
@@ -448,13 +407,9 @@ test('Select all from menu and via shortcut', async ({ page }) => {
     await page.keyboard.up('Control');
     await page.waitForTimeout(500);
     const state = await getGraphState(page);
-    expect(new Set(state.selected)).toEqual(
-        new Set(['None', 'Pedro', 'Ben', 'Hamza', 'Pometry']),
-    );
+    expect(new Set(state.selected)).toEqual(new Set(['None', 'Pedro', 'Ben', 'Hamza', 'Pometry']));
     await page.getByRole('button', { name: 'Selection' }).click();
-    await page
-        .getByRole('menuitem', { name: 'Clear current selection', exact: true })
-        .click();
+    await page.getByRole('menuitem', { name: 'Clear current selection', exact: true }).click();
     await waitForLayoutToFinish(page);
     const state2 = await getGraphState(page);
     expect(state2.selected).toHaveLength(0);
@@ -467,9 +422,7 @@ test('Select all from menu and via shortcut', async ({ page }) => {
         .click();
     await waitForLayoutToFinish(page);
     const state3 = await getGraphState(page);
-    expect(new Set(state3.selected)).toEqual(
-        new Set(['None', 'Pedro', 'Ben', 'Hamza', 'Pometry']),
-    );
+    expect(new Set(state3.selected)).toEqual(new Set(['None', 'Pedro', 'Ben', 'Hamza', 'Pometry']));
 });
 
 test('Click backspace to delete nodes', async ({ page }) => {
@@ -488,9 +441,7 @@ test('Click backspace to delete nodes', async ({ page }) => {
     expect((await getGraphState(page)).nodes).toHaveLength(2);
 });
 
-test('RHS Selected properties has max height for table cells', async ({
-    page,
-}) => {
+test('RHS Selected properties has max height for table cells', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'new_folder',
         graphName: 'persistent_second_filler',
@@ -506,31 +457,19 @@ test('RHS Selected properties has max height for table cells', async ({
 test.describe('Change colour and size of individual node', () => {
     test.use({ isolatedGraphsConfig: ['new_folder/persistent_filler'] });
 
-    test('Change colour and size of individual node', async ({
-        page,
-        isolatedGraphs,
-    }) => {
+    test('Change colour and size of individual node', async ({ page, isolatedGraphs }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_filler');
         await fitView(page);
         const expectNodeStyles = async () => {
             const state = await getGraphState(page);
-            expect(state.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual(
-                '#bd10e0',
-            );
+            expect(state.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual('#bd10e0');
             expect(state.nodes.find((n) => n.id === 'Pedro')?.size).toEqual(30);
         };
 
-        await style(
-            page,
-            { kind: 'node', name: 'Pedro' },
-            { colourValue: 'BD10E0', size: 30 },
-        );
+        await style(page, { kind: 'node', name: 'Pedro' }, { colourValue: 'BD10E0', size: 30 });
         await expectNodeStyles();
 
-        await saveAs(
-            page,
-            `${isolatedGraphs.namespace}/persistent_filler_styled`,
-        );
+        await saveAs(page, `${isolatedGraphs.namespace}/persistent_filler_styled`);
         await expectNodeStyles();
         await expectStylingHexInput(page, 'BD10E0');
 
@@ -590,10 +529,7 @@ test.describe('Change colour of edge by layer dropdown', () => {
         isolatedGraphsConfig: ['new_folder/persistent_second_filler'],
     });
 
-    test('Change colour of edge by layer dropdown', async ({
-        page,
-        isolatedGraphs,
-    }) => {
+    test('Change colour of edge by layer dropdown', async ({ page, isolatedGraphs }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_second_filler');
         await fitView(page);
 
@@ -611,29 +547,56 @@ test.describe('Change colour of edge by layer dropdown', () => {
         await openTimeline(page);
         await page.waitForTimeout(5000);
         await expect(
-            page
-                .getByLabel('Edge ID ["Judy","Rabbit Inc","advises",100]')
-                .locator('path'),
+            page.getByLabel('Edge ID ["Judy","Rabbit Inc","advises",100]').locator('path'),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
+    });
+});
+
+test.describe('Change thickness of edge', () => {
+    test.use({
+        isolatedGraphsConfig: ['new_folder/persistent_second_filler'],
+    });
+
+    test('Change thickness of edge updates rendered edge size', async ({
+        page,
+        isolatedGraphs,
+    }) => {
+        await isolatedGraphs.navigateToGraph(page, 'persistent_second_filler');
+        await fitView(page);
+
+        const before = await getGraphState(page);
+        const edgeBefore = before.edges.find(
+            (e) => e.source === 'Judy' && e.target === 'Rabbit Inc',
+        );
+        expect(edgeBefore?.size).toBeCloseTo(1, 1);
+
+        await style(
+            page,
+            { kind: 'edge', src: 'Judy', dst: 'Rabbit Inc', layer: 'advises' },
+            { size: 6 },
+        );
+
+        await expect
+            .poll(async () => {
+                const state = await getGraphState(page);
+                return state.edges.find((e) => e.source === 'Judy' && e.target === 'Rabbit Inc')
+                    ?.size;
+            })
+            .toBeCloseTo(6, 1);
     });
 });
 
 test.describe('Change colour and size of node by type', () => {
     test.use({ isolatedGraphsConfig: ['vanilla/persistent'] });
 
-    test('Change colour and size of node by type', async ({
-        page,
-        isolatedGraphs,
-    }) => {
+    test('Change colour and size of node by type', async ({ page, isolatedGraphs }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent');
         await fitView(page);
 
         const expectNodeStyles = async () => {
             const state = await getGraphState(page);
             for (const id of ['Pedro', 'Hamza', 'Ben']) {
-                expect(state.nodes.find((n) => n.id === id)?.colour).toEqual(
-                    '#d0021b',
-                );
+                expect(state.nodes.find((n) => n.id === id)?.colour).toEqual('#d0021b');
                 expect(state.nodes.find((n) => n.id === id)?.size).toEqual(30);
             }
         };
@@ -652,11 +615,7 @@ test.describe('Change colour and size of node by type', () => {
         await page.reload();
         await waitForLayoutToFinish(page);
         await expectNodeStyles();
-        await expectStylingHex(
-            page,
-            { kind: 'node-type', type: 'Person' },
-            'D0021B',
-        );
+        await expectStylingHex(page, { kind: 'node-type', type: 'Person' }, 'D0021B');
     });
 });
 
@@ -700,18 +659,46 @@ test('Preview edge colour changes', async ({ page }) => {
 
     await clickOnEdge(page, 'Judy', 'Rabbit Inc');
     await changeTab(page, 'Styling');
-    await expect(
-        page.getByRole('combobox', { name: 'Edge Layer' }),
-    ).toContainText('advises');
+    await expect(page.getByRole('combobox', { name: 'Edge Layer' })).toContainText('advises');
     await fillColorPickerHexInput(page, 'F5A623');
     await openTimeline(page);
     // Wait for the timeline to open fully
     await page.waitForTimeout(500);
     await expect(
-        page
-            .getByLabel('Edge ID ["Judy","Rabbit Inc","advises",100]')
-            .locator('path'),
+        page.getByLabel('Edge ID ["Judy","Rabbit Inc","advises",100]').locator('path'),
     ).toHaveCSS('fill', 'rgb(245, 166, 35)');
+});
+
+test.describe('Edge layer priority controls graph-view styling', () => {
+    test.use({ isolatedGraphsConfig: ['vanilla/persistent'] });
+
+    test('reordering priority switches which layer a multi-layer edge shows', async ({
+        page,
+        isolatedGraphs,
+    }) => {
+        test.setTimeout(60000);
+        await isolatedGraphs.navigateToGraph(page, 'persistent');
+        await fitView(page);
+
+        // Clear any selection so the graph-level styling panel shows.
+        await page.getByRole('button', { name: 'Selection' }).click();
+        await page.getByRole('menuitem', { name: 'Clear current selection' }).click();
+
+        // Style the two layers of the Hamza->Pedro edge distinctly.
+        await styleEdgeLayer(page, 'meets', { colourValue: 'FF0000' });
+        await styleEdgeLayer(page, 'transfers', { colourValue: '0000FF' });
+
+        const colourOf = async () => {
+            const state = await getGraphState(page);
+            return state.edges.find((e) => e.source === 'Hamza' && e.target === 'Pedro')?.colour;
+        };
+
+        await moveLayerToTop(page, 'meets');
+        await expect.poll(colourOf).toBe('#ff0000');
+
+        await moveLayerToTop(page, 'transfers');
+        await expect.poll(colourOf).toBe('#0000ff');
+    });
 });
 
 test('Layout Customizer Default Advanced Options', async ({ page }) => {
@@ -775,9 +762,7 @@ test('Layout Customizer Default Advanced Options', async ({ page }) => {
     // Radial force sliders are gone — the sigma layout worker uses
     // d3-force without `d3-force-radial`, so the customizer no longer
     // exposes radial strength/radius.
-    await page
-        .getByRole('button', { name: 'Apply Layout', exact: true })
-        .click();
+    await page.getByRole('button', { name: 'Apply Layout', exact: true }).click();
     await waitForLayoutToFinish(page);
     expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
         'layout-customizer-default-all-changed.png',
@@ -816,15 +801,11 @@ test('Layout Customizer can change to concentric layout', async ({ page }) => {
     });
     await dragSlider({
         page,
-        slider: page.getByLabel(
-            'The angle (in pi radians) between the first and last node',
-        ),
+        slider: page.getByLabel('The angle (in pi radians) between the first and last node'),
         root: page.getByLabel('Sweep Slider Container'),
         sliderPosition: 0.5,
     });
-    await page
-        .getByRole('button', { name: 'Apply Layout', exact: true })
-        .click();
+    await page.getByRole('button', { name: 'Apply Layout', exact: true }).click();
     await waitForLayoutToFinish(page);
     await fitView(page);
     expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
@@ -862,9 +843,7 @@ test('Layout Customizer can use dagre for pre-layout', async ({ page }) => {
         sliderPosition: 0.5,
     });
 
-    await page
-        .getByRole('button', { name: 'Apply Layout', exact: true })
-        .click();
+    await page.getByRole('button', { name: 'Apply Layout', exact: true }).click();
     await waitForLayoutToFinish(page);
     expect(await getInteractiveCanvas(page).screenshot()).toMatchSnapshot(
         'layout-customizer-prelayout-dagre-all-changed.png',
@@ -918,26 +897,54 @@ test('Shift+click an already-selected node deselects it', async ({ page }) => {
 });
 
 test('catch console logs and errors', async ({ page }) => {
-    const consoleErrors: string[] = [];
-    const consoleLogs: string[] = [];
+    const consoleErrors: Promise<string>[] = [];
+    const consoleLogs: Promise<string>[] = [];
+    const pageErrors: string[] = [];
+
+    // `message.text()` renders a logged Error as just "Error" in Firefox, so
+    // unwrap the argument handles instead. Handles die on navigation, hence
+    // resolving them inside the handler rather than after the assertion.
+    const describe = (message: ConsoleMessage) => {
+        const { url, lineNumber, columnNumber } = message.location();
+        return Promise.all(
+            message.args().map((arg) =>
+                arg.evaluate((value) => {
+                    if (value instanceof Error) {
+                        // Firefox's `stack` omits the message line that V8 includes,
+                        // so prefix it unconditionally.
+                        return `${value.name}: ${value.message}\n${value.stack ?? '<no stack>'}`;
+                    } else {
+                        return String(value);
+                    }
+                }),
+            ),
+        )
+            .then((parts) => parts.join(' '))
+            .catch(() => message.text())
+            .then((text) => `[logged at ${url}:${lineNumber}:${columnNumber}] ${text}`);
+    };
 
     page.on('console', (message) => {
         switch (message.type()) {
             case 'error': {
-                consoleErrors.push(message.text());
+                consoleErrors.push(describe(message));
                 break;
             }
             case 'log': {
-                consoleLogs.push(message.text());
+                consoleLogs.push(describe(message));
                 break;
             }
         }
     });
+    page.on('pageerror', (error) => {
+        pageErrors.push(error.stack ?? `${error.name}: ${error.message}`);
+    });
 
     await page.goto('/graph/vanilla/event');
 
-    expect(consoleErrors, 'Console errors found').toStrictEqual([]);
-    expect(consoleLogs, 'Console logs found').toStrictEqual([]);
+    expect(await Promise.all(consoleErrors), 'Console errors found').toStrictEqual([]);
+    expect(await Promise.all(consoleLogs), 'Console logs found').toStrictEqual([]);
+    expect(pageErrors, 'Uncaught page errors found').toStrictEqual([]);
 });
 
 // TODO: we should be using utils here...
@@ -953,20 +960,14 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         await fitView(page);
 
         // Save individual node styling for Pedro
-        await style(
-            page,
-            { kind: 'node', name: 'Pedro' },
-            { colourValue: 'BD10E0', size: 30 },
-        );
+        await style(page, { kind: 'node', name: 'Pedro' }, { colourValue: 'BD10E0', size: 30 });
         await saveAsWithRandomName(page, isolatedGraphs.namespace);
         await page.waitForTimeout(2000);
         await expect(page.getByText('#bd10e0', { exact: true })).toBeVisible();
         await expect(page.getByText('30', { exact: true })).toBeVisible();
         // Save Person type styling
         await page.getByRole('button', { name: 'Selection' }).click();
-        await page
-            .getByRole('menuitem', { name: 'Clear current selection' })
-            .click();
+        await page.getByRole('menuitem', { name: 'Clear current selection' }).click();
         await page.waitForTimeout(2000);
         await style(
             page,
@@ -984,28 +985,19 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         );
         await save(page);
         await expect(
-            page
-                .locator('div')
-                .filter({ hasText: /^Hex$/ })
-                .getByRole('textbox'),
+            page.locator('div').filter({ hasText: /^Hex$/ }).getByRole('textbox'),
         ).toHaveValue('F5A623');
         // Delete Ben
         await deleteNodes(page, ['Ben']);
         // Delete None
         await deleteNodes(page, ['None']);
         // Undo (restores None)
-        await page
-            .getByRole('button', { name: 'Undo (⌘Z)', exact: true })
-            .click();
+        await page.getByRole('button', { name: 'Undo (⌘Z)', exact: true }).click();
         // Redo (deletes None again)
-        await page
-            .getByRole('button', { name: 'Redo (⌘⇧Z)', exact: true })
-            .click();
+        await page.getByRole('button', { name: 'Redo (⌘⇧Z)', exact: true }).click();
         await waitForLayoutToFinish(page);
         // Undo (restores None)
-        await page
-            .getByRole('button', { name: 'Undo (⌘Z)', exact: true })
-            .click();
+        await page.getByRole('button', { name: 'Undo (⌘Z)', exact: true }).click();
         await waitForLayoutToFinish(page);
         // Preview individual node styling for Hamza
         await clickOnNode(page, 'Hamza');
@@ -1014,9 +1006,7 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         await page.waitForTimeout(1000);
         // Preview Company type styling
         await page.getByRole('button', { name: 'Selection' }).click();
-        await page
-            .getByRole('menuitem', { name: 'Clear current selection' })
-            .click();
+        await page.getByRole('menuitem', { name: 'Clear current selection' }).click();
         await page.waitForTimeout(2000);
         await page.getByText('Person').click();
         await page.getByRole('option', { name: 'Company' }).click();
@@ -1024,10 +1014,13 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         // Preview founds edge layer styling
         await clickOnEdge(page, 'Hamza', 'Pometry');
         await changeTab(page, 'Styling');
-        await expect(
-            page.getByRole('combobox', { name: 'Edge Layer' }),
-        ).toContainText('founds');
+        await expect(page.getByRole('combobox', { name: 'Edge Layer' })).toContainText('founds');
         await fillInStyling(page, { colourValue: 'FF6B6B' });
+        // Graph-level edge layer styling + priority
+        await page.getByRole('button', { name: 'Selection' }).click();
+        await page.getByRole('menuitem', { name: 'Clear current selection' }).click();
+        await styleEdgeLayer(page, 'transfers', { colourValue: '00FF00' });
+        await moveLayerToTop(page, 'transfers');
         await openTimeline(page);
         await selectLayout(page, 'Arrange nodes in concentric circles');
         await fitView(page);
@@ -1043,28 +1036,26 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         await waitForLayoutToFinish(page);
         await fitView(page);
 
+        // Confirm the edge layer style + priority survived the reload
+        await page.getByRole('button', { name: 'Selection' }).click();
+        await page.getByRole('menuitem', { name: 'Clear current selection' }).click();
+        await changeTab(page, 'Styling');
+        await page.getByRole('button', { name: 'Edge Layers' }).click();
+        await page.getByRole('combobox', { name: 'Style Layer' }).click();
+        await page.getByRole('option', { name: 'transfers', exact: true }).click();
+        await expectStylingHexInput(page, '00FF00');
+
         // Capture concentric-layout positions (reloaded from saved metadata)
-        const positionsAfterReload = await getNodePositions(page, [
-            'Pedro',
-            'Hamza',
-            'Pometry',
-        ]);
+        const positionsAfterReload = await getNodePositions(page, ['Pedro', 'Hamza', 'Pometry']);
 
         // Switch to a different layout — should override the saved positions.
         // selectLayout matches on the menu item's tooltip text (which MUI
         // promotes to the accessible name), not the visible label.
-        await selectLayout(
-            page,
-            'Physics-based layout with natural clustering',
-        );
+        await selectLayout(page, 'Physics-based layout with natural clustering');
         await fitView(page);
 
         // Capture the post-switch positions
-        const positionsAfterSwitch = await getNodePositions(page, [
-            'Pedro',
-            'Hamza',
-            'Pometry',
-        ]);
+        const positionsAfterSwitch = await getNodePositions(page, ['Pedro', 'Hamza', 'Pometry']);
 
         // The layout switch should have moved nodes meaningfully. Sum of
         // per-node Manhattan deltas across the three sampled nodes is the
@@ -1073,12 +1064,8 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         const totalDelta = (['Pedro', 'Hamza', 'Pometry'] as const).reduce(
             (sum, name) =>
                 sum +
-                Math.abs(
-                    positionsAfterSwitch[name].x - positionsAfterReload[name].x,
-                ) +
-                Math.abs(
-                    positionsAfterSwitch[name].y - positionsAfterReload[name].y,
-                ),
+                Math.abs(positionsAfterSwitch[name].x - positionsAfterReload[name].x) +
+                Math.abs(positionsAfterSwitch[name].y - positionsAfterReload[name].y),
             0,
         );
         expect(totalDelta).toBeGreaterThan(50);
@@ -1086,9 +1073,7 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
 });
 
 test('Save new graph with save as dialog', async ({ page, isolatedGraphs }) => {
-    await page.goto(
-        isolatedGraphs.graphUrl('event', 'initialNodes=%5B%22Pedro%22%5D'),
-    );
+    await page.goto(isolatedGraphs.graphUrl('event', 'initialNodes=%5B%22Pedro%22%5D'));
     await waitForLayoutToFinish(page);
 
     await page.getByRole('button', { name: 'Save' }).click();
@@ -1109,36 +1094,18 @@ test('Right-clicking a node shows the context menu', async ({ page }) => {
         graphName: 'persistent',
     });
     await rightClickOnNode(page, 'Pedro');
-    await expect(
-        page.getByRole('menuitem', { name: 'Expand', exact: true }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Find Shortest Path' }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Shared Neighbours' }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Select all similar' }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Deselect all' }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Invert selection' }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Select related' }),
-    ).toBeVisible();
-    await expect(
-        page.getByRole('menuitem', { name: 'Open Trace Log' }),
-    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Expand', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Find Shortest Path' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Shared Neighbours' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Select all similar' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Deselect all' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Invert selection' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Select related' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Open Trace Log' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeVisible();
 });
 
-test('Right-clicking a selected node preserves multi-selection', async ({
-    page,
-}) => {
+test('Right-clicking a selected node preserves multi-selection', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1150,9 +1117,7 @@ test('Right-clicking a selected node preserves multi-selection', async ({
     expect(selectedBefore).toContain('Hamza');
 
     await rightClickOnNode(page, 'Pedro');
-    await expect(
-        page.getByRole('menuitem', { name: 'Expand', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Expand', exact: true })).toBeVisible();
 
     const selectedAfter = (await getGraphState(page)).selected;
     expect(selectedAfter).toContain('Pedro');
@@ -1179,9 +1144,7 @@ test('Ctrl+clicking a selected node opens the context menu and preserves multi-s
     expect(selectedBefore).toContain('Hamza');
 
     await ctrlClickOnNode(page, 'Pedro');
-    await expect(
-        page.getByRole('menuitem', { name: 'Expand', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Expand', exact: true })).toBeVisible();
 
     const selectedAfter = (await getGraphState(page)).selected;
     expect(selectedAfter).toContain('Pedro');
@@ -1213,9 +1176,7 @@ test('Context menu invert selection', async ({ page }) => {
     expect(state.selected.length).toEqual(4);
 });
 
-test('Context menu select all similar selects all nodes of the same type', async ({
-    page,
-}) => {
+test('Context menu select all similar selects all nodes of the same type', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1229,9 +1190,7 @@ test('Context menu select all similar selects all nodes of the same type', async
     expect(state.selected).toContain('Ben');
 });
 
-test('Context menu delete removes the node from the graph', async ({
-    page,
-}) => {
+test('Context menu delete removes the node from the graph', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1244,9 +1203,7 @@ test('Context menu delete removes the node from the graph', async ({
     expect(state.selected).not.toContain('Pedro');
 });
 
-test('Context menu select related selects connected nodes', async ({
-    page,
-}) => {
+test('Context menu select related selects connected nodes', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1260,9 +1217,7 @@ test('Context menu select related selects connected nodes', async ({
     expect(state.selected).toContain('Pedro');
 });
 
-test('Context menu open trace log opens the drawer on the trace log tab', async ({
-    page,
-}) => {
+test('Context menu open trace log opens the drawer on the trace log tab', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1273,9 +1228,7 @@ test('Context menu open trace log opens the drawer on the trace log tab', async 
     await expect(page.getByRole('tab', { name: 'Trace Log' })).toBeVisible();
 });
 
-test('After context menu opens trace log, switching to Connections tab works', async ({
-    page,
-}) => {
+test('After context menu opens trace log, switching to Connections tab works', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1283,20 +1236,14 @@ test('After context menu opens trace log, switching to Connections tab works', a
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Open Trace Log' }).click();
 
-    await expect(
-        page.getByRole('columnheader', { name: 'Timestamp' }),
-    ).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Timestamp' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Connections' }).click();
 
-    await expect(
-        page.getByRole('columnheader', { name: 'Name' }),
-    ).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
 });
 
-test('Clicking a trace log row goes to corresponding edge', async ({
-    page,
-}) => {
+test('Clicking a trace log row goes to corresponding edge', async ({ page }) => {
     await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
     await waitForLayoutToFinish(page);
     await rightClickOnNode(page, 'Pedro');
@@ -1306,18 +1253,11 @@ test('Clicking a trace log row goes to corresponding edge', async ({
     await page.getByRole('cell', { name: 'Ben -> meets -> Pedro' }).click();
     await waitForLayoutToFinish(page);
     await expect(page.getByText('Ben → Pedro')).toBeVisible();
-    await expect(
-        page.getByRole('button', { name: 'Time Appeared' }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Time Appeared' })).toBeVisible();
 
     await openTimeline(page);
-    const benPedroEdge = page.getByLabel(
-        'Edge ID ["Ben","Pedro","meets",1679356800000]',
-    );
-    await expect(benPedroEdge.locator('circle[r="7"]').first()).toHaveCSS(
-        'fill-opacity',
-        '0.5',
-    );
+    const benPedroEdge = page.getByLabel('Edge ID ["Ben","Pedro","meets",1679356800000]');
+    await expect(benPedroEdge.locator('circle[r="7"]').first()).toHaveCSS('fill-opacity', '0.5');
 });
 
 test('Context menu find shortest path between two nodes', async ({ page }) => {
@@ -1336,9 +1276,7 @@ test('Context menu find shortest path between two nodes', async ({ page }) => {
     expect(state.selected).toContain('Pometry');
 });
 
-test('Context menu shared neighbours finds common connections', async ({
-    page,
-}) => {
+test('Context menu shared neighbours finds common connections', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1395,9 +1333,7 @@ test('Shift+click multi-select and plain click single-select stay synced with G6
     expect(state.selected).toEqual(['Pometry']);
 });
 
-test('Adding a node from connections table does not change selection state', async ({
-    page,
-}) => {
+test('Adding a node from connections table does not change selection state', async ({ page }) => {
     await navigateToGraphPageBySearch(page, {
         type: 'node',
         nodeName: 'Pedro',
@@ -1412,9 +1348,7 @@ test('Adding a node from connections table does not change selection state', asy
 
     // Switch to Connections tab
     await changeTab(page, 'Connections');
-    await expect(
-        page.getByRole('columnheader', { name: 'Name' }),
-    ).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
 
     // Click the add button for a node not yet on the graph
     const addButton = page
@@ -1433,9 +1367,7 @@ test('Adding a node from connections table does not change selection state', asy
     expect(stateAfter.selected).toEqual(['Pedro']);
 });
 
-test('Dragging one of multiple selected nodes moves all selected nodes', async ({
-    page,
-}) => {
+test('Dragging one of multiple selected nodes moves all selected nodes', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1449,11 +1381,7 @@ test('Dragging one of multiple selected nodes moves all selected nodes', async (
     expect(state.selected).toContain('Hamza');
 
     // Record positions before drag
-    const positionsBefore = await getNodePositions(page, [
-        'Pedro',
-        'Hamza',
-        'Ben',
-    ]);
+    const positionsBefore = await getNodePositions(page, ['Pedro', 'Hamza', 'Ben']);
 
     // Drag Pedro by (50, 50) — Hamza should move too, Ben should not
     const pedroPos = positionsBefore['Pedro'];
@@ -1466,11 +1394,7 @@ test('Dragging one of multiple selected nodes moves all selected nodes', async (
     await page.waitForTimeout(500);
 
     // Record positions after drag
-    const positionsAfter = await getNodePositions(page, [
-        'Pedro',
-        'Hamza',
-        'Ben',
-    ]);
+    const positionsAfter = await getNodePositions(page, ['Pedro', 'Hamza', 'Ben']);
 
     // Pedro and Hamza should have moved
     const pedroDx = positionsAfter['Pedro'].x - positionsBefore['Pedro'].x;
@@ -1494,9 +1418,7 @@ test('Dragging one of multiple selected nodes moves all selected nodes', async (
     expect(benDy).toBeLessThan(5);
 });
 
-test('Clicks at canvas edge positions reach the G6 canvas', async ({
-    page,
-}) => {
+test('Clicks at canvas edge positions reach the G6 canvas', async ({ page }) => {
     await navigateInSavedGraphs(page, {
         namespace: 'vanilla',
         graphName: 'persistent',
@@ -1524,12 +1446,9 @@ test('Clicks at canvas edge positions reach the G6 canvas', async ({
         .locator('xpath=ancestor::div[1]')
         .boundingBox();
 
-    const safeLeft =
-        navBox !== null ? navBox.x + navBox.width + 5 : canvasBox.x + 10;
+    const safeLeft = navBox !== null ? navBox.x + navBox.width + 5 : canvasBox.x + 10;
     const safeRight =
-        rhsCollapseToggle !== null
-            ? rhsCollapseToggle.x - 5
-            : canvasBox.x + canvasBox.width - 10;
+        rhsCollapseToggle !== null ? rhsCollapseToggle.x - 5 : canvasBox.x + canvasBox.width - 10;
     const safeBottom =
         floatingActionsBox !== null
             ? floatingActionsBox.y - 5
@@ -1566,10 +1485,7 @@ test('Clicks at canvas edge positions reach the G6 canvas', async ({
 });
 
 // TODO: remove, this is redundant
-test('Save As creates a new graph and navigates to it', async ({
-    page,
-    isolatedGraphs,
-}) => {
+test('Save As creates a new graph and navigates to it', async ({ page, isolatedGraphs }) => {
     await isolatedGraphs.navigateToGraph(page, 'event');
 
     // Open Save As dialog
@@ -1591,10 +1507,7 @@ test('Save As creates a new graph and navigates to it', async ({
 });
 
 // TODO: remove, this is redundant
-test('Save As preserves graph changes after reload', async ({
-    page,
-    isolatedGraphs,
-}) => {
+test('Save As preserves graph changes after reload', async ({ page, isolatedGraphs }) => {
     await isolatedGraphs.navigateToGraph(page, 'event');
 
     // Delete a node to create an unsaved change
@@ -1620,9 +1533,7 @@ test.describe('Unsaved-changes navigation blocker', () => {
     // Both paths share the same setup: land on /graph with one node, expand
     // it (which marks the view as having unsaved changes), then click the
     // Explorations navbar link to trigger the confirmation dialog.
-    async function setupExpandedGraphAndOpenDialog(
-        page: import('@playwright/test').Page,
-    ) {
+    async function setupExpandedGraphAndOpenDialog(page: import('@playwright/test').Page) {
         await navigateToGraphPageBySearch(page, {
             type: 'node',
             nodeName: 'Pedro',
@@ -1632,38 +1543,26 @@ test.describe('Unsaved-changes navigation blocker', () => {
         await waitForLayoutToFinish(page);
         // Sanity check: the expansion brought Ben and Hamza in. If this ever
         // changes, the post-cancel state assertion below also needs updating.
-        const expandedIds = (await getGraphState(page)).nodes
-            .map((n) => n.id)
-            .sort();
+        const expandedIds = (await getGraphState(page)).nodes.map((n) => n.id).sort();
         expect(expandedIds).toEqual(['Ben', 'Hamza', 'Pedro']);
 
-        await page
-            .getByRole('link', { name: 'Explorations', exact: true })
-            .click();
-        await expect(
-            page.getByRole('heading', { name: 'Confirm Navigation' }),
-        ).toBeVisible();
+        await page.getByRole('link', { name: 'Explorations', exact: true }).click();
+        await expect(page.getByRole('heading', { name: 'Confirm Navigation' })).toBeVisible();
     }
 
-    test('Cancel keeps the user on the graph with the expanded nodes intact', async ({
-        page,
-    }) => {
+    test('Cancel keeps the user on the graph with the expanded nodes intact', async ({ page }) => {
         await setupExpandedGraphAndOpenDialog(page);
         const graphUrlBeforeCancel = page.url();
 
         await page.getByRole('button', { name: 'Cancel' }).click();
-        await expect(
-            page.getByRole('heading', { name: 'Confirm Navigation' }),
-        ).toBeHidden();
+        await expect(page.getByRole('heading', { name: 'Confirm Navigation' })).toBeHidden();
 
         // URL must not have moved, and the expanded graph state must still
         // be there. Regression guard for the bug where cancelling the
         // dialog tore down and rebuilt the G6 graph, leaving the canvas
         // blank.
         expect(page.url()).toBe(graphUrlBeforeCancel);
-        const stateAfterCancel = (await getGraphState(page)).nodes
-            .map((n) => n.id)
-            .sort();
+        const stateAfterCancel = (await getGraphState(page)).nodes.map((n) => n.id).sort();
         expect(stateAfterCancel).toEqual(['Ben', 'Hamza', 'Pedro']);
     });
 
@@ -1678,10 +1577,7 @@ test.describe('Unsaved-changes navigation blocker', () => {
 test.describe('Saved positions', () => {
     test.use({ isolatedGraphsConfig: ['vanilla/persistent'] });
 
-    test('Node positions persist after save and reload', async ({
-        page,
-        isolatedGraphs,
-    }) => {
+    test('Node positions persist after save and reload', async ({ page, isolatedGraphs }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent');
         await fitView(page);
 
@@ -1724,9 +1620,7 @@ test.describe('Saved positions', () => {
 // and to the temporal view.
 
 test.describe('icon colours', () => {
-    test('graph view node icons carry the ?color=white iconify URL', async ({
-        page,
-    }) => {
+    test('graph view node icons carry the ?color=white iconify URL', async ({ page }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1753,23 +1647,16 @@ test.describe('icon colours', () => {
                 if (sigma === undefined) return false;
                 const benId = sigma.graph
                     .nodes()
-                    .find(
-                        (id) =>
-                            sigma.graph.getNodeAttribute(id, 'label') === 'Ben',
-                    );
+                    .find((id) => sigma.graph.getNodeAttribute(id, 'label') === 'Ben');
                 if (benId === undefined) return false;
                 const image = sigma.graph.getNodeAttribute(benId, 'image');
-                return (
-                    typeof image === 'string' && image.includes('color=white')
-                );
+                return typeof image === 'string' && image.includes('color=white');
             },
             { timeout: 15000 },
         );
     });
 
-    test('temporal view Y-axis icons have ?color=white in their href', async ({
-        page,
-    }) => {
+    test('temporal view Y-axis icons have ?color=white in their href', async ({ page }) => {
         await navigateInSavedGraphs(page, {
             namespace: 'vanilla',
             graphName: 'filler',
@@ -1786,10 +1673,7 @@ test.describe('icon colours', () => {
             const images = document.querySelectorAll('#yaxis-nodes image');
             for (const img of images) {
                 const href = img.getAttribute('href');
-                if (
-                    href?.includes('iconify.design') &&
-                    href?.includes('color=white')
-                ) {
+                if (href?.includes('iconify.design') && href?.includes('color=white')) {
                     return true;
                 }
             }
@@ -1890,17 +1774,11 @@ test.describe('Regression: persist styles + positions on the saved-graph', () =>
         await fitView(page);
 
         const stateAfter = await getGraphState(page);
-        expect(stateAfter.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual(
-            '#bd10e0',
-        );
+        expect(stateAfter.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual('#bd10e0');
 
         const positionsAfter = await getNodePositions(page, ['Pedro']);
-        const dx = Math.abs(
-            positionsAfter['Pedro'].x - positionsBefore['Pedro'].x,
-        );
-        const dy = Math.abs(
-            positionsAfter['Pedro'].y - positionsBefore['Pedro'].y,
-        );
+        const dx = Math.abs(positionsAfter['Pedro'].x - positionsBefore['Pedro'].x);
+        const dy = Math.abs(positionsAfter['Pedro'].y - positionsBefore['Pedro'].y);
         expect(dx + dy).toBeGreaterThan(10);
     });
 });
@@ -1916,33 +1794,21 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
         await fitView(page);
 
         // Step 1: persist a Person-type colour, then save as a new graph.
-        await style(
-            page,
-            { kind: 'node-type', type: 'Person' },
-            { colourValue: 'BD10E0' },
-        );
+        await style(page, { kind: 'node-type', type: 'Person' }, { colourValue: 'BD10E0' });
         await saveAsWithRandomName(page, isolatedGraphs.namespace);
 
         // Sanity: the type colour is on the canvas before the second save.
         const stateBetween = await getGraphState(page);
-        expect(
-            stateBetween.nodes.find((n) => n.id === 'Pedro')?.colour,
-        ).toEqual('#bd10e0');
+        expect(stateBetween.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual('#bd10e0');
 
         // Step 2: make a change (style Hamza individually) so the save button is enabled,
         // then save in-place. The second save must not wipe the type-style metadata.
-        await style(
-            page,
-            { kind: 'node', name: 'Hamza' },
-            { colourValue: '4A90D9' },
-        );
+        await style(page, { kind: 'node', name: 'Hamza' }, { colourValue: '4A90D9' });
         await save(page);
         await page.reload();
         await waitForLayoutToFinish(page);
         const stateAfter = await getGraphState(page);
-        expect(stateAfter.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual(
-            '#bd10e0',
-        );
+        expect(stateAfter.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual('#bd10e0');
     });
 
     test('A second save over the same path preserves an earlier dragged position', async ({
@@ -1989,12 +1855,8 @@ test.describe("Regression: Save-As to current path doesn't wipe saved-graph meta
         await fitView(page);
 
         const positionsAfter = await getNodePositions(page, ['Pedro']);
-        const dx = Math.abs(
-            positionsAfter['Pedro'].x - positionsBefore['Pedro'].x,
-        );
-        const dy = Math.abs(
-            positionsAfter['Pedro'].y - positionsBefore['Pedro'].y,
-        );
+        const dx = Math.abs(positionsAfter['Pedro'].x - positionsBefore['Pedro'].x);
+        const dy = Math.abs(positionsAfter['Pedro'].y - positionsBefore['Pedro'].y);
         expect(dx + dy).toBeGreaterThan(10);
     });
 });
@@ -2029,10 +1891,7 @@ test.describe('Regression: switching layouts after a saved layout actually appli
         await waitForLayoutToFinish(page);
         await fitView(page);
 
-        const positionsBefore = await getNodePositions(page, [
-            'Pedro',
-            'Hamza',
-        ]);
+        const positionsBefore = await getNodePositions(page, ['Pedro', 'Hamza']);
 
         // Pick a different layout. The user-visible bug was that this did
         // nothing — `persistedPositions` (saved-graph `_pos`) overrode the
@@ -2077,10 +1936,7 @@ test.describe('Regression: saved layout type survives refresh', () => {
         await waitForLayoutToFinish(page);
         await fitView(page);
 
-        const positionsConcentric = await getNodePositions(page, [
-            'Pedro',
-            'Hamza',
-        ]);
+        const positionsConcentric = await getNodePositions(page, ['Pedro', 'Hamza']);
 
         await saveAsWithRandomName(page, isolatedGraphs.namespace);
 
@@ -2088,19 +1944,12 @@ test.describe('Regression: saved layout type survives refresh', () => {
         await waitForLayoutToFinish(page);
         await fitView(page);
 
-        const positionsAfterReload = await getNodePositions(page, [
-            'Pedro',
-            'Hamza',
-        ]);
+        const positionsAfterReload = await getNodePositions(page, ['Pedro', 'Hamza']);
 
         for (const node of Object.keys(positionsConcentric)) {
             const drift =
-                Math.abs(
-                    positionsAfterReload[node].x - positionsConcentric[node].x,
-                ) +
-                Math.abs(
-                    positionsAfterReload[node].y - positionsConcentric[node].y,
-                );
+                Math.abs(positionsAfterReload[node].x - positionsConcentric[node].x) +
+                Math.abs(positionsAfterReload[node].y - positionsConcentric[node].y);
             expect(drift, `node "${node}" drifted too far`).toBeLessThan(20);
         }
     });

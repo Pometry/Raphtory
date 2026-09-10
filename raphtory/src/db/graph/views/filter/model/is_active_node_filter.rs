@@ -11,7 +11,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use std::fmt;
 
@@ -25,37 +24,41 @@ impl fmt::Display for IsActiveNode {
 }
 
 impl CreateFilter for IsActiveNode {
-    type EntityFiltered<'graph, G>
-        = NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>
+    type EntityFiltered<'graph, G, F>
+        = NodeFilteredGraph<G, Self::NodeFilter<'graph, G, F>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
-    type NodeFilter<'graph, G>
-        = Map<HistoryOp<'graph, G>, bool>
+    type NodeFilter<'graph, G, F>
+        = Map<HistoryOp<'graph, F>, bool>
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let op = self.create_node_filter(graph.clone())?;
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let op = self.create_node_filter(graph.clone(), filtered)?;
         Ok(NodeFilteredGraph::new(graph, op))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let op: Map<HistoryOp<G>, bool> = HistoryOp::new(graph).map(|h| !h.is_empty());
+        _graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        let op = HistoryOp::new(filtered).map(|h| !h.is_empty());
         Ok(op)
     }
 

@@ -19,7 +19,7 @@ use raphtory::{
         motifs::local_triangle_count::local_triangle_count,
         pathing::temporal_reachability::temporally_reachable_nodes,
     },
-    db::graph::views::filter::Unfiltered,
+    db::graph::views::filter::Exists,
     prelude::*,
 };
 use raphtory_benchmark::algobench_common::{
@@ -235,7 +235,7 @@ pub fn graphgen_out_component_filtered(c: &mut Criterion) {
         first_node_id,
         |graph, source| {
             let node = graph.node(source.clone()).expect("source node exists");
-            out_component_filtered(node, Unfiltered).unwrap()
+            out_component_filtered(node, Exists).unwrap()
         },
     );
 }

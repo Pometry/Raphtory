@@ -1,7 +1,9 @@
 use crate::{
     api::core::storage::timeindex::AsTime,
     db::{
-        api::view::{DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{
+            DynamicGraph, IntoDynBoxed, IntoDynHop, IntoDynamic, Select, StaticGraphViewOps,
+        },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -14,6 +16,7 @@ use crate::{
         graph::{
             history::{HistoryIterable, NestedHistoryIterable},
             properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
+            sorting::PyEdgeSortBy,
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -61,20 +64,22 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'stat
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let base_graph = self.base_graph.into_dynamic();
-        let edges = self.edges;
-        PyEdges {
-            edges: Edges { base_graph, edges },
-        }
-        .into_pyobject(py)
+        let edges = self.into_dyn();
+        PyEdges { edges }.into_pyobject(py)
     }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
     fn from(value: Edges<'static, G>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
+        let edges = value.edges;
+        let select = value.select;
         Self {
-            edges: Edges::new(base_graph, value.edges),
+            edges: Edges {
+                base_graph,
+                edges,
+                select,
+            },
         }
     }
 }
@@ -86,12 +91,17 @@ impl PyEdges {
         Ok(PyEdges::from(r))
     }
 
-    /// Returns the number of edges.
+    /// Reorder this collection by an ordered list of sort keys. Multi-key
+    /// sort is lexicographic (ties on key 1 break to key 2).
+    ///
+    /// Arguments:
+    ///     sort_bys (list[EdgeSortBy]): the ordered sort keys.
     ///
     /// Returns:
-    ///     int:
-    fn count(&self) -> usize {
-        self.edges.len()
+    ///     Edges: a new collection in the sorted order.
+    fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyEdges {
+        let sort_bys: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
+        PyEdges::from(self.edges.sorted(&sort_bys))
     }
 
     /// Returns the earliest time of the edges.
@@ -367,11 +377,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = NestedEdges {
-            nodes: self.nodes,
-            graph: self.graph.into_dynamic(),
-            edges: self.edges,
-        };
+        let edges = self.into_dyn_hop();
         PyNestedEdges { edges }.into_pyobject(py)
     }
 }
@@ -384,9 +390,17 @@ impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
     fn from(value: NestedEdges<'static, G>) -> Self {
-        let base_graph = value.graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        let nodes = value.nodes;
+        let edges = value.edges;
+        let select = value.select;
         Self {
-            edges: NestedEdges::new(base_graph, value.nodes, value.edges),
+            edges: NestedEdges {
+                graph,
+                nodes,
+                edges,
+                select,
+            },
         }
     }
 }

@@ -32,7 +32,6 @@ def process_arguments():
     gt: Run GraphTool Benchmark
     k: Run Kuzu Benchmark
     nx: Run NetworkX Benchmark
-    neo: Run Neo4j Benchmark
     mem: Run Memgraph Benchmark
     cozo: Run CozoDB Benchmark
     exit: Exit
@@ -51,7 +50,6 @@ def display_menu():
     print("gt: Run GraphTool Benchmark")
     print("k: Run Kuzu Benchmark")
     print("nx: Run NetworkX Benchmark")
-    print("neo: Run Neo4j Benchmark")
     print("mem: Run Memgraph Benchmark")
     print("cozo: Run CozoDB Benchmark")
     print("exit: Exit")
@@ -67,7 +65,6 @@ def setup():
         "gt": GraphToolBench,
         "k": KuzuBench,
         "nx": NetworkXBench,
-        "neo": Neo4jBench,
         "mem": MemgraphBench,
         "cozo": CozoDBBench,
     }
@@ -109,9 +106,6 @@ def run_benchmark(choice, docker=False):
                 end_time = time.time()
                 print(fn + " time: " + str(end_time - start_time))
                 fn_header += fn + ","
-                if driver.name() == "Neo4j" and fn == "setup":
-                    # take away 15 seconds for the sleep time when restarting the database
-                    end_time = end_time - 50
                 times += str(end_time - start_time) + ","
             fn_header = fn_header[:-1]
             times = times[:-1]

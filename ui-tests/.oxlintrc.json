@@ -1,0 +1,9 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "extends": ["../.oxlintrc.json"],
+    "env": { "node": true, "es2024": true },
+    "rules": {
+        "react-hooks/rules-of-hooks": "off",
+        "react-hooks/exhaustive-deps": "off"
+    }
+}

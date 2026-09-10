@@ -2,7 +2,10 @@ use crate::{
     db::{
         api::{
             state::ops::NotANodeFilter,
-            view::{internal::GraphView, BoxableGraphView},
+            view::{
+                internal::{DynGraphArc, GraphView},
+                BoxableGraphView,
+            },
         },
         graph::views::filter::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
@@ -34,7 +37,6 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -225,31 +227,33 @@ impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
 }
 
 impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
-    type NodeFilter<'graph, G>
-        = NotANodeFilter
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G, F>
+        = NotANodeFilter
+    where
+        Self: 'graph,
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
     type FilteredGraph<'graph, G>
         = T::FilteredGraph<'graph, G>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError>
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
     where
         T: 'graph,
     {
-        let filter = self.inner.create_node_filter(graph.clone())?;
+        let filter = self.inner.create_node_filter(graph.clone(), filtered)?;
         Ok(ExplodedEdgeNodeFilteredGraph::new(
             graph,
             self.endpoint,
@@ -257,10 +261,11 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
         ))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
 
@@ -343,81 +348,90 @@ impl Display for CompositeExplodedEdgeFilter {
 }
 
 impl CreateFilter for CompositeExplodedEdgeFilter {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
-    type NodeFilter<'graph, G>
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn BoxableGraphView + 'graph>;
+    type NodeFilter<'graph, G, F>
         = NotANodeFilter
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
     type FilteredGraph<'graph, G>
         = Arc<dyn BoxableGraphView + 'graph>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         match self {
             Self::Src(filter) => {
                 let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Src);
-                let filtered_graph = wrapped.create_filter(graph)?;
+                let filtered_graph = wrapped.create_filter(graph, filtered)?;
                 Ok(Arc::new(filtered_graph))
             }
             Self::Dst(filter) => {
                 let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Dst);
-                let filtered_graph = wrapped.create_filter(graph)?;
+                let filtered_graph = wrapped.create_filter(graph, filtered)?;
                 Ok(Arc::new(filtered_graph))
             }
-            Self::Property(p) => Ok(Arc::new(p.create_filter(graph)?)),
+            Self::Property(p) => Ok(Arc::new(p.create_filter(graph, filtered)?)),
             Self::Windowed(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                pw.create_filter(dyn_graph, dyn_filtered)
             }
             Self::Latest(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                pw.create_filter(dyn_graph, dyn_filtered)
             }
             Self::SnapshotAt(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                pw.create_filter(dyn_graph, dyn_filtered)
             }
             Self::SnapshotLatest(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                pw.create_filter(dyn_graph, dyn_filtered)
             }
             Self::Layered(pw) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
+                let dyn_filtered: DynGraphArc<'graph> = Arc::new(filtered);
+                pw.create_filter(dyn_graph, dyn_filtered)
             }
-            Self::IsActiveEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
-            Self::IsValidEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
-            Self::IsDeletedEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
-            Self::IsSelfLoopEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
+            Self::IsActiveEdge(pw) => Ok(Arc::new(pw.create_filter(graph, filtered)?)),
+            Self::IsValidEdge(pw) => Ok(Arc::new(pw.create_filter(graph, filtered)?)),
+            Self::IsDeletedEdge(pw) => Ok(Arc::new(pw.create_filter(graph, filtered)?)),
+            Self::IsSelfLoopEdge(pw) => Ok(Arc::new(pw.create_filter(graph, filtered)?)),
             Self::And(l, r) => {
                 let (l, r) = (*l, *r); // move out, no clone
                 Ok(Arc::new(
-                    AndFilter { left: l, right: r }.create_filter(graph)?,
+                    AndFilter { left: l, right: r }.create_filter(graph, filtered)?,
                 ))
             }
             Self::Or(l, r) => {
                 let (l, r) = (*l, *r);
                 Ok(Arc::new(
-                    OrFilter { left: l, right: r }.create_filter(graph)?,
+                    OrFilter { left: l, right: r }.create_filter(graph, filtered)?,
                 ))
             }
             Self::Not(f) => {
                 let base = *f;
-                Ok(Arc::new(NotFilter(base).create_filter(graph)?))
+                Ok(Arc::new(NotFilter(base).create_filter(graph, filtered)?))
             }
         }
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
 
@@ -479,5 +493,116 @@ impl TryAsCompositeFilter for CompositeExplodedEdgeFilter {
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Ok(self.clone())
+    }
+}
+
+#[cfg(test)]
+mod filter_tree_export_tests {
+    use super::*;
+    use crate::db::graph::views::filter::model::{
+        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps, ComposableFilter,
+        FilterTree, PropertyFilterFactory, ViewWrapOps,
+    };
+
+    // An exploded-edge property filter exports as the exploded-edge kind — the
+    // transportable form the remote client ships.
+    #[test]
+    fn exploded_property_exports_as_exploded_edge_tree() {
+        let f = ExplodedEdgeFilter.property("w").gt(1i64);
+        let tree = f.try_as_filter_tree().unwrap();
+        assert!(
+            matches!(
+                tree,
+                FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::Property(_))
+            ),
+            "expected ExplodedEdge(Property), got {tree:?}"
+        );
+    }
+
+    #[test]
+    fn exploded_metadata_exports_as_exploded_edge_tree() {
+        let f = ExplodedEdgeFilter.metadata("kind").eq("strong");
+        let tree = f.try_as_filter_tree().unwrap();
+        assert!(
+            matches!(
+                tree,
+                FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::Property(_))
+            ),
+            "expected ExplodedEdge(Property), got {tree:?}"
+        );
+    }
+
+    // A combinator of two exploded filters keeps its composite form — no
+    // structural And wrapper.
+    #[test]
+    fn same_kind_combinators_export_as_a_composite() {
+        let a = ExplodedEdgeFilter.property("w").gt(1i64);
+        let b = ExplodedEdgeFilter.property("w").lt(9i64);
+        let tree = a.clone().and(b.clone()).try_as_filter_tree().unwrap();
+        assert!(
+            matches!(
+                tree,
+                FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::And(_, _))
+            ),
+            "expected ExplodedEdge(And), got {tree:?}"
+        );
+
+        let tree = a.clone().or(b).try_as_filter_tree().unwrap();
+        assert!(
+            matches!(
+                tree,
+                FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::Or(_, _))
+            ),
+            "expected ExplodedEdge(Or), got {tree:?}"
+        );
+
+        let tree = a.not().try_as_filter_tree().unwrap();
+        assert!(
+            matches!(
+                tree,
+                FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::Not(_))
+            ),
+            "expected ExplodedEdge(Not), got {tree:?}"
+        );
+    }
+
+    // A view wrapper over an exploded property keeps the composite form as
+    // well (the wrapper becomes a Windowed composite variant).
+    #[test]
+    fn windowed_exploded_property_exports_as_a_composite() {
+        let f = ExplodedEdgeFilter.window(2i64, 4i64).property("w").gt(1i64);
+        let tree = f.try_as_filter_tree().unwrap();
+        assert!(
+            matches!(
+                tree,
+                FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::Windowed(_))
+            ),
+            "expected ExplodedEdge(Windowed), got {tree:?}"
+        );
+    }
+
+    // The exploded predicates also export as plain edge filters; the
+    // node → edge → exploded order must keep that export unchanged.
+    #[test]
+    fn exploded_predicates_still_export_as_plain_edge_filters() {
+        let tree = ExplodedEdgeFilter.is_valid().try_as_filter_tree().unwrap();
+        assert!(
+            matches!(tree, FilterTree::Edge(_)),
+            "expected Edge for is_valid, got {tree:?}"
+        );
+    }
+
+    // A mixed node∧exploded combination exports structurally, with the
+    // exploded leg tagged as its own kind.
+    #[test]
+    fn mixed_node_and_exploded_exports_structurally() {
+        let n = NodeFilter.property("x").eq(1i64);
+        let x = ExplodedEdgeFilter.property("w").gt(1i64);
+        let tree = n.and(x).try_as_filter_tree().unwrap();
+        let FilterTree::And(ref items) = tree else {
+            panic!("expected structural And, got {tree:?}");
+        };
+        assert!(matches!(items[0], FilterTree::Node(_)));
+        assert!(matches!(items[1], FilterTree::ExplodedEdge(_)));
     }
 }

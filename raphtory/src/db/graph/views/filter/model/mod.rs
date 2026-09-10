@@ -5,7 +5,7 @@ use crate::db::{
             ops::{filter::NO_FILTER, Const},
             NodeOp,
         },
-        view::BoxableGraphView,
+        view::internal::DynGraphArc,
     },
     graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter,
@@ -78,36 +78,40 @@ pub mod snapshot_filter;
 pub mod windowed_filter;
 
 #[derive(Debug, Copy, Clone)]
-pub struct NoFilter;
+pub struct Unfiltered;
 
-impl CreateFilter for NoFilter {
-    type EntityFiltered<'graph, G>
+impl CreateFilter for Unfiltered {
+    type EntityFiltered<'graph, G, F>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
-    type NodeFilter<'graph, G>
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
+    type NodeFilter<'graph, G, F>
         = Const<bool>
     where
         Self: 'graph,
-        G: GraphView + 'graph;
+        G: GraphView + 'graph,
+        F: GraphView + 'graph;
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
         Ok(graph)
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         _graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        _filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
         Ok(NO_FILTER)
     }
 
@@ -119,7 +123,7 @@ impl CreateFilter for NoFilter {
     }
 }
 
-impl TryAsCompositeFilter for NoFilter {
+impl TryAsCompositeFilter for Unfiltered {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
@@ -187,18 +191,20 @@ pub trait InternalPropertyFilterBuilder: Send + Sync {
 pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
     fn create_dyn_filter<'graph>(
         &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+    ) -> Result<DynGraphArc<'graph>, GraphError>;
 
     fn create_dyn_node_filter<'graph>(
         &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 
     fn dyn_filter_graph_view<'graph>(
         &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+        graph: DynGraphArc<'graph>,
+    ) -> Result<DynGraphArc<'graph>, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
@@ -207,52 +213,59 @@ where
 {
     fn create_dyn_filter<'graph>(
         &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_filter(graph)?))
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_filter(graph, filtered)?))
     }
 
     fn create_dyn_node_filter<'graph>(
         &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
+        graph: DynGraphArc<'graph>,
+        filtered: DynGraphArc<'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_node_filter(graph)?))
+        Ok(Arc::new(self.clone().create_node_filter(graph, filtered)?))
     }
 
     fn dyn_filter_graph_view<'graph>(
         &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        graph: DynGraphArc<'graph>,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
         Ok(Arc::new(self.clone().filter_graph_view(graph)?))
     }
 }
 
 impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = Arc<dyn BoxableGraphView + 'graph>
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        self.deref().create_dyn_filter(Arc::new(graph))
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        self.deref()
+            .create_dyn_filter(Arc::new(graph), Arc::new(filtered))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        self.deref().create_dyn_node_filter(Arc::new(graph))
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        self.deref()
+            .create_dyn_node_filter(Arc::new(graph), Arc::new(filtered))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -474,6 +487,54 @@ impl<T: TemporalPropertyFilterFactory + 'static> DynTemporalPropertyFilterBuilde
 
 impl TemporalPropertyFilterFactory for Arc<dyn DynTemporalPropertyFilterBuilder> {}
 
+/// One graph-level view restriction, as data. `at`/`before`/`after` lower to
+/// `Window` at construction time (see `ViewWrapOps`), so they need no
+/// variants here.
+#[derive(Clone, Debug, PartialEq)]
+pub enum GraphViewOp {
+    Window { start: EventTime, end: EventTime },
+    Latest,
+    SnapshotAt(EventTime),
+    SnapshotLatest,
+    Layers(Layer),
+}
+
+/// Kind-tagged, owned export of a filter tree — the transportable form of a
+/// composed filter, referencing no in-process state. `View` is an
+/// outermost-first chain of graph-level restrictions. Produced by
+/// [`TryAsCompositeFilter::try_as_filter_tree`]; filters that inherently
+/// reference in-process state (e.g. node-state columns) cannot be exported
+/// and return an error instead.
+#[derive(Clone, Debug)]
+pub enum FilterTree {
+    Node(CompositeNodeFilter),
+    Edge(CompositeEdgeFilter),
+    ExplodedEdge(CompositeExplodedEdgeFilter),
+    View(Vec<GraphViewOp>),
+    And(Vec<FilterTree>),
+    Or(Vec<FilterTree>),
+    Not(Box<FilterTree>),
+}
+
+impl FilterTree {
+    /// Whether any part of this expression tests edges.
+    ///
+    /// An edge test says nothing about which nodes belong in a node
+    /// collection, so a node-collection subscript refuses such an expression.
+    /// Lives here next to the enum so a new variant has to answer the question
+    /// rather than silently defaulting somewhere else.
+    pub fn tests_edges(&self) -> bool {
+        match self {
+            FilterTree::Edge(_) | FilterTree::ExplodedEdge(_) => true,
+            FilterTree::Node(_) | FilterTree::View(_) => false,
+            FilterTree::And(items) | FilterTree::Or(items) => {
+                items.iter().any(FilterTree::tests_edges)
+            }
+            FilterTree::Not(inner) => inner.tests_edges(),
+        }
+    }
+}
+
 pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
 
@@ -482,9 +543,32 @@ pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError>;
+
+    /// Export this filter as a kind-tagged [`FilterTree`]. The default covers
+    /// every single-kind filter via the composite exports; combinators and
+    /// graph-view filters override it to preserve structure the single-kind
+    /// exports cannot represent (mixed-kind trees, view chains). The kinds are
+    /// tried node → edge → exploded-edge, so a filter that exports as more
+    /// than one kind (e.g. the edge validity predicates) keeps its
+    /// plain-edge export.
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        if let Ok(f) = self.try_as_composite_node_filter() {
+            return Ok(FilterTree::Node(f));
+        }
+        if let Ok(f) = self.try_as_composite_edge_filter() {
+            return Ok(FilterTree::Edge(f));
+        }
+        Ok(FilterTree::ExplodedEdge(
+            self.try_as_composite_exploded_edge_filter()?,
+        ))
+    }
 }
 
 impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
+    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
+        self.deref().try_as_filter_tree()
+    }
+
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         self.deref().try_as_composite_node_filter()
     }

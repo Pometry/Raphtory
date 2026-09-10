@@ -79,9 +79,12 @@ def assert_expected(g):
         (5, 6, 5.0, "purple"),
     ]
 
-    nodes = [(v.id, v["name"]) for v in g.nodes]
+    nodes = [(v.id, v.properties.get("name")) for v in g.nodes]
     nodes.sort()
-    edges = [(*e.id, e["weight"], e["marbles"]) for e in g.edges]
+    edges = [
+        (*e.id, e.properties.get("weight"), e.properties.get("marbles"))
+        for e in g.edges
+    ]
     edges.sort()
 
     assert g.nodes.id.sorted() == expected_node_ids
@@ -202,9 +205,9 @@ def test_iceberg_add_column(iceberg_catalog):
         dst="dst",
         properties=["weight", "colour"],
     )
-    assert g.edge(4, 5)["colour"] == "red"
-    assert g.edge(1, 2)["colour"] is None  # predates the column
-    assert g.edge(1, 2)["weight"] == 1.0
+    assert g.edge(4, 5).properties.get("colour") == "red"
+    assert g.edge(1, 2).properties.get("colour") is None  # predates the column
+    assert g.edge(1, 2).properties.get("weight") == 1.0
 
     old = Graph()
     old.load_edges(
@@ -215,7 +218,7 @@ def test_iceberg_add_column(iceberg_catalog):
         properties=["weight"],
     )
     assert (4, 5) not in edge_tuples(old)  # the colour row did not exist at v0
-    assert old.edge(1, 2)["weight"] == 1.0
+    assert old.edge(1, 2).properties.get("weight") == 1.0
 
 
 def test_iceberg_change_column_type(iceberg_catalog):
@@ -259,8 +262,8 @@ def test_iceberg_change_column_type(iceberg_catalog):
         dst="dst",
         properties=["weight"],
     )
-    assert g.edge(3, 4)["weight"] == 30
-    assert g.edge(1, 2)["weight"] == 10
+    assert g.edge(3, 4).properties.get("weight") == 30
+    assert g.edge(1, 2).properties.get("weight") == 10
 
     old = Graph()
     old.load_edges(
@@ -270,7 +273,7 @@ def test_iceberg_change_column_type(iceberg_catalog):
         dst="dst",
         properties=["weight"],
     )
-    assert old.edge(1, 2)["weight"] == 10
+    assert old.edge(1, 2).properties.get("weight") == 10
 
     # Same graph, both snapshots: int then long is a type conflict.
     mixed = Graph()
@@ -342,7 +345,9 @@ def test_iceberg_schema_reconciles_type_change(iceberg_catalog):
     )
 
     assert g.edge(1, 2).properties.get_dtype_of("weight") == PropType.i64()
-    assert g.edge(1, 2)["weight"] == 20  # latest value across both snapshots
+    assert (
+        g.edge(1, 2).properties.get("weight") == 20
+    )  # latest value across both snapshots
 
 
 def test_iceberg_incremental_by_watermark(iceberg_catalog):

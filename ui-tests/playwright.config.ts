@@ -45,7 +45,18 @@ export default defineConfig({
         },
         {
             name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
+            use: {
+                ...devices['Desktop Firefox'],
+                // GPU-less CI runners get no WebGL 2 by default, which the SDF
+                // label overlay requires. Real desktops have it; force it on so
+                // CI doesn't silently test a label-less UI.
+                launchOptions: {
+                    firefoxUserPrefs: {
+                        'webgl.force-enabled': true,
+                        'webgl.disable-fail-if-major-performance-caveat': true,
+                    },
+                },
+            },
         },
         {
             name: 'webkit',

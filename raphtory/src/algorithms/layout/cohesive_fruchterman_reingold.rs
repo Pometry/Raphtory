@@ -20,15 +20,15 @@ use crate::{
 ///
 /// # Returns
 ///
-/// An [AlgorithmResult] containing a mapping between vertices and a [Vec2] of coordinates.
+/// An [AlgorithmResult] containing a mapping between vertices and a [DVec2] of coordinates.
 ///
 pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
     g: &G,
     iter_count: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> TypedNodeState<'graph, CoordinateState, G> {
     let virtual_graph = g.materialize().unwrap();
 

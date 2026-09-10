@@ -14,9 +14,10 @@ use opentelemetry_sdk::{
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use reqwest::{blocking::ClientBuilder, Certificate};
 use serde::Deserialize;
-use std::{
-    collections::HashMap, fs::File, io::Read, path::PathBuf, sync::LazyLock, time::Duration,
-};
+use std::{collections::HashMap, fs::File, io::Read, path::PathBuf, time::Duration};
+// Only the in-memory test exporters are lazily initialised.
+#[cfg(feature = "integration-test")]
+use std::sync::LazyLock;
 use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
@@ -125,8 +126,8 @@ pub struct GlobalExporters {
    across the entire process, which can conflict
    when starting up servers with their own exporters.
    Making in-memory exporters global allows them to be
-   initialized once and reused across multiple tests
-   allowing the tests to retrieve spans and logs
+   initialized once, reused across multiple tests
+   and allows the tests to retrieve spans and logs
    without conflicts.
 */
 pub static GLOBAL_EXPORTERS: LazyLock<GlobalExporters> = LazyLock::new(|| GlobalExporters {
@@ -175,6 +176,7 @@ impl TracingConfig {
                 self.service_name.clone(),
             )])
             .build();
+
         let tracer = SdkTracerProvider::builder()
             .with_batch_exporter(span_exporter)
             .with_sampler(Sampler::AlwaysOn)
@@ -185,6 +187,7 @@ impl TracingConfig {
             .with_batch_exporter(log_exporter)
             .with_resource(resource)
             .build();
+
         (tracer, logger)
     }
 
@@ -203,6 +206,7 @@ impl TracingConfig {
                 self.service_name.clone(),
             )])
             .build();
+
         let tracer = SdkTracerProvider::builder()
             .with_simple_exporter(span_exporter)
             .with_sampler(Sampler::AlwaysOn)
@@ -213,6 +217,7 @@ impl TracingConfig {
             .with_simple_exporter(log_exporter)
             .with_resource(resource)
             .build();
+
         (tracer, logger)
     }
 

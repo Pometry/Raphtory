@@ -21,15 +21,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Hits {
-    pub hub_score: f32,
-    pub auth_score: f32,
+    pub hub_score: f64,
+    pub auth_score: f64,
 }
 
 impl Default for Hits {
     fn default() -> Self {
         Self {
-            hub_score: 1f32,
-            auth_score: 1f32,
+            hub_score: 1f64,
+            auth_score: 1f64,
         }
     }
 }
@@ -57,14 +57,14 @@ pub fn hits<G: StaticGraphViewOps>(
 ) -> TypedNodeState<'static, Hits, G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let recv_hub_score = sum::<f32>(2);
-    let recv_auth_score = sum::<f32>(3);
+    let recv_hub_score = sum::<f64>(2);
+    let recv_auth_score = sum::<f64>(3);
 
-    let total_hub_score = sum::<f32>(4);
-    let total_auth_score = sum::<f32>(5);
+    let total_hub_score = sum::<f64>(4);
+    let total_auth_score = sum::<f64>(5);
 
-    let max_diff_hub_score = max::<f32>(6);
-    let max_diff_auth_score = max::<f32>(7);
+    let max_diff_hub_score = max::<f64>(6);
+    let max_diff_auth_score = max::<f64>(7);
 
     ctx.agg(recv_hub_score);
     ctx.agg(recv_auth_score);
@@ -123,7 +123,7 @@ pub fn hits<G: StaticGraphViewOps>(
         Step::Continue
     });
 
-    let max_diff_hs = 0.01f32;
+    let max_diff_hs = 0.01f64;
     let max_diff_as = max_diff_hs;
 
     let step5 = Job::Check(Box::new(move |state| {

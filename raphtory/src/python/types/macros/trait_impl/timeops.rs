@@ -198,18 +198,6 @@ macro_rules! impl_timeops {
             fn shrink_end(&self, end: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                     self.$field.shrink_end(end)
             }
-
-            /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-            ///
-            /// Arguments:
-            ///     start (TimeInput): the new start time for the window
-            ///     end (TimeInput): the new end time for the window
-            ///
-            /// Returns:
-            #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_window(&self, start: $crate::api::core::storage::timeindex::EventTime, end: $crate::api::core::storage::timeindex::EventTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                self.$field.shrink_window(start, end)
-            }
         }
     };
 }

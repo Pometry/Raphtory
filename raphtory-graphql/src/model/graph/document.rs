@@ -17,7 +17,6 @@ pub(crate) enum GqlDocumentEntity {
     Edge(GqlEdge),
 }
 
-#[cfg(feature = "vectors")]
 impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumentEntity {
     fn from(value: DocumentEntity<G>) -> Self {
         match value {

@@ -73,7 +73,11 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, LayerIds},
+    storage::timeindex::EventTime,
+    Direction,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -337,8 +341,8 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 /// Uses path-counting for its triangle-counting step.
 ///
 /// Arguments:
-///     graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v: vec of node ids, if empty, will return results for every node in the graph
+///     graph (GraphView): Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v (list[NodeInput], optional): node ids; if omitted, returns results for every node in the graph
 ///
 /// Returns:
 ///     OutputNodeState: Mapping of vertices to lcc score
@@ -733,21 +737,32 @@ pub fn single_source_shortest_path(
 ///     targets (list[NodeInput]): A list of target nodes.
 ///     direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
 ///     weight (str): The name of the weight property for the edges. Defaults to "weight".
+///     default_weight (int|float|Decimal, optional): The default value for edges without weight (either
+///         because `weight` was not specified or because the edge does not have a value for the property).
+///         If not specified, defaults to 1.
 ///
 /// Returns:
 ///     NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, source, targets, direction=Direction::BOTH, weight="weight")]]
+#[pyo3[signature = (graph, source, targets, direction=Direction::BOTH, weight="weight", default_weight=None)]]
 pub fn dijkstra_single_source_shortest_paths(
     graph: &PyGraphView,
     source: PyNodeRef,
     targets: Vec<PyNodeRef>,
     direction: Direction,
     weight: Option<&str>,
+    default_weight: Option<Prop>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
-    dijkstra_single_source_shortest_paths_rs(&graph.graph, source, targets, weight, direction)
-        .map(|result| result.to_output_nodestate())
+    dijkstra_single_source_shortest_paths_rs(
+        &graph.graph,
+        source,
+        targets,
+        weight,
+        direction,
+        default_weight,
+    )
+    .map(|result| result.to_output_nodestate())
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.
@@ -916,10 +931,10 @@ pub fn louvain(
 pub fn fruchterman_reingold(
     graph: &PyGraphView,
     iterations: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     fruchterman_reingold_rs(
         &graph.graph,
@@ -949,10 +964,10 @@ pub fn fruchterman_reingold(
 pub fn cohesive_fruchterman_reingold(
     graph: &PyGraphView,
     iter_count: u64,
-    scale: f32,
-    node_start_size: f32,
-    cooloff_factor: f32,
-    dt: f32,
+    scale: f64,
+    node_start_size: f64,
+    cooloff_factor: f64,
+    dt: f64,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,

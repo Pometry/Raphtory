@@ -4,15 +4,16 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
-    errors::GraphError,
     prelude::*,
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
-use storage::Config;
+
+#[cfg(feature = "io")]
+use {
+    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args,
+};
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -84,6 +85,17 @@ impl Debug for MaterializedGraph {
 impl Static for MaterializedGraph {}
 
 impl MaterializedGraph {
+    /// A read-only handle to this graph: reads skip per-access segment locking and
+    /// mutations fail with `Immutable::ReadLockedImmutable`.
+    pub fn read_only(&self) -> Self {
+        match self {
+            MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.read_only()),
+            MaterializedGraph::PersistentGraph(g) => {
+                MaterializedGraph::PersistentGraph(g.read_only())
+            }
+        }
+    }
+
     pub fn into_events(self) -> Option<Graph> {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
@@ -115,16 +127,14 @@ impl MaterializedGraph {
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let meta = path.read_metadata()?;
         if meta.is_diskgraph {
             match meta.graph_type {
-                GraphType::EventGraph => {
-                    Ok(Self::EventGraph(Graph::load_with_config(path, config)?))
-                }
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_with_config(path, args)?)),
                 GraphType::PersistentGraph => Ok(Self::PersistentGraph(
-                    PersistentGraph::load_with_config(path, config)?,
+                    PersistentGraph::load_with_config(path, args)?,
                 )),
             }
         } else {

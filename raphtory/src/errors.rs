@@ -1,5 +1,5 @@
 use crate::{
-    core::storage::lazy_vec::IllegalSet,
+    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
@@ -36,6 +36,9 @@ use zip::result::ZipError;
 
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
+
+#[cfg(any(feature = "vectors", feature = "io"))]
+use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
@@ -98,6 +101,12 @@ pub enum LoadError {
     MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
     NodeIdTypeError { existing: GidType, new: GidType },
+    #[error("Node {gid} was given conflicting node types, {existing} and {new}")]
+    ConflictingNodeType {
+        gid: GID,
+        existing: String,
+        new: String,
+    },
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
 }
@@ -116,6 +125,10 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
+
+    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[error(transparent)]
+    PersistError(#[from] PersistError),
 
     #[error(transparent)]
     MutationError(#[from] MutationError),
@@ -150,23 +163,8 @@ pub enum GraphError {
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
 
-    #[error("Missing graph index. You need to create an index first.")]
-    IndexNotCreated,
-
-    #[error("Failed to create index.")]
-    FailedToCreateIndex,
-
-    #[error("Failed to persist index.")]
-    FailedToPersistIndex,
-
-    #[error("Cannot persist RAM index")]
-    CannotPersistRamIndex,
-
-    #[error("Failed to remove existing graph index: {0}")]
-    FailedToRemoveExistingGraphIndex(PathBuf),
-
-    #[error("Failed to move graph index")]
-    FailedToMoveGraphIndex,
+    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
+    VectorTemplateChanged,
 
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
@@ -179,6 +177,9 @@ pub enum GraphError {
 
     #[error("{reason}")]
     InvalidProperty { reason: String },
+
+    #[error("Invalid value: {reason}")]
+    InvalidValue { reason: String },
 
     #[error("Failed to parse time string: {source}")]
     ParseTime {
@@ -206,6 +207,12 @@ pub enum GraphError {
 
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
+
+    #[error("No event at time {time} on edge ({src}, {dst})")]
+    EventMissingError { src: GID, dst: GID, time: i64 },
+
+    #[error("No layer '{layer}' on edge ({src}, {dst})")]
+    EdgeLayerMissingError { src: GID, dst: GID, layer: String },
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
@@ -238,6 +245,9 @@ pub enum GraphError {
 
     #[error("IO operation failed: {0}")]
     IOErrorMsg(String),
+
+    #[error("Invalid epidemic seeds: {0}")]
+    SeedError(#[from] SeedError),
 
     #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]
@@ -364,15 +374,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-    #[error("PropertyIndex not found for property {0}")]
-    PropertyIndexNotFound(String),
-
-    #[error("Tokenization is support only for str field type")]
-    UnsupportedFieldTypeForTokenization,
-
-    #[error("Not tokens found")]
-    NoTokensFound,
-
     #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
     TooManyViewsSet,
 
@@ -393,12 +394,6 @@ pub enum GraphError {
 
     #[error("Only property filters are supported for exploded edge filtering")]
     NotExplodedEdgeFilter,
-
-    #[error("Indexing not supported")]
-    IndexingNotSupported,
-
-    #[error("Failed to create index in ram. There already exists an on disk index.")]
-    OnDiskIndexAlreadyExists,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,

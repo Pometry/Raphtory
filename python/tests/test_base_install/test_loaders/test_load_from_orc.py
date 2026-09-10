@@ -66,7 +66,7 @@ def test_load_from_orc(orc_files):
         )
 
         assert graph.nodes.id.sorted() == [1, 2, 3, 4, 5, 6]
-        nodes = [(v.id, v["name"]) for v in graph.nodes]
+        nodes = [(v.id, v.properties.get("name")) for v in graph.nodes]
         nodes.sort()
         assert nodes == [
             (1, "Alice"),
@@ -76,7 +76,10 @@ def test_load_from_orc(orc_files):
             (5, "Eve"),
             (6, "Frank"),
         ]
-        edges = [(*e.id, e["weight"], e["marbles"]) for e in graph.edges]
+        edges = [
+            (*e.id, e.properties.get("weight"), e.properties.get("marbles"))
+            for e in graph.edges
+        ]
         edges.sort()
         assert edges == [
             (1, 2, 1.0, "red"),

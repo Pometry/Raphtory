@@ -23,7 +23,9 @@ def _btc_root() -> Path:
 
 
 def _collect_edges(g: Graph):
-    return sorted((e.history.t[0], e.src.id, e.dst.id, e["value"]) for e in g.edges)
+    return sorted(
+        (e.history.t[0], e.src.id, e.dst.id, e.properties.get("value")) for e in g.edges
+    )
 
 
 def duck_query(con, sql: str):

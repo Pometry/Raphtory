@@ -1,13 +1,13 @@
-#[cfg(feature = "io")]
-use raphtory::io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet};
-#[cfg(feature = "io")]
-use raphtory::{arrow_loader::df_loaders::edges::ColumnNames, errors::GraphError, prelude::*};
+use raphtory::{
+    arrow_loader::df_loaders::edges::ColumnNames,
+    errors::GraphError,
+    io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
+    prelude::*,
+};
 use serde::Deserialize;
-#[cfg(feature = "io")]
 use std::path::{Path, PathBuf};
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
-#[cfg(feature = "io")]
 fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
     parquet_dir.join(format!("{}.parquet", name))
 }
@@ -19,7 +19,6 @@ use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 
-#[cfg(feature = "io")]
 struct NodeParquetInput {
     path: PathBuf,
     time_col: String,
@@ -29,7 +28,6 @@ struct NodeParquetInput {
     property_cols: Vec<String>,
 }
 
-#[cfg(feature = "io")]
 impl NodeParquetInput {
     fn new<'a>(
         path: impl AsRef<Path>,
@@ -53,7 +51,6 @@ impl NodeParquetInput {
         self.path.iter().last().and_then(|p| p.to_str()).unwrap()
     }
 }
-#[cfg(feature = "io")]
 struct EdgeParquetInput {
     path: PathBuf,
     time_col: String,
@@ -63,7 +60,6 @@ struct EdgeParquetInput {
     property_cols: Vec<String>,
 }
 
-#[cfg(feature = "io")]
 impl EdgeParquetInput {
     fn new(
         path: impl AsRef<Path>,
@@ -88,7 +84,6 @@ impl EdgeParquetInput {
     }
 }
 
-#[cfg(feature = "io")]
 fn load_snb_graph_v2(
     nodes: impl IntoIterator<Item = NodeParquetInput>,
     edges: impl IntoIterator<Item = EdgeParquetInput>,
@@ -151,7 +146,6 @@ fn load_snb_graph_v2(
 }
 
 /// Load SNB data from Parquet files into a Raphtory Graph.
-#[cfg(feature = "io")]
 fn load_snb_graph(
     parquet_dir: &Path,
     filter: Option<Filter>,
@@ -464,7 +458,6 @@ struct Filter {
     edges: Option<Vec<String>>,
 }
 
-#[cfg(feature = "io")]
 fn main() {
     let parquet_dir = std::env::args()
         .nth(1)
@@ -487,6 +480,3 @@ fn main() {
     };
     load_snb_graph(&parquet_dir, filter, &graph).unwrap()
 }
-
-#[cfg(not(feature = "io"))]
-fn main() {}

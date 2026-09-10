@@ -7,9 +7,12 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             state::Index,
-            view::{internal::InternalFilter, BaseEdgeViewOps, BoxedLIter},
+            view::{
+                internal::{DynGraphArc, GraphView, InternalFilter},
+                BaseEdgeViewOps, BoxedLIter, Select,
+            },
         },
-        graph::edges::Edges,
+        graph::{edges::Edges, views::filter::CreateFilter},
         task::{
             edge::eval_edge::EvalEdgeView,
             eval_graph::EvalGraph,
@@ -17,6 +20,7 @@ use crate::{
             task_state::PrevLocalState,
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use raphtory_storage::graph::graph::GraphStorage;
@@ -153,7 +157,7 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
         self.edges.as_metadata()
     }
 
-    fn map_nodes<F: for<'b> Fn(&'b Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+    fn map_nodes<F: Fn(EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::Nodes {
@@ -172,15 +176,12 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
             local_state_prev,
             node_state,
         };
-        EvalPathFromNode {
-            eval_graph,
-            op: path.op,
-        }
+        EvalPathFromNode { eval_graph, path }
     }
 
     fn map_exploded<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&DynGraphArc<'graph>, EdgeRef) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -199,5 +200,31 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
             local_state_prev,
             edges,
         }
+    }
+}
+
+impl<'graph, 'a, G: GraphView + 'graph, CS: Clone + ComputeState, S> Select<'graph>
+    for EvalEdges<'graph, 'a, G, CS, S>
+{
+    type IterFiltered<Filter: CreateFilter + 'graph> = EvalEdges<'graph, 'a, G, CS, S>;
+
+    fn select<F: CreateFilter + 'graph>(
+        &self,
+        filter: F,
+    ) -> Result<Self::IterFiltered<F>, GraphError> {
+        let edges = self.edges.select(filter)?;
+        let ss = self.ss;
+        let node_state = self.node_state.clone();
+        let local_state_prev = self.local_state_prev;
+        let storage = self.storage;
+        let index = self.index;
+        Ok(EvalEdges {
+            ss,
+            storage,
+            index,
+            node_state,
+            local_state_prev,
+            edges,
+        })
     }
 }
