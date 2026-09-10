@@ -466,10 +466,6 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
-    fn extension(&self) -> &Self::Extension {
-        &self.ext
-    }
-
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
