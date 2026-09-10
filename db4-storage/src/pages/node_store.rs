@@ -29,7 +29,6 @@ use std::{
     sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
-// graph // (nodes|edges) // graph segments // layers // chunks
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
 #[derive(Debug)]
@@ -655,7 +654,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub(crate) fn flush(&self) -> Result<(), StorageError> {
-        self.segments_par_iter().try_for_each(|seg| seg.flush())?;
+        self.segments_par_iter().try_for_each(|seg| {
+            let head = seg.head_mut();
+            seg.flush(head)
+        })?;
+
         self.node_type_index.flush()
     }
 }

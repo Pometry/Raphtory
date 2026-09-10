@@ -301,8 +301,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         ))
     }
 
+    // TODO: Move this to DurabilityOps.
     fn flush(&self) -> Result<(), Self::Error> {
-        self.core_graph().flush().map_err(MutationError::from)?;
+        self.core_graph()
+            .mutable()?
+            .flush()
+            .map_err(MutationError::from)?;
+
         Ok(())
     }
 }

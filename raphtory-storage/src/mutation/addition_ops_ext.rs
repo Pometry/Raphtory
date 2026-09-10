@@ -5,6 +5,7 @@ use crate::{
         MutationError, NodeWriterT,
     },
     recovery_ops::RecoveryOps,
+    staging_ops::{StagedGraph, StagingError, StagingOps},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -15,7 +16,10 @@ use raphtory_api::core::{
         },
         LayerId,
     },
-    storage::dict_mapper::MaybeNew,
+    storage::{
+        dict_mapper::MaybeNew,
+        graph_folder::{GraphFolder, GraphPaths},
+    },
 };
 use raphtory_core::{
     entities::{
@@ -129,7 +133,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self.graph.logical_to_physical.set(gid, vid)?)
+        Ok(self.graph.gid_resolver.set(gid, vid)?)
     }
 
     fn resolve_graph_property(
@@ -245,7 +249,7 @@ impl InternalAdditionOps for TemporalGraph {
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
         match id {
             NodeRef::External(id) => {
-                let id = match self.logical_to_physical.get_or_init(id)? {
+                let id = match self.gid_resolver.get_or_init(id)? {
                     MaybeInit::VID(vid) => MaybeNew::Existing(vid),
                     MaybeInit::Init(init) => {
                         let (seg, pos) = self.storage().nodes().reserve_free_pos(
@@ -331,7 +335,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
-        let vid = match self.logical_to_physical.get(id) {
+        let vid = match self.gid_resolver.get(id) {
             Some(vid) => MaybeNew::Existing(vid),
             None => {
                 let (seg, pos) = self
@@ -339,7 +343,7 @@ impl InternalAdditionOps for TemporalGraph {
                     .nodes()
                     .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
-                self.logical_to_physical.set(id, new_vid)?;
+                self.gid_resolver.set(id, new_vid)?;
                 MaybeNew::New(new_vid)
             }
         };
@@ -351,7 +355,7 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
-        self.logical_to_physical.validate_gids(gids)?;
+        self.gid_resolver.validate_gids(gids)?;
         Ok(())
     }
 
@@ -373,28 +377,23 @@ impl InternalAdditionOps for TemporalGraph {
             }
             (NodeRef::Internal(src_id), NodeRef::External(dst_gid)) => (
                 MaybeInit::VID(src_id),
-                Some(self.logical_to_physical.get_or_init(dst_gid)?),
+                Some(self.gid_resolver.get_or_init(dst_gid)?),
             ),
             (NodeRef::External(src_gid), NodeRef::Internal(dst_id)) => (
-                self.logical_to_physical.get_or_init(src_gid)?,
+                self.gid_resolver.get_or_init(src_gid)?,
                 Some(MaybeInit::VID(dst_id)),
             ),
             (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
                 // resolve the smaller id first to avoid deadlocks when adding the same edge in both directions
                 match src_gid.cmp(&dst_gid) {
                     std::cmp::Ordering::Less => (
-                        self.logical_to_physical.get_or_init(src_gid)?,
-                        Some(self.logical_to_physical.get_or_init(dst_gid)?),
+                        self.gid_resolver.get_or_init(src_gid)?,
+                        Some(self.gid_resolver.get_or_init(dst_gid)?),
                     ),
-                    std::cmp::Ordering::Equal => {
-                        (self.logical_to_physical.get_or_init(src_gid)?, None)
-                    }
+                    std::cmp::Ordering::Equal => (self.gid_resolver.get_or_init(src_gid)?, None),
                     std::cmp::Ordering::Greater => {
-                        let dst_init = self.logical_to_physical.get_or_init(dst_gid)?;
-                        (
-                            self.logical_to_physical.get_or_init(src_gid)?,
-                            Some(dst_init),
-                        )
+                        let dst_init = self.gid_resolver.get_or_init(dst_gid)?;
+                        (self.gid_resolver.get_or_init(src_gid)?, Some(dst_init))
                     }
                 }
             }
@@ -658,7 +657,7 @@ impl InternalAdditionOps for TemporalGraph {
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         let node_vid = match node {
             NodeRef::Internal(vid) => vid,
-            NodeRef::External(gid) => match self.logical_to_physical.get_or_init(gid)? {
+            NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
                     let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
@@ -754,3 +753,37 @@ impl DurabilityOps for TemporalGraph {
 }
 
 impl RecoveryOps for TemporalGraph {}
+
+impl StagingOps for TemporalGraph {
+    fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
+        // Acquire full write lock to prevent modifications during staging.
+        let mut write_locked_graph = self.write_locked_graph();
+
+        // Make sure graph is on disk before creating hard links.
+        write_locked_graph.flush()?;
+
+        let graph_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
+        let graph_folder = GraphFolder::from_graph_path(graph_path)?;
+
+        // Create a new data folder to hold the staged graph.
+        let writeable_folder = graph_folder
+            .clone()
+            .init_swap()
+            .map_err(StagingError::InitStagingDir)?;
+
+        let graph_path = writeable_folder
+            .graph_path()
+            .map_err(StagingError::InitStagingDir)?;
+
+        std::fs::create_dir_all(&graph_path).map_err(|e| StagingError::InitStagingDir(e.into()))?;
+
+        // Copy graph to the new data folder.
+        write_locked_graph.copy_to(graph_path)?;
+
+        Ok(StagedGraph::new(
+            write_locked_graph,
+            graph_folder,
+            writeable_folder,
+        ))
+    }
+}

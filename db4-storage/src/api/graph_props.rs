@@ -5,7 +5,7 @@ use raphtory_api::core::entities::properties::{
     prop::{AsPropRef, Prop},
     tprop::TPropOps,
 };
-use std::{fmt::Debug, path::Path, sync::Arc};
+use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait GraphPropSegmentOps: Send + Sync + Debug + 'static
 where
@@ -45,7 +45,12 @@ where
         mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(
+        &self,
+        locked_head: impl DerefMut<Target = MemGraphPropSegment>,
+    ) -> Result<(), StorageError>;
+
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
     fn check_metadata_immut<PR: AsPropRef>(
         &self,

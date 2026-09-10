@@ -32,9 +32,10 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::PersistenceStrategy,
+    persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
     resolver::GIDResolverOps,
     transaction::TransactionManager,
+    wal::{GraphWalOps, WalOps},
     Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
@@ -48,8 +49,12 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    // mapping between logical and physical ids
-    pub logical_to_physical: Arc<GIDResolver>,
+    // NOTE: Do not change the order of fields as this affects storage correctness during drop.
+    // The resolver needs to be dropped before storage to ensure that node IDs are not lost
+    // on recovery.
+    // TODO: Move resolver inside storage?
+    /// Stores mapping between logical to physical node IDs.
+    pub gid_resolver: Arc<GIDResolver>,
     pub round_robin_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
@@ -110,7 +115,7 @@ where
             .and_then(GidType::from_prop_type);
 
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
-        let logical_to_physical = match gid_resolver_dir {
+        let gid_resolver = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
             None => GIDResolver::new()?,
         }
@@ -126,7 +131,7 @@ where
 
         Ok(Self {
             graph_dir,
-            logical_to_physical,
+            gid_resolver,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
             round_robin_counter: AtomicUsize::new(0),
@@ -162,15 +167,15 @@ where
         Ok(Self {
             graph_dir: Some(path.into()),
             round_robin_counter: AtomicUsize::new(0),
-            logical_to_physical: resolver.into(),
+            gid_resolver: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
         })
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.storage.flush()?;
-        self.logical_to_physical.flush()
+        self.gid_resolver.flush()?;
+        self.storage.flush()
     }
 
     pub fn vacuum(&self) -> Result<(), StorageError> {
@@ -203,11 +208,11 @@ where
     pub fn resolve_node_ref(&self, node: NodeRef) -> Option<VID> {
         let vid = match node {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(GidRef::U64(gid)) => self.logical_to_physical.get_u64(gid),
+            NodeRef::External(GidRef::U64(gid)) => self.gid_resolver.get_u64(gid),
             NodeRef::External(GidRef::Str(string)) => self
-                .logical_to_physical
+                .gid_resolver
                 .get_str(string)
-                .or_else(|| self.logical_to_physical.get_u64(string.id())),
+                .or_else(|| self.gid_resolver.get_u64(string.id())),
         }?;
 
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
@@ -476,5 +481,49 @@ where
 
     pub fn node_stats(&self) -> &Arc<GraphStats> {
         self.graph.storage().nodes().stats()
+    }
+
+    /// Flush dirty in-memory segments to disk using the existing segment
+    /// write locks.
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.graph.storage.save_config()?;
+
+        self.graph.gid_resolver.flush()?;
+        self.nodes.flush()?;
+        self.edges.flush()?;
+        self.graph_props.flush()?;
+
+        self.graph.storage.refresh_metadata()
+    }
+
+    /// Copy graph data to a new directory.
+    ///
+    /// Assumes `dst` is created and graph has been flushed to disk.
+    pub fn copy_to(&self, dst: impl AsRef<Path>) -> Result<(), StorageError> {
+        let dst = GraphDir::from(dst.as_ref());
+
+        let config = self.graph.extension().config();
+        config.save_to_dir(dst.path())?;
+
+        self.graph.gid_resolver.copy_to(dst.gid_resolver_dir())?;
+        self.nodes.copy_to(&dst.nodes_dir())?;
+        self.edges.copy_to(&dst.edges_dir())?;
+        self.graph_props.copy_to(&dst.graph_props_dir())?;
+
+        // All segments have been flushed, mark checkpoint event in the WAL and control file.
+        let wal = self.graph.extension().wal();
+        let redo_lsn = None; // Nothing to redo since all segments have been flushed.
+        let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
+        wal.flush(checkpoint_lsn)?;
+
+        let control_file = self.graph.extension().control_file();
+        control_file.set_checkpoint(checkpoint_lsn);
+        control_file.save()?;
+        control_file.copy_to(dst.path())?;
+
+        // After checkpointing, copy over the latest WAL file to the destination.
+        wal.copy_tail_to(&dst.wal_dir())?;
+
+        Ok(())
     }
 }

@@ -23,7 +23,7 @@ use storage::{
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
     state::StateIndex,
-    Extension, GIDResolver, GraphPropEntry, NTI,
+    Extension, GraphPropEntry, NTI,
 };
 use thiserror::Error;
 
@@ -109,31 +109,10 @@ impl GraphStorage {
         }
     }
 
-    pub fn flush(&self) -> Result<(), StorageError> {
-        match self {
-            GraphStorage::Mem(graph) => graph.flush(),
-            GraphStorage::Unlocked(graph) => graph.flush(),
-        }
-    }
-
-    pub fn vacuum(&self) -> Result<(), StorageError> {
-        match self {
-            GraphStorage::Mem(graph) => graph.vacuum(),
-            GraphStorage::Unlocked(graph) => graph.vacuum(),
-        }
-    }
-
     pub fn disk_storage_path(&self) -> Option<&Path> {
         match self {
             GraphStorage::Mem(graph) => graph.graph.disk_storage_path(),
             GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
-        }
-    }
-
-    pub fn logical_to_physical(&self) -> &GIDResolver {
-        match self {
-            GraphStorage::Mem(graph) => &graph.graph.logical_to_physical,
-            GraphStorage::Unlocked(graph) => &graph.logical_to_physical,
         }
     }
 

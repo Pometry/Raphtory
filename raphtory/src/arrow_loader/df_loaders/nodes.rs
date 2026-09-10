@@ -27,7 +27,11 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    sync::{atomic::Ordering, mpsc},
+    fmt::Debug,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
 };
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
@@ -123,9 +127,7 @@ pub fn load_nodes_from_df_prefetch<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
->(
+pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + Debug>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     time: &str,
     secondary_index: Option<&str>,
@@ -335,7 +337,7 @@ pub fn load_nodes_from_df<
 #[allow(clippy::too_many_arguments)]
 pub fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,

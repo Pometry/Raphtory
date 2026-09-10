@@ -15,12 +15,13 @@ use raphtory_core::{
 };
 use rayon::iter::ParallelIterator;
 use std::{
+    fmt::Debug,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
 
-pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
+pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
     type Entry<'a>: EdgeEntryOps<'a>
@@ -28,8 +29,6 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         Self: 'a;
 
     type ArcLockedSegment: LockedESegment;
-
-    fn extension(&self) -> &Self::Extension;
 
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
@@ -121,7 +120,12 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(
+        &self,
+        locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError>;
+
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
     fn check_metadata_immut<PR: AsPropRef>(
         &self,

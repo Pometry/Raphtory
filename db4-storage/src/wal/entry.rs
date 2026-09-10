@@ -103,7 +103,7 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
-    fn log_checkpoint(&self, _redo: LSN) -> Result<LSN, StorageError> {
+    fn log_checkpoint(&self, _redo: Option<LSN>) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -111,7 +111,7 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
-    fn read_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
+    fn read_checkpoint(&self, _lsn: LSN) -> Result<Option<LSN>, StorageError> {
         Err(StorageError::GenericFailure(
             "read_checkpoint is not supported for NoWAL".to_string(),
         ))

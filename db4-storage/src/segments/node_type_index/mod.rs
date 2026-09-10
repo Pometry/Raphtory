@@ -22,7 +22,7 @@ pub struct NodeTypeIndexView<P: PersistenceStrategy> {
     head: Arc<RwLock<MemNodeTypeIndex>>,
     est_size: AtomicUsize,
     is_dirty: AtomicBool,
-    _persistent: P,
+    _persistence: P,
 }
 
 impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
@@ -33,7 +33,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
             head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
             est_size: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
-            _persistent: ext,
+            _persistence: ext,
         }
     }
 

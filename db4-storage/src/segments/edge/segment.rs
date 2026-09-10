@@ -30,7 +30,7 @@ use raphtory_core::{
 use rayon::prelude::*;
 use std::{
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicU32, AtomicUsize, Ordering},
@@ -466,10 +466,6 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
-    fn extension(&self) -> &Self::Extension {
-        &self.ext
-    }
-
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
@@ -627,7 +623,14 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         0
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn flush(
+        &self,
+        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

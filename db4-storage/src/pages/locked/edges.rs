@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
@@ -16,6 +14,10 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 #[derive(Debug)]
 pub struct LockedEdgePage<'a, ES> {
@@ -141,11 +143,32 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         Ok(())
     }
 
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedEdgePage { page, lock, .. } = writer;
+            page.flush(lock.deref_mut())
+        })?;
+
+        Ok(())
+    }
+
     pub fn len(&self) -> usize {
         self.writers.len()
     }
 
     pub fn is_empty(&self) -> bool {
         self.writers.is_empty()
+    }
+
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        for writer in &self.writers {
+            let segment_dst = dst.join(writer.page_id().to_string());
+            std::fs::create_dir_all(&segment_dst)?;
+            writer.page().copy_to(&segment_dst)?;
+        }
+
+        Ok(())
     }
 }

@@ -11,6 +11,7 @@ use crate::{
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::AsPropRef};
 use std::{
+    ops::DerefMut,
     path::Path,
     sync::{
         Arc,
@@ -103,7 +104,14 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         Ok(())
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn flush(
+        &self,
+        _locked_head: impl DerefMut<Target = MemGraphPropSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

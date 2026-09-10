@@ -1,5 +1,6 @@
 use crate::{error::StorageError, wal::LSN};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DBState {
@@ -16,6 +17,8 @@ pub const LAST_CHECKPOINT_INIT: LSN = 0;
 pub trait ControlFileOps {
     fn save(&self) -> Result<(), StorageError>;
 
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
+
     fn db_state(&self) -> DBState;
 
     fn last_checkpoint(&self) -> LSN;
@@ -30,6 +33,10 @@ pub struct NoControlFile;
 
 impl ControlFileOps for NoControlFile {
     fn save(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

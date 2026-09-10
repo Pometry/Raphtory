@@ -19,9 +19,7 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::properties::meta::Meta, storage::graph_folder::InnerGraphFolder,
-};
+use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -69,6 +67,19 @@ impl<
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
+        self.save_config()?;
+
+        self.nodes.flush()?;
+        self.edges.flush()?;
+        self.graph_props.flush()?;
+
+        self.refresh_metadata()?;
+
+        Ok(())
+    }
+
+    /// Persist the current config (including node types) to the graph directory.
+    pub fn save_config(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         let config = self.ext.config().with_node_types(node_types);
 
@@ -76,18 +87,16 @@ impl<
             config.save_to_dir(graph_dir)?;
         }
 
-        self.nodes.flush()?;
-        self.edges.flush()?;
-        self.graph_props.flush()?;
+        Ok(())
+    }
 
-        // Refresh the graph metadata file (.meta) for disk-backed graphs
+    /// Refresh the graph metadata file (`.meta`) for disk-backed graphs.
+    pub fn refresh_metadata(&self) -> Result<(), StorageError> {
         if let Some(graph_dir) = self.graph_dir.as_ref()
-            && let (Some(data_folder), Some(graph_path)) = (
-                graph_dir.parent(),
-                graph_dir.file_name().and_then(|name| name.to_str()),
-            )
+            && let Some(data_folder) = graph_dir.parent()
+            && let Some(graph_path) = graph_dir.file_name().and_then(|name| name.to_str())
         {
-            InnerGraphFolder::new(data_folder).refresh_metadata(
+            DataFolder::new(data_folder).refresh_metadata(
                 graph_path,
                 self.nodes.num_nodes(),
                 self.edges.num_edges(),
@@ -399,10 +408,7 @@ impl<
                     }
                 };
 
-                // Flush up to the end of the WAL stream.
-                let flush_lsn = wal.position();
-
-                if let Err(err) = wal.flush(flush_lsn) {
+                if let Err(err) = wal.flush(checkpoint_lsn) {
                     drop_error!("Failed to flush checkpoint record in drop: {err}");
                     // this is unreachable with panic-on-drop
                     #[allow(unreachable_code)]
