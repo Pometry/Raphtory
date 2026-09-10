@@ -1,6 +1,6 @@
 use raphtory::{
     algorithms::community_detection::{
-        label_propagation::label_propagation,
+        label_propagation::{label_propagation, label_propagation_fast},
         louvain::louvain,
         modularity::{ComID, ModularityFunction, ModularityUnDir, Partition},
     },
@@ -66,6 +66,69 @@ fn lpa_test() {
         ];
         for hashset in expected {
             assert!(result.contains(&hashset));
+        }
+    });
+}
+
+/// `label_propagation_fast` must agree with `label_propagation` node for node. It only runs the
+/// seeded case, so both are given an explicit `init_state`: the identity map, which reproduces the
+/// unseeded start, and a partial map, which exercises the `NO_LABEL` front advancing from a couple
+/// of seeds. Both are deterministic given `seed`, including across thread counts.
+#[test]
+fn lpa_fast_matches_lpa() {
+    let graph: Graph = Graph::new();
+    let edges = vec![
+        (1, "R1", "R2"),
+        (1, "R1", "R3"),
+        (1, "R2", "R3"),
+        (1, "R3", "G"),
+        (1, "G", "B1"),
+        (1, "G", "B3"),
+        (1, "B1", "B2"),
+        (1, "B2", "B3"),
+        (1, "B2", "B4"),
+        (1, "B3", "B4"),
+        (1, "B3", "B5"),
+        (1, "B4", "B5"),
+    ];
+    for (ts, src, dst) in edges {
+        graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+    }
+    test_storage!(&graph, |graph| {
+        let identity: HashMap<usize, usize> =
+            graph.nodes().iter().map(|n| (n.node.0, n.node.0)).collect();
+        let partial: HashMap<usize, usize> = ["R1", "B5"]
+            .iter()
+            .enumerate()
+            .map(|(label, name)| (graph.node(*name).unwrap().node.0, label))
+            .collect();
+
+        for init_state in [identity, partial] {
+            for seed in [8u64, 42] {
+                for threads in [None, Some(4)] {
+                    let expected = label_propagation(
+                        graph,
+                        20,
+                        Some(seed),
+                        threads,
+                        Some(init_state.clone()),
+                        None,
+                        None,
+                    )
+                    .to_hashmap(|value| value.community_id);
+                    let actual = label_propagation_fast(
+                        graph,
+                        20,
+                        Some(seed),
+                        threads,
+                        init_state.clone(),
+                        None,
+                        None,
+                    )
+                    .to_hashmap(|value| value.community_id);
+                    assert_eq!(expected, actual, "seed={seed} threads={threads:?}");
+                }
+            }
         }
     });
 }

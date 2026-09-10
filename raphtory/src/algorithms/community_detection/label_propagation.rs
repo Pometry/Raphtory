@@ -2,27 +2,30 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, TypedNodeState},
-            view::StaticGraphViewOps,
+            state::{GenericNodeState, Index, TypedNodeState},
+            view::{internal::filtered_node::FilteredNodeStorageOps, StaticGraphViewOps},
         },
         task::{
             context::{Context, GlobalState},
+            custom_pool,
             node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            POOL,
         },
     },
     prelude::*,
 };
 use rand::Rng;
-use raphtory_api::core::utils::hashing::calculate_hash;
+use raphtory_api::core::{entities::VID, utils::hashing::calculate_hash, Direction};
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
     },
 };
@@ -34,6 +37,12 @@ use tracing::debug;
 /// Safe as a sentinel because `usize::MAX` is already the codebase's "not a node"
 /// marker (see `VID::is_initialised`), so it can never collide with a node index.
 const NO_LABEL: usize = usize::MAX;
+
+/// Default relative-improvement threshold for the plateau stopping criterion.
+const DEFAULT_REL_TOL: f64 = 3e-4;
+
+/// Default number of consecutive iterations without progress before stopping.
+const DEFAULT_PATIENCE: usize = 10;
 
 #[derive(Copy, Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct LabelPropState {
@@ -104,6 +113,8 @@ where
 
     // Unseeded runs draw random number
     let tie_seed: u64 = seed.unwrap_or_else(|| rand::rng().random());
+    let rel_tol = rel_tol.unwrap_or(DEFAULT_REL_TOL);
+    let patience = patience.unwrap_or(DEFAULT_PATIENCE);
 
     let step1 = ATask::new(move |s| {
         let id = s.node.index();
@@ -207,8 +218,7 @@ where
     // Synchronous LPA never reaches global_diff == 0 on graphs with locally-bipartite pockets
     // (results in ~period-2 oscillations), so the stopping criterion we use is to wait for
     // `patience` iterations since the improvement was no better than `rel_tol`.
-    let rel_tol = rel_tol.unwrap_or(3e-4);
-    let patience = patience.unwrap_or(10);
+
     // (best, stale, n_iter): Check is Fn + called once/iter single-threaded, so the Mutex is uncontended
     let convergence_state = Arc::new(Mutex::new((usize::MAX, 0usize, 0usize)));
     let step4 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
@@ -251,4 +261,236 @@ where
         None,
         None,
     )
+}
+
+/// Seeded label propagation over flat label arrays, bypassing the task framework.
+///
+/// Same result as [`label_propagation`] called with the same arguments and a `Some(init_state)`:
+/// same activation gating, same tie-break, same plateau stopping criterion. It differs only in
+/// how it gets there, which is where the speed comes from:
+///
+/// - votes are tallied in a flat array indexed by a compacted label, so resetting the tally
+///   between nodes is proportional to the node's degree rather than to the high-water capacity
+///   of a hash map;
+/// - the adjacency is read through a [`GraphStorage::lock`]ed view of the storage, taken once,
+///   so traversing a node's neighbours does not re-acquire a segment lock per node;
+/// - a node that changes its label activates its neighbours directly, which removes the separate
+///   full pass over the graph that the task version needs to build the next frontier.
+///
+/// Unlike [`label_propagation`] this only runs the seeded case: `init_state` is mandatory.
+///
+/// # Arguments
+///
+/// See [`label_propagation`]; the arguments mean the same thing, except that `init_state` is
+/// required. The label values themselves are unconstrained — they are compacted internally, so
+/// the tally is sized by the number of *distinct* labels, not by the largest one.
+///
+/// # Returns
+///
+/// A `TypedNodeState` mapping each node to its `LabelPropState`, exactly as [`label_propagation`].
+pub fn label_propagation_fast<G>(
+    g: &G,
+    iter_count: usize,
+    seed: Option<u64>,
+    threads: Option<usize>,
+    init_state: HashMap<usize, usize>,
+    rel_tol: Option<f64>,
+    patience: Option<usize>,
+) -> TypedNodeState<'static, LabelPropState, G>
+where
+    G: StaticGraphViewOps,
+{
+    let index = Index::for_graph(g.clone());
+    let n = index.len();
+
+    // Unseeded runs draw random number
+    let tie_seed: u64 = seed.unwrap_or_else(|| rand::rng().random());
+    let rel_tol = rel_tol.unwrap_or(DEFAULT_REL_TOL);
+    let patience = patience.unwrap_or(DEFAULT_PATIENCE);
+
+    // Compact the caller's labels into `0..labels.len()`. Only labels named in `init_state` are
+    // ever in circulation (an unlabelled node can only copy a neighbour's), so this is the whole
+    // label space, and the vote tally below is sized by it rather than by the label values.
+    let labels: Vec<usize> = {
+        let mut labels: Vec<usize> = init_state.values().copied().collect();
+        labels.sort_unstable();
+        labels.dedup(); // only removes consecutive
+        labels
+    };
+    let slot_of: FxHashMap<usize, usize> = labels
+        .iter()
+        .enumerate()
+        .map(|(slot, &label)| (label, slot))
+        .collect();
+
+    // One lock for the whole run: `core_node` on a locked storage is an indexed read
+    let locked = g.core_graph().lock();
+    let layer_ids = g.layer_ids();
+    // Neighbours as flat index positions, matching `NodeViewOps::neighbours` (both directions,
+    // deduplicated, view filters applied).
+    let collect_nbors = |vid: VID, out: &mut Vec<usize>| {
+        out.clear();
+        let node = locked.core_node(vid);
+        out.extend(
+            node.as_ref()
+                .filtered_neighbours_iter(g, layer_ids, Direction::BOTH)
+                .map(|nbor| index.index(&nbor).expect("neighbour VID not in index")),
+        );
+    };
+
+    // Labels, held as slots and indexed by flat position. `cur` starts as a copy of `prev` so that
+    // an `iter_count` of 0 still reports the seeding.
+    let mut prev: Vec<AtomicUsize> = (0..n).map(|_| AtomicUsize::new(NO_LABEL)).collect();
+    index.par_iter().for_each(|(pos, vid)| {
+        if let Some(slot) = init_state.get(&vid.index()).and_then(|l| slot_of.get(l)) {
+            prev[pos].store(*slot, Ordering::Relaxed);
+        }
+    });
+    let mut cur: Vec<AtomicUsize> = prev
+        .iter()
+        .map(|slot| AtomicUsize::new(slot.load(Ordering::Relaxed)))
+        .collect();
+
+    // The frontier for the first sweep: the neighbours of the seeded nodes.
+    let mut active_cur: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(false)).collect();
+    let mut active_next: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(false)).collect();
+    index
+        .par_iter()
+        .for_each_init(Vec::new, |nbors, (pos, vid)| {
+            if prev[pos].load(Ordering::Relaxed) != NO_LABEL {
+                collect_nbors(vid, nbors); // collects into nbors
+                for &nbor in nbors.iter() {
+                    active_cur[nbor].store(true, Ordering::Relaxed);
+                }
+            }
+        });
+
+    let sweep = |prev: &[AtomicUsize],
+                 cur: &[AtomicUsize],
+                 active_cur: &[AtomicBool],
+                 active_next: &[AtomicBool]| {
+        let changed = AtomicUsize::new(0); // a counter
+        index.par_iter().for_each_init(
+            || (vec![0u32; labels.len()], Vec::new(), Vec::new()),
+            |(counts, touched, nbors), (pos, vid)| {
+                let prev_slot = prev[pos].load(Ordering::Relaxed);
+                // Gate: consume this node's activation flag atomically. A node that does not run
+                // still has to carry its label over, which the task version gets for free from the
+                // runner copying `prev` into `cur` between supersteps.
+                if !active_cur[pos].swap(false, Ordering::AcqRel) {
+                    cur[pos].store(prev_slot, Ordering::Relaxed);
+                    return;
+                }
+
+                collect_nbors(vid, nbors);
+                let node_key = calculate_hash(&(tie_seed, vid.index())); // tie_rank's 1st arg
+                let mut best_slot = prev_slot;
+                let mut best_count = 0u32;
+                let mut best_rank = 0u64;
+                if prev_slot != NO_LABEL {
+                    // initialised nodes vote for their own label
+                    counts[prev_slot] = 1;
+                    touched.push(prev_slot);
+                    best_count = 1;
+                    best_rank = tie_rank(node_key, labels[prev_slot]);
+                }
+                for &nbor in nbors.iter() {
+                    let nbor_slot = prev[nbor].load(Ordering::Relaxed);
+                    if nbor_slot == NO_LABEL {
+                        continue; // unlabelled neighbours don't cast a vote
+                    }
+                    let count = &mut counts[nbor_slot];
+                    *count += 1;
+                    let count = *count;
+                    // if count increased from 0 -> 1 we keep track of activated nbors
+                    if count == 1 {
+                        touched.push(nbor_slot);
+                    }
+
+                    if nbor_slot == best_slot {
+                        best_count = count;
+                    } else if count >= best_count {
+                        let rank = tie_rank(node_key, labels[nbor_slot]);
+                        if (count, rank) > (best_count, best_rank) {
+                            best_slot = nbor_slot;
+                            best_count = count;
+                            best_rank = rank;
+                        }
+                    }
+                }
+                // Reset
+                for &slot in touched.iter() {
+                    counts[slot] = 0;
+                }
+                touched.clear();
+
+                // `best_slot` is still `prev_slot` when no voting happened, so an unlabelled node
+                // with no labelled neighbours keeps its label, as in the task version.
+                cur[pos].store(best_slot, Ordering::Relaxed);
+                if best_slot != prev_slot {
+                    changed.fetch_add(1, Ordering::Relaxed);
+                    // The frontier
+                    for &nbor in nbors.iter() {
+                        active_next[nbor].store(true, Ordering::Relaxed);
+                    }
+                }
+            },
+        );
+        changed.into_inner()
+    };
+
+    // Synchronous LPA never reaches global_diff == 0 on graphs with locally-bipartite pockets
+    // (results in ~period-2 oscillations), so the stopping criterion we use is to wait for
+    // `patience` iterations since the improvement was no better than `rel_tol`.
+    let pool: Arc<rayon::ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
+    pool.install(|| {
+        let mut best = usize::MAX;
+        let mut stale = 0usize;
+        for n_iter in 1..=iter_count {
+            let diff = sweep(&prev, &cur, &active_cur, &active_next);
+            // `prev` now holds the labels this sweep produced, `cur` the ones it started from.
+            std::mem::swap(&mut prev, &mut cur);
+            std::mem::swap(&mut active_cur, &mut active_next);
+
+            // check for improvement
+            let improved = (diff as f64) < (best as f64) * (1.0 - rel_tol);
+            best = best.min(diff);
+            stale = if improved { 0 } else { stale + 1 };
+            // Stop once fully converged (diff == 0) or the changed-node count has plateaued.
+            if diff == 0 || stale >= patience {
+                let pct = 100.0 * diff as f64 / n as f64;
+                debug!(
+                    "label_propagation_fast: stopped after {n_iter} iters; \
+                     diff={diff} ({pct:.2}%); seed={tie_seed}"
+                );
+                break;
+            }
+        }
+    });
+
+    // `cur` still holds the labels from before the last sweep, which is what `alternate_id` and
+    // `is_changed` report on.
+    let values: Vec<LabelPropState> = (0..n)
+        .into_par_iter()
+        .map(|pos| {
+            let slot = prev[pos].load(Ordering::Relaxed);
+            let was = cur[pos].load(Ordering::Relaxed);
+            LabelPropState {
+                community_id: if slot == NO_LABEL {
+                    NO_LABEL
+                } else {
+                    labels[slot]
+                },
+                alternate_id: (slot != was && was != NO_LABEL).then(|| labels[was]),
+                is_changed: slot != was,
+            }
+        })
+        .collect();
+
+    TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+        g.clone(),
+        values,
+        index,
+        None,
+    ))
 }
