@@ -123,6 +123,8 @@ pub trait GraphWalOps {
         layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
+    fn log_delete_node(&self, transaction_id: TransactionID, t: EventTime, node_name: Option<GidRef<'_>>, node_id: VID, layer_name: Option<&str>, layer_id: LayerId) -> Result<LSN, StorageError>;
+
     fn log_add_node_metadata(
         &self,
         transaction_id: TransactionID,

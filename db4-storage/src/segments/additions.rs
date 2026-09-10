@@ -1,42 +1,104 @@
-use std::ops::Range;
-
+use iter_enum::Iterator;
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::{ELID, properties::tcell::TCell},
     storage::timeindex::{EventTime, TimeIndexOps, TimeIndexWindow},
 };
+use std::ops::Range;
 
 use crate::{generic_time_ops::EdgeEventOps, utils::Iter4};
 
 #[derive(Clone, Debug)]
-pub enum MemAdditions<'a> {
+pub enum MemTimeCell<'a> {
     Edges(&'a TCell<ELID>),
+    Deletions(&'a TCell<()>),
     Props(&'a TCell<Option<usize>>),
     WEdges(TimeIndexWindow<'a, EventTime, TCell<ELID>>),
+    WDeletions(TimeIndexWindow<'a, EventTime, TCell<()>>),
     WProps(TimeIndexWindow<'a, EventTime, TCell<Option<usize>>>),
 }
 
-impl<'a> From<&'a TCell<ELID>> for MemAdditions<'a> {
+#[derive(Clone, Debug, Iterator)]
+pub enum MemTimeCellVariants<Edges, Deletions, Props, WEdges, WDeletions, WProps> {
+    Edges(Edges),
+    Deletions(Deletions),
+    Props(Props),
+    WEdges(WEdges),
+    WDeletions(WDeletions),
+    WProps(WProps),
+}
+
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            MemTimeCell::Edges($pattern) => MemTimeCellVariants::Edges($result),
+            MemTimeCell::Deletions($pattern) => MemTimeCellVariants::Deletions($result),
+            MemTimeCell::Props($pattern) => MemTimeCellVariants::Props($result),
+            MemTimeCell::WEdges($pattern) => MemTimeCellVariants::WEdges($result),
+            MemTimeCell::WDeletions($pattern) => MemTimeCellVariants::WDeletions($result),
+            MemTimeCell::WProps($pattern) => MemTimeCellVariants::WProps($result),
+        }
+    };
+}
+
+macro_rules! for_all {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            MemTimeCell::Edges($pattern) => $result,
+            MemTimeCell::Deletions($pattern) => $result,
+            MemTimeCell::Props($pattern) => $result,
+            MemTimeCell::WEdges($pattern) => $result,
+            MemTimeCell::WDeletions($pattern) => $result,
+            MemTimeCell::WProps($pattern) => $result,
+        }
+    };
+}
+
+impl<'a> From<&'a TCell<ELID>> for MemTimeCell<'a> {
     fn from(edges: &'a TCell<ELID>) -> Self {
-        MemAdditions::Edges(edges)
+        MemTimeCell::Edges(edges)
     }
 }
 
-impl<'a> From<&'a TCell<Option<usize>>> for MemAdditions<'a> {
+impl<'a> From<&'a TCell<Option<usize>>> for MemTimeCell<'a> {
     fn from(props: &'a TCell<Option<usize>>) -> Self {
-        MemAdditions::Props(props)
+        MemTimeCell::Props(props)
     }
 }
 
-impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
+impl<'a> From<&'a TCell<()>> for MemTimeCell<'a> {
+    fn from(value: &'a TCell<()>) -> Self {
+        MemTimeCell::Deletions(value)
+    }
+}
+
+impl<'a> From<TimeIndexWindow<'a, EventTime, TCell<ELID>>> for MemTimeCell<'a> {
+    fn from(value: TimeIndexWindow<'a, EventTime, TCell<ELID>>) -> Self {
+        MemTimeCell::WEdges(value)
+    }
+}
+
+impl<'a> From<TimeIndexWindow<'a, EventTime, TCell<Option<usize>>>> for MemTimeCell<'a> {
+    fn from(value: TimeIndexWindow<'a, EventTime, TCell<Option<usize>>>) -> Self {
+        MemTimeCell::WProps(value)
+    }
+}
+
+impl<'a> From<TimeIndexWindow<'a, EventTime, TCell<()>>> for MemTimeCell<'a> {
+    fn from(value: TimeIndexWindow<'a, EventTime, TCell<()>>) -> Self {
+        MemTimeCell::WDeletions(value)
+    }
+}
+
+impl<'a> EdgeEventOps<'a> for MemTimeCell<'a> {
     #[box_on_debug_lifetime]
     fn edge_events(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
         match self {
-            MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v))),
-            MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
+            MemTimeCell::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v))),
+            MemTimeCell::WEdges(TimeIndexWindow::All(ti)) => {
                 Iter4::J(ti.iter().map(|(k, v)| (*k, *v)))
             }
-            MemAdditions::WEdges(TimeIndexWindow::Range { timeindex, range }) => {
+            MemTimeCell::WEdges(TimeIndexWindow::Range { timeindex, range }) => {
                 Iter4::K(timeindex.iter_window(range).map(|(k, v)| (*k, *v)))
             }
             _ => Iter4::L(std::iter::empty()),
@@ -46,11 +108,11 @@ impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
     #[box_on_debug_lifetime]
     fn edge_events_rev(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
         match self {
-            MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v)).rev()),
-            MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
+            MemTimeCell::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v)).rev()),
+            MemTimeCell::WEdges(TimeIndexWindow::All(ti)) => {
                 Iter4::J(ti.iter().map(|(k, v)| (*k, *v)).rev())
             }
-            MemAdditions::WEdges(TimeIndexWindow::Range { timeindex, range }) => {
+            MemTimeCell::WEdges(TimeIndexWindow::Range { timeindex, range }) => {
                 Iter4::K(timeindex.iter_window(range).map(|(k, v)| (*k, *v)).rev())
             }
             _ => Iter4::L(std::iter::empty()),
@@ -58,65 +120,35 @@ impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
     }
 }
 
-impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
+impl<'a> TimeIndexOps<'a> for MemTimeCell<'a> {
     type IndexType = EventTime;
 
     type RangeType = Self;
 
     #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        match self {
-            MemAdditions::Props(props) => props.active(w),
-            MemAdditions::Edges(edges) => edges.active(w),
-            MemAdditions::WProps(window) => window.active(w),
-            MemAdditions::WEdges(window) => window.active(w),
-        }
+        for_all!(self, a => TimeIndexOps::active(a, w))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
-        match self {
-            MemAdditions::Props(props) => MemAdditions::WProps(props.range(w)),
-            MemAdditions::Edges(edges) => MemAdditions::WEdges(edges.range(w)),
-            MemAdditions::WProps(window) => MemAdditions::WProps(window.range(w)),
-            MemAdditions::WEdges(window) => MemAdditions::WEdges(window.range(w)),
-        }
+        for_all!(self, a => TimeIndexOps::range(a, w).into())
     }
 
     #[box_on_debug_lifetime]
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        match self {
-            MemAdditions::Props(props) => Iter4::I(props.iter().map(|(k, _)| *k)),
-            MemAdditions::Edges(edges) => Iter4::J(edges.iter().map(|(k, _)| *k)),
-            MemAdditions::WProps(window) => Iter4::K(window.iter()),
-            MemAdditions::WEdges(window) => Iter4::L(window.iter()),
-        }
+        for_all_variants!(self, a => TimeIndexOps::iter(a))
     }
 
     #[box_on_debug_lifetime]
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        match self {
-            MemAdditions::Props(props) => Iter4::I(props.iter_rev()),
-            MemAdditions::Edges(edges) => Iter4::J(edges.iter_rev()),
-            MemAdditions::WProps(window) => Iter4::K(window.iter_rev()),
-            MemAdditions::WEdges(window) => Iter4::L(window.iter_rev()),
-        }
+        for_all_variants!(self, a => TimeIndexOps::iter_rev(a))
     }
 
     fn len(&self) -> usize {
-        match self {
-            MemAdditions::Props(props) => props.len(),
-            MemAdditions::Edges(edges) => edges.len(),
-            MemAdditions::WProps(window) => window.len(),
-            MemAdditions::WEdges(window) => window.len(),
-        }
+        for_all!(self, a => TimeIndexOps::len(a))
     }
 
     fn is_empty(&self) -> bool {
-        match self {
-            MemAdditions::Edges(edges) => TCell::is_empty(edges),
-            MemAdditions::Props(props) => TCell::is_empty(props),
-            MemAdditions::WEdges(edges) => edges.is_empty(),
-            MemAdditions::WProps(edges) => edges.is_empty(),
-        }
+        for_all!(self, a => TimeIndexOps::is_empty(a))
     }
 }

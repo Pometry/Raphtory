@@ -329,11 +329,11 @@ fn add_node_impl<
     let session = graph.write_session().map_err(|err| err.into())?;
     let node_ref = v.as_node_ref();
 
+    let node_gid = node_ref.as_gid_ref();
+
     graph
         .validate_gids(
-            [node_ref]
-                .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref()),
+            node_gid
         )
         .map_err(into_graph_err)?;
 
@@ -345,7 +345,7 @@ fn add_node_impl<
         )
         .map_err(into_graph_err)?;
 
-    let node_gid = node_ref.as_gid_ref();
+
     let ti = time_from_input_session(&session, t)?;
     let mut writer = graph.atomic_add_node(node_ref).map_err(into_graph_err)?;
 

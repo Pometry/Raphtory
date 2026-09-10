@@ -67,6 +67,18 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_delete_node(
+        &self,
+        _transaction_id: TransactionID,
+        _t: EventTime,
+        _node_name: Option<GidRef<'_>>,
+        _node_id: VID,
+        _layer_name: Option<&str>,
+        _layer_id: LayerId,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_add_node_metadata(
         &self,
         _transaction_id: TransactionID,

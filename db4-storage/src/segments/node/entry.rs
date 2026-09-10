@@ -3,7 +3,7 @@ use crate::{
     api::nodes::{NodeEntryOps, NodeRefOps},
     generic_t_props::WithTProps,
     generic_time_ops::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
-    segments::{additions::MemAdditions, node::segment::MemNodeSegment},
+    segments::{additions::MemTimeCell, node::segment::MemNodeSegment},
 };
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -71,7 +71,7 @@ impl<'a> MemNodeRef<'a> {
 }
 
 impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
-    type TimeCell = MemAdditions<'a>;
+    type TimeCell = MemTimeCell<'a>;
 
     fn t_props_tc(
         self,
@@ -81,7 +81,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id.0)
-            .map(|seg| MemAdditions::Props(seg.times_from_props(self.pos)))
+            .map(|seg| MemTimeCell::Props(seg.times_from_props(self.pos)))
             .into_iter()
             .map(move |t_cell| {
                 range
@@ -98,7 +98,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id.0)
-            .map(|seg| MemAdditions::Edges(seg.additions(self.pos)))
+            .map(|seg| MemTimeCell::Edges(seg.additions(self.pos)))
             .into_iter()
             .map(move |t_cell| {
                 range
@@ -115,7 +115,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id.0)
-            .map(|seg| MemAdditions::Edges(seg.deletions(self.pos)))
+            .map(|seg| MemTimeCell::Deletions(seg.deletions(self.pos)))
             .into_iter()
             .map(move |t_cell| {
                 range
