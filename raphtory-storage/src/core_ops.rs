@@ -21,10 +21,7 @@ use raphtory_api::{
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{iter, sync::Arc};
-use storage::{
-    api::nodes::{NodeEntryOps, NodeRefOps},
-    resolver::GIDResolverOps,
-};
+use storage::{api::nodes::NodeEntryOps, resolver::GIDResolverOps};
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {

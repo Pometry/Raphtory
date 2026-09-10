@@ -22,11 +22,7 @@ use raphtory_core::{
     entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use std::{
-    borrow::Cow,
-    ops::{Deref, Range},
-    sync::Arc,
-};
+use std::{ops::Deref, sync::Arc};
 
 pub struct MemNodeEntry<'a, MNS> {
     pos: LocalPOS,

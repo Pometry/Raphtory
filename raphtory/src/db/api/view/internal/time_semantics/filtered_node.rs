@@ -11,7 +11,7 @@ use raphtory_api::core::{
         edges::edge_ref::EdgeRef, layers::Multiple, properties::meta::STATIC_GRAPH_LAYER_ID,
         LayerIds, ELID, VID,
     },
-    storage::timeindex::{EventTime, MergedTimeIndex, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
