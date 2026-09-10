@@ -1,6 +1,5 @@
 use crate::{
-    client::{error::classify_graphql_errors, ClientError, RemoteGraph},
-    data::GqlGraphType,
+    client::{ClientError, GraphQLRemoteGraph},
     url_encode::url_decode_graph,
 };
 use raphtory::{db::api::view::MaterializedGraph, prelude::Args};
@@ -12,13 +11,13 @@ use url::Url;
 
 /// Client for interacting with a Raphtory GraphQL server.
 #[derive(Clone, Debug)]
-pub struct RemoteClient {
+pub struct RaphtoryGraphQLClient {
     pub(crate) url: Url,
     pub(crate) token: String,
     client: Client,
 }
 
-impl RemoteClient {
+impl RaphtoryGraphQLClient {
     /// Create a new client. Does not perform a connectivity check; use [`client::is_online`] first if needed.
     pub fn new(url: Url, token: Option<String>) -> Self {
         Self {
@@ -55,24 +54,9 @@ impl RemoteClient {
         Ok(Self { url, token, client })
     }
 
-    /// Return a copy of this client that authenticates with `token` instead of
-    /// the current one. Purely client-side — performs no server round-trip and
-    /// reuses the same underlying HTTP connection pool.
-    pub fn with_token(&self, token: impl Into<String>) -> Self {
-        Self {
-            url: self.url.clone(),
-            token: token.into(),
-            client: self.client.clone(),
-        }
-    }
-
     /// Returns true if the server could be reached and returns a healthy response.
     pub async fn is_healthy(&self) -> bool {
-        // `join` fails for cannot-be-a-base URLs (`mailto:` and friends); such a
-        // server is simply not reachable, so report unhealthy rather than panic.
-        let Ok(health_url) = self.url.join("health") else {
-            return false;
-        };
+        let health_url = self.url.join("health").expect("couldn't create health url");
 
         let response_res = self
             .client
@@ -99,7 +83,7 @@ impl RemoteClient {
     pub async fn query(
         &self,
         query: &str,
-        variables: JsonValue,
+        variables: HashMap<String, JsonValue>,
     ) -> Result<HashMap<String, JsonValue>, ClientError> {
         let request_body = json!({
             "query": query,
@@ -125,7 +109,18 @@ impl RemoteClient {
         let mut graphql_result: HashMap<String, JsonValue> = response.json().await?;
 
         if let Some(errors) = graphql_result.remove("errors") {
-            return Err(classify_graphql_errors(&errors, query));
+            let message = match errors {
+                JsonValue::Array(errors) => errors
+                    .iter()
+                    .map(|e| format!("{}", e))
+                    .collect::<Vec<_>>()
+                    .join("\n\t"),
+                _ => format!("{}", errors),
+            };
+            return Err(ClientError::GraphQLErrors(format!(
+                "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
+                query, message
+            )));
         }
 
         match graphql_result.remove("data") {
@@ -149,11 +144,13 @@ impl RemoteClient {
             }
         "#
         .to_owned();
-        let variables = json!({
-            "path": json!(path),
-            "graph": json!(encoded_graph),
-            "overwrite": json!(overwrite),
-        });
+        let variables: HashMap<String, JsonValue> = [
+            ("path".to_owned(), json!(path)),
+            ("graph".to_owned(), json!(encoded_graph)),
+            ("overwrite".to_owned(), json!(overwrite)),
+        ]
+        .into_iter()
+        .collect();
 
         let data = self.query(&query, variables).await?;
         match data.get("sendGraph") {
@@ -176,14 +173,17 @@ impl RemoteClient {
         let mut buffer = Vec::new();
         folder.zip_from_folder(Cursor::new(&mut buffer))?;
 
-        // Build the operations object with `json!` so `path` is escaped — a path
-        // containing a quote or backslash would otherwise break out of the
-        // hand-written JSON string.
-        let operations = json!({
-            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) { uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }",
-            "variables": { "path": path, "overwrite": overwrite, "graph": null },
-        })
-        .to_string();
+        let variables = format!(
+            r#""path": "{}", "overwrite": {}, "graph": null"#,
+            path, overwrite
+        );
+        let operations = format!(
+            r#"{{
+            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }}",
+            "variables": {{ {} }}
+        }}"#,
+            variables
+        );
 
         let form = multipart::Form::new()
             .text("operations", operations)
@@ -212,12 +212,11 @@ impl RemoteClient {
         let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text)?;
         match data.remove("data") {
             Some(JsonValue::Object(_)) => Ok(()),
-            // Route errors through the shared classifier so `ACCESS_DENIED` /
-            // `GRAPH_NOT_FOUND` map to `PermissionDenied` / `GraphNotFound` here
-            // too — keeping the existence-non-disclosure shape consistent with
-            // every other op instead of a bare `GraphQLErrors`.
             _ => match data.remove("errors") {
-                Some(errors) => Err(classify_graphql_errors(&errors, "uploadGraph")),
+                Some(JsonValue::Array(errors)) => Err(ClientError::GraphQLErrors(format!(
+                    "Error Uploading Graph. Got errors:\n\t{:#?}",
+                    errors
+                ))),
                 _ => Err(ClientError::InvalidResponse(format!(
                     "Error Uploading Graph. Unexpected response: {}",
                     text
@@ -233,10 +232,12 @@ impl RemoteClient {
               copyGraph(path: $path, newPath: $newPath)
             }"#
         .to_owned();
-        let variables = json!({
-            "path": json!(path),
-            "newPath": json!(new_path),
-        });
+        let variables: HashMap<String, JsonValue> = [
+            ("path".to_owned(), json!(path)),
+            ("newPath".to_owned(), json!(new_path)),
+        ]
+        .into_iter()
+        .collect();
 
         let data = self.query(&query, variables).await?;
         match data.get("copyGraph") {
@@ -254,10 +255,12 @@ impl RemoteClient {
               moveGraph(path: $path, newPath: $newPath)
             }"#
         .to_owned();
-        let variables = json!({
-            "path": json!(path),
-            "newPath": json!(new_path),
-        });
+        let variables: HashMap<String, JsonValue> = [
+            ("path".to_owned(), json!(path)),
+            ("newPath".to_owned(), json!(new_path)),
+        ]
+        .into_iter()
+        .collect();
 
         let data = self.query(&query, variables).await?;
         match data.get("moveGraph") {
@@ -275,9 +278,8 @@ impl RemoteClient {
               deleteGraph(path: $path)
             }"#
         .to_owned();
-        let variables = json!({
-            "path": json!(path),
-        });
+        let variables: HashMap<String, JsonValue> =
+            [("path".to_owned(), json!(path))].into_iter().collect();
 
         let data = self.query(&query, variables).await?;
         match data.get("deleteGraph") {
@@ -295,9 +297,8 @@ impl RemoteClient {
                 receiveGraph(path: $path)
             }"#
         .to_owned();
-        let variables = json!({
-            "path": json!(path),
-        });
+        let variables: HashMap<String, JsonValue> =
+            [("path".to_owned(), json!(path))].into_iter().collect();
 
         let data = self.query(&query, variables).await?;
         match data.get("receiveGraph") {
@@ -318,20 +319,16 @@ impl RemoteClient {
     }
 
     /// Create a new empty graph on the server.
-    pub async fn new_graph(&self, path: &str, graph_type: GqlGraphType) -> Result<(), ClientError> {
-        // `graphType` is a GraphQL enum, so the value is spliced in as a bare
-        // token. Taking the enum rather than a string means there is no
-        // unvalidated value to splice.
+    pub async fn new_graph(&self, path: &str, graph_type: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation NewGraph($path: String!) {
               newGraph(path: $path, graphType: EVENT)
             }"#
         .to_owned()
-        .replace("EVENT", graph_type.as_gql());
+        .replace("EVENT", graph_type);
 
-        let variables = json!({
-            "path": json!(path),
-        });
+        let variables: HashMap<String, JsonValue> =
+            [("path".to_owned(), json!(path))].into_iter().collect();
 
         let data = self.query(&query, variables).await?;
         match data.get("newGraph") {
@@ -342,7 +339,40 @@ impl RemoteClient {
         }
     }
 
-    pub fn remote_graph(&self, path: String) -> RemoteGraph {
-        RemoteGraph::new(path, self.clone())
+    pub fn remote_graph(&self, path: String) -> GraphQLRemoteGraph {
+        GraphQLRemoteGraph::new(path, self.clone())
+    }
+
+    /// Create index on the server. `index_spec` must serialize to a value
+    /// compatible with the GraphQL `IndexSpecInput` type.
+    pub async fn create_index(
+        &self,
+        path: &str,
+        index_spec: JsonValue,
+        in_ram: bool,
+    ) -> Result<(), ClientError> {
+        let query = r#"
+            mutation CreateIndex($path: String!, $indexSpec: IndexSpecInput!, $inRam: Boolean!) {
+                createIndex(path: $path, indexSpec: $indexSpec, inRam: $inRam)
+            }
+        "#
+        .to_owned();
+
+        let variables: HashMap<String, JsonValue> = [
+            ("path".to_string(), json!(path)),
+            ("indexSpec".to_string(), index_spec),
+            ("inRam".to_string(), json!(in_ram)),
+        ]
+        .into_iter()
+        .collect();
+
+        let data = self.query(&query, variables).await?;
+        match data.get("createIndex") {
+            Some(JsonValue::Bool(true)) => Ok(()),
+            _ => Err(ClientError::InvalidResponse(format!(
+                "Failed to create index, server returned: {:?}",
+                data
+            ))),
+        }
     }
 }

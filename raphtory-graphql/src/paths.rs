@@ -6,7 +6,7 @@ use crate::{
 use futures_util::io;
 use raphtory::{
     db::api::{
-        storage::storage::{Config, Extension, PersistenceStrategy},
+        storage::storage::{Args, Extension, PersistenceStrategy},
         view::{internal::InternalStorageOps, MaterializedGraph},
     },
     errors::{GraphError, InvalidPathReason},
@@ -494,7 +494,7 @@ impl ValidWriteableGraphFolder {
     fn write_graph_data_inner(
         &self,
         graph: MaterializedGraph,
-        config: Config,
+        args: Args,
     ) -> Result<(bool, MaterializedGraph), InternalPathValidationError> {
         let is_dirty = if Extension::disk_storage_enabled() {
             let graph_path = self.graph_folder().graph_path()?;
@@ -509,7 +509,7 @@ impl ValidWriteableGraphFolder {
                 self.global_path.write_metadata(meta)?;
                 (true, graph)
             } else {
-                let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
+                let new_graph = graph.materialize_at_with_config(self.graph_folder(), args)?;
                 (true, new_graph)
             }
         } else {
@@ -518,21 +518,22 @@ impl ValidWriteableGraphFolder {
         };
         Ok(is_dirty)
     }
+
     pub fn write_graph_data(
         &self,
         graph: MaterializedGraph,
-        config: Config,
+        args: Args,
     ) -> Result<(bool, MaterializedGraph), PathValidationError> {
-        self.write_graph_data_inner(graph, config)
+        self.write_graph_data_inner(graph, args)
             .with_path(self.local_path())
     }
 
-    pub fn read_graph(&self, config: Config) -> Result<MaterializedGraph, PathValidationError> {
+    pub fn read_graph(&self, args: Args) -> Result<MaterializedGraph, PathValidationError> {
         self.with_internal_errors(|| {
             if self.graph_folder().read_metadata()?.is_diskgraph {
-                MaterializedGraph::load_with_config(self.graph_folder(), config)
+                MaterializedGraph::load_with_config(self.graph_folder(), args)
             } else {
-                MaterializedGraph::decode_with_config(self.graph_folder(), config)
+                MaterializedGraph::decode_with_config(self.graph_folder(), args)
             }
         })
     }
@@ -540,14 +541,14 @@ impl ValidWriteableGraphFolder {
     pub fn write_graph_bytes<R: Read + Seek + Send + 'static>(
         &self,
         bytes: R,
-        config: Config,
+        args: Args,
     ) -> Result<(), PathValidationError> {
         self.with_internal_errors(|| {
             if Extension::disk_storage_enabled() {
                 MaterializedGraph::decode_from_zip_at(
                     ZipArchive::new(bytes)?,
                     self.graph_folder(),
-                    config,
+                    args,
                 )?
                 .flush()?;
             } else {

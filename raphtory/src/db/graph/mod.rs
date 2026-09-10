@@ -1,6 +1,7 @@
 use raphtory_api::core::storage::dict_mapper::DictMapper;
 use std::sync::Arc;
 
+pub mod assertions;
 pub mod edge;
 pub mod edges;
 pub mod graph;

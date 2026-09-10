@@ -37,10 +37,11 @@ use storage::wal::LSN;
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
-    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
+    persist::{args::ArgsOps, config::ConfigOps, strategy::PersistenceStrategy},
+    read_constant_graph_properties, Args, Config, Extension,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Storage {
     graph: GraphStorage,
 }
@@ -70,9 +71,10 @@ impl Base for Storage {
 }
 
 impl Storage {
-    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
-        let ext = Extension::new(config, None)?;
+    pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
+        let ext = Extension::new(None, args.into())?;
         let temporal_graph = TemporalGraph::new(ext)?;
+
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
         })
@@ -99,20 +101,17 @@ mod io {
     use super::*;
     use raphtory_storage::{graph::locked::LockedGraph, recovery_ops::RecoveryOps};
     impl Storage {
-        pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-            let config = Config::default();
-            let ext = Extension::new(config, Some(path.as_ref()))?;
-            let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
-
-            Ok(Self {
-                graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
-            })
-        }
-        pub(crate) fn new_at_path_with_config(
+        pub fn new_at_path_with_config(
             path: impl AsRef<Path>,
-            config: Config,
+            args: Args,
         ) -> Result<Self, GraphError> {
-            let ext = Extension::new(config, Some(path.as_ref()))?;
+            let path = path.as_ref();
+            std::fs::create_dir_all(path)?;
+
+            let config: Config = args.into();
+            config.save_to_dir(path)?;
+
+            let ext = Extension::new(Some(path), config)?;
             let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
 
             Ok(Self {
@@ -148,17 +147,18 @@ mod io {
 
         pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
             let path = path.as_ref();
-            let ext = Extension::load(path)?;
+            let config = Config::load_from_dir(path)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_with_extension(path, ext)
         }
 
-        pub fn load_with_config(
-            path: impl AsRef<Path>,
-            config: Config,
-        ) -> Result<Self, GraphError> {
+        pub fn load_with_config(path: impl AsRef<Path>, args: Args) -> Result<Self, GraphError> {
             let path = path.as_ref();
-            let ext = Extension::load_with_config(path, config)?;
+            let config = Config::load_from_dir(path)?;
+            let config = args.apply_to_config(config)?;
+            config.save_to_dir(path)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_with_extension(path, ext)
         }
@@ -168,7 +168,8 @@ mod io {
         /// returned graph will return errors from the underlying storage.
         pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
             let path = path.as_ref();
-            let ext = Extension::load(path)?;
+            let config = Config::load_from_dir(path)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_read_only_with_extension(path, ext)
         }
@@ -178,10 +179,13 @@ mod io {
         /// returned graph will return errors from the underlying storage.
         pub fn load_read_only_with_config(
             path: impl AsRef<Path>,
-            config: Config,
+            args: Args,
         ) -> Result<Self, GraphError> {
+            // NOTE: config is explicitly not saved to disk here.
             let path = path.as_ref();
-            let ext = Extension::load_with_config(path, config)?;
+            let config = Config::load_from_dir(path)?;
+            let config = args.apply_to_config(config)?;
+            let ext = Extension::load(path, config)?;
 
             Self::load_read_only_with_extension(path, ext)
         }
