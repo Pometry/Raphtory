@@ -188,6 +188,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
     add_functions!(
         &algorithm_module,
         dijkstra_single_source_shortest_paths,
+        all_simple_paths,
         global_reciprocity,
         betweenness_centrality,
         all_local_reciprocity,

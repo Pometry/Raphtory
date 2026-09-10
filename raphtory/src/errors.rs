@@ -37,6 +37,7 @@ use zip::result::ZipError;
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
 
+use crate::algorithms::pathing::all_paths::AllPathsError;
 #[cfg(any(feature = "vectors", feature = "io"))]
 use tempfile::PersistError;
 
@@ -201,6 +202,9 @@ pub enum GraphError {
 
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),
+
+    #[error(transparent)]
+    AllPathsError(#[from] AllPathsError),
 
     #[error("Node Type Error {0}")]
     NodeTypeError(String),

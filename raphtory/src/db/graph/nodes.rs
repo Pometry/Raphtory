@@ -131,6 +131,17 @@ where
             _marker: PhantomData,
         }
     }
+
+    pub fn new_indexed(graph: G, nodes: Index<VID>) -> Self {
+        let base_graph = graph.clone();
+        Self {
+            base_graph,
+            graph,
+            nodes,
+            predicate: NO_FILTER,
+            _marker: PhantomData,
+        }
+    }
 }
 
 impl<'graph, G, GH, F> Nodes<'graph, G, GH, F>
