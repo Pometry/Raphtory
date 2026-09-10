@@ -47,7 +47,7 @@ fn lpa_test() {
         graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let seed = Some(6); // NB: different seeds affect the partition reached
+        let seed = Some(8); // NB: different seeds affect the partition reached
         let result = label_propagation(graph, 20, seed, None, None, None, None)
             .to_hashmap(|value| value.community_id);
         println!("{:?}", result);

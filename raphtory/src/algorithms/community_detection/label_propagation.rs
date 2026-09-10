@@ -53,14 +53,15 @@ thread_local! {
     static LABEL_COUNTS: RefCell<FxHashMap<usize, usize>> = RefCell::new(FxHashMap::default());
 }
 
-/// Deterministic pseudorandom rank for `label` as seen by `node`, used only to break vote-count
-/// ties in `step3`.
-///
-/// `node` is the VID and the super-step is not mixed in, so a node's preference order is stable
-/// across iterations: a standing tie resolves the same way each time and adds no churn to
-/// `global_diff`.
-fn tie_rank(seed: u64, node: usize, label: usize) -> u64 {
-    calculate_hash(&(seed, node, label))
+/// Deterministic pseudorandom rank for `label` as seen by a node whose `node_key` is
+/// `calculate_hash(&(seed, node))`, used only to break vote-count ties in `step3`.
+/// Splitting the mix in two lets `step3` hoist the per-node half out of its per-label loop.
+#[inline]
+fn tie_rank(node_key: u64, label: usize) -> u64 {
+    let mut x = node_key ^ (label as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    x ^ (x >> 31)
 }
 
 /// Computes components using a label propagation algorithm
@@ -153,14 +154,26 @@ where
             return Step::Continue;
         }
 
-        let id = s.node.index();
+        let node_key = calculate_hash(&(tie_seed, s.node.index())); // tie_rank's 1st arg
         let prev_label = s.prev().community_id;
         let winner = LABEL_COUNTS.with(|counts| {
             let mut counts = counts.borrow_mut();
             counts.clear();
+
+            let mut best_label = prev_label;
+            let mut best_count = 0;
+            let mut best_rank = 0u64;
+            // `confidence`'s denominator: the votes CAST -- labelled neighbours plus the self-vote --
+            // and not the degree, since an unlabelled neighbour is skipped below and has no opinion
+            // to divide by. Tallied as we go, because the incremental argmax below never walks
+            // `counts` a second time to sum it.
+            let mut total = 0usize;
             if prev_label != NO_LABEL {
                 // initialised nodes vote for their own label
                 counts.insert(prev_label, 1);
+                best_count = 1;
+                best_rank = tie_rank(node_key, prev_label);
+                total = 1;
             }
             for nbor in s.neighbours() {
                 let nbor_label = nbor.prev().community_id;
@@ -169,21 +182,28 @@ where
                 }
                 let count = counts.entry(nbor_label).or_insert(0);
                 *count += 1;
+                let count = *count;
+                total += 1;
+
+                if nbor_label == best_label {
+                    best_count = count;
+                } else if count >= best_count {
+                    let rank = tie_rank(node_key, nbor_label);
+                    if (count, rank) > (best_count, best_rank) {
+                        best_label = nbor_label;
+                        best_count = count;
+                        best_rank = rank;
+                    }
+                    // TODO: delete
+                    // REMOVED: get max label (use usize ID to resolve tie)
+                    // .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
+                    // REMOVED: a tie settled by pseudorandom rank of (tie_seed) id and label
+                    // .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
+                }
             }
-            // The denominator of `confidence`, taken before the argmax consumes the borrow. It is the
-            // votes CAST -- labelled neighbours plus the self-vote -- and not the degree, since an
-            // unlabelled neighbour is skipped above and has no opinion to divide by.
-            let total: usize = counts.values().sum();
-            counts
-                .iter()
-                // REMOVED: get max label (use usize ID to resolve tie)
-                // .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
-                // NEW BEHAVIOUR: a tie is settled by pseudorandom rank, which draws the winner uniformly
-                // from all the top-tied labels.
-                .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
-                // A non-empty map has a winner holding at least one of `total` votes, so the division
-                // is neither by zero nor ever NaN.
-                .map(|(&label, &count)| (label, count as f64 / total as f64))
+            // `best_label` is still NO_LABEL only when no voting happened; otherwise the winner
+            // holds at least one of `total` votes, so the division is neither by zero nor ever NaN.
+            (best_label != NO_LABEL).then(|| (best_label, best_count as f64 / total as f64))
         });
 
         let state: &mut LabelPropState = s.get_mut();
