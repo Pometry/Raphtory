@@ -105,7 +105,7 @@ fn test_cc() {
         .map(|(_, g)| {
             g.iter()
                 .map(|node| node.id())
-        .sorted()
+                .sorted()
                 .collect::<BTreeSet<_>>()
         })
         .collect::<HashSet<_>>();
