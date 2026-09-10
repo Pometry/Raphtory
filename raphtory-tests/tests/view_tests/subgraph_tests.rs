@@ -5,7 +5,7 @@ use raphtory::{
     algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
     db::{
         api::state::Index,
-        graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
 };
