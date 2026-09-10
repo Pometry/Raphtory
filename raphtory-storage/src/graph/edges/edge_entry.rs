@@ -6,12 +6,16 @@ use raphtory_api::core::entities::{
 };
 use raphtory_core::entities::{LayerIds, EID, VID};
 use std::ops::Range;
-use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
+use storage::{
+    api::edges::EdgeEntryOps, pages::edge_store::SegmentLockedEdgeEntry, EdgeEntry, EdgeEntryRef,
+    Extension, ES,
+};
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
     Mem(EdgeEntryRef<'a>),
     Unlocked(EdgeEntry<'a>),
+    Segment(SegmentLockedEdgeEntry<ES<Extension>, Extension>),
 }
 
 impl<'a> EdgeStorageEntry<'a> {
@@ -20,6 +24,7 @@ impl<'a> EdgeStorageEntry<'a> {
         match self {
             EdgeStorageEntry::Mem(edge) => *edge,
             EdgeStorageEntry::Unlocked(edge) => edge.as_ref(),
+            EdgeStorageEntry::Segment(edge) => edge.as_ref(),
         }
     }
 }
