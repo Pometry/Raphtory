@@ -57,7 +57,10 @@ use crate::{
     prelude::LayerOps,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, Layer},
+    entities::{
+        properties::prop::{unify_types, Prop},
+        Layer,
+    },
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
@@ -1002,12 +1005,6 @@ pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), Gra
         op,
         BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
     ) {
-        if *prop_type == PropType::Bool {
-            return Err(GraphError::InvalidFilter(format!(
-                "operator {:?} is not valid for boolean properties",
-                op
-            )));
-        }
         if matches!(prop_type, PropType::Map(_)) {
             return Err(GraphError::InvalidFilter(format!(
                 "operator {:?} is not valid for map properties",
@@ -1053,6 +1050,24 @@ pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
 
 /// Reject a constant RHS value whose type cannot be coerced to the LHS type.
 ///
+/// Cast a constant to the type an expression wants to compare it as, erroring
+/// when it does not convert. Used where the expression defines the comparison's
+/// type rather than adopting the constant's — see [`CreateOp::const_cast_type`].
+pub fn cast_const_to(target: &PropType, value: Option<&Prop>) -> Result<Option<Prop>, GraphError> {
+    match value {
+        None => Ok(None),
+        Some(v) if v.dtype() == *target => Ok(Some(v.clone())),
+        Some(v) => v.clone().try_cast(target.clone()).map(Some).map_err(|v| {
+            GraphError::InvalidFilter(format!(
+                "value {:?} of type {} cannot be compared as {}",
+                v,
+                v.dtype(),
+                target
+            ))
+        }),
+    }
+}
+
 /// Only fires when both sides are known and the RHS is a literal/const. Defers
 /// to runtime when the LHS type is unknown (`PropType::Empty`) or the RHS isn't
 /// a const value.
@@ -1079,12 +1094,18 @@ pub fn validate_const_castable(
                 )))
             };
         }
-        if rhs.dtype() != *lhs_pt && rhs.clone().try_cast(lhs_pt.clone()).is_err() {
+        // A numeric constant may target any numeric property, since comparison
+        // widens across the numeric variants. Everything else must unify with
+        // the property's own type — a constant that merely *casts* into it
+        // (a numeric string, a bool read as an int) is a cross-type comparison
+        // the caller almost certainly did not mean.
+        let rhs_pt = rhs.dtype();
+        let compatible = (lhs_pt.is_numeric() && rhs_pt.is_numeric())
+            || unify_types(lhs_pt, &rhs_pt, &mut false).is_ok();
+        if !compatible {
             return Err(GraphError::InvalidFilter(format!(
                 "value {:?} of type {} cannot be coerced to {}",
-                rhs,
-                rhs.dtype(),
-                lhs_pt
+                rhs, rhs_pt, lhs_pt
             )));
         }
     }
@@ -1176,12 +1197,15 @@ pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
     }
 }
 
-/// Cast every value in an `is_in`/`is_not_in` set to the LHS type.
+/// Narrow an `is_in`/`is_not_in` set to the members that could match the LHS.
 ///
-/// If the LHS type is unknown (`PropType::Empty`), the values are returned
-/// unchanged and coercion is deferred to runtime. Otherwise, any value whose
-/// type cannot be coerced produces `Err(InvalidFilter)`. Successful casts are
-/// substituted so the runtime set comparison sees same-typed values.
+/// Set membership asks whether a value is present, so a member of a type the
+/// LHS can never equal simply is not present — it is dropped rather than
+/// rejected, leaving `is_in` answering "no" where a comparison would refuse the
+/// question. Members that share the LHS type, or are numeric alongside a
+/// numeric LHS, are kept and cast so the runtime comparison sees one type.
+/// An unknown LHS type (`PropType::Empty`) defers the whole decision to
+/// runtime.
 pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Prop>, GraphError> {
     if *lhs_pt == PropType::Empty {
         return Ok(values);
@@ -1192,22 +1216,18 @@ pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Pro
     if matches!(lhs_pt, PropType::Map(_)) {
         return Ok(values);
     }
-    values
+    Ok(values
         .into_iter()
-        .map(|v| {
+        .filter_map(|v| {
             if v.dtype() == *lhs_pt {
-                Ok(v)
-            } else {
-                let original_dtype = v.dtype();
-                v.clone().try_cast(lhs_pt.clone()).map_err(|v| {
-                    GraphError::InvalidFilter(format!(
-                        "value {:?} of type {} cannot be coerced to {}",
-                        v, original_dtype, lhs_pt
-                    ))
-                })
+                return Some(v);
             }
+            if lhs_pt.is_numeric() && v.dtype().is_numeric() {
+                return v.clone().try_cast(lhs_pt.clone()).ok().or(Some(v));
+            }
+            None
         })
-        .collect()
+        .collect())
 }
 
 pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}

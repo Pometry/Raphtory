@@ -479,6 +479,10 @@ impl<E: CreateView + Clone + Send + Sync + 'static> EntityExpr for DegreeExpr<E>
 impl<E: CreateView + Clone + Send + Sync + 'static> EntityExprBuilder for DegreeExpr<E> {}
 
 impl<E: CreateView + Clone + Send + Sync + 'static> CreateOp for DegreeExpr<E> {
+    fn const_cast_type(&self) -> Option<PropType> {
+        Some(PropType::U64)
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,

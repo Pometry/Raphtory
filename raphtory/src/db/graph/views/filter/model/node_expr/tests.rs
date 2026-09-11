@@ -568,16 +568,20 @@ fn string_op_on_numeric_prop_returns_error() {
 }
 
 #[test]
-fn ordering_op_on_bool_prop_returns_error() {
+fn ordering_op_on_bool_prop_orders_false_before_true() {
     let g = Graph::new();
-    g.add_node(0, "n", [("flag", true.into_prop())], None, None)
+    g.add_node(0, "t", [("flag", true.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "f", [("flag", false.into_prop())], None, None)
         .unwrap();
     // Use Prop::Bool as rhs so both sides share Output = Option<Prop>
-    let filter = NodeFilter.property("flag").gt(Prop::Bool(false));
-    let result = filter.create_filter(g.clone(), g);
-    assert!(
-        result.is_err(),
-        "expected Err for ordering op on boolean property"
+    assert_eq!(
+        filtered_names(NodeFilter.property("flag").gt(Prop::Bool(false)), g.clone()),
+        vec!["t"]
+    );
+    assert_eq!(
+        filtered_names(NodeFilter.property("flag").lt(Prop::Bool(true)), g),
+        vec!["f"]
     );
 }
 

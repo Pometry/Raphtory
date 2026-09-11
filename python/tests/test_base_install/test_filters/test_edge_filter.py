@@ -512,13 +512,12 @@ def test_filter_edges_with_str_ids_error():
 @with_variants(init_graph2)
 def test_filter_edges_with_num_ids_error():
     def check(graph):
-        # A numeric string coerces to the numeric id type, consistent with the
-        # castable-constant rule used across the expression comparisons.
         filter_expr = filter.Edge.src().id() == "3"
-        assert {(e.src.id, e.dst.id) for e in graph.filter(filter_expr).edges} == {
-            (3, 1),
-            (3, 4),
-        }
+        with pytest.raises(
+            Exception,
+            match=r'value Str\(ArcStr\("3"\)\) of type Str cannot be coerced to U64',
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 

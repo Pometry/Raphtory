@@ -787,17 +787,15 @@ def test_filter_nodes_for_temporary_property_any_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_on_non_string():
     def check(graph):
-        # A numeric string coerces to the element type under the
-        # castable-constant rule; a non-numeric string is rejected.
-        filter_expr = filter.Node.property("prop8").any() == "3"
-        assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
-
-        filter_expr = filter.Node.property("prop8").any() == "pometry"
-        with pytest.raises(
-            Exception,
-            match=r"of type Str cannot be coerced to I64",
-        ):
-            graph.filter(filter_expr).nodes.id
+        # A string constant never compares against a numeric property,
+        # whether or not it happens to parse as a number.
+        for value in ["3", "pometry"]:
+            filter_expr = filter.Node.property("prop8").any() == value
+            with pytest.raises(
+                Exception,
+                match=r"of type Str cannot be coerced to I64",
+            ):
+                graph.filter(filter_expr).nodes.id
 
     return check
 

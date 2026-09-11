@@ -8073,12 +8073,13 @@ mod test_node_property_filter_agg {
         apply_assertion(filter, &["n1"]);
 
         // Reductions that return an element keep the element type, so a
-        // constant outside its range still cannot match.
+        // constant outside that element's range is a legal numeric comparison
+        // that nothing can equal.
         let filter = NodeFilter.property("p_u8s_max").max().eq(Prop::U64(510));
-        apply_assertion_err(filter, "cannot be coerced to U8");
+        apply_assertion(filter, &[]);
 
         let filter = NodeFilter.property("p_u8s_max").min().eq(Prop::U64(510));
-        apply_assertion_err(filter, "cannot be coerced to U8");
+        apply_assertion(filter, &[]);
 
         let filter = NodeFilter.property("p_u64s_max").sum().gt(Prop::U64(0));
         let expected: Vec<&str> = vec!["n1", "n5"];

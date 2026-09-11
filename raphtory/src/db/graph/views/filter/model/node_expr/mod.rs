@@ -48,6 +48,15 @@ pub use ops::*;
 /// ```
 ///
 pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
+    /// The type a constant compared against this expression is cast to before
+    /// validation. Degree is a count, so a constant that converts to one — the
+    /// string `"5"` from a wire query, say — is compared as that count rather
+    /// than across types. `None` (the default) leaves the constant alone and
+    /// requires it to match the expression's own type.
+    fn const_cast_type(&self) -> Option<PropType> {
+        None
+    }
+
     /// Whether this expression selects the node id field. Comparisons against
     /// constants use it to narrow the evaluation domain to the named nodes
     /// instead of scanning every node.

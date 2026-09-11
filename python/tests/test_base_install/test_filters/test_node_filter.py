@@ -1132,10 +1132,12 @@ def test_filter_nodes_with_str_ids_error():
 @with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_error():
     def check(graph):
-        # A numeric string coerces to the numeric id type, consistent with the
-        # castable-constant rule used across the expression comparisons.
         filter_expr = filter.Node.id() == "3"
-        assert sorted(graph.filter(filter_expr).nodes.id) == [3]
+        with pytest.raises(
+            Exception,
+            match=r'value Str\(ArcStr\("3"\)\) of type Str cannot be coerced to U64',
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check
 

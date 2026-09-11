@@ -87,6 +87,8 @@ where
 }
 
 pub trait DynCreateOp: DynEntityExpr {
+    fn dyn_const_cast_type(&self) -> Option<PropType>;
+
     fn dyn_selects_node_id(&self) -> bool;
 
     fn dyn_create_node_op<'g>(
@@ -111,6 +113,10 @@ pub trait DynCreateOp: DynEntityExpr {
 }
 
 impl<E: CreateOp> DynCreateOp for E {
+    fn dyn_const_cast_type(&self) -> Option<PropType> {
+        self.const_cast_type()
+    }
+
     fn dyn_selects_node_id(&self) -> bool {
         self.selects_node_id()
     }
@@ -163,6 +169,10 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
 impl<T: DynEntityExpr + ?Sized> EntityExprBuilder for Arc<T> {}
 
 impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
+    fn const_cast_type(&self) -> Option<PropType> {
+        self.as_ref().dyn_const_cast_type()
+    }
+
     fn selects_node_id(&self) -> bool {
         self.as_ref().dyn_selects_node_id()
     }

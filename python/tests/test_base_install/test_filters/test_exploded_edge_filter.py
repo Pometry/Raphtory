@@ -311,12 +311,12 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("weight").is_none(), 0),
         (
             filter.ExplodedEdge.property("weight").is_in(["1", 2]),
-            4,
-        ),  # numeric strings coerce to the property type
+            2,
+        ),  # actually does the filter
         (
             filter.ExplodedEdge.property("weight").is_not_in(["3"]),
-            4,
-        ),  # numeric strings coerce to the property type
+            6,
+        ),  # actually does the filter
         # confidence (float)
         (filter.ExplodedEdge.property("confidence") == 0.95, 1),
         (filter.ExplodedEdge.property("confidence") != 0.80, 5),
@@ -349,6 +349,8 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("name") > "dave", 2),
         (filter.ExplodedEdge.property("name") <= "dave", 4),
         (filter.ExplodedEdge.property("name") >= "dave", 4),
+        (filter.ExplodedEdge.property("name").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("name").is_not_in([3, "dave"]), 4),
         (filter.ExplodedEdge.property("name").fuzzy_search("gabe", 2, False), 2),
         # active (bool)
         (filter.ExplodedEdge.property("active") == True, 4),
@@ -358,6 +360,12 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("active").is_not_in([False]), 4),
         (filter.ExplodedEdge.property("active").is_some(), 6),
         (filter.ExplodedEdge.property("active").is_none(), 0),
+        (filter.ExplodedEdge.property("active") < True, 2),
+        (filter.ExplodedEdge.property("active") > False, 4),
+        (filter.ExplodedEdge.property("active") >= False, 6),
+        (filter.ExplodedEdge.property("active") <= False, 2),
+        (filter.ExplodedEdge.property("active").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("active").is_not_in([3]), 6),
         # created (datetime)
         (filter.ExplodedEdge.property("created") == datetime(2023, 1, 1), 1),
         (filter.ExplodedEdge.property("created") != datetime(2023, 1, 1), 5),
@@ -379,6 +387,8 @@ def test_all_property_types(GraphClass):
         ),
         (filter.ExplodedEdge.property("created").is_some(), 6),
         (filter.ExplodedEdge.property("created").is_none(), 0),
+        (filter.ExplodedEdge.property("created").is_in([1, 2]), 0),
+        (filter.ExplodedEdge.property("created").is_not_in([3]), 6),
         # tags (list of str)
         (filter.ExplodedEdge.property("tags") == ["team_b", "remote"], 1),
         (filter.ExplodedEdge.property("tags") != ["team_b", "remote"], 5),
@@ -432,26 +442,6 @@ def test_all_property_types(GraphClass):
         assert (
             len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
-
-    # Ordering operators and non-boolean set values are rejected for boolean
-    # properties.
-    for make_bad in (
-        lambda: filter.ExplodedEdge.property("active") < True,
-        lambda: filter.ExplodedEdge.property("active") >= False,
-        lambda: filter.ExplodedEdge.property("active").is_in([1, 2]),
-        lambda: filter.ExplodedEdge.property("active").is_not_in([3]),
-        lambda: filter.ExplodedEdge.property("name").is_in([1, 2]),
-        lambda: filter.ExplodedEdge.property("name").is_not_in([3, "dave"]),
-        lambda: filter.ExplodedEdge.property("created").is_in([1, 2]),
-        lambda: filter.ExplodedEdge.property("created").is_not_in([3]),
-        lambda: filter.ExplodedEdge.property("tags").is_in([1, 2]),
-        lambda: filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]]),
-        lambda: filter.ExplodedEdge.property("tags").is_not_in([3]),
-    ):
-        with pytest.raises(
-            Exception, match=r"not valid for boolean properties|cannot be coerced"
-        ):
-            g.filter(make_bad()).edges.explode()
 
     nonsense_filter_cases = [
         # Integers (weight)
@@ -583,13 +573,13 @@ def test_all_property_types(GraphClass):
 
     # Numeric strings coerce to the property's numeric type: each string form
     # matches exactly what its native-typed twin matches.
+    # A string constant never compares against a numeric property, whether or
+    # not it happens to parse as a number.
     for prop, val in (("weight", 2), ("weight", 3), ("confidence", 2)):
         for op in ("__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"):
-            typed = getattr(filter.ExplodedEdge.property(prop), op)(val)
-            coerced = getattr(filter.ExplodedEdge.property(prop), op)(str(val))
-            assert len(g.filter(coerced).edges.explode()) == len(
-                g.filter(typed).edges.explode()
-            ), prop + " " + op + " " + str(val)
+            expr = getattr(filter.ExplodedEdge.property(prop), op)(str(val))
+            with pytest.raises(Exception, match=r"of type Str cannot be coerced"):
+                g.filter(expr).edges.explode()
 
     wrong_types = [
         # Integers (weight)
@@ -654,19 +644,19 @@ def test_all_property_types(GraphClass):
         ),
         (
             lambda: filter.ExplodedEdge.property("active") < 3,
-            "not valid for boolean properties",
+            "cannot be coerced to Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") > 1,
-            "not valid for boolean properties",
+            "cannot be coerced to Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") <= 2,
-            "not valid for boolean properties",
+            "cannot be coerced to Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") >= 3,
-            "not valid for boolean properties",
+            "cannot be coerced to Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active").contains(2),
