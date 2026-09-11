@@ -78,6 +78,7 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropPages<'a, GS> {
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
         self.writer.segment().copy_to(dst)
     }
 }

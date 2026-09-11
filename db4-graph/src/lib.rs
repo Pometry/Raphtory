@@ -498,9 +498,11 @@ where
 
     /// Copy graph data to a new directory.
     ///
-    /// Assumes `dst` is created and graph has been flushed to disk.
+    /// Creates `dst` if it does not exist. Assumes the graph has been flushed
+    /// to disk.
     pub fn copy_to(&self, dst: impl AsRef<Path>) -> Result<(), StorageError> {
         let dst = GraphDir::from(dst.as_ref());
+        std::fs::create_dir_all(dst.path())?;
 
         let config = self.graph.extension().config();
         config.save_to_dir(dst.path())?;

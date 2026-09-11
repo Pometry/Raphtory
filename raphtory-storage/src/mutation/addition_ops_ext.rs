@@ -775,8 +775,6 @@ impl StagingOps for TemporalGraph {
             .graph_path()
             .map_err(StagingError::InitStagingDir)?;
 
-        std::fs::create_dir_all(&graph_path).map_err(|e| StagingError::InitStagingDir(e.into()))?;
-
         // Copy graph to the new data folder.
         write_locked_graph.copy_to(graph_path)?;
 

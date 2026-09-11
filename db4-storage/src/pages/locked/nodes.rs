@@ -153,11 +153,11 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
 
-        for writer in &self.writers {
-            let segment_dst = dst.join(writer.segment_id().to_string());
-            std::fs::create_dir_all(&segment_dst)?;
-            writer.segment().copy_to(&segment_dst)?;
-        }
+        self.writers.par_iter().try_for_each(|writer| {
+            writer
+                .segment()
+                .copy_to(&dst.join(writer.segment_id().to_string()))
+        })?;
 
         Ok(())
     }

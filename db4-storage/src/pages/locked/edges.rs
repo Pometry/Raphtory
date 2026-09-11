@@ -79,6 +79,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
         self.page
     }
 }
+
 #[derive(Debug)]
 pub struct WriteLockedEdgePages<'a, ES> {
     writers: Vec<LockedEdgePage<'a, ES>>,
@@ -163,11 +164,11 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
 
-        for writer in &self.writers {
-            let segment_dst = dst.join(writer.page_id().to_string());
-            std::fs::create_dir_all(&segment_dst)?;
-            writer.page().copy_to(&segment_dst)?;
-        }
+        self.writers.par_iter().try_for_each(|writer| {
+            writer
+                .page()
+                .copy_to(&dst.join(writer.page_id().to_string()))
+        })?;
 
         Ok(())
     }
