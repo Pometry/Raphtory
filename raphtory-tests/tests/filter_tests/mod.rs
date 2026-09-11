@@ -4,6 +4,7 @@ mod cached_view;
 mod edge_property_filter;
 mod exploded_edge_property_filter;
 mod node_property_filter;
+mod node_type_filter_index;
 mod subgraph_tests;
 mod test_layers;
 mod tests_node_type_filtered_subgraph;

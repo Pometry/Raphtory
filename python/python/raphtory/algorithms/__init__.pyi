@@ -33,7 +33,7 @@ import pyvis  # type: ignore
 from raphtory.iterables import *
 
 __all__ = ['dijkstra_single_source_shortest_paths', 'global_reciprocity', 'betweenness_centrality', 'all_local_reciprocity', 'triplet_count', 'local_triangle_count', 'average_degree', 'directed_graph_density', 'degree_centrality', 'alternating_mask', 'max_degree', 'min_degree', 'max_out_degree', 'max_in_degree', 'min_out_degree', 'min_in_degree', 'pagerank', 'single_source_shortest_path', 'global_clustering_coefficient', 'temporally_reachable_nodes', 'temporal_bipartite_graph_projection', 'local_clustering_coefficient', 'local_clustering_coefficient_batch', 'weakly_connected_components', 'strongly_connected_components', 'in_components', 'in_component', 'out_components', 'out_component', 'fast_rp', 'global_temporal_three_node_motif', 'global_temporal_three_node_motif_multi', 'local_temporal_three_node_motifs', 'hits', 'balance', 'label_propagation', 'k_core', 'temporal_SEIR', 'louvain', 'fruchterman_reingold', 'cohesive_fruchterman_reingold', 'max_weight_matching', 'Matching', 'Infected']
-def dijkstra_single_source_shortest_paths(graph: GraphView, source: NodeInput, targets: list[NodeInput], direction: Direction = "both", weight: str = 'weight') -> NodeStateWeightedSP:
+def dijkstra_single_source_shortest_paths(graph: GraphView, source: NodeInput, targets: list[NodeInput], direction: Direction = "both", weight: str = 'weight', default_weight: Optional[int|float|Decimal] = None) -> NodeStateWeightedSP:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -43,6 +43,9 @@ def dijkstra_single_source_shortest_paths(graph: GraphView, source: NodeInput, t
         targets (list[NodeInput]): A list of target nodes.
         direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
         weight (str): The name of the weight property for the edges. Defaults to "weight".
+        default_weight (int|float|Decimal, optional): The default value for edges without weight (either
+            because `weight` was not specified or because the edge does not have a value for the property).
+            If not specified, defaults to 1.
 
     Returns:
         NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.

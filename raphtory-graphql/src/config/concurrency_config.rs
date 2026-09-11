@@ -43,6 +43,11 @@ pub struct ConcurrencyConfig {
     /// of `page` so clients can't circumvent `disable_lists` by requesting huge pages.
     /// `None` means unlimited.
     pub max_page_size: Option<usize>,
+
+    /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
+    /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
+    /// at least 2.
+    pub max_concurrent_loads: Option<usize>,
 }
 
 impl Default for ConcurrencyConfig {
@@ -54,6 +59,7 @@ impl Default for ConcurrencyConfig {
             max_batch_size: Some(DEFAULT_MAX_BATCH_SIZE),
             disable_lists: DEFAULT_DISABLE_LISTS,
             max_page_size: None,
+            max_concurrent_loads: None,
         }
     }
 }

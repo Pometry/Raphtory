@@ -9,8 +9,9 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::VID;
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::sync::Arc;
+use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[derive(Clone, Debug)]
 pub struct Mask<Op> {
@@ -209,17 +210,68 @@ where
     }
 }
 
-pub type NodeTypeFilterOp = Mask<TypeId>;
+#[derive(Clone, Debug)]
+pub struct NodeTypeFilterOp {
+    mask: Arc<[bool]>,
+
+    /// `true` when the node type index is populated and can be used.
+    index_backed: bool,
+}
 
 impl NodeTypeFilterOp {
-    pub fn new_from_values<I: IntoIterator<Item = V>, V: AsRef<str>>(
+    pub fn from_values<I: IntoIterator<Item = V>, V: AsRef<str>>(
         node_types: I,
         view: impl GraphView,
     ) -> Self {
-        let mask = create_node_type_filter(view.node_meta().node_type_meta(), node_types);
-        TypeId.mask(mask)
+        let node_type_meta = view.node_meta().node_type_meta();
+        let mask = create_node_type_filter(node_type_meta, node_types);
+
+        Self::from_mask(mask, view)
+    }
+
+    pub fn from_mask(mask: Arc<[bool]>, view: impl GraphView) -> Self {
+        Self {
+            mask,
+            index_backed: !view.core_graph().node_type_index().is_empty(),
+        }
     }
 }
+
+impl NodeOp for NodeTypeFilterOp {
+    type Output = bool;
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        if !self.index_backed {
+            // No index, switch to full scan.
+            return NodeList::All;
+        }
+
+        let type_ids: Vec<usize> = self
+            .mask
+            .iter()
+            .enumerate()
+            .filter_map(|(type_id, keep)| keep.then_some(type_id))
+            .collect();
+
+        let nodes = storage.node_type_index().nodes_of_type(&type_ids);
+
+        NodeList::List {
+            elems: nodes.into(),
+        }
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let node_type_id = storage.node_type_id(node);
+
+        self.mask.get(node_type_id).copied().unwrap_or(false)
+    }
+
+    fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<Self::Output> {
+        self.index_backed.then_some(true)
+    }
+}
+
+impl IntoDynNodeOp for NodeTypeFilterOp {}
 
 #[cfg(test)]
 mod test {
@@ -251,15 +303,19 @@ mod test {
 
     impl NodeOp for Stub {
         type Output = bool;
+
         fn domain(&self, _storage: &GraphStorage) -> NodeList {
             self.domain.clone()
         }
+
         fn apply(&self, _storage: &GraphStorage, _node: VID) -> bool {
             true
         }
+
         fn const_value(&self) -> Option<bool> {
             self.cv
         }
+
         fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<bool> {
             self.cvid
         }

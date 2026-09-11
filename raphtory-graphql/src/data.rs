@@ -24,7 +24,7 @@ use dynamic_graphql::Enum;
 use raphtory::{
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
         graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
@@ -164,7 +164,8 @@ pub struct DataInner {
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_conf: Config,
+    pub(crate) graph_args: Args,
+    pub(crate) read_only: bool,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -294,9 +295,8 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_args: Args) -> Self {
         let cache_configs = &configs.cache;
-
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
         Self {
@@ -305,7 +305,8 @@ impl Data {
                 cache,
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
-                graph_conf,
+                graph_args,
+                read_only: cache_configs.read_only,
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
@@ -392,20 +393,27 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+        let read_only = self.read_only;
+
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
-                    Ok::<_, InsertionError>(graph)
+                    Ok::<_, InsertionError>(if read_only {
+                        graph.into_read_only()
+                    } else {
+                        graph
+                    })
                 })
                 .await
             })
             .await?;
+
         Ok(())
     }
 
@@ -415,12 +423,13 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        let conf = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+
         self.cache
             .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.write_graph_bytes(bytes, args)?;
                     folder.finish()
                 })
                 .await
@@ -615,16 +624,21 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
-        GraphWithVectors::read_from_folder(
+        let graph = GraphWithVectors::read_from_folder(
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
-            config,
+            args,
         )
-        .await
+        .await?;
+        Ok(if self.read_only {
+            graph.into_read_only()
+        } else {
+            graph
+        })
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
@@ -1120,6 +1134,29 @@ pub(crate) mod data_tests {
             data.insert_graph(folder, graph.clone()).await?;
         }
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_read_only_graphs_reject_mutations_and_serve_reads() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let path = tmp_work_dir.path().join("g");
+        fs::create_dir_all(&path).unwrap();
+        graph.encode(&path).unwrap();
+
+        let config = AppConfigBuilder::new().with_cache_read_only(true).build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        let served = data.get_graph_for_test("g").await.unwrap();
+        let served = served.graph().clone().into_events().unwrap();
+        assert_eq!(served.count_nodes(), 2);
+        assert!(served.add_node(1, 3, NO_PROPS, None, None).is_err());
+
+        let config = AppConfigBuilder::new().build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        let served = data.get_graph_for_test("g").await.unwrap();
+        let served = served.graph().clone().into_events().unwrap();
+        assert!(served.add_node(1, 3, NO_PROPS, None, None).is_ok());
     }
 
     #[tokio::test]

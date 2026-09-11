@@ -70,7 +70,20 @@ def test_node_collection_combinations_follow_set_algebra():
             "before": Graph.before(12),
             "layer": Graph.layer("work"),
         }
-        single = {n: frozenset(graph.nodes[e].name) for n, e in atoms.items()}
+        # References computed without `nodes[...]`, which is the thing under
+        # test: views come from the equivalent chained view, predicates are
+        # evaluated over the collection. Reading them back through the subscript
+        # would make these expectations agree with it by construction.
+        single = {
+            "name": frozenset({"a", "b"}) & frozenset(graph.nodes.name),
+            "prop": frozenset(
+                n.name for n in graph.nodes if (n.properties.get("score") or 0) > 15
+            ),
+            "window": frozenset(graph.window(3, 12).nodes.name),
+            "before": frozenset(graph.before(12).nodes.name),
+            "layer": frozenset(graph.layer("work").nodes.name),
+        }
+        assert set(single) == set(atoms), "every atom needs an independent reference"
         every = frozenset(graph.nodes.name)
         cases = []
         for a, b in combinations(atoms, 2):

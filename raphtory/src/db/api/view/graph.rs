@@ -59,7 +59,7 @@ use raphtory_storage::graph::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
-use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+use storage::{persist::strategy::PersistenceStrategy, Extension};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -83,7 +83,7 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
         &self,
         path: &(impl GraphPaths + ?Sized),
     ) -> Result<MaterializedGraph, GraphError> {
-        self.materialize_at_with_config(path, self.core_graph().extension().config().clone())
+        self.materialize_at_with_config(path, self.core_graph().extension().config().clone().into())
     }
 
     /// Materializes the view into a new graph.
@@ -93,7 +93,7 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<MaterializedGraph, GraphError>;
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
@@ -190,12 +190,12 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let edges: Arc<
         dyn Fn(DynGraphArc<'graph>) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph,
-    > = Arc::new(move |graph| match graph.node_list() {
-        NodeList::List { elems } => {
+    > = Arc::new(move |graph| match graph.trusted_node_list() {
+        (NodeList::List { elems }, list_trusted) => {
             // The `node_edges` function below trusts the local node (it only filters
             // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
             // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
-            if graph.node_list_trusted() {
+            if list_trusted {
                 let graph = graph.clone();
                 let gs = if locked {
                     graph.core_graph().lock()
@@ -234,7 +234,7 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                     .into_dyn_boxed()
             }
         }
-        NodeList::All => {
+        (NodeList::All, _) => {
             let layer_ids = graph.layer_ids().clone();
             let graph = graph.clone();
             let gs = if locked {
@@ -391,7 +391,7 @@ pub fn materialize_impl(
     }
     node_meta.set_layer_mapper(layer_meta.deep_clone());
 
-    let ext = Extension::new(config, path)?;
+    let ext = Extension::new(path, config)?;
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
         node_meta,
@@ -688,16 +688,18 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<MaterializedGraph, GraphError> {
         if Extension::disk_storage_enabled() {
             path.init()?;
+
             let graph_path = path.graph_path()?;
-            let graph = materialize_impl(self, Some(graph_path.as_ref()), config)?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()), args.into())?;
             let meta = GraphFolderMetadata {
                 path: path.relative_graph_path()?,
                 meta: build_graph_metadata(&graph),
             };
+
             path.write_metadata(meta)?;
             Ok(graph)
         } else {
@@ -723,7 +725,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     ) -> NodeFilteredGraph<Self, NodeTypeFilterOp> {
         NodeFilteredGraph::new(
             self.clone(),
-            NodeTypeFilterOp::new_from_values(node_types, self),
+            NodeTypeFilterOp::from_values(node_types, self),
         )
     }
 
@@ -797,13 +799,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        if self.node_list_trusted() {
-            match self.node_list() {
+        let (node_list, trusted) = self.trusted_node_list();
+        if trusted {
+            match node_list {
                 NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
                 NodeList::List { elems } => elems.len(),
             }
         } else {
-            match self.node_list() {
+            match node_list {
                 NodeList::All => self
                     .core_nodes()
                     .as_ref()

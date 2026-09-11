@@ -3,7 +3,7 @@ use raphtory::{
     db::{
         api::view::Filter,
         graph::{
-            graph::assert_graph_equal,
+            assertions::assert_graph_equal,
             views::filter::model::{EntityExprFilterOps, PropertyExprFactory},
         },
     },
@@ -129,6 +129,7 @@ fn node_removed_via_edge_removal_window() {
     assert_graph_equal(&sg, &expected);
     assert_graph_equal(&sg, &sg.materialize().unwrap())
 }
+
 mod test_filters_node_type_filtered_subgraph {
     use raphtory::{
         db::{

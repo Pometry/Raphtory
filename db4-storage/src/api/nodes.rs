@@ -4,7 +4,7 @@ use raphtory_api::{
     core::{
         Direction,
         entities::properties::{
-            meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
+            meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID},
             prop::{AsPropRef, Prop, PropUnwrap},
             tprop::TPropOps,
         },
@@ -19,6 +19,7 @@ use raphtory_core::{
 };
 use std::{
     borrow::Cow,
+    collections::HashSet,
     fmt::Debug,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
@@ -33,6 +34,7 @@ use crate::{
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
+    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
@@ -40,6 +42,142 @@ use crate::{
 use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
+
+/// A property predicate a storage backend may resolve to candidate rows via a
+/// secondary index. String operators use the semantics of the corresponding
+/// `str` methods; comparisons use the property value's natural order.
+#[derive(Debug, Clone, Copy)]
+pub enum PropPredicate<'a> {
+    Eq(&'a Prop),
+    In(&'a std::collections::HashSet<Prop>),
+    Lt(&'a Prop),
+    Le(&'a Prop),
+    Gt(&'a Prop),
+    Ge(&'a Prop),
+    StartsWith(&'a str),
+    EndsWith(&'a str),
+    Contains(&'a str),
+}
+
+/// Which value(s) of a property a [`PropPredicate`] is asked about. A
+/// historical index can answer `Ever` exactly; `Latest` answers are supersets
+/// unless the backend tracks latest values separately.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropSemantics {
+    /// The property's latest value must match.
+    Latest,
+    /// Any value the property ever held may match.
+    Ever,
+}
+
+/// Which node property columns an index build considers.
+///
+/// Named columns are configured by property *name* and persisted, so a
+/// selection can name a property that does not exist yet; the names are
+/// resolved to prop ids once per build, which is what `columns` carries. A
+/// property left out is simply not indexed — filters over it fall back to a
+/// scan and must still be correct.
+///
+/// Two metadata columns are not user properties and are handled here rather
+/// than by name:
+///
+/// - `NODE_TYPE_PROP_ID` is never indexed; nothing queries it through the
+///   property filters.
+/// - `NODE_ID_PROP_ID` holds the node's external id (its GID, `U64` or `Str`).
+///   It has no user-facing name, so it is selected by its own flag and is
+///   independent of the named selection: `gid` alone is enough to index it
+///   even when `columns` names nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SelectedProps {
+    columns: SelectedColumns,
+    gid: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+enum SelectedColumns {
+    /// Every indexable column, the default for a graph that never configured
+    /// a selection.
+    #[default]
+    All,
+    /// Only these prop ids, per id space. Either set may be empty.
+    Only {
+        temporal: HashSet<usize>,
+        metadata: HashSet<usize>,
+    },
+}
+
+impl SelectedProps {
+    /// Every indexable column.
+    pub fn all(gid: bool) -> Self {
+        Self {
+            columns: SelectedColumns::All,
+            gid,
+        }
+    }
+
+    /// Only the given prop ids, per id space.
+    pub fn only(temporal: HashSet<usize>, metadata: HashSet<usize>, gid: bool) -> Self {
+        Self {
+            columns: SelectedColumns::Only { temporal, metadata },
+            gid,
+        }
+    }
+
+    pub fn includes(&self, temporal: bool, prop_id: usize) -> bool {
+        if !temporal {
+            match prop_id {
+                NODE_TYPE_PROP_ID => return false,
+                // selected by the flag, not by name, and regardless of it
+                NODE_ID_PROP_ID => return self.gid,
+                _ => {}
+            }
+        }
+        match &self.columns {
+            SelectedColumns::All => true,
+            SelectedColumns::Only {
+                temporal: t,
+                metadata: m,
+            } => {
+                if temporal {
+                    t.contains(&prop_id)
+                } else {
+                    m.contains(&prop_id)
+                }
+            }
+        }
+    }
+
+    /// Whether the node id column is selected.
+    pub fn gid(&self) -> bool {
+        self.gid
+    }
+
+    /// True when nothing at all is selected, so a build has no work to do.
+    pub fn is_empty(&self) -> bool {
+        if self.gid {
+            return false;
+        }
+        match &self.columns {
+            SelectedColumns::All => false,
+            SelectedColumns::Only { temporal, metadata } => {
+                temporal.is_empty() && metadata.is_empty()
+            }
+        }
+    }
+}
+
+/// Global candidate node ids for a [`PropPredicate`].
+///
+/// `vids` must be a superset of the matching nodes (no false negatives) over
+/// the graph's whole history; when `exact` is false the caller must still
+/// verify each candidate against the actual predicate semantics.
+#[derive(Debug, Clone, Default)]
+pub struct GlobalPropCandidates {
+    pub vids: Vec<VID>,
+    pub exact: bool,
+}
+
+pub type NodeTypeIndexOf<NS> = <<NS as NodeSegmentOps>::Extension as PersistenceStrategy>::NTI;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
@@ -412,17 +550,17 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn gid(&self) -> GidRef<'a> {
-        self.c_prop_str(LayerId(0), NODE_ID_IDX)
+        self.c_prop_str(LayerId(0), NODE_ID_PROP_ID)
             .map(GidRef::Str)
             .or_else(|| {
-                self.c_prop(LayerId(0), NODE_ID_IDX)
+                self.c_prop(LayerId(0), NODE_ID_PROP_ID)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
             .unwrap_or_else(|| panic!("GID should be present, for node {:?}", self.vid()))
     }
 
     fn node_type_id(&self) -> usize {
-        self.c_prop(LayerId(0), NODE_TYPE_IDX)
+        self.c_prop(LayerId(0), NODE_TYPE_PROP_ID)
             .and_then(|prop| prop.into_u64())
             .map_or(0, |id| id as usize)
     }

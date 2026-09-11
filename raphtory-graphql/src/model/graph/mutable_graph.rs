@@ -21,6 +21,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
@@ -568,6 +569,34 @@ impl GqlMutableGraph {
         })
         .await
     }
+
+    /// Build secondary indexes over node property values to speed up property
+    /// filters (equality, comparisons and string matching). The index covers
+    /// the graph as of this call, so values added later need another build to
+    /// be searchable through it; filters over uncovered properties fall back
+    /// to a scan and stay correct either way.
+    ///
+    /// `props` replaces the saved selection of property names to index, which
+    /// later builds reuse; omit it to keep the saved one.
+    pub async fn build_property_index(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: Option<bool>,
+    ) -> Result<bool, GraphError> {
+        let graph = self.graph.graph().clone();
+        let index_gid = index_gid.unwrap_or(false);
+        blocking_write(move || {
+            graph.core_graph().build_node_prop_index(props, index_gid)?;
+            Ok(true)
+        })
+        .await
+    }
+
+    /// The node property names that index builds consider, or null when every
+    /// supported property is indexed.
+    pub async fn indexed_properties(&self) -> Option<Vec<String>> {
+        self.graph.graph().core_graph().indexed_node_props()
+    }
 }
 
 impl GqlMutableGraph {
@@ -916,7 +945,7 @@ mod tests {
     use super::*;
     use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
     use raphtory::{
-        db::api::{storage::storage::Config, view::MaterializedGraph},
+        db::api::{storage::storage::Args, view::MaterializedGraph},
         vectors::{
             custom::{serve_custom_embedding, EmbeddingServer},
             storage::OpenAIEmbeddings,
@@ -945,7 +974,7 @@ mod tests {
     async fn create_mutable_graph(port: u16, work_dir: &Path) -> GraphTestContext {
         let graph = create_test_graph();
         let config = AppConfig::default();
-        let data = Data::new(work_dir, &config, Config::default());
+        let data = Data::new(work_dir, &config, Args::default());
 
         let graph_name = "test_graph";
 

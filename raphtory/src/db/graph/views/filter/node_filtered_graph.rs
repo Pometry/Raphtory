@@ -106,10 +106,27 @@ impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InternalNodeFilterOps
 }
 
 impl<G: GraphView, F: NodeFilterOp> ListOps for NodeFilteredGraph<G, F> {
+    /// The nodes this view can contain.
+    ///
+    /// An exactness claim on the result means "every key here satisfies every
+    /// filter of this view", which `list_trusted` relies on to skip
+    /// re-checking. Two ways to lose it:
+    ///
+    /// - this view's own filter is not reflected in the list, because no index
+    ///   could serve it and its domain came back as everything; or
+    /// - the inner view is not trusted for its own filters, so a claim built
+    ///   on top of its list does not account for them.
     fn node_list(&self) -> NodeList {
-        self.filter
-            .domain(self.graph.core_graph())
-            .intersection(&self.graph.node_list())
+        let inner = self.graph.node_list();
+        let combined = match self.filter.domain(self.graph.core_graph()) {
+            NodeList::All if self.filter.is_filtered() => inner.clone().into_inexact(),
+            domain => domain.intersection(&inner),
+        };
+        if self.graph.internal_node_list_trusted() {
+            combined
+        } else {
+            combined.into_inexact()
+        }
     }
 
     fn edge_list(&self) -> EdgeList {

@@ -48,6 +48,16 @@ impl<I> Clone for List<I> {
 }
 
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
+    /// Drops any exactness claim; see [`Index::into_inexact`].
+    pub fn into_inexact(self) -> List<I> {
+        match self {
+            List::All => List::All,
+            List::List { elems } => List::List {
+                elems: elems.into_inexact(),
+            },
+        }
+    }
+
     pub fn intersection(&self, other: &List<I>) -> List<I> {
         match (self, other) {
             (List::All, List::All) => List::All,
@@ -74,6 +84,15 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
 
     pub fn unfiltered(&self) -> bool {
         matches!(self, List::All)
+    }
+
+    /// True when the list is a pushdown candidate list whose producer proved
+    /// every key matches its filter (see [`Index::dynamically_exact`]).
+    pub fn dynamically_trusted(&self) -> bool {
+        match self {
+            List::All => false,
+            List::List { elems } => elems.dynamically_exact(),
+        }
     }
 
     pub fn is_empty(&self) -> bool {

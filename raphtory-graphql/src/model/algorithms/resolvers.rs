@@ -12,6 +12,7 @@ use crate::{
         },
     },
     rayon::blocking_compute,
+    Value,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use rand::{prelude::StdRng, SeedableRng};
@@ -71,7 +72,7 @@ use raphtory::{
     errors::GraphError,
     prelude::{GraphViewOps, TimeOps},
 };
-use raphtory_api::core::storage::arc_str::OptionAsStr;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::OptionAsStr};
 
 fn get_node(
     graph: DynamicGraph,
@@ -335,12 +336,16 @@ impl GqlAlgorithms {
         &self,
         #[graphql(desc = "Source node id.")] source: GqlNodeId,
         #[graphql(desc = "Target node ids.")] targets: Vec<GqlNodeId>,
-        #[graphql(desc = "Edge property to use as weight. If unset, all edges have weight 1.")]
-        weight: Option<String>,
+        #[graphql(desc = "Edge property to use as weight.")] weight: Option<String>,
         #[graphql(desc = "Edge direction to follow. Defaults to BOTH.")] direction: Option<
             GqlDirection,
         >,
+        #[graphql(
+            desc = "Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1."
+        )]
+        default_weight: Option<Value>,
     ) -> Result<GqlNodeState, GraphError> {
+        let default_weight = default_weight.map(Prop::try_from).transpose()?;
         Ok(self
             .run(move |graph| {
                 dijkstra_single_source_shortest_paths(
@@ -349,6 +354,7 @@ impl GqlAlgorithms {
                     targets,
                     weight.as_str(),
                     direction.unwrap_or(GqlDirection::Both).into(),
+                    default_weight,
                 )
             })
             .await?
