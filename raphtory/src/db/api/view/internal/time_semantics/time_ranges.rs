@@ -184,17 +184,10 @@ impl From<Range<EventTime>> for TimeRanges {
 mod tests {
     use super::*;
     use proptest::prelude::*;
-
-    fn t(v: i64) -> EventTime {
-        EventTime::start(v)
-    }
-
-    fn r(a: i64, b: i64) -> Range<EventTime> {
-        t(a)..t(b)
-    }
+    use raphtory_api::core::storage::timeindex::AsTime;
 
     fn ranges(v: &[(i64, i64)]) -> TimeRanges {
-        TimeRanges::new(v.iter().map(|&(a, b)| r(a, b)).collect())
+        TimeRanges::new(v.iter().map(|&(a, b)| EventTime::range(a..b)).collect())
     }
 
     #[test]
@@ -225,9 +218,9 @@ mod tests {
         // `window(0,5) | window(6,10)`: t=5 is in the gap and must stay out.
         let u = ranges(&[(0, 5)]).union(&ranges(&[(6, 10)]));
         assert_eq!(u.len(), 2);
-        assert!(u.contains(t(4)));
-        assert!(!u.contains(t(5)));
-        assert!(u.contains(t(6)));
+        assert!(u.contains(EventTime::start(4)));
+        assert!(!u.contains(EventTime::start(5)));
+        assert!(u.contains(EventTime::start(6)));
     }
 
     #[test]
@@ -235,11 +228,11 @@ mod tests {
         // `~window(3,5)`: everything before 3 and from 5 on.
         let c = ranges(&[(3, 5)]).complement();
         assert_eq!(c.len(), 2);
-        assert!(c.contains(t(1)));
-        assert!(!c.contains(t(3)));
-        assert!(!c.contains(t(4)));
-        assert!(c.contains(t(5)));
-        assert!(c.contains(t(7)));
+        assert!(c.contains(EventTime::start(1)));
+        assert!(!c.contains(EventTime::start(3)));
+        assert!(!c.contains(EventTime::start(4)));
+        assert!(c.contains(EventTime::start(5)));
+        assert!(c.contains(EventTime::start(7)));
     }
 
     #[test]
@@ -255,7 +248,7 @@ mod tests {
         // `TimeSemantics::restrict` picks its variant off this slice: none is
         // the empty window, one is `Window`, more is `MultiWindow`.
         assert!(TimeRanges::empty().as_slice().is_empty());
-        assert_eq!(ranges(&[(0, 5)]).as_slice(), [r(0, 5)]);
+        assert_eq!(ranges(&[(0, 5)]).as_slice(), [EventTime::range(0..5)]);
         assert_eq!(ranges(&[(0, 5), (6, 10)]).len(), 2);
     }
 
@@ -264,12 +257,15 @@ mod tests {
     const DOMAIN: i64 = 24;
 
     fn points(s: &TimeRanges) -> Vec<bool> {
-        (0..DOMAIN).map(|v| s.contains(t(v))).collect()
+        (0..DOMAIN)
+            .map(|v| s.contains(EventTime::start(v)))
+            .collect()
     }
 
     fn arb_ranges() -> impl Strategy<Value = TimeRanges> {
-        prop::collection::vec((0..DOMAIN, 0..DOMAIN), 0..6)
-            .prop_map(|v| TimeRanges::new(v.into_iter().map(|(a, b)| r(a, b)).collect()))
+        prop::collection::vec((0..DOMAIN, 0..DOMAIN), 0..6).prop_map(|v| {
+            TimeRanges::new(v.into_iter().map(|(a, b)| EventTime::range(a..b)).collect())
+        })
     }
 
     proptest! {

@@ -299,18 +299,15 @@ impl ViewBounds {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    use raphtory_api::core::entities::LayerId;
+    use raphtory_api::core::{entities::LayerId, storage::timeindex::AsTime};
     use raphtory_storage::core_ops::CoreGraphOps;
+    use std::ops::Range;
 
-    fn t(v: i64) -> EventTime {
-        EventTime::start(v)
+    fn time(ranges: &[Range<i64>]) -> TimeRanges {
+        TimeRanges::new(ranges.iter().map(|r| EventTime::range(r.clone())).collect())
     }
 
-    fn time(v: &[(i64, i64)]) -> TimeRanges {
-        TimeRanges::new(v.iter().map(|&(a, b)| t(a)..t(b)).collect())
-    }
-
-    fn view(time_ranges: &[(i64, i64)], layers: LayerIds) -> ResolvedView {
+    fn view(time_ranges: &[Range<i64>], layers: LayerIds) -> ResolvedView {
         ResolvedView {
             time: time(time_ranges),
             layers,
@@ -319,7 +316,7 @@ mod tests {
 
     #[test]
     fn a_predicate_contributes_the_identity() {
-        let w = view(&[(0, 5)], LayerIds::All);
+        let w = view(&[0..5], LayerIds::All);
         assert_eq!(w.and(&ResolvedView::all()), w);
         assert_eq!(ResolvedView::all().and(&w), w);
         assert_eq!(w.or(&ResolvedView::all()).unwrap(), ResolvedView::all());
@@ -327,11 +324,11 @@ mod tests {
 
     #[test]
     fn two_windows_and_to_their_overlap_and_or_to_both() {
-        let a = view(&[(0, 5)], LayerIds::All);
-        let b = view(&[(3, 8)], LayerIds::All);
-        assert_eq!(a.and(&b).time, time(&[(3, 5)]));
-        assert_eq!(a.or(&b).unwrap().time, time(&[(0, 8)]));
-        let far = view(&[(6, 10)], LayerIds::All);
+        let a = view(&[0..5], LayerIds::All);
+        let b = view(&[3..8], LayerIds::All);
+        assert_eq!(a.and(&b).time, time(&[3..5]));
+        assert_eq!(a.or(&b).unwrap().time, time(&[0..8]));
+        let far = view(&[6..10], LayerIds::All);
         assert_eq!(a.or(&far).unwrap().time.len(), 2);
     }
 
@@ -343,7 +340,7 @@ mod tests {
         g.add_edge(1, "a", "b", NO_PROPS, Some("x")).unwrap();
         g.add_edge(2, "c", "d", NO_PROPS, Some("y")).unwrap();
 
-        let w = view(&[(3, 5)], LayerIds::All).not(g.clone()).unwrap();
+        let w = view(&[3..5], LayerIds::All).not(g.clone()).unwrap();
         assert_eq!(w.time.len(), 2);
         assert!(w.layers.is_all());
 
@@ -355,7 +352,7 @@ mod tests {
 
     #[test]
     fn mixed_time_and_layer_unions_and_negations_are_refused() {
-        let w = view(&[(0, 5)], LayerIds::All);
+        let w = view(&[0..5], LayerIds::All);
         let l = ResolvedView {
             time: TimeRanges::all(),
             layers: LayerIds::One(LayerId(1)),
@@ -364,7 +361,7 @@ mod tests {
         assert!(w.and(&l).not(Graph::new()).is_err());
         // Agreeing on one dimension is fine.
         let wl1 = w.and(&l);
-        let wl2 = view(&[(6, 9)], LayerIds::One(LayerId(1)));
+        let wl2 = view(&[6..9], LayerIds::One(LayerId(1)));
         assert!(wl1.or(&wl2).is_ok());
     }
 
@@ -382,7 +379,7 @@ mod tests {
         g.add_edge(1, "a", "b", NO_PROPS, Some("x")).unwrap();
         g.add_edge(7, "a", "b", NO_PROPS, Some("y")).unwrap();
         assert_eq!(read_view(&g), ResolvedView::all());
-        assert_eq!(read_view(&g.window(0, 5)), view(&[(0, 5)], LayerIds::All));
+        assert_eq!(read_view(&g.window(0, 5)), view(&[0..5], LayerIds::All));
         let layered = g.layers("y").unwrap();
         assert_eq!(
             read_view(&layered).layers,
@@ -390,7 +387,7 @@ mod tests {
         );
         assert!(read_view(&layered).time.is_all());
         // A resolved view applied and read back round-trips, gaps included.
-        let two = view(&[(0, 5), (6, 10)], LayerIds::All);
+        let two = view(&[0..5, 6..10], LayerIds::All);
         let applied = two.clone().apply(Arc::new(g.clone()));
         assert_eq!(read_view(&applied), two);
     }
@@ -399,7 +396,7 @@ mod tests {
     fn bounds_of_negations_follow_the_tree_without_normalising_it() {
         let g = Graph::new();
         g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-        let window = ViewBounds::ViewOnly(view(&[(0, 5)], LayerIds::All));
+        let window = ViewBounds::ViewOnly(view(&[0..5], LayerIds::All));
         let predicate = ViewBounds::predicate();
 
         // ~(window & P): nodes outside the window or failing P — anywhere.
@@ -416,7 +413,7 @@ mod tests {
         assert_eq!(or.clone().resolved().unwrap(), ResolvedView::all());
         assert_eq!(
             or.not(g.clone()).unwrap().resolved().unwrap().time,
-            time(&[(0, 5)]).complement()
+            time(&[0..5]).complement()
         );
 
         // Views alone stay exact through a negation, and come back.

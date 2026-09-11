@@ -529,10 +529,6 @@ mod tests {
     use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
     use std::collections::BTreeSet;
 
-    fn r(a: i64, b: i64) -> std::ops::Range<EventTime> {
-        EventTime::start(a)..EventTime::start(b)
-    }
-
     fn build<G: StaticGraphViewOps + AdditionOps>(g: &G) {
         g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
         g.add_edge(7, "a", "b", NO_PROPS, None).unwrap();
@@ -562,7 +558,10 @@ mod tests {
         build(&g);
         let w1 = g.window(0, 5);
         let w2 = g.window(6, 10);
-        let multi = MultiWindowedGraph::new(g.clone(), TimeRanges::new(vec![r(0, 5), r(6, 10)]));
+        let multi = MultiWindowedGraph::new(
+            g.clone(),
+            TimeRanges::new(vec![EventTime::range(0..5), EventTime::range(6..10)]),
+        );
 
         // Membership is the union. Whether the gap edge g->h (event at t=5) is
         // in it follows from the windows alone: on an event graph it is in
@@ -624,7 +623,10 @@ mod tests {
         g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
         let w1 = g.window(3, 5);
         let w2 = g.window(6, 10);
-        let multi = MultiWindowedGraph::new(g.clone(), TimeRanges::new(vec![r(3, 5), r(6, 10)]));
+        let multi = MultiWindowedGraph::new(
+            g.clone(),
+            TimeRanges::new(vec![EventTime::range(3..5), EventTime::range(6..10)]),
+        );
         let single = |w: &WindowedGraph<PersistentGraph>| {
             w.edge("a", "b")
                 .map(|e| e.explode().iter().count())
@@ -647,16 +649,22 @@ mod tests {
         let g = Graph::new();
         build(&g);
         let sem = g.window(0, 8).edge_time_semantics();
-        match sem.restrict(TimeRanges::new(vec![r(0, 5), r(6, 10)])) {
+        match sem.restrict(TimeRanges::new(vec![
+            EventTime::range(0..5),
+            EventTime::range(6..10),
+        ])) {
             TimeSemantics::MultiWindow(m) => {
-                assert_eq!(m.windows(), &TimeRanges::new(vec![r(0, 5), r(6, 8)]));
+                assert_eq!(
+                    m.windows(),
+                    &TimeRanges::new(vec![EventTime::range(0..5), EventTime::range(6..8)])
+                );
             }
             other => panic!("expected MultiWindow, got {other:?}"),
         }
         // Restricting to ranges that leave a single interval collapses to Window.
         let sem = g.window(0, 8).edge_time_semantics();
         assert!(matches!(
-            sem.restrict(TimeRanges::new(vec![r(3, 20)])),
+            sem.restrict(TimeRanges::new(vec![EventTime::range(3..20)])),
             TimeSemantics::Window(_)
         ));
     }
