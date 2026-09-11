@@ -206,9 +206,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for MultiW
         if self.is_empty() {
             return iter::empty().into_dyn_boxed();
         }
-        let windows = self.windows.as_slice().to_vec();
-        windows
-            .into_iter()
+        self.windows
+            .iter()
             .flat_map(move |w| self.graph.temporal_prop_iter_window(id, w.start, w.end))
             .into_dyn_boxed()
     }
@@ -218,9 +217,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for MultiW
         if self.is_empty() {
             return iter::empty().into_dyn_boxed();
         }
-        let windows = self.windows.as_slice().to_vec();
-        windows
-            .into_iter()
+        self.windows
+            .iter()
             .rev()
             .flat_map(move |w| self.graph.temporal_prop_iter_window_rev(id, w.start, w.end))
             .into_dyn_boxed()
@@ -342,9 +340,8 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
         if self.is_empty() {
             return iter::empty().into_dyn_boxed();
         }
-        let windows = self.windows.as_slice().to_vec();
-        windows
-            .into_iter()
+        self.windows
+            .iter()
             .flat_map(move |w| {
                 self.graph
                     .temporal_prop_iter_window(prop_id, w.start, w.end)
