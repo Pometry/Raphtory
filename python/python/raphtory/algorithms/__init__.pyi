@@ -70,6 +70,7 @@ __all__ = [
     "hits",
     "balance",
     "label_propagation",
+    "label_propagation_fast",
     "k_core",
     "temporal_SEIR",
     "louvain",
@@ -673,6 +674,37 @@ def label_propagation(
 ) -> OutputNodeState:
     """
     Computes components using a label propagation algorithm
+
+    Arguments:
+        graph (GraphView): A reference to the graph
+        iter_count (int): Number of iterations. Defaults to 20.
+        seed (int, optional): Seeds the tie-break draw. Pass it back to reproduce a run.
+        init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
+        rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
+        patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
+
+    Returns:
+        OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
+
+    Raises:
+        ValueError: If a key of `init_state` is not a node in `graph`.
+
+    """
+
+def label_propagation_fast(
+    graph: GraphView,
+    iter_count: int = 20,
+    seed: Optional[int] = None,
+    init_state: Optional[dict] = None,
+    rel_tol: Optional[float] = None,
+    patience: Optional[int] = None,
+) -> OutputNodeState:
+    """
+    Computes components using a label propagation algorithm
+
+    A faster implementation of `label_propagation`, agreeing with it node for node: same
+    `community_id`, same `confidence`. It keeps labels in flat arrays and advances a frontier of
+    active nodes instead of re-evaluating every node each super-step.
 
     Arguments:
         graph (GraphView): A reference to the graph
