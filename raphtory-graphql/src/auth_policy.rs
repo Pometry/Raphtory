@@ -177,6 +177,21 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             .is_some_and(|p| p.level() >= PermissionLevel::Read))
     }
 
+    /// Called after a graph on this server is successfully mutated, so a policy can discard
+    /// anything it derived from graph contents.
+    ///
+    /// Deliberately carries no argument. A policy may derive a caller's scope from *any* graph — an
+    /// ABAC probe reads whichever graph its query names, which need not be the one being read or
+    /// the one being written — so knowing which graph changed would not narrow what has to be
+    /// discarded without tracking that dependency. This says only "some graph changed"; the policy
+    /// decides what that invalidates.
+    ///
+    /// Only called when the mutation actually succeeded. A refused or failed write changes nothing,
+    /// so it must not discard anything either.
+    ///
+    /// Default no-op — only meaningful to a policy that caches.
+    fn on_graph_mutated(&self) {}
+
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
     /// back the graph creation so the store and filesystem stay consistent.

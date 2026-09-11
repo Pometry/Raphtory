@@ -1,4 +1,5 @@
 use crate::{
+    auth_policy::AuthorizationPolicy,
     paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_load,
 };
@@ -59,6 +60,33 @@ pub struct GraphWithVectorsInner {
     pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
+    /// Told when this graph's contents change — see [`MutationListener`].
+    listener: MutationListener,
+}
+
+/// Whoever needs to know that a graph's contents changed.
+///
+/// Today that is the authorization policy, which may hold scopes derived from graph data. It rides
+/// on the graph handle rather than being threaded through the write resolvers because every
+/// write-side handle — the graph, and the node and edge handles reached from it — already holds one
+/// of these, so a mutation anywhere on that surface can report itself without a signature change.
+///
+/// Empty when no policy is configured, which is the common case and costs a null check.
+#[derive(Clone, Default)]
+pub struct MutationListener(Option<Arc<dyn AuthorizationPolicy>>);
+
+impl MutationListener {
+    pub fn new(policy: Option<Arc<dyn AuthorizationPolicy>>) -> Self {
+        Self(policy)
+    }
+
+    /// Report a mutation that **succeeded**. A refused or failed write must not call this: it
+    /// changed nothing, so anything derived from the graph is still current.
+    pub fn notify(&self) {
+        if let Some(policy) = &self.0 {
+            policy.on_graph_mutated();
+        }
+    }
 }
 
 impl GraphWithVectors {
@@ -66,6 +94,7 @@ impl GraphWithVectors {
         graph: MaterializedGraph,
         vectors: Option<GraphVectors>,
         folder: ExistingGraphFolder,
+        listener: MutationListener,
     ) -> Self {
         let inner = Arc::new(GraphWithVectorsInner {
             graph,
@@ -73,6 +102,7 @@ impl GraphWithVectors {
             folder: folder.unlock(),
             is_dirty: AtomicBool::new(false),
             is_flushing: AtomicBool::new(false),
+            listener,
         });
         Self { inner }
     }
@@ -146,6 +176,16 @@ impl GraphWithVectors {
         Arc::strong_count(&self.inner)
     }
 
+    /// Report a mutation of this graph that succeeded. See [`MutationListener::notify`].
+    pub fn notify_mutated(&self) {
+        self.inner.listener.notify();
+    }
+
+    /// This graph's listener, for handing to a handle rebuilt around the same graph.
+    pub(crate) fn listener(&self) -> MutationListener {
+        self.inner.listener.clone()
+    }
+
     /// Flush in-memory writes to the storage engine and rewrite the on-disk
     /// metadata sidecar, so cache-miss namespace listings report accurate
     /// counts. The dirty flag is cleared up front so a mutation racing the
@@ -198,6 +238,7 @@ impl GraphWithVectors {
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
         config: Config,
+        listener: MutationListener,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
@@ -234,7 +275,7 @@ impl GraphWithVectors {
 
         debug!("Graph loaded = {}", folder.local_path());
 
-        Ok(Self::new(graph, vectors, folder.clone()))
+        Ok(Self::new(graph, vectors, folder.clone(), listener))
     }
 }
 

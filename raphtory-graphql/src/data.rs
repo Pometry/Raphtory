@@ -3,7 +3,7 @@ use crate::{
     auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
     cache::GraphCache,
     config::app_config::AppConfig,
-    graph::GraphWithVectors,
+    graph::{GraphWithVectors, MutationListener},
     model::{
         blocking_io,
         graph::{
@@ -324,6 +324,21 @@ impl Data {
         WorkDirWriteGuard { guard }
     }
 
+    /// The [`MutationListener`] handed to every graph this `Data` loads, so a successful write on
+    /// any of them reaches the authorization policy.
+    fn mutation_listener(&self) -> MutationListener {
+        MutationListener::new(self.auth_policy.clone())
+    }
+
+    /// Report a successful mutation that changed which graphs exist, rather than the contents of
+    /// one — a create, delete, replace or move. A policy may have derived a caller's scope from a
+    /// graph that has just appeared or gone, so it is told the same way an in-place write tells it.
+    fn notify_graph_mutated(&self) {
+        if let Some(policy) = &self.auth_policy {
+            policy.on_graph_mutated();
+        }
+    }
+
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
         Arc::get_mut(&mut self.inner)
             .expect("Data is not uniquely owned when setting auth_policy")
@@ -396,13 +411,15 @@ impl Data {
         let key = writeable_folder.local_path().to_owned();
         let config = self.graph_conf.clone();
         let read_only = self.read_only;
+        let listener = self.mutation_listener();
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
                     let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
                     let folder = writeable_folder.finish()?;
-                    let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
+                    let graph =
+                        GraphWithVectors::new(new_graph, None, folder.as_existing()?, listener);
                     graph.set_dirty(is_dirty);
                     Ok::<_, InsertionError>(if read_only {
                         graph.into_read_only()
@@ -413,6 +430,7 @@ impl Data {
                 .await
             })
             .await?;
+        self.notify_graph_mutated();
         Ok(())
     }
 
@@ -433,6 +451,7 @@ impl Data {
                 .await
             })
             .await?;
+        self.notify_graph_mutated();
         Ok(())
     }
 
@@ -462,6 +481,7 @@ impl Data {
         self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
+        self.notify_graph_mutated();
         Ok(())
     }
 
@@ -496,6 +516,7 @@ impl Data {
         })
         .await
         .map_err(|err| DeletionError::from_inner(path, err))?;
+        self.notify_graph_mutated();
         Ok(())
     }
 
@@ -596,8 +617,12 @@ impl Data {
         self.cache
             .insert_or_replace_with(folder.local_path(), |old_graph| async {
                 let current = old_graph.unwrap_or(fallback);
-                let updated =
-                    GraphWithVectors::new(current.graph().clone(), Some(vectors), cloned_folder);
+                let updated = GraphWithVectors::new(
+                    current.graph().clone(),
+                    Some(vectors),
+                    cloned_folder,
+                    current.listener(),
+                );
                 updated.set_dirty(current.is_dirty());
                 Ok::<_, GQLError>(updated)
             })
@@ -630,6 +655,7 @@ impl Data {
             #[cfg(feature = "vectors")]
             &cache,
             config,
+            self.mutation_listener(),
         )
         .await?;
         Ok(if self.read_only {
