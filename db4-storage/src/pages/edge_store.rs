@@ -6,7 +6,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+        locked::edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -451,12 +451,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.ext.config().max_edge_page_len()
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
-        WriteLockedEdgePages::new(
+    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgeSegments<'a, ES> {
+        WriteLockedEdgeSegments::new(
             self.segments
                 .iter()
                 .map(|(page_id, page)| {
-                    LockedEdgePage::new(
+                    LockedEdgeSegment::new(
                         page_id,
                         self.max_page_len(),
                         page.as_ref(),

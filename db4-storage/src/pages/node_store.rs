@@ -9,7 +9,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{LockedNodePage, WriteLockedNodePages},
+        locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -272,12 +272,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         }
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
-        WriteLockedNodePages::new(
+    pub fn write_locked<'a>(&'a self) -> WriteLockedNodeSegments<'a, NS> {
+        WriteLockedNodeSegments::new(
             self.segments
                 .iter()
                 .map(|(page_id, page)| {
-                    LockedNodePage::new(
+                    LockedNodeSegment::new(
                         page_id,
                         &self.stats,
                         self.max_segment_len(),

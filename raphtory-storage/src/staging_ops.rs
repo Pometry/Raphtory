@@ -5,7 +5,7 @@ use raphtory_api::core::storage::graph_folder::{
 use storage::{error::StorageError, Extension};
 use thiserror::Error;
 
-/// Represents a temporary graph with pending writes.
+/// Represents a temporary graph that holds uncommitted writes.
 pub struct StagedGraph<'a> {
     graph: WriteLockedGraph<'a, Extension>,
 

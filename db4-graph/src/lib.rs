@@ -28,8 +28,8 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgePages, graph_props::WriteLockedGraphPropPages,
-            nodes::WriteLockedNodePages,
+            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropPages,
+            nodes::WriteLockedNodeSegments,
         },
     },
     persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
@@ -435,8 +435,8 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    pub nodes: WriteLockedNodePages<'a, NS<EXT>>,
-    pub edges: WriteLockedEdgePages<'a, ES<EXT>>,
+    pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
+    pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }

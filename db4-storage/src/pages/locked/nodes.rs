@@ -17,135 +17,135 @@ use rayon::prelude::*;
 use std::{ops::DerefMut, path::Path};
 
 #[derive(Debug)]
-pub struct LockedNodePage<'a, NS> {
-    segment_id: usize,
+pub struct LockedNodeSegment<'a, NS> {
+    id: usize,
     max_page_len: u32,
     layer_counter: &'a GraphStats,
-    page: &'a NS,
-    lock: RwLockWriteGuard<'a, MemNodeSegment>,
+    segment: &'a NS,
+    head: RwLockWriteGuard<'a, MemNodeSegment>,
 }
 
-impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
+impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
     pub fn new(
-        segment_id: usize,
+        id: usize,
         layer_counter: &'a GraphStats,
         max_page_len: u32,
-        page: &'a NS,
-        lock: RwLockWriteGuard<'a, MemNodeSegment>,
+        segment: &'a NS,
+        head: RwLockWriteGuard<'a, MemNodeSegment>,
     ) -> Self {
         Self {
-            segment_id,
+            id,
             layer_counter,
             max_page_len,
-            page,
-            lock,
+            segment,
+            head,
         }
     }
 
     pub fn segment(&self) -> &NS {
-        self.page
+        self.segment
     }
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
+        NodeWriter::new(self.segment, self.layer_counter, self.head.deref_mut())
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkNodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut()).into()
+        NodeWriter::new(self.segment, self.layer_counter, self.head.deref_mut()).into()
     }
 
     pub fn head(&mut self) -> &mut MemNodeSegment {
-        self.lock.deref_mut()
+        self.head.deref_mut()
     }
 
     pub fn vacuum(&mut self) {
-        let _ = self.page.vacuum(self.lock.deref_mut());
+        let _ = self.segment.vacuum(self.head.deref_mut());
     }
 
     #[inline(always)]
     pub fn segment_id(&self) -> usize {
-        self.segment_id
+        self.id
     }
 
     #[inline(always)]
     pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
         let (page, pos) = resolve_pos(node_id, self.max_page_len);
 
-        if page == self.segment_id {
-            Some(pos)
-        } else {
-            None
-        }
+        if page == self.id { Some(pos) } else { None }
     }
 
     pub fn ensure_layer(&mut self, layer_id: LayerId) {
-        self.lock.get_or_create_layer(layer_id);
+        self.head.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);
     }
 }
 
-pub struct WriteLockedNodePages<'a, NS> {
-    writers: Vec<LockedNodePage<'a, NS>>,
+pub struct WriteLockedNodeSegments<'a, NS> {
+    segments: Vec<LockedNodeSegment<'a, NS>>,
 }
 
-impl<NS> Default for WriteLockedNodePages<'_, NS> {
+impl<NS> Default for WriteLockedNodeSegments<'_, NS> {
     fn default() -> Self {
         Self {
-            writers: Vec::new(),
+            segments: Vec::new(),
         }
     }
 }
 
 impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
-    WriteLockedNodePages<'a, NS>
+    WriteLockedNodeSegments<'a, NS>
 {
-    pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
-        Self { writers }
+    pub fn new(segments: Vec<LockedNodeSegment<'a, NS>>) -> Self {
+        Self { segments }
     }
 
     pub fn len(&self) -> usize {
-        self.writers.len()
+        self.segments.len()
     }
 
     #[inline]
-    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodePage<'a, NS>> {
-        self.writers.get_mut(segment_id)
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodeSegment<'a, NS>> {
+        self.segments.get_mut(segment_id)
     }
 
-    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodePage<'a, NS>> {
-        self.writers.par_iter_mut()
+    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodeSegment<'a, NS>> {
+        self.segments.par_iter_mut()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedNodePage<'a, NS>> {
-        self.writers.iter_mut()
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedNodeSegment<'a, NS>> {
+        self.segments.iter_mut()
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodePage<'a, NS>> + 'a {
-        self.writers.into_par_iter()
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodeSegment<'a, NS>> + 'a {
+        self.segments.into_par_iter()
     }
 
     pub fn ensure_layer(&mut self, layer_id: LayerId) {
-        for writer in &mut self.writers {
-            writer.ensure_layer(layer_id);
+        for segment in &mut self.segments {
+            segment.ensure_layer(layer_id);
         }
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        self.writers.par_iter_mut().try_for_each(|writer| {
-            let LockedNodePage { page, lock, .. } = writer;
-            page.vacuum(lock.deref_mut())
-        })?;
+        self.segments
+            .par_iter_mut()
+            .try_for_each(|locked_segment| {
+                let LockedNodeSegment { segment, head, .. } = locked_segment;
+                segment.vacuum(head.deref_mut())
+            })?;
 
         Ok(())
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        self.writers.par_iter_mut().try_for_each(|writer| {
-            let LockedNodePage { page, lock, .. } = writer;
-            page.flush(lock.deref_mut())
-        })?;
+        self.segments
+            .par_iter_mut()
+            .try_for_each(|locked_segment| {
+                let LockedNodeSegment { segment, head, .. } = locked_segment;
+                segment.flush(head.deref_mut())
+            })?;
 
         Ok(())
     }
@@ -153,10 +153,10 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
 
-        self.writers.par_iter().try_for_each(|writer| {
-            writer
+        self.segments.par_iter().try_for_each(|locked_segment| {
+            locked_segment
                 .segment()
-                .copy_to(&dst.join(writer.segment_id().to_string()))
+                .copy_to(&dst.join(locked_segment.segment_id().to_string()))
         })?;
 
         Ok(())

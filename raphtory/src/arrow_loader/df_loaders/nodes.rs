@@ -35,7 +35,7 @@ use std::{
 };
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
-    pages::locked::nodes::LockedNodePage,
+    pages::locked::nodes::LockedNodeSegment,
     segments::node_type_index::index::MemNodeTypeIndex,
     Extension,
 };
@@ -791,7 +791,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[Resolved<'_>],
-    locked_page: &mut LockedNodePage<'_, NS>,
+    locked_page: &mut LockedNodeSegment<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
 
