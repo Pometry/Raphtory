@@ -79,4 +79,8 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     fn flush(&self) -> Result<(), StorageError> {
         Ok(())
     }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
+        Ok(())
+    }
 }

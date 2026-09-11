@@ -35,4 +35,6 @@ where
     fn notify_write(&self);
 
     fn flush(&self) -> Result<(), StorageError>;
+
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 }
