@@ -231,7 +231,7 @@ impl<'de> Deserialize<'de> for PropExact {
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.
-#[derive(Debug, Serialize, Deserialize, Clone, derive_more::From, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, derive_more::From)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),
@@ -296,6 +296,53 @@ impl From<OrderedFloat<f32>> for Prop {
 impl From<OrderedFloat<f64>> for Prop {
     fn from(value: OrderedFloat<f64>) -> Self {
         Prop::F64(value.0)
+    }
+}
+
+impl Hash for Prop {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Prop::Str(s) => s.hash(state),
+            Prop::U8(u) => u.hash(state),
+            Prop::U16(u) => u.hash(state),
+            Prop::I32(i) => i.hash(state),
+            Prop::I64(i) => i.hash(state),
+            Prop::U32(u) => u.hash(state),
+            Prop::U64(u) => u.hash(state),
+            Prop::F32(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::F64(f) => {
+                let bits = f.to_bits();
+                bits.hash(state);
+            }
+            Prop::Bool(b) => b.hash(state),
+            Prop::NDTime(dt) => dt.hash(state),
+            Prop::DTime(dt) => dt.hash(state),
+            Prop::List(v) => {
+                for prop in v.iter() {
+                    prop.hash(state);
+                }
+            }
+            Prop::Map(m) => {
+                // Based on python set hash
+                let mut hash = Wrapping(1927868237u64);
+                hash *= (m.len() as u64).wrapping_add(1);
+                for v in m.iter() {
+                    let mut inner_hasher = DefaultHasher::new();
+                    v.hash(&mut inner_hasher);
+                    let inner_hash = Wrapping(inner_hasher.finish());
+                    hash ^= (inner_hash ^ (inner_hash << 16) ^ Wrapping(89869747u64))
+                        * Wrapping(3644798167u64);
+                }
+                hash ^= (hash >> 11) ^ (hash >> 25);
+                hash *= 69069;
+                hash += 907133923;
+                state.write_u64(hash.0);
+            }
+            Prop::Decimal(d) => d.hash(state),
+        }
     }
 }
 

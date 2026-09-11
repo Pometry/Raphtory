@@ -17,7 +17,7 @@ use std::{
 ///
 /// `F32` and `F64` are equivalent as are all integer variants but floats and integers are always
 /// considered distinct, even if they represent the same numeric value.
-#[derive(Debug, Clone, From, Hash)]
+#[derive(Debug, Clone, From)]
 #[repr(transparent)]
 pub struct HashableProp(pub Prop);
 
@@ -70,9 +70,9 @@ fn hash_decimal<H: Hasher>(v: &BigDecimal, state: &mut H) {
     }
 }
 
-impl Hash for Prop {
+impl Hash for HashableProp {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
+        match &self.0 {
             Prop::Str(s) => s.hash(state),
             Prop::U8(u) => hash_integer(*u, state),
             Prop::U16(u) => hash_integer(*u, state),
