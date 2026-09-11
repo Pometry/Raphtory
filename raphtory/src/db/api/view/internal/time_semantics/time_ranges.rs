@@ -133,12 +133,30 @@ impl TimeRanges {
         TimeRanges(out)
     }
 
-    /// Times in either set.
+    /// Times in either set. A merge of two sorted, disjoint lists: each range is
+    /// taken in start order and either extends the last one written or begins a
+    /// new one, so the output needs no sorting and no re-normalising.
     pub fn union(&self, other: &Self) -> Self {
-        let mut ranges = Vec::with_capacity(self.0.len() + other.0.len());
-        ranges.extend(self.0.iter().cloned());
-        ranges.extend(other.0.iter().cloned());
-        Self::new(ranges)
+        let (a, b) = (&self.0, &other.0);
+        let (mut i, mut j) = (0, 0);
+        let mut out: Vec<Range<EventTime>> = Vec::with_capacity(a.len() + b.len());
+        while i < a.len() || j < b.len() {
+            // Whichever of the two heads starts first; both lists are sorted, so
+            // nothing still to come can start before it.
+            let next = if j == b.len() || (i < a.len() && a[i].start <= b[j].start) {
+                i += 1;
+                a[i - 1].clone()
+            } else {
+                j += 1;
+                b[j - 1].clone()
+            };
+            match out.last_mut() {
+                // `<=` merges touching ranges too, so `[a,b) ∪ [b,c)` is `[a,c)`.
+                Some(last) if next.start <= last.end => last.end = last.end.max(next.end),
+                _ => out.push(next),
+            }
+        }
+        TimeRanges(out)
     }
 
     /// Times in neither range: the gaps, plus whatever lies before the first
