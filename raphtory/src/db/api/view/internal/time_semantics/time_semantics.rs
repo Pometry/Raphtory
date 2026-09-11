@@ -803,19 +803,24 @@ impl TimeSemantics {
         TimeSemantics::Base(BaseTimeSemantics::Event(EventSemantics))
     }
 
-    /// Restrict to `ranges`, intersected with any restriction already present.
+    /// The underlying semantics, whatever the current restriction.
+    pub fn base(&self) -> BaseTimeSemantics {
+        match self {
+            TimeSemantics::Base(semantics) => *semantics,
+            TimeSemantics::Window(window) => window.semantics,
+            TimeSemantics::MultiWindow(multi) => multi.semantics,
+        }
+    }
+
+    /// Semantics bounded to `ranges`, which must already be resolved against
+    /// whatever the caller is restricted to — a view intersects once when it is
+    /// built, and then builds its semantics from the result on every call
+    /// without redoing that work.
     ///
-    /// The number of ranges left selects the variant: none is the empty window
+    /// The number of ranges selects the variant: none is the empty window
     /// (`start..start`, as `WindowTimeSemantics::window` already produces), one
     /// is `Window`, more is `MultiWindow`.
-    pub fn restrict(self, ranges: TimeRanges) -> Self {
-        let (semantics, ranges) = match self {
-            TimeSemantics::Base(semantics) => (semantics, ranges),
-            TimeSemantics::Window(window) => (window.semantics, ranges.clipped_to(&window.window)),
-            TimeSemantics::MultiWindow(multi) => {
-                (multi.semantics, ranges.intersect(&multi.windows))
-            }
-        };
+    pub fn from_ranges(semantics: BaseTimeSemantics, ranges: TimeRanges) -> Self {
         match ranges.as_slice() {
             [] => TimeSemantics::Window(WindowTimeSemantics {
                 semantics,
@@ -832,8 +837,20 @@ impl TimeSemantics {
         }
     }
 
+    /// Restrict to one window, intersected with any restriction already
+    /// present. Nothing is allocated on the way from `Base` or `Window`, which
+    /// is every call a `WindowedGraph` makes.
     pub fn window(self, w: Range<EventTime>) -> Self {
-        self.restrict(TimeRanges::single(w))
+        match self {
+            TimeSemantics::Base(semantics) => TimeSemantics::Window(WindowTimeSemantics {
+                semantics,
+                window: w,
+            }),
+            TimeSemantics::Window(window) => TimeSemantics::Window(window.window(w)),
+            TimeSemantics::MultiWindow(multi) => {
+                Self::from_ranges(multi.semantics, multi.windows.clipped_to(&w))
+            }
+        }
     }
 
     /// The time ranges these semantics are bounded to: everything for `Base`,

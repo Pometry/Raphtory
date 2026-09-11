@@ -59,13 +59,17 @@ use std::{
 pub struct MultiWindowedGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
-    /// Sorted, disjoint, at least two of them (one range is a `WindowedGraph`).
+    /// Sorted and disjoint, already intersected with whatever `graph` is
+    /// restricted to, so the semantics built from them on each call need no
+    /// further resolution.
     pub windows: TimeRanges,
 }
 
-impl<G> MultiWindowedGraph<G> {
-    /// Create a new multi-windowed graph over the given ranges.
+impl<G: GraphView> MultiWindowedGraph<G> {
+    /// A view of `graph` restricted to `windows`. Any windowing the graph
+    /// already carries is folded in here, once.
     pub fn new(graph: G, windows: TimeRanges) -> Self {
+        let windows = windows.intersect(&graph.node_time_semantics().ranges());
         MultiWindowedGraph { graph, windows }
     }
 
@@ -257,16 +261,20 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for MultiWin
 }
 
 impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGraph<G> {
+    // The ranges were resolved against the parent when this view was built, so
+    // its semantics are the parent's base semantics over them, nothing more.
     fn node_time_semantics(&self) -> TimeSemantics {
-        self.graph
-            .node_time_semantics()
-            .restrict(self.windows.clone())
+        TimeSemantics::from_ranges(
+            self.graph.node_time_semantics().base(),
+            self.windows.clone(),
+        )
     }
 
     fn edge_time_semantics(&self) -> TimeSemantics {
-        self.graph
-            .edge_time_semantics()
-            .restrict(self.windows.clone())
+        TimeSemantics::from_ranges(
+            self.graph.edge_time_semantics().base(),
+            self.windows.clone(),
+        )
     }
 
     #[inline]
@@ -593,27 +601,26 @@ mod tests {
     }
 
     #[test]
-    fn restricting_a_window_by_a_range_set_intersects() {
-        // window(0,8) restricted to {[0,5), [6,10)} is {[0,5), [6,8)}.
+    fn the_parent_window_is_folded_in_once_at_construction() {
+        // window(0,8) then {[0,5), [6,10)} is {[0,5), [6,8)}, and the view's
+        // semantics are that set over the parent's base semantics.
         let g = Graph::new();
         build(&g);
-        let sem = g.window(0, 8).edge_time_semantics();
-        match sem.restrict(TimeRanges::new(vec![
-            EventTime::range(0..5),
-            EventTime::range(6..10),
-        ])) {
-            TimeSemantics::MultiWindow(m) => {
-                assert_eq!(
-                    m.windows(),
-                    &TimeRanges::new(vec![EventTime::range(0..5), EventTime::range(6..8)])
-                );
-            }
+        let ranges = TimeRanges::new(vec![EventTime::range(0..5), EventTime::range(6..10)]);
+        let view = MultiWindowedGraph::new(g.window(0, 8), ranges);
+        let resolved = TimeRanges::new(vec![EventTime::range(0..5), EventTime::range(6..8)]);
+        assert_eq!(view.windows, resolved);
+        match view.edge_time_semantics() {
+            TimeSemantics::MultiWindow(m) => assert_eq!(m.windows(), &resolved),
             other => panic!("expected MultiWindow, got {other:?}"),
         }
-        // Restricting to ranges that leave a single interval collapses to Window.
-        let sem = g.window(0, 8).edge_time_semantics();
+        // Ranges that leave a single interval collapse to a plain window.
+        let view = MultiWindowedGraph::new(
+            g.window(0, 8),
+            TimeRanges::new(vec![EventTime::range(3..20)]),
+        );
         assert!(matches!(
-            sem.restrict(TimeRanges::new(vec![EventTime::range(3..20)])),
+            view.edge_time_semantics(),
             TimeSemantics::Window(_)
         ));
     }
