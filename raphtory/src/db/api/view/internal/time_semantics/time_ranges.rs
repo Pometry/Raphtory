@@ -20,11 +20,14 @@
 //! one is `Window`, more is `MultiWindow`.
 
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 /// Sorted, pairwise disjoint, non-adjacent, non-empty half-open ranges.
+///
+/// The ranges live behind an `Arc`, so a set is trivial to clone: the views and
+/// the time semantics that share one all point at the same slice.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TimeRanges(Vec<Range<EventTime>>);
+pub struct TimeRanges(Arc<[Range<EventTime>]>);
 
 impl TimeRanges {
     /// The set containing the given ranges, normalised.
@@ -42,7 +45,7 @@ impl TimeRanges {
                 _ => out.push(r),
             }
         }
-        TimeRanges(out)
+        TimeRanges(out.into())
     }
 
     /// The set containing one range (or nothing, if the range is empty).
@@ -52,12 +55,12 @@ impl TimeRanges {
 
     /// Every time.
     pub fn all() -> Self {
-        TimeRanges(vec![EventTime::MIN..EventTime::MAX])
+        TimeRanges([EventTime::MIN..EventTime::MAX].into())
     }
 
     /// No time.
     pub fn empty() -> Self {
-        TimeRanges(Vec::new())
+        TimeRanges(Arc::from([]))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -67,7 +70,7 @@ impl TimeRanges {
     /// Whether this is [`TimeRanges::all`]: a single range from the minimum to
     /// the maximum time.
     pub fn is_all(&self) -> bool {
-        matches!(self.0.as_slice(), [r] if r.start == EventTime::MIN && r.end == EventTime::MAX)
+        matches!(&*self.0, [r] if r.start == EventTime::MIN && r.end == EventTime::MAX)
     }
 
     /// The number of ranges, which decides the `TimeSemantics` variant.
@@ -83,11 +86,6 @@ impl TimeRanges {
     /// end and cloned into closures that outlive the borrow.
     pub fn iter(&self) -> std::slice::Iter<'_, Range<EventTime>> {
         self.0.iter()
-    }
-
-    /// The ranges, owned, for iterators that must outlive `self`.
-    pub fn into_vec(self) -> Vec<Range<EventTime>> {
-        self.0
     }
 
     /// Whether `t` falls in any range. Binary search, since the ranges are
@@ -130,7 +128,7 @@ impl TimeRanges {
                 j += 1;
             }
         }
-        TimeRanges(out)
+        TimeRanges(out.into())
     }
 
     /// Times in either set. A merge of two sorted, disjoint lists: each range is
@@ -156,7 +154,7 @@ impl TimeRanges {
                 _ => out.push(next),
             }
         }
-        TimeRanges(out)
+        TimeRanges(out.into())
     }
 
     /// Times in neither range: the gaps, plus whatever lies before the first
@@ -164,7 +162,7 @@ impl TimeRanges {
     pub fn complement(&self) -> Self {
         let mut out = Vec::with_capacity(self.0.len() + 1);
         let mut cursor = EventTime::MIN;
-        for r in &self.0 {
+        for r in self.0.iter() {
             if cursor < r.start {
                 out.push(cursor..r.start);
             }
@@ -173,13 +171,52 @@ impl TimeRanges {
         if cursor < EventTime::MAX {
             out.push(cursor..EventTime::MAX);
         }
-        TimeRanges(out)
+        TimeRanges(out.into())
     }
 
     /// Each range intersected with `window`, for the `_window` family of time
     /// semantics methods, which receive a caller's range on top of the set's.
     pub fn clipped_to(&self, window: &Range<EventTime>) -> Self {
         self.intersect(&Self::single(window.clone()))
+    }
+}
+
+/// The ranges of a set, owned, for iterators that must outlive the set they came
+/// from. Holding the `Arc` and walking it by index copies no range until it is
+/// yielded, and the set behind it is shared, not duplicated.
+#[derive(Clone, Debug)]
+pub struct RangeIter {
+    ranges: TimeRanges,
+    idx: Range<usize>,
+}
+
+impl Iterator for RangeIter {
+    type Item = Range<EventTime>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.idx.next().map(|i| self.ranges.0[i].clone())
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.idx.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for RangeIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.idx.next_back().map(|i| self.ranges.0[i].clone())
+    }
+}
+
+impl ExactSizeIterator for RangeIter {}
+
+impl IntoIterator for TimeRanges {
+    type Item = Range<EventTime>;
+    type IntoIter = RangeIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let idx = 0..self.len();
+        RangeIter { ranges: self, idx }
     }
 }
 

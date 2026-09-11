@@ -13,7 +13,8 @@
 
 use crate::db::api::view::internal::{
     time_semantics::{
-        base_time_semantics::BaseTimeSemantics, time_ranges::TimeRanges,
+        base_time_semantics::BaseTimeSemantics,
+        time_ranges::{RangeIter, TimeRanges},
         time_semantics_ops::NodeTimeSemanticsOps,
     },
     EdgeTimeSemanticsOps, GraphView,
@@ -23,12 +24,12 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::{iter::Rev, ops::Range, sync::Arc, vec::IntoIter};
+use std::{iter::Rev, ops::Range, sync::Arc};
 use storage::EdgeEntryRef;
 
 /// The ranges of a view, owned, so that the streams built from them borrow
 /// nothing from the view they came from.
-type Ranges = IntoIter<Range<EventTime>>;
+type Ranges = RangeIter;
 
 #[derive(Clone, Debug)]
 pub struct MultiWindowTimeSemantics {
@@ -63,7 +64,7 @@ impl MultiWindowTimeSemantics {
 
     /// The ranges of the view, oldest first.
     fn ranges(&self) -> Ranges {
-        self.windows.clone().into_vec().into_iter()
+        self.windows.clone().into_iter()
     }
 
     /// The ranges of the view, newest first, for the reverse iterators: the
@@ -76,7 +77,7 @@ impl MultiWindowTimeSemantics {
     /// The ranges of the view intersected with a caller's window, for the
     /// `_window` family, which asks about a range on top of the view's own.
     fn clipped(&self, w: &Range<EventTime>) -> Ranges {
-        self.windows.clipped_to(w).into_vec().into_iter()
+        self.windows.clipped_to(w).into_iter()
     }
 
     /// The clipped ranges, newest first.
