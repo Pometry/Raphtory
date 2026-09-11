@@ -19,7 +19,7 @@ use raphtory::{
                 exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                 filter::{Filter, FilterValue},
                 filter_operator::FilterOperator,
-                graph_filter::GraphFilter,
+                graph_filter::{GraphFilter, ViewFilter},
                 is_active_edge_filter::IsActiveEdge,
                 is_active_node_filter::IsActiveNode,
                 is_deleted_filter::IsDeletedEdge,
@@ -33,8 +33,9 @@ use raphtory::{
                     SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap,
                 },
                 windowed_filter::Windowed,
-                ComposableFilter, DynFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
+                ComposableFilter, DynFilter, FilterTree, GraphViewOp,
             },
+            resolved_view::ViewBounds,
             CreateFilter,
         },
     },
@@ -712,6 +713,13 @@ impl CreateFilter for GqlFilter {
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         DynFilter::try_from(self.clone())?.filter_graph_view(graph)
     }
+
+    fn view_bounds<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<ViewBounds, GraphError> {
+        DynFilter::try_from(self.clone())?.view_bounds(graph)
+    }
 }
 
 impl TryFrom<CompositeNodeFilter> for GqlFilter {
@@ -751,6 +759,18 @@ fn view_ops_to_graph_filter(ops: Vec<GraphViewOp>) -> Result<GqlGraphFilter, Gra
             GraphViewOp::Window { start, end } => GqlGraphFilter::Window(GraphWindowExpr {
                 start: time_input(start),
                 end: time_input(end),
+                expr,
+            }),
+            GraphViewOp::At(t) => GqlGraphFilter::At(GraphTimeExpr {
+                time: time_input(t),
+                expr,
+            }),
+            GraphViewOp::Before(t) => GqlGraphFilter::Before(GraphTimeExpr {
+                time: time_input(t),
+                expr,
+            }),
+            GraphViewOp::After(t) => GqlGraphFilter::After(GraphTimeExpr {
+                time: time_input(t),
                 expr,
             }),
             GraphViewOp::Latest => GqlGraphFilter::Latest(GraphUnaryExpr { expr }),
@@ -806,13 +826,16 @@ impl TryFrom<GqlFilter> for DynFilter {
     type Error = GraphError;
 
     fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
+        let view = |f: GqlGraphFilter| {
+            Ok::<_, GraphError>(Arc::new(ViewFilter::try_from(f)?) as DynFilter)
+        };
         let filter = match value {
             GqlFilter::Node(f) => Arc::new(CompositeNodeFilter::try_from(f)?) as DynFilter,
             GqlFilter::Edge(f) => Arc::new(CompositeEdgeFilter::try_from(f)?) as DynFilter,
             GqlFilter::ExplodedEdge(f) => {
                 Arc::new(CompositeExplodedEdgeFilter::try_from(f)?) as DynFilter
             }
-            GqlFilter::Graph(f) => DynView::try_from(f)?,
+            GqlFilter::Graph(f) => view(f)?,
             GqlFilter::And(filters) => {
                 let mut filters = filters.into_iter().map(DynFilter::try_from);
                 // An empty combinator is almost always a caller bug (a filter
@@ -842,14 +865,14 @@ impl TryFrom<GqlFilter> for DynFilter {
                 Arc::new(inner.not()) as DynFilter
             }
             // Flat view spellings delegate to the graph-filter conversion.
-            GqlFilter::Window(w) => DynView::try_from(GqlGraphFilter::Window(w))?,
-            GqlFilter::At(t) => DynView::try_from(GqlGraphFilter::At(t))?,
-            GqlFilter::Before(t) => DynView::try_from(GqlGraphFilter::Before(t))?,
-            GqlFilter::After(t) => DynView::try_from(GqlGraphFilter::After(t))?,
-            GqlFilter::Latest(u) => DynView::try_from(GqlGraphFilter::Latest(u))?,
-            GqlFilter::SnapshotAt(t) => DynView::try_from(GqlGraphFilter::SnapshotAt(t))?,
-            GqlFilter::SnapshotLatest(u) => DynView::try_from(GqlGraphFilter::SnapshotLatest(u))?,
-            GqlFilter::Layers(l) => DynView::try_from(GqlGraphFilter::Layers(l))?,
+            GqlFilter::Window(w) => view(GqlGraphFilter::Window(w))?,
+            GqlFilter::At(t) => view(GqlGraphFilter::At(t))?,
+            GqlFilter::Before(t) => view(GqlGraphFilter::Before(t))?,
+            GqlFilter::After(t) => view(GqlGraphFilter::After(t))?,
+            GqlFilter::Latest(u) => view(GqlGraphFilter::Latest(u))?,
+            GqlFilter::SnapshotAt(t) => view(GqlGraphFilter::SnapshotAt(t))?,
+            GqlFilter::SnapshotLatest(u) => view(GqlGraphFilter::SnapshotLatest(u))?,
+            GqlFilter::Layers(l) => view(GqlGraphFilter::Layers(l))?,
         };
         Ok(filter)
     }
@@ -2421,68 +2444,68 @@ impl TryFrom<GqlExplodedEdgeFilter> for CompositeExplodedEdgeFilter {
     }
 }
 
-impl TryFrom<GqlGraphFilter> for DynView {
+impl TryFrom<GqlGraphFilter> for ViewFilter {
     type Error = GraphError;
 
     fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
-        let default_inner: DynView = Arc::new(GraphFilter);
+        let default_inner = ViewFilter::from(GraphFilter);
 
         Ok(match f {
             GqlGraphFilter::Window(w) => {
-                let inner: DynView = match w.expr {
+                let inner: ViewFilter = match w.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
                 inner.window(w.start, w.end)
             }
             GqlGraphFilter::At(t) => {
-                let inner: DynView = match t.expr {
+                let inner: ViewFilter = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
                 inner.at(t.time)
             }
             GqlGraphFilter::Before(t) => {
-                let inner: DynView = match t.expr {
+                let inner: ViewFilter = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
                 inner.before(t.time)
             }
             GqlGraphFilter::After(t) => {
-                let inner: DynView = match t.expr {
+                let inner: ViewFilter = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
                 inner.after(t.time)
             }
             GqlGraphFilter::Latest(u) => {
-                let inner: DynView = match u.expr {
+                let inner: ViewFilter = match u.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(inner.latest())
+                inner.latest()
             }
             GqlGraphFilter::SnapshotAt(t) => {
-                let inner: DynView = match t.expr {
+                let inner: ViewFilter = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(inner.snapshot_at(t.time))
+                inner.snapshot_at(t.time)
             }
             GqlGraphFilter::SnapshotLatest(u) => {
-                let inner: DynView = match u.expr {
+                let inner: ViewFilter = match u.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(inner.snapshot_latest())
+                inner.snapshot_latest()
             }
             GqlGraphFilter::Layers(l) => {
-                let inner: DynView = match l.expr {
+                let inner: ViewFilter = match l.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(inner.layer(l.names))
+                inner.layer(l.names)
             }
         })
     }
@@ -3459,7 +3482,7 @@ mod filter_tree_tests {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter as EdgeFilterBuilder, graph_filter::GraphFilter,
         node_filter::NodeFilter as NodeFilterBuilder, property_filter::ops::PropertyFilterOps,
-        ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+        ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
     };
 
     // A same-kind combination stays in composite form — no structural tree.

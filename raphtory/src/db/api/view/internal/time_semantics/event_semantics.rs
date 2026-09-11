@@ -2,10 +2,11 @@ use crate::db::api::{
     state::ops::FilterState,
     view::internal::{
         time_semantics::{
-            filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
-            time_semantics_ops::NodeTimeSemanticsOps,
+            filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps,
+            time_semantics_ops::{NodeTimeSemanticsOps, NodeTimeSemanticsWindowOps},
         },
-        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
+        EdgeTimeSemanticsOps, EdgeTimeSemanticsWindowOps, FilterOps, GraphView, InnerFilterOps,
     },
 };
 use either::Either;
@@ -92,24 +93,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.history(&view, view.layer_ids()).last()
     }
 
-    fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        node.history(&view, view.layer_ids()).range(w).first()
-    }
-
-    fn node_latest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        node.history(&view, view.layer_ids()).range(w).last()
-    }
-
     fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -128,44 +111,12 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.history(view, layer_ids).iter_rev()
     }
 
-    fn node_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        node.history(view, layer_ids).range(w).iter()
-    }
-
-    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        node.history(view, layer_ids).range(w).iter_rev()
-    }
-
     fn node_edge_history_count<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> usize {
         node.history(&view, view.layer_ids()).edge_history().len()
-    }
-
-    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> usize {
-        node.history(&view, view.layer_ids())
-            .range(w)
-            .edge_history()
-            .len()
     }
 
     fn node_edge_history<'graph, G: GraphView + 'graph>(
@@ -177,16 +128,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.edge_history(view, layer_ids).history()
     }
 
-    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view, layer_ids).range(w).history()
-    }
-
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -196,16 +137,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.edge_history(view, layer_ids).history_rev()
     }
 
-    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view, layer_ids).range(w).history_rev()
-    }
-
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -213,17 +144,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         node.temp_prop_rows(prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
-    }
-
-    fn node_updates_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        _view: G,
-        w: Range<EventTime>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_range(Some(w), prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -254,15 +174,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
         // !node.history(&view, view.layer_ids()).is_empty()
     }
 
-    fn node_valid_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        node.history(&view, view.layer_ids()).active(w)
-    }
-
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -283,6 +194,121 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter_rev())
             .fast_merge_by(|(a, _), (b, _)| a >= b)
+    }
+
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last())
+            .max_by_key(|(t, _)| *t)
+    }
+
+    fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_before(t.next()))
+            .max_by_key(|(t, _)| *t)
+    }
+}
+
+impl NodeTimeSemanticsWindowOps for EventSemantics {
+    fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        node.history(&view, view.layer_ids()).range(w).first()
+    }
+
+    fn node_latest_time_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        node.history(&view, view.layer_ids()).range(w).last()
+    }
+
+    fn node_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
+        node.history(view, layer_ids).range(w).iter()
+    }
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
+        node.history(view, layer_ids).range(w).iter_rev()
+    }
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> usize {
+        node.history(&view, view.layer_ids())
+            .range(w)
+            .edge_history()
+            .len()
+    }
+
+    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
+        node.edge_history(view, layer_ids).range(w).history()
+    }
+
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
+        node.edge_history(view, layer_ids).range(w).history_rev()
+    }
+
+    fn node_updates_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        _view: G,
+        w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+        node.temp_prop_rows_range(Some(w), prop_ids)
+            .map(|(t, l, row)| (t, LayerId(l), row))
+    }
+
+    fn node_valid_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> bool {
+        node.history(&view, view.layer_ids()).active(w)
     }
 
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
@@ -309,17 +335,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
 
-    fn node_tprop_last<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        prop_id: usize,
-    ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last())
-            .max_by_key(|(t, _)| *t)
-    }
-
     fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -329,18 +344,6 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> Option<(EventTime, Prop)> {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| prop.last_window(w.clone()))
-            .max_by_key(|(t, _)| *t)
-    }
-
-    fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        prop_id: usize,
-        t: EventTime,
-    ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
     }
 
@@ -377,17 +380,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             || !edge.filtered_deletions(layer_id, &view).is_empty()
     }
 
-    fn include_edge_window<G: GraphView>(
-        &self,
-        edge: EdgeEntryRef,
-        view: G,
-        layer_id: LayerId,
-        w: Range<EventTime>,
-    ) -> bool {
-        edge.filtered_additions(layer_id, &view).active(w.clone())
-            || edge.filtered_deletions(layer_id, &view).active(w)
-    }
-
     fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: EventTime, view: G) -> bool {
         view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
@@ -400,16 +392,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                         || view.internal_filter_edge(edge.as_ref(), view.layer_ids()))
                     && view.filter_edge_from_nodes(edge.as_ref())
             })
-    }
-
-    fn include_exploded_edge_window<G: GraphView>(
-        &self,
-        elid: ELID,
-        t: EventTime,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        w.contains(&t) && self.include_exploded_edge(elid, t, view)
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(
@@ -434,40 +416,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .fast_merge_by(|a, b| a >= b)
     }
 
-    fn edge_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        edge: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        edge.filtered_additions_iter(view, layer_ids)
-            .map(move |(layer_id, additions)| {
-                additions
-                    .range(w.clone())
-                    .iter()
-                    .map(move |t| (t, layer_id))
-            })
-            .fast_merge()
-    }
-
-    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        edge: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        edge.filtered_additions_iter(view, layer_ids)
-            .map(move |(layer_id, additions)| {
-                additions
-                    .range(w.clone())
-                    .iter_rev()
-                    .map(move |t| (t, layer_id))
-            })
-            .fast_merge_by(|a, b| a >= b)
-    }
-
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeEntryRef,
@@ -475,17 +423,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> usize {
         edge.filtered_additions_iter(&view, view.layer_ids())
             .map(|(_, additions)| additions.len())
-            .sum()
-    }
-
-    fn edge_exploded_count_window<'graph, G: GraphView + 'graph>(
-        &self,
-        edge: EdgeEntryRef,
-        view: G,
-        w: Range<EventTime>,
-    ) -> usize {
-        edge.filtered_additions_iter(&view, view.layer_ids())
-            .map(|(_, additions)| additions.range(w.clone()).len())
             .sum()
     }
 
@@ -519,30 +456,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         }
     }
 
-    fn edge_window_exploded<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        self.edge_history_window(e, view, layer_ids, w)
-    }
-
-    fn edge_window_layers<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'graph {
-        e.filtered_updates_iter(view, layer_ids).filter_map(
-            move |(layer_id, additions, deletions)| {
-                (additions.active(w.clone()) || deletions.active(w.clone())).then_some(layer_id)
-            },
-        )
-    }
-
     fn edge_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
@@ -557,21 +470,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .min()
     }
 
-    fn edge_earliest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.range(w.clone()).first())
-            .chain(
-                e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.range(w.clone()).first()),
-            )
-            .min()
-    }
-
     fn edge_exploded_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
@@ -581,20 +479,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<EventTime> {
         view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
             .then_some(t)
-    }
-
-    fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        if !w.contains(&t) {
-            return None;
-        }
-        self.edge_exploded_earliest_time(e, view, t, layer)
     }
 
     fn edge_latest_time<'graph, G: GraphView + 'graph>(
@@ -611,21 +495,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .max()
     }
 
-    fn edge_latest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.range(w.clone()).last())
-            .chain(
-                e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.range(w.clone()).last()),
-            )
-            .max()
-    }
-
     fn edge_exploded_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
@@ -634,17 +503,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer: LayerId,
     ) -> Option<EventTime> {
         self.edge_exploded_earliest_time(e, view, t, layer)
-    }
-
-    fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.edge_exploded_earliest_time_window(e, view, t, layer, w)
     }
 
     fn edge_deletion_history<'graph, G: GraphView + 'graph>(
@@ -669,40 +527,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .fast_merge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
-    fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        edge: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        edge.filtered_deletions_iter(view, layer_ids)
-            .map(move |(layer_id, additions)| {
-                additions
-                    .range(w.clone())
-                    .iter()
-                    .map(move |t| (t, layer_id))
-            })
-            .fast_merge()
-    }
-
-    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        edge: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        edge.filtered_deletions_iter(view, layer_ids)
-            .map(move |(layer_id, additions)| {
-                additions
-                    .range(w.clone())
-                    .iter_rev()
-                    .map(move |t| (t, layer_id))
-            })
-            .fast_merge_by(|(t1, _), (t2, _)| t1 >= t2)
-    }
-
     /// An edge is valid with event semantics if it has at least one addition event in the current view
     fn edge_is_valid<'graph, G: GraphView + 'graph>(
         &self,
@@ -711,17 +535,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> bool {
         e.filtered_additions_iter(&view, view.layer_ids())
             .any(|(_, additions)| !additions.is_empty())
-    }
-
-    /// An edge is valid in a window with event semantics if it has at least one addition event in the current view in the window
-    fn edge_is_valid_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        e.filtered_additions_iter(&view, view.layer_ids())
-            .any(|(_, additions)| !additions.range(w.clone()).is_empty())
     }
 
     /// An edge is deleted with event semantics if it has at least one deletion event in the current view
@@ -734,17 +547,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .any(|(_, deletions)| !deletions.is_empty())
     }
 
-    /// An edge is deleted in a window with event semantics if it has at least one deletion event in the current view in the window
-    fn edge_is_deleted_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        e.filtered_deletions_iter(&view, view.layer_ids())
-            .any(|(_, deletions)| !deletions.range(w.clone()).is_empty())
-    }
-
     /// An edge is valid with event semantics if it has at least one event in the current view
     fn edge_is_active<'graph, G: GraphView + 'graph>(
         &self,
@@ -752,16 +554,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
     ) -> bool {
         self.edge_is_valid(e, &view) || self.edge_is_deleted(e, &view)
-    }
-
-    /// An edge is active in a window with event semantics if it has at least one event in the current view in the window
-    fn edge_is_active_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.edge_is_valid_window(e, &view, w.clone()) || self.edge_is_deleted_window(e, &view, w)
     }
 
     fn edge_is_active_exploded<'graph, G: GraphView + 'graph>(
@@ -772,18 +564,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer: LayerId,
     ) -> bool {
         view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
-    }
-
-    fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> bool {
-        w.contains(&t)
-            && view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
     }
 
     /// An exploded edge is valid with event semantics if it is active
@@ -798,36 +578,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         self.edge_is_active_exploded(e, view, t, layer)
     }
 
-    /// An exploded edge is valid with event semantics if it is active
-    /// (i.e., it's corresponding event is part of the view)
-    fn edge_is_valid_exploded_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.edge_is_active_exploded_window(e, view, t, layer, w)
-    }
-
     fn edge_exploded_deletion<'graph, G: GraphView + 'graph>(
         &self,
         _e: EdgeEntryRef<'graph>,
         _view: G,
         _t: EventTime,
         _layer: LayerId,
-    ) -> Option<EventTime> {
-        None
-    }
-
-    fn edge_exploded_deletion_window<'graph, G: GraphView + 'graph>(
-        &self,
-        _e: EdgeEntryRef<'graph>,
-        _view: G,
-        _t: EventTime,
-        _layer: LayerId,
-        _w: Range<EventTime>,
     ) -> Option<EventTime> {
         None
     }
@@ -864,23 +620,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         }
     }
 
-    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        edge_time: EventTime,
-        layer_id: LayerId,
-        prop_id: usize,
-        at: EventTime,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        if edge_time == at && w.contains(&edge_time) {
-            self.temporal_edge_prop_exploded(e, view, prop_id, edge_time, layer_id)
-        } else {
-            None
-        }
-    }
-
     fn temporal_edge_prop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -894,24 +633,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .map(|(_, v)| v)
     }
 
-    fn temporal_edge_prop_last_at_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        prop_id: usize,
-        t: EventTime,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        if w.contains(&t) {
-            e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
-                .filter_map(|(_, prop)| prop.last_before(t.next()).filter(|(t, _)| w.contains(t)))
-                .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
-                .map(|(_, v)| v)
-        } else {
-            None
-        }
-    }
-
     fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -920,19 +641,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<Prop> {
         e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
             .filter_map(|(_, prop)| prop.last())
-            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
-            .map(|(_, v)| v)
-    }
-
-    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
-            .filter_map(|(_, prop)| prop.last_window(w.clone()))
             .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
             .map(|(_, v)| v)
     }
@@ -962,6 +670,316 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .map(move |(t, v)| (t, layer_id, v))
             })
             .fast_merge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
+    }
+
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        let layer_filter = |layer| {
+            view.internal_filter_edge_layer(e, layer)
+                && !e.filtered_additions(layer, &view).is_empty()
+        };
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
+    }
+}
+
+impl EdgeTimeSemanticsWindowOps for EventSemantics {
+    fn include_edge_window<G: GraphView>(
+        &self,
+        edge: EdgeEntryRef,
+        view: G,
+        layer_id: LayerId,
+        w: Range<EventTime>,
+    ) -> bool {
+        edge.filtered_additions(layer_id, &view).active(w.clone())
+            || edge.filtered_deletions(layer_id, &view).active(w)
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: EventTime,
+        view: G,
+        w: Range<EventTime>,
+    ) -> bool {
+        w.contains(&t) && self.include_exploded_edge(elid, t, view)
+    }
+
+    fn edge_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
+        edge.filtered_additions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range(w.clone())
+                    .iter()
+                    .map(move |t| (t, layer_id))
+            })
+            .fast_merge()
+    }
+
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
+        edge.filtered_additions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer_id))
+            })
+            .fast_merge_by(|a, b| a >= b)
+    }
+
+    fn edge_exploded_count_window<'graph, G: GraphView + 'graph>(
+        &self,
+        edge: EdgeEntryRef,
+        view: G,
+        w: Range<EventTime>,
+    ) -> usize {
+        edge.filtered_additions_iter(&view, view.layer_ids())
+            .map(|(_, additions)| additions.range(w.clone()).len())
+            .sum()
+    }
+
+    fn edge_window_exploded<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
+        self.edge_history_window(e, view, layer_ids, w)
+    }
+
+    fn edge_window_layers<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'graph {
+        e.filtered_updates_iter(view, layer_ids).filter_map(
+            move |(layer_id, additions, deletions)| {
+                (additions.active(w.clone()) || deletions.active(w.clone())).then_some(layer_id)
+            },
+        )
+    }
+
+    fn edge_earliest_time_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef,
+        view: G,
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        e.filtered_additions_iter(&view, view.layer_ids())
+            .filter_map(|(_, additions)| additions.range(w.clone()).first())
+            .chain(
+                e.filtered_deletions_iter(&view, view.layer_ids())
+                    .filter_map(|(_, deletions)| deletions.range(w.clone()).first()),
+            )
+            .min()
+    }
+
+    fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef,
+        view: G,
+        t: EventTime,
+        layer: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        if !w.contains(&t) {
+            return None;
+        }
+        self.edge_exploded_earliest_time(e, view, t, layer)
+    }
+
+    fn edge_latest_time_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef,
+        view: G,
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        e.filtered_additions_iter(&view, view.layer_ids())
+            .filter_map(|(_, additions)| additions.range(w.clone()).last())
+            .chain(
+                e.filtered_deletions_iter(&view, view.layer_ids())
+                    .filter_map(|(_, deletions)| deletions.range(w.clone()).last()),
+            )
+            .max()
+    }
+
+    fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef,
+        view: G,
+        t: EventTime,
+        layer: LayerId,
+        w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        self.edge_exploded_earliest_time_window(e, view, t, layer, w)
+    }
+
+    fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
+        edge.filtered_deletions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range(w.clone())
+                    .iter()
+                    .map(move |t| (t, layer_id))
+            })
+            .fast_merge()
+    }
+
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
+        edge.filtered_deletions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer_id))
+            })
+            .fast_merge_by(|(t1, _), (t2, _)| t1 >= t2)
+    }
+
+    /// An edge is valid in a window with event semantics if it has at least one addition event in the current view in the window
+    fn edge_is_valid_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> bool {
+        e.filtered_additions_iter(&view, view.layer_ids())
+            .any(|(_, additions)| !additions.range(w.clone()).is_empty())
+    }
+
+    /// An edge is deleted in a window with event semantics if it has at least one deletion event in the current view in the window
+    fn edge_is_deleted_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> bool {
+        e.filtered_deletions_iter(&view, view.layer_ids())
+            .any(|(_, deletions)| !deletions.range(w.clone()).is_empty())
+    }
+
+    /// An edge is active in a window with event semantics if it has at least one event in the current view in the window
+    fn edge_is_active_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> bool {
+        self.edge_is_valid_window(e, &view, w.clone()) || self.edge_is_deleted_window(e, &view, w)
+    }
+
+    fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        t: EventTime,
+        layer: LayerId,
+        w: Range<EventTime>,
+    ) -> bool {
+        w.contains(&t)
+            && view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
+    }
+
+    /// An exploded edge is valid with event semantics if it is active
+    /// (i.e., it's corresponding event is part of the view)
+    fn edge_is_valid_exploded_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        t: EventTime,
+        layer: LayerId,
+        w: Range<EventTime>,
+    ) -> bool {
+        self.edge_is_active_exploded_window(e, view, t, layer, w)
+    }
+
+    fn edge_exploded_deletion_window<'graph, G: GraphView + 'graph>(
+        &self,
+        _e: EdgeEntryRef<'graph>,
+        _view: G,
+        _t: EventTime,
+        _layer: LayerId,
+        _w: Range<EventTime>,
+    ) -> Option<EventTime> {
+        None
+    }
+
+    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        edge_time: EventTime,
+        layer_id: LayerId,
+        prop_id: usize,
+        at: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        if edge_time == at && w.contains(&edge_time) {
+            self.temporal_edge_prop_exploded(e, view, prop_id, edge_time, layer_id)
+        } else {
+            None
+        }
+    }
+
+    fn temporal_edge_prop_last_at_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        if w.contains(&t) {
+            e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
+                .filter_map(|(_, prop)| prop.last_before(t.next()).filter(|(t, _)| w.contains(t)))
+                .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+                .map(|(_, v)| v)
+        } else {
+            None
+        }
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
+            .filter_map(|(_, prop)| prop.last_window(w.clone()))
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
     }
 
     fn temporal_edge_prop_hist_window<'graph, G: GraphView + 'graph>(
@@ -994,19 +1012,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .map(move |(t, v)| (t, layer_id, v))
             })
             .fast_merge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
-    }
-
-    fn edge_metadata<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        prop_id: usize,
-    ) -> Option<Prop> {
-        let layer_filter = |layer| {
-            view.internal_filter_edge_layer(e, layer)
-                && !e.filtered_additions(layer, &view).is_empty()
-        };
-        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 
     fn edge_metadata_window<'graph, G: GraphView + 'graph>(

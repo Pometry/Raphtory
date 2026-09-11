@@ -301,13 +301,14 @@ where
         &self,
         filter: F,
     ) -> Result<PathFromGraph<'graph, G>, GraphError> {
-        let filter_graph = filter.filter_graph_view(self.base_graph.clone())?;
-        let filter = filter.create_node_filter(self.base_graph.clone(), filter_graph.clone())?;
+        let view = filter.result_view(self.base_graph.clone())?;
+        let scope = filter.filter_graph_view(self.base_graph.clone())?;
+        let filter = filter.create_node_filter(self.base_graph.clone(), scope)?;
 
         let select = Arc::new(AndFilteredGraph::new(
             self.base_graph.clone(),
             self.select.clone(),
-            filter_graph,
+            view,
         ));
 
         let op = self.op.clone();
@@ -552,13 +553,14 @@ where
         filter: F,
     ) -> Result<PathFromNode<'graph, G>, GraphError> {
         let op = self.op.clone();
-        let filter_graph = filter.filter_graph_view(self.base_graph.clone())?;
+        let view = filter.result_view(self.base_graph.clone())?;
         let select = Arc::new(AndFilteredGraph::new(
             self.base_graph.clone(),
             self.select.clone(),
-            filter_graph.clone(),
+            view,
         ));
-        let filter_op = filter.create_node_filter(self.base_graph.clone(), filter_graph)?;
+        let scope = filter.filter_graph_view(self.base_graph.clone())?;
+        let filter_op = filter.create_node_filter(self.base_graph.clone(), scope)?;
         Ok(PathFromNode {
             base_graph: self.base_graph.clone(),
             select,
