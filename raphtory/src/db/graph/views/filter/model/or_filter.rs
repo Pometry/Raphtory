@@ -35,6 +35,10 @@ impl<L: Display, R: Display> Display for OrFilter<L, R> {
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
 impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
+    // Erased because a resolved view becomes one of `WindowedGraph`,
+    // `MultiWindowedGraph`, `LayeredGraph` or the graph itself, and no single
+    // associated type names all four; a graph carrying the resolved
+    // `TimeSemantics` would, see #2776.
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = DynGraphArc<'graph>
     where

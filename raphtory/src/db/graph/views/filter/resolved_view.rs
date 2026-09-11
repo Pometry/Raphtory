@@ -90,6 +90,8 @@ impl ResolvedView {
         if self.is_all() || other.is_all() {
             return Ok(Self::all());
         }
+        // A rectangle cannot hold this union; the list of rectangles that
+        // could needs per-layer time semantics, see #2776.
         Err(GraphError::InvalidGqlFilter(
             "a union of views that restrict both time and layers differently is not \
              representable as one view; combine the time views and the layer views separately"

@@ -290,6 +290,11 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
         self.windows.end()
     }
 
+    // The graph-level questions below are answered range by range here, and
+    // range by range again in every other view; #2776 moves them onto
+    // `TimeSemantics` so there is one implementation, able to skip ranges that
+    // cannot contain the input time.
+
     /// Union: the earliest of the per-range earliest times. The ranges are ordered and
     /// disjoint, so the first one holding an event holds the earliest of them all.
     #[inline]
