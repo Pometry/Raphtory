@@ -28,15 +28,12 @@ use rayon::prelude::*;
 use std::{
     collections::HashMap,
     fmt::Debug,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc,
-    },
+    sync::{atomic::Ordering, mpsc},
 };
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
     pages::locked::nodes::LockedNodeSegment,
-    segments::node_type_index::index::MemNodeTypeIndex,
+    segments::node_type_index::MemNodeTypeIndex,
     Extension,
 };
 

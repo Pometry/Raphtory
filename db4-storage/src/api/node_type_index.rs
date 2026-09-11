@@ -1,4 +1,4 @@
-use crate::{error::StorageError, segments::node_type_index::index::MemNodeTypeIndex};
+use crate::{error::StorageError, segments::node_type_index::MemNodeTypeIndex};
 use ahash::RandomState;
 use indexmap::IndexSet;
 use parking_lot::RwLockReadGuard;

@@ -1,8 +1,8 @@
-pub mod index;
+mod index;
 
 use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
-    persist::strategy::PersistenceStrategy, segments::node_type_index::index::MemNodeTypeIndex,
+    persist::strategy::PersistenceStrategy,
 };
 use ahash::RandomState;
 use indexmap::IndexSet;
@@ -15,6 +15,8 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
+
+pub use index::MemNodeTypeIndex;
 
 /// Fully in-memory node type index.
 #[derive(Debug)]

@@ -159,6 +159,8 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
                 .copy_to(&dst.join(locked_segment.segment_id().to_string()))
         })?;
 
+        // TODO: Copy node type index
+
         Ok(())
     }
 }
