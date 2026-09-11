@@ -6,7 +6,7 @@ use crate::{
 };
 use ahash::RandomState;
 use indexmap::IndexSet;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{RwLock, RwLockReadGuard};
 use raphtory_core::entities::VID;
 use std::{
     path::Path,
@@ -45,10 +45,6 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
 
     fn head(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex> {
         self.head.read()
-    }
-
-    fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex> {
-        self.head.write()
     }
 
     fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState> {

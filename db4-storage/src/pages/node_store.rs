@@ -266,6 +266,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             .segments_iter()
             .map(|segment| segment.locked())
             .collect::<Box<_>>();
+
         ReadLockedNodeStorage {
             storage: self.clone(),
             locked_segments,

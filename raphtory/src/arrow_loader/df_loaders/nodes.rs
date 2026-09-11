@@ -152,13 +152,13 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .iter()
             .map(|name| df_view.get_index(name))
             .collect::<Result<Vec<_>, GraphError>>()?;
+
         let metadata_indices = metadata
             .iter()
             .map(|name| df_view.get_index(name))
             .collect::<Result<Vec<_>, GraphError>>()?;
 
-        let node_type_index =
-            node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
+        let node_type_index = node_type_col.map(|col| df_view.get_index(col.as_ref()));
         let node_type_index = node_type_index.transpose()?;
         let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
         let layer_id_index = layer_id_col
