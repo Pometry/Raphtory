@@ -320,7 +320,7 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for EdgeEndpointWrapper<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompositeEdgeFilter {
     Src(CompositeNodeFilter),
     Dst(CompositeNodeFilter),

@@ -534,16 +534,29 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
                 .prop_map(move |int| Prop::Decimal(BigDecimal::new(int.into(), scale)))
                 .boxed()
         }
-        _ => todo!(),
+
+        PropType::Empty => {
+            panic!("empty type cannot be generated")
+        }
+        PropType::U16 => any::<u16>().prop_map(Prop::U16).boxed(),
+        PropType::I32 => any::<i32>().prop_map(Prop::I32).boxed(),
+        PropType::U32 => any::<u32>().prop_map(Prop::U32).boxed(),
+        PropType::U64 => any::<u64>().prop_map(Prop::U64).boxed(),
+        PropType::F32 => any::<f32>().prop_map(Prop::F32).boxed(),
     }
 }
 
 pub fn prop_type(nested_prop_size: usize) -> impl Strategy<Value = PropType> {
     let leaf = proptest::sample::select(&[
         PropType::Str,
+        PropType::I32,
         PropType::I64,
+        PropType::F32,
         PropType::F64,
         PropType::U8,
+        PropType::U16,
+        PropType::U32,
+        PropType::U64,
         PropType::Bool,
         PropType::DTime,
         PropType::NDTime,

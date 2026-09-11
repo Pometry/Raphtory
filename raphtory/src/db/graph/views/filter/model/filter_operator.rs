@@ -202,14 +202,14 @@ impl FilterOperator {
             Set(set) => match self {
                 IsIn => {
                     if let Some(r) = right {
-                        set.iter().any(|s| s.equals(r))
+                        set.contains(r.as_ref())
                     } else {
                         false
                     }
                 }
                 IsNotIn => {
                     if let Some(r) = right {
-                        !set.iter().any(|s| s.equals(r))
+                        !set.contains(r.as_ref())
                     } else {
                         false
                     }
