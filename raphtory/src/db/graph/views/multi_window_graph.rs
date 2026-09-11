@@ -301,26 +301,14 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
             .find_map(|w| self.graph.latest_time_window(w.start, w.end))
     }
 
-    /// Union over the ranges clipped to the caller's window: the earliest of
-    /// the per-range earliest times.
     #[inline]
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
-        self.windows
-            .clipped_to(&(start..end))
-            .iter()
-            .filter_map(|w| self.graph.earliest_time_window(w.start, w.end))
-            .min()
+        self.graph.earliest_time_window(start, end)
     }
 
-    /// Union over the ranges clipped to the caller's window: the latest of the
-    /// per-range latest times.
     #[inline]
     fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
-        self.windows
-            .clipped_to(&(start..end))
-            .iter()
-            .filter_map(|w| self.graph.latest_time_window(w.start, w.end))
-            .max()
+        self.graph.latest_time_window(start, end)
     }
 
     /// Union: the property exists if it has an update in any range.
@@ -344,49 +332,27 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
             .into_dyn_boxed()
     }
 
-    /// Union over the ranges clipped to the caller's window: an update in any
-    /// of them is enough.
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
-        self.windows
-            .clipped_to(&w)
-            .iter()
-            .any(|w| self.graph.has_temporal_prop_window(prop_id, w.clone()))
+        self.graph.has_temporal_prop_window(prop_id, w)
     }
 
-    /// Union over the ranges clipped to the caller's window, concatenated in
-    /// range order.
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
         start: EventTime,
         end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
-        let windows = self.windows.clipped_to(&(start..end)).as_slice().to_vec();
-        windows
-            .into_iter()
-            .flat_map(move |w| {
-                self.graph
-                    .temporal_prop_iter_window(prop_id, w.start, w.end)
-            })
-            .into_dyn_boxed()
+        self.graph.temporal_prop_iter_window(prop_id, start, end)
     }
 
-    /// The same, reversed: the clipped ranges in reverse order, each reversed.
     fn temporal_prop_iter_window_rev(
         &self,
         prop_id: usize,
         start: EventTime,
         end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
-        let windows = self.windows.clipped_to(&(start..end)).as_slice().to_vec();
-        windows
-            .into_iter()
-            .rev()
-            .flat_map(move |w| {
-                self.graph
-                    .temporal_prop_iter_window_rev(prop_id, w.start, w.end)
-            })
-            .into_dyn_boxed()
+        self.graph
+            .temporal_prop_iter_window_rev(prop_id, start, end)
     }
 
     /// The last update at or before `t` in any range: the latest range that
@@ -398,22 +364,13 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
         })
     }
 
-    /// The same, over the ranges clipped to the caller's window.
     fn temporal_prop_last_at_window(
         &self,
         prop_id: usize,
         t: EventTime,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        self.windows
-            .clipped_to(&w)
-            .as_slice()
-            .iter()
-            .rev()
-            .find_map(|w| {
-                self.graph
-                    .temporal_prop_last_at_window(prop_id, t, w.clone())
-            })
+        self.graph.temporal_prop_last_at_window(prop_id, t, w)
     }
 }
 
