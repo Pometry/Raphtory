@@ -282,28 +282,23 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for MultiWindowedGra
         self.windows.end()
     }
 
-    /// Union: the earliest of the per-range earliest times.
+    /// Union: the earliest of the per-range earliest times. The ranges are ordered and
+    /// disjoint, so the first one holding an event holds the earliest of them all.
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
-        if self.is_empty() {
-            return None;
-        }
         self.windows
             .iter()
-            .filter_map(|w| self.graph.earliest_time_window(w.start, w.end))
-            .min()
+            .find_map(|w| self.graph.earliest_time_window(w.start, w.end))
     }
 
-    /// Union: the latest of the per-range latest times.
+    /// Union: the latest of the per-range latest times. The ranges are ordered and
+    /// disjoint, so the last one holding an event holds the latest of them all.
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
-        if self.is_empty() {
-            return None;
-        }
         self.windows
             .iter()
-            .filter_map(|w| self.graph.latest_time_window(w.start, w.end))
-            .max()
+            .rev()
+            .find_map(|w| self.graph.latest_time_window(w.start, w.end))
     }
 
     /// Union over the ranges clipped to the caller's window: the earliest of
