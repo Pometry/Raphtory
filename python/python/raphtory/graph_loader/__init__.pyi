@@ -1,7 +1,6 @@
 """
 Load and save Raphtory graphs from/to file(s)
 """
-
 from __future__ import annotations
 
 ###############################################################################
@@ -34,15 +33,7 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "lotr_graph",
-    "lotr_graph_with_props",
-    "stable_coin_graph",
-    "reddit_hyperlink_graph",
-    "reddit_hyperlink_graph_local",
-    "karate_club_graph",
-]
-
+__all__ = ['lotr_graph', 'lotr_graph_with_props', 'stable_coin_graph', 'reddit_hyperlink_graph', 'reddit_hyperlink_graph_local', 'karate_club_graph']
 def lotr_graph() -> Graph:
     """
     Load the Lord of the Rings dataset into a graph.

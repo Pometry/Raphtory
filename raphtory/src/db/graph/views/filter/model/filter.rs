@@ -2,8 +2,9 @@ use crate::db::graph::views::filter::model::FilterOperator;
 use raphtory_api::core::entities::{GidRef, GID};
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
+/// Filter value for field-based filters (node name, node type, node/edge id).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FilterValue {
+pub enum FieldFilterValue {
     Single(String),
     Set(Arc<HashSet<String>>),
     ID(GID),
@@ -13,17 +14,17 @@ pub enum FilterValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Filter {
     pub field_name: String,
-    pub field_value: FilterValue,
+    pub field_value: FieldFilterValue,
     pub operator: FilterOperator,
 }
 
 impl Display for Filter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.field_value {
-            FilterValue::Single(value) => {
+            FieldFilterValue::Single(value) => {
                 write!(f, "{} {} {}", self.field_name, self.operator, value)
             }
-            FilterValue::Set(values) => {
+            FieldFilterValue::Set(values) => {
                 let mut sorted: Vec<&String> = values.iter().collect();
                 sorted.sort();
                 let values_str = sorted
@@ -33,10 +34,10 @@ impl Display for Filter {
                     .join(", ");
                 write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
             }
-            FilterValue::ID(id) => {
+            FieldFilterValue::ID(id) => {
                 write!(f, "{} {} {}", self.field_name, self.operator, id)
             }
-            FilterValue::IDSet(values) => {
+            FieldFilterValue::IDSet(values) => {
                 let mut sorted: Vec<&GID> = values.iter().collect();
                 sorted.sort();
                 let values_str = sorted
@@ -54,7 +55,7 @@ impl Filter {
     pub fn eq(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::Eq,
         }
     }
@@ -62,7 +63,7 @@ impl Filter {
     pub fn ne(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::Ne,
         }
     }
@@ -73,7 +74,7 @@ impl Filter {
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Set(Arc::new(
+            field_value: FieldFilterValue::Set(Arc::new(
                 field_values.into_iter().map(|s| s.into()).collect(),
             )),
             operator: FilterOperator::IsIn,
@@ -91,7 +92,7 @@ impl Filter {
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Set(Arc::new(
+            field_value: FieldFilterValue::Set(Arc::new(
                 field_values.into_iter().map(|s| s.into()).collect(),
             )),
             operator: FilterOperator::IsNotIn,
@@ -101,7 +102,7 @@ impl Filter {
     pub fn starts_with(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::StartsWith,
         }
     }
@@ -109,7 +110,7 @@ impl Filter {
     pub fn ends_with(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::EndsWith,
         }
     }
@@ -117,7 +118,7 @@ impl Filter {
     pub fn contains(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::Contains,
         }
     }
@@ -125,7 +126,7 @@ impl Filter {
     pub fn not_contains(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::NotContains,
         }
     }
@@ -148,7 +149,7 @@ impl Filter {
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Single(field_value.into()),
+            field_value: FieldFilterValue::Single(field_value.into()),
             operator: FilterOperator::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
@@ -159,7 +160,7 @@ impl Filter {
     pub fn eq_id(field_name: impl Into<String>, field_value: impl Into<GID>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::ID(field_value.into()),
+            field_value: FieldFilterValue::ID(field_value.into()),
             operator: FilterOperator::Eq,
         }
     }
@@ -167,7 +168,7 @@ impl Filter {
     pub fn ne_id(field_name: impl Into<String>, field_value: impl Into<GID>) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::ID(field_value.into()),
+            field_value: FieldFilterValue::ID(field_value.into()),
             operator: FilterOperator::Ne,
         }
     }
@@ -180,7 +181,7 @@ impl Filter {
         let set: HashSet<GID> = field_values.into_iter().map(|x| x.into()).collect();
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::IDSet(Arc::new(set)),
+            field_value: FieldFilterValue::IDSet(Arc::new(set)),
             operator: FilterOperator::IsIn,
         }
     }
@@ -193,7 +194,7 @@ impl Filter {
         let set: HashSet<GID> = field_values.into_iter().map(|x| x.into()).collect();
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::IDSet(Arc::new(set)),
+            field_value: FieldFilterValue::IDSet(Arc::new(set)),
             operator: FilterOperator::IsNotIn,
         }
     }
@@ -201,7 +202,7 @@ impl Filter {
     pub fn lt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
         Filter {
             field_name: field_name.into(),
-            field_value: FilterValue::ID(field_value.into()),
+            field_value: FieldFilterValue::ID(field_value.into()),
             operator: FilterOperator::Lt,
         }
     }
@@ -209,7 +210,7 @@ impl Filter {
     pub fn le<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
         Filter {
             field_name: field_name.into(),
-            field_value: FilterValue::ID(field_value.into()),
+            field_value: FieldFilterValue::ID(field_value.into()),
             operator: FilterOperator::Le,
         }
     }
@@ -217,7 +218,7 @@ impl Filter {
     pub fn gt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
         Filter {
             field_name: field_name.into(),
-            field_value: FilterValue::ID(field_value.into()),
+            field_value: FieldFilterValue::ID(field_value.into()),
             operator: FilterOperator::Gt,
         }
     }
@@ -225,7 +226,7 @@ impl Filter {
     pub fn ge<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
         Filter {
             field_name: field_name.into(),
-            field_value: FilterValue::ID(field_value.into()),
+            field_value: FieldFilterValue::ID(field_value.into()),
             operator: FilterOperator::Ge,
         }
     }
@@ -238,3 +239,8 @@ impl Filter {
         self.operator.apply_id(&self.field_value, node_value)
     }
 }
+
+// The generic `filter_value::FilterValue<T>` owns the short name; the composite
+// machinery keeps its original spelling through this alias and both leave with
+// the composite path.
+pub type FilterValue = FieldFilterValue;

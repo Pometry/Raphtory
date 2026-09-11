@@ -2,13 +2,7 @@ use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
-            filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
-                },
-                CreateFilter,
-            },
+            filter::{model::ComposableFilter, CreateFilter},
             is_self_loop_graph::IsSelfLoopGraph,
         },
     },
@@ -73,18 +67,37 @@ impl CreateFilter for IsSelfLoopEdge {
 
 impl ComposableFilter for IsSelfLoopEdge {}
 
-impl TryAsCompositeFilter for IsSelfLoopEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+// ── expr layer: the predicate as a boolean expression over the eval view ──
+
+use crate::db::graph::views::filter::model::{
+    edge_expr::{ops::IsSelfLoopEdgePropOp, EdgeOp},
+    edge_filter::EdgeFilter as EdgeFilterMarker,
+    node_expr::{CreateOp, EntityExpr},
+};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::sync::Arc;
+
+impl EntityExpr for IsSelfLoopEdge {
+    type Marker = EdgeFilterMarker;
+
+    fn entity(&self) -> EdgeFilterMarker {
+        EdgeFilterMarker
     }
 
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
     }
 
-    fn try_as_composite_exploded_edge_filter(
+    fn nullable(&self) -> bool {
+        false
+    }
+}
+
+impl CreateOp for IsSelfLoopEdge {
+    fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
+        Ok(Arc::new(IsSelfLoopEdgePropOp { graph }))
     }
 }

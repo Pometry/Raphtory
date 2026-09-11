@@ -3,9 +3,11 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
-                CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
-                TryAsCompositeFilter, Wrap,
+                latest_filter::Latest,
+                layered_filter::Layered,
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
+                windowed_filter::Windowed,
+                CombinedFilter, InternalViewWrapOps, Wrap,
             },
             CreateFilter,
         },
@@ -74,23 +76,34 @@ impl CreateFilter for GraphFilter {
     }
 }
 
-impl TryAsCompositeFilter for GraphFilter {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // The bare graph anchor restricts nothing — an empty view chain.
-        Ok(FilterTree::View(Vec::new()))
-    }
+// ── expr-layer view ops ──
 
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
+pub trait GraphFilterOps:
+    InternalViewWrapOps<Window = Self::GraphWindow> + CombinedFilter + Send + Sync + 'static
+{
+    type GraphWindow: GraphFilterOps + CombinedFilter;
+}
 
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
+impl GraphFilterOps for GraphFilter {
+    type GraphWindow = Self::Window;
+}
 
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
+impl<T: GraphFilterOps> GraphFilterOps for Windowed<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Layered<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for Latest<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for SnapshotAt<T> {
+    type GraphWindow = Self::Window;
+}
+
+impl<T: GraphFilterOps> GraphFilterOps for SnapshotLatest<T> {
+    type GraphWindow = Self::Window;
 }

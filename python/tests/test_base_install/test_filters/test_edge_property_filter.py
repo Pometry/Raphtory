@@ -1036,15 +1036,13 @@ def test_edge_unsupported_ops_agg():
         with pytest.raises(Exception) as _:
             graph.filter(expr)
 
-        # IS_NONE on MIN
+        # is_none/is_some after an aggregation are meaningful: the aggregate
+        # of an empty list is absent. Every edge here has values.
         expr = filter.Edge.property("p_u64s").min().is_none()
-        with pytest.raises(Exception) as _:
-            graph.filter(expr)
+        assert len(graph.filter(expr).edges) == 0
 
-        # IS_SOME on MAX
         expr = filter.Edge.property("p_u64s").max().is_some()
-        with pytest.raises(Exception) as _:
-            graph.filter(expr)
+        assert len(graph.filter(expr).edges) == len(graph.edges)
 
         # CONTAINS on LEN
         expr = filter.Edge.property("p_u64s").len().contains("abc")

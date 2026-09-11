@@ -11,7 +11,6 @@ mod serde;
 mod template;
 
 pub use arrow::*;
-
 pub use prop_array::*;
 pub use prop_enum::*;
 pub use prop_ref_enum::*;

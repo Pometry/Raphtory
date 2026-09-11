@@ -1984,7 +1984,9 @@ def test_apply_view_too_many_arguments():
     graph = Graph()
     create_graph_date(graph)
     queries_and_exceptions = []
-    too_many_arguments_exception = "Fields \\"
+    too_many_arguments_exception = (
+        'Fields "views" conflict because they have differing arguments'
+    )
     query = """
 {
   graph(path: "g") {
@@ -2044,11 +2046,13 @@ def test_apply_view_invalid_argument():
     graph = Graph()
     create_graph_date(graph)
     queries_and_exceptions = []
-    invalid_argument = "Invalid value for argument \\"
+    invalid_argument = (
+        'Invalid value for argument "views.0.layers", expected type "String"'
+    )
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layers: "finds"}]) {
+    applyViews(views: [{layers: 5}]) {
       earliestTime {
         timestamp
       }

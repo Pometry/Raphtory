@@ -2996,30 +2996,3 @@ def datadir(tmpdir, request):
             raise e
     return tmpdir
 
-
-# def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
-# g = Graph()
-# g.add_edge(2,"haaroon","hamza", properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-# g.add_edge(1,"ben","hamza", properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-# g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I gitgit awanna rock right now"})
-# g.add_edge(4,"hamza","naomi", properties={"value_str":"I wanna rock right now"})
-# assert len(index.fuzzy_search_edges("value_str:\"I wanna nock right now\"",levenshtein_distance=2)) == 2
-
-
-# def test_search_with_layers(): #TODO: Fix layer seearching
-# g = Graph()
-# g.add_edge(3,"haaroon","hamza",properties={"value":70,"value_f":11.3,"value_str":"abdsda2c123"},layer="1")
-# g.add_edge(4,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="2")
-# g.add_edge(5,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="3")
-# index = g.index()
-
-# need to expose actual layer searching
-# assert len(index.search_edges("layer:1")) == 1
-
-# assert len(index.search_edges("value_str:ddddd")) == 1
-# assert len(index.search_edges("value:>60")) == 2
-
-# l_g = g.layer(["1","3"])
-# l_index = l_g.index()
-# assert len(index.search_edges("value_str:ddddd")) == 1
-# assert len(index.search_edges("value:>60")) == 2

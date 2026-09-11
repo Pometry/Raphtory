@@ -1,6 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
-        property_filter::PropertyFilterValue, FilterOperator, Op, PropertyRef,
+        property_filter::{Op, PropertyFilterValue, PropertyRef},
+        FilterOperator,
     },
     errors::GraphError,
     prelude::PropertyFilter,

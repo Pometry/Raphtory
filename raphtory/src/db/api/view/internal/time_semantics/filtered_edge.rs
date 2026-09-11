@@ -208,7 +208,7 @@ pub struct FilteredEdgeTProp<G, P> {
     props: P,
 }
 
-impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
+impl<'graph, G: GraphView + 'graph, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
     fn last(&self) -> Option<(EventTime, Prop)> {

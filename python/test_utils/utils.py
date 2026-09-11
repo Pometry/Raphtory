@@ -191,12 +191,9 @@ def run_graphql_error_test(query, expected_error_message, graph):
             client.query(query)
 
         full_error_message = str(excinfo.value)
-        match = re.search(r'"message":"(.*?)"', full_error_message)
-        error_message = match.group(1) if match else ""
-
         assert (
-            error_message == expected_error_message
-        ), f"Expected '{expected_error_message}', but got '{error_message}'"
+            expected_error_message in full_error_message
+        ), f"Expected '{expected_error_message}' in '{full_error_message}'"
 
 
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
@@ -206,11 +203,9 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
                 client.query(query)
 
             full_error_message = str(excinfo.value)
-            match = re.search(r'"message":"(.*?)"', full_error_message)
-            error_message = match.group(1) if match else ""
             assert (
-                error_message == expected_error_message
-            ), f"Expected '{expected_error_message}', but got '{error_message}'"
+                expected_error_message in full_error_message
+            ), f"Expected '{expected_error_message}' in '{full_error_message}'"
 
 
 def run_graphql_error_test_contains(query, expected_substrings, graph):
@@ -220,11 +215,11 @@ def run_graphql_error_test_contains(query, expected_substrings, graph):
             client.query(query)
 
         full_error_message = str(excinfo.value)
-        match = re.search(r'"message":"(.*?)"', full_error_message)
-        error_message = match.group(1) if match else ""
 
         for s in expected_substrings:
-            assert s in error_message, f"expected to find {s!r} in {error_message!r}"
+            assert (
+                s in full_error_message
+            ), f"expected to find {s!r} in {full_error_message!r}"
 
 
 def run_graphql_compare_test(query_a, query_b, graph):

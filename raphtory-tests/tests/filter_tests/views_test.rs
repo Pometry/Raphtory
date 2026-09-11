@@ -3,9 +3,8 @@ mod test_nodes_filters_window_graph {
         db::{
             api::view::{filter_ops::Filter, StaticGraphViewOps},
             graph::views::filter::model::{
-                node_filter::{ops::NodeFilterOps, NodeFilter},
-                property_filter::ops::PropertyFilterOps,
-                ComposableFilter, PropertyFilterFactory,
+                node_filter::{NodeFilter, NodeFilterFactory},
+                ComposableFilter, EntityExprFilterOps, PropertyExprFactory,
             },
         },
         errors::GraphError,
@@ -222,7 +221,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_name_eq() {
-        let filter = NodeFilter::name().eq("N2");
+        let filter = NodeFilter.name().eq("N2");
         let expected_results = vec!["N2"];
         assert_filter_nodes_results(
             init_graph,
@@ -235,7 +234,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_name_eq() {
-        let filter = NodeFilter::name().eq("N2");
+        let filter = NodeFilter.name().eq("N2");
         let expected_results = vec!["N2"];
         assert_filter_nodes_results(
             init_graph,
@@ -248,7 +247,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_name_ne() {
-        let filter = NodeFilter::name().ne("N2");
+        let filter = NodeFilter.name().ne("N2");
         let expected_results = vec!["N1", "N3", "N5", "N6"];
         assert_filter_nodes_results(
             init_graph,
@@ -261,7 +260,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_name_ne() {
-        let filter = NodeFilter::name().ne("N2");
+        let filter = NodeFilter.name().ne("N2");
         let expected_results = vec![
             "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N3", "N5", "N6", "N7", "N8", "N9",
         ];
@@ -276,7 +275,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_name_in() {
-        let filter = NodeFilter::name().is_in(vec!["N2"]);
+        let filter = NodeFilter.name().is_in(vec!["N2"]);
         let expected_results = vec!["N2"];
         assert_filter_nodes_results(
             init_graph,
@@ -286,7 +285,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["N2", "N5"]);
+        let filter = NodeFilter.name().is_in(vec!["N2", "N5"]);
         let expected_results = vec!["N2", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -299,7 +298,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_name_in() {
-        let filter = NodeFilter::name().is_in(vec!["N2"]);
+        let filter = NodeFilter.name().is_in(vec!["N2"]);
         let expected_results = vec!["N2"];
         assert_filter_nodes_results(
             init_graph,
@@ -309,7 +308,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["N2", "N5"]);
+        let filter = NodeFilter.name().is_in(vec!["N2", "N5"]);
         let expected_results = vec!["N2", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -322,7 +321,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_name_not_in() {
-        let filter = NodeFilter::name().is_not_in(vec!["N5"]);
+        let filter = NodeFilter.name().is_not_in(vec!["N5"]);
         let expected_results = vec!["N1", "N2", "N3", "N6"];
         assert_filter_nodes_results(
             init_graph,
@@ -335,7 +334,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_name_not_in() {
-        let filter = NodeFilter::name().is_not_in(vec!["N5"]);
+        let filter = NodeFilter.name().is_not_in(vec!["N5"]);
         let expected_results = vec![
             "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N6", "N7", "N8", "N9",
         ];
@@ -350,7 +349,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_type_eq() {
-        let filter = NodeFilter::node_type().eq("fire_nation");
+        let filter = NodeFilter.node_type().eq("fire_nation");
         let expected_results = vec!["N6"];
         assert_filter_nodes_results(
             init_graph,
@@ -363,7 +362,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_type_eq() {
-        let filter = NodeFilter::node_type().eq("fire_nation");
+        let filter = NodeFilter.node_type().eq("fire_nation");
         let expected_results = vec!["N6", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -376,7 +375,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_type_ne() {
-        let filter = NodeFilter::node_type().ne("fire_nation");
+        let filter = NodeFilter.node_type().ne("fire_nation");
         let expected_results = vec!["N1", "N2", "N3", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -389,7 +388,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_type_ne() {
-        let filter = NodeFilter::node_type().ne("fire_nation");
+        let filter = NodeFilter.node_type().ne("fire_nation");
         let expected_results = vec![
             "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
         ];
@@ -404,7 +403,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_node_type_in() {
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
+        let filter = NodeFilter.node_type().is_in(vec!["fire_nation"]);
         let expected_results = vec!["N6"];
         assert_filter_nodes_results(
             init_graph,
@@ -414,7 +413,9 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomad"]);
+        let filter = NodeFilter
+            .node_type()
+            .is_in(vec!["fire_nation", "air_nomad"]);
         let expected_results = vec!["N1", "N3", "N5", "N6"];
         assert_filter_nodes_results(
             init_graph,
@@ -427,7 +428,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_type_in() {
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
+        let filter = NodeFilter.node_type().is_in(vec!["fire_nation"]);
         let expected_results = vec!["N6", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -437,7 +438,9 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomad"]);
+        let filter = NodeFilter
+            .node_type()
+            .is_in(vec!["fire_nation", "air_nomad"]);
         let expected_results = vec!["N1", "N3", "N5", "N6", "N7", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -451,7 +454,7 @@ mod test_nodes_filters_window_graph {
     #[test]
     fn test_nodes_filters_for_node_type_not_in() {
         // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
+        let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]);
         let expected_results = vec!["N1", "N2", "N3", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -464,7 +467,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_node_type_not_in() {
-        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
+        let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]);
         let expected_results = vec![
             "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
         ];
@@ -884,11 +887,11 @@ mod test_nodes_filters_window_graph {
         ));
         let graph = init_graph(Graph::new());
         assert!(matches!(
-            graph.window(1, 9).filter(filter.clone()).unwrap_err(),
+            graph.window(1, 9).filter(filter.clone()).map(|_| ()).unwrap_err(),
             GraphError::PropertyMissingError(ref name) if name == "x"
         ));
         assert!(matches!(
-            graph.persistent_graph().window(1, 9).filter(filter).unwrap_err(),
+            graph.persistent_graph().window(1, 9).filter(filter).map(|_| ()).unwrap_err(),
             GraphError::PropertyMissingError(ref name) if name == "x"
         ));
     }
@@ -996,7 +999,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_property_in() {
-        let filter = NodeFilter.property("p1").is_in(vec![2u64.into()]);
+        let filter = NodeFilter.property("p1").is_in(vec![2u64]);
         let expected_results = vec!["N2", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -1006,7 +1009,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter.property("k1").is_in(vec![2i64.into()]);
+        let filter = NodeFilter.property("k1").is_in(vec![2i64]);
         let expected_results = vec!["N2"];
         assert_filter_nodes_results(
             init_graph,
@@ -1016,9 +1019,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter
-            .property("k2")
-            .is_in(vec!["Paper_Airplane".into()]);
+        let filter = NodeFilter.property("k2").is_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1028,7 +1029,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter.property("k3").is_in(vec![true.into()]);
+        let filter = NodeFilter.property("k3").is_in(vec![true]);
         let expected_results = vec!["N2"];
         assert_filter_nodes_results(
             init_graph,
@@ -1038,7 +1039,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter.property("k4").is_in(vec![6.0f64.into()]);
+        let filter = NodeFilter.property("k4").is_in(vec![6.0f64]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1051,7 +1052,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_property_in() {
-        let filter = NodeFilter.property("p1").is_in(vec![2u64.into()]);
+        let filter = NodeFilter.property("p1").is_in(vec![2u64]);
         let expected_results = vec!["N2", "N5", "N8", "N9"];
         assert_filter_nodes_results(
             init_graph,
@@ -1061,7 +1062,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter.property("k1").is_in(vec![2i64.into()]);
+        let filter = NodeFilter.property("k1").is_in(vec![2i64]);
         let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -1071,9 +1072,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter
-            .property("k2")
-            .is_in(vec!["Paper_Airplane".into()]);
+        let filter = NodeFilter.property("k2").is_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1083,7 +1082,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter.property("k3").is_in(vec![true.into()]);
+        let filter = NodeFilter.property("k3").is_in(vec![true]);
         let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -1093,7 +1092,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter.property("k4").is_in(vec![6.0f64.into()]);
+        let filter = NodeFilter.property("k4").is_in(vec![6.0f64]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1106,7 +1105,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_for_property_not_in() {
-        let filter = NodeFilter.property("p1").is_not_in(vec![1u64.into()]);
+        let filter = NodeFilter.property("p1").is_not_in(vec![1u64]);
         let expected_results = vec!["N2", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -1116,7 +1115,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter.property("k1").is_not_in(vec![2i64.into()]);
+        let filter = NodeFilter.property("k1").is_not_in(vec![2i64]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1126,9 +1125,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter
-            .property("k2")
-            .is_not_in(vec!["Paper_Airplane".into()]);
+        let filter = NodeFilter.property("k2").is_not_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N2", "N5"];
         assert_filter_nodes_results(
             init_graph,
@@ -1138,7 +1135,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter.property("k3").is_not_in(vec![true.into()]);
+        let filter = NodeFilter.property("k3").is_not_in(vec![true]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1148,7 +1145,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = NodeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
+        let filter = NodeFilter.property("k4").is_not_in(vec![6.0f64]);
         let expected_results = vec!["N2", "N5", "N6"];
         assert_filter_nodes_results(
             init_graph,
@@ -1161,7 +1158,7 @@ mod test_nodes_filters_window_graph {
 
     #[test]
     fn test_nodes_filters_pg_for_property_not_in() {
-        let filter = NodeFilter.property("p1").is_not_in(vec![1u64.into()]);
+        let filter = NodeFilter.property("p1").is_not_in(vec![1u64]);
         let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
         assert_filter_nodes_results(
             init_graph,
@@ -1171,7 +1168,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter.property("k1").is_not_in(vec![2i64.into()]);
+        let filter = NodeFilter.property("k1").is_not_in(vec![2i64]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1181,9 +1178,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter
-            .property("k2")
-            .is_not_in(vec!["Paper_Airplane".into()]);
+        let filter = NodeFilter.property("k2").is_not_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -1193,7 +1188,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter.property("k3").is_not_in(vec![true.into()]);
+        let filter = NodeFilter.property("k3").is_not_in(vec![true]);
         let expected_results = vec!["N1"];
         assert_filter_nodes_results(
             init_graph,
@@ -1203,7 +1198,7 @@ mod test_nodes_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = NodeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
+        let filter = NodeFilter.property("k4").is_not_in(vec![6.0f64]);
         let expected_results = vec!["N12", "N2", "N5", "N6", "N7", "N8"];
         assert_filter_nodes_results(
             init_graph,
@@ -1393,8 +1388,8 @@ mod test_edges_filters_window_graph {
         db::{
             api::view::{filter_ops::Filter, StaticGraphViewOps},
             graph::views::filter::model::{
-                edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
-                property_filter::ops::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
+                edge_filter::EdgeFilter, node_filter::NodeFilterFactory, ComposableFilter,
+                EntityExprFilterOps, PropertyExprFactory,
             },
         },
         errors::GraphError,
@@ -2204,11 +2199,11 @@ mod test_edges_filters_window_graph {
         ));
         let graph = init_graph(Graph::new());
         assert!(matches!(
-            graph.window(1, 9).filter(filter.clone()).unwrap_err(),
+            graph.window(1, 9).filter(filter.clone()).map(|_| ()).unwrap_err(),
             GraphError::PropertyMissingError(ref name) if name == "x"
         ));
         assert!(matches!(
-            graph.persistent_graph().window(1, 9).filter(filter).unwrap_err(),
+            graph.persistent_graph().window(1, 9).filter(filter).map(|_| ()).unwrap_err(),
             GraphError::PropertyMissingError(ref name) if name == "x"
         ));
     }
@@ -2319,7 +2314,7 @@ mod test_edges_filters_window_graph {
 
     #[test]
     fn test_edges_filters_for_property_in() {
-        let filter = EdgeFilter.property("p1").is_in(vec![2u64.into()]);
+        let filter = EdgeFilter.property("p1").is_in(vec![2u64]);
         let expected_results = vec!["N2->N3", "N5->N6"];
         assert_filter_edges_results(
             init_graph,
@@ -2329,7 +2324,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter.property("k1").is_in(vec![2i64.into()]);
+        let filter = EdgeFilter.property("k1").is_in(vec![2i64]);
         let expected_results = vec!["N2->N3"];
         assert_filter_edges_results(
             init_graph,
@@ -2339,9 +2334,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter
-            .property("k2")
-            .is_in(vec!["Paper_Airplane".into()]);
+        let filter = EdgeFilter.property("k2").is_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2351,7 +2344,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter.property("k3").is_in(vec![true.into()]);
+        let filter = EdgeFilter.property("k3").is_in(vec![true]);
         let expected_results = vec!["N2->N3"];
         assert_filter_edges_results(
             init_graph,
@@ -2361,7 +2354,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter.property("k4").is_in(vec![6.0f64.into()]);
+        let filter = EdgeFilter.property("k4").is_in(vec![6.0f64]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2374,7 +2367,7 @@ mod test_edges_filters_window_graph {
 
     #[test]
     fn test_edges_filters_pg_for_property_in() {
-        let filter = EdgeFilter.property("p1").is_in(vec![2u64.into()]);
+        let filter = EdgeFilter.property("p1").is_in(vec![2u64]);
         let expected_results = vec!["N2->N3", "N5->N6", "N8->N9", "N9->N10"];
         assert_filter_edges_results(
             init_graph,
@@ -2384,7 +2377,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k1").is_in(vec![2i64.into()]);
+        let filter = EdgeFilter.property("k1").is_in(vec![2i64]);
         let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
         assert_filter_edges_results(
             init_graph,
@@ -2394,9 +2387,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter
-            .property("k2")
-            .is_in(vec!["Paper_Airplane".into()]);
+        let filter = EdgeFilter.property("k2").is_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2406,7 +2397,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k3").is_in(vec![true.into()]);
+        let filter = EdgeFilter.property("k3").is_in(vec![true]);
         let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
         assert_filter_edges_results(
             init_graph,
@@ -2416,7 +2407,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k4").is_in(vec![6.0f64.into()]);
+        let filter = EdgeFilter.property("k4").is_in(vec![6.0f64]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2429,7 +2420,7 @@ mod test_edges_filters_window_graph {
 
     #[test]
     fn test_edges_filters_for_property_not_in() {
-        let filter = EdgeFilter.property("p1").is_not_in(vec![1u64.into()]);
+        let filter = EdgeFilter.property("p1").is_not_in(vec![1u64]);
         let expected_results = vec!["N2->N3", "N5->N6"];
         assert_filter_edges_results(
             init_graph,
@@ -2439,7 +2430,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter.property("k1").is_not_in(vec![2i64.into()]);
+        let filter = EdgeFilter.property("k1").is_not_in(vec![2i64]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2449,9 +2440,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter
-            .property("k2")
-            .is_not_in(vec!["Paper_Airplane".into()]);
+        let filter = EdgeFilter.property("k2").is_not_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N2->N3", "N5->N6"];
         assert_filter_edges_results(
             init_graph,
@@ -2461,7 +2450,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter.property("k3").is_not_in(vec![true.into()]);
+        let filter = EdgeFilter.property("k3").is_not_in(vec![true]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2471,7 +2460,7 @@ mod test_edges_filters_window_graph {
             TestVariants::EventOnly,
         );
 
-        let filter = EdgeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
+        let filter = EdgeFilter.property("k4").is_not_in(vec![6.0f64]);
         let expected_results = vec!["N2->N3", "N5->N6", "N6->N7"];
         assert_filter_edges_results(
             init_graph,
@@ -2484,7 +2473,7 @@ mod test_edges_filters_window_graph {
 
     #[test]
     fn test_edges_filters_pg_for_property_not_in() {
-        let filter = EdgeFilter.property("p1").is_not_in(vec![1u64.into()]);
+        let filter = EdgeFilter.property("p1").is_not_in(vec![1u64]);
         let expected_results = vec![
             "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9", "N9->N10",
         ];
@@ -2496,7 +2485,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k1").is_not_in(vec![2i64.into()]);
+        let filter = EdgeFilter.property("k1").is_not_in(vec![2i64]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2506,9 +2495,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter
-            .property("k2")
-            .is_not_in(vec!["Paper_Airplane".into()]);
+        let filter = EdgeFilter.property("k2").is_not_in(vec!["Paper_Airplane"]);
         let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
         assert_filter_edges_results(
             init_graph,
@@ -2518,7 +2505,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k3").is_not_in(vec![true.into()]);
+        let filter = EdgeFilter.property("k3").is_not_in(vec![true]);
         let expected_results = vec!["N1->N2"];
         assert_filter_edges_results(
             init_graph,
@@ -2528,7 +2515,7 @@ mod test_edges_filters_window_graph {
             TestVariants::PersistentOnly,
         );
 
-        let filter = EdgeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
+        let filter = EdgeFilter.property("k4").is_not_in(vec![6.0f64]);
         let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
         assert_filter_edges_results(
             init_graph,

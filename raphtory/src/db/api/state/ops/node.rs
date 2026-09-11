@@ -83,6 +83,7 @@ pub struct Type;
 pub struct TypeStruct {
     node_type: Option<ArcStr>,
 }
+
 impl From<Option<ArcStr>> for TypeStruct {
     fn from(node_type: Option<ArcStr>) -> Self {
         TypeStruct { node_type }
