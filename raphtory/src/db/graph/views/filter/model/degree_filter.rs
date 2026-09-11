@@ -18,10 +18,10 @@ use crate::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType},
+    entities::properties::prop::{prop_hashable::HashableProp, PropType},
     Direction,
 };
-use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Clone)]
 pub struct DegreeFilterBuilder {
@@ -38,7 +38,7 @@ impl DegreeFilterBuilder {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DegreeFilter {
     pub direction: Direction,
     pub operator: FilterOperator,
@@ -108,14 +108,18 @@ impl CreateFilter for DegreeFilter {
                 let casted_set = prop_vals
                     .iter()
                     .map(|val| {
-                        val.clone().cast(PropType::U64).ok_or_else(|| {
-                            GraphError::InvalidFilter(format!(
-                                "degree filter expects an integer value, got {}",
-                                val
-                            ))
-                        })
+                        val.deref()
+                            .clone()
+                            .cast(PropType::U64)
+                            .map(HashableProp::from)
+                            .ok_or_else(|| {
+                                GraphError::InvalidFilter(format!(
+                                    "degree filter expects an integer value, got {}",
+                                    val
+                                ))
+                            })
                     })
-                    .collect::<Result<HashSet<Prop>, GraphError>>()?;
+                    .collect::<Result<HashSet<_>, GraphError>>()?;
 
                 PropertyFilterValue::Set(Arc::new(casted_set))
             }
