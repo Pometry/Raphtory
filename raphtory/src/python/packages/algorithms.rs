@@ -823,7 +823,7 @@ fn resolve_label_prop_init_state(
 ///     patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// Returns:
-///     OutputNodeState: NodeState mapping nodes to community id
+///     OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
 ///
 /// Raises:
 ///     ValueError: If a key of `init_state` is not a node in `graph`.

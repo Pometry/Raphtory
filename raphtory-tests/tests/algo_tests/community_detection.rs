@@ -70,6 +70,48 @@ fn lpa_test() {
     });
 }
 
+/// The vote share behind each label.
+///
+/// The graph is small enough to count by hand: X neighbours two A-seeds and one B-seed, Y neighbours
+/// the B-seed alone, and Z—W is a component no seed can reach.
+#[test]
+fn lpa_vote_share() {
+    let graph: Graph = Graph::new();
+    for (src, dst) in [
+        ("A1", "X"),
+        ("A2", "X"),
+        ("B1", "X"),
+        ("B1", "Y"),
+        ("Z", "W"),
+    ] {
+        graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+    }
+    test_storage!(&graph, |graph| {
+        let vid = |name: &str| graph.node(name).unwrap().node.0;
+        let seeds: HashMap<usize, usize> =
+            HashMap::from([(vid("A1"), 0), (vid("A2"), 0), (vid("B1"), 1)]);
+        let out = label_propagation(graph, 20, Some(6), None, Some(seeds), None, None)
+            .to_hashmap(|value| (value.community_id, value.confidence));
+
+        let close = |got: (usize, f64), label: usize, share: f64| {
+            assert_eq!(got.0, label, "{got:?}");
+            assert!((got.1 - share).abs() < 1e-9, "{got:?} wanted {share}");
+        };
+
+        // X has no label of its own to add on its first pass, so it divides the seeds' three votes.
+        close(out["X"], 0, 2.0 / 3.0);
+        // Y hears from one seed and nothing else.
+        assert_eq!(out["Y"], (1, 1.0));
+        // The A-seeds re-evaluate once X has a label and find it agrees with them.
+        assert_eq!(out["A1"], (0, 1.0));
+        // The B-seed weighs X's A-label against its own vote and Y's, and keeps its label on 2 of 3.
+        close(out["B1"], 1, 2.0 / 3.0);
+        // Unreachable: never cast or received a vote, which is what the 0.0 means.
+        assert_eq!(out["Z"], (usize::MAX, 0.0));
+        assert_eq!(out["W"], (usize::MAX, 0.0));
+    });
+}
+
 /// `label_propagation_fast` must agree with `label_propagation` node for node. It only runs the
 /// seeded case, so both are given an explicit `init_state`: the identity map, which reproduces the
 /// unseeded start, and a partial map, which exercises the `NO_LABEL` front advancing from a couple
@@ -115,7 +157,7 @@ fn lpa_fast_matches_lpa() {
                         None,
                         None,
                     )
-                    .to_hashmap(|value| value.community_id);
+                    .to_hashmap(|value| (value.community_id, value.confidence));
                     let actual = label_propagation_fast(
                         graph,
                         20,
@@ -125,8 +167,26 @@ fn lpa_fast_matches_lpa() {
                         None,
                         None,
                     )
-                    .to_hashmap(|value| value.community_id);
-                    assert_eq!(expected, actual, "seed={seed} threads={threads:?}");
+                    .to_hashmap(|value| (value.community_id, value.confidence));
+                    // Labels exactly; shares within a tolerance. Both sides divide the same two
+                    // integers, so this should be bit-identical -- the tolerance is here so that a
+                    // genuine disagreement reports as one rather than as a last-bit artefact.
+                    assert_eq!(
+                        expected.keys().collect::<HashSet<_>>(),
+                        actual.keys().collect::<HashSet<_>>(),
+                        "seed={seed} threads={threads:?}"
+                    );
+                    for (name, (want_label, want_conf)) in expected.iter() {
+                        let (got_label, got_conf) = actual[name];
+                        assert_eq!(
+                            got_label, *want_label,
+                            "{name} seed={seed} threads={threads:?}"
+                        );
+                        assert!(
+                            (got_conf - want_conf).abs() < 1e-12,
+                            "{name} share {got_conf} != {want_conf} seed={seed} threads={threads:?}"
+                        );
+                    }
                 }
             }
         }
