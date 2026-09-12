@@ -25,7 +25,7 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc, Mutex,
     },
 };
@@ -48,6 +48,10 @@ const DEFAULT_PATIENCE: usize = 10;
 pub struct LabelPropState {
     pub community_id: usize,
     pub alternate_id: Option<usize>, // set to previous value when community_id has changed; None once settled
+    /// Votes for `community_id` as a share of the votes cast, from the last super-step in which this
+    /// node re-evaluated -- so it always describes the vote that produced the standing label. A
+    /// winner always holds a vote, which is what leaves the `Default` 0.0 free to mean "never voted".
+    pub confidence: f64,
     #[serde(skip)]
     is_changed: bool, // derive(Default) initializes to false
 }
@@ -90,7 +94,8 @@ fn tie_rank(node_key: u64, label: usize) -> u64 {
 ///
 /// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
 /// `alternate_id` (the previous label it swaps with while oscillating; `None` once converged, and
-/// also `None` until the node has been labeled a whole iteration.
+/// also `None` until the node has been labeled a whole iteration, and `confidence`, the share of
+/// its votes that went to `community_id`.
 pub fn label_propagation<G>(
     g: &G,
     iter_count: usize,
@@ -130,6 +135,10 @@ where
                 let seed = map.get(&id).copied();
                 state.community_id = seed.unwrap_or(NO_LABEL);
                 state.is_changed = seed.is_some();
+                if seed.is_some() {
+                    // A seed's label is GIVEN, not inferred, so it starts fully confident.
+                    state.confidence = 1.0;
+                }
             }
         }
         Step::Continue
@@ -152,24 +161,30 @@ where
             let state = s.get_mut();
             state.is_changed = false;
             state.alternate_id = None; // clear any stale value from a prior iter
-                                       // NB: state.community_id unchanged
+                                       // NB: state.community_id and state.confidence unchanged
             return Step::Continue;
         }
 
         let node_key = calculate_hash(&(tie_seed, s.node.index())); // tie_rank's 1st arg
         let prev_label = s.prev().community_id;
-        let winner_label = LABEL_COUNTS.with(|counts| {
+        let winner = LABEL_COUNTS.with(|counts| {
             let mut counts = counts.borrow_mut();
             counts.clear();
 
             let mut best_label = prev_label;
             let mut best_count = 0;
             let mut best_rank = 0u64;
+            // `confidence`'s denominator: the votes CAST -- labelled neighbours plus the self-vote --
+            // and not the degree, since an unlabelled neighbour is skipped below and has no opinion
+            // to divide by. Tallied as we go, because the incremental argmax below never walks
+            // `counts` a second time to sum it.
+            let mut total = 0usize;
             if prev_label != NO_LABEL {
                 // initialised nodes vote for their own label
                 counts.insert(prev_label, 1);
                 best_count = 1;
                 best_rank = tie_rank(node_key, prev_label);
+                total = 1;
             }
             for nbor in s.neighbours() {
                 let nbor_label = nbor.prev().community_id;
@@ -179,6 +194,7 @@ where
                 let count = counts.entry(nbor_label).or_insert(0);
                 *count += 1;
                 let count = *count;
+                total += 1;
 
                 if nbor_label == best_label {
                     best_count = count;
@@ -196,14 +212,17 @@ where
                     // .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
                 }
             }
-            // `best_label` is still NO_LABEL only when no voting happened
-            (best_label != NO_LABEL).then_some(best_label)
+            // `best_label` is still NO_LABEL only when no voting happened; otherwise the winner
+            // holds at least one of `total` votes, so the division is neither by zero nor ever NaN.
+            (best_label != NO_LABEL).then(|| (best_label, best_count as f64 / total as f64))
         });
 
         let state: &mut LabelPropState = s.get_mut();
-        // No votes at all (unlabelled node, no labelled neighbours) leaves community_id standing.
-        if let Some(label) = winner_label {
+        // No votes at all (unlabelled node, no labelled neighbours) leaves community_id standing --
+        // and its confidence with it, so the two always describe the same vote.
+        if let Some((label, confidence)) = winner {
             state.community_id = label;
+            state.confidence = confidence;
         }
         state.is_changed = state.community_id != prev_label;
         if state.is_changed {
@@ -341,9 +360,20 @@ where
     // Labels, held as slots and indexed by flat position. `cur` starts as a copy of `prev` so that
     // an `iter_count` of 0 still reports the seeding.
     let mut prev: Vec<AtomicUsize> = (0..n).map(|_| AtomicUsize::new(NO_LABEL)).collect();
+    // The vote behind each node's standing label, as (winner's count << 32 | votes cast). Packed
+    // into one atomic so a sweep publishes the numerator and the denominator together -- read
+    // separately they could straddle a store and yield a share no vote ever produced.
+    //
+    // NOT DOUBLE-BUFFERED, unlike `prev`/`cur`: confidence is an output and no neighbour reads it,
+    // so there is nothing for a sweep to race against and nothing to swap. A node that does not
+    // re-evaluate leaves its entry alone, which is exactly the task version's "no votes at all
+    // leaves community_id standing -- and its confidence with it".
+    let votes: Vec<AtomicU64> = (0..n).map(|_| AtomicU64::new(0)).collect();
     index.par_iter().for_each(|(pos, vid)| {
         if let Some(slot) = init_state.get(&vid.index()).and_then(|l| slot_of.get(l)) {
             prev[pos].store(*slot, Ordering::Relaxed);
+            // A seed's label is GIVEN, not inferred, so it starts fully confident: 1 of 1.
+            votes[pos].store(1 << 32 | 1, Ordering::Relaxed);
         }
     });
     let mut cur: Vec<AtomicUsize> = prev
@@ -387,11 +417,17 @@ where
                 let mut best_slot = prev_slot;
                 let mut best_count = 0u32;
                 let mut best_rank = 0u64;
+                // The denominator of `confidence`: the votes CAST -- labelled neighbours plus the
+                // self-vote -- and not the degree, since an unlabelled neighbour is skipped below
+                // and has no opinion to divide by. The task version sums the tally map for this;
+                // here the map is a dense scratch buffer that is never summed, so it is counted.
+                let mut total = 0u32;
                 if prev_slot != NO_LABEL {
                     // initialised nodes vote for their own label
                     counts[prev_slot] = 1;
                     touched.push(prev_slot);
                     best_count = 1;
+                    total = 1;
                     best_rank = tie_rank(node_key, labels[prev_slot]);
                 }
                 for &nbor in nbors.iter() {
@@ -399,6 +435,7 @@ where
                     if nbor_slot == NO_LABEL {
                         continue; // unlabelled neighbours don't cast a vote
                     }
+                    total += 1;
                     let count = &mut counts[nbor_slot];
                     *count += 1;
                     let count = *count;
@@ -427,6 +464,16 @@ where
                 // `best_slot` is still `prev_slot` when no voting happened, so an unlabelled node
                 // with no labelled neighbours keeps its label, as in the task version.
                 cur[pos].store(best_slot, Ordering::Relaxed);
+                // `best_count` is the winner's FINAL tally: a vote landing on the reigning
+                // `best_slot` refreshes it through the `nbor_slot == best_slot` arm above, and a
+                // challenger that takes over brings its own count with it.
+                //
+                // `total == 0` only when this node is unlabelled AND no neighbour is labelled, in
+                // which case it keeps NO_LABEL and its 0.0 -- the sentinel's own meaning -- so the
+                // guard is also what keeps the division off a zero denominator.
+                if total > 0 {
+                    votes[pos].store((best_count as u64) << 32 | total as u64, Ordering::Relaxed);
+                }
                 if best_slot != prev_slot {
                     changed.fetch_add(1, Ordering::Relaxed);
                     // The frontier
@@ -475,6 +522,10 @@ where
         .map(|pos| {
             let slot = prev[pos].load(Ordering::Relaxed);
             let was = cur[pos].load(Ordering::Relaxed);
+            // `prev` holds the labels the last sweep produced and `votes` the share that produced
+            // them, written in the same iteration -- so the two always describe the same vote.
+            let packed = votes[pos].load(Ordering::Relaxed);
+            let (won, cast) = ((packed >> 32) as u32, (packed & 0xffff_ffff) as u32);
             LabelPropState {
                 community_id: if slot == NO_LABEL {
                     NO_LABEL
@@ -482,6 +533,11 @@ where
                     labels[slot]
                 },
                 alternate_id: (slot != was && was != NO_LABEL).then(|| labels[was]),
+                confidence: if cast == 0 {
+                    0.0
+                } else {
+                    won as f64 / cast as f64
+                },
                 is_changed: slot != was,
             }
         })
