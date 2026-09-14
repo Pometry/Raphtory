@@ -22,8 +22,6 @@ where
 
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
-    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex>;
-
     /// Returns the sorted `VID`s of nodes whose type is in `type_ids`.
     // TODO: See if we can return an iterator here instead.
     fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState>;

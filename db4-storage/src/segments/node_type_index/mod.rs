@@ -57,10 +57,6 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.write()
     }
 
-    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex> {
-        self.head.write_arc()
-    }
-
     fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState> {
         self.head_shared()
             .nodes_of_type(type_ids)
