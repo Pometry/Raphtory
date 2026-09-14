@@ -14,7 +14,7 @@ use raphtory_api::{
     core::{
         Direction,
         entities::{
-            LayerId, LayerVariants,
+            LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
                 prop::{AsPropRef, Prop, PropUnwrap},
@@ -572,7 +572,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     ) -> impl Iterator<Item = Self::TProps> + Send + Sync + 'a {
         layer_ids
             .into()
-            .into_iter_with_static(self.num_layers())
+            .into_iter(self.num_layers())
             .map(move |id| self.t_prop_layer(id, prop_id))
     }
 
@@ -610,11 +610,12 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         layer_ids
             .into()
-            .into_iter_with_static(self.num_layers())
+            .into_iter(self.num_layers())
             .filter(move |layer| self.has_layer(*layer))
     }
 
-    fn has_layers<L: Into<LayerIter<'a>>>(self, layer_ids: L) -> bool {
-        self.layer_ids_iter(layer_ids).next().is_some()
+    fn has_layer_additions<L: Into<LayerIter<'a>>>(self, layer_ids: L) -> bool {
+        self.layer_ids_iter(layer_ids)
+            .any(|layer_id| !self.node_additions(layer_id).is_empty())
     }
 }

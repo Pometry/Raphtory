@@ -235,9 +235,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter(node, view, prop_id))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter(node, view, layer_ids, prop_id))
     }
 
     #[inline]
@@ -245,9 +246,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter_rev(node, view, prop_id))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_rev(node, view, layer_ids, prop_id))
     }
 
     #[inline]
@@ -255,10 +257,11 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter_window(node, view, prop_id, w))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_window(node, view, layer_ids, prop_id, w))
     }
 
     #[inline]
@@ -266,10 +269,11 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter_window_rev(node, view, prop_id, w))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_window_rev(node, view, layer_ids, prop_id, w))
     }
 
     #[inline]

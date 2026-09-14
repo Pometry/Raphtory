@@ -11,7 +11,7 @@ use crate::db::api::{
 use either::Either;
 use raphtory_api::core::{
     entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
+        properties::{prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -24,6 +24,7 @@ use raphtory_storage::graph::{
 use std::{ops::Range, sync::Arc};
 use storage::{
     api::{edges::EdgeRefOps, nodes::NodeRefOps},
+    generic_time_ops::LayerIter,
     EdgeEntryRef,
 };
 
@@ -244,7 +245,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         // nodes with explicit additions are always valid
         let layers = view.layer_ids();
         let has_history = !node
-            .node_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
+            .node_additions(LayerIter::WithStatic(layers))
             .is_empty();
         if has_history {
             return true;
@@ -268,10 +269,11 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(layer_ids, prop_id)
             .map(|p| p.iter())
             .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
@@ -279,10 +281,11 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(layer_ids, prop_id)
             .map(|p| p.iter_rev())
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
@@ -290,11 +293,12 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(layer_ids, prop_id)
             .map(move |p| p.iter_window(w.clone()))
             .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
@@ -302,11 +306,12 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(layer_ids, prop_id)
             .map(move |p| p.iter_window_rev(w.clone()))
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }

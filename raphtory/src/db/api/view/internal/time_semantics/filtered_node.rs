@@ -7,15 +7,12 @@ use crate::{
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{
-        edges::edge_ref::EdgeRef, layers::Multiple, properties::meta::STATIC_GRAPH_LAYER_ID,
-        LayerIds, ELID, VID,
-    },
+    entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 use storage::{
     api::nodes::{NodeEntryOps, NodeRefOps},
     generic_time_ops::LayerIter,
@@ -245,39 +242,6 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     }
 }
 
-/// Build a `LayerIter` that includes `STATIC_GRAPH_LAYER_ID` in addition to any explicitly
-/// requested layers. Nodes added without a specific layer are stored in STATIC_GRAPH_LAYER_ID
-/// and should be visible in every layer-restricted view.
-fn layer_ids_with_static(layer_ids: &LayerIds) -> LayerIter<'_> {
-    match layer_ids {
-        // All layers already includes STATIC
-        LayerIds::All => LayerIter::LayerRef(layer_ids),
-        // No layers + static = just static
-        LayerIds::None => LayerIter::One(STATIC_GRAPH_LAYER_ID),
-        LayerIds::One(id) => {
-            if *id == STATIC_GRAPH_LAYER_ID {
-                LayerIter::One(*id)
-            } else {
-                // Return both the static layer and the requested layer, sorted for binary search
-                let mut ids = [STATIC_GRAPH_LAYER_ID, *id];
-                ids.sort();
-                LayerIter::Multiple(Multiple(Arc::from(ids.as_slice())))
-            }
-        }
-        LayerIds::Multiple(ids) => {
-            if ids.contains(STATIC_GRAPH_LAYER_ID) {
-                LayerIter::LayerRef(layer_ids)
-            } else {
-                let mut combined: Vec<_> = std::iter::once(STATIC_GRAPH_LAYER_ID)
-                    .chain(ids.iter())
-                    .collect();
-                combined.sort();
-                LayerIter::Multiple(Multiple(Arc::from(combined.as_slice())))
-            }
-        }
-    }
-}
-
 pub trait FilteredNodeStorageOps<'a>:
     NodeRefOps<
     'a,
@@ -293,7 +257,7 @@ pub trait FilteredNodeStorageOps<'a>:
         // Nodes added without a specific layer go to STATIC_GRAPH_LAYER_ID and should appear
         // active in any layer-restricted view. Nodes added with an explicit layer only appear
         // in that layer's view.
-        let additions = self.node_additions(layer_ids_with_static(layer_ids));
+        let additions = self.node_additions(LayerIter::WithStatic(layer_ids));
         let edge_history = self.edge_additions(layer_ids);
         let deletions = self.node_deletions(layer_ids);
         NodeHistory {

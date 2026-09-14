@@ -3,7 +3,7 @@ use std::ops::Range;
 
 use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
 use raphtory_core::{
-    entities::{ELID, LayerIds, layers::Multiple},
+    entities::{ELID, LayerIds},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_itertools::FastMergeExt;
@@ -12,7 +12,7 @@ use raphtory_itertools::FastMergeExt;
 pub enum LayerIter<'a> {
     One(LayerId),
     LayerRef(&'a LayerIds),
-    Multiple(Multiple),
+    WithStatic(&'a LayerIds),
 }
 
 pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LayerRef(&LayerIds::All);
@@ -23,23 +23,12 @@ impl<'a> LayerIter<'a> {
         match self {
             LayerIter::One(id) => Iter3::I(std::iter::once(id)),
             LayerIter::LayerRef(layers) => Iter3::J(layers.iter(num_layers)),
-            LayerIter::Multiple(ids) => Iter3::K(ids.into_iter()),
+            LayerIter::WithStatic(ids) => {
+                let needs_static = !ids.contains(&STATIC_GRAPH_LAYER_ID);
+                let leading_static_layer = needs_static.then_some(STATIC_GRAPH_LAYER_ID);
+                Iter3::K(leading_static_layer.into_iter().chain(ids.iter(num_layers)))
+            }
         }
-    }
-
-    pub fn into_iter_with_static(
-        self,
-        num_layers: usize,
-    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
-        let needs_static = match &self {
-            LayerIter::One(id) => *id != STATIC_GRAPH_LAYER_ID,
-            LayerIter::LayerRef(layers) => !layers.contains(&STATIC_GRAPH_LAYER_ID),
-            LayerIter::Multiple(layers) => !layers.contains(STATIC_GRAPH_LAYER_ID),
-        };
-        let leading_static_layer = needs_static.then_some(STATIC_GRAPH_LAYER_ID);
-        leading_static_layer
-            .into_iter()
-            .chain(self.into_iter(num_layers))
     }
 }
 

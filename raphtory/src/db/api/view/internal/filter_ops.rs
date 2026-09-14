@@ -12,7 +12,10 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::node_ref::NodeStorageRef,
 };
-use storage::api::nodes::{NodeEntryOps, NodeRefOps};
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    generic_time_ops::LayerIter,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FilterState {
@@ -144,7 +147,7 @@ impl<G: GraphView> FilterOps for G {
     fn filter_node(&self, node: NodeStorageRef) -> bool {
         if self.is_layer_filtered() {
             // layers need filtering
-            if !node.has_layers(self.layer_ids()) {
+            if !node.has_layer_additions(LayerIter::WithStatic(self.layer_ids())) {
                 return false;
             }
         }

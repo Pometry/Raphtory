@@ -109,7 +109,7 @@ impl NodeOp for NodeIdFilterOp {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node = storage.core_node(node);
-        self.filter.id_matches(node.gid())
+        self.filter.id_matches(node.as_ref().gid())
     }
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {

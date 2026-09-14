@@ -264,7 +264,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .node_tprop_iter(node.as_ref(), &self.graph, id)
+                .node_tprop_iter(node.as_ref(), &self.graph, self.graph.layer_ids(), id)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -275,7 +275,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
+                .node_tprop_iter_rev(node.as_ref(), &self.graph, self.graph.layer_ids(), id)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -301,7 +301,7 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_updates(node.as_ref(), graph, prop_ids.clone())
+                .node_updates(node.as_ref(), graph, graph.layer_ids(), prop_ids.clone())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -320,7 +320,7 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_updates(node.as_ref(), graph, prop_ids.clone())
+                .node_updates(node.as_ref(), graph, graph.layer_ids(), prop_ids.clone())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()

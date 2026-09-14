@@ -1,19 +1,14 @@
 use crate::{
-    db::{
-        api::view::internal::{
-            filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
-            filtered_node::NodeEdgeHistory,
-            time_semantics::{
-                event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
-                filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
-            },
-            EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
+    db::api::view::internal::{
+        filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+        time_semantics::{
+            event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        graph::views::layer_graph::LayeredGraph,
+        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
-use ahash::AHashSet;
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -31,6 +26,7 @@ use raphtory_storage::{
 use std::{iter, ops::Range, sync::Arc};
 use storage::{
     api::nodes::{NodeEntryOps, NodeRefOps},
+    generic_time_ops::LayerIter,
     EdgeAdditions, EdgeDeletions, EdgeEntryRef,
 };
 
@@ -193,9 +189,8 @@ fn node_has_valid_edges<G: GraphView>(node: NodeStorageRef, view: G, t: EventTim
     node.edges_iter(view.layer_ids(), Direction::BOTH)
         .any(|edge_ref| {
             let edge = gs.core_edge(Either::Right(edge_ref));
-            if view.internal_edge_filtered()
-                && !view.internal_filter_edge(edge.as_ref(), view.layer_ids())
-            {
+            let edge = edge.as_ref();
+            if view.internal_edge_filtered() && !view.internal_filter_edge(edge, view.layer_ids()) {
                 // edge is not part of the view
                 return false;
             }
@@ -207,52 +202,55 @@ fn node_has_valid_edges<G: GraphView>(node: NodeStorageRef, view: G, t: EventTim
                 .last()
                 .max(node_last_deletion_global)
                 .map_or(EventTime::MIN, |t| t.next());
-            edge.updates_iter(view.layer_ids())
-                .any(|(layer, additions, deletions)| {
-                    if !view.internal_filter_edge_layer(edge.as_ref(), layer) {
-                        // edge doesn't exist in this layer
-                        return false;
-                    }
-                    let search_start = search_start_global.max(
-                        neighbour
-                            .as_ref()
-                            .node_deletions(layer)
-                            .range(search_start_global..t.next())
-                            .last()
-                            .max(
-                                node.node_deletions(layer)
-                                    .range(search_start_global..t.next())
-                                    .last(),
-                            )
-                            .map_or(EventTime::MIN, |t| t.next()),
-                    );
-                    let Some(last_edge_addition) = additions.range(search_start..t.next()).last()
-                    else {
-                        // no addition since the last deletion via nodes
-                        return false;
-                    };
-
-                    let last_edge_deletion = deletions.range(EventTime::MIN..t.next()).last();
-                    if Some(last_edge_addition) < last_edge_deletion {
-                        // edge is currently deleted
-                        return false;
-                    }
-
-                    // filtered addition is equivalent to a deletion
-                    if view.internal_exploded_edge_filtered()
-                        && !(view.edge_filter_includes_exploded_edge_filter()
-                            || view.edge_layer_filter_includes_exploded_edge_filter())
-                    {
-                        if !view.internal_filter_exploded_edge(
-                            edge_ref.pid().with_layer(layer),
-                            last_edge_addition,
-                            view.layer_ids(),
-                        ) {
+            let any_edge =
+                edge.updates_iter(view.layer_ids())
+                    .any(|(layer, additions, deletions)| {
+                        if !view.internal_filter_edge_layer(edge, layer) {
+                            // edge doesn't exist in this layer
                             return false;
                         }
-                    }
-                    true
-                })
+                        let search_start = search_start_global.max(
+                            neighbour
+                                .as_ref()
+                                .node_deletions(layer)
+                                .range(search_start_global..t.next())
+                                .last()
+                                .max(
+                                    node.node_deletions(layer)
+                                        .range(search_start_global..t.next())
+                                        .last(),
+                                )
+                                .map_or(EventTime::MIN, |t| t.next()),
+                        );
+                        let Some(last_edge_addition) =
+                            additions.range(search_start..t.next()).last()
+                        else {
+                            // no addition since the last deletion via nodes
+                            return false;
+                        };
+
+                        let last_edge_deletion = deletions.range(EventTime::MIN..t.next()).last();
+                        if Some(last_edge_addition) < last_edge_deletion {
+                            // edge is currently deleted
+                            return false;
+                        }
+
+                        // filtered addition is equivalent to a deletion
+                        if view.internal_exploded_edge_filtered()
+                            && !(view.edge_filter_includes_exploded_edge_filter()
+                                || view.edge_layer_filter_includes_exploded_edge_filter())
+                        {
+                            if !view.internal_filter_exploded_edge(
+                                edge_ref.pid().with_layer(layer),
+                                last_edge_addition,
+                                view.layer_ids(),
+                            ) {
+                                return false;
+                            }
+                        }
+                        true
+                    });
+            any_edge
         })
 }
 
@@ -374,7 +372,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
         let history = node.history(&view, view.layer_ids());
         history.range(effective_window).last().or_else(|| {
-            node_alive_at_window_start(node, &view, global_search_start, w.start).then_some(w.start)
+            node_alive_at_window_start(node, &view, w.start, global_search_start).then_some(w.start)
         })
     }
 
@@ -475,64 +473,41 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        layer_ids: &'graph LayerIds,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.t_prop_rows(None, prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.t_prop_rows(None, prop_ids, layer_ids)
     }
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        // make sure static graph layer is always visible, even if excluded from the view
-        let layers = view
-            .layer_ids()
-            .union(&LayerIds::One(STATIC_GRAPH_LAYER_ID));
-        let num_layers = node.num_layers();
-        let exact_layers = layers.into_iter(num_layers).filter(move |&layer_id| {
-            node.layer_ids_iter(&LayerIds::One(layer_id))
-                .next()
-                .is_some()
-        });
+        let layers_iter = node.layer_ids_iter(LayerIter::WithStatic(layer_ids));
+        layers_iter.flat_map(move |layer_id| {
+            let rows_inside = node.t_prop_rows(Some(w.clone()), prop_ids.clone(), layer_id);
 
-        exact_layers.flat_map(move |layer_id| {
-            let mut rows = node
-                .t_prop_rows(Some(w.clone()), prop_ids.clone())
-                .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
-                .collect_vec();
-
-            let has_prior_addition = node
-                .node_additions(layer_id)
-                .range(EventTime::MIN..w.start)
-                .iter()
-                .next()
-                .is_some();
-            let start_t = w.start.t();
-            let next_t = EventTime::start(start_t.saturating_add(1));
-            let has_row_in_start_t = rows.iter().any(|(t, _, _)| t.t() == start_t);
-
-            if has_prior_addition && !has_row_in_start_t {
-                let layer_view = LayeredGraph::new(view.clone(), LayerIds::One(layer_id));
-                let row = prop_ids
-                    .iter()
-                    .copied()
-                    .filter_map(|prop_id| {
-                        self.node_tprop_iter_window(node, layer_view.clone(), prop_id, w.clone())
-                            .find(|(t, _)| *t >= w.start && *t < next_t)
-                            .map(|(_, prop)| (prop_id, prop))
-                    })
-                    .collect::<Vec<_>>();
-                rows.push((w.start, layer_id.0, row));
+            let mut first_row = Vec::new();
+            for prop_id in prop_ids.iter() {
+                let prop = node.t_prop_layer(layer_id, *prop_id);
+                if !prop.active(w.start..w.start.next_t()) {
+                    if let Some((_t, v)) = prop.last_before(w.start) {
+                        first_row.push((*prop_id, v));
+                    }
+                }
             }
 
-            rows.sort_unstable_by_key(|(t, _, _)| *t);
-            rows.into_iter()
-                .map(|(t, _, row)| (t, layer_id, row))
-                .collect_vec()
+            let first_row_iter = if first_row.is_empty() {
+                None
+            } else {
+                Some((w.start, layer_id, first_row))
+            };
+
+            first_row_iter.into_iter().chain(rows_inside)
         })
     }
 
@@ -559,16 +534,17 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             || history
                 .edge_history()
                 .active(EventTime::start(w.start.t().saturating_add(1))..w.end)
-            || node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t()))
+            || node_has_valid_edges(node, &view, EventTime::end(w.start.t()))
     }
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(LayerIter::WithStatic(layer_ids), prop_id)
             .map(|p| p.iter())
             .kmerge_by(|(a, _), (b, _)| a <= b)
     }
@@ -576,10 +552,11 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
+        node.t_prop_iter_layers(LayerIter::WithStatic(layer_ids), prop_id)
             .map(|p| p.iter_rev())
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
@@ -587,14 +564,13 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.t_prop_iter_layers(view.layer_ids(), prop_id).collect();
-        let first = tprops
-            .iter()
-            .copied()
+        let first = node
+            .t_prop_iter_layers(LayerIter::WithStatic(layer_ids), prop_id)
             .filter_map(|prop| {
                 if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
                     None
@@ -603,8 +579,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
                 }
             })
             .max_by_key(|(t, _)| *t);
-        let window_iter = tprops
-            .into_iter()
+        let window_iter = node
+            .t_prop_iter_layers(LayerIter::WithStatic(layer_ids), prop_id)
             .map(move |prop| prop.iter_window(w.clone()))
             .kmerge_by(|(a, _), (b, _)| a <= b);
         first.into_iter().chain(window_iter)
@@ -613,11 +589,14 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.t_prop_iter_layers(view.layer_ids(), prop_id).collect();
+        let tprops: Vec<_> = node
+            .t_prop_iter_layers(LayerIter::WithStatic(layer_ids), prop_id)
+            .collect();
         let first = tprops
             .iter()
             .copied()

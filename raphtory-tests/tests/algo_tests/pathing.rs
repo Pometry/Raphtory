@@ -6,8 +6,6 @@ mod dijkstra_tests {
         prelude::*,
     };
     use raphtory_api::core::Direction;
-
-    use raphtory_tests::test_storage;
     fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
         let graph = Graph::new();
 
