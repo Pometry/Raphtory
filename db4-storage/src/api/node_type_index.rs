@@ -1,9 +1,12 @@
-use crate::{error::StorageError, segments::node_type_index::MemNodeTypeIndex};
+use crate::{
+    error::StorageError, pages::locked::node_type_index::WriteLockedNodeTypeIndex,
+    segments::node_type_index::MemNodeTypeIndex,
+};
 use ahash::RandomState;
 use indexmap::IndexSet;
-use parking_lot::RwLockReadGuard;
+use parking_lot::{RawRwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard};
 use raphtory_core::entities::VID;
-use std::{fmt::Debug, path::Path};
+use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
 where
@@ -15,7 +18,11 @@ where
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
-    fn head(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex>;
+    fn head_shared(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex>;
+
+    fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
+
+    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex>;
 
     /// Returns the sorted `VID`s of nodes whose type is in `type_ids`.
     // TODO: See if we can return an iterator here instead.
@@ -32,7 +39,12 @@ where
 
     fn notify_write(&self);
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;
+
+    fn flush(
+        &self,
+        head_exclusive: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 }

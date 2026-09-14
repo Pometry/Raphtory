@@ -552,7 +552,7 @@ mod test {
             .node_type_index()
             .nodes_of_type(&[DEFAULT_NODE_TYPE_ID])
             .is_empty());
-        assert_eq!(storage.node_type_index().head().num_entries(), 2);
+        assert_eq!(storage.node_type_index().head_shared().num_entries(), 2);
         assert_eq!(
             storage.node_type_index().nodes_of_type(&[a_id]),
             IndexSet::from([typed_a])
@@ -572,7 +572,11 @@ mod test {
         )
         .expect("failed to load nodes");
 
-        let entries_before = graph.core_graph().node_type_index().head().num_entries();
+        let entries_before = graph
+            .core_graph()
+            .node_type_index()
+            .head_shared()
+            .num_entries();
 
         load_nodes_with_type_col(
             &graph,
@@ -585,7 +589,7 @@ mod test {
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
 
         assert_eq!(
-            storage.node_type_index().head().num_entries(),
+            storage.node_type_index().head_shared().num_entries(),
             entries_before
         );
         assert_eq!(entries_before, 2);

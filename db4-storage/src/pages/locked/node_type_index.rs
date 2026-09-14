@@ -1,5 +1,8 @@
+use crate::{
+    api::node_type_index::NodeTypeIndexOps, error::StorageError,
+    segments::node_type_index::MemNodeTypeIndex,
+};
 use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
-use crate::{api::node_type_index::NodeTypeIndexOps, error::StorageError, segments::node_type_index::MemNodeTypeIndex};
 use std::sync::Arc;
 
 pub struct WriteLockedNodeTypeIndex<NTI> {

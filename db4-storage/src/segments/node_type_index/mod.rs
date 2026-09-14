@@ -1,14 +1,18 @@
 mod index;
 
 use crate::{
-    api::node_type_index::NodeTypeIndexOps, error::StorageError,
+    api::node_type_index::NodeTypeIndexOps, error::StorageError, loop_lock_write,
+    pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     persist::strategy::PersistenceStrategy,
 };
 use ahash::RandomState;
 use indexmap::IndexSet;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{
+    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard,
+};
 use raphtory_core::entities::VID;
 use std::{
+    ops::DerefMut,
     path::Path,
     sync::{
         Arc,
@@ -45,16 +49,27 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         ))
     }
 
-    fn head(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex> {
-        self.head.read()
+    fn head_shared(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex> {
+        self.head.read_recursive()
+    }
+
+    fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex> {
+        self.head.write()
+    }
+
+    fn head_exclusive_arc(&self) -> ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex> {
+        self.head.write_arc()
     }
 
     fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState> {
-        self.head().nodes_of_type(type_ids).into_iter().collect()
+        self.head_shared()
+            .nodes_of_type(type_ids)
+            .into_iter()
+            .collect()
     }
 
     fn is_empty(&self) -> bool {
-        self.head().is_empty()
+        self.head_shared().is_empty()
     }
 
     fn est_size(&self) -> usize {
@@ -71,10 +86,20 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
 
     fn notify_write(&self) {
         self.est_size
-            .store(self.head().est_size(), Ordering::Relaxed);
+            .store(self.head_shared().est_size(), Ordering::Relaxed);
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
+        let head = self.head.write_arc();
+        let index = self.clone();
+
+        WriteLockedNodeTypeIndex::new(head, index)
+    }
+
+    fn flush(
+        &self,
+        _head_exclusive: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 

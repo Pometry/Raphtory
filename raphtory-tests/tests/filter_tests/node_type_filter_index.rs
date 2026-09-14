@@ -31,9 +31,12 @@ fn type_filter_domain_uses_index() {
     let c = g.node("c").unwrap().node;
 
     // TODO: Remove manually updating the index here once it's wired up to add_node.
-    storage.node_type_index().head().insert(person_id, a);
-    storage.node_type_index().head().insert(person_id, b);
-    storage.node_type_index().head().insert(company_id, c);
+    storage.node_type_index().head_shared().insert(person_id, a);
+    storage.node_type_index().head_shared().insert(person_id, b);
+    storage
+        .node_type_index()
+        .head_shared()
+        .insert(company_id, c);
 
     let op = NodeTypeFilterOp::from_values(["Person"], &g);
 

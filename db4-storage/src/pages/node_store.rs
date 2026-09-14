@@ -660,7 +660,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             seg.flush(head)
         })?;
 
-        self.node_type_index.flush()
+        let head_exclusive = self.node_type_index.head_exclusive();
+        self.node_type_index.flush(head_exclusive)
     }
 }
 
