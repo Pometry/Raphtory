@@ -49,6 +49,10 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
     pub fn set_lsn(&mut self, lsn: LSN) {
         self.lock.set_lsn(lsn);
     }
+
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.page.flush(self.lock.deref_mut())
+    }
 }
 
 impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropPage<'_, GS> {
@@ -73,8 +77,7 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropPages<'a, GS> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        let LockedGraphPropPage { page, lock } = &mut self.writer;
-        page.flush(lock.deref_mut())
+        self.writer.flush()
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {

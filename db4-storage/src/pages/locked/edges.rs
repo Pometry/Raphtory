@@ -74,6 +74,10 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
     pub fn segment(&self) -> &ES {
         self.segment
     }
+
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.segment.flush(self.head.deref_mut())
+    }
 }
 
 #[derive(Debug)]
@@ -150,10 +154,7 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
     pub fn flush(&mut self) -> Result<(), StorageError> {
         self.segments
             .par_iter_mut()
-            .try_for_each(|locked_segment| {
-                let LockedEdgeSegment { segment, head, .. } = locked_segment;
-                segment.flush(head.deref_mut())
-            })?;
+            .try_for_each(|locked_segment| locked_segment.flush())?;
 
         Ok(())
     }

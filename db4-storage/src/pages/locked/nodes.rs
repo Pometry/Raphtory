@@ -64,6 +64,10 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         let _ = self.segment.vacuum(self.head.deref_mut());
     }
 
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.segment.flush(self.head.deref_mut())
+    }
+
     #[inline(always)]
     pub fn segment_id(&self) -> usize {
         self.id
@@ -142,10 +146,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     pub fn flush(&mut self) -> Result<(), StorageError> {
         self.segments
             .par_iter_mut()
-            .try_for_each(|locked_segment| {
-                let LockedNodeSegment { segment, head, .. } = locked_segment;
-                segment.flush(head.deref_mut())
-            })?;
+            .try_for_each(|locked_segment| locked_segment.flush())?;
 
         Ok(())
     }
