@@ -794,8 +794,9 @@ pub fn betweenness_centrality(
 /// algorithms expect.
 fn resolve_label_prop_init_state(
     graph: &PyGraphView,
-    seeds: HashMap<PyNodeRef, usize>,
-) -> PyResult<HashMap<usize, usize>> {
+    seeds: Option<HashMap<PyNodeRef, usize>>,
+) -> PyResult<Option<HashMap<usize, usize>>> {
+    let Some(seeds) = seeds else { return Ok(None) };
     let mut resolved = HashMap::with_capacity(seeds.len());
     for (node, label) in seeds {
         match graph.graph.node(&node) {
@@ -809,7 +810,7 @@ fn resolve_label_prop_init_state(
             }
         }
     }
-    Ok(resolved)
+    Ok(Some(resolved))
 }
 
 /// Computes components using a label propagation algorithm
@@ -838,9 +839,7 @@ pub fn label_propagation(
     rel_tol: Option<f64>,
     patience: Option<usize>,
 ) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
-    let init_map = init_state
-        .map(|seeds| resolve_label_prop_init_state(graph, seeds))
-        .transpose()?;
+    let init_map = resolve_label_prop_init_state(graph, init_state)?;
     let result = label_propagation_rs(
         &graph.graph,
         iter_count,
@@ -855,30 +854,29 @@ pub fn label_propagation(
 
 /// Computes components using a label propagation algorithm, bypassing the task framework
 ///
-/// Returns the same communities as `label_propagation` called with the same arguments, but only
-/// runs the seeded case, so `init_state` is required.
+/// Returns the same communities as `label_propagation` called with the same arguments.
 ///
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
-///     init_state (dict[NodeInput, int]): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
 ///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (int, optional): Seeds the tie-break draw. Pass the value back to reproduce a run.
+///     init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
 ///     rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
 ///     patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// Returns:
-///     OutputNodeState: NodeState mapping nodes to community id
+///     OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
 ///
 /// Raises:
 ///     ValueError: If a key of `init_state` is not a node in `graph`.
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, init_state, iter_count=20, seed=None, rel_tol=None, patience=None)]]
+#[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
 pub fn label_propagation_fast(
     graph: &PyGraphView,
-    init_state: HashMap<PyNodeRef, usize>,
     iter_count: usize,
     seed: Option<u64>,
+    init_state: Option<HashMap<PyNodeRef, usize>>,
     rel_tol: Option<f64>,
     patience: Option<usize>,
 ) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
