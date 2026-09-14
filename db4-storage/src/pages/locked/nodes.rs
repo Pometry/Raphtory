@@ -147,9 +147,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     pub fn flush(&mut self) -> Result<(), StorageError> {
         self.segments
             .par_iter_mut()
-            .try_for_each(|locked_segment| locked_segment.flush())?;
-
-        Ok(())
+            .try_for_each(|locked_segment| locked_segment.flush())
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
