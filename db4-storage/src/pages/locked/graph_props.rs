@@ -51,7 +51,8 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        self.page.flush(self.lock.deref_mut())
+        let head_lock = self.lock.deref_mut();
+        self.page.flush_locked(head_lock)
     }
 }
 

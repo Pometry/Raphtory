@@ -682,9 +682,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.par_iter_segments().try_for_each(|seg| {
-            let head = seg.head_mut();
-            seg.flush(head)
-        })
+        self.par_iter_segments()
+            .try_for_each(|segment| segment.flush())
     }
 }

@@ -569,9 +569,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head_lock: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
-        locked_head.has_edge(edge_pos, layer_id)
+        head_lock.has_edge(edge_pos, layer_id)
     }
 
     fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: LayerId) -> bool {
@@ -582,9 +582,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head_lock: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)> {
-        locked_head.get_edge(edge_pos, layer_id)
+        head_lock.get_edge(edge_pos, layer_id)
     }
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a> {
@@ -595,13 +595,13 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &'a self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
+        head_lock: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
-        locked_head.and_then(|locked_head| {
-            let layer = locked_head.as_ref().get(layer_id.0)?;
+        head_lock.and_then(|head_lock| {
+            let layer = head_lock.as_ref().get(layer_id.0)?;
             layer
                 .has_item(edge_pos)
-                .then(|| MemEdgeEntry::new(edge_pos, locked_head, None))
+                .then(|| MemEdgeEntry::new(edge_pos, head_lock, None))
         })
     }
 
@@ -614,7 +614,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn vacuum(
         &self,
-        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
+        _head_lock: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
@@ -623,9 +623,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         0
     }
 
-    fn flush(
+    fn flush_locked(
         &self,
-        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
+        _head_lock: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }

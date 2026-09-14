@@ -65,7 +65,8 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        self.segment.flush(self.head.deref_mut())
+        let head_lock = self.head.deref_mut();
+        self.segment.flush_locked(head_lock)
     }
 
     #[inline(always)]

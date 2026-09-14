@@ -89,7 +89,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head_lock: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
 
     fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool;
@@ -98,7 +98,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head_lock: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;
@@ -107,22 +107,25 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         &'a self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: Option<RwLockReadGuard<'a, MemEdgeSegment>>,
+        head_lock: Option<RwLockReadGuard<'a, MemEdgeSegment>>, // TODO: This should not be an Option
     ) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
-    fn vacuum(
-        &self,
-        locked_head: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), StorageError>;
+    fn vacuum(&self, head_lock: impl DerefMut<Target = MemEdgeSegment>)
+    -> Result<(), StorageError>;
 
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 
-    fn flush(
+    fn flush(&self) -> Result<(), StorageError> {
+        let head_lock = self.head_mut();
+        self.flush_locked(head_lock)
+    }
+
+    fn flush_locked(
         &self,
-        locked_head: impl DerefMut<Target = MemEdgeSegment>,
+        head_lock: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;

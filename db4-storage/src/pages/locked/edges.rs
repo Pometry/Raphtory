@@ -76,7 +76,8 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        self.segment.flush(self.head.deref_mut())
+        let head_lock = self.head.deref_mut();
+        self.segment.flush_locked(head_lock)
     }
 }
 
@@ -133,10 +134,11 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         let (segment_id, pos) = resolve_pos(elid.eid(), max_page_len);
 
         self.segments.get(segment_id).is_some_and(|locked_segment| {
-            let locked_head = locked_segment.head.deref();
+            let head_lock = locked_segment.head.deref();
+
             locked_segment
                 .segment
-                .has_edge(pos, elid.layer(), locked_head)
+                .has_edge(pos, elid.layer(), head_lock)
         })
     }
 

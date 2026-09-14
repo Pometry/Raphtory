@@ -42,12 +42,17 @@ where
 
     fn notify_write(
         &self,
-        mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
+        head_lock: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
-    fn flush(
+    fn flush(&self) -> Result<(), StorageError> {
+        let head_lock = self.head_mut();
+        self.flush_locked(head_lock)
+    }
+
+    fn flush_locked(
         &self,
-        locked_head: impl DerefMut<Target = MemGraphPropSegment>,
+        head_lock: impl DerefMut<Target = MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;

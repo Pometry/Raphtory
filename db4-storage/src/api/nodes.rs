@@ -236,7 +236,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         pos: LocalPOS,
         dst: impl Into<VID>,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemNodeSegment>,
+        head_lock: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
     fn get_inb_edge(
@@ -244,26 +244,29 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         pos: LocalPOS,
         src: impl Into<VID>,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemNodeSegment>,
+        head_lock: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
     fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
     fn locked(&self) -> Self::ArcLockedSegment;
 
-    fn flush(
+    fn flush(&self) -> Result<(), StorageError> {
+        let head_lock = self.head_mut();
+        self.flush_locked(head_lock)
+    }
+
+    fn flush_locked(
         &self,
-        locked_head: impl DerefMut<Target = MemNodeSegment>,
+        head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
     fn is_dirty(&self) -> bool;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
-    fn vacuum(
-        &self,
-        locked_head: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), StorageError>;
+    fn vacuum(&self, head_lock: impl DerefMut<Target = MemNodeSegment>)
+    -> Result<(), StorageError>;
 
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;

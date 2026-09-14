@@ -41,9 +41,14 @@ where
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;
 
-    fn flush(
+    fn flush(&self) -> Result<(), StorageError> {
+        let head_lock = self.head_exclusive();
+        self.flush_locked(head_lock)
+    }
+
+    fn flush_locked(
         &self,
-        head_exclusive: impl DerefMut<Target = MemNodeTypeIndex>,
+        head_lock: impl DerefMut<Target = MemNodeTypeIndex>,
     ) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;

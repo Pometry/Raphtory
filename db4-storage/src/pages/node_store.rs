@@ -655,13 +655,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub(crate) fn flush(&self) -> Result<(), StorageError> {
-        self.segments_par_iter().try_for_each(|seg| {
-            let head = seg.head_mut();
-            seg.flush(head)
-        })?;
+        self.segments_par_iter()
+            .try_for_each(|segment| segment.flush())?;
 
-        let head_exclusive = self.node_type_index.head_exclusive();
-        self.node_type_index.flush(head_exclusive)
+        self.node_type_index.flush()
     }
 }
 

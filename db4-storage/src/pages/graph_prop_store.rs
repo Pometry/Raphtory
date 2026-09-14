@@ -16,7 +16,7 @@ pub struct GraphPropStorageInner<GS, EXT> {
     /// The graph props segment that contains all graph properties and graph metadata.
     /// Unlike node and edge segments, which are split into multiple segments,
     /// there is always only one graph props segment.
-    page: Arc<GS>,
+    segment: Arc<GS>,
 
     /// Stores graph prop metadata (prop name -> prop id mappings).
     meta: Arc<Meta>,
@@ -27,10 +27,10 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     GraphPropStorageInner<GS, EXT>
 {
     pub fn new_with_meta(path: Option<&Path>, meta: Arc<Meta>, ext: EXT) -> Self {
-        let page = Arc::new(GS::new(meta.clone(), path, ext.clone()));
+        let segment = Arc::new(GS::new(meta.clone(), path, ext.clone()));
 
         Self {
-            page,
+            segment,
             meta,
             _ext: PhantomData,
         }
@@ -38,13 +38,14 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let graph_props_meta = Arc::new(Meta::new_for_graph_props());
+        let segment = Arc::new(GS::load(
+            graph_props_meta.clone(),
+            path.as_ref(),
+            ext.clone(),
+        )?);
 
         Ok(Self {
-            page: Arc::new(GS::load(
-                graph_props_meta.clone(),
-                path.as_ref(),
-                ext.clone(),
-            )?),
+            segment,
             meta: graph_props_meta,
             _ext: PhantomData,
         })
@@ -55,28 +56,27 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     }
 
     pub fn graph_entry(&self) -> GS::Entry<'_> {
-        self.page.entry()
+        self.segment.entry()
     }
 
     pub fn segment(&self) -> &Arc<GS> {
-        &self.page
+        &self.segment
     }
 
     pub fn writer(&self) -> GraphPropWriter<'_, GS> {
-        let head = self.page.head_mut();
-        let graph_props = &self.page;
+        let head = self.segment.head_mut();
+        let graph_props = &self.segment;
         GraphPropWriter::new(graph_props, head)
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropPages<'a, GS> {
         WriteLockedGraphPropPages::new(LockedGraphPropPage::new(
-            self.page.as_ref(),
-            self.page.head_mut(),
+            self.segment.as_ref(),
+            self.segment.head_mut(),
         ))
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        let head = self.page.head_mut();
-        self.page.flush(head)
+        self.segment.flush()
     }
 }

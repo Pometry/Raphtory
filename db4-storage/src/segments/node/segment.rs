@@ -564,9 +564,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         pos: LocalPOS,
         dst: impl Into<VID>,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemNodeSegment>,
+        head_lock: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        MemNodeSegment::get_out_edge(&locked_head, pos, dst.into(), layer_id) // rust-analyzer
+        head_lock.get_out_edge(pos, dst.into(), layer_id)
     }
 
     fn get_inb_edge(
@@ -574,9 +574,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         pos: LocalPOS,
         src: impl Into<VID>,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemNodeSegment>,
+        head_lock: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        MemNodeSegment::get_inb_edge(&locked_head, pos, src.into(), layer_id) // rust-analyzer
+        head_lock.get_inb_edge(pos, src.into(), layer_id)
     }
 
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {
@@ -588,9 +588,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
-    fn flush(
+    fn flush_locked(
         &self,
-        _locked_head: impl DerefMut<Target = MemNodeSegment>,
+        _head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
@@ -601,7 +601,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     fn vacuum(
         &self,
-        _locked_head: impl DerefMut<Target = MemNodeSegment>,
+        _head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }

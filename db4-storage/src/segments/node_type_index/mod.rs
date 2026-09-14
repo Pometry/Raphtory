@@ -1,7 +1,7 @@
 mod index;
 
 use crate::{
-    api::node_type_index::NodeTypeIndexOps, error::StorageError, loop_lock_write,
+    api::node_type_index::NodeTypeIndexOps, error::StorageError,
     pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     persist::strategy::PersistenceStrategy,
 };
@@ -96,9 +96,9 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         WriteLockedNodeTypeIndex::new(head, index)
     }
 
-    fn flush(
+    fn flush_locked(
         &self,
-        _head_exclusive: impl DerefMut<Target = MemNodeTypeIndex>,
+        _head_lock: impl DerefMut<Target = MemNodeTypeIndex>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
