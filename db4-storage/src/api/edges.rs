@@ -103,12 +103,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;
 
-    fn layer_entry<'a>(
-        &'a self,
-        edge_pos: LocalPOS,
-        layer_id: LayerId,
-        head_lock: Option<RwLockReadGuard<'a, MemEdgeSegment>>, // TODO: This should not be an Option
-    ) -> Option<Self::Entry<'a>>;
+    fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 

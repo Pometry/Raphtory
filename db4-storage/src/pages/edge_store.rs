@@ -634,23 +634,20 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn par_iter(&self, layer: LayerId) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
-        self.par_iter_segments().flat_map(move |page| {
-            (0..page.num_edges())
+        self.par_iter_segments().flat_map(move |segment| {
+            (0..segment.num_edges())
                 .into_par_iter()
                 .map(LocalPOS)
-                .filter_map(move |local_edge| {
-                    page.layer_entry(local_edge, layer, Some(page.head()))
-                })
+                .filter_map(move |local_edge| segment.layer_entry(local_edge, layer))
         })
     }
 
     pub fn iter(&self, layer: LayerId) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
         (0..self.segments.count())
-            .filter_map(move |page_id| self.segments.get(page_id))
-            .flat_map(move |page| {
-                (0..page.num_edges()).filter_map(move |local_edge| {
-                    page.layer_entry(LocalPOS(local_edge), layer, Some(page.head()))
-                })
+            .filter_map(move |segment_id| self.segments.get(segment_id))
+            .flat_map(move |segment| {
+                (0..segment.num_edges())
+                    .filter_map(move |local_edge| segment.layer_entry(LocalPOS(local_edge), layer))
             })
     }
 

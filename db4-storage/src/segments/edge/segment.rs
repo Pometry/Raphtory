@@ -333,10 +333,10 @@ impl MemEdgeSegment {
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
-    pub fn has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool {
+    pub fn has_edge(&self, pos: LocalPOS, layer_id: LayerId) -> bool {
         self.layers
             .get(layer_id.0)
-            .is_some_and(|layer| layer.has_item(edge_pos))
+            .is_some_and(|layer| layer.has_item(pos))
     }
 
     pub fn latest(&self) -> Option<EventTime> {
@@ -591,18 +591,13 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         MemEdgeEntry::new(edge_pos, self.head(), edge_ref)
     }
 
-    fn layer_entry<'a>(
-        &'a self,
-        edge_pos: LocalPOS,
-        layer_id: LayerId,
-        head_lock: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
-    ) -> Option<Self::Entry<'a>> {
-        head_lock.and_then(|head_lock| {
-            let layer = head_lock.as_ref().get(layer_id.0)?;
-            layer
-                .has_item(edge_pos)
-                .then(|| MemEdgeEntry::new(edge_pos, head_lock, None))
-        })
+    fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>> {
+        let head_lock = self.head();
+        let layer = head_lock.as_ref().get(layer_id.0)?;
+
+        layer
+            .has_item(edge_pos)
+            .then(|| MemEdgeEntry::new(edge_pos, head_lock, None))
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
