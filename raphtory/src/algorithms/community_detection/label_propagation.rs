@@ -388,16 +388,8 @@ where
 
     let seeded = init_state.is_some();
 
-    // Compact the labels in circulation into `0..labels.len()`, so that `prev`/`cur` can hold a
-    // slot and `counts` can be indexed by it. `labels` maps back the other way, and is what the
-    // tie-break hashes and what the output reports -- so both stay in terms of the caller's label
-    // values, whichever branch built the table.
-    //
-    // Seeded: only labels named in `init_state` are ever in circulation (an unlabelled node can
-    // only copy a neighbour's), so that is the whole label space, and `counts` is sized by it
-    // rather than by the label values. Unseeded: every node starts in its own community, whose
-    // label is its VID, so the label space is the graph and a node's slot is its own position.
     let (labels, slot_of): (Vec<usize>, FxHashMap<usize, usize>) = match &init_state {
+        // Seeded
         Some(map) => {
             let mut labels: Vec<usize> = map.values().copied().collect();
             labels.sort_unstable();
@@ -409,6 +401,7 @@ where
                 .collect();
             (labels, slot_of)
         }
+        // Unseeded
         // The position -> VID table, which is what makes `tie_rank` hash the VID here exactly as
         // the task version does. Filled from the same `(pos, vid)` pairs every other pass uses,
         // rather than from `Index::iter` (whose order would have to be assumed to agree) or from
