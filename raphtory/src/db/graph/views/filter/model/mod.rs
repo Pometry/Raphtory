@@ -521,10 +521,10 @@ impl<E: EntityExpr> EntityAggOps for MetadataExpr<E> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EdgeFilterFactory — marker for edge-side filter builder types
+// EdgeFilterFactory — marker for edge-side filter factory types
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Marker trait for edge filter builder types (`EdgeFilter`, `Windowed<EdgeFilter>`, etc.).
+/// Marker trait for edge filter factory types (`EdgeFilter`, `Windowed<EdgeFilter>`, etc.).
 ///
 /// Disjoint from `NodeFilterFactory`: no type implements both, so `PropertyExpr<E>`
 /// can have two separate sets of comparison methods gated on each.
@@ -537,7 +537,7 @@ pub trait EdgeFilterFactory: PropertyExprFactory + Clone {}
 use crate::db::graph::views::filter::model::{
     edge_expr::ops::{EdgeMetaOp, EdgePropOp},
     graph_filter::GraphFilterOps,
-    node_expr::{CreateOp, DynTemporal, EntityExpr, EntityExprBuilder},
+    node_expr::{CreateOp, DynTemporal, EntityExpr, PredicateLhs},
 };
 use edge_expr::EdgeOp;
 use raphtory_api::core::entities::properties::prop::PropType;
@@ -957,20 +957,6 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         }
     }
 
-    fn is_true(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
-        let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Eq, Prop::Bool(true), entity)
-    }
-
-    fn is_false(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
-        let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Eq, Prop::Bool(false), entity)
-    }
-
-    fn not(self) -> BinaryCmpExpr<Self, Prop, Self::Marker> {
-        self.eq(Prop::Bool(false))
-    }
-
     fn any(self) -> AnyExpr<Self> {
         AnyExpr(self)
     }
@@ -980,23 +966,23 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
     }
 }
 
-impl<E: EntityExprBuilder> EntityExprFilterOps for E {}
+impl<E: PredicateLhs> EntityExprFilterOps for E {}
 
 // Concrete LHS markers
-impl EntityExprBuilder for NodeFilter {}
-impl EntityExprBuilder for EdgeFilter {}
-impl EntityExprBuilder for ExplodedEdgeFilter {}
+impl PredicateLhs for NodeFilter {}
+impl PredicateLhs for EdgeFilter {}
+impl PredicateLhs for ExplodedEdgeFilter {}
 
 // Property / metadata accessors
-impl<E: EntityExpr> EntityExprBuilder for PropertyExpr<E> {}
-impl<E: EntityExpr> EntityExprBuilder for MetadataExpr<E> {}
+impl<E: EntityExpr> PredicateLhs for PropertyExpr<E> {}
+impl<E: EntityExpr> PredicateLhs for MetadataExpr<E> {}
 
-// View modifiers preserve builder-ness
-impl<T: EntityExprBuilder> EntityExprBuilder for Windowed<T> {}
-impl<T: EntityExprBuilder> EntityExprBuilder for Layered<T> {}
-impl<T: EntityExprBuilder> EntityExprBuilder for Latest<T> {}
-impl<T: EntityExprBuilder> EntityExprBuilder for SnapshotAt<T> {}
-impl<T: EntityExprBuilder> EntityExprBuilder for SnapshotLatest<T> {}
+// A view wrapper stands on the left-hand side whenever its inner expression does
+impl<T: PredicateLhs> PredicateLhs for Windowed<T> {}
+impl<T: PredicateLhs> PredicateLhs for Layered<T> {}
+impl<T: PredicateLhs> PredicateLhs for Latest<T> {}
+impl<T: PredicateLhs> PredicateLhs for SnapshotAt<T> {}
+impl<T: PredicateLhs> PredicateLhs for SnapshotLatest<T> {}
 
 /// Reject ordering operators on boolean properties.
 //. TODO: Also check if both the types are comparable.
@@ -1054,18 +1040,22 @@ pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
 /// when it does not convert. Used where the expression defines the comparison's
 /// type rather than adopting the constant's — see [`CreateOp::const_cast_type`].
 pub fn cast_const_to(target: &PropType, value: Option<&Prop>) -> Result<Option<Prop>, GraphError> {
-    match value {
-        None => Ok(None),
-        Some(v) if v.dtype() == *target => Ok(Some(v.clone())),
-        Some(v) => v.clone().try_cast(target.clone()).map(Some).map_err(|v| {
-            GraphError::InvalidFilter(format!(
-                "value {:?} of type {} cannot be compared as {}",
-                v,
-                v.dtype(),
-                target
-            ))
-        }),
+    value.map(|v| cast_prop_to(target, v)).transpose()
+}
+
+/// [`cast_const_to`] for a value that is known to be present.
+pub fn cast_prop_to(target: &PropType, value: &Prop) -> Result<Prop, GraphError> {
+    if value.dtype() == *target {
+        return Ok(value.clone());
     }
+    value.clone().try_cast(target.clone()).map_err(|v| {
+        GraphError::InvalidFilter(format!(
+            "value {:?} of type {} cannot be compared as {}",
+            v,
+            v.dtype(),
+            target
+        ))
+    })
 }
 
 /// Only fires when both sides are known and the RHS is a literal/const. Defers

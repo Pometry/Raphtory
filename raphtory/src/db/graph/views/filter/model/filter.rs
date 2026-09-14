@@ -240,7 +240,14 @@ impl Filter {
     }
 }
 
-// The generic `filter_value::FilterValue<T>` owns the short name; the composite
-// machinery keeps its original spelling through this alias and both leave with
-// the composite path.
+// The GraphQL model spells a field's filter value `FilterValue`; the generic
+// `filter_value::FilterValue<T>` owns that name here, so the field form carries
+// the longer one and this alias keeps the model's spelling valid.
 pub type FilterValue = FieldFilterValue;
+
+/// Wire names of the built-in node fields, shared by every layer that spells
+/// them: the python wire recording, the GraphQL field mapping, and the
+/// composite data they both produce.
+pub const NODE_ID_FIELD: &str = "node_id";
+pub const NODE_NAME_FIELD: &str = "node_name";
+pub const NODE_TYPE_FIELD: &str = "node_type";

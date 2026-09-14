@@ -339,10 +339,7 @@ macro_rules! impl_agg_entity_op {
 impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| sum_out_type(pt), |vals| {
     aggregate_list_values(vals, &|pi| {
         let mut vals = pi.peekable();
-        if vals.peek().is_none() {
-            return None;
-        }
-        let inner = vals.peek().unwrap().dtype();
+        let inner = vals.peek()?.dtype();
         match inner {
             PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
                 let (promoted, s64, s128, _) = scan_u64_sum(vals)?;
@@ -382,10 +379,7 @@ impl_agg_entity_op!(
     |vals| {
         aggregate_list_values(vals, &|pi| {
             let mut vals = pi.peekable();
-            if vals.peek().is_none() {
-                return None;
-            }
-            let inner = vals.peek().unwrap().dtype();
+            let inner = vals.peek()?.dtype();
             match inner {
                 PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
                     let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
@@ -748,14 +742,25 @@ impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinaryCmpNode
 /// superset of the matches, so a constant that only compares equal after value
 /// coercion falls back to the unrestricted domain instead of guessing.
 pub(crate) fn gid_for_id_lookup(id_type: Option<GidType>, value: &Prop) -> Option<GID> {
-    match (id_type?, value) {
-        (GidType::Str, Prop::Str(s)) => Some(GID::Str(s.to_string())),
-        (GidType::U64, Prop::U64(n)) => Some(GID::U64(*n)),
-        (GidType::U64, Prop::U32(n)) => Some(GID::U64(*n as u64)),
-        (GidType::U64, Prop::U16(n)) => Some(GID::U64(*n as u64)),
-        (GidType::U64, Prop::U8(n)) => Some(GID::U64(*n as u64)),
-        (GidType::U64, Prop::I64(n)) => u64::try_from(*n).ok().map(GID::U64),
-        (GidType::U64, Prop::I32(n)) => u64::try_from(*n).ok().map(GID::U64),
+    let aligned = match (id_type?, value) {
+        (GidType::Str, Prop::Str(_)) => true,
+        (GidType::U64, v) => v.is_numeric(),
+        _ => false,
+    };
+    aligned.then(|| prop_as_gid(value)).flatten()
+}
+
+/// The GID a constant names, by its own variant: a string is a string id, and
+/// any integer that fits is a numeric id.
+pub(crate) fn prop_as_gid(value: &Prop) -> Option<GID> {
+    match value {
+        Prop::Str(s) => Some(GID::Str(s.to_string())),
+        Prop::U64(n) => Some(GID::U64(*n)),
+        Prop::U32(n) => Some(GID::U64(*n as u64)),
+        Prop::U16(n) => Some(GID::U64(*n as u64)),
+        Prop::U8(n) => Some(GID::U64(*n as u64)),
+        Prop::I64(n) => u64::try_from(*n).ok().map(GID::U64),
+        Prop::I32(n) => u64::try_from(*n).ok().map(GID::U64),
         _ => None,
     }
 }

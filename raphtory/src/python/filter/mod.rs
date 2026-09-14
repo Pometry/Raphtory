@@ -1,10 +1,10 @@
 use crate::python::{
     filter::{
-        edge_expr::{PyEdgeEndpoint, PyEdgeFilter},
-        exploded_edge_expr::PyExplodedEdgeFilter,
+        edge_expr::{PyEdge, PyEdgeEndpoint, PyEdgeFilter},
+        exploded_edge_expr::{PyExplodedEdge, PyExplodedEdgeFilter},
         filter_expr::PyFilterExpr,
-        graph_filter::PyGraphFilter,
-        node_expr::PyNodeFilter,
+        graph_filter::{PyGraph, PyGraphFilter},
+        node_expr::{PyExpr, PyNode, PyNodeFilter, PyPropertyExpr},
     },
     types::iterable::FromIterable,
 };
@@ -31,22 +31,21 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     let filter_module = PyModule::new(py, "filter")?;
 
     filter_module.add_class::<PyFilterExpr>()?;
+    filter_module.add_class::<PyExpr>()?;
+    filter_module.add_class::<PyPropertyExpr>()?;
 
+    filter_module.add_class::<PyNode>()?;
     filter_module.add_class::<PyNodeFilter>()?;
 
+    filter_module.add_class::<PyEdge>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
 
+    filter_module.add_class::<PyExplodedEdge>()?;
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
-    filter_module.add_class::<PyGraphFilter>()?;
 
-    // The entry points are instances: `filter.Edge.src()` chains through
-    // instance methods, so the module attributes shadow the classes with
-    // ready-made roots.
-    filter_module.add("Node", PyNodeFilter::root())?;
-    filter_module.add("Edge", PyEdgeFilter::root())?;
-    filter_module.add("ExplodedEdge", PyExplodedEdgeFilter::root())?;
-    filter_module.add("Graph", PyGraphFilter::root())?;
+    filter_module.add_class::<PyGraph>()?;
+    filter_module.add_class::<PyGraphFilter>()?;
 
     Ok(filter_module)
 }

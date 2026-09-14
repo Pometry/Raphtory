@@ -1,8 +1,8 @@
 use crate::{
     db::graph::views::filter::model::{
-        filter::FieldFilterValue,
+        filter::{FieldFilterValue, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
         is_active_node_filter::IsActiveNode,
-        node_expr::{CreateOp, DynCreateOp, DynEntityExpr, DynTemporal},
+        node_expr::{ops::prop_as_gid, CreateOp, DynCreateOp, DynEntityExpr, DynTemporal},
         node_filter::CompositeNodeFilter,
         node_state_filter::NodeStateBoolColOp,
         property_filter::{Op, PropertyFilterValue, PropertyRef},
@@ -109,7 +109,9 @@ impl PyExpr {
     fn wire_single(&self, v: &Prop) -> Option<WireValue> {
         let lhs = self.1.as_ref()?;
         Some(match &lhs.target {
-            WireTarget::Field("node_id") => WireValue::Field(FieldFilterValue::ID(prop_to_gid(v)?)),
+            WireTarget::Field(NODE_ID_FIELD) => {
+                WireValue::Field(FieldFilterValue::ID(prop_as_gid(v)?))
+            }
             WireTarget::Field(_) => match v {
                 Prop::Str(s) => WireValue::Field(FieldFilterValue::Single(s.to_string())),
                 _ => return None,
@@ -123,9 +125,9 @@ impl PyExpr {
     fn wire_set(&self, values: &[Prop]) -> Option<WireValue> {
         let lhs = self.1.as_ref()?;
         Some(match &lhs.target {
-            WireTarget::Field("node_id") => WireValue::Field(FieldFilterValue::IDSet(Arc::new(
-                values.iter().map(prop_to_gid).collect::<Option<_>>()?,
-            ))),
+            WireTarget::Field(NODE_ID_FIELD) => WireValue::Field(FieldFilterValue::IDSet(
+                Arc::new(values.iter().map(prop_as_gid).collect::<Option<_>>()?),
+            )),
             WireTarget::Field(_) => WireValue::Field(FieldFilterValue::Set(Arc::new(
                 values
                     .iter()
@@ -147,17 +149,6 @@ impl PyExpr {
 
     fn with_op(&self, expr: Arc<dyn DynCreateOp>, op: Op) -> Self {
         PyExpr(expr, self.1.clone().map(|w| w.with_op(op)))
-    }
-}
-
-fn prop_to_gid(v: &Prop) -> Option<GID> {
-    match v {
-        Prop::Str(s) => Some(GID::Str(s.to_string())),
-        Prop::U64(n) => Some(GID::U64(*n)),
-        Prop::I64(n) => u64::try_from(*n).ok().map(GID::U64),
-        Prop::U32(n) => Some(GID::U64(*n as u64)),
-        Prop::I32(n) => u64::try_from(*n).ok().map(GID::U64),
-        _ => None,
     }
 }
 
@@ -224,6 +215,13 @@ impl PyExpr {
         }
     }
 
+    /// Checks whether the value's string representation starts with the given value.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): Prefix to check for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn starts_with(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
             ExprOrValue::Expr(e) => Ok(PyFilterExpr(
@@ -238,6 +236,13 @@ impl PyExpr {
             }
         }
     }
+    /// Checks whether the value's string representation ends with the given value.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): Suffix to check for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn ends_with(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
             ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().ends_with(e.0)), None)),
@@ -249,6 +254,13 @@ impl PyExpr {
             }
         }
     }
+    /// Checks whether the value's string representation contains the given value.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): Substring that must appear within the value.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn contains(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
             ExprOrValue::Expr(e) => Ok(PyFilterExpr(Arc::new(self.0.clone().contains(e.0)), None)),
@@ -260,6 +272,13 @@ impl PyExpr {
             }
         }
     }
+    /// Checks whether the value's string representation **does not** contain the given value.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): Substring that must not appear within the value.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn not_contains(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
         match other {
             ExprOrValue::Expr(e) => Ok(PyFilterExpr(
@@ -274,6 +293,15 @@ impl PyExpr {
             }
         }
     }
+    /// Performs fuzzy matching against the value's string representation, within a Levenshtein distance and with optional prefix matching.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): String to approximately match against.
+    ///     levenshtein_distance (int): Maximum allowed Levenshtein distance.
+    ///     prefix_match (bool): Whether to require a matching prefix.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         other: ExprOrValue,
@@ -310,17 +338,35 @@ impl PyExpr {
         })
     }
 
+    /// Checks whether the value is contained within the given values.
+    ///
+    /// Arguments:
+    ///     values (list[Prop]): Values to match against.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let values: Vec<Prop> = values.into();
         let wire = self.finish(FilterOperator::IsIn, self.wire_set(&values));
         PyFilterExpr(Arc::new(self.0.clone().is_in(values)), wire)
     }
+    /// Checks whether the value is **not** contained within the given values.
+    ///
+    /// Arguments:
+    ///     values (list[Prop]): Values to exclude.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let values: Vec<Prop> = values.into();
         let wire = self.finish(FilterOperator::IsNotIn, self.wire_set(&values));
         PyFilterExpr(Arc::new(self.0.clone().is_not_in(values)), wire)
     }
 
+    /// Checks whether the value is present (not `None`).
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_some(&self) -> PyFilterExpr {
         let wire = self.finish(
             FilterOperator::IsSome,
@@ -328,6 +374,10 @@ impl PyExpr {
         );
         PyFilterExpr(Arc::new(self.0.clone().is_some()), wire)
     }
+    /// Checks whether the value is `None` / missing.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     fn is_none(&self) -> PyFilterExpr {
         let wire = self.finish(
             FilterOperator::IsNone,
@@ -336,31 +386,67 @@ impl PyExpr {
         PyFilterExpr(Arc::new(self.0.clone().is_none()), wire)
     }
 
+    /// Requires that **any** element matches when the value is list-like (a temporal history or a list property).
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn any(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().any()), Op::Any)
     }
+    /// Requires that **all** elements match when the value is list-like (a temporal history or a list property).
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn all(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().all()), Op::All)
     }
 
+    /// Sums the elements when the value is numeric and list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn sum(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().sum()), Op::Sum)
     }
+    /// Averages the elements when the value is numeric and list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn avg(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().avg()), Op::Avg)
     }
+    /// Selects the minimum element when the value is list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn min(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().min()), Op::Min)
     }
+    /// Selects the maximum element when the value is list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn max(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().max()), Op::Max)
     }
+    /// Selects the first element when the value is list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn first(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().first()), Op::First)
     }
+    /// Selects the last element when the value is list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn last(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().last()), Op::Last)
     }
+    /// Selects the number of elements when the value is list-like.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn len(&self) -> Self {
         self.with_op(Arc::new(self.0.clone().len()), Op::Len)
     }
@@ -471,13 +557,12 @@ impl NodeViewFilterOps for Arc<dyn DynNodeFilterFactory> {
     }
 }
 
-/// Constructs node filter expressions.
+/// A node filter scoped to a view.
 ///
-/// Each method returns either:
-/// - a field-specific filter builder, or
-/// - a view-restricted filter context, or
-/// - a boolean predicate over node state.
-#[pyclass(frozen, name = "Node", module = "raphtory.filter")]
+/// Obtained from the view methods on [`Node`] (`Node.window(...)`,
+/// `Node.latest()`, ...); its field and property methods evaluate within that
+/// view, and its own view methods narrow it further.
+#[pyclass(frozen, name = "NodeFilter", module = "raphtory.filter")]
 pub struct PyNodeFilter(Arc<dyn DynNodeFilterFactory>, Vec<WireView>);
 
 impl PyNodeFilter {
@@ -516,7 +601,7 @@ impl PyNodeFilter {
     fn id(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_id(),
-            Some(self.lhs(WireTarget::Field("node_id"))),
+            Some(self.lhs(WireTarget::Field(NODE_ID_FIELD))),
         )
     }
 
@@ -527,7 +612,7 @@ impl PyNodeFilter {
     fn name(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_name(),
-            Some(self.lhs(WireTarget::Field("node_name"))),
+            Some(self.lhs(WireTarget::Field(NODE_NAME_FIELD))),
         )
     }
 
@@ -538,7 +623,7 @@ impl PyNodeFilter {
     fn node_type(&self) -> PyExpr {
         PyExpr(
             self.0.dyn_node_type(),
-            Some(self.lhs(WireTarget::Field("node_type"))),
+            Some(self.lhs(WireTarget::Field(NODE_TYPE_FIELD))),
         )
     }
 
@@ -612,7 +697,7 @@ impl PyNodeFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().window(start, end),
@@ -626,7 +711,7 @@ impl PyNodeFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn at(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().at(time),
@@ -640,7 +725,7 @@ impl PyNodeFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn after(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().after(time),
@@ -657,7 +742,7 @@ impl PyNodeFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn before(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(
             self.0.clone().before(time),
@@ -668,7 +753,7 @@ impl PyNodeFilter {
     /// Evaluates filters against the latest available state of each node.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn latest(&self) -> PyNodeFilter {
         self.wrap(self.0.clone().latest(), WireView::Latest)
     }
@@ -679,7 +764,7 @@ impl PyNodeFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn snapshot_at(&self, time: EventTime) -> PyNodeFilter {
         self.wrap(self.0.clone().snapshot_at(time), WireView::SnapshotAt(time))
     }
@@ -687,7 +772,7 @@ impl PyNodeFilter {
     /// Evaluates filters against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn snapshot_latest(&self) -> PyNodeFilter {
         self.wrap(self.0.clone().snapshot_latest(), WireView::SnapshotLatest)
     }
@@ -698,7 +783,7 @@ impl PyNodeFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn layer(&self, layer: String) -> PyNodeFilter {
         self.wrap(
             self.0.clone().layer(vec![layer.clone()]),
@@ -712,9 +797,9 @@ impl PyNodeFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.Node:
+    ///     filter.NodeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        let layers = layers.to_vec();
+        let layers: Vec<String> = layers.into();
         self.wrap(
             self.0.clone().layer(layers.clone()),
             WireView::Layers(layers),
@@ -745,5 +830,225 @@ impl PyNodeFilter {
         let op = NodeStateBoolColOp::new(&state.inner, &col)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(PyFilterExpr(Arc::new(op), None))
+    }
+}
+
+/// Entry point for constructing node filter expressions.
+///
+/// Every method is static: `Node.property("age") > 30` selects nodes
+/// directly, and the view methods (`window`, `latest`, `layer`, ...) return a
+/// [`NodeFilter`] scoped to that view for further chaining.
+#[pyclass(frozen, name = "Node", module = "raphtory.filter")]
+pub struct PyNode;
+
+#[pymethods]
+impl PyNode {
+    /// Selects the node ID field for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn id() -> PyExpr {
+        PyNodeFilter::root().id()
+    }
+
+    /// Selects the node name field for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn name() -> PyExpr {
+        PyNodeFilter::root().name()
+    }
+
+    /// Selects the node type field for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn node_type() -> PyExpr {
+        PyNodeFilter::root().node_type()
+    }
+
+    /// Selects incoming node degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn in_degree() -> PyExpr {
+        PyNodeFilter::root().in_degree()
+    }
+
+    /// Selects total node degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn degree() -> PyExpr {
+        PyNodeFilter::root().degree()
+    }
+
+    /// Selects outgoing node degree for filtering.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn out_degree() -> PyExpr {
+        PyNodeFilter::root().out_degree()
+    }
+
+    /// Filters a node property by name.
+    ///
+    /// The property may be static or temporal depending on the query context.
+    ///
+    /// Arguments:
+    ///     name (str): Property key.
+    ///
+    /// Returns:
+    ///     filter.PropertyExpr:
+    #[staticmethod]
+    fn property(name: String) -> PyPropertyExpr {
+        PyNodeFilter::root().property(name)
+    }
+
+    /// Filters a node metadata field by name.
+    ///
+    /// Metadata is shared across all temporal versions of a node.
+    ///
+    /// Arguments:
+    ///     name (str): Metadata key.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn metadata(name: String) -> PyExpr {
+        PyNodeFilter::root().metadata(name)
+    }
+
+    /// Restricts node evaluation to the given time window.
+    ///
+    /// The window is inclusive of `start` and exclusive of `end`.
+    ///
+    /// Arguments:
+    ///     start (int): Start time.
+    ///     end (int): End time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn window(start: EventTime, end: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().window(start, end)
+    }
+
+    /// Restricts node evaluation to a single point in time.
+    ///
+    /// Arguments:
+    ///     time (int): Event time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn at(time: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().at(time)
+    }
+
+    /// Restricts node evaluation to times strictly after the given time.
+    ///
+    /// Arguments:
+    ///     time (int): Lower time bound.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn after(time: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().after(time)
+    }
+
+    /// Restricts node evaluation to times strictly before the given time.
+    ///
+    /// Arguments:
+    ///     time (int): Upper time bound.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn before(time: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().before(time)
+    }
+
+    /// Evaluates filters against the latest available state of each node.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn latest() -> PyNodeFilter {
+        PyNodeFilter::root().latest()
+    }
+
+    /// Evaluates filters against a snapshot of the graph at a given time.
+    ///
+    /// Arguments:
+    ///     time (int): Snapshot time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn snapshot_at(time: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().snapshot_at(time)
+    }
+
+    /// Evaluates filters against the most recent snapshot of the graph.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn snapshot_latest() -> PyNodeFilter {
+        PyNodeFilter::root().snapshot_latest()
+    }
+
+    /// Restricts evaluation to nodes belonging to the given layer.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn layer(layer: String) -> PyNodeFilter {
+        PyNodeFilter::root().layer(layer)
+    }
+
+    /// Restricts evaluation to nodes belonging to any of the given layers.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyNodeFilter {
+        PyNodeFilter::root().layers(layers)
+    }
+
+    /// Matches nodes that have at least one event in the current view.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
+    #[staticmethod]
+    fn is_active() -> PyFilterExpr {
+        PyNodeFilter::root().is_active()
+    }
+
+    /// Build a node filter from a boolean column of an existing node-state result.
+    ///
+    /// Arguments:
+    ///     state (OutputNodeState): A pre-computed node state (e.g. from an algorithm).
+    ///     col (str): Name of the boolean column on `state` whose values determine inclusion.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
+    #[staticmethod]
+    fn by_state_column(state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
+        PyNodeFilter::root().by_state_column(state, col)
     }
 }

@@ -844,7 +844,7 @@ fn active_graph() -> Graph {
 #[test]
 fn test_edge_property_is_true() {
     let g = active_graph();
-    let filter = EdgeFilter.property("active").is_true();
+    let filter = EdgeFilter.property("active").eq(Prop::Bool(true));
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["A->B", "E->F"]);
 }
@@ -852,7 +852,7 @@ fn test_edge_property_is_true() {
 #[test]
 fn test_edge_property_is_false() {
     let g = active_graph();
-    let filter = EdgeFilter.property("active").is_false();
+    let filter = EdgeFilter.property("active").eq(Prop::Bool(false));
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["C->D"]);
 }

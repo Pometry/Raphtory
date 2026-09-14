@@ -15,7 +15,7 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{CreateOp, EntityExpr, EntityExprBuilder},
+                node_expr::{CreateOp, EntityExpr, PredicateLhs},
                 node_filter::{CompositeNodeFilter, NodeFilter},
                 property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
@@ -341,7 +341,7 @@ impl ComposableFilter for EdgeEndpointNodeFilter {}
 
 // ── expr layer: endpoint expressions bridge node ops into edge ops ──
 
-impl<T: EntityExprBuilder> EntityExprBuilder for EdgeEndpointWrapper<T> {}
+impl<T: PredicateLhs> PredicateLhs for EdgeEndpointWrapper<T> {}
 
 impl<T: EntityExpr> EntityExpr for EdgeEndpointWrapper<T> {
     type Marker = EdgeFilter;

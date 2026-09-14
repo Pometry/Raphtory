@@ -532,14 +532,14 @@ fn build_bool_graph() -> Graph {
 #[test]
 fn is_true_keeps_only_true_nodes() {
     let g = build_bool_graph();
-    let filter = NodeFilter.property("active").is_true();
+    let filter = NodeFilter.property("active").eq(Prop::Bool(true));
     assert_eq!(filtered_names(filter, g), vec!["on"]);
 }
 
 #[test]
 fn is_false_keeps_only_false_nodes() {
     let g = build_bool_graph();
-    let filter = NodeFilter.property("active").is_false();
+    let filter = NodeFilter.property("active").eq(Prop::Bool(false));
     assert_eq!(filtered_names(filter, g), vec!["off"]);
 }
 
@@ -547,7 +547,7 @@ fn is_false_keeps_only_false_nodes() {
 fn is_true_excludes_absent_property() {
     // "na" has no "active" property — must not appear
     let g = build_bool_graph();
-    let filter = NodeFilter.property("active").is_true();
+    let filter = NodeFilter.property("active").eq(Prop::Bool(true));
     let names = filtered_names(filter, g);
     assert!(!names.contains(&"na".to_string()));
 }

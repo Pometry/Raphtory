@@ -35,8 +35,8 @@ use crate::{
             edge_filter::EdgeEndpointWrapper,
             filter_operator::ElemQual,
             node_expr::{
-                AvgExpr, CreateOp, EntityAggOps, EntityExpr, EntityExprBuilder, FirstExpr,
-                LastExpr, LenExpr, MaxExpr, MinExpr, SumExpr,
+                AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
+                MinExpr, PredicateLhs, SumExpr,
             },
             CreateView, EntityMarker, PropertyExpr,
         },
@@ -166,7 +166,7 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
     }
 }
 
-impl<T: DynEntityExpr + ?Sized> EntityExprBuilder for Arc<T> {}
+impl<T: DynEntityExpr + ?Sized> PredicateLhs for Arc<T> {}
 
 impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
     fn const_cast_type(&self) -> Option<PropType> {

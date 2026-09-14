@@ -9,23 +9,14 @@ use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
 use std::sync::Arc;
 
-/// Entry point for constructing **graph-level view filters**.
+/// A graph-level view scope.
 ///
-/// The `Graph` filter restricts *when* and *where* the graph is evaluated,
-/// independent of node or edge predicates. It defines the **temporal scope**
-/// (windows, snapshots, latest state) and **layer scope** for subsequent
-/// node and edge filters.
-///
-/// All methods are static and return a `Graph`, which can then
-/// be refined further or combined with node/edge predicates.
-///
-/// Examples:
-///     Graph.window(0, 10)
-///     Graph.at(5)
-///     Graph.latest().layer("fire_nation")
-///     Graph.layers(["A", "B"]).snapshot_latest()
+/// Obtained from the view methods on [`Graph`] (`Graph.window(...)`,
+/// `Graph.latest()`, ...). It carries no node or edge predicate of its own: it
+/// fixes the temporal and layer scope that node and edge predicates compose
+/// with, and its own view methods narrow it further.
 #[pyclass(
-    name = "Graph",
+    name = "GraphFilter",
     module = "raphtory.filter",
     extends = PyFilterExpr,
     frozen
@@ -55,7 +46,7 @@ impl PyGraphFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyGraphFilter {
         self.extend(
             self.0.clone().window(start, end),
@@ -69,7 +60,7 @@ impl PyGraphFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn at(&self, time: EventTime) -> PyGraphFilter {
         self.extend(
             self.0.clone().at(time),
@@ -86,7 +77,7 @@ impl PyGraphFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn after(&self, time: EventTime) -> PyGraphFilter {
         self.extend(
             self.0.clone().after(time),
@@ -103,7 +94,7 @@ impl PyGraphFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn before(&self, time: EventTime) -> PyGraphFilter {
         self.extend(
             self.0.clone().before(time),
@@ -117,7 +108,7 @@ impl PyGraphFilter {
     /// Evaluates filters against the latest available state of the graph.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn latest(&self) -> PyGraphFilter {
         self.extend(Arc::new(self.0.clone().latest()), GraphViewOp::Latest)
     }
@@ -128,7 +119,7 @@ impl PyGraphFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn snapshot_at(&self, time: EventTime) -> PyGraphFilter {
         self.extend(
             Arc::new(self.0.clone().snapshot_at(time)),
@@ -139,7 +130,7 @@ impl PyGraphFilter {
     /// Evaluates filters against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn snapshot_latest(&self) -> PyGraphFilter {
         self.extend(
             Arc::new(self.0.clone().snapshot_latest()),
@@ -153,7 +144,7 @@ impl PyGraphFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn layer(&self, layer: String) -> PyGraphFilter {
         self.extend(
             Arc::new(self.0.clone().layer(layer.clone())),
@@ -167,13 +158,128 @@ impl PyGraphFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.Graph:
+    ///     filter.GraphFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
         let names: Vec<String> = layers.into();
         self.extend(
             Arc::new(self.0.clone().layer(names.clone())),
             GraphViewOp::Layers(Layer::from(names)),
         )
+    }
+}
+
+/// Entry point for graph-level view filters.
+///
+/// Every method is static and returns a [`GraphFilter`] carrying the view,
+/// which composes with node and edge predicates.
+#[pyclass(frozen, name = "Graph", module = "raphtory.filter")]
+pub struct PyGraph;
+
+#[pymethods]
+impl PyGraph {
+    /// Restricts evaluation to events within a time window.
+    ///
+    /// The window is inclusive of `start` and exclusive of `end`.
+    ///
+    /// Arguments:
+    ///     start (int): Start time.
+    ///     end (int): End time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn window(start: EventTime, end: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().window(start, end)
+    }
+
+    /// Restricts evaluation to a single point in time.
+    ///
+    /// Arguments:
+    ///     time (int): Event time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn at(time: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().at(time)
+    }
+
+    /// Restricts evaluation to times strictly after the given time.
+    ///
+    /// Arguments:
+    ///     time (int): Lower time bound.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn after(time: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().after(time)
+    }
+
+    /// Restricts evaluation to times strictly before the given time.
+    ///
+    /// Arguments:
+    ///     time (int): Upper time bound.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn before(time: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().before(time)
+    }
+
+    /// Evaluates filters against the latest available state of the graph.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn latest() -> PyGraphFilter {
+        PyGraphFilter::root().latest()
+    }
+
+    /// Evaluates filters against a snapshot of the graph at a given time.
+    ///
+    /// Arguments:
+    ///     time (int): Snapshot time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn snapshot_at(time: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().snapshot_at(time)
+    }
+
+    /// Evaluates filters against the most recent snapshot of the graph.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn snapshot_latest() -> PyGraphFilter {
+        PyGraphFilter::root().snapshot_latest()
+    }
+
+    /// Restricts evaluation to a single layer.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn layer(layer: String) -> PyGraphFilter {
+        PyGraphFilter::root().layer(layer)
+    }
+
+    /// Restricts evaluation to any of the given layers.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyGraphFilter {
+        PyGraphFilter::root().layers(layers)
     }
 }
 

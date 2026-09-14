@@ -46,7 +46,7 @@ use super::{
         ListAwareCmpNodeOp, ListAwareSetNodeOp, ListAwareStringNodeOp, ListAwareUnaryNodeOp,
         PropValueSetNodeOp, StringNodeOp, UnaryNodeOp,
     },
-    CreateOp, EntityExpr, EntityExprBuilder, Marker,
+    CreateOp, EntityExpr, Marker, PredicateLhs,
 };
 use crate::{
     db::{
@@ -56,7 +56,7 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                cast_const_to, coerce_set_values,
+                cast_const_to, cast_prop_to, coerce_set_values,
                 edge_expr::{
                     ops::{
                         ListAwareCmpEdgeOp, ListAwareSetEdgeOp, ListAwareStringEdgeOp,
@@ -150,7 +150,7 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
 
 impl<L, R, E> ComposableFilter for BinaryCmpExpr<L, R, E> {}
 
-impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExprBuilder for BinaryCmpExpr<L, R, E> {}
+impl<L: EntityExpr, R: EntityExpr, E: Marker> PredicateLhs for BinaryCmpExpr<L, R, E> {}
 
 impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExpr for BinaryCmpExpr<L, R, E> {
     type Marker = E;
@@ -373,7 +373,7 @@ impl<E, Entity> UnaryExpr<E, Entity> {
 
 impl<E, Entity> ComposableFilter for UnaryExpr<E, Entity> {}
 
-impl<E: EntityExpr, M: Marker> EntityExprBuilder for UnaryExpr<E, M> {}
+impl<E: EntityExpr, M: Marker> PredicateLhs for UnaryExpr<E, M> {}
 
 impl<E: EntityExpr, M: Marker> EntityExpr for UnaryExpr<E, M> {
     type Marker = M;
@@ -564,7 +564,7 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
 
 impl<L, R, Entity> ComposableFilter for StringExpr<L, R, Entity> {}
 
-impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExprBuilder for StringExpr<L, R, M> {}
+impl<L: EntityExpr, R: EntityExpr, M: Marker> PredicateLhs for StringExpr<L, R, M> {}
 
 impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExpr for StringExpr<L, R, M> {
     type Marker = M;
@@ -753,7 +753,7 @@ impl<E, Entity> PropValueSetExpr<E, Entity> {
 
 impl<E, Entity> ComposableFilter for PropValueSetExpr<E, Entity> {}
 
-impl<E: EntityExpr, M: Marker> EntityExprBuilder for PropValueSetExpr<E, M> {}
+impl<E: EntityExpr, M: Marker> PredicateLhs for PropValueSetExpr<E, M> {}
 
 impl<E: EntityExpr, M: Marker> EntityExpr for PropValueSetExpr<E, M> {
     type Marker = M;
@@ -829,10 +829,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
             Some(target) => self
                 .values
                 .into_iter()
-                .map(|v| {
-                    cast_const_to(&target, Some(&v))
-                        .map(|c| c.expect("a present value casts to a present value"))
-                })
+                .map(|v| cast_prop_to(&target, &v))
                 .collect::<Result<Vec<_>, _>>()?,
             None => coerce_set_values(&lhs_pt, self.values)?,
         };
@@ -931,10 +928,6 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EntityMarker> {
         Ok(graph)
     }
 }
-
-// ── The expr layer has no composite form: these filters exist only as compiled ops. ──
-// The conversion is fallible by design, so "not representable" is an answer, not a lie;
-// the composite path survives solely for its remaining GraphQL and grant-lowering consumers.
 
 use crate::db::graph::views::filter::{
     edge_expr_filtered_graph::EdgeExprFilteredGraph,

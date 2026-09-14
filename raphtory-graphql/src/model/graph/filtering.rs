@@ -16,7 +16,7 @@ use raphtory::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
-                filter::{Filter, FilterValue},
+                filter::{Filter, FilterValue, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
                 filter_operator::FilterOperator,
                 graph_filter::GraphFilter,
                 node_filter::CompositeNodeFilter,
@@ -276,9 +276,9 @@ impl Display for NodeField {
             f,
             "{}",
             match self {
-                NodeField::NodeId => "node_id",
-                NodeField::NodeName => "node_name",
-                NodeField::NodeType => "node_type",
+                NodeField::NodeId => NODE_ID_FIELD,
+                NodeField::NodeName => NODE_NAME_FIELD,
+                NodeField::NodeType => NODE_TYPE_FIELD,
             }
         )
     }
@@ -2053,9 +2053,9 @@ fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
 /// (`Id` / `Name` / `NodeType`).
 fn filter_to_node_field(f: Filter) -> Result<GqlNodeFilter, GraphError> {
     let variant: fn(NodeFieldWhere) -> GqlNodeFilter = match f.field_name.as_str() {
-        "node_id" => GqlNodeFilter::Id,
-        "node_name" => GqlNodeFilter::Name,
-        "node_type" => GqlNodeFilter::NodeType,
+        NODE_ID_FIELD => GqlNodeFilter::Id,
+        NODE_NAME_FIELD => GqlNodeFilter::Name,
+        NODE_TYPE_FIELD => GqlNodeFilter::NodeType,
         other => {
             return Err(GraphError::InvalidGqlFilter(format!(
                 "unknown node field name for wire conversion: {}",

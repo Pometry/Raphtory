@@ -1947,7 +1947,7 @@ mod test_node_filter {
 
             assert_filter(
                 &graph,
-                NodeFilter.degree().lt(threshold).or(EntityExprFilterOps::not(NodeFilter.degree().gt(threshold + 5))),
+                NodeFilter.degree().lt(threshold).or(NodeFilter.degree().gt(threshold + 5).not()),
                 Direction::BOTH,
                 |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("BOTH < {} OR BOTH > {}", threshold, threshold + 5),
@@ -1955,7 +1955,7 @@ mod test_node_filter {
 
             assert_filter(
                 &graph,
-                NodeFilter.in_degree().lt(threshold).or(EntityExprFilterOps::not(NodeFilter.in_degree().gt(threshold + 5))),
+                NodeFilter.in_degree().lt(threshold).or(NodeFilter.in_degree().gt(threshold + 5).not()),
                 Direction::IN,
                 |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("IN < {} OR IN > {}", threshold, threshold + 5),
@@ -1963,7 +1963,7 @@ mod test_node_filter {
 
             assert_filter(
                 &graph,
-                NodeFilter.out_degree().lt(threshold).or(EntityExprFilterOps::not(NodeFilter.out_degree().gt(threshold + 5))),
+                NodeFilter.out_degree().lt(threshold).or(NodeFilter.out_degree().gt(threshold + 5).not()),
                 Direction::OUT,
                 |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("OUT < {} OR OUT > {}", threshold, threshold + 5),
@@ -2510,8 +2510,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_not_node_type() {
-        let filter =
-            EntityExprFilterOps::not(NodeFilter.node_type().is_not_in(vec!["fire_nation"]));
+        let filter = NodeFilter.node_type().is_not_in(vec!["fire_nation"]).not();
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -3552,12 +3551,12 @@ mod test_node_property_filter {
 
     #[test]
     fn test_filter_nodes_for_not_property() {
-        // Under SQL-NULL semantics, .not() rejects nodes whose property is absent
-        // (None cannot satisfy a value comparison). Use "ship" so nodes 1 and 3
-        // (p10 = "Paper_airplane", does not contain "ship") pass; node 2
-        // (p10 = "Paper_ship") and node 4 (no p10) are rejected.
-        let filter = EntityExprFilterOps::not(NodeFilter.property("p10").contains("ship"));
-        let expected_results: Vec<&str> = vec!["1", "3"];
+        // `.not()` is the set complement, the same as python's `~`: the inner
+        // predicate selects node 2 (p10 = "Paper_ship") only, so the complement
+        // keeps nodes 1 and 3 (p10 = "Paper_airplane") and node 4, which has no
+        // p10 and therefore was never selected.
+        let filter = NodeFilter.property("p10").contains("ship").not();
+        let expected_results: Vec<&str> = vec!["1", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -8110,8 +8109,8 @@ mod test_edge_filter {
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
     use raphtory::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, EdgeViewFilterOps, EntityExprFilterOps, NodeFilterFactory,
-        PropertyExprFactory, ViewWrapOps,
+        edge_filter::EdgeFilter, ComposableFilter, EdgeViewFilterOps, EntityExprFilterOps,
+        NodeFilterFactory, PropertyExprFactory, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
@@ -8458,7 +8457,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_not_src() {
-        let filter = EntityExprFilterOps::not(EdgeFilter::src().name().is_not_in(vec!["1"]));
+        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]).not();
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -9920,7 +9919,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_filter_edges_for_not_property() {
         // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
-        let filter = EntityExprFilterOps::not(EdgeFilter.property("p2").ne(2u64));
+        let filter = EdgeFilter.property("p2").ne(2u64).not();
         let expected_results = vec!["2->3"];
         assert_filter_edges_results(
             init_edges_graph,

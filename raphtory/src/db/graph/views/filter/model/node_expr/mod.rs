@@ -125,15 +125,15 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
     }
 }
 
-/// Marker for types that initiate a filter expression chain (LHS receiver for
-/// `.eq` / `.gt` / `.contains` / ...).
+/// Marker for the expressions that stand on the left-hand side of a predicate
+/// (`.eq` / `.gt` / `.contains` / ...).
 ///
 /// Scoped narrowly (not blanket-impl'd for every `EntityExpr`) to avoid name
 /// collisions with stdlib methods like `str::contains` / `PartialOrd::gt` on
 /// primitive `EntityExpr` types (`String`, `&str`, `usize`, numerics, `Prop`).
 ///
 /// Mirrors the same trick used by `EntityAggOps` for `min`/`max`/`sum`.
-pub trait EntityExprBuilder: EntityExpr {}
+pub trait PredicateLhs: EntityExpr {}
 
 /// Scopes an expression to a view chain: the inner expression is compiled against the view the
 /// chain constructs over the incoming graph. This is how a factory chain (window, latest, layers)

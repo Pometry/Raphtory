@@ -12,7 +12,7 @@ use crate::db::graph::views::filter::model::{
     degree_filter::DegreeFilter,
     edge_filter::{CompositeEdgeFilter, EdgeFilter, Endpoint},
     exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-    filter::{FieldFilterValue, Filter},
+    filter::{FieldFilterValue, Filter, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
     latest_filter::Latest,
     layered_filter::Layered,
     node_filter::{CompositeNodeFilter, NodeFilter},
