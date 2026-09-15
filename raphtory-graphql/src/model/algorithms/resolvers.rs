@@ -332,20 +332,21 @@ impl GqlAlgorithms {
         rel_tol: Option<f64>,
         #[graphql(desc = "Stop after this many iterations without progress. Defaults to 10.")]
         patience: Option<usize>,
-    ) -> GqlNodeState {
-        self.run(move |graph| {
-            label_propagation(
-                &graph,
-                iter_count.unwrap_or(20),
-                seed,
-                threads,
-                None,
-                rel_tol,
-                patience,
-            )
-            .into()
-        })
-        .await
+    ) -> Result<GqlNodeState, GraphError> {
+        Ok(self
+            .run(move |graph| {
+                label_propagation(
+                    &graph,
+                    iter_count.unwrap_or(20),
+                    seed,
+                    threads,
+                    (),
+                    rel_tol,
+                    patience,
+                )
+            })
+            .await?
+            .into())
     }
 
     /// Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
