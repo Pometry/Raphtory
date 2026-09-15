@@ -403,10 +403,7 @@ where
         }
         // Unseeded
         // The position -> VID table, which is what makes `tie_rank` hash the VID here exactly as
-        // the task version does. Filled from the same `(pos, vid)` pairs every other pass uses,
-        // rather than from `Index::iter` (whose order would have to be assumed to agree) or from
-        // `Index::value` (which is `iter().nth(i)` on a full index, so O(n) per lookup).
-        // `slot_of` goes unused: a node's slot is its position.
+        // the task version does. `slot_of` goes unused: a node's slot is its position.
         None => {
             let table: Vec<AtomicUsize> = (0..n).map(|_| AtomicUsize::new(0)).collect();
             index
@@ -442,9 +439,9 @@ where
         // Every node starts in its own community, whose slot is the node's own position.
         false => (0..n).map(AtomicUsize::new).collect(),
     };
-    // The vote behind each node's standing label, as (winner's count << 32 | votes cast). Packed
-    // into one atomic so a sweep publishes the numerator and the denominator together -- read
-    // separately they could straddle a store and yield a share no vote ever produced.
+    // The share of votes that each node's standing label won, held as `f64::to_bits` so that
+    // an atomic can carry it. Zero bits are `0.0`, which is the "never voted" sentinel, so the
+    // initial value needs no special case.
     //
     // NOT DOUBLE-BUFFERED, unlike `prev`/`cur`: confidence is an output and no neighbour reads it,
     // so there is nothing for a sweep to race against and nothing to swap. A node that does not
@@ -459,8 +456,8 @@ where
         index.par_iter().for_each(|(pos, vid)| {
             if let Some(slot) = map.get(&vid.index()).and_then(|l| slot_of.get(l)) {
                 prev[pos].store(*slot, Ordering::Relaxed);
-                // A seed's label is GIVEN, not inferred, so it starts fully confident: 1 of 1.
-                votes[pos].store(1 << 32 | 1, Ordering::Relaxed);
+                // A seed's label is GIVEN, not inferred, so it starts fully confident.
+                votes[pos].store(1.0f64.to_bits(), Ordering::Relaxed);
             }
         });
     }
@@ -487,102 +484,6 @@ where
             });
     }
 
-    let sweep = |prev: &[AtomicUsize],
-                 cur: &[AtomicUsize],
-                 active_cur: &[AtomicBool],
-                 active_next: &[AtomicBool]| {
-        let changed = AtomicUsize::new(0); // a counter
-        index.par_iter().for_each_init(
-            || {
-                let counts = if seeded {
-                    Counts::Dense(vec![0u32; labels.len()])
-                } else {
-                    Counts::Sparse(FxHashMap::default())
-                };
-                (counts, Vec::new(), Vec::new())
-            },
-            |(counts, touched, nbors), (pos, vid)| {
-                let prev_slot = prev[pos].load(Ordering::Relaxed);
-                // Gate: consume this node's activation flag atomically. A node that does not run
-                // still has to carry its label over, which the task version gets for free from the
-                // runner copying `prev` into `cur` between supersteps.
-                if !active_cur[pos].swap(false, Ordering::AcqRel) {
-                    cur[pos].store(prev_slot, Ordering::Relaxed);
-                    return;
-                }
-
-                collect_nbors(vid, nbors);
-                let node_key = calculate_hash(&(tie_seed, vid.index())); // tie_rank's 1st arg
-                let mut best_slot = prev_slot;
-                let mut best_count = 0u32;
-                let mut best_rank = 0u64;
-                // The denominator of `confidence`: the votes CAST -- labelled neighbours plus the
-                // self-vote -- and not the degree, since an unlabelled neighbour is skipped below
-                // and has no opinion to divide by. The task version sums its tally map for this;
-                // `counts` is never walked a second time, in either variant, so it is counted.
-                let mut total = 0u32;
-                if prev_slot != NO_LABEL {
-                    // initialised nodes vote for their own label
-                    counts.set_one(prev_slot);
-                    touched.push(prev_slot);
-                    best_count = 1;
-                    total = 1;
-                    best_rank = tie_rank(node_key, labels[prev_slot]);
-                }
-                for &nbor in nbors.iter() {
-                    let nbor_slot = prev[nbor].load(Ordering::Relaxed);
-                    if nbor_slot == NO_LABEL {
-                        continue; // unlabelled neighbours don't cast a vote
-                    }
-                    total += 1;
-                    let count = counts.incr(nbor_slot);
-                    // if count increased from 0 -> 1 we keep track of activated nbors
-                    if count == 1 {
-                        touched.push(nbor_slot);
-                    }
-
-                    if nbor_slot == best_slot {
-                        best_count = count;
-                    } else if count >= best_count {
-                        let rank = tie_rank(node_key, labels[nbor_slot]);
-                        if (count, rank) > (best_count, best_rank) {
-                            best_slot = nbor_slot;
-                            best_count = count;
-                            best_rank = rank;
-                        }
-                    }
-                }
-                // Reset
-                for &slot in touched.iter() {
-                    counts.clear_slot(slot);
-                }
-                touched.clear();
-
-                // `best_slot` is still `prev_slot` when no voting happened, so an unlabelled node
-                // with no labelled neighbours keeps its label, as in the task version.
-                cur[pos].store(best_slot, Ordering::Relaxed);
-                // `best_count` is the winner's FINAL tally: a vote landing on the reigning
-                // `best_slot` refreshes it through the `nbor_slot == best_slot` arm above, and a
-                // challenger that takes over brings its own count with it.
-                //
-                // `total == 0` only when this node is unlabelled AND no neighbour is labelled, in
-                // which case it keeps NO_LABEL and its 0.0 -- the sentinel's own meaning -- so the
-                // guard is also what keeps the division off a zero denominator.
-                if total > 0 {
-                    votes[pos].store((best_count as u64) << 32 | total as u64, Ordering::Relaxed);
-                }
-                if best_slot != prev_slot {
-                    changed.fetch_add(1, Ordering::Relaxed);
-                    // The frontier
-                    for &nbor in nbors.iter() {
-                        active_next[nbor].store(true, Ordering::Relaxed);
-                    }
-                }
-            },
-        );
-        changed.into_inner()
-    };
-
     // Synchronous LPA never reaches global_diff == 0 on graphs with locally-bipartite pockets
     // (results in ~period-2 oscillations), so the stopping criterion we use is to wait for
     // `patience` iterations since the improvement was no better than `rel_tol`.
@@ -591,7 +492,97 @@ where
         let mut best = usize::MAX;
         let mut stale = 0usize;
         for n_iter in 1..=iter_count {
-            let diff = sweep(&prev, &cur, &active_cur, &active_next);
+            let changed = AtomicUsize::new(0); // a counter
+            index.par_iter().for_each_init(
+                || {
+                    let counts = if seeded {
+                        Counts::Dense(vec![0u32; labels.len()])
+                    } else {
+                        Counts::Sparse(FxHashMap::default())
+                    };
+                    (counts, Vec::new(), Vec::new())
+                },
+                |(counts, touched, nbors), (pos, vid)| {
+                    let prev_slot = prev[pos].load(Ordering::Relaxed);
+                    // Gate: consume this node's activation flag atomically. A node that does not run
+                    // still has to carry its label over, which the task version gets for free from the
+                    // runner copying `prev` into `cur` between supersteps.
+                    if !active_cur[pos].swap(false, Ordering::AcqRel) {
+                        cur[pos].store(prev_slot, Ordering::Relaxed);
+                        return;
+                    }
+
+                    collect_nbors(vid, nbors);
+                    let node_key = calculate_hash(&(tie_seed, vid.index())); // tie_rank's 1st arg
+                    let mut best_slot = prev_slot;
+                    let mut best_count = 0u32;
+                    let mut best_rank = 0u64;
+                    // The denominator of `confidence`: the votes CAST -- labelled neighbours plus the
+                    // self-vote -- and not the degree, since an unlabelled neighbour is skipped below
+                    // and has no opinion to divide by. The task version sums its tally map for this;
+                    // `counts` is never walked a second time, in either variant, so it is counted.
+                    let mut total = 0u32;
+                    if prev_slot != NO_LABEL {
+                        // initialised nodes vote for their own label
+                        counts.set_one(prev_slot);
+                        touched.push(prev_slot);
+                        best_count = 1;
+                        total = 1;
+                        best_rank = tie_rank(node_key, labels[prev_slot]);
+                    }
+                    for &nbor in nbors.iter() {
+                        let nbor_slot = prev[nbor].load(Ordering::Relaxed);
+                        if nbor_slot == NO_LABEL {
+                            continue; // unlabelled neighbours don't cast a vote
+                        }
+                        total += 1;
+                        let count = counts.incr(nbor_slot);
+                        // if count increased from 0 -> 1 we keep track of activated nbors
+                        if count == 1 {
+                            touched.push(nbor_slot);
+                        }
+
+                        if nbor_slot == best_slot {
+                            best_count = count;
+                        } else if count >= best_count {
+                            let rank = tie_rank(node_key, labels[nbor_slot]);
+                            if (count, rank) > (best_count, best_rank) {
+                                best_slot = nbor_slot;
+                                best_count = count;
+                                best_rank = rank;
+                            }
+                        }
+                    }
+                    // Reset
+                    for &slot in touched.iter() {
+                        counts.clear_slot(slot);
+                    }
+                    touched.clear();
+
+                    // `best_slot` is still `prev_slot` when no voting happened, so an unlabelled node
+                    // with no labelled neighbours keeps its label, as in the task version.
+                    cur[pos].store(best_slot, Ordering::Relaxed);
+                    // `best_count` is the winner's FINAL tally: a vote landing on the reigning
+                    // `best_slot` refreshes it through the `nbor_slot == best_slot` arm above, and a
+                    // challenger that takes over brings its own count with it.
+                    //
+                    // `total == 0` only when this node is unlabelled AND no neighbour is labelled, in
+                    // which case it keeps NO_LABEL and its 0.0 -- the sentinel's own meaning -- so the
+                    // guard is also what keeps the division off a zero denominator.
+                    if total > 0 {
+                        let share = best_count as f64 / total as f64;
+                        votes[pos].store(share.to_bits(), Ordering::Relaxed);
+                    }
+                    if best_slot != prev_slot {
+                        changed.fetch_add(1, Ordering::Relaxed);
+                        // The frontier
+                        for &nbor in nbors.iter() {
+                            active_next[nbor].store(true, Ordering::Relaxed);
+                        }
+                    }
+                },
+            );
+            let diff = changed.into_inner();
             // `prev` now holds the labels this sweep produced, `cur` the ones it started from.
             std::mem::swap(&mut prev, &mut cur);
             std::mem::swap(&mut active_cur, &mut active_next);
@@ -621,8 +612,7 @@ where
             let was = cur[pos].load(Ordering::Relaxed);
             // `prev` holds the labels the last sweep produced and `votes` the share that produced
             // them, written in the same iteration -- so the two always describe the same vote.
-            let packed = votes[pos].load(Ordering::Relaxed);
-            let (won, cast) = ((packed >> 32) as u32, (packed & 0xffff_ffff) as u32);
+            let confidence = f64::from_bits(votes[pos].load(Ordering::Relaxed));
             LabelPropState {
                 community_id: if slot == NO_LABEL {
                     NO_LABEL
@@ -630,11 +620,7 @@ where
                     labels[slot]
                 },
                 alternate_id: (slot != was && was != NO_LABEL).then(|| labels[was]),
-                confidence: if cast == 0 {
-                    0.0
-                } else {
-                    won as f64 / cast as f64
-                },
+                confidence,
                 is_changed: slot != was,
             }
         })
