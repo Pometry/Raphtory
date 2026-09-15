@@ -219,13 +219,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 {
     pub fn new_with_meta(
         path: Option<PathBuf>,
+        type_index_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
-        // TODO: Use a constant for type_index_path.
-        let type_index_path = path.as_ref().map(|p| p.join("type_index"));
         let type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
 
         let empty = Self {
@@ -435,16 +434,19 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn load(
         path: impl AsRef<Path>,
+        type_index_path: impl AsRef<Path>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let path = path.as_ref();
+        let type_index_path = type_index_path.as_ref();
         let max_page_len = ext.config().max_node_page_len();
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !path.exists() {
             return Ok(Self::new_with_meta(
                 Some(path.to_path_buf()),
+                Some(type_index_path.to_path_buf()),
                 node_meta,
                 edge_meta,
                 ext.clone(),
@@ -563,9 +565,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         });
 
         let stats = GraphStats::load(layer_counts, earliest, latest);
-        // TODO: Use a constant for type_index_path.
-        let type_index_path = path.join("type_index");
-        let type_index = Arc::new(EXT::NTI::load(&type_index_path, ext.clone())?);
+        let type_index = Arc::new(EXT::NTI::load(type_index_path, ext.clone())?);
 
         Ok(Self {
             segments,

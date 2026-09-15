@@ -143,6 +143,9 @@ impl<
         ext: EXT,
     ) -> Self {
         let nodes_path = graph_dir.as_ref().map(|graph_dir| graph_dir.nodes_dir());
+        let node_type_index_path = graph_dir
+            .as_ref()
+            .map(|graph_dir| graph_dir.node_type_index_dir());
         let edges_path = graph_dir.as_ref().map(|graph_dir| graph_dir.edges_dir());
         let graph_props_path = graph_dir
             .as_ref()
@@ -154,15 +157,18 @@ impl<
 
         let node_storage = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
+            node_type_index_path,
             node_meta,
             edge_meta.clone(),
             ext.clone(),
         ));
+
         let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
             edges_path,
             edge_meta,
             ext.clone(),
         ));
+
         let graph_prop_storage = Arc::new(GraphPropStorageInner::new_with_meta(
             graph_props_path.as_deref(),
             graph_props_meta,
@@ -181,23 +187,27 @@ impl<
 
     pub fn load(graph_dir: GraphDir, ext: EXT) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.nodes_dir();
+        let node_type_index_path = graph_dir.node_type_index_dir();
         let edges_path = graph_dir.edges_dir();
         let graph_props_path = graph_dir.graph_props_dir();
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
+
         let node_storage: Arc<NodeStorageInner<NS, EXT>> = Arc::new(NodeStorageInner::load(
             nodes_path,
+            node_type_index_path,
             edge_meta.clone(),
             ext.clone(),
         )?);
-        let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata.
         let graph_prop_storage = Arc::new(GraphPropStorageInner::<GS, EXT>::load(
             graph_props_path,
             ext.clone(),
         )?);
+
+        let node_meta = node_storage.prop_meta();
 
         for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
