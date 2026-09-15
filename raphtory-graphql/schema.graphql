@@ -523,6 +523,14 @@ enum AlignmentUnit {
 }
 
 """
+Two expressions to compare.
+"""
+input Cmp {
+	lhs: Expr!
+	rhs: Expr!
+}
+
+"""
 Collection of items
 """
 type CollectionOfMetaGraph {
@@ -1877,6 +1885,17 @@ input EmbeddingModel @oneOf {
 	openAI: OpenAIConfig
 }
 
+enum Endpoint {
+	SRC
+	DST
+}
+
+enum Entity {
+	NODE
+	EDGE
+	EXPLODED_EDGE
+}
+
 """
 Raphtory’s EventTime.
 Represents a unique timepoint in the graph’s history as (timestamp, event_id).
@@ -2098,6 +2117,78 @@ input ExplodedEdgeWindowExpr {
 }
 
 """
+A value: what stands on either side of a comparison.
+"""
+input Expr @oneOf {
+	"""
+	A literal.
+	"""
+	const: Value
+	"""
+	A field, degree, property or metadata read from an entity.
+	"""
+	read: Read
+	"""
+	The full history of a property instead of its latest value.
+	"""
+	temporal: Expr
+	sum: Expr
+	avg: Expr
+	min: Expr
+	max: Expr
+	first: Expr
+	last: Expr
+	len: Expr
+	"""
+	The predicate holds if it holds for any element.
+	"""
+	any: Expr
+	"""
+	The predicate holds if it holds for every element.
+	"""
+	all: Expr
+}
+
+"""
+The filter itself: a yes/no over an entity.
+"""
+input FilterExpr @oneOf {
+	eq: Cmp
+	ne: Cmp
+	lt: Cmp
+	le: Cmp
+	gt: Cmp
+	ge: Cmp
+	startsWith: Cmp
+	endsWith: Cmp
+	contains: Cmp
+	notContains: Cmp
+	fuzzySearch: FuzzyCmp
+	isSome: Expr
+	isNone: Expr
+	isIn: Membership
+	isNotIn: Membership
+	isActive: Scope
+	isValid: Scope
+	isDeleted: Scope
+	isSelfLoop: Scope
+	"""
+	A graph-level view with no predicate: the result is the view.
+	"""
+	view: [ViewOp!]
+	and: [FilterExpr!]
+	or: [FilterExpr!]
+	not: FilterExpr
+}
+
+input FuzzyCmp {
+	lhs: Expr!
+	rhs: Expr!
+	levenshteinDistance: Int!
+	prefixMatch: Boolean!
+}
+
+"""
 Fuzzy string match: passes when the candidate is within `levenshteinDistance`
 edits of `value` (optionally also matching by prefix). Mirrors the local
 `fuzzy_search(value, levenshtein_distance, prefix_match)` builder.
@@ -2124,6 +2215,12 @@ filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combinati
 walk.
 """
 input GqlFilter @oneOf {
+	"""
+	The filter tree: one grammar for every entity, with expressions on both
+	sides of a comparison. The other variants are the legacy grammar and
+	are converted onto it.
+	"""
+	expr: FilterExpr
 	"""
 	Filter by node properties, fields, or temporal state.
 	"""
@@ -3381,6 +3478,11 @@ type Matching {
 		"""
 		dst: NodeId!
 	): Boolean!
+}
+
+input Membership {
+	expr: Expr!
+	values: [Value!]!
 }
 
 """
@@ -5011,6 +5113,12 @@ input NodeFieldCondition @oneOf {
 	Negated set membership.
 	"""
 	isNotIn: Value
+}
+
+enum NodeFieldName {
+	ID
+	NAME
+	NODE_TYPE
 }
 
 """
@@ -7267,6 +7375,26 @@ type QueryRoot {
 }
 
 """
+A value read from an entity.
+"""
+input Read {
+	entity: Entity!
+	views: [ViewOp!]
+	endpoint: Endpoint
+	target: Target!
+}
+
+"""
+Where a value is read: the entity, the views to read it through, and for an
+edge optionally one of its endpoint nodes.
+"""
+input Scope {
+	entity: Entity!
+	views: [ViewOp!]
+	endpoint: Endpoint
+}
+
+"""
 How the initially infected nodes are chosen.
 """
 input Seeds @oneOf {
@@ -7305,6 +7433,28 @@ enum SpecialFloat {
 	NAN
 	INFINITY
 	NEG_INFINITY
+}
+
+"""
+What a read selects on its entity.
+"""
+input Target @oneOf {
+	"""
+	A built-in node field.
+	"""
+	field: NodeFieldName
+	"""
+	A node degree in a direction.
+	"""
+	degree: DegreeDirection
+	"""
+	A property, by name.
+	"""
+	property: String
+	"""
+	A metadata entry, by name.
+	"""
+	metadata: String
 }
 
 input Template @oneOf {
@@ -7764,6 +7914,20 @@ input VectorisedGraphWindow {
 	Exclusive upper bound of the search window.
 	"""
 	end: TimeInput!
+}
+
+"""
+One view restriction, applied in list order.
+"""
+input ViewOp @oneOf {
+	window: Window
+	at: TimeInput
+	after: TimeInput
+	before: TimeInput
+	latest: Boolean
+	snapshotAt: TimeInput
+	snapshotLatest: Boolean
+	layers: [String!]
 }
 
 input Window {

@@ -1,483 +1,479 @@
-//! Lowers the GraphQL filter wire types onto expression filters.
+//! Lowers the legacy GraphQL filter grammar onto the filter tree.
 //!
-//! The wire schema (`GqlNodeFilter` and friends) is unchanged; only the
-//! target changes: instead of the composite filter enums, each condition
-//! builds the corresponding typed expression and is erased to a [`DynFilter`].
+//! The legacy grammar (`GqlNodeFilter` and friends) says "left side, operator,
+//! constant" and wraps *filters* in views. The tree says the same thing with
+//! expressions on both sides and views on the *reads*. This module is the only
+//! place that knows both spellings: every legacy value becomes a tree here and
+//! is compiled like any other tree, so nothing downstream sees the legacy shape.
 
 use crate::model::graph::filtering::{
     translate_node_field_where, translate_prop_leaf_to_filter, GqlEdgeFilter,
-    GqlExplodedEdgeFilter, GqlNodeFilter, NodeField, NodeFieldCondition, PropCondition,
+    GqlExplodedEdgeFilter, GqlFilter, GqlGraphFilter, GqlNodeFilter, NodeField, NodeFieldCondition,
+    PropCondition,
 };
 use raphtory::{
     db::graph::views::filter::model::{
-        edge_filter::{EdgeEndpointNodeFilter, Endpoint},
-        exploded_edge_filter::ExplodedEdgeFilter,
+        edge_filter::Endpoint,
         filter::FilterValue,
-        latest_filter::Latest as LatestWrap,
-        layered_filter::Layered,
-        node_expr::{DynCreateOp, EntityAggOps},
         property_filter::PropertyFilterValue,
-        snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
-        windowed_filter::Windowed,
-        CombinedFilter, ComposableFilter, DynFilter, EdgeViewFilterOps, FilterOperator,
-        NodeViewFilterOps, PropertyExprFactory,
+        tree::{
+            Agg, CmpOp, Entity, Expr, Field, FilterExpr, Qual, Scope, StrOp, Structural, Target,
+            ViewOp,
+        },
+        FilterOperator,
     },
     errors::GraphError,
-    prelude::{EdgeFilter, EntityExprFilterOps, Layer, NodeFilter, NodeFilterFactory},
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoProp, Prop},
-    storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::{ops::Deref, sync::Arc};
+use std::ops::Deref;
 
-fn erased<F: CombinedFilter>(f: F) -> DynFilter {
-    Arc::new(f) as DynFilter
+fn invalid(msg: impl Into<String>) -> GraphError {
+    GraphError::InvalidGqlFilter(msg.into())
 }
 
-fn combine_all(
-    filters: impl IntoIterator<Item = Result<DynFilter, GraphError>>,
-    or: bool,
+fn non_empty(items: Vec<FilterExpr>, what: &str) -> Result<Vec<FilterExpr>, GraphError> {
+    if items.is_empty() {
+        return Err(invalid(format!("Filter '{what}' requires non-empty list")));
+    }
+    Ok(items)
+}
+
+fn all(
+    items: impl Iterator<Item = Result<FilterExpr, GraphError>>,
     what: &str,
-) -> Result<DynFilter, GraphError> {
-    let mut it = filters.into_iter();
-    let first = it.next().transpose()?.ok_or_else(|| {
-        GraphError::InvalidGqlFilter(format!("Filter '{what}' requires non-empty list"))
-    })?;
-    it.try_fold(first, |acc, next| {
-        Ok::<_, GraphError>(if or {
-            Arc::new(acc.or(next?)) as DynFilter
-        } else {
-            Arc::new(acc.and(next?)) as DynFilter
-        })
+) -> Result<Vec<FilterExpr>, GraphError> {
+    non_empty(items.collect::<Result<Vec<_>, _>>()?, what)
+}
+
+// ── views and endpoints distribute onto the reads ────────────────────────────
+
+fn map_scopes(filter: FilterExpr, f: &dyn Fn(&mut Scope)) -> FilterExpr {
+    let expr = |e: Expr| map_expr_scopes(e, f);
+    match filter {
+        FilterExpr::Cmp { op, lhs, rhs } => FilterExpr::Cmp {
+            op,
+            lhs: expr(lhs),
+            rhs: expr(rhs),
+        },
+        FilterExpr::Str { op, lhs, rhs } => FilterExpr::Str {
+            op,
+            lhs: expr(lhs),
+            rhs: expr(rhs),
+        },
+        FilterExpr::IsSome(e) => FilterExpr::IsSome(expr(e)),
+        FilterExpr::IsNone(e) => FilterExpr::IsNone(expr(e)),
+        FilterExpr::In {
+            expr: e,
+            values,
+            negated,
+        } => FilterExpr::In {
+            expr: expr(e),
+            values,
+            negated,
+        },
+        FilterExpr::Structural { mut scope, pred } => {
+            f(&mut scope);
+            FilterExpr::Structural { scope, pred }
+        }
+        FilterExpr::View(ops) => FilterExpr::View(ops),
+        FilterExpr::And(items) => {
+            FilterExpr::And(items.into_iter().map(|i| map_scopes(i, f)).collect())
+        }
+        FilterExpr::Or(items) => {
+            FilterExpr::Or(items.into_iter().map(|i| map_scopes(i, f)).collect())
+        }
+        FilterExpr::Not(inner) => FilterExpr::Not(Box::new(map_scopes(*inner, f))),
+    }
+}
+
+fn map_expr_scopes(expr: Expr, f: &dyn Fn(&mut Scope)) -> Expr {
+    match expr {
+        Expr::Const(v) => Expr::Const(v),
+        Expr::Read { mut scope, target } => {
+            f(&mut scope);
+            Expr::Read { scope, target }
+        }
+        Expr::Temporal(e) => Expr::Temporal(Box::new(map_expr_scopes(*e, f))),
+        Expr::Agg(a, e) => Expr::Agg(a, Box::new(map_expr_scopes(*e, f))),
+        Expr::Qual(q, e) => Expr::Qual(q, Box::new(map_expr_scopes(*e, f))),
+    }
+}
+
+/// A legacy view wraps a whole filter; on the tree it scopes every read inside.
+fn scoped(filter: FilterExpr, view: ViewOp) -> FilterExpr {
+    map_scopes(filter, &|scope| scope.views.push(view.clone()))
+}
+
+/// A legacy `src`/`dst` wraps a node filter; on the tree every read inside
+/// becomes an edge read through that endpoint.
+fn through(filter: FilterExpr, entity: Entity, endpoint: Endpoint) -> FilterExpr {
+    map_scopes(filter, &|scope| {
+        scope.entity = entity;
+        scope.endpoint = Some(endpoint);
     })
 }
 
-/// Applies one translated leaf predicate to a value expression.
-fn apply_leaf(
-    lhs: Arc<dyn DynCreateOp>,
+// ── leaves ───────────────────────────────────────────────────────────────────
+
+fn cmp(op: CmpOp, lhs: Expr, rhs: Prop) -> FilterExpr {
+    FilterExpr::Cmp {
+        op,
+        lhs,
+        rhs: Expr::Const(rhs),
+    }
+}
+
+fn str_op(op: StrOp, lhs: Expr, rhs: Prop) -> FilterExpr {
+    FilterExpr::Str {
+        op,
+        lhs,
+        rhs: Expr::Const(rhs),
+    }
+}
+
+/// A legacy `operator + value` on an expression, with the value already in
+/// property-filter shape (a single value, a set, or nothing).
+fn leaf(
+    lhs: Expr,
     op: FilterOperator,
     value: PropertyFilterValue,
-) -> Result<DynFilter, GraphError> {
+) -> Result<FilterExpr, GraphError> {
     use FilterOperator as FO;
+    use PropertyFilterValue as V;
     Ok(match (op, value) {
-        (FO::Eq, PropertyFilterValue::Single(v)) => erased(lhs.eq(v)),
-        (FO::Ne, PropertyFilterValue::Single(v)) => erased(lhs.ne(v)),
-        (FO::Gt, PropertyFilterValue::Single(v)) => erased(lhs.gt(v)),
-        (FO::Ge, PropertyFilterValue::Single(v)) => erased(lhs.ge(v)),
-        (FO::Lt, PropertyFilterValue::Single(v)) => erased(lhs.lt(v)),
-        (FO::Le, PropertyFilterValue::Single(v)) => erased(lhs.le(v)),
-        (FO::StartsWith, PropertyFilterValue::Single(v)) => erased(lhs.starts_with(v)),
-        (FO::EndsWith, PropertyFilterValue::Single(v)) => erased(lhs.ends_with(v)),
-        (FO::Contains, PropertyFilterValue::Single(v)) => erased(lhs.contains(v)),
-        (FO::NotContains, PropertyFilterValue::Single(v)) => erased(lhs.not_contains(v)),
+        (FO::Eq, V::Single(v)) => cmp(CmpOp::Eq, lhs, v),
+        (FO::Ne, V::Single(v)) => cmp(CmpOp::Ne, lhs, v),
+        (FO::Gt, V::Single(v)) => cmp(CmpOp::Gt, lhs, v),
+        (FO::Ge, V::Single(v)) => cmp(CmpOp::Ge, lhs, v),
+        (FO::Lt, V::Single(v)) => cmp(CmpOp::Lt, lhs, v),
+        (FO::Le, V::Single(v)) => cmp(CmpOp::Le, lhs, v),
+        (FO::StartsWith, V::Single(v)) => str_op(StrOp::StartsWith, lhs, v),
+        (FO::EndsWith, V::Single(v)) => str_op(StrOp::EndsWith, lhs, v),
+        (FO::Contains, V::Single(v)) => str_op(StrOp::Contains, lhs, v),
+        (FO::NotContains, V::Single(v)) => str_op(StrOp::NotContains, lhs, v),
         (
             FO::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
             },
-            PropertyFilterValue::Single(v),
-        ) => erased(lhs.fuzzy_search(v, levenshtein_distance, prefix_match)),
-        (FO::IsIn, PropertyFilterValue::Set(values)) => {
-            erased(lhs.is_in(values.deref().iter().cloned()))
-        }
-        (FO::IsNotIn, PropertyFilterValue::Set(values)) => {
-            erased(lhs.is_not_in(values.deref().iter().cloned()))
-        }
-        (FO::IsSome, PropertyFilterValue::None) => erased(lhs.is_some()),
-        (FO::IsNone, PropertyFilterValue::None) => erased(lhs.is_none()),
+            V::Single(v),
+        ) => str_op(
+            StrOp::FuzzySearch {
+                levenshtein_distance,
+                prefix_match,
+            },
+            lhs,
+            v,
+        ),
+        (FO::IsIn, V::Set(values)) => FilterExpr::In {
+            expr: lhs,
+            values: values.iter().cloned().collect(),
+            negated: false,
+        },
+        (FO::IsNotIn, V::Set(values)) => FilterExpr::In {
+            expr: lhs,
+            values: values.iter().cloned().collect(),
+            negated: true,
+        },
+        (FO::IsSome, V::None) => FilterExpr::IsSome(lhs),
+        (FO::IsNone, V::None) => FilterExpr::IsNone(lhs),
         (op, _) => {
-            return Err(GraphError::InvalidGqlFilter(format!(
+            return Err(invalid(format!(
                 "operator {op:?} received an incompatible value shape"
             )))
         }
     })
 }
 
-/// Walks a property condition tree over a value expression: wrapper conditions
-/// extend the expression (leading form, outermost applied first), boolean
-/// combinators branch, leaves become predicates.
-fn lower_prop_condition(
-    lhs: Arc<dyn DynCreateOp>,
-    name_for_errors: &str,
-    cond: &PropCondition,
-) -> Result<DynFilter, GraphError> {
+/// The same for a built-in field, whose legacy value is a string or an id.
+fn field_leaf(lhs: Expr, op: FilterOperator, value: FilterValue) -> Result<FilterExpr, GraphError> {
+    let single = match value {
+        FilterValue::ID(gid) => PropertyFilterValue::Single(gid.into_prop()),
+        FilterValue::Single(s) => PropertyFilterValue::Single(Prop::str(s)),
+        FilterValue::IDSet(gids) => PropertyFilterValue::Set(std::sync::Arc::new(
+            gids.iter().map(|g| g.clone().into_prop()).collect(),
+        )),
+        FilterValue::Set(strings) => PropertyFilterValue::Set(std::sync::Arc::new(
+            strings.iter().map(|s| Prop::str(s.to_string())).collect(),
+        )),
+    };
+    let single = match (&op, single) {
+        (FilterOperator::IsSome | FilterOperator::IsNone, _) => PropertyFilterValue::None,
+        (_, v) => v,
+    };
+    leaf(lhs, op, single)
+}
+
+/// A legacy property condition: qualifiers and aggregates wrap the *condition*,
+/// so each one moves onto the expression they qualify; `and`/`or`/`not` inside
+/// a condition become combinators over copies of the expression.
+fn prop_condition(lhs: Expr, name: &str, cond: &PropCondition) -> Result<FilterExpr, GraphError> {
     use PropCondition::*;
+    let over = |wrap: fn(Box<Expr>) -> Expr, inner: &PropCondition| {
+        prop_condition(wrap(Box::new(lhs.clone())), name, inner)
+    };
     match cond {
-        And(list) => combine_all(
-            list.iter()
-                .map(|c| lower_prop_condition(lhs.clone(), name_for_errors, c)),
-            false,
+        And(list) => Ok(FilterExpr::And(all(
+            list.iter().map(|c| prop_condition(lhs.clone(), name, c)),
             "and",
-        ),
-        Or(list) => combine_all(
-            list.iter()
-                .map(|c| lower_prop_condition(lhs.clone(), name_for_errors, c)),
-            true,
+        )?)),
+        Or(list) => Ok(FilterExpr::Or(all(
+            list.iter().map(|c| prop_condition(lhs.clone(), name, c)),
             "or",
-        ),
-        Not(inner) => Ok(
-            Arc::new(lower_prop_condition(lhs, name_for_errors, inner.deref())?.not()) as DynFilter,
-        ),
-        First(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::first(lhs)),
-            name_for_errors,
+        )?)),
+        Not(inner) => Ok(FilterExpr::Not(Box::new(prop_condition(
+            lhs,
+            name,
             inner.deref(),
-        ),
-        Last(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::last(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        Any(inner) => lower_prop_condition(
-            Arc::new(EntityExprFilterOps::any(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        All(inner) => lower_prop_condition(
-            Arc::new(EntityExprFilterOps::all(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        Sum(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::sum(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        Avg(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::avg(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        Min(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::min(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        Max(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::max(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        Len(inner) => lower_prop_condition(
-            Arc::new(EntityAggOps::len(lhs)),
-            name_for_errors,
-            inner.deref(),
-        ),
-        leaf => {
-            let (op, value) = translate_prop_leaf_to_filter(name_for_errors, leaf)?;
-            apply_leaf(lhs, op, value)
+        )?))),
+        First(inner) => over(|e| Expr::Agg(Agg::First, e), inner),
+        Last(inner) => over(|e| Expr::Agg(Agg::Last, e), inner),
+        Sum(inner) => over(|e| Expr::Agg(Agg::Sum, e), inner),
+        Avg(inner) => over(|e| Expr::Agg(Agg::Avg, e), inner),
+        Min(inner) => over(|e| Expr::Agg(Agg::Min, e), inner),
+        Max(inner) => over(|e| Expr::Agg(Agg::Max, e), inner),
+        Len(inner) => over(|e| Expr::Agg(Agg::Len, e), inner),
+        Any(inner) => over(|e| Expr::Qual(Qual::Any, e), inner),
+        All(inner) => over(|e| Expr::Qual(Qual::All, e), inner),
+        leaf_cond => {
+            let (op, value) = translate_prop_leaf_to_filter(name, leaf_cond)?;
+            leaf(lhs, op, value)
         }
     }
 }
 
-/// Applies one translated built-in-field predicate to a field expression.
-fn apply_field_leaf(
-    lhs: Arc<dyn DynCreateOp>,
-    op: FilterOperator,
-    value: FilterValue,
-) -> Result<DynFilter, GraphError> {
-    use FilterOperator as FO;
-    let single = |v: FilterValue| -> Result<Prop, GraphError> {
-        Ok(match v {
-            FilterValue::ID(gid) => gid.into_prop(),
-            FilterValue::Single(s) => Prop::str(s),
-            other => {
-                return Err(GraphError::InvalidGqlFilter(format!(
-                    "expected a single value, got {other:?}"
-                )))
-            }
-        })
-    };
-    let set = |v: FilterValue| -> Result<Vec<Prop>, GraphError> {
-        Ok(match v {
-            FilterValue::IDSet(gids) => gids.iter().map(|g| g.clone().into_prop()).collect(),
-            FilterValue::Set(strings) => strings.iter().map(|s| Prop::str(s.to_string())).collect(),
-            other => {
-                return Err(GraphError::InvalidGqlFilter(format!(
-                    "expected a list of values, got {other:?}"
-                )))
-            }
-        })
-    };
-    Ok(match op {
-        FO::Eq => erased(lhs.eq(single(value)?)),
-        FO::Ne => erased(lhs.ne(single(value)?)),
-        FO::Gt => erased(lhs.gt(single(value)?)),
-        FO::Ge => erased(lhs.ge(single(value)?)),
-        FO::Lt => erased(lhs.lt(single(value)?)),
-        FO::Le => erased(lhs.le(single(value)?)),
-        FO::StartsWith => erased(lhs.starts_with(single(value)?)),
-        FO::EndsWith => erased(lhs.ends_with(single(value)?)),
-        FO::Contains => erased(lhs.contains(single(value)?)),
-        FO::NotContains => erased(lhs.not_contains(single(value)?)),
-        FO::FuzzySearch {
-            levenshtein_distance,
-            prefix_match,
-        } => erased(lhs.fuzzy_search(single(value)?, levenshtein_distance, prefix_match)),
-        FO::IsIn => erased(lhs.is_in(set(value)?)),
-        FO::IsNotIn => erased(lhs.is_not_in(set(value)?)),
-        FO::IsSome => erased(lhs.is_some()),
-        FO::IsNone => erased(lhs.is_none()),
-    })
-}
-
-fn node_field_lhs(field: NodeField) -> Arc<dyn DynCreateOp> {
-    match field {
-        NodeField::NodeId => Arc::new(NodeFilter.id()),
-        NodeField::NodeName => Arc::new(NodeFilter.name()),
-        NodeField::NodeType => Arc::new(NodeFilter.node_type()),
+fn read(entity: Entity, target: Target) -> Expr {
+    Expr::Read {
+        scope: Scope::new(entity),
+        target,
     }
 }
 
-fn node_field_filter(field: NodeField, cond: &NodeFieldCondition) -> Result<DynFilter, GraphError> {
+fn node_field(
+    field: NodeField,
+    tree_field: Field,
+    cond: &NodeFieldCondition,
+) -> Result<FilterExpr, GraphError> {
     let (_, value, op) = translate_node_field_where(field, cond)?;
-    apply_field_leaf(node_field_lhs(field), op, value)
+    field_leaf(read(Entity::Node, Target::Field(tree_field)), op, value)
 }
 
-pub(crate) fn lower_node_filter(filter: &GqlNodeFilter) -> Result<DynFilter, GraphError> {
-    use GqlNodeFilter::*;
-    Ok(match filter {
-        Id(f) => node_field_filter(NodeField::NodeId, &f.where_)?,
-        Name(f) => node_field_filter(NodeField::NodeName, &f.where_)?,
-        NodeType(f) => node_field_filter(NodeField::NodeType, &f.where_)?,
-        Degree(degree) => {
-            let lhs: Arc<dyn DynCreateOp> = match degree.direction.into() {
-                raphtory_api::core::Direction::BOTH => Arc::new(NodeFilter.degree()),
-                raphtory_api::core::Direction::IN => Arc::new(NodeFilter.in_degree()),
-                raphtory_api::core::Direction::OUT => Arc::new(NodeFilter.out_degree()),
-            };
-            let field_name: String = degree.direction.into();
-            lower_prop_condition(lhs, &field_name, &degree.where_)?
-        }
-        Property(prop) => lower_prop_condition(
-            Arc::new(PropertyExprFactory::property(&NodeFilter, &prop.name)),
-            &prop.name,
-            &prop.where_,
-        )?,
-        Metadata(prop) => lower_prop_condition(
-            Arc::new(PropertyExprFactory::metadata(&NodeFilter, &prop.name)),
-            &prop.name,
-            &prop.where_,
-        )?,
-        TemporalProperty(prop) => {
-            let temporal = PropertyExprFactory::property(&NodeFilter, &prop.name).temporal();
-            lower_prop_condition(Arc::new(temporal), &prop.name, &prop.where_)?
-        }
-        And(filters) => combine_all(filters.iter().map(lower_node_filter), false, "and")?,
-        Or(filters) => combine_all(filters.iter().map(lower_node_filter), true, "or")?,
-        Not(inner) => Arc::new(lower_node_filter(inner.deref())?.not()) as DynFilter,
-        Window(w) => erased(Windowed::new(
-            w.start.clone().into_time(),
-            w.end.clone().into_time(),
-            lower_node_filter(w.expr.deref())?,
-        )),
-        At(t) => {
-            let et = t.time.clone().into_time();
-            erased(Windowed::new(
-                et,
-                EventTime::end(et.t().saturating_add(1)),
-                lower_node_filter(t.expr.deref())?,
-            ))
-        }
-        Before(t) => erased(Windowed::new(
-            EventTime::start(i64::MIN),
-            EventTime::end(t.time.clone().into_time().t()),
-            lower_node_filter(t.expr.deref())?,
-        )),
-        After(t) => erased(Windowed::new(
-            EventTime::start(t.time.clone().into_time().t().saturating_add(1)),
-            EventTime::end(i64::MAX),
-            lower_node_filter(t.expr.deref())?,
-        )),
-        Latest(u) => erased(LatestWrap::new(lower_node_filter(u.expr.deref())?)),
-        SnapshotAt(t) => erased(SnapshotAtWrap::new(
-            t.time.clone().into_time(),
-            lower_node_filter(t.expr.deref())?,
-        )),
-        SnapshotLatest(u) => erased(SnapshotLatestWrap::new(lower_node_filter(u.expr.deref())?)),
-        Layers(l) => erased(Layered::new(
-            Layer::from(l.names.clone()),
-            lower_node_filter(l.expr.deref())?,
-        )),
-        IsActive(true) => erased(NodeFilter.is_active()),
-        IsActive(false) => Arc::new(erased(NodeFilter.is_active()).not()) as DynFilter,
-    })
-}
-
-fn edge_prop_lhs(exploded: bool, kind: PropKind, name: &str) -> Arc<dyn DynCreateOp> {
-    match (exploded, kind) {
-        (false, PropKind::Property) => Arc::new(PropertyExprFactory::property(&EdgeFilter, name)),
-        (false, PropKind::Metadata) => Arc::new(PropertyExprFactory::metadata(&EdgeFilter, name)),
-        (false, PropKind::Temporal) => {
-            Arc::new(PropertyExprFactory::property(&EdgeFilter, name).temporal())
-        }
-        (true, PropKind::Property) => {
-            Arc::new(PropertyExprFactory::property(&ExplodedEdgeFilter, name))
-        }
-        (true, PropKind::Metadata) => {
-            Arc::new(PropertyExprFactory::metadata(&ExplodedEdgeFilter, name))
-        }
-        (true, PropKind::Temporal) => {
-            Arc::new(PropertyExprFactory::property(&ExplodedEdgeFilter, name).temporal())
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum PropKind {
-    Property,
-    Metadata,
-    Temporal,
-}
-
-pub(crate) fn lower_edge_filter(filter: &GqlEdgeFilter) -> Result<DynFilter, GraphError> {
-    use GqlEdgeFilter::*;
-    Ok(match filter {
-        Src(inner) => erased(EdgeEndpointNodeFilter {
-            endpoint: Endpoint::Src,
-            inner: lower_node_filter(inner.deref())?,
-        }),
-        Dst(inner) => erased(EdgeEndpointNodeFilter {
-            endpoint: Endpoint::Dst,
-            inner: lower_node_filter(inner.deref())?,
-        }),
-        Property(prop) => lower_prop_condition(
-            edge_prop_lhs(false, PropKind::Property, &prop.name),
-            &prop.name,
-            &prop.where_,
-        )?,
-        Metadata(prop) => lower_prop_condition(
-            edge_prop_lhs(false, PropKind::Metadata, &prop.name),
-            &prop.name,
-            &prop.where_,
-        )?,
-        TemporalProperty(prop) => lower_prop_condition(
-            edge_prop_lhs(false, PropKind::Temporal, &prop.name),
-            &prop.name,
-            &prop.where_,
-        )?,
-        And(filters) => combine_all(filters.iter().map(lower_edge_filter), false, "and")?,
-        Or(filters) => combine_all(filters.iter().map(lower_edge_filter), true, "or")?,
-        Not(inner) => Arc::new(lower_edge_filter(inner.deref())?.not()) as DynFilter,
-        Window(w) => erased(Windowed::new(
-            w.start.clone().into_time(),
-            w.end.clone().into_time(),
-            lower_edge_filter(w.expr.deref())?,
-        )),
-        At(t) => {
-            let et = t.time.clone().into_time();
-            erased(Windowed::new(
-                et,
-                EventTime::end(et.t().saturating_add(1)),
-                lower_edge_filter(t.expr.deref())?,
-            ))
-        }
-        Before(t) => erased(Windowed::new(
-            EventTime::start(i64::MIN),
-            EventTime::end(t.time.clone().into_time().t()),
-            lower_edge_filter(t.expr.deref())?,
-        )),
-        After(t) => erased(Windowed::new(
-            EventTime::start(t.time.clone().into_time().t().saturating_add(1)),
-            EventTime::end(i64::MAX),
-            lower_edge_filter(t.expr.deref())?,
-        )),
-        Latest(u) => erased(LatestWrap::new(lower_edge_filter(u.expr.deref())?)),
-        SnapshotAt(t) => erased(SnapshotAtWrap::new(
-            t.time.clone().into_time(),
-            lower_edge_filter(t.expr.deref())?,
-        )),
-        SnapshotLatest(u) => erased(SnapshotLatestWrap::new(lower_edge_filter(u.expr.deref())?)),
-        Layers(l) => erased(Layered::new(
-            Layer::from(l.names.clone()),
-            lower_edge_filter(l.expr.deref())?,
-        )),
-        IsActive(v) => bool_leaf(erased(EdgeFilter.is_active()), *v),
-        IsValid(v) => bool_leaf(erased(EdgeFilter.is_valid()), *v),
-        IsDeleted(v) => bool_leaf(erased(EdgeFilter.is_deleted()), *v),
-        IsSelfLoop(v) => bool_leaf(erased(EdgeFilter.is_self_loop()), *v),
-    })
-}
-
-fn bool_leaf(filter: DynFilter, wanted: bool) -> DynFilter {
+fn bool_leaf(filter: FilterExpr, wanted: bool) -> FilterExpr {
     if wanted {
         filter
     } else {
-        Arc::new(filter.not()) as DynFilter
+        FilterExpr::Not(Box::new(filter))
     }
 }
 
-pub(crate) fn lower_exploded_edge_filter(
-    filter: &GqlExplodedEdgeFilter,
-) -> Result<DynFilter, GraphError> {
-    use GqlExplodedEdgeFilter::*;
+// ── the three entity grammars ────────────────────────────────────────────────
+
+pub(crate) fn lower_node_filter(filter: &GqlNodeFilter) -> Result<FilterExpr, GraphError> {
+    use GqlNodeFilter::*;
+    let entity = Entity::Node;
     Ok(match filter {
-        Src(inner) => erased(EdgeEndpointNodeFilter {
-            endpoint: Endpoint::Src,
-            inner: lower_node_filter(inner.deref())?,
-        }),
-        Dst(inner) => erased(EdgeEndpointNodeFilter {
-            endpoint: Endpoint::Dst,
-            inner: lower_node_filter(inner.deref())?,
-        }),
-        Property(prop) => lower_prop_condition(
-            edge_prop_lhs(true, PropKind::Property, &prop.name),
-            &prop.name,
-            &prop.where_,
+        Id(f) => node_field(NodeField::NodeId, Field::Id, &f.where_)?,
+        Name(f) => node_field(NodeField::NodeName, Field::Name, &f.where_)?,
+        NodeType(f) => node_field(NodeField::NodeType, Field::NodeType, &f.where_)?,
+        Degree(d) => prop_condition(
+            read(entity, Target::Degree(d.direction.into())),
+            &String::from(d.direction),
+            &d.where_,
         )?,
-        Metadata(prop) => lower_prop_condition(
-            edge_prop_lhs(true, PropKind::Metadata, &prop.name),
-            &prop.name,
-            &prop.where_,
+        Property(p) => prop_condition(
+            read(entity, Target::Property(p.name.clone())),
+            &p.name,
+            &p.where_,
         )?,
-        TemporalProperty(prop) => lower_prop_condition(
-            edge_prop_lhs(true, PropKind::Temporal, &prop.name),
-            &prop.name,
-            &prop.where_,
+        Metadata(p) => prop_condition(
+            read(entity, Target::Metadata(p.name.clone())),
+            &p.name,
+            &p.where_,
         )?,
-        And(filters) => combine_all(filters.iter().map(lower_exploded_edge_filter), false, "and")?,
-        Or(filters) => combine_all(filters.iter().map(lower_exploded_edge_filter), true, "or")?,
-        Not(inner) => Arc::new(lower_exploded_edge_filter(inner.deref())?.not()) as DynFilter,
-        Window(w) => erased(Windowed::new(
-            w.start.clone().into_time(),
-            w.end.clone().into_time(),
-            lower_exploded_edge_filter(w.expr.deref())?,
-        )),
-        At(t) => {
-            let et = t.time.clone().into_time();
-            erased(Windowed::new(
-                et,
-                EventTime::end(et.t().saturating_add(1)),
-                lower_exploded_edge_filter(t.expr.deref())?,
-            ))
+        TemporalProperty(p) => prop_condition(
+            Expr::Temporal(Box::new(read(entity, Target::Property(p.name.clone())))),
+            &p.name,
+            &p.where_,
+        )?,
+        And(list) => FilterExpr::And(all(list.iter().map(lower_node_filter), "and")?),
+        Or(list) => FilterExpr::Or(all(list.iter().map(lower_node_filter), "or")?),
+        Not(inner) => FilterExpr::Not(Box::new(lower_node_filter(inner.deref())?)),
+        Window(w) => scoped(
+            lower_node_filter(w.expr.deref())?,
+            ViewOp::Window {
+                start: w.start.clone().into_time(),
+                end: w.end.clone().into_time(),
+            },
+        ),
+        At(t) => scoped(
+            lower_node_filter(t.expr.deref())?,
+            ViewOp::At(t.time.clone().into_time()),
+        ),
+        Before(t) => scoped(
+            lower_node_filter(t.expr.deref())?,
+            ViewOp::Before(t.time.clone().into_time()),
+        ),
+        After(t) => scoped(
+            lower_node_filter(t.expr.deref())?,
+            ViewOp::After(t.time.clone().into_time()),
+        ),
+        Latest(u) => scoped(lower_node_filter(u.expr.deref())?, ViewOp::Latest),
+        SnapshotAt(t) => scoped(
+            lower_node_filter(t.expr.deref())?,
+            ViewOp::SnapshotAt(t.time.clone().into_time()),
+        ),
+        SnapshotLatest(u) => scoped(lower_node_filter(u.expr.deref())?, ViewOp::SnapshotLatest),
+        Layers(l) => scoped(
+            lower_node_filter(l.expr.deref())?,
+            ViewOp::Layers(l.names.clone()),
+        ),
+        IsActive(wanted) => bool_leaf(
+            FilterExpr::Structural {
+                scope: Scope::new(entity),
+                pred: Structural::IsActive,
+            },
+            *wanted,
+        ),
+    })
+}
+
+/// The edge and exploded-edge grammars are the same enum shape over two types;
+/// one body serves both, parameterised by the entity the reads belong to.
+macro_rules! lower_edge_like {
+    ($name:ident, $ty:ident, $entity:expr) => {
+        pub(crate) fn $name(filter: &$ty) -> Result<FilterExpr, GraphError> {
+            use $ty::*;
+            let entity = $entity;
+            let structural = |pred: Structural, wanted: bool| {
+                bool_leaf(
+                    FilterExpr::Structural {
+                        scope: Scope::new(entity),
+                        pred,
+                    },
+                    wanted,
+                )
+            };
+            Ok(match filter {
+                Src(inner) => through(lower_node_filter(inner.deref())?, entity, Endpoint::Src),
+                Dst(inner) => through(lower_node_filter(inner.deref())?, entity, Endpoint::Dst),
+                Property(p) => prop_condition(
+                    read(entity, Target::Property(p.name.clone())),
+                    &p.name,
+                    &p.where_,
+                )?,
+                Metadata(p) => prop_condition(
+                    read(entity, Target::Metadata(p.name.clone())),
+                    &p.name,
+                    &p.where_,
+                )?,
+                TemporalProperty(p) => prop_condition(
+                    Expr::Temporal(Box::new(read(entity, Target::Property(p.name.clone())))),
+                    &p.name,
+                    &p.where_,
+                )?,
+                And(list) => FilterExpr::And(all(list.iter().map($name), "and")?),
+                Or(list) => FilterExpr::Or(all(list.iter().map($name), "or")?),
+                Not(inner) => FilterExpr::Not(Box::new($name(inner.deref())?)),
+                Window(w) => scoped(
+                    $name(w.expr.deref())?,
+                    ViewOp::Window {
+                        start: w.start.clone().into_time(),
+                        end: w.end.clone().into_time(),
+                    },
+                ),
+                At(t) => scoped(
+                    $name(t.expr.deref())?,
+                    ViewOp::At(t.time.clone().into_time()),
+                ),
+                Before(t) => scoped(
+                    $name(t.expr.deref())?,
+                    ViewOp::Before(t.time.clone().into_time()),
+                ),
+                After(t) => scoped(
+                    $name(t.expr.deref())?,
+                    ViewOp::After(t.time.clone().into_time()),
+                ),
+                Latest(u) => scoped($name(u.expr.deref())?, ViewOp::Latest),
+                SnapshotAt(t) => scoped(
+                    $name(t.expr.deref())?,
+                    ViewOp::SnapshotAt(t.time.clone().into_time()),
+                ),
+                SnapshotLatest(u) => scoped($name(u.expr.deref())?, ViewOp::SnapshotLatest),
+                Layers(l) => scoped($name(l.expr.deref())?, ViewOp::Layers(l.names.clone())),
+                IsActive(v) => structural(Structural::IsActive, *v),
+                IsValid(v) => structural(Structural::IsValid, *v),
+                IsDeleted(v) => structural(Structural::IsDeleted, *v),
+                IsSelfLoop(v) => structural(Structural::IsSelfLoop, *v),
+            })
         }
-        Before(t) => erased(Windowed::new(
-            EventTime::start(i64::MIN),
-            EventTime::end(t.time.clone().into_time().t()),
-            lower_exploded_edge_filter(t.expr.deref())?,
-        )),
-        After(t) => erased(Windowed::new(
-            EventTime::start(t.time.clone().into_time().t().saturating_add(1)),
-            EventTime::end(i64::MAX),
-            lower_exploded_edge_filter(t.expr.deref())?,
-        )),
-        Latest(u) => erased(LatestWrap::new(lower_exploded_edge_filter(u.expr.deref())?)),
-        SnapshotAt(t) => erased(SnapshotAtWrap::new(
-            t.time.clone().into_time(),
-            lower_exploded_edge_filter(t.expr.deref())?,
-        )),
-        SnapshotLatest(u) => erased(SnapshotLatestWrap::new(lower_exploded_edge_filter(
-            u.expr.deref(),
-        )?)),
-        Layers(l) => erased(Layered::new(
-            Layer::from(l.names.clone()),
-            lower_exploded_edge_filter(l.expr.deref())?,
-        )),
-        IsActive(v) => bool_leaf(erased(ExplodedEdgeFilter.is_active()), *v),
-        IsValid(v) => bool_leaf(erased(ExplodedEdgeFilter.is_valid()), *v),
-        IsDeleted(v) => bool_leaf(erased(ExplodedEdgeFilter.is_deleted()), *v),
-        IsSelfLoop(v) => bool_leaf(erased(ExplodedEdgeFilter.is_self_loop()), *v),
+    };
+}
+
+lower_edge_like!(lower_edge_filter, GqlEdgeFilter, Entity::Edge);
+lower_edge_like!(
+    lower_exploded_edge_filter,
+    GqlExplodedEdgeFilter,
+    Entity::ExplodedEdge
+);
+
+/// A legacy graph view nests inner-first: `window { expr: latest }` is the
+/// latest state, then the window. The tree lists ops in application order.
+pub(crate) fn lower_graph_filter(filter: &GqlGraphFilter) -> Result<Vec<ViewOp>, GraphError> {
+    use GqlGraphFilter::*;
+    let inner = |expr: &Option<crate::model::graph::filtering::Wrapped<GqlGraphFilter>>| {
+        expr.as_ref()
+            .map(|e| lower_graph_filter(e.deref()))
+            .unwrap_or_else(|| Ok(Vec::new()))
+    };
+    let (mut ops, op) = match filter {
+        Window(w) => (
+            inner(&w.expr)?,
+            ViewOp::Window {
+                start: w.start.clone().into_time(),
+                end: w.end.clone().into_time(),
+            },
+        ),
+        At(t) => (inner(&t.expr)?, ViewOp::At(t.time.clone().into_time())),
+        Before(t) => (inner(&t.expr)?, ViewOp::Before(t.time.clone().into_time())),
+        After(t) => (inner(&t.expr)?, ViewOp::After(t.time.clone().into_time())),
+        Latest(u) => (inner(&u.expr)?, ViewOp::Latest),
+        SnapshotAt(t) => (
+            inner(&t.expr)?,
+            ViewOp::SnapshotAt(t.time.clone().into_time()),
+        ),
+        SnapshotLatest(u) => (inner(&u.expr)?, ViewOp::SnapshotLatest),
+        Layers(l) => (inner(&l.expr)?, ViewOp::Layers(l.names.clone())),
+    };
+    ops.push(op);
+    Ok(ops)
+}
+
+/// Any legacy filter, as a tree.
+pub(crate) fn lower_filter(filter: &GqlFilter) -> Result<FilterExpr, GraphError> {
+    use GqlFilter::*;
+    Ok(match filter {
+        GqlFilter::Expr(tree) => FilterExpr::try_from(tree.clone())?,
+        Node(f) => lower_node_filter(f)?,
+        Edge(f) => lower_edge_filter(f)?,
+        ExplodedEdge(f) => lower_exploded_edge_filter(f)?,
+        Graph(g) => FilterExpr::View(lower_graph_filter(g)?),
+        And(list) => FilterExpr::And(all(list.iter().map(lower_filter), "and")?),
+        Or(list) => FilterExpr::Or(all(list.iter().map(lower_filter), "or")?),
+        Not(inner) => FilterExpr::Not(Box::new(lower_filter(inner.deref())?)),
+        Window(w) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Window(w.clone()))?),
+        At(t) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::At(t.clone()))?),
+        Before(t) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Before(t.clone()))?),
+        After(t) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::After(t.clone()))?),
+        Latest(u) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Latest(u.clone()))?),
+        SnapshotAt(t) => {
+            FilterExpr::View(lower_graph_filter(&GqlGraphFilter::SnapshotAt(t.clone()))?)
+        }
+        SnapshotLatest(u) => FilterExpr::View(lower_graph_filter(
+            &GqlGraphFilter::SnapshotLatest(u.clone()),
+        )?),
+        Layers(l) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Layers(l.clone()))?),
     })
 }

@@ -13,18 +13,27 @@
 //! "what is sent" cannot mean different things.
 
 use crate::{
-    db::graph::views::filter::model::{
-        and_filter::AndFilter,
-        dyn_factory::{DynEdgeFilterFactory, DynNodeFilterFactory},
-        edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
-        exploded_edge_filter::ExplodedEdgeFilter,
-        graph_filter::GraphFilter,
-        layered_filter::layer_label,
-        node_expr::{DynCreateOp, DynTemporal},
-        node_filter::NodeFilter,
-        not_filter::NotFilter,
-        or_filter::OrFilter,
-        DynCreateFilter, DynView, ViewWrapOps,
+    db::{
+        api::{
+            state::NodeOp,
+            view::internal::{DynGraphArc, GraphView},
+        },
+        graph::views::filter::{
+            model::{
+                and_filter::AndFilter,
+                dyn_factory::{DynEdgeFilterFactory, DynNodeFilterFactory},
+                edge_filter::{EdgeEndpointNodeFilter, EdgeEndpointWrapper, EdgeFilter, Endpoint},
+                exploded_edge_filter::ExplodedEdgeFilter,
+                graph_filter::GraphFilter,
+                layered_filter::layer_label,
+                node_expr::{DynCreateOp, DynTemporal},
+                node_filter::NodeFilter,
+                not_filter::NotFilter,
+                or_filter::OrFilter,
+                DynCreateFilter, DynView, ViewWrapOps,
+            },
+            CreateFilter,
+        },
     },
     errors::GraphError,
     prelude::{EntityAggOps, EntityExprFilterOps, Layer},
@@ -294,7 +303,8 @@ fn edge_factory(entity: Entity, views: &[ViewOp]) -> Arc<dyn DynEdgeFilterFactor
     f
 }
 
-fn graph_view(views: &[ViewOp]) -> DynView {
+/// The graph-level view a chain of view ops describes, applied in order.
+pub fn compile_view(views: &[ViewOp]) -> DynView {
     let mut v: DynView = Arc::new(GraphFilter);
     for op in views {
         v = match op {
@@ -445,10 +455,19 @@ impl FilterExpr {
                 }
             }
             FilterExpr::Structural { scope, pred } => {
-                if scope.endpoint.is_some() {
-                    return Err(invalid(
-                        "structural predicates apply to the edge itself, not an endpoint",
-                    ));
+                // Through an endpoint, the predicate is a node predicate
+                // evaluated on the node at that end of the edge.
+                if let Some(endpoint) = scope.endpoint {
+                    if scope.entity != Entity::Edge {
+                        return Err(invalid("only an edge has src()/dst() endpoints"));
+                    }
+                    if *pred != Structural::IsActive {
+                        return Err(invalid(format!("{pred} is an edge predicate")));
+                    }
+                    return Ok(Arc::new(EdgeEndpointNodeFilter {
+                        endpoint,
+                        inner: node_factory(&scope.views).dyn_is_active(),
+                    }));
                 }
                 match (scope.entity, pred) {
                     (Entity::Node, Structural::IsActive) => {
@@ -472,7 +491,7 @@ impl FilterExpr {
                 if views.is_empty() {
                     return Err(invalid("a view filter needs at least one view"));
                 }
-                graph_view(views)
+                compile_view(views)
             }
             FilterExpr::And(items) => combine(items, "and", |left, right| {
                 Arc::new(AndFilter { left, right })
@@ -498,6 +517,46 @@ fn combine(
         .next()
         .ok_or_else(|| invalid(format!("`{name}` needs at least one operand")))??;
     compiled.try_fold(first, |acc, next| Ok(join(acc, next?)))
+}
+
+/// A tree is a filter in its own right: applying it compiles it first.
+impl CreateFilter for FilterExpr {
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph;
+
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
+        Arc<dyn NodeOp<Output = bool> + 'graph>;
+
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        self.compile()?.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        self.compile()?.create_node_filter(graph, filtered)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.compile()?.filter_graph_view(graph)
+    }
 }
 
 // ── printing ─────────────────────────────────────────────────────────────────
