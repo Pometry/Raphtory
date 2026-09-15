@@ -1,7 +1,4 @@
-use std::{
-    io,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct GraphDir(PathBuf);
@@ -13,6 +10,11 @@ impl GraphDir {
 
     pub fn nodes_dir(&self) -> PathBuf {
         self.path().join("nodes")
+    }
+
+    pub fn node_type_index_dir(&self) -> PathBuf {
+        // NOTE: node_type_index is stored under the nodes dir.
+        self.nodes_dir().join("type_index")
     }
 
     pub fn edges_dir(&self) -> PathBuf {
@@ -29,11 +31,6 @@ impl GraphDir {
 
     pub fn wal_dir(&self) -> PathBuf {
         self.path().join("wal")
-    }
-
-    pub fn create_dir(&self) -> Result<(), io::Error> {
-        std::fs::create_dir_all(self.path())?;
-        Ok(())
     }
 }
 

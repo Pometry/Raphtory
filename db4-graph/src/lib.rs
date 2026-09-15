@@ -21,6 +21,7 @@ use storage::{
     api::{
         edges::EdgeSegmentOps,
         graph_props::GraphPropSegmentOps,
+        node_type_index::NodeTypeIndexOps,
         nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
     },
     dir::GraphDir,
@@ -29,7 +30,7 @@ use storage::{
         layer_counter::GraphStats,
         locked::{
             edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropPages,
-            nodes::WriteLockedNodeSegments,
+            node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
         },
     },
     persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
@@ -436,6 +437,7 @@ where
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
+    pub node_type_index: WriteLockedNodeTypeIndex<EXT::NTI>,
     pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
@@ -451,6 +453,7 @@ where
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
+            node_type_index: graph.storage.node_type_index().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph_props: graph.storage.graph_props().write_locked(),
             graph,
@@ -490,6 +493,7 @@ where
 
         self.graph.gid_resolver.flush()?;
         self.nodes.flush()?;
+        self.node_type_index.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
 
@@ -509,6 +513,7 @@ where
 
         self.graph.gid_resolver.copy_to(dst.gid_resolver_dir())?;
         self.nodes.copy_to(&dst.nodes_dir())?;
+        self.node_type_index.copy_to(&dst.node_type_index_dir())?;
         self.edges.copy_to(&dst.edges_dir())?;
         self.graph_props.copy_to(&dst.graph_props_dir())?;
 
