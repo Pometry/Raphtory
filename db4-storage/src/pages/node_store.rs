@@ -151,7 +151,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self.node_meta
     }
 
-    pub fn node_type_index(&self) -> &EXT::NTI {
+    pub fn node_type_index(&self) -> &Arc<EXT::NTI> {
         &self.node_type_index
     }
 

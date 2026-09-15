@@ -133,7 +133,7 @@ impl GraphStorage {
         }
     }
 
-    pub fn node_type_index(&self) -> &NTI<Extension> {
+    pub fn node_type_index(&self) -> &Arc<NTI> {
         match self {
             GraphStorage::Mem(storage) => storage.graph.storage().nodes().node_type_index(),
             GraphStorage::Unlocked(storage) => storage.storage().nodes().node_type_index(),

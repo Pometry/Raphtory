@@ -7,9 +7,7 @@ use crate::{
 };
 use ahash::RandomState;
 use indexmap::IndexSet;
-use parking_lot::{
-    RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard,
-};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_core::entities::VID;
 use std::{
     ops::DerefMut,

@@ -4,7 +4,7 @@ use crate::{
 };
 use ahash::RandomState;
 use indexmap::IndexSet;
-use parking_lot::{RawRwLock, RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockWriteGuard};
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_core::entities::VID;
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 

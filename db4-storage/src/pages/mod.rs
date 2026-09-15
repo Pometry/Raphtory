@@ -233,6 +233,10 @@ impl<
         &self.nodes
     }
 
+    pub fn node_type_index(&self) -> &Arc<EXT::NTI> {
+        self.nodes.node_type_index()
+    }
+
     pub fn edges(&self) -> &Arc<EdgeStorageInner<ES, EXT>> {
         &self.edges
     }
