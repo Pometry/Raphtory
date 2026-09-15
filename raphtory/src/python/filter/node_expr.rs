@@ -1,16 +1,15 @@
 use crate::{
     db::graph::views::filter::model::{
+        dyn_factory::DynNodeFilterFactory,
         filter::{FieldFilterValue, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
         is_active_node_filter::IsActiveNode,
         node_expr::{ops::prop_as_gid, CreateOp, DynCreateOp, DynEntityExpr, DynTemporal},
         node_filter::CompositeNodeFilter,
         node_state_filter::NodeStateBoolColOp,
         property_filter::{Op, PropertyFilterValue, PropertyRef},
-        CombinedFilter, DynCreateFilter, DynCreateView, DynPropertyExprFactory, EntityMarker,
-        FilterOperator, FilterTree, InternalViewWrapOps, NodeViewFilterOps, PropertyExprFactory,
-        ViewWrapOps,
+        DynPropertyExprFactory, EntityMarker, FilterOperator, FilterTree, ViewWrapOps,
     },
-    prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter, NodeFilterFactory},
+    prelude::{EntityAggOps, EntityExprFilterOps, NodeFilter},
     python::{
         filter::{
             filter_expr::PyFilterExpr,
@@ -25,10 +24,7 @@ use pyo3::{
     PyResult, Python,
 };
 use raphtory_api::core::{
-    entities::{
-        properties::prop::{Prop, PropType},
-        GID,
-    },
+    entities::properties::prop::{Prop, PropType},
     storage::timeindex::{AsTime, EventTime},
     Direction,
 };
@@ -470,90 +466,6 @@ impl PyPropertyExpr {
             self.0.temporal(),
             self.1.clone().and_then(WireLhs::temporal),
         )
-    }
-}
-
-pub trait DynNodeFilterFactory:
-    DynPropertyExprFactory + DynEntityExpr + DynCreateView + Send + Sync + 'static
-{
-    fn dyn_id(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_name(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_node_type(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_degree(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_in_degree(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_out_degree(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
-    fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
-
-    fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory>;
-
-    fn dyn_bounds(&self) -> (EventTime, EventTime);
-}
-
-impl InternalViewWrapOps for Arc<dyn DynNodeFilterFactory> {
-    type Window = Arc<dyn DynNodeFilterFactory>;
-
-    // Both calls dispatch through the vtable explicitly: plain method syntax
-    // would select the DynNodeFilterFactory blanket on Arc itself and loop.
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.as_ref().dyn_bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        self.as_ref().dyn_build_window(start, end)
-    }
-}
-
-impl<T> DynNodeFilterFactory for T
-where
-    T: NodeFilterFactory + NodeViewFilterOps + Send + Sync + 'static,
-{
-    fn dyn_id(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.id())
-    }
-    fn dyn_name(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.name())
-    }
-    fn dyn_node_type(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.node_type())
-    }
-
-    fn dyn_degree(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.degree())
-    }
-    fn dyn_in_degree(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.in_degree())
-    }
-    fn dyn_out_degree(&self) -> Arc<dyn DynCreateOp> {
-        Arc::new(self.out_degree())
-    }
-
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_active())
-    }
-
-    fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
-        Arc::new(PropertyExprFactory::metadata(self, name))
-    }
-
-    fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory> {
-        Arc::new(self.clone().build_window(start, end))
-    }
-
-    fn dyn_bounds(&self) -> (EventTime, EventTime) {
-        self.bounds()
-    }
-}
-
-impl NodeFilterFactory for Arc<dyn DynNodeFilterFactory> {
-    type NodeWindow = Self::Window;
-}
-
-impl NodeViewFilterOps for Arc<dyn DynNodeFilterFactory> {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.as_ref().dyn_is_active()
     }
 }
 

@@ -72,6 +72,7 @@ use std::{
 
 pub mod and_filter;
 pub mod degree_filter;
+pub mod dyn_factory;
 pub mod edge_expr;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
@@ -88,6 +89,7 @@ pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_expr;
 pub mod node_filter;
+pub mod tree;
 pub use exploded_edge_filter::CompositeExplodedEdgeFilter;
 pub use node_filter::CompositeNodeFilter;
 pub mod node_state_filter;

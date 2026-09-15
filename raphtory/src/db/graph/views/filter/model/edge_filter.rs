@@ -33,6 +33,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::graph::GraphStorage;
+use serde::{Deserialize, Serialize};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -93,7 +94,8 @@ impl EdgeViewFilterOps for EdgeFilter {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Endpoint {
     Src,
     Dst,

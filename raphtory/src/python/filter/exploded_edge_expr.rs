@@ -1,5 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
+        dyn_factory::DynEdgeFilterFactory,
         exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
         is_active_edge_filter::IsActiveEdge,
         is_deleted_filter::IsDeletedEdge,
@@ -10,7 +11,6 @@ use crate::{
     },
     python::{
         filter::{
-            edge_expr::DynEdgeFilterFactory,
             filter_expr::PyFilterExpr,
             node_expr::{PyExpr, PyPropertyExpr},
             wire::{wrap_exploded_views, WireEntity, WireLhs, WireTarget, WireView},
