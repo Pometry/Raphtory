@@ -1,5 +1,8 @@
 use crate::{
-    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    core::{
+        entities::nodes::node_ref::{AsNodeRef, NodeRef},
+        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    },
     db::{
         api::{
             state::{GenericNodeState, Index, TypedNodeState},
@@ -14,6 +17,7 @@ use crate::{
             POOL,
         },
     },
+    errors::GraphError,
     prelude::*,
 };
 use rand::Rng;
@@ -75,6 +79,67 @@ fn tie_rank(node_key: u64, label: usize) -> u64 {
 
 /// Computes components using a label propagation algorithm
 ///
+/// An initial community assignment, as accepted by [`label_propagation`] and
+/// [`label_propagation_fast`].
+///
+/// Implemented for `()`, meaning unseeded, and for a `HashMap` keyed by anything that names a node
+/// -- a name, a global id, or a `Node` -- so that callers never have to reach for the internal
+/// `VID`s the algorithms work in. The output of a previous run can be fed back in as a seed.
+pub trait IntoInitState {
+    /// Resolves the caller's node references into the `VID`-keyed map the algorithms use, or
+    /// `None` when there are no seeds at all.
+    fn into_init_state<G: StaticGraphViewOps>(
+        self,
+        graph: &G,
+    ) -> Result<Option<HashMap<usize, usize>>, GraphError>;
+}
+
+impl IntoInitState for () {
+    fn into_init_state<G: StaticGraphViewOps>(
+        self,
+        _graph: &G,
+    ) -> Result<Option<HashMap<usize, usize>>, GraphError> {
+        Ok(None)
+    }
+}
+
+impl<V: AsNodeRef> IntoInitState for HashMap<V, usize> {
+    fn into_init_state<G: StaticGraphViewOps>(
+        self,
+        graph: &G,
+    ) -> Result<Option<HashMap<usize, usize>>, GraphError> {
+        let mut resolved = HashMap::with_capacity(self.len());
+        for (node, label) in self {
+            let node_ref = node.as_node_ref();
+            match graph.node(node_ref) {
+                Some(n) => {
+                    resolved.insert(n.node.index(), label);
+                }
+                None => {
+                    let gid = match node_ref {
+                        NodeRef::Internal(vid) => graph.node_id(vid),
+                        NodeRef::External(gid) => gid.to_owned(),
+                    };
+                    return Err(GraphError::NodeMissingError(gid));
+                }
+            }
+        }
+        Ok(Some(resolved))
+    }
+}
+
+impl<T: IntoInitState> IntoInitState for Option<T> {
+    fn into_init_state<G: StaticGraphViewOps>(
+        self,
+        graph: &G,
+    ) -> Result<Option<HashMap<usize, usize>>, GraphError> {
+        match self {
+            Some(seeds) => seeds.into_init_state(graph),
+            None => Ok(None),
+        }
+    }
+}
+
 /// # Arguments
 ///
 /// - `g` - A reference to the graph
@@ -82,7 +147,7 @@ fn tie_rank(node_key: u64, label: usize) -> u64 {
 /// - `seed` - (Optional) Seeds the tie-break draw. The value used is printed in the stopping summary
 ///   and can be passed back here to reproduce a run.
 /// - `threads` - (Optional) Number of threads to use
-/// - `init_state` - (Optional) HashMap of node VID to community ID. When absent, every node starts
+/// - `init_state` - `()` for unseeded, or a HashMap of node to community ID. When unseeded, every node starts
 ///   in its own community. When present, only the nodes it names are labelled and active; the rest
 ///   start unlabelled and may acquire a label from their neighbours. A map covering every node
 ///   reproduces a previous warm-start behaviour exactly.
@@ -101,13 +166,14 @@ pub fn label_propagation<G>(
     iter_count: usize,
     seed: Option<u64>,
     threads: Option<usize>,
-    init_state: Option<HashMap<usize, usize>>,
+    init_state: impl IntoInitState,
     rel_tol: Option<f64>,
     patience: Option<usize>,
-) -> TypedNodeState<'static, LabelPropState, G>
+) -> Result<TypedNodeState<'static, LabelPropState, G>, GraphError>
 where
     G: StaticGraphViewOps,
 {
+    let init_state = init_state.into_init_state(g)?;
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let global_diff = accumulators::sum::<usize>(2);
     ctx.global_agg_reset(global_diff);
@@ -263,7 +329,7 @@ where
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    runner.run(
+    Ok(runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2), Job::new(step3), step4],
         None,
@@ -279,7 +345,7 @@ where
         iter_count,
         None,
         None,
-    )
+    ))
 }
 
 /// Scratch vote counter for the node currently being evaluated, reused across the nodes of a
@@ -371,13 +437,14 @@ pub fn label_propagation_fast<G>(
     iter_count: usize,
     seed: Option<u64>,
     threads: Option<usize>,
-    init_state: Option<HashMap<usize, usize>>,
+    init_state: impl IntoInitState,
     rel_tol: Option<f64>,
     patience: Option<usize>,
-) -> TypedNodeState<'static, LabelPropState, G>
+) -> Result<TypedNodeState<'static, LabelPropState, G>, GraphError>
 where
     G: StaticGraphViewOps,
 {
+    let init_state = init_state.into_init_state(g)?;
     let index = Index::for_graph(g.clone());
     let n = index.len();
 
@@ -626,10 +693,7 @@ where
         })
         .collect();
 
-    TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-        g.clone(),
-        values,
-        index,
-        None,
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index(g.clone(), values, index, None),
     ))
 }

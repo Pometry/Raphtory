@@ -687,7 +687,7 @@ def label_propagation(
         OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
 
     Raises:
-        ValueError: If a key of `init_state` is not a node in `graph`.
+        Exception: If a key of `init_state` is not a node in `graph`.
 
     """
 
@@ -718,7 +718,7 @@ def label_propagation_fast(
         OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
 
     Raises:
-        ValueError: If a key of `init_state` is not a node in `graph`.
+        Exception: If a key of `init_state` is not a node in `graph`.
 
     """
 

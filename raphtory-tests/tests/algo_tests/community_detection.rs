@@ -48,7 +48,8 @@ fn lpa_test() {
     }
     test_storage!(&graph, |graph| {
         let seed = Some(8); // NB: different seeds affect the partition reached
-        let result = label_propagation(graph, 20, seed, None, None, None, None)
+        let result = label_propagation(graph, 20, seed, None, (), None, None)
+            .unwrap()
             .to_hashmap(|value| value.community_id);
         println!("{:?}", result);
         let result = group_by_value(&result);
@@ -87,10 +88,9 @@ fn lpa_vote_share() {
         graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let vid = |name: &str| graph.node(name).unwrap().node.0;
-        let seeds: HashMap<usize, usize> =
-            HashMap::from([(vid("A1"), 0), (vid("A2"), 0), (vid("B1"), 1)]);
-        let out = label_propagation(graph, 20, Some(6), None, Some(seeds), None, None)
+        let seeds: HashMap<&str, usize> = HashMap::from([("A1", 0), ("A2", 0), ("B1", 1)]);
+        let out = label_propagation(graph, 20, Some(6), None, seeds, None, None)
+            .unwrap()
             .to_hashmap(|value| (value.community_id, value.confidence));
 
         let close = |got: (usize, f64), label: usize, share: f64| {
@@ -137,10 +137,10 @@ fn lpa_fast_matches_lpa() {
         graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let partial: HashMap<usize, usize> = ["R1", "B5"]
+        let partial: HashMap<&str, usize> = ["R1", "B5"]
             .iter()
             .enumerate()
-            .map(|(label, name)| (graph.node(*name).unwrap().node.0, label))
+            .map(|(label, name)| (*name, label))
             .collect();
 
         for init_state in [None, Some(partial)] {
@@ -155,6 +155,7 @@ fn lpa_fast_matches_lpa() {
                         None,
                         None,
                     )
+                    .unwrap()
                     .to_hashmap(|value| (value.community_id, value.confidence));
                     let actual = label_propagation_fast(
                         graph,
@@ -165,6 +166,7 @@ fn lpa_fast_matches_lpa() {
                         None,
                         None,
                     )
+                    .unwrap()
                     .to_hashmap(|value| (value.community_id, value.confidence));
                     // Labels exactly; shares within a tolerance. Both sides divide the same two
                     // integers, so this should be bit-identical -- the tolerance is here so that a

@@ -68,7 +68,7 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::{Graph, GraphViewOps, NodeStateOps, PropUnwrap},
+    prelude::{Graph, NodeStateOps, PropUnwrap},
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -790,29 +790,6 @@ pub fn betweenness_centrality(
     betweenness_rs(&graph.graph, k, normalized).to_output_nodestate()
 }
 
-/// Helper: resolve a caller-supplied community assignment to the node indices the label propagation
-/// algorithms expect.
-fn resolve_label_prop_init_state(
-    graph: &PyGraphView,
-    seeds: Option<HashMap<PyNodeRef, usize>>,
-) -> PyResult<Option<HashMap<usize, usize>>> {
-    let Some(seeds) = seeds else { return Ok(None) };
-    let mut resolved = HashMap::with_capacity(seeds.len());
-    for (node, label) in seeds {
-        match graph.graph.node(&node) {
-            Some(n) => {
-                resolved.insert(n.node.0, label);
-            }
-            None => {
-                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "{node:?} is not a node in the graph"
-                )))
-            }
-        }
-    }
-    Ok(Some(resolved))
-}
-
 /// Computes components using a label propagation algorithm
 ///
 /// Arguments:
@@ -827,7 +804,7 @@ fn resolve_label_prop_init_state(
 ///     OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
 ///
 /// Raises:
-///     ValueError: If a key of `init_state` is not a node in `graph`.
+///     Exception: If a key of `init_state` is not a node in `graph`.
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
@@ -838,17 +815,16 @@ pub fn label_propagation(
     init_state: Option<HashMap<PyNodeRef, usize>>,
     rel_tol: Option<f64>,
     patience: Option<usize>,
-) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
-    let init_map = resolve_label_prop_init_state(graph, init_state)?;
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     let result = label_propagation_rs(
         &graph.graph,
         iter_count,
         seed,
         None,
-        init_map,
+        init_state,
         rel_tol,
         patience,
-    );
+    )?;
     Ok(result.to_output_nodestate())
 }
 
@@ -868,7 +844,7 @@ pub fn label_propagation(
 ///     OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
 ///
 /// Raises:
-///     ValueError: If a key of `init_state` is not a node in `graph`.
+///     Exception: If a key of `init_state` is not a node in `graph`.
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
@@ -879,17 +855,16 @@ pub fn label_propagation_fast(
     init_state: Option<HashMap<PyNodeRef, usize>>,
     rel_tol: Option<f64>,
     patience: Option<usize>,
-) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
-    let init_map = resolve_label_prop_init_state(graph, init_state)?;
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     let result = label_propagation_fast_rs(
         &graph.graph,
         iter_count,
         seed,
         None,
-        init_map,
+        init_state,
         rel_tol,
         patience,
-    );
+    )?;
     Ok(result.to_output_nodestate())
 }
 
