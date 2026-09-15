@@ -1,6 +1,7 @@
 use crate::{
     EID, LocalPOS, VID,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    dir::GraphDir,
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{
@@ -126,7 +127,7 @@ impl<
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > GraphStore<NS, ES, GS, EXT>
 {
-    pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
+    pub fn new(graph_dir: Option<GraphDir>, ext: EXT) -> Self {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         let graph_props_meta = Meta::new_for_graph_props();
@@ -135,15 +136,17 @@ impl<
     }
 
     pub fn new_with_meta(
-        graph_dir: Option<&Path>,
+        graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
         graph_props_meta: Meta,
         ext: EXT,
     ) -> Self {
-        let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
-        let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
-        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
+        let nodes_path = graph_dir.as_ref().map(|graph_dir| graph_dir.nodes_dir());
+        let edges_path = graph_dir.as_ref().map(|graph_dir| graph_dir.edges_dir());
+        let graph_props_path = graph_dir
+            .as_ref()
+            .map(|graph_dir| graph_dir.graph_props_dir());
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
@@ -171,7 +174,7 @@ impl<
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(0),
-            graph_dir: graph_dir.map(|p| p.to_path_buf()),
+            graph_dir: graph_dir.map(|dir| dir.path().to_path_buf()),
             ext,
         }
     }

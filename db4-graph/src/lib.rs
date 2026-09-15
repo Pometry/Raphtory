@@ -122,13 +122,8 @@ where
         }
         .into();
 
-        let storage: Layer<EXT> = Layer::new_with_meta(
-            graph_dir.as_ref().map(|p| p.path()),
-            node_meta,
-            edge_meta,
-            graph_meta,
-            ext,
-        );
+        let storage: Layer<EXT> =
+            Layer::new_with_meta(graph_dir.clone(), node_meta, edge_meta, graph_meta, ext);
 
         Ok(Self {
             graph_dir,
