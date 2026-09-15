@@ -121,6 +121,11 @@ impl<T> EdgeEndpointWrapper<T> {
     }
 
     #[inline]
+    pub fn endpoint(&self) -> Endpoint {
+        self.endpoint
+    }
+
+    #[inline]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> EdgeEndpointWrapper<U> {
         EdgeEndpointWrapper {
             inner: f(self.inner),

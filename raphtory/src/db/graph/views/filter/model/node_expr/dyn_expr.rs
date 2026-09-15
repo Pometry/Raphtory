@@ -86,6 +86,17 @@ where
     }
 }
 
+/// An endpoint read built from an erased node value: switching to the history
+/// happens on the node side, and the result is read through the same endpoint.
+impl DynTemporal for EdgeEndpointWrapper<Arc<dyn DynTemporal>> {
+    fn temporal(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(EdgeEndpointWrapper::new(
+            self.inner.temporal(),
+            self.endpoint(),
+        ))
+    }
+}
+
 pub trait DynCreateOp: DynEntityExpr {
     fn dyn_const_cast_type(&self) -> Option<PropType>;
 

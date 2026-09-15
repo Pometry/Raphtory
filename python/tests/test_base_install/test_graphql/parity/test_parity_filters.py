@@ -1292,3 +1292,30 @@ def test_by_state_column_needs_a_boolean_state_column():
 
     with pytest.raises(ValueError):
         f.Node.by_state_column(state, "pagerank_score")
+
+
+def test_edge_views_scope_endpoint_reads_on_both_sides():
+    """A view applied before `src()`/`dst()` scopes the endpoint read, locally and
+    remotely.
+
+    `alice.score` is 3 until t=5 and 9 after; the edge alice→bob has events at
+    t=1 and t=6. Inside [0, 5) alice's score is 3, so asking for 9 there must
+    match nothing on either side. The local engine used to read the endpoint
+    outside the window and keep the edge.
+    """
+
+    def build(g):
+        g.add_node(0, "alice", properties={"score": 3})
+        g.add_node(5, "alice", properties={"score": 9})
+        g.add_node(0, "bob", properties={"score": 1})
+        g.add_edge(1, "alice", "bob")
+        g.add_edge(6, "alice", "bob")
+
+    late = f.Edge.window(0, 5).src().property("score") == 9
+    early = f.Edge.window(0, 5).src().property("score") == 3
+    read = lambda g, e: sorted((x.src.name, x.dst.name) for x in g.filter(e).edges)
+    with graph_pair(build) as pair:
+        assert read(pair.local, late) == []
+        assert read(pair.local, early) == [("alice", "bob")]
+        assert_parity(pair, lambda g: read(g, late))
+        assert_parity(pair, lambda g: read(g, early))

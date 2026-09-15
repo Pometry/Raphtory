@@ -10,14 +10,14 @@ use crate::{
         node_filter::NodeFilter,
         property_filter::PropertyRef,
         windowed_filter::Windowed,
-        CombinedFilter, CreateView, DynCreateFilter, DynCreateView, EdgeFilterFactory,
-        EdgeViewFilterOps, EntityMarker, FilterTree, InternalViewWrapOps, PropertyExprFactory,
-        ViewWrapOps, Wrap,
+        CombinedFilter, CreateView, DynCreateFilter, DynCreateView, DynPropertyExprFactory,
+        EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, FilterTree, InternalViewWrapOps,
+        PropertyExprFactory, ViewWrapOps,
     },
     python::{
         filter::{
             filter_expr::PyFilterExpr,
-            node_expr::{PyExpr, PyPropertyExpr},
+            node_expr::{DynNodeFilterFactory, PyExpr, PyPropertyExpr},
             wire::{wrap_edge_views, WireEntity, WireLhs, WireTarget, WireView},
         },
         types::iterable::FromIterable,
@@ -39,10 +39,27 @@ use std::sync::Arc;
 ///     Edge.src().property("country") == "UK"
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 pub struct PyEdgeEndpoint(
-    pub EdgeEndpointWrapper<NodeFilter>,
+    pub(crate) Arc<dyn DynNodeFilterFactory>,
     pub(crate) Endpoint,
     pub(crate) Vec<WireView>,
 );
+
+/// The node an endpoint read evaluates on, scoped by the same views as the
+/// edge chain that reached it: `Edge.window(0, 5).src().property("p")` reads
+/// the source node's property inside the window.
+fn node_scope(views: &[WireView]) -> Arc<dyn DynNodeFilterFactory> {
+    let mut node: Arc<dyn DynNodeFilterFactory> = Arc::new(NodeFilter);
+    for view in views {
+        node = match view {
+            WireView::Window(start, end) => node.window(*start, *end),
+            WireView::Latest => Arc::new(node.latest()),
+            WireView::SnapshotAt(time) => Arc::new(node.snapshot_at(*time)),
+            WireView::SnapshotLatest => Arc::new(node.snapshot_latest()),
+            WireView::Layers(names) => Arc::new(node.layer(names.clone())),
+        };
+    }
+    node
+}
 
 impl PyEdgeEndpoint {
     fn lhs(&self, target: WireTarget) -> WireLhs {
@@ -64,7 +81,7 @@ impl PyEdgeEndpoint {
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
         PyExpr::new(
-            Arc::new(self.0.id()),
+            Arc::new(EdgeEndpointWrapper::new(self.0.dyn_id(), self.1)),
             Some(self.lhs(WireTarget::Field(NODE_ID_FIELD))),
         )
     }
@@ -75,7 +92,7 @@ impl PyEdgeEndpoint {
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
         PyExpr::new(
-            Arc::new(self.0.name()),
+            Arc::new(EdgeEndpointWrapper::new(self.0.dyn_name(), self.1)),
             Some(self.lhs(WireTarget::Field(NODE_NAME_FIELD))),
         )
     }
@@ -86,7 +103,7 @@ impl PyEdgeEndpoint {
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
         PyExpr::new(
-            Arc::new(self.0.node_type()),
+            Arc::new(EdgeEndpointWrapper::new(self.0.dyn_node_type(), self.1)),
             Some(self.lhs(WireTarget::Field(NODE_TYPE_FIELD))),
         )
     }
@@ -100,7 +117,10 @@ impl PyEdgeEndpoint {
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
-        PyPropertyExpr::new(Arc::new(self.0.property(name)), Some(lhs))
+        PyPropertyExpr::new(
+            Arc::new(EdgeEndpointWrapper::new(self.0.dyn_property(name), self.1)),
+            Some(lhs),
+        )
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -113,10 +133,7 @@ impl PyEdgeEndpoint {
     fn metadata(&self, name: String) -> PyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Metadata(name.clone())));
         PyExpr::new(
-            Arc::new(
-                self.0
-                    .wrap(PropertyExprFactory::metadata(&NodeFilter, name)),
-            ),
+            Arc::new(EdgeEndpointWrapper::new(self.0.dyn_metadata(name), self.1)),
             Some(lhs),
         )
     }
@@ -280,7 +297,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn src(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(EdgeFilter::src(), Endpoint::Src, self.1.clone())
+        PyEdgeEndpoint(node_scope(&self.1), Endpoint::Src, self.1.clone())
     }
 
     /// Selects the edge **destination endpoint** for filtering.
@@ -288,7 +305,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn dst(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(EdgeFilter::dst(), Endpoint::Dst, self.1.clone())
+        PyEdgeEndpoint(node_scope(&self.1), Endpoint::Dst, self.1.clone())
     }
 
     /// Filters an edge property by name.
@@ -300,7 +317,7 @@ impl PyEdgeFilter {
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
         let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
-        PyPropertyExpr::new(self.0.dyn_property(name), Some(lhs))
+        PyPropertyExpr::new(self.0.as_ref().dyn_property(name), Some(lhs))
     }
 
     /// Filters an edge metadata field by name.
