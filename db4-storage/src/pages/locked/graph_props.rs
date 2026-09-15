@@ -7,12 +7,12 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
 use std::{ops::DerefMut, path::Path};
 
-pub struct LockedGraphPropPage<'a, GS: GraphPropSegmentOps> {
+pub struct LockedGraphPropSegment<'a, GS: GraphPropSegmentOps> {
     page: &'a GS,
     lock: RwLockWriteGuard<'a, MemGraphPropSegment>,
 }
 
-impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
+impl<'a, GS: GraphPropSegmentOps> LockedGraphPropSegment<'a, GS> {
     pub fn new(page: &'a GS, lock: RwLockWriteGuard<'a, MemGraphPropSegment>) -> Self {
         Self { page, lock }
     }
@@ -56,7 +56,7 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
     }
 }
 
-impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropPage<'_, GS> {
+impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropSegment<'_, GS> {
     fn drop(&mut self) {
         self.page
             .notify_write(&mut self.lock)
@@ -64,16 +64,16 @@ impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropPage<'_, GS> {
     }
 }
 
-pub struct WriteLockedGraphPropPages<'a, GS: GraphPropSegmentOps> {
-    writer: LockedGraphPropPage<'a, GS>,
+pub struct WriteLockedGraphPropSegments<'a, GS: GraphPropSegmentOps> {
+    writer: LockedGraphPropSegment<'a, GS>,
 }
 
-impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropPages<'a, GS> {
-    pub fn new(writer: LockedGraphPropPage<'a, GS>) -> Self {
+impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegments<'a, GS> {
+    pub fn new(writer: LockedGraphPropSegment<'a, GS>) -> Self {
         Self { writer }
     }
 
-    pub fn writer(&mut self) -> &mut LockedGraphPropPage<'a, GS> {
+    pub fn writer(&mut self) -> &mut LockedGraphPropSegment<'a, GS> {
         &mut self.writer
     }
 

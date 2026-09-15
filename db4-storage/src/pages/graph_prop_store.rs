@@ -3,7 +3,7 @@ use crate::{
     error::StorageError,
     pages::{
         graph_prop_page::writer::GraphPropWriter,
-        locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
+        locked::graph_props::{LockedGraphPropSegment, WriteLockedGraphPropSegments},
     },
     persist::strategy::PersistenceStrategy,
 };
@@ -69,8 +69,8 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
         GraphPropWriter::new(graph_props, head)
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropPages<'a, GS> {
-        WriteLockedGraphPropPages::new(LockedGraphPropPage::new(
+    pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropSegments<'a, GS> {
+        WriteLockedGraphPropSegments::new(LockedGraphPropSegment::new(
             self.segment.as_ref(),
             self.segment.head_mut(),
         ))
