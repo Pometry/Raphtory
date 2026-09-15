@@ -7,12 +7,12 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::storage::timeindex::AsTime;
 use std::{ops::DerefMut, path::Path};
 
-pub struct LockedGraphPropSegment<'a, GS: GraphPropSegmentOps> {
+pub struct WriteLockedGraphPropSegment<'a, GS: GraphPropSegmentOps> {
     page: &'a GS,
     lock: RwLockWriteGuard<'a, MemGraphPropSegment>,
 }
 
-impl<'a, GS: GraphPropSegmentOps> LockedGraphPropSegment<'a, GS> {
+impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegment<'a, GS> {
     pub fn new(page: &'a GS, lock: RwLockWriteGuard<'a, MemGraphPropSegment>) -> Self {
         Self { page, lock }
     }
@@ -54,35 +54,17 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropSegment<'a, GS> {
         let head_lock = self.lock.deref_mut();
         self.page.flush_locked(head_lock)
     }
+
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+        self.page.copy_to(dst)
+    }
 }
 
-impl<GS: GraphPropSegmentOps> Drop for LockedGraphPropSegment<'_, GS> {
+impl<GS: GraphPropSegmentOps> Drop for WriteLockedGraphPropSegment<'_, GS> {
     fn drop(&mut self) {
         self.page
             .notify_write(&mut self.lock)
             .expect("Failed to persist graph props page");
-    }
-}
-
-pub struct WriteLockedGraphPropSegments<'a, GS: GraphPropSegmentOps> {
-    writer: LockedGraphPropSegment<'a, GS>,
-}
-
-impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegments<'a, GS> {
-    pub fn new(writer: LockedGraphPropSegment<'a, GS>) -> Self {
-        Self { writer }
-    }
-
-    pub fn writer(&mut self) -> &mut LockedGraphPropSegment<'a, GS> {
-        &mut self.writer
-    }
-
-    pub fn flush(&mut self) -> Result<(), StorageError> {
-        self.writer.flush()
-    }
-
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-        self.writer.segment().copy_to(dst)
     }
 }

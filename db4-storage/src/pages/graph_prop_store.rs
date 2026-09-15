@@ -2,8 +2,7 @@ use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
     pages::{
-        graph_prop_page::writer::GraphPropWriter,
-        locked::graph_props::{LockedGraphPropSegment, WriteLockedGraphPropSegments},
+        graph_prop_page::writer::GraphPropWriter, locked::graph_props::WriteLockedGraphPropSegment,
     },
     persist::strategy::PersistenceStrategy,
 };
@@ -69,11 +68,8 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
         GraphPropWriter::new(graph_props, head)
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropSegments<'a, GS> {
-        WriteLockedGraphPropSegments::new(LockedGraphPropSegment::new(
-            self.segment.as_ref(),
-            self.segment.head_mut(),
-        ))
+    pub fn write_locked<'a>(&'a self) -> WriteLockedGraphPropSegment<'a, GS> {
+        WriteLockedGraphPropSegment::new(self.segment.as_ref(), self.segment.head_mut())
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {

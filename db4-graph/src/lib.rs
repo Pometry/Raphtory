@@ -29,7 +29,7 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegments,
+            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
         },
     },
@@ -436,7 +436,7 @@ where
     pub nodes: WriteLockedNodeSegments<'a, NS<EXT>>,
     pub node_type_index: WriteLockedNodeTypeIndex<EXT::NTI>,
     pub edges: WriteLockedEdgeSegments<'a, ES<EXT>>,
-    pub graph_props: WriteLockedGraphPropSegments<'a, GS<EXT>>,
+    pub graph_props: WriteLockedGraphPropSegment<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
 }
 

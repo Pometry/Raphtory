@@ -626,11 +626,11 @@ where
 
             unify_types(graph_props_meta, &props, true)?;
 
-            let writer = self.graph_props.writer();
-            let props = props.into_iter().map(|(_, id, p)| (id, p));
+            let props = props.into_iter().map(|(_, id, prop)| (id, prop));
+            let graph_props = &mut self.graph_props;
 
-            writer.add_properties(t, props);
-            writer.set_lsn(lsn);
+            graph_props.add_properties(t, props);
+            graph_props.set_lsn(lsn);
         }
 
         Ok(())
@@ -650,11 +650,11 @@ where
 
             unify_types(graph_props_meta, &props, false)?;
 
-            let writer = self.graph_props.writer();
-            let props = props.into_iter().map(|(_, id, p)| (id, p));
+            let props = props.into_iter().map(|(_, id, prop)| (id, prop));
+            let graph_props = &mut self.graph_props;
 
-            writer.update_metadata(props);
-            writer.set_lsn(lsn);
+            graph_props.update_metadata(props);
+            graph_props.set_lsn(lsn);
         }
 
         Ok(())
