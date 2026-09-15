@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 
 pub mod arc_str;
@@ -10,6 +10,3 @@ pub mod sorted_vec_map;
 pub mod timeindex;
 
 pub type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
-pub type FxHashMap<K, V> = std::collections::HashMap<K, V, FxBuildHasher>;
-
-pub type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
