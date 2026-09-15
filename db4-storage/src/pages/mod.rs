@@ -23,7 +23,7 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
 use rayon::prelude::*;
 use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{
         Arc,
         atomic::{self, AtomicUsize},
@@ -179,10 +179,10 @@ impl<
         }
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let nodes_path = graph_dir.as_ref().join("nodes");
-        let edges_path = graph_dir.as_ref().join("edges");
-        let graph_props_path = graph_dir.as_ref().join("graph_props");
+    pub fn load(graph_dir: GraphDir, ext: EXT) -> Result<Self, StorageError> {
+        let nodes_path = graph_dir.nodes_dir();
+        let edges_path = graph_dir.edges_dir();
+        let graph_props_path = graph_dir.graph_props_dir();
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
@@ -212,7 +212,7 @@ impl<
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(t_len),
-            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
+            graph_dir: Some(graph_dir.path().to_path_buf()),
             ext,
         })
     }

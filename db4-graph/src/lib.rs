@@ -83,7 +83,7 @@ where
         let graph_props_meta = Meta::new_for_graph_props();
 
         Self::new_with_meta(
-            Some(path.as_ref().into()),
+            Some(path.as_ref()),
             node_meta,
             edge_meta,
             graph_props_meta,
@@ -92,13 +92,13 @@ where
     }
 
     pub fn new_with_meta(
-        graph_dir: Option<GraphDir>,
+        graph_dir: Option<&Path>,
         node_meta: Meta,
         edge_meta: Meta,
         graph_meta: Meta,
         ext: EXT,
     ) -> Result<Self, StorageError> {
-        let mut graph_dir = graph_dir;
+        let mut graph_dir = graph_dir.map(GraphDir::from);
 
         // Short-circuit graph_dir to None if disk storage is not enabled
         if !Extension::disk_storage_enabled() {
@@ -115,6 +115,8 @@ where
             .first()
             .and_then(GidType::from_prop_type);
 
+        // TODO: Once resolver is moved inside storage, remove this and change GraphStore paths to
+        // use Path instead of GraphDir.
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
         let gid_resolver = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
@@ -149,11 +151,11 @@ where
     }
 
     fn load_inner(path: impl AsRef<Path>, ext: EXT, read_only: bool) -> Result<Self, StorageError> {
-        let path = path.as_ref();
-        let storage = Layer::load(path, ext)?;
+        let graph_dir = GraphDir::from(path.as_ref());
+        let storage = Layer::load(graph_dir.clone(), ext)?;
         let id_type = storage.nodes().id_type();
 
-        let gid_resolver_dir = path.join("gid_resolver");
+        let gid_resolver_dir = graph_dir.gid_resolver_dir();
         let resolver = if read_only {
             GIDResolver::new_readonly_with_path(&gid_resolver_dir, id_type)?
         } else {
@@ -161,7 +163,7 @@ where
         };
 
         Ok(Self {
-            graph_dir: Some(path.into()),
+            graph_dir: Some(graph_dir),
             round_robin_counter: AtomicUsize::new(0),
             gid_resolver: resolver.into(),
             storage: Arc::new(storage),

@@ -392,13 +392,8 @@ pub fn materialize_impl(
     node_meta.set_layer_mapper(layer_meta.deep_clone());
 
     let ext = Extension::new(path, config)?;
-    let temporal_graph = TemporalGraph::new_with_meta(
-        path.map(|p| p.into()),
-        node_meta,
-        edge_meta,
-        graph_props_meta,
-        ext,
-    )?;
+    let temporal_graph =
+        TemporalGraph::new_with_meta(path, node_meta, edge_meta, graph_props_meta, ext)?;
 
     if let Some(earliest) = graph.earliest_time() {
         temporal_graph.update_time(earliest);
