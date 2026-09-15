@@ -615,7 +615,8 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn has_layer_additions<L: Into<LayerIter<'a>>>(self, layer_ids: L) -> bool {
-        self.layer_ids_iter(layer_ids)
-            .any(|layer_id| !self.node_additions(layer_id).is_empty())
+        self.layer_ids_iter(layer_ids).any(|layer_id| {
+            !self.node_additions(layer_id).is_empty() || !self.edge_additions(layer_id).is_empty()
+        })
     }
 }
