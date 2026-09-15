@@ -22,7 +22,6 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
-
         self.index.copy_to(dst)
     }
 }

@@ -142,14 +142,11 @@ impl<
         graph_props_meta: Meta,
         ext: EXT,
     ) -> Self {
-        let nodes_path = graph_dir.as_ref().map(|graph_dir| graph_dir.nodes_dir());
-        let node_type_index_path = graph_dir
-            .as_ref()
-            .map(|graph_dir| graph_dir.node_type_index_dir());
-        let edges_path = graph_dir.as_ref().map(|graph_dir| graph_dir.edges_dir());
-        let graph_props_path = graph_dir
-            .as_ref()
-            .map(|graph_dir| graph_dir.graph_props_dir());
+        let dir = graph_dir.as_ref();
+        let nodes_path = dir.map(|dir| dir.nodes());
+        let node_type_index_path = dir.map(|dir| dir.node_type_index());
+        let edges_path = dir.map(|dir| dir.edges());
+        let graph_props_path = dir.map(|dir| dir.graph_props());
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
@@ -186,10 +183,10 @@ impl<
     }
 
     pub fn load(graph_dir: GraphDir, ext: EXT) -> Result<Self, StorageError> {
-        let nodes_path = graph_dir.nodes_dir();
-        let node_type_index_path = graph_dir.node_type_index_dir();
-        let edges_path = graph_dir.edges_dir();
-        let graph_props_path = graph_dir.graph_props_dir();
+        let nodes_path = graph_dir.nodes();
+        let node_type_index_path = graph_dir.node_type_index();
+        let edges_path = graph_dir.edges();
+        let graph_props_path = graph_dir.graph_props();
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();

@@ -8,28 +8,28 @@ impl GraphDir {
         &self.0
     }
 
-    pub fn nodes_dir(&self) -> PathBuf {
+    pub fn nodes(&self) -> PathBuf {
         self.path().join("nodes")
     }
 
-    pub fn node_type_index_dir(&self) -> PathBuf {
+    pub fn node_type_index(&self) -> PathBuf {
         // NOTE: node_type_index is stored under the nodes dir.
-        self.nodes_dir().join("type_index")
+        self.nodes().join("type_index")
     }
 
-    pub fn edges_dir(&self) -> PathBuf {
+    pub fn edges(&self) -> PathBuf {
         self.path().join("edges")
     }
 
-    pub fn graph_props_dir(&self) -> PathBuf {
+    pub fn graph_props(&self) -> PathBuf {
         self.path().join("graph_props")
     }
 
-    pub fn gid_resolver_dir(&self) -> PathBuf {
+    pub fn gid_resolver(&self) -> PathBuf {
         self.path().join("gid_resolver")
     }
 
-    pub fn wal_dir(&self) -> PathBuf {
+    pub fn wal(&self) -> PathBuf {
         self.path().join("wal")
     }
 }

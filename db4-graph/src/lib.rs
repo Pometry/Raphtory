@@ -117,7 +117,7 @@ where
 
         // TODO: Once resolver is moved inside storage, remove this and change GraphStore paths to
         // use Path instead of GraphDir.
-        let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
+        let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver());
         let gid_resolver = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
             None => GIDResolver::new()?,
@@ -155,7 +155,7 @@ where
         let storage = Layer::load(graph_dir.clone(), ext)?;
         let id_type = storage.nodes().id_type();
 
-        let gid_resolver_dir = graph_dir.gid_resolver_dir();
+        let gid_resolver_dir = graph_dir.gid_resolver();
         let resolver = if read_only {
             GIDResolver::new_readonly_with_path(&gid_resolver_dir, id_type)?
         } else {
@@ -508,11 +508,11 @@ where
         let config = self.graph.extension().config();
         config.save_to_dir(dst.path())?;
 
-        self.graph.gid_resolver.copy_to(dst.gid_resolver_dir())?;
-        self.nodes.copy_to(&dst.nodes_dir())?;
-        self.node_type_index.copy_to(&dst.node_type_index_dir())?;
-        self.edges.copy_to(&dst.edges_dir())?;
-        self.graph_props.copy_to(&dst.graph_props_dir())?;
+        self.graph.gid_resolver.copy_to(dst.gid_resolver())?;
+        self.nodes.copy_to(&dst.nodes())?;
+        self.node_type_index.copy_to(&dst.node_type_index())?;
+        self.edges.copy_to(&dst.edges())?;
+        self.graph_props.copy_to(&dst.graph_props())?;
 
         // All segments have been flushed, mark checkpoint event in the WAL and control file.
         let wal = self.graph.extension().wal();
@@ -526,7 +526,7 @@ where
         control_file.copy_to(dst.path())?;
 
         // After checkpointing, copy over the latest WAL file to the destination.
-        wal.copy_tail_to(&dst.wal_dir())?;
+        wal.copy_tail_to(&dst.wal())?;
 
         Ok(())
     }
