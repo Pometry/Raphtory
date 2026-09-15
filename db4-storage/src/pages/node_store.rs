@@ -38,7 +38,7 @@ where
 {
     segments: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
-    node_type_index: Arc<EXT::NTI>,
+    type_index: Arc<EXT::NTI>,
 
     /// Contains ids of segments that can accomodate new nodes.
     free_segments: Box<[RwLock<usize>]>,
@@ -128,6 +128,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             .map(|seg| seg.num_nodes())
             .max()
             .unwrap_or(0);
+
         row_group_par_iter(
             self.storage.max_segment_len() as usize,
             self.locked_segments.len(),
@@ -152,7 +153,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn node_type_index(&self) -> &Arc<EXT::NTI> {
-        &self.node_type_index
+        &self.type_index
     }
 
     pub fn num_layers(&self) -> usize {
@@ -225,12 +226,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         // TODO: Use a constant for type_index_path.
         let type_index_path = path.as_ref().map(|p| p.join("type_index"));
-        let node_type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
+        let type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
 
         let empty = Self {
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
-            node_type_index,
+            type_index,
             free_segments: free_segments.try_into().unwrap(),
             path,
             node_meta,
@@ -564,14 +565,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let stats = GraphStats::load(layer_counts, earliest, latest);
         // TODO: Use a constant for type_index_path.
         let type_index_path = path.join("type_index");
-        let node_type_index = Arc::new(EXT::NTI::load(&type_index_path, ext.clone())?);
+        let type_index = Arc::new(EXT::NTI::load(&type_index_path, ext.clone())?);
 
         Ok(Self {
             segments,
             free_segments: free_segments.into(),
             path: Some(path.to_path_buf()),
             stats: stats.into(),
-            node_type_index,
+            type_index,
             node_meta,
             edge_meta,
             ext,
@@ -662,7 +663,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments_par_iter()
             .try_for_each(|segment| segment.flush())?;
 
-        self.node_type_index.flush()
+        self.type_index.flush()
     }
 }
 
