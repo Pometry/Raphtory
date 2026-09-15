@@ -67,6 +67,16 @@ impl PyFilterExpr {
         let wire = self.1.clone().map(|t| FilterTree::Not(Box::new(t)));
         PyFilterExpr(Arc::new(NotFilter(self.0.clone())), wire)
     }
+
+    /// Shows the filter as it would be sent to a server. A filter with no
+    /// server-side form (an expression on both sides of a comparison) says so
+    /// instead; it still runs locally.
+    fn __repr__(&self) -> String {
+        match &self.1 {
+            Some(tree) => format!("FilterExpr({tree})"),
+            None => "FilterExpr(<local only: no server-side form>)".to_string(),
+        }
+    }
 }
 
 impl CreateFilter for PyFilterExpr {

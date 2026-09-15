@@ -46,7 +46,7 @@ use crate::{
                 is_self_loop_filter::IsSelfLoopEdge,
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
-                layered_filter::Layered,
+                layered_filter::{layer_label, Layered},
                 node_expr::{NodeMetaOp, NodePropOp},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
@@ -64,7 +64,11 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::{ops::Deref, sync::Arc};
+use std::{
+    fmt::{self, Display},
+    ops::Deref,
+    sync::Arc,
+};
 
 pub mod and_filter;
 pub mod degree_filter;
@@ -341,6 +345,46 @@ pub enum FilterTree {
     And(Vec<FilterTree>),
     Or(Vec<FilterTree>),
     Not(Box<FilterTree>),
+}
+
+impl Display for GraphViewOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GraphViewOp::Window { start, end } => write!(f, "WINDOW[{}..{}]", start.t(), end.t()),
+            GraphViewOp::Latest => write!(f, "LATEST"),
+            GraphViewOp::SnapshotAt(time) => write!(f, "SNAPSHOT_AT[{}]", time.t()),
+            GraphViewOp::SnapshotLatest => write!(f, "SNAPSHOT_LATEST"),
+            GraphViewOp::Layers(layer) => write!(f, "LAYER[{}]", layer_label(layer)),
+        }
+    }
+}
+
+/// The wire form as text, in the same notation the composite filters print
+/// themselves in: predicates as `lhs op value`, views as `KIND[args](inner)`,
+/// combinators as `(a AND b)`, `(a OR b)` and `NOT(a)`. A view chain lists its
+/// ops in application order.
+impl Display for FilterTree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let joined = |items: &[FilterTree], sep: &str| -> String {
+            items
+                .iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join(sep)
+        };
+        match self {
+            FilterTree::Node(inner) => write!(f, "{inner}"),
+            FilterTree::Edge(inner) => write!(f, "{inner}"),
+            FilterTree::ExplodedEdge(inner) => write!(f, "{inner}"),
+            FilterTree::View(ops) => {
+                let ops = ops.iter().map(|op| op.to_string()).collect::<Vec<_>>();
+                write!(f, "VIEW({})", ops.join(" . "))
+            }
+            FilterTree::And(items) => write!(f, "({})", joined(items, " AND ")),
+            FilterTree::Or(items) => write!(f, "({})", joined(items, " OR ")),
+            FilterTree::Not(inner) => write!(f, "NOT({inner})"),
+        }
+    }
 }
 
 impl FilterTree {
