@@ -86,6 +86,7 @@ fn map_scopes(filter: FilterExpr, f: &dyn Fn(&mut Scope)) -> FilterExpr {
             FilterExpr::Or(items.into_iter().map(|i| map_scopes(i, f)).collect())
         }
         FilterExpr::Not(inner) => FilterExpr::Not(Box::new(map_scopes(*inner, f))),
+        FilterExpr::Opaque(o) => FilterExpr::Opaque(o),
     }
 }
 

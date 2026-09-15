@@ -16,14 +16,11 @@ use raphtory::{
         },
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
-                filter::{Filter, FilterValue, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
+                filter::{FilterValue, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
                 filter_operator::FilterOperator,
-                node_filter::CompositeNodeFilter,
                 property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
                 tree::{compile_view, FilterExpr},
-                DynFilter, DynView, FilterTree, GraphViewOp,
+                DynFilter, DynView,
             },
             CreateFilter,
         },
@@ -31,8 +28,7 @@ use raphtory::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, Layer, GID},
-    storage::timeindex::{AsTime, EventTime},
+    entities::{properties::prop::Prop, GID},
     Direction,
 };
 use serde::{Deserialize, Serialize};
@@ -707,93 +703,11 @@ impl CreateFilter for GqlFilter {
     }
 }
 
-impl TryFrom<CompositeNodeFilter> for GqlFilter {
-    type Error = GraphError;
-    fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Node(f.try_into()?))
-    }
-}
-
-impl TryFrom<CompositeEdgeFilter> for GqlFilter {
-    type Error = GraphError;
-    fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::Edge(f.try_into()?))
-    }
-}
-
-impl TryFrom<CompositeExplodedEdgeFilter> for GqlFilter {
-    type Error = GraphError;
-    fn try_from(f: CompositeExplodedEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(GqlFilter::ExplodedEdge(f.try_into()?))
-    }
-}
-
-/// Build the nested wire form of a graph-view chain: ops arrive in
-/// application order and each later op wraps outside the previous one, so the
-/// outermost `expr` level is the last op applied. `Layer::All` ops restrict
-/// nothing and are dropped.
-fn view_ops_to_graph_filter(ops: Vec<GraphViewOp>) -> Result<GqlGraphFilter, GraphError> {
-    let time_input = |t: EventTime| {
-        GqlTimeInput(raphtory_api::core::utils::time::InputTime::Indexed(
-            t.t(),
-            t.i(),
-        ))
-    };
-    let mut acc: Option<GqlGraphFilter> = None;
-    for op in ops {
-        let expr = acc.take().map(wrap);
-        let next = match op {
-            GraphViewOp::Window { start, end } => GqlGraphFilter::Window(GraphWindowExpr {
-                start: time_input(start),
-                end: time_input(end),
-                expr,
-            }),
-            GraphViewOp::Latest => GqlGraphFilter::Latest(GraphUnaryExpr { expr }),
-            GraphViewOp::SnapshotAt(t) => GqlGraphFilter::SnapshotAt(GraphTimeExpr {
-                time: time_input(t),
-                expr,
-            }),
-            GraphViewOp::SnapshotLatest => GqlGraphFilter::SnapshotLatest(GraphUnaryExpr { expr }),
-            GraphViewOp::Layers(layer) => {
-                if matches!(layer, Layer::All) {
-                    // No restriction — skip the op, keep the accumulated chain.
-                    acc = expr.map(|w| w.deref().clone());
-                    continue;
-                }
-                GqlGraphFilter::Layers(GraphLayersExpr {
-                    names: layer_to_names(&layer)?,
-                    expr,
-                })
-            }
-        };
-        acc = Some(next);
-    }
-    acc.ok_or_else(|| GraphError::InvalidGqlFilter("graph-view filter with no restrictions".into()))
-}
-
-impl TryFrom<FilterTree> for GqlFilter {
+impl TryFrom<FilterExpr> for GqlFilter {
     type Error = GraphError;
 
-    fn try_from(tree: FilterTree) -> Result<Self, Self::Error> {
-        Ok(match tree {
-            FilterTree::Node(f) => GqlFilter::Node(f.try_into()?),
-            FilterTree::Edge(f) => GqlFilter::Edge(f.try_into()?),
-            FilterTree::ExplodedEdge(f) => GqlFilter::ExplodedEdge(f.try_into()?),
-            FilterTree::View(ops) => GqlFilter::Graph(view_ops_to_graph_filter(ops)?),
-            FilterTree::And(items) => GqlFilter::And(
-                items
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<Result<Vec<_>, _>>()?,
-            ),
-            FilterTree::Or(items) => GqlFilter::Or(
-                items
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<Result<Vec<_>, _>>()?,
-            ),
-            FilterTree::Not(inner) => GqlFilter::Not(wrap((*inner).try_into()?)),
-        })
+    fn try_from(tree: FilterExpr) -> Result<Self, Self::Error> {
+        Ok(GqlFilter::Expr(GqlFilterExpr::try_from(&tree)?))
     }
 }
 
@@ -1854,480 +1768,6 @@ pub struct GraphAccessFilter {
 // dropped. (A `Layer::All` view op is not one of them: it restricts nothing,
 // so it is skipped while the rest of the chain is kept.)
 
-fn wrap<T>(t: T) -> Wrapped<T> {
-    Wrapped(Box::new(t))
-}
-
-/// `FilterValue` (used by field filters) → wire `Value`.
-fn filter_value_to_value(v: &FilterValue) -> Result<Value, GraphError> {
-    Ok(match v {
-        FilterValue::Single(s) => Value::Str(s.clone()),
-        FilterValue::Set(strs) => {
-            // Set semantics — element order is irrelevant on the wire.
-            Value::List(strs.iter().map(|s| Value::Str(s.clone())).collect())
-        }
-        FilterValue::ID(GID::Str(s)) => Value::Str(s.clone()),
-        FilterValue::ID(GID::U64(u)) => Value::U64(*u),
-        FilterValue::IDSet(gids) => {
-            let items: Vec<Value> = gids
-                .iter()
-                .map(|g| match g {
-                    GID::Str(s) => Value::Str(s.clone()),
-                    GID::U64(u) => Value::U64(*u),
-                })
-                .collect();
-            Value::List(items)
-        }
-    })
-}
-
-/// `PropertyFilterValue` → wire `Value` — used inside `PropCondition`.
-/// For `None` (used only with `IsSome`/`IsNone`) callers should route
-/// separately since `PropCondition::IsSome`/`IsNone` take `bool`, not
-/// `Value`.
-fn prop_filter_value_to_value(v: &PropertyFilterValue) -> Result<Value, GraphError> {
-    match v {
-        PropertyFilterValue::Single(p) => Value::try_from(p),
-        PropertyFilterValue::Set(ps) => {
-            // Set semantics — element order is irrelevant on the wire.
-            let items: Vec<Value> = ps.iter().map(Value::try_from).collect::<Result<_, _>>()?;
-            Ok(Value::List(items))
-        }
-        PropertyFilterValue::None => Err(GraphError::InvalidGqlFilter(
-            "cannot render PropertyFilterValue::None as a wire Value".into(),
-        )),
-    }
-}
-
-/// Build a base `PropCondition` from an operator + value (no `ops` wrapping).
-fn build_base_prop_condition(
-    operator: FilterOperator,
-    value: &PropertyFilterValue,
-) -> Result<PropCondition, GraphError> {
-    use FilterOperator as FO;
-    Ok(match operator {
-        FO::Eq => PropCondition::Eq(prop_filter_value_to_value(value)?),
-        FO::Ne => PropCondition::Ne(prop_filter_value_to_value(value)?),
-        FO::Gt => PropCondition::Gt(prop_filter_value_to_value(value)?),
-        FO::Ge => PropCondition::Ge(prop_filter_value_to_value(value)?),
-        FO::Lt => PropCondition::Lt(prop_filter_value_to_value(value)?),
-        FO::Le => PropCondition::Le(prop_filter_value_to_value(value)?),
-        FO::StartsWith => PropCondition::StartsWith(prop_filter_value_to_value(value)?),
-        FO::EndsWith => PropCondition::EndsWith(prop_filter_value_to_value(value)?),
-        FO::Contains => PropCondition::Contains(prop_filter_value_to_value(value)?),
-        FO::NotContains => PropCondition::NotContains(prop_filter_value_to_value(value)?),
-        FO::IsIn => PropCondition::IsIn(prop_filter_value_to_value(value)?),
-        FO::IsNotIn => PropCondition::IsNotIn(prop_filter_value_to_value(value)?),
-        FO::IsSome => PropCondition::IsSome(true),
-        FO::IsNone => PropCondition::IsNone(true),
-        FO::FuzzySearch {
-            levenshtein_distance,
-            prefix_match,
-        } => {
-            let PropertyFilterValue::Single(Prop::Str(v)) = value else {
-                return Err(GraphError::InvalidGqlFilter(
-                    "fuzzySearch requires a string value".into(),
-                ));
-            };
-            PropCondition::FuzzySearch(FuzzySearchExpr {
-                value: v.to_string(),
-                levenshtein_distance,
-                prefix_match,
-            })
-        }
-    })
-}
-
-/// Rebuild the wire tree from `ops`. Both the peel (`peel_prop_wrappers_and_
-/// collect_ops`) and core eval (`evaluate.rs`) treat the OUTERMOST tree node
-/// as the FIRST-applied op: tree `First(Sum(x))` ⇔ ops `[First, Sum]` ⇔ chain
-/// `.first().sum()`. Since folding wraps inside-out (each wrap becomes the new
-/// outermost), we iterate `ops` in REVERSE so that `ops[0]` ends up outermost.
-///
-/// Beware: core's `Display` prints the OPPOSITE nesting (`[First, Sum]` prints
-/// as `"sum(first(x))"`) — don't validate this mapping against Display strings.
-fn apply_ops_to_condition(base: PropCondition, ops: &[Op]) -> PropCondition {
-    // Fold reversed so `ops[0]` becomes the outermost wrapper (see doc comment).
-    ops.iter().rev().fold(base, |acc, op| match op {
-        Op::First => PropCondition::First(wrap(acc)),
-        Op::Last => PropCondition::Last(wrap(acc)),
-        Op::Len => PropCondition::Len(wrap(acc)),
-        Op::Sum => PropCondition::Sum(wrap(acc)),
-        Op::Avg => PropCondition::Avg(wrap(acc)),
-        Op::Min => PropCondition::Min(wrap(acc)),
-        Op::Max => PropCondition::Max(wrap(acc)),
-        Op::Any => PropCondition::Any(wrap(acc)),
-        Op::All => PropCondition::All(wrap(acc)),
-    })
-}
-
-/// Map a `Filter` (built-in node field filter) → the per-field wire variant
-/// (`Id` / `Name` / `NodeType`).
-fn filter_to_node_field(f: Filter) -> Result<GqlNodeFilter, GraphError> {
-    let variant: fn(NodeFieldWhere) -> GqlNodeFilter = match f.field_name.as_str() {
-        NODE_ID_FIELD => GqlNodeFilter::Id,
-        NODE_NAME_FIELD => GqlNodeFilter::Name,
-        NODE_TYPE_FIELD => GqlNodeFilter::NodeType,
-        other => {
-            return Err(GraphError::InvalidGqlFilter(format!(
-                "unknown node field name for wire conversion: {}",
-                other
-            )))
-        }
-    };
-    let val = filter_value_to_value(&f.field_value)?;
-    let where_ = match f.operator {
-        FilterOperator::Eq => NodeFieldCondition::Eq(val),
-        FilterOperator::Ne => NodeFieldCondition::Ne(val),
-        FilterOperator::Gt => NodeFieldCondition::Gt(val),
-        FilterOperator::Ge => NodeFieldCondition::Ge(val),
-        FilterOperator::Lt => NodeFieldCondition::Lt(val),
-        FilterOperator::Le => NodeFieldCondition::Le(val),
-        FilterOperator::StartsWith => NodeFieldCondition::StartsWith(val),
-        FilterOperator::EndsWith => NodeFieldCondition::EndsWith(val),
-        FilterOperator::Contains => NodeFieldCondition::Contains(val),
-        FilterOperator::NotContains => NodeFieldCondition::NotContains(val),
-        FilterOperator::IsIn => NodeFieldCondition::IsIn(val),
-        FilterOperator::IsNotIn => NodeFieldCondition::IsNotIn(val),
-        FilterOperator::FuzzySearch {
-            levenshtein_distance,
-            prefix_match,
-        } => {
-            let Value::Str(v) = val else {
-                return Err(GraphError::InvalidGqlFilter(
-                    "fuzzySearch requires a string value".into(),
-                ));
-            };
-            NodeFieldCondition::FuzzySearch(FuzzySearchExpr {
-                value: v,
-                levenshtein_distance,
-                prefix_match,
-            })
-        }
-        other => {
-            return Err(GraphError::InvalidGqlFilter(format!(
-                "unsupported operator for node field: {:?}",
-                other
-            )))
-        }
-    };
-    Ok(variant(NodeFieldWhere { where_ }))
-}
-
-/// Map a `Layer` (engine) → `Vec<String>` names for the wire.
-fn layer_to_names(layer: &Layer) -> Result<Vec<String>, GraphError> {
-    match layer {
-        Layer::One(name) => Ok(vec![name.to_string()]),
-        Layer::Multiple(names) => Ok(names.iter().map(|s| s.to_string()).collect()),
-        Layer::Default => Ok(vec!["_default".to_string()]),
-        // No layers — the empty name list (`Layer::from_iter([])` maps back
-        // to `Layer::None`, so the round-trip is exact).
-        Layer::None => Ok(vec![]),
-        // All layers is no restriction at all — callers drop the layer
-        // wrapper entirely instead of rendering it.
-        Layer::All => Err(GraphError::InvalidGqlFilter(
-            "Layer::All is no layer restriction — omit the layer wrapper".into(),
-        )),
-    }
-}
-
-impl TryFrom<CompositeNodeFilter> for GqlNodeFilter {
-    type Error = GraphError;
-    fn try_from(f: CompositeNodeFilter) -> Result<Self, Self::Error> {
-        Ok(match f {
-            CompositeNodeFilter::Node(filter) => filter_to_node_field(filter)?,
-
-            CompositeNodeFilter::Property(pf) => {
-                let base = build_base_prop_condition(pf.operator, &pf.prop_value)?;
-                let where_ = apply_ops_to_condition(base, &pf.ops);
-                let name = pf.prop_ref.name().to_string();
-                match pf.prop_ref {
-                    PropertyRef::Property(_) => {
-                        GqlNodeFilter::Property(PropertyFilterNew { name, where_ })
-                    }
-                    PropertyRef::Metadata(_) => {
-                        GqlNodeFilter::Metadata(PropertyFilterNew { name, where_ })
-                    }
-                    PropertyRef::TemporalProperty(_) => {
-                        GqlNodeFilter::TemporalProperty(PropertyFilterNew { name, where_ })
-                    }
-                }
-            }
-
-            CompositeNodeFilter::Degree(df) => {
-                let direction = match df.direction {
-                    Direction::IN => DegreeDirection::In,
-                    Direction::OUT => DegreeDirection::Out,
-                    Direction::BOTH => DegreeDirection::Both,
-                };
-                let base = build_base_prop_condition(df.operator, &df.value)?;
-                let where_ = apply_ops_to_condition(base, &df.ops);
-                GqlNodeFilter::Degree(DegreeFilterNew { direction, where_ })
-            }
-
-            CompositeNodeFilter::IsActiveNode(_) => GqlNodeFilter::IsActive(true),
-
-            CompositeNodeFilter::And(l, r) => {
-                GqlNodeFilter::And(vec![(*l).try_into()?, (*r).try_into()?])
-            }
-            CompositeNodeFilter::Or(l, r) => {
-                GqlNodeFilter::Or(vec![(*l).try_into()?, (*r).try_into()?])
-            }
-            CompositeNodeFilter::Not(inner) => GqlNodeFilter::Not(wrap((*inner).try_into()?)),
-
-            CompositeNodeFilter::Windowed(w) => GqlNodeFilter::Window(NodeWindowExpr {
-                start: w.start.t().into(),
-                end: w.end.t().into(),
-                expr: wrap(w.inner.try_into()?),
-            }),
-
-            CompositeNodeFilter::Latest(l) => GqlNodeFilter::Latest(NodeUnaryExpr {
-                expr: wrap(l.inner.try_into()?),
-            }),
-
-            CompositeNodeFilter::SnapshotAt(s) => GqlNodeFilter::SnapshotAt(NodeTimeExpr {
-                time: s.time.t().into(),
-                expr: wrap(s.inner.try_into()?),
-            }),
-
-            CompositeNodeFilter::SnapshotLatest(s) => {
-                GqlNodeFilter::SnapshotLatest(NodeUnaryExpr {
-                    expr: wrap(s.inner.try_into()?),
-                })
-            }
-
-            CompositeNodeFilter::Layered(l) => {
-                if matches!(l.layer, Layer::All) {
-                    // Restricting to ALL layers restricts nothing — drop the
-                    // wrapper and convert the inner filter directly.
-                    l.inner.try_into()?
-                } else {
-                    GqlNodeFilter::Layers(NodeLayersExpr {
-                        names: layer_to_names(&l.layer)?,
-                        expr: wrap(l.inner.try_into()?),
-                    })
-                }
-            }
-        })
-    }
-}
-
-impl TryFrom<CompositeEdgeFilter> for GqlEdgeFilter {
-    type Error = GraphError;
-    fn try_from(f: CompositeEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(match f {
-            // Endpoint filters recurse into the node converter — an edge
-            // filter on src/dst wraps a full node filter.
-            CompositeEdgeFilter::Src(nf) => GqlEdgeFilter::Src(wrap(nf.try_into()?)),
-            CompositeEdgeFilter::Dst(nf) => GqlEdgeFilter::Dst(wrap(nf.try_into()?)),
-
-            CompositeEdgeFilter::Property(pf) => {
-                let base = build_base_prop_condition(pf.operator, &pf.prop_value)?;
-                let where_ = apply_ops_to_condition(base, &pf.ops);
-                let name = pf.prop_ref.name().to_string();
-                match pf.prop_ref {
-                    PropertyRef::Property(_) => {
-                        GqlEdgeFilter::Property(PropertyFilterNew { name, where_ })
-                    }
-                    PropertyRef::Metadata(_) => {
-                        GqlEdgeFilter::Metadata(PropertyFilterNew { name, where_ })
-                    }
-                    PropertyRef::TemporalProperty(_) => {
-                        GqlEdgeFilter::TemporalProperty(PropertyFilterNew { name, where_ })
-                    }
-                }
-            }
-
-            CompositeEdgeFilter::IsActiveEdge(_) => GqlEdgeFilter::IsActive(true),
-            CompositeEdgeFilter::IsValidEdge(_) => GqlEdgeFilter::IsValid(true),
-            CompositeEdgeFilter::IsDeletedEdge(_) => GqlEdgeFilter::IsDeleted(true),
-            CompositeEdgeFilter::IsSelfLoopEdge(_) => GqlEdgeFilter::IsSelfLoop(true),
-
-            CompositeEdgeFilter::And(l, r) => {
-                GqlEdgeFilter::And(vec![(*l).try_into()?, (*r).try_into()?])
-            }
-            CompositeEdgeFilter::Or(l, r) => {
-                GqlEdgeFilter::Or(vec![(*l).try_into()?, (*r).try_into()?])
-            }
-            CompositeEdgeFilter::Not(inner) => GqlEdgeFilter::Not(wrap((*inner).try_into()?)),
-
-            CompositeEdgeFilter::Windowed(w) => GqlEdgeFilter::Window(EdgeWindowExpr {
-                start: w.start.t().into(),
-                end: w.end.t().into(),
-                expr: wrap(w.inner.try_into()?),
-            }),
-
-            CompositeEdgeFilter::Latest(l) => GqlEdgeFilter::Latest(EdgeUnaryExpr {
-                expr: wrap(l.inner.try_into()?),
-            }),
-
-            CompositeEdgeFilter::SnapshotAt(s) => GqlEdgeFilter::SnapshotAt(EdgeTimeExpr {
-                time: s.time.t().into(),
-                expr: wrap(s.inner.try_into()?),
-            }),
-
-            CompositeEdgeFilter::SnapshotLatest(s) => {
-                GqlEdgeFilter::SnapshotLatest(EdgeUnaryExpr {
-                    expr: wrap(s.inner.try_into()?),
-                })
-            }
-
-            CompositeEdgeFilter::Layered(l) => {
-                if matches!(l.layer, Layer::All) {
-                    l.inner.try_into()?
-                } else {
-                    GqlEdgeFilter::Layers(EdgeLayersExpr {
-                        names: layer_to_names(&l.layer)?,
-                        expr: wrap(l.inner.try_into()?),
-                    })
-                }
-            }
-        })
-    }
-}
-
-impl TryFrom<CompositeExplodedEdgeFilter> for GqlExplodedEdgeFilter {
-    type Error = GraphError;
-    fn try_from(f: CompositeExplodedEdgeFilter) -> Result<Self, Self::Error> {
-        Ok(match f {
-            // Endpoint filters recurse into the node converter — an
-            // exploded-edge filter on src/dst wraps a full node filter.
-            CompositeExplodedEdgeFilter::Src(nf) => {
-                GqlExplodedEdgeFilter::Src(wrap(nf.try_into()?))
-            }
-            CompositeExplodedEdgeFilter::Dst(nf) => {
-                GqlExplodedEdgeFilter::Dst(wrap(nf.try_into()?))
-            }
-
-            CompositeExplodedEdgeFilter::Property(pf) => {
-                let base = build_base_prop_condition(pf.operator, &pf.prop_value)?;
-                let where_ = apply_ops_to_condition(base, &pf.ops);
-                let name = pf.prop_ref.name().to_string();
-                match pf.prop_ref {
-                    PropertyRef::Property(_) => {
-                        GqlExplodedEdgeFilter::Property(PropertyFilterNew { name, where_ })
-                    }
-                    PropertyRef::Metadata(_) => {
-                        GqlExplodedEdgeFilter::Metadata(PropertyFilterNew { name, where_ })
-                    }
-                    PropertyRef::TemporalProperty(_) => {
-                        GqlExplodedEdgeFilter::TemporalProperty(PropertyFilterNew { name, where_ })
-                    }
-                }
-            }
-
-            CompositeExplodedEdgeFilter::IsActiveEdge(_) => GqlExplodedEdgeFilter::IsActive(true),
-            CompositeExplodedEdgeFilter::IsValidEdge(_) => GqlExplodedEdgeFilter::IsValid(true),
-            CompositeExplodedEdgeFilter::IsDeletedEdge(_) => GqlExplodedEdgeFilter::IsDeleted(true),
-            CompositeExplodedEdgeFilter::IsSelfLoopEdge(_) => {
-                GqlExplodedEdgeFilter::IsSelfLoop(true)
-            }
-
-            CompositeExplodedEdgeFilter::And(l, r) => {
-                GqlExplodedEdgeFilter::And(vec![(*l).try_into()?, (*r).try_into()?])
-            }
-            CompositeExplodedEdgeFilter::Or(l, r) => {
-                GqlExplodedEdgeFilter::Or(vec![(*l).try_into()?, (*r).try_into()?])
-            }
-            CompositeExplodedEdgeFilter::Not(inner) => {
-                GqlExplodedEdgeFilter::Not(wrap((*inner).try_into()?))
-            }
-
-            CompositeExplodedEdgeFilter::Windowed(w) => {
-                GqlExplodedEdgeFilter::Window(ExplodedEdgeWindowExpr {
-                    start: w.start.t().into(),
-                    end: w.end.t().into(),
-                    expr: wrap(w.inner.try_into()?),
-                })
-            }
-
-            CompositeExplodedEdgeFilter::Latest(l) => {
-                GqlExplodedEdgeFilter::Latest(ExplodedEdgeUnaryExpr {
-                    expr: wrap(l.inner.try_into()?),
-                })
-            }
-
-            CompositeExplodedEdgeFilter::SnapshotAt(s) => {
-                GqlExplodedEdgeFilter::SnapshotAt(ExplodedEdgeTimeExpr {
-                    time: s.time.t().into(),
-                    expr: wrap(s.inner.try_into()?),
-                })
-            }
-
-            CompositeExplodedEdgeFilter::SnapshotLatest(s) => {
-                GqlExplodedEdgeFilter::SnapshotLatest(ExplodedEdgeUnaryExpr {
-                    expr: wrap(s.inner.try_into()?),
-                })
-            }
-
-            CompositeExplodedEdgeFilter::Layered(l) => {
-                if matches!(l.layer, Layer::All) {
-                    l.inner.try_into()?
-                } else {
-                    GqlExplodedEdgeFilter::Layers(ExplodedEdgeLayersExpr {
-                        names: layer_to_names(&l.layer)?,
-                        expr: wrap(l.inner.try_into()?),
-                    })
-                }
-            }
-        })
-    }
-}
-
-#[cfg(test)]
-mod op_chain_tests {
-    use super::*;
-
-    #[test]
-    fn multi_op_prop_condition_round_trips() {
-        // Tree `Sum(First(leaf))`: the OUTERMOST node (Sum) is the first-applied
-        // op. Peeling outermost-first yields ops `[Sum, First]`, and core eval
-        // runs ops[0] first — so this tree is the chain `.sum().first()`.
-        let tree = PropCondition::Sum(wrap(PropCondition::First(wrap(PropCondition::IsSome(
-            true,
-        )))));
-
-        // Decompose exactly as the wire encoder does — peel outermost-first.
-        let mut ops = Vec::new();
-        let mut cursor = &tree;
-        while let Some(inner) = peel_prop_wrappers_and_collect_ops(cursor, &mut ops) {
-            cursor = inner;
-        }
-
-        // Reconstruct: with the fold-in-reverse fix this round-trips. Before the
-        // fix it produced the inverted `First(Sum(leaf))` (i.e. `.first().sum()`).
-        let rebuilt = apply_ops_to_condition(cursor.clone(), &ops);
-        assert_eq!(
-            format!("{tree:?}"),
-            format!("{rebuilt:?}"),
-            "op chain did not round-trip — nesting inverted"
-        );
-    }
-
-    #[test]
-    fn apply_ops_pins_explicit_nesting_and_is_direction_sensitive() {
-        // A round-trip alone is self-consistent even if decompose+reconstruct
-        // were both wrong, so pin the exact tree and assert the two orderings
-        // genuinely differ — otherwise a future edit could silently re-invert.
-        let leaf = || PropCondition::IsSome(true);
-
-        // ops = [Sum, First] (peeled outermost-first from tree `Sum(First(leaf))`,
-        // the chain `.sum().first()`) must reconstruct as `Sum(First(leaf))`, not
-        // `First(Sum(leaf))`.
-        let rebuilt = apply_ops_to_condition(leaf(), &[Op::Sum, Op::First]);
-        let expected = PropCondition::Sum(wrap(PropCondition::First(wrap(leaf()))));
-        assert_eq!(format!("{expected:?}"), format!("{rebuilt:?}"));
-
-        // The reverse op order produces a genuinely different tree.
-        let reversed = apply_ops_to_condition(leaf(), &[Op::First, Op::Sum]);
-        assert_ne!(
-            format!("{rebuilt:?}"),
-            format!("{reversed:?}"),
-            "op ordering must be direction-sensitive"
-        );
-    }
-}
-
 #[cfg(test)]
 mod filter_serde_goldens {
     use super::*;
@@ -2451,7 +1891,7 @@ mod gql_filter_serde_tests {
                 r#"{"or":[{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}]}"#,
             ),
             (
-                GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1)))),
+                GqlFilter::Not(Wrapped::from(GqlFilter::Node(node_prop_eq("x", 1)))),
                 r#"{"not":{"node":{"property":{"name":"x","where":{"eq":{"i64":1}}}}}}"#,
             ),
         ];
@@ -2464,9 +1904,9 @@ mod gql_filter_serde_tests {
     fn round_trips_through_serde() {
         let filter = GqlFilter::And(vec![
             GqlFilter::Node(node_prop_eq("a", 1)),
-            GqlFilter::Not(wrap(GqlFilter::Or(vec![GqlFilter::Node(node_prop_eq(
-                "b", 2,
-            ))]))),
+            GqlFilter::Not(Wrapped::from(GqlFilter::Or(vec![GqlFilter::Node(
+                node_prop_eq("b", 2),
+            )]))),
         ]);
         let json = serde_json::to_string(&filter).unwrap();
         let back: GqlFilter = serde_json::from_str(&json).unwrap();
@@ -2476,7 +1916,7 @@ mod gql_filter_serde_tests {
     // `not` composes end-to-end into a core filter.
     #[test]
     fn not_variant_converts_to_dyn_filter() {
-        let filter = GqlFilter::Not(wrap(GqlFilter::Node(node_prop_eq("x", 1))));
+        let filter = GqlFilter::Not(Wrapped::from(GqlFilter::Node(node_prop_eq("x", 1))));
         assert!(DynFilter::try_from(filter).is_ok());
     }
 }
@@ -2484,6 +1924,12 @@ mod gql_filter_serde_tests {
 #[cfg(test)]
 mod fuzzy_search_tests {
     use super::*;
+    use raphtory::{
+        db::graph::views::filter::model::tree::{
+            Entity, Expr, Field, FilterExpr, Scope, StrOp, Target,
+        },
+        prelude::Prop,
+    };
 
     // The wire shape is externally tagged camelCase, like every other condition.
     #[test]
@@ -2502,54 +1948,59 @@ mod fuzzy_search_tests {
     // Wire condition → core (operator, value) and back — the remote client's
     // round-trip for property fuzzy matching.
     #[test]
-    fn property_fuzzy_round_trips_through_the_conversions() {
-        let cond = PropCondition::FuzzySearch(FuzzySearchExpr {
-            value: "graph enthusiast".into(),
-            levenshtein_distance: 3,
-            prefix_match: true,
+    // A legacy fuzzy condition lowers onto the tree with its parameters intact.
+    #[test]
+    fn property_fuzzy_lowers_onto_the_tree() {
+        let filter = GqlNodeFilter::Property(PropertyFilterNew {
+            name: "bio".into(),
+            where_: PropCondition::FuzzySearch(FuzzySearchExpr {
+                value: "graph enthusiast".into(),
+                levenshtein_distance: 3,
+                prefix_match: true,
+            }),
         });
-
-        let (operator, value) = translate_prop_leaf_to_filter("bio", &cond).unwrap();
+        let tree = super::super::expr_lowering::lower_node_filter(&filter).unwrap();
+        let FilterExpr::Str { op, rhs, .. } = tree else {
+            panic!("expected a string predicate, got {tree:?}");
+        };
         assert_eq!(
-            operator,
-            FilterOperator::FuzzySearch {
+            op,
+            StrOp::FuzzySearch {
                 levenshtein_distance: 3,
                 prefix_match: true,
             }
         );
-
-        let back = build_base_prop_condition(operator, &value).unwrap();
-        let PropCondition::FuzzySearch(f) = back else {
-            panic!("expected fuzzySearch back, got something else");
-        };
-        assert_eq!(
-            (f.value.as_str(), f.levenshtein_distance, f.prefix_match),
-            ("graph enthusiast", 3, true)
-        );
+        assert_eq!(rhs, Expr::Const(Prop::str("graph enthusiast")));
     }
 
     // Local node-name filter → wire condition (the reverse conversion the
     // Python remote client rides) preserves the fuzzy parameters.
     #[test]
-    fn node_name_fuzzy_round_trips_through_the_wire() {
-        let core = Filter::fuzzy_search("node_name", "ben", 1, true);
-        let GqlNodeFilter::Name(wire) = filter_to_node_field(core).unwrap() else {
-            panic!("expected the per-field name variant");
+    // The tree's fuzzy predicate keeps its parameters on the way to the wire.
+    #[test]
+    fn node_name_fuzzy_reaches_the_wire_intact() {
+        let tree = FilterExpr::Str {
+            op: StrOp::FuzzySearch {
+                levenshtein_distance: 1,
+                prefix_match: true,
+            },
+            lhs: Expr::Read {
+                scope: Scope::new(Entity::Node),
+                target: Target::Field(Field::Name),
+            },
+            rhs: Expr::Const(Prop::str("ben")),
         };
-        let NodeFieldCondition::FuzzySearch(ref f) = wire.where_ else {
-            panic!("expected fuzzySearch condition, got {:?}", wire.where_);
+        let GqlFilter::Expr(GqlFilterExpr::FuzzySearch(f)) = GqlFilter::try_from(tree).unwrap()
+        else {
+            panic!("expected the fuzzy variant");
         };
-        assert_eq!(
-            (f.value.as_str(), f.levenshtein_distance, f.prefix_match),
-            ("ben", 1, true)
-        );
+        assert_eq!((f.levenshtein_distance, f.prefix_match), (1, true));
     }
 }
 
 #[cfg(test)]
 mod conversion_hole_tests {
     use super::*;
-    use raphtory::db::graph::views::filter::model::layered_filter::Layered;
 
     // `isSome: false` lowers to the IsNone operator (and vice versa) instead
     // of erroring — the two spellings are the same predicate.
@@ -2579,7 +2030,7 @@ mod conversion_hole_tests {
 
         let filter = GqlNodeFilter::Degree(DegreeFilterNew {
             direction: DegreeDirection::Both,
-            where_: PropCondition::Sum(wrap(PropCondition::Eq(Value::I64(3)))),
+            where_: PropCondition::Sum(Wrapped::from(PropCondition::Eq(Value::I64(3)))),
         });
         let result = super::super::expr_lowering::lower_node_filter(&filter)
             .and_then(|f| Graph::new().filter(f).map(|_| ()));
@@ -2591,38 +2042,15 @@ mod conversion_hole_tests {
             "unexpected error: {err}"
         );
     }
-
-    // Layer round-trip semantics: `None` is the empty name list (exact
-    // round-trip via `Layer::from_iter([])`); `All` is no restriction, so the
-    // reverse conversion drops the wrapper entirely.
-    #[test]
-    fn layer_none_and_all_normalize() {
-        assert_eq!(layer_to_names(&Layer::None).unwrap(), Vec::<String>::new());
-
-        let inner = CompositeNodeFilter::Node(Filter::eq("node_name", "a"));
-        let layered = CompositeNodeFilter::Layered(Box::new(Layered {
-            layer: Layer::All,
-            inner,
-        }));
-        let gql = GqlNodeFilter::try_from(layered).unwrap();
-        assert!(
-            matches!(gql, GqlNodeFilter::Name(_)),
-            "Layer::All should drop the layer wrapper, got {gql:?}"
-        );
-    }
 }
 
 #[cfg(test)]
 mod exploded_edge_filter_tests {
     use super::*;
     use raphtory::{
-        db::graph::views::filter::model::{
-            is_valid_filter::IsValidEdge, layered_filter::Layered, windowed_filter::Windowed,
-            ExplodedEdgeFilter, FilterOperator,
-        },
+        db::graph::views::filter::model::tree::{CmpOp, Entity, Expr, FilterExpr, Scope, Target},
         prelude::Prop,
     };
-    use raphtory_api::core::storage::timeindex::EventTime;
 
     fn exploded_prop_gt(name: &str, v: i64) -> GqlExplodedEdgeFilter {
         GqlExplodedEdgeFilter::Property(PropertyFilterNew {
@@ -2662,12 +2090,12 @@ mod exploded_edge_filter_tests {
 
     #[test]
     fn round_trips_through_serde() {
-        let filter = GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::Not(wrap(
+        let filter = GqlFilter::ExplodedEdge(GqlExplodedEdgeFilter::Not(Wrapped::from(
             GqlExplodedEdgeFilter::Or(vec![
                 exploded_prop_gt("w", 1),
                 GqlExplodedEdgeFilter::TemporalProperty(PropertyFilterNew {
                     name: "w".into(),
-                    where_: PropCondition::Any(wrap(PropCondition::Eq(Value::I64(3)))),
+                    where_: PropCondition::Any(Wrapped::from(PropCondition::Eq(Value::I64(3)))),
                 }),
             ]),
         )));
@@ -2680,53 +2108,37 @@ mod exploded_edge_filter_tests {
     // Python builder can produce (property/metadata/temporal, view wrappers,
     // combinators, predicates, endpoints).
     #[test]
-    fn composite_wire_forms_lower_onto_expressions() {
-        let pf = |prop_ref, value, operator| PropertyFilter {
-            prop_ref,
-            prop_value: PropertyFilterValue::Single(value),
-            operator,
-            ops: vec![],
-            entity: ExplodedEdgeFilter,
-        };
-        let prop = || {
-            CompositeExplodedEdgeFilter::Property(pf(
-                PropertyRef::Property("w".into()),
-                Prop::I64(1),
-                FilterOperator::Gt,
-            ))
-        };
+    // Every legacy exploded-edge wire form lowers onto a tree that compiles.
+    #[test]
+    fn legacy_wire_forms_lower_onto_trees_that_compile() {
+        let prop = || exploded_prop_gt("w", 1);
+        let time = |t: i64| GqlTimeInput::from(t);
         let cases = vec![
             prop(),
-            CompositeExplodedEdgeFilter::Property(pf(
-                PropertyRef::Metadata("kind".into()),
-                Prop::str("strong"),
-                FilterOperator::Eq,
-            )),
-            CompositeExplodedEdgeFilter::Windowed(Box::new(Windowed::new(
-                EventTime::start(2),
-                EventTime::end(4),
-                prop(),
-            ))),
-            CompositeExplodedEdgeFilter::Layered(Box::new(Layered::from_layers(
-                vec!["knows".to_string()],
-                prop(),
-            ))),
-            CompositeExplodedEdgeFilter::And(
-                Box::new(prop()),
-                Box::new(CompositeExplodedEdgeFilter::IsValidEdge(IsValidEdge)),
-            ),
-            CompositeExplodedEdgeFilter::Not(Box::new(prop())),
-            CompositeExplodedEdgeFilter::Src(CompositeNodeFilter::Node(Filter::eq(
-                "node_name",
-                "a",
-            ))),
+            GqlExplodedEdgeFilter::Metadata(PropertyFilterNew {
+                name: "kind".into(),
+                where_: PropCondition::Eq(Value::Str("strong".into())),
+            }),
+            GqlExplodedEdgeFilter::Window(ExplodedEdgeWindowExpr {
+                start: time(2),
+                end: time(4),
+                expr: Wrapped::from(prop()),
+            }),
+            GqlExplodedEdgeFilter::Layers(ExplodedEdgeLayersExpr {
+                names: vec!["knows".into()],
+                expr: Wrapped::from(prop()),
+            }),
+            GqlExplodedEdgeFilter::And(vec![prop(), GqlExplodedEdgeFilter::IsValid(true)]),
+            GqlExplodedEdgeFilter::Not(Wrapped::from(prop())),
+            GqlExplodedEdgeFilter::Src(Wrapped::from(GqlNodeFilter::Name(NodeFieldWhere {
+                where_: NodeFieldCondition::Eq(Value::Str("a".into())),
+            }))),
         ];
         for original in cases {
-            let gql = GqlExplodedEdgeFilter::try_from(original.clone()).unwrap();
-            assert!(
-                super::super::expr_lowering::lower_exploded_edge_filter(&gql).is_ok(),
-                "wire form no longer lowers: {original}"
-            );
+            let tree = super::super::expr_lowering::lower_exploded_edge_filter(&original)
+                .unwrap_or_else(|e| panic!("wire form does not lower: {original:?}: {e}"));
+            tree.compile()
+                .unwrap_or_else(|e| panic!("tree does not compile: {tree}: {e}"));
         }
     }
 
@@ -2741,37 +2153,32 @@ mod exploded_edge_filter_tests {
     // The exploded FilterTree kind flows into the wire enum — the client's
     // transport path.
     #[test]
-    fn filter_tree_converts_to_the_wire_variant() {
-        let prop_tree = || {
-            FilterTree::ExplodedEdge(CompositeExplodedEdgeFilter::Property(PropertyFilter {
-                prop_ref: PropertyRef::Property("w".into()),
-                prop_value: PropertyFilterValue::Single(Prop::I64(1)),
-                operator: FilterOperator::Gt,
-                ops: vec![],
-                entity: ExplodedEdgeFilter,
-            }))
+    // A tree that mixes node and exploded-edge reads survives the trip to the
+    // wire and back with both entities intact.
+    #[test]
+    fn mixed_trees_round_trip_through_the_wire_variant() {
+        let read = |entity, name: &str| Expr::Read {
+            scope: Scope::new(entity),
+            target: Target::Property(name.into()),
         };
-        let gql = GqlFilter::try_from(prop_tree()).unwrap();
+        let tree = FilterExpr::And(vec![
+            FilterExpr::Cmp {
+                op: CmpOp::Eq,
+                lhs: read(Entity::Node, "x"),
+                rhs: Expr::Const(Prop::I64(1)),
+            },
+            FilterExpr::Cmp {
+                op: CmpOp::Gt,
+                lhs: read(Entity::ExplodedEdge, "w"),
+                rhs: Expr::Const(Prop::I64(1)),
+            },
+        ]);
+        let gql = GqlFilter::try_from(tree.clone()).unwrap();
         assert!(
-            matches!(gql, GqlFilter::ExplodedEdge(_)),
-            "expected ExplodedEdges, got {gql:?}"
+            matches!(gql, GqlFilter::Expr(_)),
+            "expected the tree variant"
         );
-
-        // A mixed node∧exploded tree keeps both kinds through the conversion.
-        let n = FilterTree::Node(CompositeNodeFilter::Property(PropertyFilter {
-            prop_ref: PropertyRef::Property("x".into()),
-            prop_value: PropertyFilterValue::Single(Prop::I64(1)),
-            operator: FilterOperator::Eq,
-            ops: vec![],
-            entity: raphtory::db::graph::views::filter::model::node_filter::NodeFilter,
-        }));
-        let tree = FilterTree::And(vec![n, prop_tree()]);
-        let gql = GqlFilter::try_from(tree).unwrap();
-        let GqlFilter::And(items) = gql else {
-            panic!("expected GqlFilter::And");
-        };
-        assert!(matches!(items[0], GqlFilter::Node(_)));
-        assert!(matches!(items[1], GqlFilter::ExplodedEdge(_)));
+        assert_eq!(FilterExpr::try_from(gql).unwrap(), tree);
     }
 
     // Empty combinators are rejected like everywhere else in this module.
@@ -2789,67 +2196,5 @@ mod exploded_edge_filter_tests {
                 "ExplodedEdgeFilter {name}: unexpected error {err}"
             );
         }
-    }
-}
-
-#[cfg(test)]
-mod filter_tree_tests {
-    use super::*;
-    use raphtory::{
-        db::graph::views::filter::model::{node_filter::NodeFilter, FilterOperator},
-        prelude::{EdgeFilter, Layer, Prop},
-    };
-    use raphtory_api::core::storage::timeindex::EventTime;
-
-    fn node_prop_eq(name: &str, v: i64) -> FilterTree {
-        FilterTree::Node(CompositeNodeFilter::Property(PropertyFilter {
-            prop_ref: PropertyRef::Property(name.into()),
-            prop_value: PropertyFilterValue::Single(Prop::I64(v)),
-            operator: FilterOperator::Eq,
-            ops: vec![],
-            entity: NodeFilter,
-        }))
-    }
-
-    // A mixed node∧edge tree converts arm by arm to the wire form.
-    #[test]
-    fn mixed_and_converts_structurally() {
-        let edge = FilterTree::Edge(CompositeEdgeFilter::Property(PropertyFilter {
-            prop_ref: PropertyRef::Property("w".into()),
-            prop_value: PropertyFilterValue::Single(Prop::I64(2)),
-            operator: FilterOperator::Eq,
-            ops: vec![],
-            entity: EdgeFilter,
-        }));
-        let tree = FilterTree::And(vec![node_prop_eq("x", 1), edge]);
-
-        let gql = GqlFilter::try_from(tree).unwrap();
-        let GqlFilter::And(items) = gql else {
-            panic!("expected GqlFilter::And");
-        };
-        assert!(matches!(items[0], GqlFilter::Node(_)));
-        assert!(matches!(items[1], GqlFilter::Edge(_)));
-    }
-
-    // A view chain nests into the wire form in application order: the last op
-    // applied becomes the outermost `expr` level.
-    #[test]
-    fn graph_view_chain_converts_to_the_nested_wire_form() {
-        let tree = FilterTree::View(vec![
-            GraphViewOp::Layers(Layer::from("x")),
-            GraphViewOp::Window {
-                start: EventTime::start(1),
-                end: EventTime::end(5),
-            },
-        ]);
-
-        let gql = GqlFilter::try_from(tree).unwrap();
-        let GqlFilter::Graph(GqlGraphFilter::Window(ref w)) = gql else {
-            panic!("expected Graph(Window), got {gql:?}");
-        };
-        let Some(GqlGraphFilter::Layers(ref l)) = w.expr.as_deref() else {
-            panic!("expected inner Layers, got {:?}", w.expr);
-        };
-        assert_eq!(l.names, vec!["x"]);
     }
 }

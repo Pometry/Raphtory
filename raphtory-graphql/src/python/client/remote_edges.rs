@@ -7,7 +7,7 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use pyo3::{pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{
     filter::filter_expr::PyFilterExpr, graph::sorting::PyEdgeSortBy, utils::execute_async_task,
 };
@@ -87,9 +87,7 @@ impl PyRemoteEdges {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `EdgeFilter` (e.g. references node-only fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteEdges::new(self.edges.filter(tree)?))
     }
 
@@ -107,9 +105,7 @@ impl PyRemoteEdges {
     /// Raises:
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteEdges::new(self.edges.select(tree)?))
     }
 

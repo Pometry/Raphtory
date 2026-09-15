@@ -1111,36 +1111,29 @@ def test_rejected_expr_parity_at_nodes_filter(filter_pair, name):
     )
 
 
-# Filters that compare two expressions have no wire form: the GraphQL schema
-# only takes a constant on the right-hand side. Locally they run; remotely the
-# client has to say so at the call, not ship a mistranslation.
+# Filters that compare two expressions travel as the same tree the local
+# engine compiles, so every application site must agree with the local answer.
 EXPR_RHS_SITES = {
-    "graph.filter": lambda g, e: [n.name for n in g.filter(e).nodes],
-    "nodes.filter": lambda g, e: [n.name for n in g.nodes.filter(e)],
-    "nodes[expr]": lambda g, e: [n.name for n in g.nodes[e]],
+    "graph.filter": lambda g, e: sorted(n.name for n in g.filter(e).nodes),
+    "nodes.filter": lambda g, e: sorted(n.name for n in g.nodes.filter(e)),
+    "nodes[expr]": lambda g, e: sorted(n.name for n in g.nodes[e]),
     "node.filter": lambda g, e: g.node("hub").filter(e) is not None,
-    "path.filter": lambda g, e: [n.name for n in g.node("hub").neighbours.filter(e)],
+    "path.filter": lambda g, e: sorted(n.name for n in g.node("hub").neighbours.filter(e)),
 }
 
 
 @pytest.mark.parametrize("site", sorted(EXPR_RHS_SITES), ids=sorted(EXPR_RHS_SITES))
-def test_expression_rhs_is_refused_remotely_with_the_reason(filter_pair, site):
-    """`degree() > in_degree()` runs locally; the remote client refuses it.
-
-    The refusal is asserted for its reason, so a future client that silently
-    dropped the right-hand side (and so sent a different filter) or that
-    failed later with an unrelated server error would both fail here. The
-    local side is asserted too: the expression is meaningful and narrows, so
-    what the client refuses is a real filter, not an already-invalid one.
-    """
+def test_expression_rhs_agrees_on_both_sides(filter_pair, site):
+    """`degree() > in_degree()` has no constant on the right, which the old
+    wire grammar could not say. It is a tree now, so it runs remotely and must
+    give the local answer. The local side is asserted to narrow, so what is
+    compared is a real filter, not one that selects everything."""
     read = EXPR_RHS_SITES[site]
     expr = f.Node.degree() > f.Node.in_degree()
 
     local = read(filter_pair.local, expr)
     assert local, f"{site}: the expression selects nothing locally"
-
-    with pytest.raises(ValueError, match="no server-side form"):
-        read(filter_pair.remote, expr)
+    assert_parity(filter_pair, lambda g: read(g, expr))
 
 
 # Node collections that take a `[expr]` subscript. Each must refuse an

@@ -19,7 +19,10 @@ use dynamic_graphql::{Enum, InputObject, OneOfInput};
 use raphtory::{
     db::graph::views::filter::model::{
         edge_filter::Endpoint,
-        tree::{self, Agg, CmpOp, Entity, Field, Qual, Scope, StrOp, Structural, Target, ViewOp},
+        tree::{
+            self, Agg, CmpOp, Entity, Field, Qual, Scope, StrOp, Structural, Target, ViewOp,
+            OPAQUE_FILTER_ERROR,
+        },
     },
     errors::GraphError,
 };
@@ -532,6 +535,7 @@ impl TryFrom<&tree::FilterExpr> for GqlFilterExpr {
     fn try_from(filter: &tree::FilterExpr) -> Result<Self, Self::Error> {
         use tree::FilterExpr as F;
         Ok(match filter {
+            F::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
             F::Cmp { op, lhs, rhs } => {
                 let c = gql_cmp(lhs, rhs)?;
                 match op {

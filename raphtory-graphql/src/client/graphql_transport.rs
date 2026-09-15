@@ -4301,10 +4301,7 @@ mod tests {
         },
         server::GraphServer,
     };
-    use raphtory::{
-        db::graph::views::filter::model::node_filter::CompositeNodeFilter,
-        prelude::{Args, NO_PROPS},
-    };
+    use raphtory::prelude::{Args, NO_PROPS};
     use raphtory_api::core::storage::timeindex::AsTime;
     use reqwest::Url;
     use std::{collections::HashMap as Map, str::FromStr, sync::Arc};
@@ -4954,10 +4951,8 @@ mod tests {
         use raphtory::{
             db::{
                 api::storage::storage::Config,
-                graph::views::filter::model::{
-                    node_filter::{CompositeNodeFilter, NodeFilter},
-                    property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef},
-                    FilterOperator,
+                graph::views::filter::model::tree::{
+                    CmpOp, Entity, Expr, FilterExpr, Scope, Target,
                 },
             },
             prelude::Prop,
@@ -5054,16 +5049,17 @@ mod tests {
         );
 
         // select() narrows membership only — handles see the unfiltered graph.
-        // Passed as a composite to pin that kind-typed callers still satisfy
-        // the widened `TryInto<GqlFilter>` bound.
-        let score_gt_15_composite = CompositeNodeFilter::Property(PropertyFilter {
-            prop_ref: PropertyRef::Property("score".into()),
-            prop_value: PropertyFilterValue::Single(Prop::I64(15)),
-            operator: FilterOperator::Gt,
-            ops: vec![],
-            entity: NodeFilter,
-        });
-        let selected = rg.nodes().select(score_gt_15_composite).unwrap();
+        // Passed as a tree to pin that tree-typed callers satisfy the widened
+        // `TryInto<GqlFilter>` bound.
+        let score_gt_15_tree = FilterExpr::Cmp {
+            op: CmpOp::Gt,
+            lhs: Expr::Read {
+                scope: Scope::new(Entity::Node),
+                target: Target::Property("score".into()),
+            },
+            rhs: Expr::Const(Prop::I64(15)),
+        };
+        let selected = rg.nodes().select(score_gt_15_tree).unwrap();
         let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();
         assert_eq!(

@@ -218,47 +218,106 @@ pub enum FilterExpr {
     And(Vec<FilterExpr>),
     Or(Vec<FilterExpr>),
     Not(Box<FilterExpr>),
+    /// A filter over in-process state (a node-state column) that has no wire
+    /// form: it runs where it was built and cannot be sent anywhere.
+    Opaque(OpaqueFilter),
+}
+
+/// An already compiled filter carried inside a tree. It exists for filters
+/// built from data that lives only in this process, so it runs but does not
+/// serialise: asking for its wire form is an error, not a guess.
+#[derive(Clone)]
+pub struct OpaqueFilter(pub Arc<dyn DynCreateFilter>);
+
+pub const OPAQUE_FILTER_ERROR: &str =
+    "this filter has no server-side form; it was built from in-process state";
+
+impl fmt::Debug for OpaqueFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("OpaqueFilter")
+    }
+}
+
+impl PartialEq for OpaqueFilter {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Serialize for OpaqueFilter {
+    fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+        Err(serde::ser::Error::custom(OPAQUE_FILTER_ERROR))
+    }
+}
+
+impl<'de> Deserialize<'de> for OpaqueFilter {
+    fn deserialize<D: serde::Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
+        Err(serde::de::Error::custom(OPAQUE_FILTER_ERROR))
+    }
+}
+
+impl FilterExpr {
+    /// Whether any part of this filter tests edges. An edge test says nothing
+    /// about which nodes belong in a node collection, so a node-collection
+    /// subscript refuses such a filter.
+    pub fn tests_edges(&self) -> bool {
+        let edge_scope = |scope: &Scope| scope.entity != Entity::Node;
+        fn expr_tests_edges(expr: &Expr, edge_scope: &dyn Fn(&Scope) -> bool) -> bool {
+            match expr {
+                Expr::Const(_) => false,
+                Expr::Read { scope, .. } => edge_scope(scope),
+                Expr::Temporal(e) | Expr::Agg(_, e) | Expr::Qual(_, e) => {
+                    expr_tests_edges(e, edge_scope)
+                }
+            }
+        }
+        match self {
+            FilterExpr::Cmp { lhs, rhs, .. } | FilterExpr::Str { lhs, rhs, .. } => {
+                expr_tests_edges(lhs, &edge_scope) || expr_tests_edges(rhs, &edge_scope)
+            }
+            FilterExpr::IsSome(e) | FilterExpr::IsNone(e) | FilterExpr::In { expr: e, .. } => {
+                expr_tests_edges(e, &edge_scope)
+            }
+            FilterExpr::Structural { scope, .. } => edge_scope(scope),
+            FilterExpr::View(_) | FilterExpr::Opaque(_) => false,
+            FilterExpr::And(items) | FilterExpr::Or(items) => items.iter().any(Self::tests_edges),
+            FilterExpr::Not(inner) => inner.tests_edges(),
+        }
+    }
 }
 
 // ── compiling ────────────────────────────────────────────────────────────────
 
 /// A partly compiled value. Property reads keep the ability to switch to
-/// their history; an endpoint read is compiled on the node side and wrapped
-/// for the edge once the chain above it is complete, so `temporal`/`sum`/...
-/// apply to the node value first.
-struct Compiled {
-    value: Value,
-    endpoint: Option<Endpoint>,
-}
-
-enum Value {
+/// their history until an aggregate or qualifier is applied.
+enum Compiled {
     Op(Arc<dyn DynCreateOp>),
     Property(Arc<dyn DynTemporal>),
 }
 
-impl Value {
-    fn op(self) -> Arc<dyn DynCreateOp> {
-        match self {
-            Value::Op(op) => op,
-            Value::Property(prop) => prop,
-        }
-    }
-}
-
 impl Compiled {
     fn op(self) -> Arc<dyn DynCreateOp> {
-        let op = self.value.op();
-        match self.endpoint {
-            Some(endpoint) => Arc::new(EdgeEndpointWrapper::new(op, endpoint)),
-            None => op,
+        match self {
+            Compiled::Op(op) => op,
+            Compiled::Property(prop) => prop,
+        }
+    }
+
+    /// An endpoint read is a node read the edge evaluates on the node at that
+    /// end. The wrapping happens here, at the read, so that qualifiers and
+    /// aggregates applied above it see an edge expression and are compiled the
+    /// way an edge filter compiles them.
+    fn through(self, endpoint: Endpoint) -> Self {
+        match self {
+            Compiled::Op(op) => Compiled::Op(Arc::new(EdgeEndpointWrapper::new(op, endpoint))),
+            Compiled::Property(prop) => {
+                Compiled::Property(Arc::new(EdgeEndpointWrapper::new(prop, endpoint)))
+            }
         }
     }
 
     fn map_op(self, f: impl FnOnce(Arc<dyn DynCreateOp>) -> Arc<dyn DynCreateOp>) -> Self {
-        Compiled {
-            value: Value::Op(f(self.value.op())),
-            endpoint: self.endpoint,
-        }
+        Compiled::Op(f(self.op()))
     }
 }
 
@@ -321,16 +380,16 @@ pub fn compile_view(views: &[ViewOp]) -> DynView {
     v
 }
 
-fn read_node(f: &Arc<dyn DynNodeFilterFactory>, target: &Target) -> Value {
+fn read_node(f: &Arc<dyn DynNodeFilterFactory>, target: &Target) -> Compiled {
     match target {
-        Target::Field(Field::Id) => Value::Op(f.dyn_id()),
-        Target::Field(Field::Name) => Value::Op(f.dyn_name()),
-        Target::Field(Field::NodeType) => Value::Op(f.dyn_node_type()),
-        Target::Degree(Direction::BOTH) => Value::Op(f.dyn_degree()),
-        Target::Degree(Direction::IN) => Value::Op(f.dyn_in_degree()),
-        Target::Degree(Direction::OUT) => Value::Op(f.dyn_out_degree()),
-        Target::Property(name) => Value::Property(f.dyn_property(name.clone())),
-        Target::Metadata(name) => Value::Op(f.dyn_metadata(name.clone())),
+        Target::Field(Field::Id) => Compiled::Op(f.dyn_id()),
+        Target::Field(Field::Name) => Compiled::Op(f.dyn_name()),
+        Target::Field(Field::NodeType) => Compiled::Op(f.dyn_node_type()),
+        Target::Degree(Direction::BOTH) => Compiled::Op(f.dyn_degree()),
+        Target::Degree(Direction::IN) => Compiled::Op(f.dyn_in_degree()),
+        Target::Degree(Direction::OUT) => Compiled::Op(f.dyn_out_degree()),
+        Target::Property(name) => Compiled::Property(f.dyn_property(name.clone())),
+        Target::Metadata(name) => Compiled::Op(f.dyn_metadata(name.clone())),
     }
 }
 
@@ -342,53 +401,34 @@ impl Expr {
 
     fn compile_inner(&self) -> Result<Compiled, GraphError> {
         match self {
-            Expr::Const(value) => Ok(Compiled {
-                value: Value::Op(Arc::new(value.clone())),
-                endpoint: None,
-            }),
+            Expr::Const(value) => Ok(Compiled::Op(Arc::new(value.clone()))),
             Expr::Read { scope, target } => match (scope.entity, scope.endpoint) {
                 (Entity::Node, Some(_)) => {
                     Err(invalid("a node expression has no src()/dst() endpoint"))
                 }
-                (Entity::Node, None) => Ok(Compiled {
-                    value: read_node(&node_factory(&scope.views), target),
-                    endpoint: None,
-                }),
-                (Entity::ExplodedEdge, Some(_)) => {
-                    Err(invalid("an exploded edge has no src()/dst() endpoint"))
-                }
+                (Entity::Node, None) => Ok(read_node(&node_factory(&scope.views), target)),
                 // An endpoint read is a node read, scoped by the same views,
                 // that the edge evaluates on the node at that end.
-                (Entity::Edge, Some(endpoint)) => Ok(Compiled {
-                    value: read_node(&node_factory(&scope.views), target),
-                    endpoint: Some(endpoint),
-                }),
+                (Entity::Edge | Entity::ExplodedEdge, Some(endpoint)) => {
+                    Ok(read_node(&node_factory(&scope.views), target).through(endpoint))
+                }
                 (entity, None) => {
                     let f = edge_factory(entity, &scope.views);
-                    let value =
-                        match target {
-                            Target::Property(name) => Value::Property(f.dyn_property(name.clone())),
-                            Target::Metadata(name) => Value::Op(f.dyn_metadata(name.clone())),
-                            Target::Field(_) | Target::Degree(_) => return Err(invalid(
+                    Ok(match target {
+                        Target::Property(name) => Compiled::Property(f.dyn_property(name.clone())),
+                        Target::Metadata(name) => Compiled::Op(f.dyn_metadata(name.clone())),
+                        Target::Field(_) | Target::Degree(_) => {
+                            return Err(invalid(
                                 "an edge has no fields or degree; read them through src() or dst()",
-                            )),
-                        };
-                    Ok(Compiled {
-                        value,
-                        endpoint: None,
+                            ))
+                        }
                     })
                 }
             },
-            Expr::Temporal(inner) => {
-                let inner = inner.compile_inner()?;
-                match inner.value {
-                    Value::Property(prop) => Ok(Compiled {
-                        value: Value::Op(prop.temporal()),
-                        endpoint: inner.endpoint,
-                    }),
-                    Value::Op(_) => Err(invalid("temporal() applies to a property")),
-                }
-            }
+            Expr::Temporal(inner) => match inner.compile_inner()? {
+                Compiled::Property(prop) => Ok(Compiled::Op(prop.temporal())),
+                Compiled::Op(_) => Err(invalid("temporal() applies to a property")),
+            },
             Expr::Agg(agg, inner) => Ok(inner.compile_inner()?.map_op(|op| match agg {
                 Agg::Sum => Arc::new(op.sum()),
                 Agg::Avg => Arc::new(op.avg()),
@@ -458,8 +498,8 @@ impl FilterExpr {
                 // Through an endpoint, the predicate is a node predicate
                 // evaluated on the node at that end of the edge.
                 if let Some(endpoint) = scope.endpoint {
-                    if scope.entity != Entity::Edge {
-                        return Err(invalid("only an edge has src()/dst() endpoints"));
+                    if scope.entity == Entity::Node {
+                        return Err(invalid("a node has no src()/dst() endpoint"));
                     }
                     if *pred != Structural::IsActive {
                         return Err(invalid(format!("{pred} is an edge predicate")));
@@ -500,6 +540,7 @@ impl FilterExpr {
                 Arc::new(OrFilter { left, right })
             })?,
             FilterExpr::Not(inner) => Arc::new(NotFilter(inner.compile()?)),
+            FilterExpr::Opaque(filter) => filter.0.clone(),
         })
     }
 }
@@ -715,6 +756,7 @@ impl Display for FilterExpr {
             FilterExpr::And(items) => write!(f, "({})", list(items, " AND ")),
             FilterExpr::Or(items) => write!(f, "({})", list(items, " OR ")),
             FilterExpr::Not(inner) => write!(f, "NOT({inner})"),
+            FilterExpr::Opaque(_) => write!(f, "<local-only filter>"),
         }
     }
 }

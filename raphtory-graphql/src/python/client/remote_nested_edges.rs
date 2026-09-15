@@ -7,7 +7,7 @@ use crate::{
         remote_path_from_graph::PyRemotePathFromGraph,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use pyo3::{pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{entities::GID, storage::timeindex::EventTime, utils::time::InputTime},
@@ -60,9 +60,7 @@ impl PyRemoteNestedEdges {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `EdgeFilter`.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteNestedEdges::new(self.edges.filter(tree)?))
     }
 
@@ -80,9 +78,7 @@ impl PyRemoteNestedEdges {
     /// Raises:
     ///     ValueError: if the filter cannot be sent over the wire.
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteNestedEdges::new(self.edges.select(tree)?))
     }
 

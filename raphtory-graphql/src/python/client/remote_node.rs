@@ -9,7 +9,7 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
@@ -58,9 +58,7 @@ impl PyRemoteNode {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `NodeFilter` (e.g. references edge fields).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNode> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteNode::new(self.node.filter(tree)?))
     }
 

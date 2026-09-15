@@ -8,7 +8,7 @@ use crate::{
         remote_node::PyRemoteNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
@@ -53,9 +53,7 @@ impl PyRemoteEdge {
     /// Raises:
     ///     ValueError: if the filter cannot be represented remotely.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdge> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteEdge::new(self.edge.filter(tree)?))
     }
 

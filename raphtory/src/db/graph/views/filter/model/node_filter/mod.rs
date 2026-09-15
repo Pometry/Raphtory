@@ -6,8 +6,6 @@ use crate::{
             NodeStateValue, TypedNodeState,
         },
         graph::views::filter::model::{
-            degree_filter::DegreeFilter,
-            filter::Filter,
             is_active_node_filter::IsActiveNode,
             latest_filter::Latest,
             layered_filter::Layered,
@@ -19,10 +17,8 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::PropertyFilter,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::{fmt, fmt::Display};
 
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
@@ -46,41 +42,6 @@ impl NodeViewFilterOps for NodeFilter {
 
     fn is_active(&self) -> Self::Output<IsActiveNode> {
         IsActiveNode
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompositeNodeFilter {
-    Node(Filter),
-    Property(PropertyFilter<NodeFilter>),
-    Degree(DegreeFilter),
-    Windowed(Box<Windowed<CompositeNodeFilter>>),
-    Latest(Box<Latest<CompositeNodeFilter>>),
-    SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
-    SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
-    Layered(Box<Layered<CompositeNodeFilter>>),
-    IsActiveNode(IsActiveNode),
-    And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
-    Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
-    Not(Box<CompositeNodeFilter>),
-}
-
-impl Display for CompositeNodeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Degree(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::IsActiveNode(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
-            CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
-            CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-            CompositeNodeFilter::Not(filter) => write!(f, "NOT({})", filter),
-        }
     }
 }
 

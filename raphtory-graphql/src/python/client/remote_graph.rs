@@ -17,7 +17,7 @@ use crate::{
         PyEdgeAddition, PyNodeAddition,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, PyResult};
 use raphtory::python::{filter::filter_expr::PyFilterExpr, utils::execute_async_task};
 use raphtory_api::{
     core::{
@@ -71,9 +71,7 @@ impl PyRemoteGraph {
     ///     ValueError: if the filter cannot be represented as a GraphQL
     ///         `NodeFilter` or `EdgeFilter`.
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteGraph> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteGraph {
             graph: Arc::new(self.graph.filter(tree)?),
         })

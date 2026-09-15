@@ -66,12 +66,12 @@ if __name__ == "__main__":
 
 
 class FilterExprReprTest(TestCase):
-    """`repr` shows the wire form a filter carries, so what runs locally and what
-    would be sent to a server can be read off the object."""
+    """`repr` shows the filter tree, which is both what runs locally and what a
+    server receives."""
 
     def test_repr_shows_the_recorded_wire_form(self):
         expr = filter.Node.window(0, 5).property("score") > 4
-        self.assertEqual(repr(expr), "FilterExpr(WINDOW[0..5](score > 4))")
+        self.assertEqual(repr(expr), "FilterExpr(WINDOW[0..5](score) > 4)")
 
     def test_repr_shows_temporal_ops_and_combinators(self):
         expr = (filter.Node.property("score").temporal().sum() > 10) & ~(
@@ -79,9 +79,9 @@ class FilterExprReprTest(TestCase):
         )
         self.assertEqual(
             repr(expr),
-            "FilterExpr((sum(temporal(score)) > 10 AND NOT(node_name == carol)))",
+            "FilterExpr((sum(temporal(score)) > 10 AND NOT(name == carol)))",
         )
 
-    def test_repr_of_a_local_only_filter_says_so(self):
+    def test_repr_shows_expressions_on_both_sides(self):
         expr = filter.Node.degree() > filter.Node.in_degree()
-        self.assertEqual(repr(expr), "FilterExpr(<local only: no server-side form>)")
+        self.assertEqual(repr(expr), "FilterExpr(degree > in_degree)")
