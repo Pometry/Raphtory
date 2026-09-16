@@ -2,7 +2,7 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::graph::{
-        graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
+        assertions::{assert_graph_equal, assert_persistent_materialize_graph_equal},
         views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,

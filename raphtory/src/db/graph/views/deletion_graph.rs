@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::serialise::metadata::build_graph_metadata;
 use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
@@ -15,10 +13,6 @@ use crate::{
     errors::GraphError,
     prelude::*,
 };
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::GraphPaths;
-#[cfg(feature = "io")]
-use raphtory_api::core::storage::graph_folder::Metadata;
 use raphtory_api::{
     core::entities::properties::tprop::TPropOps,
     inherit::Base,
@@ -34,11 +28,15 @@ use std::{
 };
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    Config,
+    Args,
 };
 
 #[cfg(feature = "io")]
-use storage::{persist::strategy::PersistenceStrategy, Extension};
+use {
+    crate::serialise::metadata::build_graph_metadata,
+    raphtory_api::core::storage::graph_folder::{GraphPaths, Metadata},
+    storage::{persist::strategy::PersistenceStrategy, Extension},
+};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
@@ -48,7 +46,7 @@ use storage::{persist::strategy::PersistenceStrategy, Extension};
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
@@ -101,7 +99,8 @@ fn persisted_prop_value_at<'a>(
 
 impl PersistentGraph {
     pub fn new() -> Self {
-        Self::default()
+        // TODO: This should return a Result.
+        Self::new_with_config(Args::default()).unwrap()
     }
 
     /// Create a new graph with config
@@ -115,10 +114,26 @@ impl PersistentGraph {
     /// ```
     /// use raphtory::prelude::*;
     ///
-    /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// let g = PersistentGraph::new_with_config(Args::default().with_max_node_page_len(262144)).unwrap();
     /// ```
-    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(Storage::new_with_config(config)?)))
+    pub fn new_with_config(args: Args) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::new_with_config(args)?)))
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Self::new_at_path_with_config(path, Args::default())
     }
 
     /// Create a new persistent graph at a specific path
@@ -135,46 +150,24 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn new_at_path_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         if !Extension::disk_storage_enabled() {
             return Err(GraphError::DiskGraphNotEnabled);
         }
-        path.init()?;
-        let graph = Self(Arc::new(Storage::new_at_path_with_config(
-            path.graph_path()?,
-            config,
-        )?));
-        let meta = Metadata {
-            path: path.relative_graph_path()?,
-            meta: build_graph_metadata(&graph),
-        };
-        path.write_metadata(meta)?;
-        Ok(graph)
-    }
 
-    /// Create a new persistent graph at a specific path
-    ///
-    /// # Arguments
-    /// * `path` - The path to the storage location
-    /// # Returns
-    /// A raphtory graph with storage at the specified path
-    /// # Example
-    /// ```no_run
-    /// use raphtory::prelude::PersistentGraph;
-    /// let g = PersistentGraph::new_at_path("/path/to/storage");
-    /// ```
-    #[cfg(feature = "io")]
-    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        if !Extension::disk_storage_enabled() {
-            return Err(GraphError::DiskGraphNotEnabled);
-        }
         path.init()?;
-        let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
+
+        let graph_path = path.graph_path()?;
+        let graph = Self(Arc::new(Storage::new_at_path_with_config(
+            graph_path, args,
+        )?));
+
         let meta = Metadata {
             path: path.relative_graph_path()?,
             meta: build_graph_metadata(&graph),
         };
+
         path.write_metadata(meta)?;
         Ok(graph)
     }
@@ -196,21 +189,21 @@ impl PersistentGraph {
     /// Load a graph from a specific path overriding config
     /// # Arguments
     /// * `path` - The path to the storage location
-    /// * `config` - The new config (note that it is not possible to change page sizes)
+    /// * `config` - The new config (page sizes cannot be changed; providing them returns an error)
     /// # Returns
     /// A raphtory graph loaded from the specified path
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load("/path/to/storage");    ///
+    /// let g = Graph::load("/path/to/storage");
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load_with_config(
             path.graph_path()?,
-            config,
+            args,
         )?)))
     }
 
@@ -224,11 +217,11 @@ impl PersistentGraph {
     #[cfg(feature = "io")]
     pub fn load_read_only_with_config(
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load_read_only_with_config(
             path.graph_path()?,
-            config,
+            args,
         )?)))
     }
 
@@ -252,10 +245,10 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
-    /// Get event graph
     pub fn event_graph(&self) -> Graph {
         Graph::from_storage(self.0.clone())
     }
+
     pub fn persistent_graph(&self) -> PersistentGraph {
         self.clone()
     }

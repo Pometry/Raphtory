@@ -1,4 +1,4 @@
-use raphtory::{db::graph::graph::assert_graph_equal, prelude::*, serialise::StableDecode};
+use raphtory::{db::graph::assertions::assert_graph_equal, prelude::*, serialise::StableDecode};
 use raphtory_api::core::storage::graph_folder::{GraphFolder, GraphPaths};
 
 // /// Verify that the metadata is re-created if it does not exist.

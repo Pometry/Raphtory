@@ -59,7 +59,7 @@ use raphtory_storage::graph::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
-use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+use storage::{persist::strategy::PersistenceStrategy, Extension};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -83,7 +83,7 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
         &self,
         path: &(impl GraphPaths + ?Sized),
     ) -> Result<MaterializedGraph, GraphError> {
-        self.materialize_at_with_config(path, self.core_graph().extension().config().clone())
+        self.materialize_at_with_config(path, self.core_graph().extension().config().clone().into())
     }
 
     /// Materializes the view into a new graph.
@@ -93,7 +93,7 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<MaterializedGraph, GraphError>;
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
@@ -391,7 +391,7 @@ pub fn materialize_impl(
     }
     node_meta.set_layer_mapper(layer_meta.deep_clone());
 
-    let ext = Extension::new(config, path)?;
+    let ext = Extension::new(path, config)?;
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
         node_meta,
@@ -688,16 +688,18 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
-        config: Config,
+        args: Args,
     ) -> Result<MaterializedGraph, GraphError> {
         if Extension::disk_storage_enabled() {
             path.init()?;
+
             let graph_path = path.graph_path()?;
-            let graph = materialize_impl(self, Some(graph_path.as_ref()), config)?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()), args.into())?;
             let meta = GraphFolderMetadata {
                 path: path.relative_graph_path()?,
                 meta: build_graph_metadata(&graph),
             };
+
             path.write_metadata(meta)?;
             Ok(graph)
         } else {

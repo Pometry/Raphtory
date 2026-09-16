@@ -34,7 +34,9 @@ pub struct AppConfig {
     pub schema: SchemaConfig,
     pub parquet: ParquetConfig,
     pub public_dir: Option<PathBuf>,
+    // extensions are top-level and not prefixed with extensions, skip it
     #[serde(flatten)]
+    #[field_name(skip)]
     pub extensions: ArgExtensions,
 }
 
@@ -79,10 +81,6 @@ fn invalid_value(path: impl IntoIterator<Item: Display>, err: impl Error) -> Ser
     ServerError::ConfigError(ConfigError::Message(format!(
         "Invalid configuration value for field '{path}': {err}"
     )))
-}
-
-fn as_boxed_external<E: Error + Send + Sync + 'static>(error: E) -> ServerError {
-    ServerError::ConfigError(ConfigError::Foreign(Box::new(error)))
 }
 
 impl AppConfigBuilder {
@@ -178,30 +176,18 @@ impl AppConfigBuilder {
             .ok_or_else(|| ConfigError::Message(format!("Invalid config: {value}")))?;
 
         for (path, value) in map {
-            // A key naming no built-in section names a server extension, whose settings sit at
-            // the top level alongside the built-ins. An unregistered name still errors, exactly as
-            // an unknown section did.
-            //
-            // `extensions` is deliberately not treated as a section here: the field is
-            // `#[serde(flatten)]`ed, so a config file has no such key either, and routing it
-            // through the same lookup keeps this path and the file path in agreement.
-            let field = AppConfigFieldName::by_name(path)
-                .filter(|f| !matches!(f, AppConfigFieldName::Extensions));
-            let Some(field) = field else {
-                // A name that is neither a section nor a registered extension is simply an
-                // invalid field. Only once it is known to be an extension do we hand the value
-                // over and let its own error through — that error names the offending inner
-                // field, which reporting the section name here would hide.
-                if !crate::plugin::server::is_registered(path) {
-                    return Err(invalid_path([path]));
+            // An non-built-in key potentially represents a server extension, whose settings sit at
+            // the top level alongside the built-ins. If the key is not registered as a known
+            // extension, it throws an error.
+            let field = match AppConfigFieldName::by_name(path) {
+                None => {
+                    // A name that is not a known field is checked against the registered extensions
+                    self.config.extensions.update_from_json(path, value)?;
+                    continue;
                 }
-                let mut one = serde_json::Map::new();
-                one.insert(path.clone(), value.clone());
-                self.config
-                    .extensions
-                    .update_from_json(&serde_json::Value::Object(one))?;
-                continue;
+                Some(field) => field,
             };
+
             match field {
                 AppConfigFieldName::Logging => {
                     let map = value.as_object().ok_or_else(|| {
@@ -459,7 +445,6 @@ impl AppConfigBuilder {
                         Deserialize::deserialize(value).map_err(|e| invalid_value([path], e))?,
                     );
                 }
-                AppConfigFieldName::Extensions => unreachable!("filtered out above"),
             }
         }
 

@@ -3,7 +3,7 @@ use raphtory::{
     db::{
         api::view::Filter,
         graph::{
-            graph::assert_graph_equal,
+            assertions::assert_graph_equal,
             views::filter::model::{
                 property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
             },
