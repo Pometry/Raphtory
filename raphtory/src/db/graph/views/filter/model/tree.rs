@@ -257,6 +257,16 @@ impl<'de> Deserialize<'de> for OpaqueFilter {
 }
 
 impl FilterExpr {
+    /// Whether a view appears anywhere in this filter.
+    pub fn has_view(&self) -> bool {
+        match self {
+            FilterExpr::View(_) => true,
+            FilterExpr::And(items) | FilterExpr::Or(items) => items.iter().any(Self::has_view),
+            FilterExpr::Not(inner) => inner.has_view(),
+            _ => false,
+        }
+    }
+
     /// Whether any part of this filter tests edges. An edge test says nothing
     /// about which nodes belong in a node collection, so a node-collection
     /// subscript refuses such a filter.
@@ -345,7 +355,7 @@ fn node_factory(views: &[ViewOp]) -> Arc<dyn DynNodeFilterFactory> {
 fn edge_factory(entity: Entity, views: &[ViewOp]) -> Arc<dyn DynEdgeFilterFactory> {
     let mut f: Arc<dyn DynEdgeFilterFactory> = match entity {
         Entity::ExplodedEdge => Arc::new(ExplodedEdgeFilter),
-        _ => Arc::new(EdgeFilter),
+        Entity::Edge | Entity::Node => Arc::new(EdgeFilter),
     };
     for op in views {
         f = match op {
@@ -360,24 +370,6 @@ fn edge_factory(entity: Entity, views: &[ViewOp]) -> Arc<dyn DynEdgeFilterFactor
         };
     }
     f
-}
-
-/// The graph-level view a chain of view ops describes, applied in order.
-pub fn compile_view(views: &[ViewOp]) -> DynView {
-    let mut v: DynView = Arc::new(GraphFilter);
-    for op in views {
-        v = match op {
-            ViewOp::Window { start, end } => v.window(*start, *end),
-            ViewOp::At(t) => v.at(*t),
-            ViewOp::After(t) => v.after(*t),
-            ViewOp::Before(t) => v.before(*t),
-            ViewOp::Latest => Arc::new(v.latest()),
-            ViewOp::SnapshotAt(t) => Arc::new(v.snapshot_at(*t)),
-            ViewOp::SnapshotLatest => Arc::new(v.snapshot_latest()),
-            ViewOp::Layers(names) => Arc::new(v.layer(Layer::from(names.clone()))),
-        };
-    }
-    v
 }
 
 fn read_node(f: &Arc<dyn DynNodeFilterFactory>, target: &Target) -> Compiled {
@@ -408,8 +400,12 @@ impl Expr {
                 }
                 (Entity::Node, None) => Ok(read_node(&node_factory(&scope.views), target)),
                 // An endpoint read is a node read, scoped by the same views,
-                // that the edge evaluates on the node at that end.
-                (Entity::Edge | Entity::ExplodedEdge, Some(endpoint)) => {
+                // that the edge evaluates on the node at that end. It is an
+                // edge's read: an edge update has no endpoint wrapper of its own.
+                (Entity::ExplodedEdge, Some(_)) => {
+                    Err(invalid("an exploded edge has no src()/dst() endpoint"))
+                }
+                (Entity::Edge, Some(endpoint)) => {
                     Ok(read_node(&node_factory(&scope.views), target).through(endpoint))
                 }
                 (entity, None) => {
@@ -460,7 +456,62 @@ macro_rules! binary {
 
 impl FilterExpr {
     /// The erased, applicable form of this filter.
+    ///
+    /// A view (`View`) applies first: the graph is seen through it and the other
+    /// legs run inside it, reads included, the way `graph.window(..).filter(expr)`
+    /// does. A view therefore stands alone or is a leg of the top-level `and`
+    /// (nested `and`s count as top level); under `or` or `not` it has no meaning the
+    /// engine can give it and is refused.
     pub fn compile(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
+        let (views, predicates, saw_view) = self.split_top_views();
+        if saw_view && views.is_empty() {
+            return Err(invalid("a view filter needs at least one view"));
+        }
+        if views.is_empty() {
+            return self.compile_nested();
+        }
+        let inner: Arc<dyn DynCreateFilter> = if predicates.is_empty() {
+            Arc::new(GraphFilter)
+        } else {
+            combine(
+                predicates.iter().map(|p| p.compile_nested()),
+                "and",
+                |left, right| Arc::new(AndFilter { left, right }),
+            )?
+        };
+        Ok(Arc::new(Viewed { views, inner }))
+    }
+
+    /// The view ops at the top of the filter, in order, and the predicates beside
+    /// them. `and` nests flatten; anything else is a predicate. The flag says whether
+    /// a `View` node was seen at all, so an empty one can be told from none.
+    fn split_top_views(&self) -> (Vec<ViewOp>, Vec<&FilterExpr>, bool) {
+        fn walk<'a>(
+            filter: &'a FilterExpr,
+            views: &mut Vec<ViewOp>,
+            predicates: &mut Vec<&'a FilterExpr>,
+            saw_view: &mut bool,
+        ) {
+            match filter {
+                FilterExpr::View(ops) => {
+                    *saw_view = true;
+                    views.extend(ops.iter().cloned());
+                }
+                FilterExpr::And(items) => {
+                    for item in items {
+                        walk(item, views, predicates, saw_view);
+                    }
+                }
+                other => predicates.push(other),
+            }
+        }
+        let (mut views, mut predicates, mut saw_view) = (Vec::new(), Vec::new(), false);
+        walk(self, &mut views, &mut predicates, &mut saw_view);
+        (views, predicates, saw_view)
+    }
+
+    /// A filter below the top level: every node but a view.
+    fn compile_nested(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
         Ok(match self {
             FilterExpr::Cmp { op, lhs, rhs } => match op {
                 CmpOp::Eq => binary!(lhs, rhs, eq),
@@ -501,6 +552,9 @@ impl FilterExpr {
                     if scope.entity == Entity::Node {
                         return Err(invalid("a node has no src()/dst() endpoint"));
                     }
+                    if scope.entity == Entity::ExplodedEdge {
+                        return Err(invalid("an exploded edge has no src()/dst() endpoint"));
+                    }
                     if *pred != Structural::IsActive {
                         return Err(invalid(format!("{pred} is an edge predicate")));
                     }
@@ -527,33 +581,117 @@ impl FilterExpr {
                     }
                 }
             }
-            FilterExpr::View(views) => {
-                if views.is_empty() {
-                    return Err(invalid("a view filter needs at least one view"));
-                }
-                compile_view(views)
+            FilterExpr::View(_) => {
+                return Err(invalid(
+                    "a view applies to the whole filter: use it alone or as a leg of the \
+                     top-level `and`, not under `or` or `not`",
+                ))
             }
-            FilterExpr::And(items) => combine(items, "and", |left, right| {
-                Arc::new(AndFilter { left, right })
-            })?,
-            FilterExpr::Or(items) => combine(items, "or", |left, right| {
-                Arc::new(OrFilter { left, right })
-            })?,
-            FilterExpr::Not(inner) => Arc::new(NotFilter(inner.compile()?)),
+            FilterExpr::And(items) => combine(
+                items.iter().map(Self::compile_nested),
+                "and",
+                |left, right| Arc::new(AndFilter { left, right }),
+            )?,
+            FilterExpr::Or(items) => combine(
+                items.iter().map(Self::compile_nested),
+                "or",
+                |left, right| Arc::new(OrFilter { left, right }),
+            )?,
+            FilterExpr::Not(inner) => Arc::new(NotFilter(inner.compile_nested()?)),
             FilterExpr::Opaque(filter) => filter.0.clone(),
         })
     }
 }
 
-/// Fold a list of operands pairwise, left to right. An empty list has no
+/// The graph-level view a chain of view ops describes, applied in order.
+fn compile_view(views: &[ViewOp]) -> DynView {
+    let mut v: DynView = Arc::new(GraphFilter);
+    for op in views {
+        v = match op {
+            ViewOp::Window { start, end } => v.window(*start, *end),
+            ViewOp::At(t) => v.at(*t),
+            ViewOp::After(t) => v.after(*t),
+            ViewOp::Before(t) => v.before(*t),
+            ViewOp::Latest => Arc::new(v.latest()),
+            ViewOp::SnapshotAt(t) => Arc::new(v.snapshot_at(*t)),
+            ViewOp::SnapshotLatest => Arc::new(v.snapshot_latest()),
+            ViewOp::Layers(names) => Arc::new(v.layer(Layer::from(names.clone()))),
+        };
+    }
+    v
+}
+
+/// A filter applied inside a view: the graph is seen through `views` first and
+/// `inner` runs on that graph, reads included, so `and: [view, pred]` is
+/// `graph.view(..).filter(pred)`.
+#[derive(Clone)]
+struct Viewed {
+    views: Vec<ViewOp>,
+    inner: Arc<dyn DynCreateFilter>,
+}
+
+impl Viewed {
+    fn view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
+        compile_view(&self.views).dyn_filter_graph_view(Arc::new(graph))
+    }
+}
+
+impl CreateFilter for Viewed {
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph;
+
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph;
+
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        let viewed = self.view(graph)?;
+        self.inner.create_dyn_filter(viewed, Arc::new(filtered))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        let viewed = self.view(graph)?;
+        self.inner
+            .create_dyn_node_filter(viewed, Arc::new(filtered))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        let viewed = self.view(graph)?;
+        self.inner.dyn_filter_graph_view(viewed)
+    }
+}
+
+/// Fold compiled operands pairwise, left to right. An empty list has no
 /// meaning either way (`and` of nothing is not "everything", `or` of nothing
 /// is not "nothing" the caller asked for), so it is refused.
 fn combine(
-    items: &[FilterExpr],
+    mut compiled: impl Iterator<Item = Result<Arc<dyn DynCreateFilter>, GraphError>>,
     name: &str,
     join: impl Fn(Arc<dyn DynCreateFilter>, Arc<dyn DynCreateFilter>) -> Arc<dyn DynCreateFilter>,
 ) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-    let mut compiled = items.iter().map(FilterExpr::compile);
     let first = compiled
         .next()
         .ok_or_else(|| invalid(format!("`{name}` needs at least one operand")))??;
@@ -1032,5 +1170,88 @@ mod tests {
         let json = serde_json::to_string(&tree).unwrap();
         let back: FilterExpr = serde_json::from_str(&json).unwrap();
         assert_eq!(back, tree);
+    }
+
+    #[test]
+    fn an_opaque_filter_refuses_to_serialise() {
+        let compiled = FilterExpr::View(vec![ViewOp::Latest]).compile().unwrap();
+        let opaque = FilterExpr::Opaque(OpaqueFilter(compiled));
+        let err = serde_json::to_string(&opaque).unwrap_err();
+        assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
+        assert!(!opaque.tests_edges());
+    }
+
+    #[test]
+    fn an_exploded_edge_has_no_endpoint() {
+        let scope = Scope::new(Entity::ExplodedEdge).through(Endpoint::Src);
+        let read = FilterExpr::Cmp {
+            op: CmpOp::Eq,
+            lhs: Expr::Read {
+                scope: scope.clone(),
+                target: Target::Field(Field::Name),
+            },
+            rhs: Expr::Const(Prop::str("alice")),
+        };
+        assert!(read.compile().is_err());
+        let active = FilterExpr::Structural {
+            scope,
+            pred: Structural::IsActive,
+        };
+        assert!(active.compile().is_err());
+    }
+
+    #[test]
+    fn a_view_leg_restricts_the_whole_filter() {
+        // alice's only update (t=6) and bob's (t=1) are inside [0, 7); dave's (t=8) is not.
+        let g = Graph::new();
+        g.add_node(6, "alice", [("score", Prop::F64(9.0))], None, None)
+            .unwrap();
+        g.add_node(1, "bob", [("score", Prop::F64(5.0))], None, None)
+            .unwrap();
+        g.add_node(8, "dave", [("score", Prop::F64(10.0))], None, None)
+            .unwrap();
+        g.add_node(0, "carol", NO_PROPS, None, None).unwrap();
+        let score_gt_4 = FilterExpr::Cmp {
+            op: CmpOp::Gt,
+            lhs: Expr::Read {
+                scope: Scope::new(Entity::Node),
+                target: Target::Property("score".into()),
+            },
+            rhs: Expr::Const(Prop::F64(4.0)),
+        };
+        let window = FilterExpr::View(vec![ViewOp::Window {
+            start: EventTime::start(0),
+            end: EventTime::end(7),
+        }]);
+        // The view applies first and the predicate runs inside it.
+        let tree = FilterExpr::And(vec![window.clone(), score_gt_4.clone()]);
+        assert_eq!(nodes(&g, tree.compile().unwrap()), ["alice", "bob"]);
+        // A predicate every node passes still leaves the view's members only.
+        let named = FilterExpr::IsSome(Expr::Read {
+            scope: Scope::new(Entity::Node),
+            target: Target::Field(Field::Name),
+        });
+        let all_in_window = FilterExpr::And(vec![window.clone(), named]);
+        assert_eq!(
+            nodes(&g, all_in_window.compile().unwrap()),
+            ["alice", "bob", "carol"]
+        );
+        // Nested `and`s flatten, so the view still reaches the top.
+        let nested = FilterExpr::And(vec![
+            FilterExpr::And(vec![window.clone()]),
+            score_gt_4.clone(),
+        ]);
+        assert_eq!(nodes(&g, nested.compile().unwrap()), ["alice", "bob"]);
+        // Under `or` or `not` a view has no meaning the engine can give it.
+        assert!(FilterExpr::Or(vec![window.clone(), score_gt_4.clone()])
+            .compile()
+            .is_err());
+        assert!(FilterExpr::Not(Box::new(window.clone())).compile().is_err());
+        assert!(FilterExpr::Or(vec![
+            FilterExpr::And(vec![window, score_gt_4.clone()]),
+            score_gt_4
+        ])
+        .compile()
+        .is_err());
     }
 }

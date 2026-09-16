@@ -8,7 +8,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::sync::Arc;
 
 /// A filter as a tree. The same tree runs locally, is sent to a server, and is
@@ -35,18 +35,36 @@ impl PyFilterExpr {
         PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.0.clone()]))
     }
 
-    pub fn __or__(&self, other: &Self) -> Self {
-        PyFilterExpr(FilterExpr::Or(vec![self.0.clone(), other.0.clone()]))
+    pub fn __or__(&self, other: &Self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        no_view(&other.0)?;
+        Ok(PyFilterExpr(FilterExpr::Or(vec![
+            self.0.clone(),
+            other.0.clone(),
+        ])))
     }
 
-    fn __invert__(&self) -> Self {
-        PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone())))
+    fn __invert__(&self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        Ok(PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone()))))
     }
 
     /// Shows the filter tree: what runs locally and what a server receives.
     fn __repr__(&self) -> String {
         format!("FilterExpr({})", self.0)
     }
+}
+
+/// A view applies to the whole filter, so it can be `&`-ed with predicates or applied
+/// alone, but has no meaning under `|` or `~`. Refused where it is written, as the
+/// engine would refuse it when applied.
+fn no_view(filter: &FilterExpr) -> PyResult<()> {
+    if filter.has_view() {
+        return Err(PyTypeError::new_err(
+            "a view (filter.Graph...) applies to the whole filter: combine it with `&` or apply it alone, not with `|` or `~`",
+        ));
+    }
+    Ok(())
 }
 
 impl CreateFilter for PyFilterExpr {

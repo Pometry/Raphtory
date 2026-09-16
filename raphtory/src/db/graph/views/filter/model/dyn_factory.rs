@@ -9,6 +9,7 @@
 //! compiler for a vtable per wrapper combination.
 
 use crate::db::graph::views::filter::model::{
+    after_bounds, at_bounds, before_bounds,
     is_active_edge_filter::IsActiveEdge,
     is_active_node_filter::IsActiveNode,
     is_deleted_filter::IsDeletedEdge,
@@ -20,11 +21,8 @@ use crate::db::graph::views::filter::model::{
     EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, NodeFilterFactory,
     NodeViewFilterOps, PropertyExprFactory, ViewWrapOps,
 };
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
-
-pub type DynNodeFactory = Arc<dyn DynNodeFilterFactory>;
-pub type DynEdgeFactory = Arc<dyn DynEdgeFilterFactory>;
 
 pub trait DynNodeFilterFactory:
     DynPropertyExprFactory + DynEntityExpr + DynCreateView + Send + Sync + 'static
@@ -196,14 +194,16 @@ where
         Arc::new(Windowed::new(start, end, dyn_self))
     }
     fn dyn_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        self.dyn_window(time, EventTime::from(time.t().saturating_add(1)))
+        let (start, end) = at_bounds(time);
+        self.dyn_window(start, end)
     }
     fn dyn_after(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        let start = time.t().saturating_add(1);
-        self.dyn_window(EventTime::start(start), EventTime::end(i64::MAX))
+        let (start, end) = after_bounds(time);
+        self.dyn_window(start, end)
     }
     fn dyn_before(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory> {
-        self.dyn_window(EventTime::start(i64::MIN), EventTime::end(time.t()))
+        let (start, end) = before_bounds(time);
+        self.dyn_window(start, end)
     }
     // Same erasure trick as dyn_window: wrapping the erased factory keeps the
     // set of vtable-instantiated types finite; wrapping `self` directly would

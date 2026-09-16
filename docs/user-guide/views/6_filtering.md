@@ -46,7 +46,7 @@ From a node, or from the end of an edge (`filter.Edge.src()` and `filter.Edge.ds
 | read | gives |
 |---|---|
 | `.name()`, `.id()`, `.node_type()` | the built-in fields |
-| `.degree()`, `.in_degree()`, `.out_degree()` | how many edges touch the node |
+| `.degree()`, `.in_degree()`, `.out_degree()` | how many neighbours the node has (nodes only, not edge ends) |
 | `.property("score")` | the latest value of a temporal property |
 | `.metadata("owner")` | a metadata (constant) value |
 
@@ -66,7 +66,9 @@ A read is an [Expr][raphtory.filter.Expr]. Comparing it gives a `FilterExpr`.
 | `.is_some()`, `.is_none()` | whether the property has a value at all |
 
 The right-hand side can be another read. `filter.Node.degree() > filter.Node.in_degree()` selects
-nodes with at least one outgoing edge.
+nodes with a neighbour that does not point back at them.
+
+/// tab | :fontawesome-brands-python: Python
 
 ```{.python continuation}
 high = filter.Node.property("score") > 4
@@ -78,6 +80,7 @@ assert [n.name for n in g.filter(missing).nodes] == ["carol"]
 more_out_than_in = filter.Node.degree() > filter.Node.in_degree()
 assert sorted(n.name for n in g.filter(more_out_than_in).nodes) == ["alice", "bob"]
 ```
+///
 
 ## Combining filters
 
@@ -87,13 +90,18 @@ Use the bitwise operators: `&` for *and*, `|` for *or*, `~` for *not*. Python's 
 `~f` selects everything `f` did not select. A node without the property is not selected by
 `property("score") > 4`, so it *is* selected by `~(property("score") > 4)`.
 
+/// tab | :fontawesome-brands-python: Python
+
 ```{.python continuation}
+assert [n.name for n in g.filter(~high).nodes] == ["carol"]
+
 not_bob = high & ~(filter.Node.name() == "bob")
 assert [n.name for n in g.filter(not_bob).nodes] == ["alice"]
 
 either = (filter.Node.name() == "carol") | (filter.Node.property("score") > 6)
 assert sorted(n.name for n in g.filter(either).nodes) == ["alice", "carol"]
 ```
+///
 
 ## Reading through a view
 
@@ -102,10 +110,13 @@ A view can sit in front of a read. `filter.Node.window(0, 2).property("score")` 
 `.layer(...)`, `.layers(...)`, `.latest()`, `.at(t)`, `.before(t)`, `.after(t)`, `.snapshot_at(t)`
 and `.snapshot_latest()`, on nodes, edges and exploded edges, and they can be chained.
 
+/// tab | :fontawesome-brands-python: Python
+
 ```{.python continuation}
 early_high = filter.Node.window(0, 2).property("score") > 4
 assert [n.name for n in g.filter(early_high).nodes] == ["bob"]
 ```
+///
 
 ## Using a property's history
 
@@ -114,6 +125,8 @@ then turns the history back into one value: `.sum()`, `.avg()`, `.min()`, `.max(
 `.last()`, `.len()`. `.any()` and `.all()` ask whether the comparison holds for any, or every,
 value in the history.
 
+/// tab | :fontawesome-brands-python: Python
+
 ```{.python continuation}
 total = filter.Node.property("score").temporal().sum() > 8
 assert [n.name for n in g.filter(total).nodes] == ["alice"]
@@ -121,10 +134,13 @@ assert [n.name for n in g.filter(total).nodes] == ["alice"]
 ever_low = filter.Node.property("score").temporal().any() < 4
 assert [n.name for n in g.filter(ever_low).nodes] == ["alice"]
 ```
+///
 
 ## Filtering edges
 
 An edge filter can look at the edge itself or at either end of it.
+
+/// tab | :fontawesome-brands-python: Python
 
 ```{.python continuation}
 from_alice = filter.Edge.src().name() == "alice"
@@ -133,6 +149,7 @@ assert [(e.src.name, e.dst.name) for e in g.filter(from_alice).edges] == [("alic
 in_works = filter.Edge.layer("works").is_active()
 assert [(e.src.name, e.dst.name) for e in g.filter(in_works).edges] == [("bob", "carol")]
 ```
+///
 
 ## Applying a filter
 
@@ -140,8 +157,11 @@ assert [(e.src.name, e.dst.name) for e in g.filter(in_works).edges] == [("bob", 
 |---|---|
 | `graph.filter(expr)` | a graph view with only the matching nodes, or only the matching edges. A node filter keeps the edges between the remaining nodes; an edge filter keeps every node. |
 | `graph.filter(filter.Graph.window(0, 2))` | the graph seen through the view; the same as `graph.window(0, 2)` |
+| `graph.filter(filter.Graph.window(0, 2) & expr)` | the view first, then `expr` inside it: the same as `graph.window(0, 2).filter(expr)`. A view can be combined with `&` but not with `\|` or `~` |
 | `graph.nodes.filter(expr)` | every node stays, but each node's edges and neighbours are narrowed to the ones that match |
 | `node.filter(expr)` | the node with its edges and neighbours narrowed the same way |
+
+/// tab | :fontawesome-brands-python: Python
 
 ```{.python continuation}
 assert g.filter(filter.Graph.window(0, 2)).count_edges() == 1
@@ -150,15 +170,19 @@ narrowed = g.nodes.filter(filter.Node.name() != "carol")
 assert [n.name for n in narrowed] == ["alice", "bob", "carol"]
 assert [n.degree() for n in narrowed] == [1, 1, 1]
 ```
+///
 
 ## Seeing what a filter will do
 
 `repr()` prints the tree. It is the same tree a remote graph sends, so there is no separate
 server-side form to check.
 
+/// tab | :fontawesome-brands-python: Python
+
 ```{.python continuation}
 print(repr(filter.Node.window(0, 2).property("score") > 4))
 ```
+///
 
 !!! output
 

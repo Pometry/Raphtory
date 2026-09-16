@@ -536,6 +536,24 @@ impl<T: DynInternalViewWrapOps + ?Sized> InternalViewWrapOps for Arc<T> {
     }
 }
 
+/// The window `at(t)` means: the single instant `t`.
+pub(crate) fn at_bounds(t: EventTime) -> (EventTime, EventTime) {
+    (t, EventTime::from(t.t().saturating_add(1)))
+}
+
+/// The window `after(t)` means: everything strictly after `t`.
+pub(crate) fn after_bounds(t: EventTime) -> (EventTime, EventTime) {
+    (
+        EventTime::start(t.t().saturating_add(1)),
+        EventTime::end(i64::MAX),
+    )
+}
+
+/// The window `before(t)` means: everything strictly before `t`.
+pub(crate) fn before_bounds(t: EventTime) -> (EventTime, EventTime) {
+    (EventTime::start(i64::MIN), EventTime::end(t.t()))
+}
+
 pub trait ViewWrapOps: InternalViewWrapOps + Sized {
     #[inline]
     fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Self::Window {
@@ -547,22 +565,20 @@ pub trait ViewWrapOps: InternalViewWrapOps + Sized {
 
     #[inline]
     fn at<T: IntoTime>(self, time: T) -> Self::Window {
-        let t = time.into_time();
-        self.window(t, t.t().saturating_add(1))
+        let (start, end) = at_bounds(time.into_time());
+        self.window(start, end)
     }
 
     #[inline]
     fn after<T: IntoTime>(self, time: T) -> Self::Window {
-        let start = time.into_time().t().saturating_add(1);
-        self.window(EventTime::start(start), EventTime::end(i64::MAX))
+        let (start, end) = after_bounds(time.into_time());
+        self.window(start, end)
     }
 
     #[inline]
     fn before<T: IntoTime>(self, time: T) -> Self::Window {
-        self.window(
-            EventTime::start(i64::MIN),
-            EventTime::end(time.into_time().t()),
-        )
+        let (start, end) = before_bounds(time.into_time());
+        self.window(start, end)
     }
 
     #[inline]
@@ -783,9 +799,9 @@ pub trait EdgeViewFilterOps: ViewWrapOps {
 
 /// Comparison, string, set, and presence operators on any [`CreateOp`].
 ///
-/// `.any()` / `.all()` are terminal: they wrap `self` in `AnyExpr`/`AllExpr` and compare the
-/// result to `Bool(true)`. For element-wise comparison before reduction, chain in order:
-/// `.gt(10i64).any()` not `.any().gt(10i64)`.
+/// `.any()` / `.all()` are qualifiers on a list-valued expression: the comparison that follows
+/// is applied to each element and the results are reduced, so `.any().gt(10i64)` holds when any
+/// element is greater than ten.
 ///
 /// ```rust,ignore
 /// NodeFilter.degree().gt(2usize)

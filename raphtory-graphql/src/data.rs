@@ -369,10 +369,19 @@ impl Data {
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
+    async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
+        self.cache
+            .get_or_insert(path, self.read_graph_from_disk(path))
+            .await
+    }
+
     /// Whether `filter` can be applied to the graph at `path`. `Ok(Err(_))` says the
     /// filter itself does not fit that graph (a value of the wrong type for a property,
     /// say); `Err(_)` says the graph could not be loaded. Policies use it to tell a
     /// per-caller value that cannot be compared from a grant that is wrong.
+    ///
+    /// # ⚠ Does no permission check — the caller must already have authorised `path`.
+    /// Loading and error reporting here would otherwise reveal whether a graph exists.
     pub async fn access_filter_applies(
         &self,
         path: &str,
@@ -386,12 +395,6 @@ impl Data {
             .into_dynamic();
         let filter = filter.clone();
         Ok(blocking_compute(move || compile_row_filter(graph, filter).map(|_| ())).await)
-    }
-
-    async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
-        self.cache
-            .get_or_insert(path, self.read_graph_from_disk(path))
-            .await
     }
 
     /// Test-only: direct graph load without permission checks.
@@ -940,22 +943,9 @@ fn apply_row_filter_sync(
 
 /// The graph under a row filter, or the reason the filter cannot be applied to it.
 ///
-/// A top-level `and` is applied one sub-filter after another, so a view (window,
-/// snapshot, layer) wraps the graph before the predicates that follow it run.
+/// The filter means what it means everywhere else: `and` is an intersection, and a
+/// predicate that should be evaluated inside a view carries that view on its read.
 fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
-    if let GqlFilter::And(filters) = filter {
-        // An empty `and` folds to the graph unchanged — no restriction at all. Refused,
-        // matching the tree compiler's rejection of an empty combinator (which this
-        // shortcut path otherwise never reaches).
-        if filters.is_empty() {
-            return Err(GraphError::InvalidGqlFilter(
-                "empty 'and' access filter restricts nothing".into(),
-            ));
-        }
-        return filters
-            .into_iter()
-            .try_fold(graph, |g, f| compile_row_filter(g, f));
-    }
     Ok(graph.filter(filter)?.into_dynamic())
 }
 

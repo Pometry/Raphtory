@@ -109,12 +109,12 @@ def test_component_top_level_and_or_across_kinds(client):
         "outComponent",
         '{and: [{view: [{layers: ["owns"]}]}, {ne: {lhs: {read: {entity: NODE, target: {field: NAME}}}, rhs: {const: {str: "c"}}}}]}',
     ) == ["b"]
-    # graph(has layer) OR edge(owns layer) -> everything downstream
+    # edge(has layer) OR edge(owns layer) -> everything downstream
     assert _names(
         client,
         "a",
         "outComponent",
-        '{or: [{view: [{layers: ["has"]}]}, {isValid: {entity: EDGE, views: [{layers: ["owns"]}]}}]}',
+        '{or: [{isValid: {entity: EDGE, views: [{layers: ["has"]}]}}, {isValid: {entity: EDGE, views: [{layers: ["owns"]}]}}]}',
     ) == ["b", "c", "x", "y"]
 
 
