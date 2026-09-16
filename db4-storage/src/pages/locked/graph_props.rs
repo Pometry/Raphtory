@@ -51,8 +51,8 @@ impl<'a, GS: GraphPropSegmentOps> WriteLockedGraphPropSegment<'a, GS> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        let head_lock = self.lock.deref_mut();
-        self.page.flush_locked(head_lock)
+        let head = self.lock.deref_mut();
+        self.page.flush_with_head(head)
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {

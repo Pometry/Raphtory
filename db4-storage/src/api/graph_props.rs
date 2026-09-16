@@ -46,13 +46,13 @@ where
     ) -> Result<(), StorageError>;
 
     fn flush(&self) -> Result<(), StorageError> {
-        let head_lock = self.head_mut();
-        self.flush_locked(head_lock)
+        let head = self.head_mut();
+        self.flush_with_head(head)
     }
 
-    fn flush_locked(
+    fn flush_with_head(
         &self,
-        head_lock: impl DerefMut<Target = MemGraphPropSegment>,
+        head: impl DerefMut<Target = MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;

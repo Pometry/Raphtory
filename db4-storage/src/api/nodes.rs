@@ -224,7 +224,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn notify_write(
         &self,
-        head_lock: impl DerefMut<Target = MemNodeSegment>,
+        head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
     fn set_dirty(&self, dirty: bool);
@@ -252,21 +252,20 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn locked(&self) -> Self::ArcLockedSegment;
 
     fn flush(&self) -> Result<(), StorageError> {
-        let head_lock = self.head_mut();
-        self.flush_locked(head_lock)
+        let head = self.head_mut();
+        self.flush_with_head(head)
     }
 
-    fn flush_locked(
+    fn flush_with_head(
         &self,
-        head_lock: impl DerefMut<Target = MemNodeSegment>,
+        head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
     fn is_dirty(&self) -> bool;
 
     fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
-    fn vacuum(&self, head_lock: impl DerefMut<Target = MemNodeSegment>)
-    -> Result<(), StorageError>;
+    fn vacuum(&self, head: impl DerefMut<Target = MemNodeSegment>) -> Result<(), StorageError>;
 
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;

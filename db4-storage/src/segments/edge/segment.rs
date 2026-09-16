@@ -556,7 +556,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn notify_write(
         &self,
-        _head_lock: impl DerefMut<Target = MemEdgeSegment>,
+        _head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
@@ -607,10 +607,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         }
     }
 
-    fn vacuum(
-        &self,
-        _head_lock: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), StorageError> {
+    fn vacuum(&self, _head: impl DerefMut<Target = MemEdgeSegment>) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -618,9 +615,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         0
     }
 
-    fn flush_locked(
+    fn flush_with_head(
         &self,
-        _head_lock: impl DerefMut<Target = MemEdgeSegment>,
+        _head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }

@@ -90,9 +90,9 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         WriteLockedNodeTypeIndex::new(head, index)
     }
 
-    fn flush_locked(
+    fn flush_with_head(
         &self,
-        _head_lock: impl DerefMut<Target = MemNodeTypeIndex>,
+        _head: impl DerefMut<Target = MemNodeTypeIndex>,
     ) -> Result<(), StorageError> {
         Ok(())
     }

@@ -548,7 +548,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     fn notify_write(
         &self,
-        _head_lock: impl DerefMut<Target = MemNodeSegment>,
+        _head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
@@ -588,9 +588,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
-    fn flush_locked(
+    fn flush_with_head(
         &self,
-        _head_lock: impl DerefMut<Target = MemNodeSegment>,
+        _head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
@@ -599,10 +599,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         Ok(())
     }
 
-    fn vacuum(
-        &self,
-        _head_lock: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), StorageError> {
+    fn vacuum(&self, _head: impl DerefMut<Target = MemNodeSegment>) -> Result<(), StorageError> {
         Ok(())
     }
 

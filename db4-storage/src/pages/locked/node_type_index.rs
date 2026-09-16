@@ -21,8 +21,8 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        let head_lock = self.head.deref_mut();
-        self.index.flush_locked(head_lock)
+        let head = self.head.deref_mut();
+        self.index.flush_with_head(head)
     }
 
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {

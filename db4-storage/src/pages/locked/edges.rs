@@ -76,8 +76,8 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
-        let head_lock = self.head.deref_mut();
-        self.segment.flush_locked(head_lock)
+        let head = self.head.deref_mut();
+        self.segment.flush_with_head(head)
     }
 }
 
