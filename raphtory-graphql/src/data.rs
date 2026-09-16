@@ -7,8 +7,8 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filter_expr_input::GqlFilterExpr,
-            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
+            filter_expr_input::GqlFilter,
+            filtering::{GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
@@ -28,7 +28,7 @@ use raphtory::{
             storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
-        graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
+        graph::views::property_redacted_graph::PropertyRedaction,
     },
     errors::GraphError,
     prelude::AdditionOps,
@@ -378,7 +378,12 @@ impl Data {
         path: &str,
         filter: &GqlFilter,
     ) -> Result<Result<(), GraphError>, GQLError> {
-        let graph = self.get_graph_unchecked(path).await?.graph().clone().into_dynamic();
+        let graph = self
+            .get_graph_unchecked(path)
+            .await?
+            .graph()
+            .clone()
+            .into_dynamic();
         let filter = filter.clone();
         Ok(blocking_compute(move || compile_row_filter(graph, filter).map(|_| ())).await)
     }
@@ -935,19 +940,12 @@ fn apply_row_filter_sync(
 
 /// The graph under a row filter, or the reason the filter cannot be applied to it.
 ///
-/// `and` sub-filters are applied one after another, so a view (window, snapshot,
-/// layer) wraps the graph before the predicates that follow it run. The tree
-/// grammar spells the same conjunction as `expr: { and: [...] }`.
+/// A top-level `and` is applied one sub-filter after another, so a view (window,
+/// snapshot, layer) wraps the graph before the predicates that follow it run.
 fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
-    let filter = match filter {
-        GqlFilter::Expr(GqlFilterExpr::And(items)) => {
-            GqlFilter::And(items.into_iter().map(GqlFilter::Expr).collect())
-        }
-        other => other,
-    };
     if let GqlFilter::And(filters) = filter {
         // An empty `and` folds to the graph unchanged — no restriction at all. Refused,
-        // matching `DynFilter::try_from`'s rejection of an empty combinator (which this
+        // matching the tree compiler's rejection of an empty combinator (which this
         // shortcut path otherwise never reaches).
         if filters.is_empty() {
             return Err(GraphError::InvalidGqlFilter(
@@ -958,7 +956,7 @@ fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicG
             .into_iter()
             .try_fold(graph, |g, f| compile_row_filter(g, f));
     }
-    Ok(graph.filter(DynFilter::try_from(filter)?)?.into_dynamic())
+    Ok(graph.filter(filter)?.into_dynamic())
 }
 
 fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {

@@ -657,8 +657,8 @@ class RemoteGraph(object):
             RemoteGraph: a new filtered graph view.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter` or `EdgeFilter`.
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def get_all_node_types(self) -> list[str]:

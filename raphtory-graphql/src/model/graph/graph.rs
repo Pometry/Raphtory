@@ -6,7 +6,8 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection},
+            filter_expr_input::GqlFilter,
+            filtering::GraphViewCollection,
             node::GqlNode,
             node_id::GqlNodeId,
             nodes::GqlNodes,
@@ -537,12 +538,12 @@ impl GqlGraph {
         #[graphql(
             desc = "Optional node filter (by name, property, type, etc.). If omitted, every node in the view is returned."
         )]
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlNodes> {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let nf = GqlFilter::Node(sel);
+            let nf = sel;
             let narrowed = blocking_compute({
                 let nn_clone = nn.clone();
                 move || nn_clone.select(nf)
@@ -571,13 +572,12 @@ impl GqlGraph {
         #[graphql(
             desc = "Optional edge filter (by property, layer, src/dst, etc.). If omitted, every edge in the view is returned."
         )]
-        select: Option<GqlEdgeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlEdges> {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
-            let ef = GqlFilter::Edge(sel);
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
 
@@ -796,12 +796,7 @@ impl GqlGraph {
                 GraphViewCollection::After(after) => return_view.after(after).await,
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Node(filter))).await?
-                }
-                GraphViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Edge(filter))).await?
-                }
+                GraphViewCollection::Filter(filter) => return_view.filter(Some(filter)).await?,
             };
         }
         Ok(return_view)

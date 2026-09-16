@@ -3,7 +3,7 @@
 Filtering is the one place where the local `Graph` and `RemoteGraph` are asked
 to agree on a *program*, not just a call. Locally a `raphtory.filter`
 expression is handed straight to the engine; remotely the very same Python
-object has to be lowered to a GraphQL `GqlFilter`, shipped, re-parsed and
+object has to be lowered to a GraphQL `FilterExpr`, shipped, re-parsed and
 re-planned on the server. Every step of that lowering can drop a conjunct,
 confuse a property source (metadata vs temporal), invert a comparison, or
 attach a view scope to the wrong subtree — and still return a plausible answer.
@@ -733,6 +733,7 @@ def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
             f"or filters, move the case into REJECTED_EXPRS"
         )
 
+
 @pytest.mark.parametrize("name", sorted(EXPRS), ids=sorted(EXPRS))
 def test_expr_discriminates(filter_pair, name):
     """The expression must keep some entities and drop some — on each side.
@@ -1118,7 +1119,9 @@ EXPR_RHS_SITES = {
     "nodes.filter": lambda g, e: sorted(n.name for n in g.nodes.filter(e)),
     "nodes[expr]": lambda g, e: sorted(n.name for n in g.nodes[e]),
     "node.filter": lambda g, e: g.node("hub").filter(e) is not None,
-    "path.filter": lambda g, e: sorted(n.name for n in g.node("hub").neighbours.filter(e)),
+    "path.filter": lambda g, e: sorted(
+        n.name for n in g.node("hub").neighbours.filter(e)
+    ),
 }
 
 
@@ -1183,7 +1186,7 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
 
 
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now
-# takes GqlFilter, so graph-view / node / mixed expressions narrow membership
+# takes FilterExpr, so graph-view / node / mixed expressions narrow membership
 # the same way local core select does.
 SUBSCRIPT_GENERAL_EXPRS = [
     (

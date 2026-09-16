@@ -7,7 +7,7 @@ use crate::{
             outputs::{GqlMatching, GqlMotifCounts},
         },
         graph::{
-            filtering::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
+            filter_expr_input::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
             timeindex::GqlTimeInput, WindowDuration,
         },
     },

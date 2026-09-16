@@ -6,22 +6,32 @@
 //! expressions; a constant is the `const` expression.
 //!
 //! ```graphql
-//! filter(expr: { expr: { gt: { lhs: { read: { entity: NODE, target: { degree: BOTH } } },
-//!                              rhs: { read: { entity: NODE, target: { degree: IN } } } } } })
+//! filter(expr: { gt: { lhs: { read: { entity: NODE, target: { degree: BOTH } } },
+//!                      rhs: { read: { entity: NODE, target: { degree: IN } } } } })
 //! ```
 
 use crate::model::graph::{
-    filtering::{DegreeDirection, Window, Wrapped},
+    filtering::{Window, Wrapped},
     property::Value,
     timeindex::GqlTimeInput,
 };
 use dynamic_graphql::{Enum, InputObject, OneOfInput};
 use raphtory::{
-    db::graph::views::filter::model::{
-        edge_filter::Endpoint,
-        tree::{
-            self, Agg, CmpOp, Entity, Field, Qual, Scope, StrOp, Structural, Target, ViewOp,
-            OPAQUE_FILTER_ERROR,
+    db::{
+        api::{
+            state::NodeOp,
+            view::internal::{DynGraphArc, GraphView},
+        },
+        graph::views::filter::{
+            model::{
+                edge_filter::Endpoint,
+                tree::{
+                    self, Agg, CmpOp, Entity, Field, FilterExpr, Qual, Scope, StrOp, Structural,
+                    Target, ViewOp, OPAQUE_FILTER_ERROR,
+                },
+                DynFilter,
+            },
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -33,7 +43,7 @@ use raphtory_api::core::{
     Direction,
 };
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 
 #[derive(Enum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -76,6 +86,25 @@ pub enum GqlViewOp {
     Layers(Vec<String>),
 }
 
+/// The direction a node degree counts.
+#[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DegreeDirection {
+    In,
+    Out,
+    Both,
+}
+
+impl From<DegreeDirection> for Direction {
+    fn from(d: DegreeDirection) -> Self {
+        match d {
+            DegreeDirection::In => Direction::IN,
+            DegreeDirection::Out => Direction::OUT,
+            DegreeDirection::Both => Direction::BOTH,
+        }
+    }
+}
+
 /// What a read selects on its entity.
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,6 +123,7 @@ pub enum GqlTarget {
 /// Where a value is read: the entity, the views to read it through, and for an
 /// edge optionally one of its endpoint nodes.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "Scope")]
 pub struct GqlScope {
@@ -106,6 +136,7 @@ pub struct GqlScope {
 
 /// A value read from an entity.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "Read")]
 pub struct GqlRead {
@@ -143,6 +174,7 @@ pub enum GqlExpr {
 
 /// Two expressions to compare.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "Cmp")]
 pub struct GqlCmp {
@@ -151,6 +183,7 @@ pub struct GqlCmp {
 }
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "FuzzyCmp")]
 pub struct GqlFuzzyCmp {
@@ -163,6 +196,7 @@ pub struct GqlFuzzyCmp {
 /// A membership test. `values` is a list; a policy may also leave a single
 /// placeholder here (`{"var": …}`) that resolves to the list per caller.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "Membership")]
 pub struct GqlMembership {
@@ -174,7 +208,7 @@ pub struct GqlMembership {
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "FilterExpr")]
-pub enum GqlFilterExpr {
+pub enum GqlFilter {
     Eq(GqlCmp),
     Ne(GqlCmp),
     Lt(GqlCmp),
@@ -196,9 +230,9 @@ pub enum GqlFilterExpr {
     IsSelfLoop(GqlScope),
     /// A graph-level view with no predicate: the result is the view.
     View(Vec<GqlViewOp>),
-    And(Vec<GqlFilterExpr>),
-    Or(Vec<GqlFilterExpr>),
-    Not(Wrapped<GqlFilterExpr>),
+    And(Vec<GqlFilter>),
+    Or(Vec<GqlFilter>),
+    Not(Wrapped<GqlFilter>),
 }
 
 // ── GraphQL → tree ───────────────────────────────────────────────────────────
@@ -352,23 +386,23 @@ fn structural(s: GqlScope, pred: Structural) -> tree::FilterExpr {
     }
 }
 
-impl TryFrom<GqlFilterExpr> for tree::FilterExpr {
+impl TryFrom<GqlFilter> for tree::FilterExpr {
     type Error = GraphError;
 
-    fn try_from(filter: GqlFilterExpr) -> Result<Self, Self::Error> {
+    fn try_from(filter: GqlFilter) -> Result<Self, Self::Error> {
         use tree::FilterExpr as F;
         Ok(match filter {
-            GqlFilterExpr::Eq(c) => cmp(CmpOp::Eq, c)?,
-            GqlFilterExpr::Ne(c) => cmp(CmpOp::Ne, c)?,
-            GqlFilterExpr::Lt(c) => cmp(CmpOp::Lt, c)?,
-            GqlFilterExpr::Le(c) => cmp(CmpOp::Le, c)?,
-            GqlFilterExpr::Gt(c) => cmp(CmpOp::Gt, c)?,
-            GqlFilterExpr::Ge(c) => cmp(CmpOp::Ge, c)?,
-            GqlFilterExpr::StartsWith(c) => str_op(StrOp::StartsWith, c)?,
-            GqlFilterExpr::EndsWith(c) => str_op(StrOp::EndsWith, c)?,
-            GqlFilterExpr::Contains(c) => str_op(StrOp::Contains, c)?,
-            GqlFilterExpr::NotContains(c) => str_op(StrOp::NotContains, c)?,
-            GqlFilterExpr::FuzzySearch(f) => F::Str {
+            GqlFilter::Eq(c) => cmp(CmpOp::Eq, c)?,
+            GqlFilter::Ne(c) => cmp(CmpOp::Ne, c)?,
+            GqlFilter::Lt(c) => cmp(CmpOp::Lt, c)?,
+            GqlFilter::Le(c) => cmp(CmpOp::Le, c)?,
+            GqlFilter::Gt(c) => cmp(CmpOp::Gt, c)?,
+            GqlFilter::Ge(c) => cmp(CmpOp::Ge, c)?,
+            GqlFilter::StartsWith(c) => str_op(StrOp::StartsWith, c)?,
+            GqlFilter::EndsWith(c) => str_op(StrOp::EndsWith, c)?,
+            GqlFilter::Contains(c) => str_op(StrOp::Contains, c)?,
+            GqlFilter::NotContains(c) => str_op(StrOp::NotContains, c)?,
+            GqlFilter::FuzzySearch(f) => F::Str {
                 op: StrOp::FuzzySearch {
                     levenshtein_distance: f.levenshtein_distance,
                     prefix_match: f.prefix_match,
@@ -376,28 +410,28 @@ impl TryFrom<GqlFilterExpr> for tree::FilterExpr {
                 lhs: f.lhs.try_into()?,
                 rhs: f.rhs.try_into()?,
             },
-            GqlFilterExpr::IsSome(e) => F::IsSome(e.deref().clone().try_into()?),
-            GqlFilterExpr::IsNone(e) => F::IsNone(e.deref().clone().try_into()?),
-            GqlFilterExpr::IsIn(m) => membership(m, false)?,
-            GqlFilterExpr::IsNotIn(m) => membership(m, true)?,
-            GqlFilterExpr::IsActive(s) => structural(s, Structural::IsActive),
-            GqlFilterExpr::IsValid(s) => structural(s, Structural::IsValid),
-            GqlFilterExpr::IsDeleted(s) => structural(s, Structural::IsDeleted),
-            GqlFilterExpr::IsSelfLoop(s) => structural(s, Structural::IsSelfLoop),
-            GqlFilterExpr::View(ops) => F::View(ops.into_iter().map(ViewOp::from).collect()),
-            GqlFilterExpr::And(items) => F::And(
+            GqlFilter::IsSome(e) => F::IsSome(e.deref().clone().try_into()?),
+            GqlFilter::IsNone(e) => F::IsNone(e.deref().clone().try_into()?),
+            GqlFilter::IsIn(m) => membership(m, false)?,
+            GqlFilter::IsNotIn(m) => membership(m, true)?,
+            GqlFilter::IsActive(s) => structural(s, Structural::IsActive),
+            GqlFilter::IsValid(s) => structural(s, Structural::IsValid),
+            GqlFilter::IsDeleted(s) => structural(s, Structural::IsDeleted),
+            GqlFilter::IsSelfLoop(s) => structural(s, Structural::IsSelfLoop),
+            GqlFilter::View(ops) => F::View(ops.into_iter().map(ViewOp::from).collect()),
+            GqlFilter::And(items) => F::And(
                 items
                     .into_iter()
                     .map(F::try_from)
                     .collect::<Result<Vec<_>, _>>()?,
             ),
-            GqlFilterExpr::Or(items) => F::Or(
+            GqlFilter::Or(items) => F::Or(
                 items
                     .into_iter()
                     .map(F::try_from)
                     .collect::<Result<Vec<_>, _>>()?,
             ),
-            GqlFilterExpr::Not(inner) => F::Not(Box::new(inner.deref().clone().try_into()?)),
+            GqlFilter::Not(inner) => F::Not(Box::new(inner.deref().clone().try_into()?)),
         })
     }
 }
@@ -532,7 +566,7 @@ fn gql_cmp(lhs: &tree::Expr, rhs: &tree::Expr) -> Result<GqlCmp, GraphError> {
     })
 }
 
-impl TryFrom<&tree::FilterExpr> for GqlFilterExpr {
+impl TryFrom<&tree::FilterExpr> for GqlFilter {
     type Error = GraphError;
 
     fn try_from(filter: &tree::FilterExpr) -> Result<Self, Self::Error> {
@@ -542,31 +576,31 @@ impl TryFrom<&tree::FilterExpr> for GqlFilterExpr {
             F::Cmp { op, lhs, rhs } => {
                 let c = gql_cmp(lhs, rhs)?;
                 match op {
-                    CmpOp::Eq => GqlFilterExpr::Eq(c),
-                    CmpOp::Ne => GqlFilterExpr::Ne(c),
-                    CmpOp::Lt => GqlFilterExpr::Lt(c),
-                    CmpOp::Le => GqlFilterExpr::Le(c),
-                    CmpOp::Gt => GqlFilterExpr::Gt(c),
-                    CmpOp::Ge => GqlFilterExpr::Ge(c),
+                    CmpOp::Eq => GqlFilter::Eq(c),
+                    CmpOp::Ne => GqlFilter::Ne(c),
+                    CmpOp::Lt => GqlFilter::Lt(c),
+                    CmpOp::Le => GqlFilter::Le(c),
+                    CmpOp::Gt => GqlFilter::Gt(c),
+                    CmpOp::Ge => GqlFilter::Ge(c),
                 }
             }
             F::Str { op, lhs, rhs } => match op {
-                StrOp::StartsWith => GqlFilterExpr::StartsWith(gql_cmp(lhs, rhs)?),
-                StrOp::EndsWith => GqlFilterExpr::EndsWith(gql_cmp(lhs, rhs)?),
-                StrOp::Contains => GqlFilterExpr::Contains(gql_cmp(lhs, rhs)?),
-                StrOp::NotContains => GqlFilterExpr::NotContains(gql_cmp(lhs, rhs)?),
+                StrOp::StartsWith => GqlFilter::StartsWith(gql_cmp(lhs, rhs)?),
+                StrOp::EndsWith => GqlFilter::EndsWith(gql_cmp(lhs, rhs)?),
+                StrOp::Contains => GqlFilter::Contains(gql_cmp(lhs, rhs)?),
+                StrOp::NotContains => GqlFilter::NotContains(gql_cmp(lhs, rhs)?),
                 StrOp::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
-                } => GqlFilterExpr::FuzzySearch(GqlFuzzyCmp {
+                } => GqlFilter::FuzzySearch(GqlFuzzyCmp {
                     lhs: lhs.try_into()?,
                     rhs: rhs.try_into()?,
                     levenshtein_distance: *levenshtein_distance,
                     prefix_match: *prefix_match,
                 }),
             },
-            F::IsSome(e) => GqlFilterExpr::IsSome(wrapped(e)?),
-            F::IsNone(e) => GqlFilterExpr::IsNone(wrapped(e)?),
+            F::IsSome(e) => GqlFilter::IsSome(wrapped(e)?),
+            F::IsNone(e) => GqlFilter::IsNone(wrapped(e)?),
             F::In {
                 expr,
                 values,
@@ -577,37 +611,93 @@ impl TryFrom<&tree::FilterExpr> for GqlFilterExpr {
                     values: Value::List(values.iter().map(value).collect::<Result<Vec<_>, _>>()?),
                 };
                 if *negated {
-                    GqlFilterExpr::IsNotIn(m)
+                    GqlFilter::IsNotIn(m)
                 } else {
-                    GqlFilterExpr::IsIn(m)
+                    GqlFilter::IsIn(m)
                 }
             }
             F::Structural { scope, pred } => {
                 let s = GqlScope::from(scope);
                 match pred {
-                    Structural::IsActive => GqlFilterExpr::IsActive(s),
-                    Structural::IsValid => GqlFilterExpr::IsValid(s),
-                    Structural::IsDeleted => GqlFilterExpr::IsDeleted(s),
-                    Structural::IsSelfLoop => GqlFilterExpr::IsSelfLoop(s),
+                    Structural::IsActive => GqlFilter::IsActive(s),
+                    Structural::IsValid => GqlFilter::IsValid(s),
+                    Structural::IsDeleted => GqlFilter::IsDeleted(s),
+                    Structural::IsSelfLoop => GqlFilter::IsSelfLoop(s),
                 }
             }
-            F::View(ops) => GqlFilterExpr::View(ops.iter().map(GqlViewOp::from).collect()),
-            F::And(items) => GqlFilterExpr::And(
+            F::View(ops) => GqlFilter::View(ops.iter().map(GqlViewOp::from).collect()),
+            F::And(items) => GqlFilter::And(
                 items
                     .iter()
-                    .map(GqlFilterExpr::try_from)
+                    .map(GqlFilter::try_from)
                     .collect::<Result<Vec<_>, _>>()?,
             ),
-            F::Or(items) => GqlFilterExpr::Or(
+            F::Or(items) => GqlFilter::Or(
                 items
                     .iter()
-                    .map(GqlFilterExpr::try_from)
+                    .map(GqlFilter::try_from)
                     .collect::<Result<Vec<_>, _>>()?,
             ),
-            F::Not(inner) => {
-                GqlFilterExpr::Not(Wrapped::from(GqlFilterExpr::try_from(inner.deref())?))
-            }
+            F::Not(inner) => GqlFilter::Not(Wrapped::from(GqlFilter::try_from(inner.deref())?)),
         })
+    }
+}
+
+impl TryFrom<FilterExpr> for GqlFilter {
+    type Error = GraphError;
+
+    fn try_from(tree: FilterExpr) -> Result<Self, Self::Error> {
+        GqlFilter::try_from(&tree)
+    }
+}
+
+/// The compiled filter, for callers that apply one filter to several handles.
+impl TryFrom<GqlFilter> for DynFilter {
+    type Error = GraphError;
+
+    fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
+        FilterExpr::try_from(value)?.compile()
+    }
+}
+
+impl CreateFilter for GqlFilter {
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph;
+
+    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph;
+
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+        FilterExpr::try_from(self)?.create_filter(graph, filtered)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+        self,
+        graph: G,
+        filtered: F,
+    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        FilterExpr::try_from(self)?.create_node_filter(graph, filtered)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        FilterExpr::try_from(self.clone())?.filter_graph_view(graph)
     }
 }
 
@@ -660,9 +750,9 @@ mod tests {
             tree::FilterExpr::View(vec![ViewOp::Latest]),
         ]);
 
-        let wire = GqlFilterExpr::try_from(&tree).unwrap();
+        let wire = GqlFilter::try_from(&tree).unwrap();
         let json = serde_json::to_string(&wire).unwrap();
-        let wire_back: GqlFilterExpr = serde_json::from_str(&json).unwrap();
+        let wire_back: GqlFilter = serde_json::from_str(&json).unwrap();
         let tree_back = tree::FilterExpr::try_from(wire_back).unwrap();
         assert_eq!(tree_back, tree);
     }
@@ -674,7 +764,7 @@ mod tests {
             lhs: read(Target::Degree(Direction::BOTH)),
             rhs: read(Target::Degree(Direction::IN)),
         };
-        let wire = GqlFilterExpr::try_from(&tree).unwrap();
+        let wire = GqlFilter::try_from(&tree).unwrap();
         assert_eq!(
             serde_json::to_value(&wire).unwrap(),
             serde_json::json!({

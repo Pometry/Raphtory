@@ -25,12 +25,24 @@ use std::sync::Arc;
 /// A value expression: a field, degree, property, metadata entry or an
 /// aggregate over one. Comparing it to a value or to another expression gives
 /// a [`FilterExpr`].
-#[pyclass(frozen, subclass, name = "Expr", module = "raphtory.filter")]
+#[pyclass(
+    frozen,
+    subclass,
+    name = "Expr",
+    module = "raphtory.filter",
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyExpr(pub(crate) Expr);
 
 /// A property read, which can switch to the property's history with `temporal()`.
-#[pyclass(frozen, extends = PyExpr, name = "PropertyExpr", module = "raphtory.filter")]
+#[pyclass(
+    frozen,
+    extends = PyExpr,
+    name = "PropertyExpr",
+    module = "raphtory.filter",
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyPropertyExpr(pub(crate) Expr);
 

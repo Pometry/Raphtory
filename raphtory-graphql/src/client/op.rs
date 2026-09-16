@@ -4,7 +4,9 @@
 //! hands it to the transport. This module is the single source of truth for
 //! what "an operation" means on the wire.
 
-use crate::{client::properties_to_input, data::GqlGraphType, model::graph::filtering::GqlFilter};
+use crate::{
+    client::properties_to_input, data::GqlGraphType, model::graph::filter_expr_input::GqlFilter,
+};
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 // Re-exported so the client transport wrappers import the op tree's time type
 // from one place (`op::InputTime`), same as `ReadExpr`/`WriteOp`.
@@ -193,7 +195,7 @@ pub enum ReadExpr {
     /// Filter this view by a general filter expression (node/edge predicates,
     /// graph views, and/or/not combinations). The restriction propagates to
     /// downstream traversals. One variant serves Graph, Node, Edge, and every
-    /// collection — they all expose the same `filter(expr: GqlFilter!)` field.
+    /// collection — they all expose the same `filter(expr: FilterExpr!)` field.
     Filtered {
         input: Arc<ReadExpr>,
         filter: Arc<GqlFilter>,
@@ -201,7 +203,7 @@ pub enum ReadExpr {
     /// Narrow a `Nodes` collection's membership by a filter expression
     /// (node predicates, graph views, and/or/not combinations — edge tests
     /// are rejected server-side). Returns `Nodes`. Server field:
-    /// `select(expr: GqlFilter!)` on `Nodes`.
+    /// `select(expr: FilterExpr!)` on `Nodes`.
     ///
     /// Applies the filter only to this step; downstream traversals from
     /// the matching nodes see the unfiltered graph.
@@ -211,7 +213,7 @@ pub enum ReadExpr {
     },
     /// Narrow an `Edges` collection's membership by a filter expression
     /// (node/edge predicates, graph views, and/or/not combinations).
-    /// Returns `Edges`. Server field: `select(expr: GqlFilter!)` on
+    /// Returns `Edges`. Server field: `select(expr: FilterExpr!)` on
     /// `Edges`.
     ///
     /// Applies the filter only to this step; downstream traversals from

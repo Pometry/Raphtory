@@ -1,11 +1,10 @@
 """The filter tree as a GraphQL input.
 
-`GqlFilter.expr` carries the same tree the local engine compiles: one grammar
-for nodes, edges and views, with an expression on *both* sides of a comparison.
+`FilterExpr` is the same tree the local engine compiles: one grammar for
+nodes, edges and views, with an expression on *both* sides of a comparison.
 These tests send trees as JSON variables and check the answers against the
 same graph read locally, so the wire grammar is pinned by results, not by
-shape. The legacy grammar is converted onto the tree on arrival; one case
-sends the same filter both ways and expects the same answer.
+shape.
 """
 
 from raphtory import Graph, filter as f
@@ -38,13 +37,13 @@ def build():
 # form that keeps every node and narrows what each one sees, so membership
 # questions are asked at the graph.
 NODES = """
-query($f: GqlFilter!) {
+query($f: FilterExpr!) {
   graph(path: "g") { filter(expr: $f) { nodes { list { name } } } }
 }
 """
 
 EDGES = """
-query($f: GqlFilter!) {
+query($f: FilterExpr!) {
   graph(path: "g") { filter(expr: $f) { edges { list { src { name } dst { name } } } } }
 }
 """
@@ -59,12 +58,12 @@ def const(v):
 
 
 def node_names(client, tree):
-    out = client.query(NODES, {"f": {"expr": tree}})
+    out = client.query(NODES, {"f": tree})
     return sorted(n["name"] for n in out["graph"]["filter"]["nodes"]["list"])
 
 
 def edge_pairs(client, tree):
-    out = client.query(EDGES, {"f": {"expr": tree}})
+    out = client.query(EDGES, {"f": tree})
     return sorted(
         (e["src"]["name"], e["dst"]["name"])
         for e in out["graph"]["filter"]["edges"]["list"]
@@ -72,8 +71,9 @@ def edge_pairs(client, tree):
 
 
 def test_both_sides_of_a_comparison_are_expressions():
-    """`degree > in_degree` has no constant, so the legacy grammar could not say
-    it. The tree can, and the server answers what the local engine answers."""
+    """`degree > in_degree` has no constant on either side, which a
+    constant-only grammar could not say. The tree can, and the server answers
+    what the local engine answers."""
     g = build()
     tree = {"gt": {"lhs": read({"degree": "BOTH"}), "rhs": read({"degree": "IN"})}}
     with graphql_client(g) as client:
@@ -111,17 +111,6 @@ def test_temporal_aggregates_and_qualifiers():
         assert node_names(client, two_updates) == ["bob", "dave"]
 
 
-def test_legacy_and_tree_spellings_agree():
-    g = build()
-    legacy = {"node": {"property": {"name": "score", "where": {"gt": {"f64": 4.0}}}}}
-    tree = {"expr": {"gt": {"lhs": read({"property": "score"}), "rhs": const({"f64": 4.0})}}}
-    with graphql_client(g) as client:
-        via_legacy = client.query(NODES, {"f": legacy})
-        via_tree = client.query(NODES, {"f": tree})
-    assert via_legacy == via_tree
-    assert [n["name"] for n in via_tree["graph"]["filter"]["nodes"]["list"]] == ["alice"]
-
-
 def test_edge_reads_through_an_endpoint_keep_the_edge_views():
     """The window on the edge scopes the source node's score: inside [0, 5)
     alice's latest score is 7, so asking for the later 9 matches nothing."""
@@ -144,7 +133,9 @@ def test_edge_reads_through_an_endpoint_keep_the_edge_views():
 def test_structural_predicates_and_views():
     g = build()
     works = {"isActive": {"entity": "EDGE", "views": [{"layers": ["works"]}]}}
-    window_then_latest = {"view": [{"window": {"start": 0, "end": 5}}, {"latest": True}]}
+    window_then_latest = {
+        "view": [{"window": {"start": 0, "end": 5}}, {"latest": True}]
+    }
     with graphql_client(g) as client:
         assert edge_pairs(client, works) == [("bob", "carol")]
         assert edge_pairs(client, window_then_latest) == [("alice", "bob")]
@@ -155,7 +146,14 @@ def test_combinators_presence_and_membership():
     tree = {
         "and": [
             {"isSome": read({"property": "score"})},
-            {"not": {"startsWith": {"lhs": read({"field": "NAME"}), "rhs": const({"str": "a"})}}},
+            {
+                "not": {
+                    "startsWith": {
+                        "lhs": read({"field": "NAME"}),
+                        "rhs": const({"str": "a"}),
+                    }
+                }
+            },
         ]
     }
     members = {

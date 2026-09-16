@@ -1,7 +1,8 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{EdgeViewCollection, GqlFilter},
+        filter_expr_input::GqlFilter,
+        filtering::EdgeViewCollection,
         history::GqlHistory,
         node::GqlNode,
         node_id::GqlNodeId,
@@ -303,9 +304,7 @@ impl GqlEdge {
                 EdgeViewCollection::After(time) => return_view.after(time).await,
                 EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgeViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edge(filter)).await?
-                }
+                EdgeViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
