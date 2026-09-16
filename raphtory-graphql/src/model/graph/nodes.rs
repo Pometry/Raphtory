@@ -462,7 +462,6 @@ impl GqlNodes {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,

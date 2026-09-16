@@ -26,7 +26,7 @@ use raphtory_storage::{
 use std::{iter, ops::Range, sync::Arc};
 use storage::{
     api::nodes::{NodeEntryOps, NodeRefOps},
-    generic_time_ops::{LayerIter, LayerIter::WithStatic},
+    generic_time_ops::LayerIter::WithStatic,
     EdgeAdditions, EdgeDeletions, EdgeEntryRef,
 };
 

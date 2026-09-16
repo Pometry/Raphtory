@@ -3,7 +3,7 @@ use crate::{
     LocalPOS,
     api::{
         node_type_index::NodeTypeIndexOps,
-        nodes::{LockedNSSegment, NodeSegmentOps},
+        nodes::{LockedNSSegment, NodeEntryOps, NodeSegmentOps},
     },
     error::StorageError,
     pages::{
@@ -35,7 +35,7 @@ pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT>
 where
-    EXT: PersistenceStrategy<NS = NS>,
+    EXT: PersistenceStrategy<NS=NS>,
 {
     segments: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
@@ -53,15 +53,15 @@ where
 #[derive(Debug)]
 pub struct ReadLockedNodeStorage<NS, EXT>
 where
-    NS: NodeSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS>,
+    NS: NodeSegmentOps<Extension=EXT>,
+    EXT: PersistenceStrategy<NS=NS>,
 {
     storage: Arc<NodeStorageInner<NS, EXT>>,
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
-    ReadLockedNodeStorage<NS, EXT>
+impl<NS: NodeSegmentOps<Extension=EXT>, EXT: PersistenceStrategy<NS=NS>>
+ReadLockedNodeStorage<NS, EXT>
 {
     pub fn node_ref(
         &self,
@@ -96,7 +96,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn iter(
         &self,
     ) -> impl Iterator<
-        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
+        Item=<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
             .iter()
@@ -113,7 +113,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<
-        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
+        Item=<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
         self.locked_segments
             .par_iter()
@@ -122,7 +122,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn row_groups_par_iter(
         &self,
-    ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = VID> + '_)> {
+    ) -> impl IndexedParallelIterator<Item=(usize, impl Iterator<Item=VID> + '_)> {
         let max_actual_seg_len = self
             .locked_segments
             .iter()
@@ -135,7 +135,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             self.storage.max_segment_len(),
             max_actual_seg_len,
         )
-        .map(|(s_id, iter)| (s_id, iter.filter(|vid| self.has_vid(*vid))))
+            .map(|(s_id, iter)| (s_id, iter.filter(|vid| self.has_vid(*vid))))
     }
 
     fn has_vid(&self, vid: VID) -> bool {
@@ -145,8 +145,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
-    NodeStorageInner<NS, EXT>
+impl<NS: NodeSegmentOps<Extension=EXT>, EXT: PersistenceStrategy<NS=NS>>
+NodeStorageInner<NS, EXT>
 {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
@@ -173,11 +173,27 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self.stats
     }
 
-    pub fn segments_iter(&self) -> impl Iterator<Item = &NS> {
+    pub fn segments_iter(&self) -> impl Iterator<Item=&NS> {
         let count = self.segments.count();
         (0..count).map(|id| {
             self.get_segment(id)
                 .expect("segment should exist given count")
+        })
+    }
+
+    pub fn node_entries(&self) -> impl Iterator<Item=SegmentLockedNodeEntry<NS, EXT>> {
+        let count = self.segments.count();
+        (0..count).flat_map(|id| {
+            let ns = self
+                .get_segment(id)
+                .expect("segment should exist given count");
+            let locked = Arc::new(ns.locked());
+            (0..locked.num_nodes()).map(LocalPOS).map(
+                move |pos| SegmentLockedNodeEntry::<NS, EXT> {
+                    locked: locked.clone(),
+                    pos,
+                },
+            )
         })
     }
 
@@ -189,11 +205,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments.iter().map(|(_, page)| page.t_len()).sum()
     }
 
-    // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
-    //     &self.segments
-    // }
-
-    pub fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
+    pub fn segments_par_iter(&self) -> impl ParallelIterator<Item=&NS> {
         let len = self.segments.count();
         (0..len)
             .into_par_iter()
@@ -214,8 +226,29 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
-    NodeStorageInner<NS, EXT>
+pub struct SegmentLockedNodeEntry<
+    NS: NodeSegmentOps<Extension=EXT>,
+    EXT: PersistenceStrategy<NS=NS>,
+> {
+    pos: LocalPOS,
+    locked: Arc<NS::ArcLockedSegment>,
+}
+
+impl<NS: NodeSegmentOps<Extension=EXT>, EXT: PersistenceStrategy<NS=NS>> NodeEntryOps
+for SegmentLockedNodeEntry<NS, EXT>
+{
+    type Ref<'b>
+    = <NS::ArcLockedSegment as LockedNSSegment>::EntryRef<'b>
+    where
+        Self: 'b;
+
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b> {
+        self.locked.entry_ref(self.pos)
+    }
+}
+
+impl<NS: NodeSegmentOps<Extension=EXT>, EXT: PersistenceStrategy<NS=NS>>
+NodeStorageInner<NS, EXT>
 {
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
@@ -232,7 +265,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
             node_type_index,
-            free_segments: free_segments.try_into().unwrap(),
+            free_segments,
             nodes_path,
             node_meta,
             edge_meta,
@@ -472,7 +505,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                     nodes_path,
                     ext.clone(),
                 )
-                .map(|page| (page_id, page));
+                    .map(|page| (page_id, page));
                 Some(page)
             })
             .collect::<Result<HashMap<_, _>, _>>()?;

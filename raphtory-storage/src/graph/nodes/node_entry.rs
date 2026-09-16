@@ -1,9 +1,13 @@
 use crate::graph::nodes::node_ref::NodeStorageRef;
-use storage::{api::nodes::NodeEntryOps, NodeEntry, NodeEntryRef};
+use storage::{
+    api::nodes::NodeEntryOps, pages::node_store::SegmentLockedNodeEntry, Extension, NodeEntry,
+    NodeEntryRef, NS,
+};
 
 pub enum NodeStorageEntry<'a> {
     Mem(NodeEntryRef<'a>),
     Unlocked(NodeEntry<'a>),
+    Segment(SegmentLockedNodeEntry<NS<Extension>, Extension>),
 }
 
 impl<'a> From<NodeEntryRef<'a>> for NodeStorageEntry<'a> {
@@ -29,6 +33,7 @@ impl<'a> NodeEntryOps for NodeStorageEntry<'a> {
         match self {
             NodeStorageEntry::Mem(entry) => *entry,
             NodeStorageEntry::Unlocked(entry) => entry.as_ref(),
+            NodeStorageEntry::Segment(entry) => entry.as_ref(),
         }
     }
 }

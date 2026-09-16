@@ -86,6 +86,7 @@ def dijkstra_single_source_shortest_paths(
     targets: list[NodeInput],
     direction: Direction = "both",
     weight: str = "weight",
+    default_weight: Optional[int | float | Decimal] = None,
 ) -> NodeStateWeightedSP:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
@@ -96,6 +97,9 @@ def dijkstra_single_source_shortest_paths(
         targets (list[NodeInput]): A list of target nodes.
         direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
         weight (str): The name of the weight property for the edges. Defaults to "weight".
+        default_weight (int|float|Decimal, optional): The default value for edges without weight (either
+            because `weight` was not specified or because the edge does not have a value for the property).
+            If not specified, defaults to 1.
 
     Returns:
         NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.
