@@ -3,6 +3,7 @@ use crate::{
     segments::node_type_index::MemNodeTypeIndex,
 };
 use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
+use raphtory_core::entities::VID;
 use std::{ops::DerefMut, path::Path, sync::Arc};
 
 pub struct WriteLockedNodeTypeIndex<NTI> {
@@ -13,6 +14,10 @@ pub struct WriteLockedNodeTypeIndex<NTI> {
 impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
     pub fn new(head: ArcRwLockWriteGuard<RawRwLock, MemNodeTypeIndex>, index: Arc<NTI>) -> Self {
         Self { head, index }
+    }
+
+    pub fn insert_batch(&self, type_id: usize, vids: impl IntoIterator<Item = VID>) {
+        self.head.insert_batch(type_id, vids);
     }
 
     pub fn flush(&mut self) -> Result<(), StorageError> {
