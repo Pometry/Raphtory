@@ -2177,7 +2177,7 @@ dependencies = [
 
 [[package]]
 name = "db4-graph"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "db4-storage",
  "raphtory-api",
@@ -2187,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "db4-storage"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -2440,7 +2440,7 @@ dependencies = [
 
 [[package]]
 name = "drop-logging"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "tracing",
 ]
@@ -2553,7 +2553,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6063,7 +6063,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6234,7 +6234,7 @@ checksum = "a611d15b50743feb4c76b7d03edcb0e64f399c26961e4efe6975bc398be6aa3d"
 
 [[package]]
 name = "raphtory"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "ahash",
  "arrow",
@@ -6318,7 +6318,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -6359,7 +6359,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api-macros"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "proc-macro2 1.0.107",
  "quote 1.0.47",
@@ -6368,11 +6368,11 @@ dependencies = [
 
 [[package]]
 name = "raphtory-auth-noop"
-version = "0.18.13"
+version = "0.18.14"
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "chrono",
  "criterion",
@@ -6391,7 +6391,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
@@ -6416,7 +6416,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "ahash",
  "arrow",
@@ -6477,7 +6477,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql-tests"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "clap",
  "dynamic-graphql",
@@ -6494,7 +6494,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-itertools"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -6504,7 +6504,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -6537,7 +6537,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-server"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "raphtory-auth-noop",
  "raphtory-graphql",
@@ -6549,7 +6549,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "db4-graph",
  "db4-storage",
@@ -6566,7 +6566,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-tests"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "ahash",
  "arrow",
@@ -6604,7 +6604,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -6932,7 +6932,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.18.13"
+version = "0.18.14"
 dependencies = [
  "chrono",
  "itertools 0.15.0",
@@ -6987,14 +6987,14 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "rustls"
-version = "0.23.43"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0283386ce02abc0151e1761d08802dfe86c173b0b494af5cbc086574e453da06"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -7046,7 +7046,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7789,10 +7789,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8694,7 +8694,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
