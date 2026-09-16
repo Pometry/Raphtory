@@ -211,30 +211,37 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
             LayerIds::One(layer_id) => self.ns.degree(self.pos, *layer_id, dir),
             LayerIds::All => self.ns.degree(self.pos, STATIC_GRAPH_LAYER_ID, dir),
             LayerIds::None => 0,
-            LayerIds::Multiple(ids) => match dir {
-                Direction::OUT => ids
-                    .iter()
-                    .map(|id| self.out_nbrs_sorted(id))
-                    .kmerge()
-                    .dedup()
-                    .count(),
-                Direction::IN => ids
-                    .iter()
-                    .map(|id| self.inb_nbrs_sorted(id))
-                    .kmerge()
-                    .dedup()
-                    .count(),
-                Direction::BOTH => ids
-                    .iter()
-                    .map(|id| {
-                        self.out_nbrs_sorted(id)
-                            .merge(self.inb_nbrs_sorted(id))
+            LayerIds::Multiple(ids) => {
+                if ids.contains(STATIC_GRAPH_LAYER_ID) {
+                    // static graph is a superset of all layers
+                    self.ns.degree(self.pos, STATIC_GRAPH_LAYER_ID, dir)
+                } else {
+                    match dir {
+                        Direction::OUT => ids
+                            .iter()
+                            .map(|id| self.out_nbrs_sorted(id))
+                            .kmerge()
                             .dedup()
-                    })
-                    .kmerge()
-                    .dedup()
-                    .count(),
-            },
+                            .count(),
+                        Direction::IN => ids
+                            .iter()
+                            .map(|id| self.inb_nbrs_sorted(id))
+                            .kmerge()
+                            .dedup()
+                            .count(),
+                        Direction::BOTH => ids
+                            .iter()
+                            .map(|id| {
+                                self.out_nbrs_sorted(id)
+                                    .merge(self.inb_nbrs_sorted(id))
+                                    .dedup()
+                            })
+                            .kmerge()
+                            .dedup()
+                            .count(),
+                    }
+                }
+            }
         }
     }
 
@@ -252,8 +259,8 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
     }
 
-    fn t_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
-        NodeTProps::new_with_layer(self, layer_id, prop_id)
+    fn t_prop<L: Into<LayerIter<'a>>>(self, layer_ids: L, prop_id: usize) -> Self::TProps {
+        NodeTProps::new(self, layer_ids.into(), prop_id)
     }
 
     fn num_layers(&self) -> usize {

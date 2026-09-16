@@ -468,7 +468,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 .iter()
                 .copied()
                 .map(move |prop_id| {
-                    self.t_prop_layer(layer_id, prop_id)
+                    self.t_prop(layer_id, prop_id)
                         .iter_inner(w.clone())
                         .map(move |(t, prop)| (t, (prop_id, prop)))
                 })
@@ -559,7 +559,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn c_prop_str(self, layer_id: LayerId, prop_id: usize) -> Option<&'a str>;
 
-    fn t_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
+    fn t_prop<L: Into<LayerIter<'a>>>(self, layer_ids: L, prop_id: usize) -> Self::TProps;
 
     /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
     /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
@@ -569,11 +569,9 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         self,
         layer_ids: L,
         prop_id: usize,
-    ) -> impl Iterator<Item = Self::TProps> + Send + Sync + 'a {
-        layer_ids
-            .into()
-            .into_iter(self.num_layers())
-            .map(move |id| self.t_prop_layer(id, prop_id))
+    ) -> impl Iterator<Item = (LayerId, Self::TProps)> + Send + Sync + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.t_prop(id, prop_id)))
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -615,8 +613,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn has_layer_additions<L: Into<LayerIter<'a>>>(self, layer_ids: L) -> bool {
-        self.layer_ids_iter(layer_ids).any(|layer_id| {
-            !self.node_additions(layer_id).is_empty() || !self.edge_additions(layer_id).is_empty()
-        })
+        let layers = layer_ids.into();
+        !self.node_additions(layers).is_empty() || !self.edge_additions(layers).is_empty()
     }
 }

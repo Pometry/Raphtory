@@ -8,7 +8,7 @@ use raphtory_core::{
 };
 use raphtory_itertools::FastMergeExt;
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum LayerIter<'a> {
     One(LayerId),
     LayerRef(&'a LayerIds),

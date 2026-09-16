@@ -24,7 +24,7 @@ use raphtory_storage::graph::{
 use std::{ops::Range, sync::Arc};
 use storage::{
     api::{edges::EdgeRefOps, nodes::NodeRefOps},
-    generic_time_ops::LayerIter,
+    generic_time_ops::LayerIter::WithStatic,
     EdgeEntryRef,
 };
 
@@ -244,9 +244,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
 
         // nodes with explicit additions are always valid
         let layers = view.layer_ids();
-        let has_history = !node
-            .node_additions(LayerIter::WithStatic(layers))
-            .is_empty();
+        let has_history = !node.node_additions(WithStatic(layers)).is_empty();
         if has_history {
             return true;
         }
@@ -273,9 +271,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(layer_ids, prop_id)
-            .map(|p| p.iter())
-            .fast_merge_by(|(a, _), (b, _)| a <= b)
+        node.t_prop(WithStatic(layer_ids), prop_id).iter()
     }
 
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
@@ -285,9 +281,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(layer_ids, prop_id)
-            .map(|p| p.iter_rev())
-            .fast_merge_by(|(a, _), (b, _)| a >= b)
+        node.t_prop(WithStatic(layer_ids), prop_id).iter_rev()
     }
 
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
@@ -298,9 +292,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(layer_ids, prop_id)
-            .map(move |p| p.iter_window(w.clone()))
-            .fast_merge_by(|(a, _), (b, _)| a <= b)
+        node.t_prop(WithStatic(layer_ids), prop_id).iter_window(w)
     }
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
@@ -311,9 +303,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.t_prop_iter_layers(layer_ids, prop_id)
-            .map(move |p| p.iter_window_rev(w.clone()))
-            .fast_merge_by(|(a, _), (b, _)| a >= b)
+        node.t_prop(WithStatic(layer_ids), prop_id)
+            .iter_window_rev(w)
     }
 
     fn node_tprop_last<'graph, G: GraphView + 'graph>(
@@ -322,9 +313,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last())
-            .max_by_key(|(t, _)| *t)
+        node.t_prop(WithStatic(view.layer_ids()), prop_id).last()
     }
 
     fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
@@ -334,9 +323,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last_window(w.clone()))
-            .max_by_key(|(t, _)| *t)
+        node.t_prop(WithStatic(view.layer_ids()), prop_id)
+            .last_window(w)
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
@@ -346,9 +334,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        node.t_prop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last_before(t.next()))
-            .max_by_key(|(t, _)| *t)
+        node.t_prop(WithStatic(view.layer_ids()), prop_id)
+            .last_before(t.next())
     }
 
     fn node_tprop_last_at_window<'graph, G: GraphView + 'graph>(
@@ -360,9 +347,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            node.t_prop_iter_layers(view.layer_ids(), prop_id)
-                .filter_map(|prop| prop.last_window(w.start..t.next()))
-                .max_by_key(|(t, _)| *t)
+            node.t_prop(WithStatic(view.layer_ids()), prop_id)
+                .last_window(w.start..t.next())
         } else {
             None
         }
