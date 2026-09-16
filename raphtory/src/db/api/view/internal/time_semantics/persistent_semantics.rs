@@ -143,6 +143,19 @@ fn node_global_search_start(node: NodeStorageRef, start: EventTime) -> EventTime
         .unwrap_or(EventTime::MIN)
 }
 
+/// finds the last deletion after global_search_start at or before the start of the window
+fn node_layer_search_start(
+    node: NodeStorageRef,
+    layer: LayerId,
+    start: EventTime,
+    global_search_start: EventTime,
+) -> EventTime {
+    node.node_deletions(layer)
+        .range(global_search_start..start.next_t())
+        .last()
+        .unwrap_or(global_search_start)
+}
+
 /// Important semantic decision: A node is not alive at the start of a window if the last event at
 /// `start.t()` was a deletion!
 ///
@@ -173,85 +186,91 @@ fn node_alive_at_window_start<G: GraphView>(
         }
 
         // check if node is alive at start via edges
-        if node_has_valid_edges(node, &view, EventTime::end(start.t())) {
+        if node_has_valid_edges_before(
+            node,
+            &view,
+            view.layer_ids(),
+            start.next_t(),
+            global_search_start,
+        ) {
             return true;
         }
     }
     false
 }
 
-fn node_has_valid_edges<G: GraphView>(node: NodeStorageRef, view: G, t: EventTime) -> bool {
+fn node_has_valid_edges_before<G: GraphView>(
+    node: NodeStorageRef,
+    view: G,
+    layers: &LayerIds,
+    t: EventTime,
+    search_start: EventTime,
+) -> bool {
     let gs = view.core_graph();
-    let node_last_deletion_global = node
-        .node_deletions(STATIC_GRAPH_LAYER_ID)
-        .range(EventTime::MIN..t.next())
-        .last();
-    node.edges_iter(view.layer_ids(), Direction::BOTH)
-        .any(|edge_ref| {
-            let edge = gs.core_edge(Either::Right(edge_ref));
-            let edge = edge.as_ref();
-            if view.internal_edge_filtered() && !view.internal_filter_edge(edge, view.layer_ids()) {
-                // edge is not part of the view
-                return false;
-            }
-            let neighbour = gs.core_node(edge_ref.remote());
-            let search_start_global = neighbour
-                .as_ref()
-                .node_deletions(STATIC_GRAPH_LAYER_ID)
-                .range(EventTime::MIN..t.next())
-                .last()
-                .max(node_last_deletion_global)
-                .map_or(EventTime::MIN, |t| t.next());
-            let any_edge =
-                edge.updates_iter(view.layer_ids())
-                    .any(|(layer, additions, deletions)| {
-                        if !view.internal_filter_edge_layer(edge, layer) {
-                            // edge doesn't exist in this layer
-                            return false;
-                        }
-                        let search_start = search_start_global.max(
-                            neighbour
-                                .as_ref()
-                                .node_deletions(layer)
-                                .range(search_start_global..t.next())
-                                .last()
-                                .max(
-                                    node.node_deletions(layer)
-                                        .range(search_start_global..t.next())
-                                        .last(),
-                                )
-                                .map_or(EventTime::MIN, |t| t.next()),
-                        );
-                        let Some(last_edge_addition) =
-                            additions.range(search_start..t.next()).last()
-                        else {
-                            // no addition since the last deletion via nodes
-                            return false;
-                        };
 
-                        let last_edge_deletion = deletions.range(EventTime::MIN..t.next()).last();
-                        if Some(last_edge_addition) < last_edge_deletion {
-                            // edge is currently deleted
-                            return false;
-                        }
+    node.edges_iter(layers, Direction::BOTH).any(|edge_ref| {
+        let edge = gs.core_edge(Either::Right(edge_ref));
+        let edge = edge.as_ref();
+        if view.internal_edge_filtered() && !view.internal_filter_edge(edge, layers) {
+            // edge is not part of the view
+            return false;
+        }
+        let neighbour = gs.core_node(edge_ref.remote());
+        let search_start_global = neighbour
+            .as_ref()
+            .node_deletions(STATIC_GRAPH_LAYER_ID)
+            .range(search_start..t)
+            .last()
+            .unwrap_or(search_start)
+            .next();
+        let any_edge = edge
+            .updates_iter(view.layer_ids())
+            .any(|(layer, additions, deletions)| {
+                if !view.internal_filter_edge_layer(edge, layer) {
+                    // edge doesn't exist in this layer
+                    return false;
+                }
+                let search_start = search_start_global.max(
+                    neighbour
+                        .as_ref()
+                        .node_deletions(layer)
+                        .range(search_start_global..t)
+                        .last()
+                        .max(
+                            node.node_deletions(layer)
+                                .range(search_start_global..t)
+                                .last(),
+                        )
+                        .map_or(EventTime::MIN, |t| t.next()),
+                );
+                let Some(last_edge_addition) = additions.range(search_start..t).last() else {
+                    // no addition since the last deletion via nodes
+                    return false;
+                };
 
-                        // filtered addition is equivalent to a deletion
-                        if view.internal_exploded_edge_filtered()
-                            && !(view.edge_filter_includes_exploded_edge_filter()
-                                || view.edge_layer_filter_includes_exploded_edge_filter())
-                        {
-                            if !view.internal_filter_exploded_edge(
-                                edge_ref.pid().with_layer(layer),
-                                last_edge_addition,
-                                view.layer_ids(),
-                            ) {
-                                return false;
-                            }
-                        }
-                        true
-                    });
-            any_edge
-        })
+                let last_edge_deletion = deletions.range(EventTime::MIN..t.next()).last();
+                if Some(last_edge_addition) < last_edge_deletion {
+                    // edge is currently deleted
+                    return false;
+                }
+
+                // filtered addition is equivalent to a deletion
+                if view.internal_exploded_edge_filtered()
+                    && !(view.edge_filter_includes_exploded_edge_filter()
+                        || view.edge_layer_filter_includes_exploded_edge_filter())
+                {
+                    if !view.internal_filter_exploded_edge(
+                        edge_ref.pid().with_layer(layer),
+                        last_edge_addition,
+                        layers,
+                    ) {
+                        return false;
+                    }
+                }
+                true
+            });
+        any_edge
+    })
 }
 
 fn merged_deletions<'a, G: GraphView + 'a>(
@@ -357,7 +376,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         // (note that a neighbour deletion can never be the earliest event as that would mean the
         // node had a live edge at the start of the window which would be handled above)
         node.history(&view, view.layer_ids())
-            .range(global_search_start.max(w.start)..w.end)
+            .range(w.start.next_t()..w.end)
             .first()
     }
 
@@ -487,27 +506,35 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let layers_iter = node.layer_ids_iter(LayerIter::WithStatic(layer_ids));
+        let global_search_start = node_global_search_start(node, w.start);
+
+        let layers_iter = node.layer_ids_iter(WithStatic(layer_ids));
         layers_iter.flat_map(move |layer_id| {
+            let search_start =
+                node_layer_search_start(node, layer_id, w.start, global_search_start);
             let rows_inside = node.t_prop_rows(Some(w.clone()), prop_ids.clone(), layer_id);
-
-            let mut first_row = Vec::new();
-            for prop_id in prop_ids.iter() {
-                let prop = node.t_prop(layer_id, *prop_id);
-                if !prop.active(w.start..w.start.next_t()) {
-                    if let Some((_t, v)) = prop.last_before(w.start) {
-                        first_row.push((*prop_id, v));
-                    }
-                }
-            }
-
-            let first_row_iter = if first_row.is_empty() {
-                None
+            let needs_first_row = if search_start >= w.start {
+                false
             } else {
-                Some((w.start, layer_id, first_row))
+                node.node_additions(layer_id).active(search_start..w.start)
             };
 
-            first_row_iter.into_iter().chain(rows_inside)
+            let first_row = if needs_first_row {
+                let mut first_row = Vec::new();
+                for prop_id in prop_ids.iter() {
+                    let prop = node.t_prop(layer_id, *prop_id);
+                    if !prop.active(w.start..w.start.next_t()) {
+                        if let Some((_t, v)) = prop.last_before(w.start) {
+                            first_row.push((*prop_id, v));
+                        }
+                    }
+                }
+                Some((w.start, layer_id, first_row))
+            } else {
+                None
+            };
+
+            first_row.into_iter().chain(rows_inside)
         })
     }
 
@@ -530,11 +557,16 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             return false;
         }
         let history = node.history(&view, view.layer_ids());
-        history.prop_history().active(EventTime::MIN..w.end)
-            || history
-                .edge_history()
-                .active(EventTime::start(w.start.t().saturating_add(1))..w.end)
-            || node_has_valid_edges(node, &view, EventTime::end(w.start.t()))
+        let search_start = node_global_search_start(node, w.start);
+        history.prop_history().active(search_start..w.end)
+            || history.edge_history().active(w.start.next_t()..w.end)
+            || node_has_valid_edges_before(
+                node,
+                &view,
+                view.layer_ids(),
+                w.start.next_t(),
+                search_start,
+            )
     }
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
