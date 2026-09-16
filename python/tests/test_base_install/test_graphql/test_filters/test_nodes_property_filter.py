@@ -1298,6 +1298,9 @@ def test_nodes_snapshot_latest_temporal_property(graph):
     run_graphql_test(query, expected, graph)
 
 
+# Both orders give the same answer on this fixture; the pair pins that either order is
+# accepted on a read. Order itself is pinned by `window_then_latest` in
+# test_filter_expr_grammar.py.
 @pytest.mark.parametrize("graph", [EVENT_GRAPH])
 def test_nodes_layer_then_latest(graph):
     query = """

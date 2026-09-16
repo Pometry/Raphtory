@@ -1,28 +1,6 @@
-//! Dyn-dispatch traits for property/aggregator/quantifier expression chains.
-//!
-//! `DynPropertyExpr` is the type-erased equivalent of the chained
-//! `EntityExpr` → `EntityAggOps` → `EntityExprFilterOps` API. Each method either:
-//!   - terminates the chain by producing an `Arc<dyn DynCreateFilter>`
-//!     (comparators / string ops / set ops / unary), or
-//!   - extends the chain by producing another `Arc<dyn DynPropertyExpr>`
-//!     (selectors / aggregators / quantifiers).
-//!
-//! Used by the Python `PyExpr` and `PyPropertyExpr` wrappers to dispatch
-//! chain calls at runtime through typed expressions.
-//!
-//! ## Chain methods are currently panic stubs
-//!
-//! Implementing the chain methods (`dyn_first`, `dyn_sum`, …) properly
-//! requires distinguishing node-side vs edge-side expressions at the type
-//! level. The blanket impl below only bounds `E: EntityExpr`, which is not
-//! enough — `BinaryCmpExpr<_, _, M>: CreateFilter` requires `L: NodeExpr`
-//! (or `L: EdgeExpr`) depending on `M`. Splitting the blanket into Node /
-//! Edge versions creates coherence overlap because primitive types (`Prop`,
-//! `u32`, …) impl both `NodeExpr` and `EdgeExpr`.
-//!
-//! Chain methods are left as panicking default impls until a working
-//! resolution is in place. The Python `.sum()`, `.first()`, `.any()`, etc.
-//! calls will panic at runtime.
+//! Type-erased forms of the expression traits, so a filter compiled from a
+//! tree can hold any entity expression behind one `Arc<dyn …>` and still
+//! report its static type and whether it can be missing.
 
 use crate::{
     db::{

@@ -68,8 +68,8 @@ impl PyRemoteNodes {
     ///     RemoteNodes: a new collection with the filter applied.
     ///
     /// Raises:
-    ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `NodeFilter` (e.g. references edge fields).
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         let tree = filter.tree().clone();
         Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
@@ -90,7 +90,8 @@ impl PyRemoteNodes {
     /// Raises:
     ///     Exception: if the expression tests edges rather than nodes — the
     ///         same error the local `Nodes.__getitem__` raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         Ok(PyRemoteNodes::new(
             self.nodes.select(node_subscript(&filter)?)?,

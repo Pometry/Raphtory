@@ -75,7 +75,7 @@ type Algorithms {
 	"""
 	inComponents(
 		"""
-		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 		"""
 		filter: FilterExpr,
 		"""
@@ -88,7 +88,7 @@ type Algorithms {
 	"""
 	outComponents(
 		"""
-		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 		"""
 		filter: FilterExpr,
 		"""
@@ -105,7 +105,7 @@ type Algorithms {
 		"""
 		node: NodeId!,
 		"""
-		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 		"""
 		filter: FilterExpr
 	): NodeState!
@@ -118,7 +118,7 @@ type Algorithms {
 		"""
 		node: NodeId!,
 		"""
-		Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+		Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 		"""
 		filter: FilterExpr
 	): NodeState!
@@ -1637,11 +1637,17 @@ input EmbeddingModel @oneOf {
 	openAI: OpenAIConfig
 }
 
+"""
+Which end of an edge a read looks at.
+"""
 enum Endpoint {
 	SRC
 	DST
 }
 
+"""
+The kind of thing a filter tests: a node, an edge, or one edge update.
+"""
 enum Entity {
 	NODE
 	EDGE
@@ -1749,6 +1755,10 @@ input FilterExpr @oneOf {
 	not: FilterExpr
 }
 
+"""
+A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+`rhs`, optionally matching by prefix.
+"""
 input FuzzyCmp {
 	lhs: Expr!
 	rhs: Expr!
@@ -2112,7 +2122,7 @@ type Graph {
 	"""
 	nodes(
 		"""
-		Optional node filter (by name, property, type, etc.). If omitted, every node in the view is returned.
+		Optional filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned.
 		"""
 		select: FilterExpr
 	): Nodes!
@@ -2135,7 +2145,7 @@ type Graph {
 	"""
 	edges(
 		"""
-		Optional edge filter (by property, layer, src/dst, etc.). If omitted, every edge in the view is returned.
+		Optional filter expression: edge predicates (including src/dst reads), graph views, or and/or/not combinations (and = intersection). If omitted, every edge in the view is returned.
 		"""
 		select: FilterExpr
 	): Edges!
@@ -2199,7 +2209,7 @@ type Graph {
 	"""
 	filter(
 		"""
-		Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
+		Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter.
 		"""
 		expr: FilterExpr
 	): Graph!
@@ -2972,7 +2982,7 @@ enum MetaGraphField {
 """
 Narrows a namespace's graph listing.
 
-Composes the same way as the graph/node/edge filters: leaves test one
+Composes like a filter expression: leaves test one
 attribute or metadata key, and `and` / `or` / `not` combine them.
 """
 input MetaGraphFilter @oneOf {
@@ -4414,6 +4424,9 @@ input NodeAddition {
 	layer: String
 }
 
+"""
+A built-in node field.
+"""
 enum NodeFieldName {
 	ID
 	NAME

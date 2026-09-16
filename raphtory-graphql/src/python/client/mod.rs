@@ -5,7 +5,7 @@ use crate::{
     },
     python::pymodule::RemotePermissionError,
 };
-use pyo3::{prelude::*, pyclass, pymethods};
+use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory::{
     db::graph::views::filter::model::tree::FilterExpr, errors::GraphError,
     python::filter::filter_expr::PyFilterExpr,
@@ -160,12 +160,16 @@ impl PyEdgeAddition {
 
 // Takes care of the ClientError -> PyException conversion.
 // A permission denial maps to the distinct `RemotePermissionError` type so
-// callers can catch it specifically; everything else (including a missing graph)
-// stays a generic exception.
+// callers can catch it specifically; a filter that has no server-side form is
+// a `ValueError`, as the filter methods document; everything else (including
+// a missing graph) stays a generic exception.
 impl From<ClientError> for PyErr {
     fn from(err: ClientError) -> Self {
         match &err {
             ClientError::PermissionDenied(msg) => RemotePermissionError::new_err(msg.clone()),
+            ClientError::Graph(GraphError::InvalidGqlFilter(msg)) => {
+                PyValueError::new_err(msg.clone())
+            }
             _ => adapt_err_value(&err),
         }
     }

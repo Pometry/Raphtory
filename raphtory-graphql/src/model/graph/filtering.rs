@@ -314,7 +314,7 @@ pub enum PropCondition {
 }
 
 impl PropCondition {
-    pub fn op_name(&self) -> &'static str {
+    fn op_name(&self) -> &'static str {
         use PropCondition::*;
         match self {
             Eq(_) => "eq",
@@ -481,7 +481,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
     }
 }
 
-pub(crate) fn translate_prop_leaf_to_filter(
+fn translate_prop_leaf_to_filter(
     name_for_errors: &str,
     cmp: &PropCondition,
 ) -> Result<(FilterOperator, PropertyFilterValue), GraphError> {

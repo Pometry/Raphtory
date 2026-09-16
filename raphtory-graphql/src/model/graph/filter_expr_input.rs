@@ -45,6 +45,7 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
 
+/// The kind of thing a filter tests: a node, an edge, or one edge update.
 #[derive(Enum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[graphql(name = "Entity")]
@@ -54,6 +55,7 @@ pub enum GqlEntity {
     ExplodedEdge,
 }
 
+/// Which end of an edge a read looks at.
 #[derive(Enum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[graphql(name = "Endpoint")]
@@ -62,6 +64,7 @@ pub enum GqlEndpoint {
     Dst,
 }
 
+/// A built-in node field.
 #[derive(Enum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[graphql(name = "NodeFieldName")]
@@ -87,8 +90,8 @@ pub enum GqlViewOp {
 }
 
 /// The direction a node degree counts.
-#[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
+#[derive(Enum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DegreeDirection {
     In,
     Out,
@@ -182,6 +185,8 @@ pub struct GqlCmp {
     pub rhs: GqlExpr,
 }
 
+/// A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+/// `rhs`, optionally matching by prefix.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -270,9 +275,13 @@ impl From<GqlNodeField> for Field {
     }
 }
 
-impl From<GqlViewOp> for ViewOp {
-    fn from(op: GqlViewOp) -> Self {
-        match op {
+impl TryFrom<GqlViewOp> for ViewOp {
+    type Error = GraphError;
+
+    /// `latest: false` and `snapshotLatest: false` are refused rather than
+    /// ignored: a view op that is not applied has no place in a view list.
+    fn try_from(op: GqlViewOp) -> Result<Self, Self::Error> {
+        Ok(match op {
             GqlViewOp::Window(w) => ViewOp::Window {
                 start: w.start.into_time(),
                 end: w.end.into_time(),
@@ -280,28 +289,42 @@ impl From<GqlViewOp> for ViewOp {
             GqlViewOp::At(t) => ViewOp::At(t.into_time()),
             GqlViewOp::After(t) => ViewOp::After(t.into_time()),
             GqlViewOp::Before(t) => ViewOp::Before(t.into_time()),
-            GqlViewOp::Latest(_) => ViewOp::Latest,
+            GqlViewOp::Latest(true) => ViewOp::Latest,
+            GqlViewOp::Latest(false) => return Err(invalid("latest: false is not a view")),
             GqlViewOp::SnapshotAt(t) => ViewOp::SnapshotAt(t.into_time()),
-            GqlViewOp::SnapshotLatest(_) => ViewOp::SnapshotLatest,
+            GqlViewOp::SnapshotLatest(true) => ViewOp::SnapshotLatest,
+            GqlViewOp::SnapshotLatest(false) => {
+                return Err(invalid("snapshotLatest: false is not a view"))
+            }
             GqlViewOp::Layers(names) => ViewOp::Layers(names),
-        }
+        })
     }
 }
 
-fn scope(entity: GqlEntity, views: Option<Vec<GqlViewOp>>, endpoint: Option<GqlEndpoint>) -> Scope {
-    Scope {
+fn view_ops(views: Option<Vec<GqlViewOp>>) -> Result<Vec<ViewOp>, GraphError> {
+    views
+        .unwrap_or_default()
+        .into_iter()
+        .map(ViewOp::try_from)
+        .collect()
+}
+
+fn scope(
+    entity: GqlEntity,
+    views: Option<Vec<GqlViewOp>>,
+    endpoint: Option<GqlEndpoint>,
+) -> Result<Scope, GraphError> {
+    Ok(Scope {
         entity: entity.into(),
-        views: views
-            .unwrap_or_default()
-            .into_iter()
-            .map(ViewOp::from)
-            .collect(),
+        views: view_ops(views)?,
         endpoint: endpoint.map(Endpoint::from),
-    }
+    })
 }
 
-impl From<GqlScope> for Scope {
-    fn from(s: GqlScope) -> Self {
+impl TryFrom<GqlScope> for Scope {
+    type Error = GraphError;
+
+    fn try_from(s: GqlScope) -> Result<Self, Self::Error> {
         scope(s.entity, s.views, s.endpoint)
     }
 }
@@ -333,7 +356,7 @@ impl TryFrom<GqlExpr> for tree::Expr {
         Ok(match expr {
             GqlExpr::Const(value) => E::Const(prop(value)?),
             GqlExpr::Read(read) => E::Read {
-                scope: scope(read.entity, read.views, read.endpoint),
+                scope: scope(read.entity, read.views, read.endpoint)?,
                 target: read.target.into(),
             },
             GqlExpr::Temporal(e) => E::Temporal(inner(&e)?),
@@ -379,11 +402,11 @@ fn membership(m: GqlMembership, negated: bool) -> Result<tree::FilterExpr, Graph
     })
 }
 
-fn structural(s: GqlScope, pred: Structural) -> tree::FilterExpr {
-    tree::FilterExpr::Structural {
-        scope: s.into(),
+fn structural(s: GqlScope, pred: Structural) -> Result<tree::FilterExpr, GraphError> {
+    Ok(tree::FilterExpr::Structural {
+        scope: s.try_into()?,
         pred,
-    }
+    })
 }
 
 impl TryFrom<GqlFilter> for tree::FilterExpr {
@@ -414,11 +437,11 @@ impl TryFrom<GqlFilter> for tree::FilterExpr {
             GqlFilter::IsNone(e) => F::IsNone(e.deref().clone().try_into()?),
             GqlFilter::IsIn(m) => membership(m, false)?,
             GqlFilter::IsNotIn(m) => membership(m, true)?,
-            GqlFilter::IsActive(s) => structural(s, Structural::IsActive),
-            GqlFilter::IsValid(s) => structural(s, Structural::IsValid),
-            GqlFilter::IsDeleted(s) => structural(s, Structural::IsDeleted),
-            GqlFilter::IsSelfLoop(s) => structural(s, Structural::IsSelfLoop),
-            GqlFilter::View(ops) => F::View(ops.into_iter().map(ViewOp::from).collect()),
+            GqlFilter::IsActive(s) => structural(s, Structural::IsActive)?,
+            GqlFilter::IsValid(s) => structural(s, Structural::IsValid)?,
+            GqlFilter::IsDeleted(s) => structural(s, Structural::IsDeleted)?,
+            GqlFilter::IsSelfLoop(s) => structural(s, Structural::IsSelfLoop)?,
+            GqlFilter::View(ops) => F::View(view_ops(Some(ops))?),
             GqlFilter::And(items) => F::And(
                 items
                     .into_iter()
@@ -773,6 +796,31 @@ mod tests {
                     "rhs": { "read": { "entity": "NODE", "target": { "degree": "IN" } } }
                 }
             })
+        );
+    }
+
+    #[test]
+    fn an_opaque_filter_has_no_wire_form() {
+        let compiled = tree::FilterExpr::View(vec![ViewOp::Latest])
+            .compile()
+            .unwrap();
+        let opaque = tree::FilterExpr::Opaque(tree::OpaqueFilter(compiled));
+        let err = GqlFilter::try_from(&opaque).unwrap_err();
+        assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
+    }
+
+    #[test]
+    fn a_view_op_that_is_not_applied_is_refused() {
+        for (op, name) in [
+            (GqlViewOp::Latest(false), "latest"),
+            (GqlViewOp::SnapshotLatest(false), "snapshotLatest"),
+        ] {
+            let err = ViewOp::try_from(op).unwrap_err();
+            assert!(err.to_string().contains(name), "{err}");
+        }
+        assert_eq!(
+            ViewOp::try_from(GqlViewOp::Latest(true)).unwrap(),
+            ViewOp::Latest
         );
     }
 }

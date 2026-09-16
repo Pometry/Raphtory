@@ -207,8 +207,8 @@ impl CreateOp for Type {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        // Untyped nodes carry the storage's default type key, matching how the
-        // composite path builds its type mask over the node-type meta keys.
+        // Untyped nodes carry the storage's default type key, so a type test
+        // sees the same key the node-type mask is built over.
         Ok(Arc::new(WithPropType {
             inner: Type.map(|a| Some(a.map_or_else(|| Prop::str("_default"), |b| b.into_prop()))),
             pt: PropType::Str,

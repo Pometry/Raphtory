@@ -51,7 +51,8 @@ impl PyRemoteEdge {
     ///     RemoteEdge: a new filtered edge view.
     ///
     /// Raises:
-    ///     ValueError: if the filter cannot be represented remotely.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdge> {
         let tree = filter.tree().clone();
         Ok(PyRemoteEdge::new(self.edge.filter(tree)?))

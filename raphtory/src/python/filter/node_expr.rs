@@ -83,6 +83,25 @@ fn check_value(lhs: &Expr, v: &Prop) -> PyResult<()> {
     Ok(())
 }
 
+/// Every member of a set is checked the way a single constant is.
+fn checked_values(lhs: &Expr, values: FromIterable<Prop>) -> PyResult<Vec<Prop>> {
+    let values: Vec<Prop> = values.into();
+    for v in &values {
+        check_value(lhs, v)?;
+    }
+    Ok(values)
+}
+
+/// Presence tests only mean something on an expression that can be missing.
+fn check_nullable(lhs: &Expr, op: &str) -> PyResult<()> {
+    if !lhs.compile()?.dyn_nullable() {
+        return Err(PyTypeError::new_err(format!(
+            "{op}() is not valid on an expression that always has a value"
+        )));
+    }
+    Ok(())
+}
+
 /// String operators require a string-castable operand whatever the lhs type.
 fn check_str_value(v: &Prop) -> PyResult<()> {
     if v.dtype() != PropType::Str && v.clone().try_cast(PropType::Str).is_err() {
@@ -252,12 +271,12 @@ impl PyExpr {
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::In {
+    fn is_in(&self, values: FromIterable<Prop>) -> PyResult<PyFilterExpr> {
+        Ok(PyFilterExpr(FilterExpr::In {
             expr: self.0.clone(),
-            values: values.into(),
+            values: checked_values(&self.0, values)?,
             negated: false,
-        })
+        }))
     }
     /// Checks whether the value is **not** contained within the given values.
     ///
@@ -266,27 +285,29 @@ impl PyExpr {
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::In {
+    fn is_not_in(&self, values: FromIterable<Prop>) -> PyResult<PyFilterExpr> {
+        Ok(PyFilterExpr(FilterExpr::In {
             expr: self.0.clone(),
-            values: values.into(),
+            values: checked_values(&self.0, values)?,
             negated: true,
-        })
+        }))
     }
 
     /// Checks whether the value is present (not `None`).
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn is_some(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::IsSome(self.0.clone()))
+    fn is_some(&self) -> PyResult<PyFilterExpr> {
+        check_nullable(&self.0, "is_some")?;
+        Ok(PyFilterExpr(FilterExpr::IsSome(self.0.clone())))
     }
     /// Checks whether the value is `None` / missing.
     ///
     /// Returns:
     ///     filter.FilterExpr:
-    fn is_none(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::IsNone(self.0.clone()))
+    fn is_none(&self) -> PyResult<PyFilterExpr> {
+        check_nullable(&self.0, "is_none")?;
+        Ok(PyFilterExpr(FilterExpr::IsNone(self.0.clone())))
     }
 
     /// Requires that **any** element matches when the value is list-like (a temporal history or a list property).

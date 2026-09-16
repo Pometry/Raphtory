@@ -56,8 +56,8 @@ impl PyRemotePathFromNode {
     ///     RemotePathFromNode: a new collection with the filter applied.
     ///
     /// Raises:
-    ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `NodeFilter`.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
         let tree = filter.tree().clone();
         Ok(PyRemotePathFromNode::new(self.path.filter(tree)?))
@@ -78,7 +78,8 @@ impl PyRemotePathFromNode {
     /// Raises:
     ///     Exception: if the expression tests edges rather than nodes — the
     ///         same error the local `PathFromNode.__getitem__` raises.
-    ///     ValueError: if the filter cannot be sent over the wire.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromNode> {
         Ok(PyRemotePathFromNode::new(
             self.path.select(node_subscript(&filter)?)?,
