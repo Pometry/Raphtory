@@ -395,11 +395,15 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
     queries_and_expected_outputs = []
 
     for direction in ["BOTH", "IN", "OUT"]:
+        above = _degree(direction, "gt", f"{{ u64: {threshold} }}")
+        below_upper = _degree(direction, "lt", f"{{ u64: {upper} }}")
+        below = _degree(direction, "lt", f"{{ u64: {threshold} }}")
+        above_upper = _degree(direction, "gt", f"{{ u64: {upper} }}")
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
                 f"{{ and: ["
-                f"{_degree(direction, "gt", f"{{ u64: {threshold} }}")},"
-                f"{_degree(direction, "lt", f"{{ u64: {upper} }}")}"
+                f"{above},"
+                f"{below_upper}"
                 "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d > threshold and d < upper
@@ -409,8 +413,8 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
                 f"{{ and: ["
-                f"{_degree(direction, "gt", f"{{ u64: {threshold} }}")},"
-                f"{_degree(direction, "lt", f"{{ u64: {upper} }}")}"
+                f"{above},"
+                f"{below_upper}"
                 "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d > threshold and d < upper
@@ -421,8 +425,8 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
                 f"{{ or: ["
-                f"{_degree(direction, "lt", f"{{ u64: {threshold} }}")},"
-                f"{_degree(direction, "gt", f"{{ u64: {upper} }}")}"
+                f"{below},"
+                f"{above_upper}"
                 "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d < threshold or d > upper
@@ -432,8 +436,8 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
                 f"{{ or: ["
-                f"{_degree(direction, "lt", f"{{ u64: {threshold} }}")},"
-                f"{_degree(direction, "gt", f"{{ u64: {upper} }}")}"
+                f"{below},"
+                f"{above_upper}"
                 "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d < threshold or d > upper
@@ -444,9 +448,9 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
                 f"{{ or: ["
-                f"{_degree(direction, "lt", f"{{ u64: {threshold} }}")},"
+                f"{below},"
                 f"{{ not: "
-                f"{_degree(direction, "gt", f"{{ u64: {upper} }}")}"
+                f"{above_upper}"
                 f" }}"
                 "] }",
                 _expected_degree_select_names(
@@ -457,9 +461,9 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
                 f"{{ or: ["
-                f"{_degree(direction, "lt", f"{{ u64: {threshold} }}")},"
+                f"{below},"
                 f"{{ not: "
-                f"{_degree(direction, "gt", f"{{ u64: {upper} }}")}"
+                f"{above_upper}"
                 f" }}"
                 "] }",
                 _expected_degree_names(
