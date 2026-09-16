@@ -230,7 +230,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
             node_col_resolved.resize_with(df.len(), Default::default);
 
-            let (src_vids, gid_str_cache) = get_or_resolve_node_vids::<G>(
+            let (src_vids, gid_str_cache) = get_or_resolve_node_vids(
                 graph,
                 node_id_index,
                 &mut node_resolve_cache,
@@ -276,7 +276,13 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                             let _writer = shard.writer();
                         }
 
-                        return Ok::<_, GraphError>(());
+                        return Ok(());
+                    }
+
+                    // resolve_nodes = false assumes we are loading our own graph via the parquet
+                    // loaders, so previous calls have already stored the node ids and types.
+                    if resolve_nodes {
+                        store_node_ids_and_type(&gid_str_cache, shard);
                     }
 
                     // Zip all columns for iteration.
@@ -286,13 +292,6 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         let secondary_index = secondary_index_at(&secondary_index_col, row);
                         (row, vid, time, secondary_index)
                     });
-
-                    // resolve_nodes=false
-                    // assumes we are loading our own graph, via the parquet loaders,
-                    // so previous calls have already stored the node ids and types
-                    if resolve_nodes {
-                        store_node_ids_and_type(&gid_str_cache, shard);
-                    }
 
                     let mut writer = shard.writer();
 
