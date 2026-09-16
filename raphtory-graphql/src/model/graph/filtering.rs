@@ -19,7 +19,7 @@ use raphtory::{
                 filter::{FilterValue, NODE_ID_FIELD, NODE_NAME_FIELD, NODE_TYPE_FIELD},
                 filter_operator::FilterOperator,
                 property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
-                tree::{compile_view, FilterExpr},
+                tree::{compile_view, FilterExpr, ViewOp},
                 DynFilter, DynView,
             },
             CreateFilter,
@@ -711,11 +711,31 @@ impl TryFrom<FilterExpr> for GqlFilter {
     }
 }
 
-impl TryFrom<GqlFilter> for FilterExpr {
+impl TryFrom<GqlFilter> for GqlFilterExpr {
     type Error = GraphError;
 
     fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
         super::expr_lowering::lower_filter(&value)
+    }
+}
+
+impl GqlFilter {
+    /// The same filter in the tree grammar. A filter already written as a
+    /// tree is returned as is; a legacy spelling is converted, constants and
+    /// policy placeholders intact.
+    pub fn into_tree_grammar(self) -> Result<GqlFilter, GraphError> {
+        Ok(match self {
+            GqlFilter::Expr(_) => self,
+            legacy => GqlFilter::Expr(GqlFilterExpr::try_from(legacy)?),
+        })
+    }
+}
+
+impl TryFrom<GqlFilter> for FilterExpr {
+    type Error = GraphError;
+
+    fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
+        FilterExpr::try_from(GqlFilterExpr::try_from(value)?)
     }
 }
 
@@ -1719,7 +1739,11 @@ impl TryFrom<GqlGraphFilter> for DynView {
     type Error = GraphError;
 
     fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
-        Ok(compile_view(&super::expr_lowering::lower_graph_filter(&f)?))
+        let ops: Vec<ViewOp> = super::expr_lowering::lower_graph_filter(&f)?
+            .into_iter()
+            .map(ViewOp::from)
+            .collect();
+        Ok(compile_view(&ops))
     }
 }
 
@@ -1922,6 +1946,52 @@ mod gql_filter_serde_tests {
 }
 
 #[cfg(test)]
+mod tree_grammar_tests {
+    use super::*;
+    use crate::model::graph::filter_expr_input::{GqlExpr, GqlFilterExpr, GqlTarget};
+
+    // A permission grant written in the legacy grammar converts onto the tree
+    // grammar with its policy placeholders untouched: `{"var": …}` is a
+    // wire-level value, never a Prop, so nothing tries to evaluate it.
+    #[test]
+    fn legacy_grant_with_placeholders_converts_to_the_tree_grammar() {
+        let legacy: GqlFilter = serde_json::from_value(serde_json::json!({
+            "and": [
+                { "node": { "name": { "where": { "isIn": { "var": "myCompanies" } } } } },
+                { "node": { "property": { "name": "risk", "where": { "le": { "claim": "max_risk" } } } } }
+            ]
+        }))
+        .unwrap();
+        let GqlFilter::Expr(GqlFilterExpr::And(items)) = legacy.into_tree_grammar().unwrap() else {
+            panic!("expected the tree grammar");
+        };
+        let GqlFilterExpr::IsIn(members) = &items[0] else {
+            panic!("expected a membership test, got {:?}", items[0]);
+        };
+        assert!(matches!(&members.values, Value::Var(name) if name == "myCompanies"));
+        assert!(matches!(
+            &members.expr,
+            GqlExpr::Read(read) if matches!(read.target, GqlTarget::Field(_))
+        ));
+        let GqlFilterExpr::Le(cmp) = &items[1] else {
+            panic!("expected a comparison, got {:?}", items[1]);
+        };
+        assert!(matches!(&cmp.rhs, GqlExpr::Const(Value::Claim(name)) if name == "max_risk"));
+    }
+
+    // A filter already in the tree grammar is returned as it is.
+    #[test]
+    fn a_tree_grammar_filter_is_already_normal() {
+        let tree = GqlFilter::Expr(GqlFilterExpr::View(vec![]));
+        let json = serde_json::to_value(&tree).unwrap();
+        assert_eq!(
+            serde_json::to_value(tree.into_tree_grammar().unwrap()).unwrap(),
+            json
+        );
+    }
+}
+
+#[cfg(test)]
 mod fuzzy_search_tests {
     use super::*;
     use raphtory::{
@@ -1959,7 +2029,9 @@ mod fuzzy_search_tests {
                 prefix_match: true,
             }),
         });
-        let tree = super::super::expr_lowering::lower_node_filter(&filter).unwrap();
+        let tree =
+            FilterExpr::try_from(super::super::expr_lowering::lower_node_filter(&filter).unwrap())
+                .unwrap();
         let FilterExpr::Str { op, rhs, .. } = tree else {
             panic!("expected a string predicate, got {tree:?}");
         };
@@ -2033,6 +2105,7 @@ mod conversion_hole_tests {
             where_: PropCondition::Sum(Wrapped::from(PropCondition::Eq(Value::I64(3)))),
         });
         let result = super::super::expr_lowering::lower_node_filter(&filter)
+            .and_then(FilterExpr::try_from)
             .and_then(|f| Graph::new().filter(f).map(|_| ()));
         let Err(err) = result else {
             panic!("degree with an op chain must be rejected");
@@ -2135,8 +2208,9 @@ mod exploded_edge_filter_tests {
             }))),
         ];
         for original in cases {
-            let tree = super::super::expr_lowering::lower_exploded_edge_filter(&original)
+            let wire = super::super::expr_lowering::lower_exploded_edge_filter(&original)
                 .unwrap_or_else(|e| panic!("wire form does not lower: {original:?}: {e}"));
+            let tree = FilterExpr::try_from(wire).unwrap();
             tree.compile()
                 .unwrap_or_else(|e| panic!("tree does not compile: {tree}: {e}"));
         }

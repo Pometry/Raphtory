@@ -4,7 +4,11 @@ pub use crate::{
     auth::{
         Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
     },
-    model::graph::{filtering::GraphAccessFilter, property::Value},
+    model::graph::{
+        filter_expr_input::GqlFilterExpr,
+        filtering::{GqlFilter, GraphAccessFilter},
+        property::Value,
+    },
     server::GraphServer,
 };
 

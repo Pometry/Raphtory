@@ -1,343 +1,342 @@
-//! Lowers the legacy GraphQL filter grammar onto the filter tree.
+//! Converts the legacy GraphQL filter grammar onto the tree grammar.
 //!
 //! The legacy grammar (`GqlNodeFilter` and friends) says "left side, operator,
-//! constant" and wraps *filters* in views. The tree says the same thing with
-//! expressions on both sides and views on the *reads*. This module is the only
-//! place that knows both spellings: every legacy value becomes a tree here and
-//! is compiled like any other tree, so nothing downstream sees the legacy shape.
+//! constant" and wraps *filters* in views. The tree grammar says the same thing
+//! with expressions on both sides and views on the *reads*. This module is the
+//! only place that knows both spellings, and it works purely on the wire types:
+//! constants stay [`Value`]s, so a `{"var": …}` or `{"claim": …}` placeholder
+//! in a stored permission grant survives the conversion untouched and is
+//! substituted later, exactly as before.
 
-use crate::model::graph::filtering::{
-    translate_node_field_where, translate_prop_leaf_to_filter, GqlEdgeFilter,
-    GqlExplodedEdgeFilter, GqlFilter, GqlGraphFilter, GqlNodeFilter, NodeField, NodeFieldCondition,
-    PropCondition,
-};
-use raphtory::{
-    db::graph::views::filter::model::{
-        edge_filter::Endpoint,
-        filter::FilterValue,
-        property_filter::PropertyFilterValue,
-        tree::{
-            Agg, CmpOp, Entity, Expr, Field, FilterExpr, Qual, Scope, StrOp, Structural, Target,
-            ViewOp,
-        },
-        FilterOperator,
+use crate::model::graph::{
+    filter_expr_input::{
+        GqlCmp, GqlEndpoint, GqlEntity, GqlExpr, GqlFilterExpr, GqlFuzzyCmp, GqlMembership,
+        GqlNodeField, GqlRead, GqlScope, GqlTarget, GqlViewOp,
     },
-    errors::GraphError,
+    filtering::{
+        FuzzySearchExpr, GqlEdgeFilter, GqlExplodedEdgeFilter, GqlFilter, GqlGraphFilter,
+        GqlNodeFilter, NodeFieldCondition, PropCondition, Window, Wrapped,
+    },
+    property::Value,
+    timeindex::GqlTimeInput,
 };
-use raphtory_api::core::{
-    entities::properties::prop::{IntoProp, Prop},
-    utils::time::IntoTime,
-};
+use raphtory::errors::GraphError;
 use std::ops::Deref;
 
 fn invalid(msg: impl Into<String>) -> GraphError {
     GraphError::InvalidGqlFilter(msg.into())
 }
 
-fn non_empty(items: Vec<FilterExpr>, what: &str) -> Result<Vec<FilterExpr>, GraphError> {
+fn all(
+    items: impl Iterator<Item = Result<GqlFilterExpr, GraphError>>,
+    what: &str,
+) -> Result<Vec<GqlFilterExpr>, GraphError> {
+    let items = items.collect::<Result<Vec<_>, _>>()?;
     if items.is_empty() {
         return Err(invalid(format!("Filter '{what}' requires non-empty list")));
     }
     Ok(items)
 }
 
-fn all(
-    items: impl Iterator<Item = Result<FilterExpr, GraphError>>,
-    what: &str,
-) -> Result<Vec<FilterExpr>, GraphError> {
-    non_empty(items.collect::<Result<Vec<_>, _>>()?, what)
-}
-
 // ── views and endpoints distribute onto the reads ────────────────────────────
 
-fn map_scopes(filter: FilterExpr, f: &dyn Fn(&mut Scope)) -> FilterExpr {
-    let expr = |e: Expr| map_expr_scopes(e, f);
-    match filter {
-        FilterExpr::Cmp { op, lhs, rhs } => FilterExpr::Cmp {
-            op,
-            lhs: expr(lhs),
-            rhs: expr(rhs),
-        },
-        FilterExpr::Str { op, lhs, rhs } => FilterExpr::Str {
-            op,
-            lhs: expr(lhs),
-            rhs: expr(rhs),
-        },
-        FilterExpr::IsSome(e) => FilterExpr::IsSome(expr(e)),
-        FilterExpr::IsNone(e) => FilterExpr::IsNone(expr(e)),
-        FilterExpr::In {
-            expr: e,
-            values,
-            negated,
-        } => FilterExpr::In {
-            expr: expr(e),
-            values,
-            negated,
-        },
-        FilterExpr::Structural { mut scope, pred } => {
-            f(&mut scope);
-            FilterExpr::Structural { scope, pred }
-        }
-        FilterExpr::View(ops) => FilterExpr::View(ops),
-        FilterExpr::And(items) => {
-            FilterExpr::And(items.into_iter().map(|i| map_scopes(i, f)).collect())
-        }
-        FilterExpr::Or(items) => {
-            FilterExpr::Or(items.into_iter().map(|i| map_scopes(i, f)).collect())
-        }
-        FilterExpr::Not(inner) => FilterExpr::Not(Box::new(map_scopes(*inner, f))),
-        FilterExpr::Opaque(o) => FilterExpr::Opaque(o),
+/// What a scope rewrite may change: the entity, the view chain, the endpoint.
+type ScopeEdit<'a> =
+    &'a dyn Fn(&mut GqlEntity, &mut Option<Vec<GqlViewOp>>, &mut Option<GqlEndpoint>);
+
+fn edit_scope(scope: GqlScope, f: ScopeEdit) -> GqlScope {
+    let GqlScope {
+        mut entity,
+        mut views,
+        mut endpoint,
+    } = scope;
+    f(&mut entity, &mut views, &mut endpoint);
+    GqlScope {
+        entity,
+        views,
+        endpoint,
     }
 }
 
-fn map_expr_scopes(expr: Expr, f: &dyn Fn(&mut Scope)) -> Expr {
+fn map_scopes(filter: GqlFilterExpr, f: ScopeEdit) -> GqlFilterExpr {
+    use GqlFilterExpr as F;
+    let cmp = |c: GqlCmp| GqlCmp {
+        lhs: map_expr_scopes(c.lhs, f),
+        rhs: map_expr_scopes(c.rhs, f),
+    };
+    let wrapped = |e: Wrapped<GqlExpr>| Wrapped::from(map_expr_scopes(e.deref().clone(), f));
+    let member = |m: GqlMembership| GqlMembership {
+        expr: map_expr_scopes(m.expr, f),
+        values: m.values,
+    };
+    match filter {
+        F::Eq(c) => F::Eq(cmp(c)),
+        F::Ne(c) => F::Ne(cmp(c)),
+        F::Lt(c) => F::Lt(cmp(c)),
+        F::Le(c) => F::Le(cmp(c)),
+        F::Gt(c) => F::Gt(cmp(c)),
+        F::Ge(c) => F::Ge(cmp(c)),
+        F::StartsWith(c) => F::StartsWith(cmp(c)),
+        F::EndsWith(c) => F::EndsWith(cmp(c)),
+        F::Contains(c) => F::Contains(cmp(c)),
+        F::NotContains(c) => F::NotContains(cmp(c)),
+        F::FuzzySearch(z) => F::FuzzySearch(GqlFuzzyCmp {
+            lhs: map_expr_scopes(z.lhs, f),
+            rhs: map_expr_scopes(z.rhs, f),
+            levenshtein_distance: z.levenshtein_distance,
+            prefix_match: z.prefix_match,
+        }),
+        F::IsSome(e) => F::IsSome(wrapped(e)),
+        F::IsNone(e) => F::IsNone(wrapped(e)),
+        F::IsIn(m) => F::IsIn(member(m)),
+        F::IsNotIn(m) => F::IsNotIn(member(m)),
+        F::IsActive(s) => F::IsActive(edit_scope(s, f)),
+        F::IsValid(s) => F::IsValid(edit_scope(s, f)),
+        F::IsDeleted(s) => F::IsDeleted(edit_scope(s, f)),
+        F::IsSelfLoop(s) => F::IsSelfLoop(edit_scope(s, f)),
+        F::View(ops) => F::View(ops),
+        F::And(items) => F::And(items.into_iter().map(|i| map_scopes(i, f)).collect()),
+        F::Or(items) => F::Or(items.into_iter().map(|i| map_scopes(i, f)).collect()),
+        F::Not(inner) => F::Not(Wrapped::from(map_scopes(inner.deref().clone(), f))),
+    }
+}
+
+fn map_expr_scopes(expr: GqlExpr, f: ScopeEdit) -> GqlExpr {
+    use GqlExpr as E;
+    let wrapped = |e: Wrapped<GqlExpr>| Wrapped::from(map_expr_scopes(e.deref().clone(), f));
     match expr {
-        Expr::Const(v) => Expr::Const(v),
-        Expr::Read { mut scope, target } => {
-            f(&mut scope);
-            Expr::Read { scope, target }
+        E::Const(v) => E::Const(v),
+        E::Read(read) => {
+            let GqlRead {
+                mut entity,
+                mut views,
+                mut endpoint,
+                target,
+            } = read;
+            f(&mut entity, &mut views, &mut endpoint);
+            E::Read(GqlRead {
+                entity,
+                views,
+                endpoint,
+                target,
+            })
         }
-        Expr::Temporal(e) => Expr::Temporal(Box::new(map_expr_scopes(*e, f))),
-        Expr::Agg(a, e) => Expr::Agg(a, Box::new(map_expr_scopes(*e, f))),
-        Expr::Qual(q, e) => Expr::Qual(q, Box::new(map_expr_scopes(*e, f))),
+        E::Temporal(e) => E::Temporal(wrapped(e)),
+        E::Sum(e) => E::Sum(wrapped(e)),
+        E::Avg(e) => E::Avg(wrapped(e)),
+        E::Min(e) => E::Min(wrapped(e)),
+        E::Max(e) => E::Max(wrapped(e)),
+        E::First(e) => E::First(wrapped(e)),
+        E::Last(e) => E::Last(wrapped(e)),
+        E::Len(e) => E::Len(wrapped(e)),
+        E::Any(e) => E::Any(wrapped(e)),
+        E::All(e) => E::All(wrapped(e)),
     }
 }
 
 /// A legacy view wraps a whole filter; on the tree it scopes every read inside.
-fn scoped(filter: FilterExpr, view: ViewOp) -> FilterExpr {
-    map_scopes(filter, &|scope| scope.views.push(view.clone()))
+fn scoped(filter: GqlFilterExpr, view: GqlViewOp) -> GqlFilterExpr {
+    map_scopes(filter, &|_, views, _| {
+        views.get_or_insert_with(Vec::new).push(view.clone())
+    })
 }
 
 /// A legacy `src`/`dst` wraps a node filter; on the tree every read inside
 /// becomes an edge read through that endpoint.
-fn through(filter: FilterExpr, entity: Entity, endpoint: Endpoint) -> FilterExpr {
-    map_scopes(filter, &|scope| {
-        scope.entity = entity;
-        scope.endpoint = Some(endpoint);
+fn through(filter: GqlFilterExpr, entity: GqlEntity, endpoint: GqlEndpoint) -> GqlFilterExpr {
+    map_scopes(filter, &|e, _, ep| {
+        *e = entity;
+        *ep = Some(endpoint);
     })
 }
 
 // ── leaves ───────────────────────────────────────────────────────────────────
 
-fn cmp(op: CmpOp, lhs: Expr, rhs: Prop) -> FilterExpr {
-    FilterExpr::Cmp {
-        op,
-        lhs,
-        rhs: Expr::Const(rhs),
-    }
-}
-
-fn str_op(op: StrOp, lhs: Expr, rhs: Prop) -> FilterExpr {
-    FilterExpr::Str {
-        op,
-        lhs,
-        rhs: Expr::Const(rhs),
-    }
-}
-
-/// A legacy `operator + value` on an expression, with the value already in
-/// property-filter shape (a single value, a set, or nothing).
-fn leaf(
-    lhs: Expr,
-    op: FilterOperator,
-    value: PropertyFilterValue,
-) -> Result<FilterExpr, GraphError> {
-    use FilterOperator as FO;
-    use PropertyFilterValue as V;
-    Ok(match (op, value) {
-        (FO::Eq, V::Single(v)) => cmp(CmpOp::Eq, lhs, v),
-        (FO::Ne, V::Single(v)) => cmp(CmpOp::Ne, lhs, v),
-        (FO::Gt, V::Single(v)) => cmp(CmpOp::Gt, lhs, v),
-        (FO::Ge, V::Single(v)) => cmp(CmpOp::Ge, lhs, v),
-        (FO::Lt, V::Single(v)) => cmp(CmpOp::Lt, lhs, v),
-        (FO::Le, V::Single(v)) => cmp(CmpOp::Le, lhs, v),
-        (FO::StartsWith, V::Single(v)) => str_op(StrOp::StartsWith, lhs, v),
-        (FO::EndsWith, V::Single(v)) => str_op(StrOp::EndsWith, lhs, v),
-        (FO::Contains, V::Single(v)) => str_op(StrOp::Contains, lhs, v),
-        (FO::NotContains, V::Single(v)) => str_op(StrOp::NotContains, lhs, v),
-        (
-            FO::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            },
-            V::Single(v),
-        ) => str_op(
-            StrOp::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            },
-            lhs,
-            v,
-        ),
-        (FO::IsIn, V::Set(values)) => FilterExpr::In {
-            expr: lhs,
-            values: values.iter().cloned().collect(),
-            negated: false,
-        },
-        (FO::IsNotIn, V::Set(values)) => FilterExpr::In {
-            expr: lhs,
-            values: values.iter().cloned().collect(),
-            negated: true,
-        },
-        (FO::IsSome, V::None) => FilterExpr::IsSome(lhs),
-        (FO::IsNone, V::None) => FilterExpr::IsNone(lhs),
-        (op, _) => {
-            return Err(invalid(format!(
-                "operator {op:?} received an incompatible value shape"
-            )))
-        }
+fn read(entity: GqlEntity, target: GqlTarget) -> GqlExpr {
+    GqlExpr::Read(GqlRead {
+        entity,
+        views: None,
+        endpoint: None,
+        target,
     })
 }
 
-/// The same for a built-in field, whose legacy value is a string or an id.
-fn field_leaf(lhs: Expr, op: FilterOperator, value: FilterValue) -> Result<FilterExpr, GraphError> {
-    let single = match value {
-        FilterValue::ID(gid) => PropertyFilterValue::Single(gid.into_prop()),
-        FilterValue::Single(s) => PropertyFilterValue::Single(Prop::str(s)),
-        FilterValue::IDSet(gids) => PropertyFilterValue::Set(std::sync::Arc::new(
-            gids.iter().map(|g| g.clone().into_prop()).collect(),
-        )),
-        FilterValue::Set(strings) => PropertyFilterValue::Set(std::sync::Arc::new(
-            strings.iter().map(|s| Prop::str(s.to_string())).collect(),
-        )),
-    };
-    let single = match (&op, single) {
-        (FilterOperator::IsSome | FilterOperator::IsNone, _) => PropertyFilterValue::None,
-        (_, v) => v,
-    };
-    leaf(lhs, op, single)
+fn cmp(lhs: GqlExpr, value: &Value) -> GqlCmp {
+    GqlCmp {
+        lhs,
+        rhs: GqlExpr::Const(value.clone()),
+    }
+}
+
+fn fuzzy(lhs: GqlExpr, f: &FuzzySearchExpr) -> GqlFilterExpr {
+    GqlFilterExpr::FuzzySearch(GqlFuzzyCmp {
+        lhs,
+        rhs: GqlExpr::Const(Value::Str(f.value.clone())),
+        levenshtein_distance: f.levenshtein_distance,
+        prefix_match: f.prefix_match,
+    })
+}
+
+fn membership(lhs: GqlExpr, values: &Value) -> GqlMembership {
+    GqlMembership {
+        expr: lhs,
+        values: values.clone(),
+    }
+}
+
+fn presence(lhs: GqlExpr, some: bool) -> GqlFilterExpr {
+    if some {
+        GqlFilterExpr::IsSome(Wrapped::from(lhs))
+    } else {
+        GqlFilterExpr::IsNone(Wrapped::from(lhs))
+    }
 }
 
 /// A legacy property condition: qualifiers and aggregates wrap the *condition*,
 /// so each one moves onto the expression they qualify; `and`/`or`/`not` inside
 /// a condition become combinators over copies of the expression.
-fn prop_condition(lhs: Expr, name: &str, cond: &PropCondition) -> Result<FilterExpr, GraphError> {
+fn prop_condition(lhs: GqlExpr, cond: &PropCondition) -> Result<GqlFilterExpr, GraphError> {
+    use GqlFilterExpr as F;
     use PropCondition::*;
-    let over = |wrap: fn(Box<Expr>) -> Expr, inner: &PropCondition| {
-        prop_condition(wrap(Box::new(lhs.clone())), name, inner)
+    let over = |wrap: fn(Wrapped<GqlExpr>) -> GqlExpr, inner: &PropCondition| {
+        prop_condition(wrap(Wrapped::from(lhs.clone())), inner)
     };
-    match cond {
-        And(list) => Ok(FilterExpr::And(all(
-            list.iter().map(|c| prop_condition(lhs.clone(), name, c)),
+    Ok(match cond {
+        Eq(v) => F::Eq(cmp(lhs, v)),
+        Ne(v) => F::Ne(cmp(lhs, v)),
+        Gt(v) => F::Gt(cmp(lhs, v)),
+        Ge(v) => F::Ge(cmp(lhs, v)),
+        Lt(v) => F::Lt(cmp(lhs, v)),
+        Le(v) => F::Le(cmp(lhs, v)),
+        StartsWith(v) => F::StartsWith(cmp(lhs, v)),
+        EndsWith(v) => F::EndsWith(cmp(lhs, v)),
+        Contains(v) => F::Contains(cmp(lhs, v)),
+        NotContains(v) => F::NotContains(cmp(lhs, v)),
+        FuzzySearch(f) => fuzzy(lhs, f),
+        IsIn(v) => F::IsIn(membership(lhs, v)),
+        IsNotIn(v) => F::IsNotIn(membership(lhs, v)),
+        // `isSome: false` is `isNone`, and the other way round.
+        IsSome(wanted) => presence(lhs, *wanted),
+        IsNone(wanted) => presence(lhs, !*wanted),
+        And(list) => F::And(all(
+            list.iter().map(|c| prop_condition(lhs.clone(), c)),
             "and",
-        )?)),
-        Or(list) => Ok(FilterExpr::Or(all(
-            list.iter().map(|c| prop_condition(lhs.clone(), name, c)),
+        )?),
+        Or(list) => F::Or(all(
+            list.iter().map(|c| prop_condition(lhs.clone(), c)),
             "or",
-        )?)),
-        Not(inner) => Ok(FilterExpr::Not(Box::new(prop_condition(
-            lhs,
-            name,
-            inner.deref(),
-        )?))),
-        First(inner) => over(|e| Expr::Agg(Agg::First, e), inner),
-        Last(inner) => over(|e| Expr::Agg(Agg::Last, e), inner),
-        Sum(inner) => over(|e| Expr::Agg(Agg::Sum, e), inner),
-        Avg(inner) => over(|e| Expr::Agg(Agg::Avg, e), inner),
-        Min(inner) => over(|e| Expr::Agg(Agg::Min, e), inner),
-        Max(inner) => over(|e| Expr::Agg(Agg::Max, e), inner),
-        Len(inner) => over(|e| Expr::Agg(Agg::Len, e), inner),
-        Any(inner) => over(|e| Expr::Qual(Qual::Any, e), inner),
-        All(inner) => over(|e| Expr::Qual(Qual::All, e), inner),
-        leaf_cond => {
-            let (op, value) = translate_prop_leaf_to_filter(name, leaf_cond)?;
-            leaf(lhs, op, value)
-        }
+        )?),
+        Not(inner) => F::Not(Wrapped::from(prop_condition(lhs, inner.deref())?)),
+        First(inner) => over(GqlExpr::First, inner)?,
+        Last(inner) => over(GqlExpr::Last, inner)?,
+        Sum(inner) => over(GqlExpr::Sum, inner)?,
+        Avg(inner) => over(GqlExpr::Avg, inner)?,
+        Min(inner) => over(GqlExpr::Min, inner)?,
+        Max(inner) => over(GqlExpr::Max, inner)?,
+        Len(inner) => over(GqlExpr::Len, inner)?,
+        Any(inner) => over(GqlExpr::Any, inner)?,
+        All(inner) => over(GqlExpr::All, inner)?,
+    })
+}
+
+/// A legacy condition on a built-in node field.
+fn field_condition(lhs: GqlExpr, cond: &NodeFieldCondition) -> GqlFilterExpr {
+    use GqlFilterExpr as F;
+    use NodeFieldCondition::*;
+    match cond {
+        Eq(v) => F::Eq(cmp(lhs, v)),
+        Ne(v) => F::Ne(cmp(lhs, v)),
+        Gt(v) => F::Gt(cmp(lhs, v)),
+        Ge(v) => F::Ge(cmp(lhs, v)),
+        Lt(v) => F::Lt(cmp(lhs, v)),
+        Le(v) => F::Le(cmp(lhs, v)),
+        StartsWith(v) => F::StartsWith(cmp(lhs, v)),
+        EndsWith(v) => F::EndsWith(cmp(lhs, v)),
+        Contains(v) => F::Contains(cmp(lhs, v)),
+        NotContains(v) => F::NotContains(cmp(lhs, v)),
+        FuzzySearch(f) => fuzzy(lhs, f),
+        IsIn(v) => F::IsIn(membership(lhs, v)),
+        IsNotIn(v) => F::IsNotIn(membership(lhs, v)),
     }
 }
 
-fn read(entity: Entity, target: Target) -> Expr {
-    Expr::Read {
-        scope: Scope::new(entity),
-        target,
-    }
-}
-
-fn node_field(
-    field: NodeField,
-    tree_field: Field,
-    cond: &NodeFieldCondition,
-) -> Result<FilterExpr, GraphError> {
-    let (_, value, op) = translate_node_field_where(field, cond)?;
-    field_leaf(read(Entity::Node, Target::Field(tree_field)), op, value)
-}
-
-fn bool_leaf(filter: FilterExpr, wanted: bool) -> FilterExpr {
+fn bool_leaf(filter: GqlFilterExpr, wanted: bool) -> GqlFilterExpr {
     if wanted {
         filter
     } else {
-        FilterExpr::Not(Box::new(filter))
+        GqlFilterExpr::Not(Wrapped::from(filter))
     }
+}
+
+fn structural(entity: GqlEntity) -> GqlScope {
+    GqlScope {
+        entity,
+        views: None,
+        endpoint: None,
+    }
+}
+
+fn window(start: &GqlTimeInput, end: &GqlTimeInput) -> GqlViewOp {
+    GqlViewOp::Window(Window {
+        start: start.clone(),
+        end: end.clone(),
+    })
 }
 
 // ── the three entity grammars ────────────────────────────────────────────────
 
-pub(crate) fn lower_node_filter(filter: &GqlNodeFilter) -> Result<FilterExpr, GraphError> {
+pub(crate) fn lower_node_filter(filter: &GqlNodeFilter) -> Result<GqlFilterExpr, GraphError> {
     use GqlNodeFilter::*;
-    let entity = Entity::Node;
+    let entity = GqlEntity::Node;
+    let field = |f: GqlNodeField| read(entity, GqlTarget::Field(f));
     Ok(match filter {
-        Id(f) => node_field(NodeField::NodeId, Field::Id, &f.where_)?,
-        Name(f) => node_field(NodeField::NodeName, Field::Name, &f.where_)?,
-        NodeType(f) => node_field(NodeField::NodeType, Field::NodeType, &f.where_)?,
-        Degree(d) => prop_condition(
-            read(entity, Target::Degree(d.direction.into())),
-            &String::from(d.direction),
-            &d.where_,
-        )?,
-        Property(p) => prop_condition(
-            read(entity, Target::Property(p.name.clone())),
-            &p.name,
-            &p.where_,
-        )?,
-        Metadata(p) => prop_condition(
-            read(entity, Target::Metadata(p.name.clone())),
-            &p.name,
-            &p.where_,
-        )?,
+        Id(f) => field_condition(field(GqlNodeField::Id), &f.where_),
+        Name(f) => field_condition(field(GqlNodeField::Name), &f.where_),
+        NodeType(f) => field_condition(field(GqlNodeField::NodeType), &f.where_),
+        Degree(d) => prop_condition(read(entity, GqlTarget::Degree(d.direction)), &d.where_)?,
+        Property(p) => {
+            prop_condition(read(entity, GqlTarget::Property(p.name.clone())), &p.where_)?
+        }
+        Metadata(p) => {
+            prop_condition(read(entity, GqlTarget::Metadata(p.name.clone())), &p.where_)?
+        }
         TemporalProperty(p) => prop_condition(
-            Expr::Temporal(Box::new(read(entity, Target::Property(p.name.clone())))),
-            &p.name,
+            GqlExpr::Temporal(Wrapped::from(read(
+                entity,
+                GqlTarget::Property(p.name.clone()),
+            ))),
             &p.where_,
         )?,
-        And(list) => FilterExpr::And(all(list.iter().map(lower_node_filter), "and")?),
-        Or(list) => FilterExpr::Or(all(list.iter().map(lower_node_filter), "or")?),
-        Not(inner) => FilterExpr::Not(Box::new(lower_node_filter(inner.deref())?)),
-        Window(w) => scoped(
-            lower_node_filter(w.expr.deref())?,
-            ViewOp::Window {
-                start: w.start.clone().into_time(),
-                end: w.end.clone().into_time(),
-            },
-        ),
+        And(list) => GqlFilterExpr::And(all(list.iter().map(lower_node_filter), "and")?),
+        Or(list) => GqlFilterExpr::Or(all(list.iter().map(lower_node_filter), "or")?),
+        Not(inner) => GqlFilterExpr::Not(Wrapped::from(lower_node_filter(inner.deref())?)),
+        Window(w) => scoped(lower_node_filter(w.expr.deref())?, window(&w.start, &w.end)),
         At(t) => scoped(
             lower_node_filter(t.expr.deref())?,
-            ViewOp::At(t.time.clone().into_time()),
+            GqlViewOp::At(t.time.clone()),
         ),
         Before(t) => scoped(
             lower_node_filter(t.expr.deref())?,
-            ViewOp::Before(t.time.clone().into_time()),
+            GqlViewOp::Before(t.time.clone()),
         ),
         After(t) => scoped(
             lower_node_filter(t.expr.deref())?,
-            ViewOp::After(t.time.clone().into_time()),
+            GqlViewOp::After(t.time.clone()),
         ),
-        Latest(u) => scoped(lower_node_filter(u.expr.deref())?, ViewOp::Latest),
+        Latest(u) => scoped(lower_node_filter(u.expr.deref())?, GqlViewOp::Latest(true)),
         SnapshotAt(t) => scoped(
             lower_node_filter(t.expr.deref())?,
-            ViewOp::SnapshotAt(t.time.clone().into_time()),
+            GqlViewOp::SnapshotAt(t.time.clone()),
         ),
-        SnapshotLatest(u) => scoped(lower_node_filter(u.expr.deref())?, ViewOp::SnapshotLatest),
+        SnapshotLatest(u) => scoped(
+            lower_node_filter(u.expr.deref())?,
+            GqlViewOp::SnapshotLatest(true),
+        ),
         Layers(l) => scoped(
             lower_node_filter(l.expr.deref())?,
-            ViewOp::Layers(l.names.clone()),
+            GqlViewOp::Layers(l.names.clone()),
         ),
-        IsActive(wanted) => bool_leaf(
-            FilterExpr::Structural {
-                scope: Scope::new(entity),
-                pred: Structural::IsActive,
-            },
-            *wanted,
-        ),
+        IsActive(wanted) => bool_leaf(GqlFilterExpr::IsActive(structural(entity)), *wanted),
     })
 }
 
@@ -345,136 +344,107 @@ pub(crate) fn lower_node_filter(filter: &GqlNodeFilter) -> Result<FilterExpr, Gr
 /// one body serves both, parameterised by the entity the reads belong to.
 macro_rules! lower_edge_like {
     ($name:ident, $ty:ident, $entity:expr) => {
-        pub(crate) fn $name(filter: &$ty) -> Result<FilterExpr, GraphError> {
+        pub(crate) fn $name(filter: &$ty) -> Result<GqlFilterExpr, GraphError> {
             use $ty::*;
             let entity = $entity;
-            let structural = |pred: Structural, wanted: bool| {
-                bool_leaf(
-                    FilterExpr::Structural {
-                        scope: Scope::new(entity),
-                        pred,
-                    },
-                    wanted,
-                )
+            let pred = |mk: fn(GqlScope) -> GqlFilterExpr, wanted: bool| {
+                bool_leaf(mk(structural(entity)), wanted)
             };
             Ok(match filter {
-                Src(inner) => through(lower_node_filter(inner.deref())?, entity, Endpoint::Src),
-                Dst(inner) => through(lower_node_filter(inner.deref())?, entity, Endpoint::Dst),
-                Property(p) => prop_condition(
-                    read(entity, Target::Property(p.name.clone())),
-                    &p.name,
-                    &p.where_,
-                )?,
-                Metadata(p) => prop_condition(
-                    read(entity, Target::Metadata(p.name.clone())),
-                    &p.name,
-                    &p.where_,
-                )?,
+                Src(inner) => through(lower_node_filter(inner.deref())?, entity, GqlEndpoint::Src),
+                Dst(inner) => through(lower_node_filter(inner.deref())?, entity, GqlEndpoint::Dst),
+                Property(p) => {
+                    prop_condition(read(entity, GqlTarget::Property(p.name.clone())), &p.where_)?
+                }
+                Metadata(p) => {
+                    prop_condition(read(entity, GqlTarget::Metadata(p.name.clone())), &p.where_)?
+                }
                 TemporalProperty(p) => prop_condition(
-                    Expr::Temporal(Box::new(read(entity, Target::Property(p.name.clone())))),
-                    &p.name,
+                    GqlExpr::Temporal(Wrapped::from(read(
+                        entity,
+                        GqlTarget::Property(p.name.clone()),
+                    ))),
                     &p.where_,
                 )?,
-                And(list) => FilterExpr::And(all(list.iter().map($name), "and")?),
-                Or(list) => FilterExpr::Or(all(list.iter().map($name), "or")?),
-                Not(inner) => FilterExpr::Not(Box::new($name(inner.deref())?)),
-                Window(w) => scoped(
-                    $name(w.expr.deref())?,
-                    ViewOp::Window {
-                        start: w.start.clone().into_time(),
-                        end: w.end.clone().into_time(),
-                    },
-                ),
-                At(t) => scoped(
-                    $name(t.expr.deref())?,
-                    ViewOp::At(t.time.clone().into_time()),
-                ),
-                Before(t) => scoped(
-                    $name(t.expr.deref())?,
-                    ViewOp::Before(t.time.clone().into_time()),
-                ),
-                After(t) => scoped(
-                    $name(t.expr.deref())?,
-                    ViewOp::After(t.time.clone().into_time()),
-                ),
-                Latest(u) => scoped($name(u.expr.deref())?, ViewOp::Latest),
+                And(list) => GqlFilterExpr::And(all(list.iter().map($name), "and")?),
+                Or(list) => GqlFilterExpr::Or(all(list.iter().map($name), "or")?),
+                Not(inner) => GqlFilterExpr::Not(Wrapped::from($name(inner.deref())?)),
+                Window(w) => scoped($name(w.expr.deref())?, window(&w.start, &w.end)),
+                At(t) => scoped($name(t.expr.deref())?, GqlViewOp::At(t.time.clone())),
+                Before(t) => scoped($name(t.expr.deref())?, GqlViewOp::Before(t.time.clone())),
+                After(t) => scoped($name(t.expr.deref())?, GqlViewOp::After(t.time.clone())),
+                Latest(u) => scoped($name(u.expr.deref())?, GqlViewOp::Latest(true)),
                 SnapshotAt(t) => scoped(
                     $name(t.expr.deref())?,
-                    ViewOp::SnapshotAt(t.time.clone().into_time()),
+                    GqlViewOp::SnapshotAt(t.time.clone()),
                 ),
-                SnapshotLatest(u) => scoped($name(u.expr.deref())?, ViewOp::SnapshotLatest),
-                Layers(l) => scoped($name(l.expr.deref())?, ViewOp::Layers(l.names.clone())),
-                IsActive(v) => structural(Structural::IsActive, *v),
-                IsValid(v) => structural(Structural::IsValid, *v),
-                IsDeleted(v) => structural(Structural::IsDeleted, *v),
-                IsSelfLoop(v) => structural(Structural::IsSelfLoop, *v),
+                SnapshotLatest(u) => {
+                    scoped($name(u.expr.deref())?, GqlViewOp::SnapshotLatest(true))
+                }
+                Layers(l) => scoped($name(l.expr.deref())?, GqlViewOp::Layers(l.names.clone())),
+                IsActive(v) => pred(GqlFilterExpr::IsActive, *v),
+                IsValid(v) => pred(GqlFilterExpr::IsValid, *v),
+                IsDeleted(v) => pred(GqlFilterExpr::IsDeleted, *v),
+                IsSelfLoop(v) => pred(GqlFilterExpr::IsSelfLoop, *v),
             })
         }
     };
 }
 
-lower_edge_like!(lower_edge_filter, GqlEdgeFilter, Entity::Edge);
+lower_edge_like!(lower_edge_filter, GqlEdgeFilter, GqlEntity::Edge);
 lower_edge_like!(
     lower_exploded_edge_filter,
     GqlExplodedEdgeFilter,
-    Entity::ExplodedEdge
+    GqlEntity::ExplodedEdge
 );
 
 /// A legacy graph view nests inner-first: `window { expr: latest }` is the
 /// latest state, then the window. The tree lists ops in application order.
-pub(crate) fn lower_graph_filter(filter: &GqlGraphFilter) -> Result<Vec<ViewOp>, GraphError> {
+pub(crate) fn lower_graph_filter(filter: &GqlGraphFilter) -> Result<Vec<GqlViewOp>, GraphError> {
     use GqlGraphFilter::*;
-    let inner = |expr: &Option<crate::model::graph::filtering::Wrapped<GqlGraphFilter>>| {
+    let inner = |expr: &Option<Wrapped<GqlGraphFilter>>| {
         expr.as_ref()
             .map(|e| lower_graph_filter(e.deref()))
             .unwrap_or_else(|| Ok(Vec::new()))
     };
     let (mut ops, op) = match filter {
-        Window(w) => (
-            inner(&w.expr)?,
-            ViewOp::Window {
-                start: w.start.clone().into_time(),
-                end: w.end.clone().into_time(),
-            },
-        ),
-        At(t) => (inner(&t.expr)?, ViewOp::At(t.time.clone().into_time())),
-        Before(t) => (inner(&t.expr)?, ViewOp::Before(t.time.clone().into_time())),
-        After(t) => (inner(&t.expr)?, ViewOp::After(t.time.clone().into_time())),
-        Latest(u) => (inner(&u.expr)?, ViewOp::Latest),
-        SnapshotAt(t) => (
-            inner(&t.expr)?,
-            ViewOp::SnapshotAt(t.time.clone().into_time()),
-        ),
-        SnapshotLatest(u) => (inner(&u.expr)?, ViewOp::SnapshotLatest),
-        Layers(l) => (inner(&l.expr)?, ViewOp::Layers(l.names.clone())),
+        Window(w) => (inner(&w.expr)?, window(&w.start, &w.end)),
+        At(t) => (inner(&t.expr)?, GqlViewOp::At(t.time.clone())),
+        Before(t) => (inner(&t.expr)?, GqlViewOp::Before(t.time.clone())),
+        After(t) => (inner(&t.expr)?, GqlViewOp::After(t.time.clone())),
+        Latest(u) => (inner(&u.expr)?, GqlViewOp::Latest(true)),
+        SnapshotAt(t) => (inner(&t.expr)?, GqlViewOp::SnapshotAt(t.time.clone())),
+        SnapshotLatest(u) => (inner(&u.expr)?, GqlViewOp::SnapshotLatest(true)),
+        Layers(l) => (inner(&l.expr)?, GqlViewOp::Layers(l.names.clone())),
     };
     ops.push(op);
     Ok(ops)
 }
 
-/// Any legacy filter, as a tree.
-pub(crate) fn lower_filter(filter: &GqlFilter) -> Result<FilterExpr, GraphError> {
+/// Any filter, in the tree grammar. A filter already written as a tree passes
+/// through; every legacy spelling is converted.
+pub(crate) fn lower_filter(filter: &GqlFilter) -> Result<GqlFilterExpr, GraphError> {
     use GqlFilter::*;
     Ok(match filter {
-        GqlFilter::Expr(tree) => FilterExpr::try_from(tree.clone())?,
+        GqlFilter::Expr(tree) => tree.clone(),
         Node(f) => lower_node_filter(f)?,
         Edge(f) => lower_edge_filter(f)?,
         ExplodedEdge(f) => lower_exploded_edge_filter(f)?,
-        Graph(g) => FilterExpr::View(lower_graph_filter(g)?),
-        And(list) => FilterExpr::And(all(list.iter().map(lower_filter), "and")?),
-        Or(list) => FilterExpr::Or(all(list.iter().map(lower_filter), "or")?),
-        Not(inner) => FilterExpr::Not(Box::new(lower_filter(inner.deref())?)),
-        Window(w) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Window(w.clone()))?),
-        At(t) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::At(t.clone()))?),
-        Before(t) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Before(t.clone()))?),
-        After(t) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::After(t.clone()))?),
-        Latest(u) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Latest(u.clone()))?),
+        Graph(g) => GqlFilterExpr::View(lower_graph_filter(g)?),
+        And(list) => GqlFilterExpr::And(all(list.iter().map(lower_filter), "and")?),
+        Or(list) => GqlFilterExpr::Or(all(list.iter().map(lower_filter), "or")?),
+        Not(inner) => GqlFilterExpr::Not(Wrapped::from(lower_filter(inner.deref())?)),
+        Window(w) => GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::Window(w.clone()))?),
+        At(t) => GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::At(t.clone()))?),
+        Before(t) => GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::Before(t.clone()))?),
+        After(t) => GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::After(t.clone()))?),
+        Latest(u) => GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::Latest(u.clone()))?),
         SnapshotAt(t) => {
-            FilterExpr::View(lower_graph_filter(&GqlGraphFilter::SnapshotAt(t.clone()))?)
+            GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::SnapshotAt(t.clone()))?)
         }
-        SnapshotLatest(u) => FilterExpr::View(lower_graph_filter(
+        SnapshotLatest(u) => GqlFilterExpr::View(lower_graph_filter(
             &GqlGraphFilter::SnapshotLatest(u.clone()),
         )?),
-        Layers(l) => FilterExpr::View(lower_graph_filter(&GqlGraphFilter::Layers(l.clone()))?),
+        Layers(l) => GqlFilterExpr::View(lower_graph_filter(&GqlGraphFilter::Layers(l.clone()))?),
     })
 }

@@ -160,12 +160,14 @@ pub struct GqlFuzzyCmp {
     pub prefix_match: bool,
 }
 
+/// A membership test. `values` is a list; a policy may also leave a single
+/// placeholder here (`{"var": …}`) that resolves to the list per caller.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "Membership")]
 pub struct GqlMembership {
     pub expr: GqlExpr,
-    pub values: Vec<Value>,
+    pub values: Value,
 }
 
 /// The filter itself: a yes/no over an entity.
@@ -331,13 +333,14 @@ fn str_op(op: StrOp, c: GqlCmp) -> Result<tree::FilterExpr, GraphError> {
 }
 
 fn membership(m: GqlMembership, negated: bool) -> Result<tree::FilterExpr, GraphError> {
+    let op = if negated { "isNotIn" } else { "isIn" };
+    let values = match m.values {
+        Value::List(items) => items.into_iter().map(prop).collect::<Result<Vec<_>, _>>()?,
+        other => return Err(invalid(format!("{op} requires a list value, got {other}"))),
+    };
     Ok(tree::FilterExpr::In {
         expr: m.expr.try_into()?,
-        values: m
-            .values
-            .into_iter()
-            .map(prop)
-            .collect::<Result<Vec<_>, _>>()?,
+        values,
         negated,
     })
 }
@@ -571,7 +574,7 @@ impl TryFrom<&tree::FilterExpr> for GqlFilterExpr {
             } => {
                 let m = GqlMembership {
                     expr: expr.try_into()?,
-                    values: values.iter().map(value).collect::<Result<Vec<_>, _>>()?,
+                    values: Value::List(values.iter().map(value).collect::<Result<Vec<_>, _>>()?),
                 };
                 if *negated {
                     GqlFilterExpr::IsNotIn(m)

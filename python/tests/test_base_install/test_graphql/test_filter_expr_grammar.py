@@ -158,7 +158,12 @@ def test_combinators_presence_and_membership():
             {"not": {"startsWith": {"lhs": read({"field": "NAME"}), "rhs": const({"str": "a"})}}},
         ]
     }
-    members = {"isIn": {"expr": read({"field": "NAME"}), "values": [{"str": "alice"}, {"str": "dave"}]}}
+    members = {
+        "isIn": {
+            "expr": read({"field": "NAME"}),
+            "values": {"list": [{"str": "alice"}, {"str": "dave"}]},
+        }
+    }
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["bob", "dave"]
         assert node_names(client, members) == ["alice", "dave"]

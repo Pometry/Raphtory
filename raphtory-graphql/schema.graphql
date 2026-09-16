@@ -3480,9 +3480,13 @@ type Matching {
 	): Boolean!
 }
 
+"""
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+"""
 input Membership {
 	expr: Expr!
-	values: [Value!]!
+	values: Value!
 }
 
 """

@@ -7,6 +7,7 @@ use crate::{
     model::{
         blocking_io,
         graph::{
+            filter_expr_input::GqlFilterExpr,
             filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
@@ -368,6 +369,20 @@ impl Data {
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
+    /// Whether `filter` can be applied to the graph at `path`. `Ok(Err(_))` says the
+    /// filter itself does not fit that graph (a value of the wrong type for a property,
+    /// say); `Err(_)` says the graph could not be loaded. Policies use it to tell a
+    /// per-caller value that cannot be compared from a grant that is wrong.
+    pub async fn access_filter_applies(
+        &self,
+        path: &str,
+        filter: &GqlFilter,
+    ) -> Result<Result<(), GraphError>, GQLError> {
+        let graph = self.get_graph_unchecked(path).await?.graph().clone().into_dynamic();
+        let filter = filter.clone();
+        Ok(blocking_compute(move || compile_row_filter(graph, filter).map(|_| ())).await)
+    }
+
     async fn get_graph_unchecked(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
             .get_or_insert(path, self.read_graph_from_disk(path))
@@ -905,35 +920,45 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
-    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
+    compile_row_filter(graph, filter).map_err(|e| {
+        // The stage is logged with the engine's own message; the caller only learns that
+        // the grant is at fault, never what the filter said.
+        match e {
+            GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+                error!(error = %e, "access filter conversion failed")
+            }
+            _ => error!(error = %e, "access filter application failed"),
+        }
+        async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
+    })
+}
+
+/// The graph under a row filter, or the reason the filter cannot be applied to it.
+///
+/// `and` sub-filters are applied one after another, so a view (window, snapshot,
+/// layer) wraps the graph before the predicates that follow it run. The tree
+/// grammar spells the same conjunction as `expr: { and: [...] }`.
+fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
+    let filter = match filter {
+        GqlFilter::Expr(GqlFilterExpr::And(items)) => {
+            GqlFilter::And(items.into_iter().map(GqlFilter::Expr).collect())
+        }
+        other => other,
+    };
     if let GqlFilter::And(filters) = filter {
-        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
-        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
-        // combinator (which this shortcut path otherwise never reaches).
+        // An empty `and` folds to the graph unchanged — no restriction at all. Refused,
+        // matching `DynFilter::try_from`'s rejection of an empty combinator (which this
+        // shortcut path otherwise never reaches).
         if filters.is_empty() {
-            error!("empty 'and' access filter restricts nothing");
-            return Err(async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
+            return Err(GraphError::InvalidGqlFilter(
+                "empty 'and' access filter restricts nothing".into(),
             ));
         }
         return filters
             .into_iter()
-            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
+            .try_fold(graph, |g, f| compile_row_filter(g, f));
     }
-    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "access filter conversion failed");
-        async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
-    })?;
-    Ok(graph
-        .filter(dyn_filter)
-        .map_err(|e| {
-            error!(error = %e, "access filter application failed");
-            async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            )
-        })?
-        .into_dynamic())
+    Ok(graph.filter(DynFilter::try_from(filter)?)?.into_dynamic())
 }
 
 fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
