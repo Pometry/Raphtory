@@ -702,3 +702,47 @@ fn sum_over_a_nested_list_widens_only_the_innermost_level() {
     let filter = NodeFilter.property("xs").sum().eq(510u64).any();
     assert_eq!(filtered_names(filter, g), vec!["n"]);
 }
+
+// ── Numbers compare by value across widths and signedness ──────────────────
+
+/// A constant that does not fit the property's own type still compares by
+/// value: `u64::MAX` is above every `i64`, and a negative `i64` is below every
+/// `u64`. Declaring them incomparable made `risk <= 2^63+5` match nothing.
+#[test]
+fn numeric_constants_beyond_the_property_width_compare_by_value() {
+    let g = Graph::new();
+    g.add_node(0, "low", [("risk", 3i64.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "neg", [("risk", (-4i64).into_prop())], None, None)
+        .unwrap();
+    let all = vec!["low".to_string(), "neg".to_string()];
+    assert_eq!(
+        filtered_names(
+            NodeFilter.property("risk").le(Prop::U64(u64::MAX)),
+            g.clone()
+        ),
+        all
+    );
+    assert_eq!(
+        filtered_names(
+            NodeFilter.property("risk").le(Prop::U64(1u64 << 63 | 5)),
+            g.clone()
+        ),
+        all
+    );
+    assert_eq!(
+        filtered_names(
+            NodeFilter.property("risk").gt(Prop::U64(1u64 << 63)),
+            g.clone()
+        ),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        filtered_names(NodeFilter.property("risk").lt(Prop::U64(0)), g.clone()),
+        vec!["neg"]
+    );
+    assert_eq!(
+        filtered_names(NodeFilter.property("risk").le(Prop::U64(3)), g),
+        all
+    );
+}

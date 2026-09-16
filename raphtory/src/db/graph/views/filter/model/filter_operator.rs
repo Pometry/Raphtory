@@ -5,7 +5,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, GidRef, GID},
     storage::arc_str::ArcStr,
 };
-use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
+use std::{cmp::Ordering, collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -385,27 +385,19 @@ impl Comparable for usize {
 }
 
 impl Comparable for Prop {
+    /// Numbers compare by value whatever their width or sign — `i64(3)` is
+    /// below `u64::MAX`, `1i64` equals `1.0f64` — exactly, through `i128` and
+    /// `Decimal`, the way the property filters always have. Every other type
+    /// compares structurally.
     fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
         use std::cmp::Ordering::*;
-
-        // Try casting right to left's type for cross-type numeric comparisons
-        // (e.g. Prop::I32(1) vs Prop::U64(1), or Prop::F64(3.0) vs Prop::U64(3)).
-        let right_casted = right.clone().try_cast(left.dtype());
-        let right = right_casted.as_ref().unwrap_or(right);
-
         match op {
-            BinaryOp::Eq => left == right,
-            BinaryOp::Ne => left != right,
-            BinaryOp::Lt => left.partial_cmp(right).map(|o| o == Less).unwrap_or(false),
-            BinaryOp::Le => left
-                .partial_cmp(right)
-                .map(|o| o != Greater)
-                .unwrap_or(false),
-            BinaryOp::Gt => left
-                .partial_cmp(right)
-                .map(|o| o == Greater)
-                .unwrap_or(false),
-            BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
+            BinaryOp::Eq => left.equals(right),
+            BinaryOp::Ne => !left.equals(right),
+            BinaryOp::Lt => left.compare(right) == Some(Less),
+            BinaryOp::Le => matches!(left.compare(right), Some(Less | Equal)),
+            BinaryOp::Gt => left.compare(right) == Some(Greater),
+            BinaryOp::Ge => matches!(left.compare(right), Some(Greater | Equal)),
         }
     }
 }
