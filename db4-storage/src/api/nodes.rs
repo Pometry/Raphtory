@@ -1,12 +1,25 @@
+use crate::{
+    LocalPOS,
+    error::StorageError,
+    generic_time_ops::LayerIter,
+    pages::node_store::increment_and_clamp,
+    persist::strategy::PersistenceStrategy,
+    segments::node::segment::MemNodeSegment,
+    utils::{Iter2, Iter3, Iter4},
+    wal::LSN,
+};
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::{
     core::{
         Direction,
-        entities::properties::{
-            meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID},
-            prop::{AsPropRef, Prop, PropUnwrap},
-            tprop::TPropOps,
+        entities::{
+            LayerId,
+            properties::{
+                meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+                prop::{AsPropRef, Prop, PropUnwrap, prop_hashable::HashableProp},
+                tprop::TPropOps,
+            },
         },
     },
     iter::IntoDynBoxed,
@@ -17,6 +30,8 @@ use raphtory_core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
+use raphtory_itertools::FastMergeExt;
+use rayon::prelude::*;
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -28,23 +43,6 @@ use std::{
         atomic::{AtomicU32, Ordering},
     },
 };
-
-use crate::{
-    LocalPOS,
-    error::StorageError,
-    generic_time_ops::LayerIter,
-    pages::node_store::increment_and_clamp,
-    persist::strategy::PersistenceStrategy,
-    segments::node::segment::MemNodeSegment,
-    utils::{Iter2, Iter3, Iter4},
-    wal::LSN,
-};
-use raphtory_api::core::entities::{
-    LayerId,
-    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::prop_hashable::HashableProp},
-};
-use raphtory_itertools::FastMergeExt;
-use rayon::prelude::*;
 
 /// A property predicate a storage backend may resolve to candidate rows via a
 /// secondary index. String operators use the semantics of the corresponding
@@ -185,7 +183,7 @@ pub type NodeTypeIndexOf<NS> = <<NS as NodeSegmentOps>::Extension as Persistence
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
-    type Entry<'a>: NodeEntryOps<'a>
+    type Entry<'a>: NodeEntryOps + 'a
     where
         Self: 'a;
 
@@ -314,16 +312,15 @@ pub trait LockedNSSegment: Debug + Send + Sync {
     }
 }
 
-pub trait NodeEntryOps<'a>: Send + Sync + 'a {
+pub trait NodeEntryOps: Send + Sync {
     type Ref<'b>: NodeRefOps<'b>
     where
-        'a: 'b,
         Self: 'b;
 
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b;
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b>;
+}
 
+pub trait IntoEdges<'a>: NodeEntryOps + Send + Sync + 'a {
     fn into_edges<'b: 'a>(
         self,
         layers: &'b LayerIds,
@@ -338,9 +335,13 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
     }
 }
 
+impl<'a, T: NodeEntryOps + Send + Sync + 'a> IntoEdges<'a> for T {}
+
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type Additions: TimeIndexOps<'a, IndexType = EventTime>;
     type EdgeAdditions: TimeIndexOps<'a, IndexType = EventTime>;
+
+    type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
     fn out_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
@@ -446,14 +447,15 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         }
     }
 
-    fn node_meta(&self) -> &Arc<Meta>;
+    fn node_meta(self) -> &'a Arc<Meta>;
 
-    fn temp_prop_rows(
+    fn t_prop_rows<L: Into<LayerIter<'a>>>(
         self,
         w: Option<Range<EventTime>>,
         prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
-        (0..self.internal_num_layers()).flat_map(move |layer_id| {
+        layers: L,
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + 'a {
+        self.layer_ids_iter(layers).flat_map(move |layer_id| {
             let w = w.clone();
             let prop_ids = Arc::clone(&prop_ids);
             let additions = self.node_additions(layer_id);
@@ -466,7 +468,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 .iter()
                 .copied()
                 .map(move |prop_id| {
-                    self.temporal_prop_layer(LayerId(layer_id), prop_id)
+                    self.t_prop(layer_id, prop_id)
                         .iter_inner(w.clone())
                         .map(move |(t, prop)| (t, (prop_id, prop)))
                 })
@@ -538,11 +540,39 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions;
 
+    fn node_deletions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Deletions;
+
+    fn node_updates_iter<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> impl Iterator<Item = (LayerId, Self::Additions, Self::Deletions)> + 'a {
+        self.layer_ids_iter(layer_ids).map(move |layer_id| {
+            (
+                layer_id,
+                self.node_additions(layer_id),
+                self.node_deletions(layer_id),
+            )
+        })
+    }
+
     fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn c_prop_str(self, layer_id: LayerId, prop_id: usize) -> Option<&'a str>;
 
-    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
+    fn t_prop<L: Into<LayerIter<'a>>>(self, layer_ids: L, prop_id: usize) -> Self::TProps;
+
+    /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
+    /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
+    /// explicit layer name).  This mirrors the behaviour of `layer_ids_with_static`
+    /// used for node additions: unlayered nodes must be visible in every view.
+    fn t_prop_iter_layers<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (LayerId, Self::TProps)> + Send + Sync + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.t_prop(id, prop_id)))
+    }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
@@ -568,7 +598,22 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             .map_or(0, |id| id as usize)
     }
 
-    fn internal_num_layers(&self) -> usize;
+    fn num_layers(&self) -> usize;
 
-    fn has_layer_inner(self, layer_id: LayerId) -> bool;
+    fn has_layer(self, layer_id: LayerId) -> bool;
+
+    fn layer_ids_iter<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
+        layer_ids
+            .into()
+            .into_iter(self.num_layers())
+            .filter(move |layer| self.has_layer(*layer))
+    }
+
+    fn has_layer_additions<L: Into<LayerIter<'a>>>(self, layer_ids: L) -> bool {
+        let layers = layer_ids.into();
+        !self.node_additions(layers).is_empty() || !self.edge_additions(layers).is_empty()
+    }
 }

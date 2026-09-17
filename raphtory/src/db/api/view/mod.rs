@@ -34,6 +34,7 @@ pub use raphtory_api::{
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
 pub use sort::{EdgeSortBy, EdgeSortKey, NodeSortBy, NodeSortKey, SortByTime};
+use storage::api::nodes::NodeEntryOps;
 pub use time::*;
 
 #[self_referencing]
@@ -72,7 +73,8 @@ pub(crate) fn node_edges<'graph, G: GraphView + 'graph>(
         view,
         node_builder: |view| view.core_node(node),
         iter_builder: move |node, graph| {
-            node.filtered_edges_iter(graph, graph.layer_ids(), dir)
+            node.as_ref()
+                .filtered_edges_iter(graph, graph.layer_ids(), dir)
                 .into_dyn_boxed()
         },
         marker: Default::default(),

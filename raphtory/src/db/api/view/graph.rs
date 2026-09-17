@@ -52,14 +52,15 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-    nodes::node_storage_ops::NodeStorageOps,
-};
+use raphtory_storage::graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
-use storage::{persist::strategy::PersistenceStrategy, Extension};
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    persist::strategy::PersistenceStrategy,
+    Config, Extension,
+};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -890,9 +891,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
-        if self.internal_nodes_filtered()
-            && !self.internal_filter_node(src_node.as_ref(), layer_ids)
-        {
+        let src_node = src_node.as_ref();
+        if self.internal_nodes_filtered() && !self.internal_filter_node(src_node, layer_ids) {
             return None;
         }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;

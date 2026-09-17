@@ -123,6 +123,16 @@ pub trait GraphWalOps {
         layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
+    fn log_delete_node(
+        &self,
+        transaction_id: TransactionID,
+        t: EventTime,
+        node_name: Option<GidRef<'_>>,
+        node_id: VID,
+        layer_name: Option<&str>,
+        layer_id: LayerId,
+    ) -> Result<LSN, StorageError>;
+
     fn log_add_node_metadata(
         &self,
         transaction_id: TransactionID,
@@ -225,6 +235,17 @@ pub trait GraphReplay {
         node_id: VID,
         node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
+        layer_name: Option<String>,
+        layer_id: LayerId,
+    ) -> Result<(), StorageError>;
+
+    fn replay_delete_node(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        t: EventTime,
+        node_name: Option<GID>,
+        node_id: VID,
         layer_name: Option<String>,
         layer_id: LayerId,
     ) -> Result<(), StorageError>;

@@ -111,6 +111,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
@@ -118,6 +119,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
@@ -140,6 +142,7 @@ pub trait NodeTimeSemanticsOps {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
 
@@ -147,6 +150,7 @@ pub trait NodeTimeSemanticsOps {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
 
@@ -154,6 +158,7 @@ pub trait NodeTimeSemanticsOps {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
@@ -162,6 +167,7 @@ pub trait NodeTimeSemanticsOps {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
