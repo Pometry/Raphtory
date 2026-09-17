@@ -501,8 +501,8 @@ where
     ///
     /// Creates `dst` if it does not exist. Assumes the graph has been flushed
     /// to disk.
-    pub fn copy_to(&self, dst: impl AsRef<Path>) -> Result<(), StorageError> {
-        let dst = GraphDir::from(dst.as_ref());
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        let dst = GraphDir::from(dst);
         std::fs::create_dir_all(dst.path())?;
 
         let config = self.graph.extension().config();
@@ -525,7 +525,6 @@ where
         control_file.save()?;
         control_file.copy_to(dst.path())?;
 
-        // After checkpointing, copy over the latest WAL file to the destination.
         wal.copy_tail_to(&dst.wal())?;
 
         Ok(())

@@ -5,15 +5,17 @@ use raphtory_api::core::storage::graph_folder::{
 use storage::{error::StorageError, Extension};
 use thiserror::Error;
 
-/// Represents a temporary graph that holds uncommitted writes.
+use crate::graph::graph::GraphStorage;
+
+/// Represents a graph forked from an existing graph.
 pub struct StagedGraph<'a> {
-    graph: WriteLockedGraph<'a, Extension>,
+    staged_graph: GraphStorage,
 
-    /// The original graph folder (points at the live `.raph` data).
-    graph_folder: GraphFolder,
+    staged_folder: WriteableGraphFolder,
 
-    /// The in-progress swap folder (points at the `.dirty` staging data).
-    writeable_folder: WriteableGraphFolder,
+    live_graph: WriteLockedGraph<'a, Extension>,
+
+    live_folder: GraphFolder,
 }
 
 pub trait StagingOps {
@@ -22,23 +24,23 @@ pub trait StagingOps {
 
 impl<'a> StagedGraph<'a> {
     pub fn new(
-        graph: WriteLockedGraph<'a, Extension>,
-        graph_folder: GraphFolder,
-        writeable_folder: WriteableGraphFolder,
+        staged_graph: GraphStorage,
+        staged_folder: WriteableGraphFolder,
+        live_graph: WriteLockedGraph<'a, Extension>,
+        live_folder: GraphFolder,
     ) -> Self {
         Self {
-            graph,
-            graph_folder,
-            writeable_folder,
+            staged_graph,
+            staged_folder,
+            live_graph,
+            live_folder,
         }
     }
 
     pub fn commit(self) -> Result<(), StagingError> {
         // FIXME: Update metadata here.
 
-        self.writeable_folder
-            .finish()
-            .map_err(StagingError::Commit)?;
+        self.staged_folder.finish().map_err(StagingError::Commit)?;
 
         Ok(())
     }

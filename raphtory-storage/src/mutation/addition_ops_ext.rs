@@ -1,5 +1,6 @@
 use crate::{
     durability_ops::DurabilityOps,
+    graph::graph::GraphStorage,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
         MutationError, NodeWriterT,
@@ -38,7 +39,7 @@ use storage::{
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
+    Config, ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -757,31 +758,37 @@ impl RecoveryOps for TemporalGraph {}
 impl StagingOps for TemporalGraph {
     fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
         // Acquire full write locks to flush and prevent writes during staging.
-        let mut write_locked_graph = self.write_locked_graph();
+        let mut live_graph = self.write_locked_graph();
 
         // Make sure graph is on disk before creating hard links.
-        write_locked_graph.flush()?;
+        live_graph.flush()?;
 
-        let graph_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
-        let graph_folder = GraphFolder::from_graph_path(graph_path)?;
+        let live_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
+        let live_folder = GraphFolder::from_graph_path(live_path)?;
 
-        // Create a new data folder to hold the staged graph.
-        let writeable_folder = graph_folder
+        let staged_folder = live_folder
             .clone()
             .init_swap()
             .map_err(StagingError::InitStagingDir)?;
 
-        let graph_path = writeable_folder
+        let staged_path = staged_folder
             .graph_path()
             .map_err(StagingError::InitStagingDir)?;
 
-        // Copy graph to the new data folder.
-        write_locked_graph.copy_to(graph_path)?;
+        // Copy existing data to the staged graph to create a fork.
+        live_graph.copy_to(&staged_path)?;
+
+        // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
+        let config = Config::load_from_dir(&staged_path)?;
+        let extension = Extension::load(&staged_path, config)?;
+        let temporal_graph = TemporalGraph::<Extension>::load(staged_path, extension)?;
+        let staged_graph = GraphStorage::from(temporal_graph);
 
         Ok(StagedGraph::new(
-            write_locked_graph,
-            graph_folder,
-            writeable_folder,
+            staged_graph,
+            staged_folder,
+            live_graph,
+            live_folder,
         ))
     }
 }
