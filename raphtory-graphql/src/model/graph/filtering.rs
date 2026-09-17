@@ -15,7 +15,7 @@ use raphtory::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::properties::prop::{prop_hashable::HashableProp, Prop};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, ops::Deref, sync::Arc};
 
@@ -472,7 +472,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
             .map(Prop::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PropertyFilterValue::Set(Arc::new(
-            props.into_iter().collect(),
+            props.into_iter().map(HashableProp::from).collect(),
         )))
     } else {
         Err(GraphError::InvalidGqlFilter(format!(

@@ -12,7 +12,10 @@ mod test_composite_filters {
         },
         prelude::IntoProp,
     };
-    use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::properties::prop::{prop_hashable::HashableProp, Prop},
+        storage::arc_str::ArcStr,
+    };
     use std::sync::Arc;
 
     /// A property condition as wire data, evaluated through
@@ -35,7 +38,9 @@ mod test_composite_filters {
     }
 
     fn set(values: impl IntoIterator<Item = Prop>) -> PropertyFilterValue {
-        PropertyFilterValue::Set(Arc::new(values.into_iter().collect()))
+        PropertyFilterValue::Set(Arc::new(
+            values.into_iter().map(HashableProp::from).collect(),
+        ))
     }
 
     #[test]

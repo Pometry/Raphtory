@@ -9,17 +9,25 @@ const randomTime = () => Math.floor(Math.random() * TIME_RANGE);
 
 export const errorRate = new Rate("errors");
 
-const duration = 1;
-const stagesInMinutes: { duration: number; target: number }[] = [
-  { duration, target: 100 },
-  { duration, target: 400 },
-  { duration, target: 1600 },
-  { duration, target: 6400 },
-];
+// Each scenario ramps 0 -> 6400 iters/s through these targets, spread evenly over RUN_SEC.
+// Derived rather than a per-stage constant so that changing the run length rescales the whole
+// ramp instead of dropping a target off the end.
+const RUN_SEC = 3 * 60;
+const rampTargets = [100, 400, 1600, 6400];
+const stageSec = Math.round(RUN_SEC / rampTargets.length);
+const rampStages = rampTargets.map((target) => ({
+  duration: `${stageSec}s`,
+  target,
+}));
 
-// +1 to leave enough time for the server to recover from prev scenario
-const minutesPerScenario =
-  stagesInMinutes.map(({ duration }) => duration).reduce((a, b) => a + b) + 1;
+// Scenarios are serialised by `startTime` below, and each is padded by RECOVERY_MIN minutes of
+// idle to let the server settle before the next one starts. That idle is real wall-clock time
+// with nothing offered to the server, so it is the 0% CPU in the middle of a run: at the default
+// of 1 it is 9 minutes of a 38-minute run. Shorten it with `-e RECOVERY_MIN=0.25`, but note k6
+// also lets a scenario overrun its stages by gracefulStop (30s by default) to drain in-flight
+// requests, so at 0 the tail of one scenario can overlap the head of the next.
+const RECOVERY_SEC = __ENV.RECOVERY_MIN ? Number(__ENV.RECOVERY_MIN) * 60 : 60;
+const secondsPerScenario = stageSec * rampTargets.length + RECOVERY_SEC;
 
 const execs = [
   addNode,
@@ -44,14 +52,11 @@ const rampingScenarios = enabledExecs.map(
         executor: "ramping-arrival-rate",
         exec: exec.name,
         startRate: 0,
-        startTime: `${index * minutesPerScenario}m`,
+        startTime: `${index * secondsPerScenario}s`,
         timeUnit: "1s",
         preAllocatedVUs: 5,
         maxVUs: 1000,
-        stages: stagesInMinutes.map(({ duration, target }) => ({
-          duration: `${duration}m`,
-          target,
-        })),
+        stages: rampStages,
       },
     ] as const,
 );
@@ -62,7 +67,9 @@ const rampingScenarios = enabledExecs.map(
 // collapses; if short queries get slots promptly, the rate matches the offered rate.
 // Run only this pair (30s) with: k6 run -e SCHEDULING_ONLY=1 dist/bench.js
 const schedulingOnly = Boolean(__ENV.SCHEDULING_ONLY);
-const schedulingStart = schedulingOnly ? "0s" : `${enabledExecs.length * minutesPerScenario}m`;
+const schedulingStart = schedulingOnly
+  ? "0s"
+  : `${enabledExecs.length * secondsPerScenario}s`;
 const schedulingDuration = schedulingOnly ? "30s" : "2m";
 const schedulingScenarios = {
   heavy_load: {
