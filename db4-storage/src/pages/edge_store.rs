@@ -6,7 +6,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+        locked::edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -451,12 +451,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.ext.config().max_edge_page_len()
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
-        WriteLockedEdgePages::new(
+    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgeSegments<'a, ES> {
+        WriteLockedEdgeSegments::new(
             self.segments
                 .iter()
                 .map(|(page_id, page)| {
-                    LockedEdgePage::new(
+                    LockedEdgeSegment::new(
                         page_id,
                         self.max_page_len(),
                         page.as_ref(),
@@ -634,13 +634,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn par_iter(&self, layer: LayerId) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
-        self.par_iter_segments().flat_map(move |page| {
-            (0..page.num_edges())
+        self.par_iter_segments().flat_map(move |segment| {
+            (0..segment.num_edges())
                 .into_par_iter()
                 .map(LocalPOS)
-                .filter_map(move |local_edge| {
-                    page.layer_entry(local_edge, layer, Some(page.head()))
-                })
+                .filter_map(move |local_edge| segment.layer_entry(local_edge, layer))
         })
     }
 
@@ -649,9 +647,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         layer: LayerId,
     ) -> impl Iterator<Item = SegmentLockedEdgeEntry<ES, EXT>> + '_ {
         (0..self.segments.count())
-            .filter_map(move |page_id| self.segments.get(page_id))
-            .flat_map(move |page| {
-                let locked = Arc::new(page.locked());
+            .filter_map(move |segment_id| self.segments.get(segment_id))
+            .flat_map(move |segment| {
+                let locked = Arc::new(segment.locked());
+
                 (0..locked.num_edges())
                     .map(LocalPOS)
                     .map(move |pos| SegmentLockedEdgeEntry {
@@ -693,7 +692,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.par_iter_segments().try_for_each(|seg| seg.flush())
+        self.par_iter_segments()
+            .try_for_each(|segment| segment.flush())
     }
 }
 

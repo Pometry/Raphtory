@@ -93,4 +93,11 @@ pub trait GIDResolverOps {
     }
 
     fn flush(&self) -> Result<(), StorageError>;
+
+    /// Copy this resolver to `path`.
+    fn copy_to(&self, _path: impl AsRef<Path>) -> Result<(), StorageError> {
+        Err(StorageError::GenericFailure(
+            "Copying is not supported for this resolver".into(),
+        ))
+    }
 }

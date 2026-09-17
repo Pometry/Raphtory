@@ -1,5 +1,3 @@
-use std::ops::{Deref, DerefMut};
-
 use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
@@ -16,136 +14,168 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 #[derive(Debug)]
-pub struct LockedEdgePage<'a, ES> {
-    page_id: usize,
+pub struct LockedEdgeSegment<'a, ES> {
+    id: usize,
     max_page_len: u32,
-    page: &'a ES,
+    segment: &'a ES,
     num_edges: &'a GraphStats,
-    lock: RwLockWriteGuard<'a, MemEdgeSegment>,
+    head: RwLockWriteGuard<'a, MemEdgeSegment>,
 }
 
-impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
+impl<'a, ES: EdgeSegmentOps> LockedEdgeSegment<'a, ES> {
     pub fn new(
-        page_id: usize,
+        id: usize,
         max_page_len: u32,
-        page: &'a ES,
+        segment: &'a ES,
         num_edges: &'a GraphStats,
-        lock: RwLockWriteGuard<'a, MemEdgeSegment>,
+        head: RwLockWriteGuard<'a, MemEdgeSegment>,
     ) -> Self {
         Self {
-            page_id,
+            id,
             max_page_len,
-            page,
+            segment,
             num_edges,
-            lock,
+            head,
         }
     }
 
     #[inline(always)]
     pub fn writer(&mut self) -> EdgeWriter<'_, &mut MemEdgeSegment, ES> {
-        EdgeWriter::new(self.num_edges, self.page, self.lock.deref_mut())
+        EdgeWriter::new(self.num_edges, self.segment, self.head.deref_mut())
     }
 
     #[inline(always)]
     pub fn bulk_writer(&mut self) -> BulkEdgeWriter<'_, &mut MemEdgeSegment, ES> {
-        EdgeWriter::new(self.num_edges, self.page, self.lock.deref_mut()).into()
+        EdgeWriter::new(self.num_edges, self.segment, self.head.deref_mut()).into()
     }
 
     #[inline(always)]
-    pub fn page_id(&self) -> usize {
-        self.page_id
+    pub fn id(&self) -> usize {
+        self.id
     }
 
     #[inline(always)]
     pub fn resolve_pos(&self, edge_id: EID) -> Option<LocalPOS> {
         let (page, pos) = resolve_pos(edge_id, self.max_page_len);
 
-        if page == self.page_id {
-            Some(pos)
-        } else {
-            None
-        }
+        if page == self.id { Some(pos) } else { None }
     }
 
     pub fn ensure_layer(&mut self, layer_id: LayerId) {
-        self.lock.get_or_create_layer(layer_id);
+        self.head.get_or_create_layer(layer_id);
     }
 
-    pub fn page(&self) -> &ES {
-        self.page
+    pub fn segment(&self) -> &ES {
+        self.segment
+    }
+
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        let head = self.head.deref_mut();
+        self.segment.flush_with_head(head)
     }
 }
+
 #[derive(Debug)]
-pub struct WriteLockedEdgePages<'a, ES> {
-    writers: Vec<LockedEdgePage<'a, ES>>,
+pub struct WriteLockedEdgeSegments<'a, ES> {
+    segments: Vec<LockedEdgeSegment<'a, ES>>,
 }
 
-impl<ES> Default for WriteLockedEdgePages<'_, ES> {
+impl<ES> Default for WriteLockedEdgeSegments<'_, ES> {
     fn default() -> Self {
         Self {
-            writers: Vec::new(),
+            segments: Vec::new(),
         }
     }
 }
 
 impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
-    WriteLockedEdgePages<'a, ES>
+    WriteLockedEdgeSegments<'a, ES>
 {
-    pub fn new(writers: Vec<LockedEdgePage<'a, ES>>) -> Self {
-        Self { writers }
+    pub fn new(segments: Vec<LockedEdgeSegment<'a, ES>>) -> Self {
+        Self { segments }
     }
 
     #[inline]
-    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedEdgePage<'a, ES>> {
-        self.writers.get_mut(segment_id)
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedEdgeSegment<'a, ES>> {
+        self.segments.get_mut(segment_id)
     }
 
-    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedEdgePage<'a, ES>> {
-        self.writers.par_iter_mut()
+    pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedEdgeSegment<'a, ES>> {
+        self.segments.par_iter_mut()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedEdgePage<'a, ES>> {
-        self.writers.iter_mut()
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, LockedEdgeSegment<'a, ES>> {
+        self.segments.iter_mut()
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEdgePage<'a, ES>> + 'a {
-        self.writers.into_par_iter()
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEdgeSegment<'a, ES>> + 'a {
+        self.segments.into_par_iter()
     }
 
     pub fn ensure_layer(&mut self, layer_id: LayerId) {
-        for writer in &mut self.writers {
-            writer.ensure_layer(layer_id);
+        for segment in &mut self.segments {
+            segment.ensure_layer(layer_id);
         }
     }
 
     pub fn exists(&self, elid: ELID) -> bool {
-        let max_page_len = if !self.writers.is_empty() {
-            self.writers[0].max_page_len
+        let max_page_len = if !self.segments.is_empty() {
+            self.segments[0].max_page_len
         } else {
             return false;
         };
-        let (page_id, pos) = resolve_pos(elid.eid(), max_page_len);
-        self.writers.get(page_id).is_some_and(|page| {
-            let locked_head = page.lock.deref();
-            page.page.has_edge(pos, elid.layer(), locked_head)
+
+        let (segment_id, pos) = resolve_pos(elid.eid(), max_page_len);
+
+        self.segments.get(segment_id).is_some_and(|locked_segment| {
+            let head_lock = locked_segment.head.deref();
+
+            locked_segment
+                .segment
+                .has_edge(pos, elid.layer(), head_lock)
         })
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        self.writers.par_iter_mut().try_for_each(|writer| {
-            let LockedEdgePage { page, lock, .. } = writer;
-            page.vacuum(lock.deref_mut())
-        })?;
+        self.segments
+            .par_iter_mut()
+            .try_for_each(|locked_segment| {
+                let LockedEdgeSegment { segment, head, .. } = locked_segment;
+                segment.vacuum(head.deref_mut())
+            })?;
+
         Ok(())
     }
 
+    pub fn flush(&mut self) -> Result<(), StorageError> {
+        self.segments
+            .par_iter_mut()
+            .try_for_each(|locked_segment| locked_segment.flush())
+    }
+
     pub fn len(&self) -> usize {
-        self.writers.len()
+        self.segments.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.writers.is_empty()
+        self.segments.is_empty()
+    }
+
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        self.segments.par_iter().try_for_each(|locked_segment| {
+            locked_segment
+                .segment()
+                .copy_to(&dst.join(locked_segment.id().to_string()))
+        })?;
+
+        Ok(())
     }
 }

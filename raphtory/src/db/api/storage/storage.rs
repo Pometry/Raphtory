@@ -100,6 +100,7 @@ impl Storage {
 mod io {
     use super::*;
     use raphtory_storage::{graph::locked::LockedGraph, recovery_ops::RecoveryOps};
+
     impl Storage {
         pub fn new_at_path_with_config(
             path: impl AsRef<Path>,

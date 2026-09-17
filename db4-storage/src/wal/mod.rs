@@ -4,6 +4,7 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
 };
+use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -36,6 +37,13 @@ pub trait WalOps {
 
     /// Sets the position in the WAL stream.
     fn set_position(&self, lsn: LSN) -> Result<(), StorageError>;
+
+    /// Copies the latest WAL log file to `dst`.
+    ///
+    /// Used after a checkpoint is completed, since recovery now only needs the
+    /// WAL file containing the checkpoint. Older files are omitted from the copy
+    /// so the destination WAL is pruned.
+    fn copy_tail_to(&self, dst: &Path) -> Result<(), StorageError>;
 }
 
 #[derive(Debug)]
@@ -151,16 +159,18 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint indicating that all LSN < `redo` are persisted.
+    /// Logs a checkpoint indicating that all records with `LSN < redo` are persisted.
     /// On recovery, replay will start from `redo` in the WAL stream.
-    fn log_checkpoint(&self, redo: LSN) -> Result<LSN, StorageError>;
+    /// `None` means there is nothing to redo.
+    fn log_checkpoint(&self, redo: Option<LSN>) -> Result<LSN, StorageError>;
 
     /// Logs a shutdown checkpoint indicating a clean shutdown with all writes persisted.
     fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError>;
 
     /// Reads and decodes the WAL entry at the given LSN and validates that it is a checkpoint.
     /// Returns the checkpoint redo LSN, denoting where replay should start from.
-    fn read_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+    /// `None` means there is nothing to redo.
+    fn read_checkpoint(&self, lsn: LSN) -> Result<Option<LSN>, StorageError>;
 
     /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
     /// Returns the LSN immediately after this record, marking the end of the WAL stream.

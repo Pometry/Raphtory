@@ -33,18 +33,10 @@ pub trait CoreGraphOps: Send + Sync {
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.logical_to_physical.dtype()
+                graph.gid_resolver.dtype()
             }
         }
     }
-
-    // fn num_shards(&self) -> usize {
-    //     match self.core_graph() {
-    //         GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-    //             graph.storage.num_shards()
-    //         }
-    //     }
-    // }
 
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {

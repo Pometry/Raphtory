@@ -1,36 +1,36 @@
-use std::{
-    io,
-    path::{Path, PathBuf},
-};
-use tempfile::TempDir;
+use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub enum GraphDir {
-    Temp(TempDir),
-    Path(PathBuf),
-}
+#[derive(Debug, Clone)]
+pub struct GraphDir(PathBuf);
 
 impl GraphDir {
     pub fn path(&self) -> &Path {
-        match self {
-            GraphDir::Temp(dir) => dir.path(),
-            GraphDir::Path(path) => path,
-        }
+        &self.0
     }
-    pub fn gid_resolver_dir(&self) -> PathBuf {
+
+    pub fn nodes(&self) -> PathBuf {
+        self.path().join("nodes")
+    }
+
+    pub fn node_type_index(&self) -> PathBuf {
+        // NOTE: node_type_index is stored under the nodes dir.
+        self.nodes().join("type_index")
+    }
+
+    pub fn edges(&self) -> PathBuf {
+        self.path().join("edges")
+    }
+
+    pub fn graph_props(&self) -> PathBuf {
+        self.path().join("graph_props")
+    }
+
+    pub fn gid_resolver(&self) -> PathBuf {
         self.path().join("gid_resolver")
     }
 
-    pub fn wal_dir(&self) -> PathBuf {
+    pub fn wal(&self) -> PathBuf {
         self.path().join("wal")
-    }
-
-    pub fn create_dir(&self) -> Result<(), io::Error> {
-        if let GraphDir::Path(path) = self {
-            std::fs::create_dir_all(path)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -42,6 +42,6 @@ impl AsRef<Path> for GraphDir {
 
 impl<'a> From<&'a Path> for GraphDir {
     fn from(path: &'a Path) -> Self {
-        GraphDir::Path(path.to_path_buf())
+        GraphDir(path.to_path_buf())
     }
 }

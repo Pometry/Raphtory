@@ -89,7 +89,6 @@ impl MemNodeTypeIndex {
             .filter_map(|type_id| self.map.get(type_id))
             .collect();
 
-        // No need to dedup after kmerge since a node can only have one type.
         sets.iter()
             .map(|set| set.iter().copied())
             .kmerge()

@@ -4,7 +4,7 @@ use crate::{
     prelude::{GraphViewOps, ParquetEncoder},
 };
 use raphtory_api::core::storage::graph_folder::{
-    make_path_pointer, GraphFolder, GraphMetadata, GraphPaths, InnerGraphFolder, Metadata,
+    make_path_pointer, DataFolder, GraphFolder, GraphMetadata, GraphPaths, Metadata,
     GRAPH_META_PATH, GRAPH_PATH,
 };
 
@@ -21,7 +21,7 @@ pub fn build_graph_metadata(graph: impl GraphView) -> GraphMetadata {
 /// Encode `graph`'s data into a fresh directory inside `folder` and atomically point the folder's
 /// metadata at it, deleting any previously-stored graph data.
 pub fn replace_graph_in_folder(
-    folder: &InnerGraphFolder,
+    folder: &DataFolder,
     graph: impl ParquetEncoder + GraphView + std::fmt::Debug,
 ) -> Result<(), GraphError> {
     let data_path = folder.as_ref();

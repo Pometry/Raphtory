@@ -375,13 +375,4 @@ mod tests {
         test_cli_parsing_with_env_var().await;
         test_cli_parsing_with_command_line_arg().await;
     }
-
-    #[tokio::test]
-    async fn test_cli_parsing_extension() {
-        // tests must be synchronized so that env variables are not modified in parallel
-        test_cli_parsing_no_arguments().await;
-        test_cli_parsing_with_config_file().await;
-        test_cli_parsing_with_env_var().await;
-        test_cli_parsing_with_command_line_arg().await;
-    }
 }

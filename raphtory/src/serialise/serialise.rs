@@ -10,7 +10,7 @@ use crate::{
 };
 use raphtory_api::core::storage::graph_folder::{
     get_zip_graph_path, GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH,
-    DEFAULT_GRAPH_PATH, GRAPH_META_PATH, ROOT_META_PATH,
+    DEFAULT_GRAPH_PATH, GRAPH_META_PATH, ROOT_RAPH_PATH,
 };
 use std::{
     fs::File,
@@ -32,7 +32,7 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
 impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_zip<W: Write + Seek>(&self, mut writer: ZipWriter<W>) -> Result<(), GraphError> {
         let graph_meta = build_graph_metadata(self);
-        writer.start_file(ROOT_META_PATH, SimpleFileOptions::default())?;
+        writer.start_file(ROOT_RAPH_PATH, SimpleFileOptions::default())?;
         writer.write_all(&serde_json::to_vec(&RelativePath {
             path: DEFAULT_DATA_PATH.to_string(),
         })?)?;

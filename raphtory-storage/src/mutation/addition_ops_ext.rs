@@ -1,10 +1,12 @@
 use crate::{
     durability_ops::DurabilityOps,
+    graph::graph::GraphStorage,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
         MutationError, NodeWriterT,
     },
     recovery_ops::RecoveryOps,
+    staging_ops::{StagedGraph, StagingError, StagingOps},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -15,7 +17,10 @@ use raphtory_api::core::{
         },
         LayerId,
     },
-    storage::dict_mapper::MaybeNew,
+    storage::{
+        dict_mapper::MaybeNew,
+        graph_folder::{GraphFolder, GraphPaths},
+    },
 };
 use raphtory_core::{
     entities::{
@@ -34,7 +39,7 @@ use storage::{
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
+    Config, ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -129,7 +134,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self.graph.logical_to_physical.set(gid, vid)?)
+        Ok(self.graph.gid_resolver.set(gid, vid)?)
     }
 
     fn resolve_graph_property(
@@ -245,7 +250,7 @@ impl InternalAdditionOps for TemporalGraph {
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
         match id {
             NodeRef::External(id) => {
-                let id = match self.logical_to_physical.get_or_init(id)? {
+                let id = match self.gid_resolver.get_or_init(id)? {
                     MaybeInit::VID(vid) => MaybeNew::Existing(vid),
                     MaybeInit::Init(init) => {
                         let (seg, pos) = self.storage().nodes().reserve_free_pos(
@@ -331,7 +336,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
-        let vid = match self.logical_to_physical.get(id) {
+        let vid = match self.gid_resolver.get(id) {
             Some(vid) => MaybeNew::Existing(vid),
             None => {
                 let (seg, pos) = self
@@ -339,7 +344,7 @@ impl InternalAdditionOps for TemporalGraph {
                     .nodes()
                     .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
-                self.logical_to_physical.set(id, new_vid)?;
+                self.gid_resolver.set(id, new_vid)?;
                 MaybeNew::New(new_vid)
             }
         };
@@ -351,7 +356,7 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
-        self.logical_to_physical.validate_gids(gids)?;
+        self.gid_resolver.validate_gids(gids)?;
         Ok(())
     }
 
@@ -373,28 +378,23 @@ impl InternalAdditionOps for TemporalGraph {
             }
             (NodeRef::Internal(src_id), NodeRef::External(dst_gid)) => (
                 MaybeInit::VID(src_id),
-                Some(self.logical_to_physical.get_or_init(dst_gid)?),
+                Some(self.gid_resolver.get_or_init(dst_gid)?),
             ),
             (NodeRef::External(src_gid), NodeRef::Internal(dst_id)) => (
-                self.logical_to_physical.get_or_init(src_gid)?,
+                self.gid_resolver.get_or_init(src_gid)?,
                 Some(MaybeInit::VID(dst_id)),
             ),
             (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
                 // resolve the smaller id first to avoid deadlocks when adding the same edge in both directions
                 match src_gid.cmp(&dst_gid) {
                     std::cmp::Ordering::Less => (
-                        self.logical_to_physical.get_or_init(src_gid)?,
-                        Some(self.logical_to_physical.get_or_init(dst_gid)?),
+                        self.gid_resolver.get_or_init(src_gid)?,
+                        Some(self.gid_resolver.get_or_init(dst_gid)?),
                     ),
-                    std::cmp::Ordering::Equal => {
-                        (self.logical_to_physical.get_or_init(src_gid)?, None)
-                    }
+                    std::cmp::Ordering::Equal => (self.gid_resolver.get_or_init(src_gid)?, None),
                     std::cmp::Ordering::Greater => {
-                        let dst_init = self.logical_to_physical.get_or_init(dst_gid)?;
-                        (
-                            self.logical_to_physical.get_or_init(src_gid)?,
-                            Some(dst_init),
-                        )
+                        let dst_init = self.gid_resolver.get_or_init(dst_gid)?;
+                        (self.gid_resolver.get_or_init(src_gid)?, Some(dst_init))
                     }
                 }
             }
@@ -658,7 +658,7 @@ impl InternalAdditionOps for TemporalGraph {
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         let node_vid = match node {
             NodeRef::Internal(vid) => vid,
-            NodeRef::External(gid) => match self.logical_to_physical.get_or_init(gid)? {
+            NodeRef::External(gid) => match self.gid_resolver.get_or_init(gid)? {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
                     let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
@@ -754,3 +754,43 @@ impl DurabilityOps for TemporalGraph {
 }
 
 impl RecoveryOps for TemporalGraph {}
+
+impl StagingOps for TemporalGraph {
+    fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
+        // Acquire full write locks to flush and prevent writes during staging.
+        let mut live_graph = self.write_locked_graph();
+
+        // The live graph needs to be fully on disk before it's data
+        // is copied to the staged graph.
+        live_graph.flush()?;
+
+        let live_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
+        let live_folder = GraphFolder::from_graph_path(live_path)?;
+
+        let staged_folder = live_folder
+            .clone()
+            .init_swap()
+            .map_err(StagingError::InitStagingDir)?;
+
+        let staged_path = staged_folder
+            .graph_path()
+            .map_err(StagingError::InitStagingDir)?;
+
+        // Copy existing data to the staged graph to create a fork.
+        live_graph.copy_to(&staged_path)?;
+
+        // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
+        let config = Config::load_from_dir(&staged_path)?;
+        let extension = Extension::load(&staged_path, config)?;
+
+        let temporal_graph = TemporalGraph::<Extension>::load(staged_path, extension)?;
+        let staged_graph = GraphStorage::from(temporal_graph);
+
+        Ok(StagedGraph::new(
+            staged_graph,
+            staged_folder,
+            live_graph,
+            live_folder,
+        ))
+    }
+}
