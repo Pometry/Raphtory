@@ -39,14 +39,13 @@ use crate::{
         },
         graph::views::{
             filter::model::{
-                edge_filter::CompositeEdgeFilter,
                 is_active_edge_filter::IsActiveEdge,
                 is_active_node_filter::IsActiveNode,
                 is_deleted_filter::IsDeletedEdge,
                 is_self_loop_filter::IsSelfLoopEdge,
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
-                layered_filter::{layer_label, Layered},
+                layered_filter::Layered,
                 node_expr::{NodeMetaOp, NodePropOp},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
@@ -64,14 +63,10 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use std::{
-    fmt::{self, Display},
-    ops::Deref,
-    sync::Arc,
-};
+use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
-pub mod degree_filter;
+pub mod dyn_factory;
 pub mod edge_expr;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
@@ -88,13 +83,12 @@ pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_expr;
 pub mod node_filter;
-pub use exploded_edge_filter::CompositeExplodedEdgeFilter;
-pub use node_filter::CompositeNodeFilter;
 pub mod node_state_filter;
 pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
+pub mod tree;
 pub mod windowed_filter;
 
 #[derive(Debug, Copy, Clone)]
@@ -315,94 +309,6 @@ impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {
 
     fn entity(&self) -> Self::Marker {
         self.view_expr.entity()
-    }
-}
-
-/// One graph-level view restriction, as data. `at`/`before`/`after` lower to
-/// `Window` at construction time (see `ViewWrapOps`), so they need no
-/// variants here.
-#[derive(Clone, Debug, PartialEq)]
-pub enum GraphViewOp {
-    Window { start: EventTime, end: EventTime },
-    Latest,
-    SnapshotAt(EventTime),
-    SnapshotLatest,
-    Layers(Layer),
-}
-
-/// Kind-tagged, owned export of a filter tree — the transportable form of a
-/// composed filter, referencing no in-process state. `View` is an
-/// chain of graph-level restrictions in application order (each later op
-/// wraps outside the previous one). Recorded at construction on the python
-/// side; filters that inherently reference in-process state (e.g. node-state
-/// columns) carry no tree.
-#[derive(Clone, Debug)]
-pub enum FilterTree {
-    Node(CompositeNodeFilter),
-    Edge(CompositeEdgeFilter),
-    ExplodedEdge(CompositeExplodedEdgeFilter),
-    View(Vec<GraphViewOp>),
-    And(Vec<FilterTree>),
-    Or(Vec<FilterTree>),
-    Not(Box<FilterTree>),
-}
-
-impl Display for GraphViewOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            GraphViewOp::Window { start, end } => write!(f, "WINDOW[{}..{}]", start.t(), end.t()),
-            GraphViewOp::Latest => write!(f, "LATEST"),
-            GraphViewOp::SnapshotAt(time) => write!(f, "SNAPSHOT_AT[{}]", time.t()),
-            GraphViewOp::SnapshotLatest => write!(f, "SNAPSHOT_LATEST"),
-            GraphViewOp::Layers(layer) => write!(f, "LAYER[{}]", layer_label(layer)),
-        }
-    }
-}
-
-/// The wire form as text, in the same notation the composite filters print
-/// themselves in: predicates as `lhs op value`, views as `KIND[args](inner)`,
-/// combinators as `(a AND b)`, `(a OR b)` and `NOT(a)`. A view chain lists its
-/// ops in application order.
-impl Display for FilterTree {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let joined = |items: &[FilterTree], sep: &str| -> String {
-            items
-                .iter()
-                .map(|t| t.to_string())
-                .collect::<Vec<_>>()
-                .join(sep)
-        };
-        match self {
-            FilterTree::Node(inner) => write!(f, "{inner}"),
-            FilterTree::Edge(inner) => write!(f, "{inner}"),
-            FilterTree::ExplodedEdge(inner) => write!(f, "{inner}"),
-            FilterTree::View(ops) => {
-                let ops = ops.iter().map(|op| op.to_string()).collect::<Vec<_>>();
-                write!(f, "VIEW({})", ops.join(" . "))
-            }
-            FilterTree::And(items) => write!(f, "({})", joined(items, " AND ")),
-            FilterTree::Or(items) => write!(f, "({})", joined(items, " OR ")),
-            FilterTree::Not(inner) => write!(f, "NOT({inner})"),
-        }
-    }
-}
-
-impl FilterTree {
-    /// Whether any part of this expression tests edges.
-    ///
-    /// An edge test says nothing about which nodes belong in a node
-    /// collection, so a node-collection subscript refuses such an expression.
-    /// Lives here next to the enum so a new variant has to answer the question
-    /// rather than silently defaulting somewhere else.
-    pub fn tests_edges(&self) -> bool {
-        match self {
-            FilterTree::Edge(_) | FilterTree::ExplodedEdge(_) => true,
-            FilterTree::Node(_) | FilterTree::View(_) => false,
-            FilterTree::And(items) | FilterTree::Or(items) => {
-                items.iter().any(FilterTree::tests_edges)
-            }
-            FilterTree::Not(inner) => inner.tests_edges(),
-        }
     }
 }
 
@@ -630,6 +536,24 @@ impl<T: DynInternalViewWrapOps + ?Sized> InternalViewWrapOps for Arc<T> {
     }
 }
 
+/// The window `at(t)` means: the single instant `t`.
+pub(crate) fn at_bounds(t: EventTime) -> (EventTime, EventTime) {
+    (t, EventTime::from(t.t().saturating_add(1)))
+}
+
+/// The window `after(t)` means: everything strictly after `t`.
+pub(crate) fn after_bounds(t: EventTime) -> (EventTime, EventTime) {
+    (
+        EventTime::start(t.t().saturating_add(1)),
+        EventTime::end(i64::MAX),
+    )
+}
+
+/// The window `before(t)` means: everything strictly before `t`.
+pub(crate) fn before_bounds(t: EventTime) -> (EventTime, EventTime) {
+    (EventTime::start(i64::MIN), EventTime::end(t.t()))
+}
+
 pub trait ViewWrapOps: InternalViewWrapOps + Sized {
     #[inline]
     fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Self::Window {
@@ -641,22 +565,20 @@ pub trait ViewWrapOps: InternalViewWrapOps + Sized {
 
     #[inline]
     fn at<T: IntoTime>(self, time: T) -> Self::Window {
-        let t = time.into_time();
-        self.window(t, t.t().saturating_add(1))
+        let (start, end) = at_bounds(time.into_time());
+        self.window(start, end)
     }
 
     #[inline]
     fn after<T: IntoTime>(self, time: T) -> Self::Window {
-        let start = time.into_time().t().saturating_add(1);
-        self.window(EventTime::start(start), EventTime::end(i64::MAX))
+        let (start, end) = after_bounds(time.into_time());
+        self.window(start, end)
     }
 
     #[inline]
     fn before<T: IntoTime>(self, time: T) -> Self::Window {
-        self.window(
-            EventTime::start(i64::MIN),
-            EventTime::end(time.into_time().t()),
-        )
+        let (start, end) = before_bounds(time.into_time());
+        self.window(start, end)
     }
 
     #[inline]
@@ -877,9 +799,9 @@ pub trait EdgeViewFilterOps: ViewWrapOps {
 
 /// Comparison, string, set, and presence operators on any [`CreateOp`].
 ///
-/// `.any()` / `.all()` are terminal: they wrap `self` in `AnyExpr`/`AllExpr` and compare the
-/// result to `Bool(true)`. For element-wise comparison before reduction, chain in order:
-/// `.gt(10i64).any()` not `.any().gt(10i64)`.
+/// `.any()` / `.all()` are qualifiers on a list-valued expression: the comparison that follows
+/// is applied to each element and the results are reduced, so `.any().gt(10i64)` holds when any
+/// element is greater than ten.
 ///
 /// ```rust,ignore
 /// NodeFilter.degree().gt(2usize)

@@ -1,21 +1,18 @@
 use crate::{
     db::{
         api::{
-            state::ops::NodeOp,
-            view::{internal::GraphView, BoxableGraphView},
+            state::NodeOp,
+            view::internal::{DynGraphArc, GraphView},
         },
-        graph::views::filter::{
-            model::{
-                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
-            },
-            CreateFilter,
-        },
+        graph::views::filter::{model::tree::FilterExpr, CreateFilter},
     },
     errors::GraphError,
 };
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::sync::Arc;
 
+/// A filter as a tree. The same tree runs locally, is sent to a server, and is
+/// what `repr` prints, so there is nothing to keep in step.
 #[pyclass(
     frozen,
     name = "FilterExpr",
@@ -24,64 +21,57 @@ use std::sync::Arc;
     from_py_object
 )]
 #[derive(Clone)]
-pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>, pub Option<FilterTree>);
+pub struct PyFilterExpr(pub FilterExpr);
 
 impl PyFilterExpr {
-    /// The wire form recorded at construction; filters built in ways the wire
-    /// schema cannot express (an expression on both sides of a comparison)
-    /// carry none and cannot be sent to a server.
-    pub fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        self.1.clone().ok_or_else(|| {
-            GraphError::InvalidFilter(
-                "this filter has no server-side form; use plain values rather than \
-                 expressions on the right-hand side of comparisons"
-                    .to_string(),
-            )
-        })
+    pub fn tree(&self) -> &FilterExpr {
+        &self.0
     }
 }
 
 #[pymethods]
 impl PyFilterExpr {
     pub fn __and__(&self, other: &Self) -> Self {
-        let left = self.0.clone();
-        let right = other.0.clone();
-        let wire = match (&self.1, &other.1) {
-            (Some(a), Some(b)) => Some(FilterTree::And(vec![a.clone(), b.clone()])),
-            _ => None,
-        };
-        PyFilterExpr(Arc::new(AndFilter { left, right }), wire)
+        PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.0.clone()]))
     }
 
-    pub fn __or__(&self, other: &Self) -> Self {
-        let left = self.0.clone();
-        let right = other.0.clone();
-        let wire = match (&self.1, &other.1) {
-            (Some(a), Some(b)) => Some(FilterTree::Or(vec![a.clone(), b.clone()])),
-            _ => None,
-        };
-        PyFilterExpr(Arc::new(OrFilter { left, right }), wire)
+    pub fn __or__(&self, other: &Self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        no_view(&other.0)?;
+        Ok(PyFilterExpr(FilterExpr::Or(vec![
+            self.0.clone(),
+            other.0.clone(),
+        ])))
     }
 
-    fn __invert__(&self) -> Self {
-        let wire = self.1.clone().map(|t| FilterTree::Not(Box::new(t)));
-        PyFilterExpr(Arc::new(NotFilter(self.0.clone())), wire)
+    fn __invert__(&self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        Ok(PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone()))))
     }
 
-    /// Shows the filter as it would be sent to a server. A filter with no
-    /// server-side form (an expression on both sides of a comparison) says so
-    /// instead; it still runs locally.
+    /// Shows the filter tree: what runs locally and what a server receives.
     fn __repr__(&self) -> String {
-        match &self.1 {
-            Some(tree) => format!("FilterExpr({tree})"),
-            None => "FilterExpr(<local only: no server-side form>)".to_string(),
-        }
+        format!("FilterExpr({})", self.0)
     }
 }
 
+/// A view applies to the whole filter, so it can be `&`-ed with predicates or applied
+/// alone, but has no meaning under `|` or `~`. Refused where it is written, as the
+/// engine would refuse it when applied.
+fn no_view(filter: &FilterExpr) -> PyResult<()> {
+    if filter.has_view() {
+        return Err(PyTypeError::new_err(
+            "a view (filter.Graph...) applies to the whole filter: combine it with `&` or apply it alone, not with `|` or `~`",
+        ));
+    }
+    Ok(())
+}
+
 impl CreateFilter for PyFilterExpr {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn BoxableGraphView + 'graph>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = Arc<dyn NodeOp<Output = bool> + 'graph>
@@ -89,7 +79,7 @@ impl CreateFilter for PyFilterExpr {
         Self: 'graph;
 
     type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
@@ -114,6 +104,6 @@ impl CreateFilter for PyFilterExpr {
         &self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.0.dyn_filter_graph_view(Arc::new(graph))
+        self.0.filter_graph_view(graph)
     }
 }

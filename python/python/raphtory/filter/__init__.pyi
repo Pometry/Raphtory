@@ -31,6 +31,10 @@ from raphtory.iterables import *
 
 __all__ = ['FilterExpr', 'Expr', 'PropertyExpr', 'Node', 'NodeFilter', 'Edge', 'EdgeFilter', 'EdgeEndpoint', 'ExplodedEdge', 'ExplodedEdgeFilter', 'Graph', 'GraphFilter']
 class FilterExpr(object): 
+    """
+    A filter as a tree. The same tree runs locally, is sent to a server, and is
+    what `repr` prints, so there is nothing to keep in step.
+    """
 
     def __and__(self, value):
         """Return self&value."""
@@ -44,10 +48,18 @@ class FilterExpr(object):
     def __rand__(self, value):
         """Return value&self."""
 
+    def __repr__(self):
+        """Return repr(self)."""
+
     def __ror__(self, value):
         """Return value|self."""
 
 class Expr(object): 
+    """
+    A value expression: a field, degree, property, metadata entry or an
+    aggregate over one. Comparing it to a value or to another expression gives
+    a [`FilterExpr`].
+    """
 
     def __eq__(self, value):
         """Return self==value."""
@@ -235,6 +247,7 @@ class Expr(object):
         """
 
 class PropertyExpr(Expr): 
+    """A property read, which can switch to the property's history with `temporal()`."""
 
     def temporal(self) -> filter.Expr:
         """

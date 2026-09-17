@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::ops::{Const, IntoDynNodeOp, NodeOp, TypeId},
+            state::ops::{Const, IntoDynNodeOp, NodeOp},
             view::internal::{GraphView, NodeList},
         },
         graph::create_node_type_filter,

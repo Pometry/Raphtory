@@ -4,17 +4,9 @@ use crate::{
         graph::views::filter::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             model::{
-                edge_filter::Endpoint,
-                is_active_edge_filter::IsActiveEdge,
-                is_deleted_filter::IsDeletedEdge,
-                is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge,
-                latest_filter::Latest,
-                layered_filter::Layered,
-                node_filter::{CompositeNodeFilter, NodeFilter},
-                property_filter::PropertyFilter,
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
+                edge_filter::Endpoint, is_active_edge_filter::IsActiveEdge,
+                is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
+                is_valid_filter::IsValidEdge, node_filter::NodeFilter, windowed_filter::Windowed,
                 CombinedFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, Wrap,
             },
             CreateFilter,
@@ -168,52 +160,5 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         self.inner.filter_graph_view(graph)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompositeExplodedEdgeFilter {
-    Src(CompositeNodeFilter),
-    Dst(CompositeNodeFilter),
-    Property(PropertyFilter<ExplodedEdgeFilter>),
-    Windowed(Box<Windowed<CompositeExplodedEdgeFilter>>),
-    Latest(Box<Latest<CompositeExplodedEdgeFilter>>),
-    SnapshotAt(Box<SnapshotAt<CompositeExplodedEdgeFilter>>),
-    SnapshotLatest(Box<SnapshotLatest<CompositeExplodedEdgeFilter>>),
-    Layered(Box<Layered<CompositeExplodedEdgeFilter>>),
-    IsActiveEdge(IsActiveEdge),
-    IsValidEdge(IsValidEdge),
-    IsDeletedEdge(IsDeletedEdge),
-    IsSelfLoopEdge(IsSelfLoopEdge),
-    And(
-        Box<CompositeExplodedEdgeFilter>,
-        Box<CompositeExplodedEdgeFilter>,
-    ),
-    Or(
-        Box<CompositeExplodedEdgeFilter>,
-        Box<CompositeExplodedEdgeFilter>,
-    ),
-    Not(Box<CompositeExplodedEdgeFilter>),
-}
-
-impl Display for CompositeExplodedEdgeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositeExplodedEdgeFilter::Src(filter) => write!(f, "SRC({})", filter),
-            CompositeExplodedEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
-            CompositeExplodedEdgeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::Latest(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::IsActiveEdge(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::IsValidEdge(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::IsDeletedEdge(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::IsSelfLoopEdge(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::Layered(filter) => write!(f, "{}", filter),
-            CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
-            CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-            CompositeExplodedEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
-        }
     }
 }

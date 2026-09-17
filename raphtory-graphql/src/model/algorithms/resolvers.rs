@@ -7,7 +7,7 @@ use crate::{
             outputs::{GqlMatching, GqlMotifCounts},
         },
         graph::{
-            filtering::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
+            filter_expr_input::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
             timeindex::GqlTimeInput, WindowDuration,
         },
     },
@@ -183,7 +183,7 @@ impl GqlAlgorithms {
     pub async fn in_components(
         &self,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -203,7 +203,7 @@ impl GqlAlgorithms {
     pub async fn out_components(
         &self,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
         #[graphql(desc = "Number of threads to use. Defaults to all available.")] threads: Option<
@@ -224,7 +224,7 @@ impl GqlAlgorithms {
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
     ) -> Result<GqlNodeState, GraphError> {
@@ -245,7 +245,7 @@ impl GqlAlgorithms {
         &self,
         #[graphql(desc = "Node id.")] node: GqlNodeId,
         #[graphql(
-            desc = "Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view."
+            desc = "Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view."
         )]
         filter: Option<GqlFilter>,
     ) -> Result<GqlNodeState, GraphError> {

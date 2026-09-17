@@ -7,7 +7,7 @@ use crate::{
         remote_path_from_node::PyRemotePathFromNode,
     },
 };
-use pyo3::{exceptions::PyValueError, pyclass, pymethods, PyRef, PyRefMut, PyResult};
+use pyo3::{pyclass, pymethods, PyRef, PyRefMut, PyResult};
 use raphtory::python::{
     filter::filter_expr::PyFilterExpr, graph::sorting::PyEdgeSortBy, utils::execute_async_task,
 };
@@ -84,12 +84,10 @@ impl PyRemoteEdges {
     ///     RemoteEdges: a new collection with the filter applied.
     ///
     /// Raises:
-    ///     ValueError: if the filter cannot be represented as a GraphQL
-    ///         `EdgeFilter` (e.g. references node-only fields).
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteEdges::new(self.edges.filter(tree)?))
     }
 
@@ -105,11 +103,10 @@ impl PyRemoteEdges {
     ///     RemoteEdges: a new collection narrowed to matching edges.
     ///
     /// Raises:
-    ///     ValueError: if the filter cannot be sent over the wire.
+    ///     ValueError: if the filter has no server-side form because it reads
+    ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteEdges> {
-        let tree = filter
-            .try_as_filter_tree()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let tree = filter.tree().clone();
         Ok(PyRemoteEdges::new(self.edges.select(tree)?))
     }
 

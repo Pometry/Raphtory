@@ -7,7 +7,8 @@ use crate::{
     model::{
         blocking_io,
         graph::{
-            filtering::{GqlFilter, GraphAccessFilter, HiddenKeys},
+            filter_expr_input::GqlFilter,
+            filtering::{GraphAccessFilter, HiddenKeys},
             namespace::Namespace,
             namespaced_item::NamespacedItem,
         },
@@ -27,7 +28,7 @@ use raphtory::{
             storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
-        graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
+        graph::views::property_redacted_graph::PropertyRedaction,
     },
     errors::GraphError,
     prelude::AdditionOps,
@@ -372,6 +373,28 @@ impl Data {
         self.cache
             .get_or_insert(path, self.read_graph_from_disk(path))
             .await
+    }
+
+    /// Whether `filter` can be applied to the graph at `path`. `Ok(Err(_))` says the
+    /// filter itself does not fit that graph (a value of the wrong type for a property,
+    /// say); `Err(_)` says the graph could not be loaded. Policies use it to tell a
+    /// per-caller value that cannot be compared from a grant that is wrong.
+    ///
+    /// # ⚠ Does no permission check — the caller must already have authorised `path`.
+    /// Loading and error reporting here would otherwise reveal whether a graph exists.
+    pub async fn access_filter_applies(
+        &self,
+        path: &str,
+        filter: &GqlFilter,
+    ) -> Result<Result<(), GraphError>, GQLError> {
+        let graph = self
+            .get_graph_unchecked(path)
+            .await?
+            .graph()
+            .clone()
+            .into_dynamic();
+        let filter = filter.clone();
+        Ok(blocking_compute(move || compile_row_filter(graph, filter).map(|_| ())).await)
     }
 
     /// Test-only: direct graph load without permission checks.
@@ -905,35 +928,25 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GqlFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
-    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
-    if let GqlFilter::And(filters) = filter {
-        // An empty `and` folds to the graph unchanged — i.e. no restriction at all. Fail closed
-        // rather than serve every row, matching `DynFilter::try_from`'s rejection of an empty
-        // combinator (which this shortcut path otherwise never reaches).
-        if filters.is_empty() {
-            error!("empty 'and' access filter restricts nothing");
-            return Err(async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            ));
+    compile_row_filter(graph, filter).map_err(|e| {
+        // The stage is logged with the engine's own message; the caller only learns that
+        // the grant is at fault, never what the filter said.
+        match e {
+            GraphError::InvalidGqlFilter(_) | GraphError::InvalidFilter(_) => {
+                error!(error = %e, "access filter conversion failed")
+            }
+            _ => error!(error = %e, "access filter application failed"),
         }
-        return filters
-            .into_iter()
-            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
-    }
-    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
-        error!(error = %e, "access filter conversion failed");
         async_graphql::Error::new("access filter could not be applied; the grant is misconfigured")
-    })?;
-    Ok(graph
-        .filter(dyn_filter)
-        .map_err(|e| {
-            error!(error = %e, "access filter application failed");
-            async_graphql::Error::new(
-                "access filter could not be applied; the grant is misconfigured",
-            )
-        })?
-        .into_dynamic())
+    })
+}
+
+/// The graph under a row filter, or the reason the filter cannot be applied to it.
+///
+/// The filter means what it means everywhere else: `and` is an intersection, and a
+/// predicate that should be evaluated inside a view carries that view on its read.
+fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
+    Ok(graph.filter(filter)?.into_dynamic())
 }
 
 fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {

@@ -5,7 +5,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, GidRef, GID},
     storage::arc_str::ArcStr,
 };
-use std::{cmp::Ordering, collections::HashSet, fmt, fmt::Display, ops::Deref};
+use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

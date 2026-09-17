@@ -3,7 +3,7 @@
 Filtering is the one place where the local `Graph` and `RemoteGraph` are asked
 to agree on a *program*, not just a call. Locally a `raphtory.filter`
 expression is handed straight to the engine; remotely the very same Python
-object has to be lowered to a GraphQL `GqlFilter`, shipped, re-parsed and
+object has to be lowered to a GraphQL `FilterExpr`, shipped, re-parsed and
 re-planned on the server. Every step of that lowering can drop a conjunct,
 confuse a property source (metadata vs temporal), invert a comparison, or
 attach a view scope to the wrong subtree — and still return a plausible answer.
@@ -697,16 +697,6 @@ _UNIVERSAL_EXPRS = {
         "a node OR an edge predicate: each branch leaves the other entity "
         "type unconstrained, so the disjunction admits everything",
     ),
-    "universal.view_or": (
-        lambda: f.Graph.at(3) | f.Graph.at(5),
-        "a disjunction of two view scopes widens rather than narrows",
-    ),
-    "universal.view_not": (
-        lambda: ~f.Graph.layer("knows"),
-        "negating a view scope does not exclude entities from the result; the "
-        "intended semantics are undecided (#2718), so this pins today's no-op "
-        "rather than endorsing it",
-    ),
 }
 
 
@@ -732,6 +722,7 @@ def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
             f"{side_name}: a mistyped is_in matched nodes; if this now raises "
             f"or filters, move the case into REJECTED_EXPRS"
         )
+
 
 @pytest.mark.parametrize("name", sorted(EXPRS), ids=sorted(EXPRS))
 def test_expr_discriminates(filter_pair, name):
@@ -1074,6 +1065,9 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
+    # A view applies to the whole filter: it composes with `&` only (#2718 decided).
+    "reject.view_or": lambda: f.Graph.at(3) | f.Graph.at(5),
+    "reject.view_not": lambda: ~f.Graph.layer("knows"),
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 
@@ -1111,36 +1105,39 @@ def test_rejected_expr_parity_at_nodes_filter(filter_pair, name):
     )
 
 
-# Filters that compare two expressions have no wire form: the GraphQL schema
-# only takes a constant on the right-hand side. Locally they run; remotely the
-# client has to say so at the call, not ship a mistranslation.
+# Filters that compare two expressions travel as the same tree the local
+# engine compiles, so every application site must agree with the local answer.
+# The deferred sites (`nodes.filter`, `node.filter`, `path.filter`) keep every
+# member and narrow what each one sees, so they are read through degrees, which
+# the filter changes; membership alone would be the same for any filter.
 EXPR_RHS_SITES = {
-    "graph.filter": lambda g, e: [n.name for n in g.filter(e).nodes],
-    "nodes.filter": lambda g, e: [n.name for n in g.nodes.filter(e)],
-    "nodes[expr]": lambda g, e: [n.name for n in g.nodes[e]],
-    "node.filter": lambda g, e: g.node("hub").filter(e) is not None,
-    "path.filter": lambda g, e: [n.name for n in g.node("hub").neighbours.filter(e)],
+    "graph.filter": lambda g, e: sorted(n.name for n in g.filter(e).nodes),
+    "nodes.filter": lambda g, e: sorted(
+        (n.name, n.degree()) for n in g.nodes.filter(e)
+    ),
+    "nodes[expr]": lambda g, e: sorted(n.name for n in g.nodes[e]),
+    "node.filter": lambda g, e: g.node("hub").filter(e).degree(),
+    "path.filter": lambda g, e: sorted(
+        (n.name, n.degree()) for n in g.node("hub").neighbours.filter(e)
+    ),
 }
 
 
 @pytest.mark.parametrize("site", sorted(EXPR_RHS_SITES), ids=sorted(EXPR_RHS_SITES))
-def test_expression_rhs_is_refused_remotely_with_the_reason(filter_pair, site):
-    """`degree() > in_degree()` runs locally; the remote client refuses it.
-
-    The refusal is asserted for its reason, so a future client that silently
-    dropped the right-hand side (and so sent a different filter) or that
-    failed later with an unrelated server error would both fail here. The
-    local side is asserted too: the expression is meaningful and narrows, so
-    what the client refuses is a real filter, not an already-invalid one.
-    """
+def test_expression_rhs_agrees_on_both_sides(filter_pair, site):
+    """`degree() > in_degree()` has no constant on the right, which the old
+    wire grammar could not say. It is a tree now, so it runs remotely and must
+    give the local answer. The local side is asserted to differ from a filter
+    every node passes, so what is compared is a real filter."""
     read = EXPR_RHS_SITES[site]
     expr = f.Node.degree() > f.Node.in_degree()
+    everything = f.Node.degree() >= 0
 
     local = read(filter_pair.local, expr)
-    assert local, f"{site}: the expression selects nothing locally"
-
-    with pytest.raises(ValueError, match="no server-side form"):
-        read(filter_pair.remote, expr)
+    assert local != read(
+        filter_pair.local, everything
+    ), f"{site}: the expression narrows nothing"
+    assert_parity(filter_pair, lambda g: read(g, expr))
 
 
 # Node collections that take a `[expr]` subscript. Each must refuse an
@@ -1190,7 +1187,7 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
 
 
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now
-# takes GqlFilter, so graph-view / node / mixed expressions narrow membership
+# takes FilterExpr, so graph-view / node / mixed expressions narrow membership
 # the same way local core select does.
 SUBSCRIPT_GENERAL_EXPRS = [
     (

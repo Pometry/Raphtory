@@ -5,6 +5,8 @@ while a property filter kept them."""
 
 from itertools import combinations
 
+import pytest
+
 from raphtory import filter
 from utils import with_variants
 
@@ -86,40 +88,46 @@ def test_node_collection_combinations_follow_set_algebra():
         assert set(single) == set(atoms), "every atom needs an independent reference"
         every = frozenset(graph.nodes.name)
         cases = []
+        views = {"window", "before", "layer"}
+        # A view composes with `&` only, and `view & X` is `graph.<view>().filter(X)` rather
+        # than set algebra (pinned below); under `|` or `~` a view is refused where it is written.
         for a, b in combinations(atoms, 2):
+            if a in views or b in views:
+                continue
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
         for a in atoms:
-            cases.append((f"~{a}", ~atoms[a], every - single[a]))
-        views = {"window", "before", "layer"}
-
-        def filter_path_reliable(label):
-            # `graph.filter()` goes through the entity-filter path, which fails open on the same
-            # composite classes as edge collections: `|` with a view, view & view, and `~view`.
-            # `nodes[...]` is immune, so it is asserted for everything.
-            if label.startswith("~"):
-                return label[1:] not in views
-            a, op, b = label.split(" ")
-            if op == "|":
-                return a not in views and b not in views
-            return not (a in views and b in views)
+            if a not in views:
+                cases.append((f"~{a}", ~atoms[a], every - single[a]))
 
         mismatches = []
         for label, expr, want in cases:
             if frozenset(graph.nodes[expr].name) != want:
                 mismatches.append(f"[nodes[]] {label}")
-            if filter_path_reliable(label):
-                if frozenset(graph.filter(expr).nodes.name) != want:
-                    mismatches.append(f"[filter()] {label}")
+            if frozenset(graph.filter(expr).nodes.name) != want:
+                mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
-        # Pin the skip: when the entity path is fixed these fire — delete `filter_path_reliable`.
-        assert (
-            frozenset(graph.filter(~atoms["window"]).nodes.name)
-            != every - single["window"]
-        )
-        assert (
-            frozenset(graph.filter(atoms["name"] | atoms["window"]).nodes.name)
-            != single["name"] | single["window"]
-        )
+        # `view & X`: the view first, then `X` inside it.
+        view_ref = {
+            "window": graph.window(3, 12),
+            "before": graph.before(12),
+            "layer": graph.layer("work"),
+        }
+        for v, viewed in view_ref.items():
+            for name in ("name", "prop"):
+                want = frozenset(viewed.nodes[atoms[name]].name)
+                assert (
+                    frozenset(graph.nodes[atoms[v] & atoms[name]].name) == want
+                ), f"{v} & {name}"
+                assert (
+                    frozenset(graph.filter(atoms[v] & atoms[name]).nodes.name) == want
+                ), f"{v} & {name}"
+        assert frozenset(
+            graph.filter(atoms["window"] & atoms["layer"]).nodes.name
+        ) == frozenset(graph.window(3, 12).layer("work").nodes.name)
+        with pytest.raises(TypeError, match="view"):
+            ~atoms["window"]
+        with pytest.raises(TypeError, match="view"):
+            atoms["name"] | atoms["window"]
 
     return check

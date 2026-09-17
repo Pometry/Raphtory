@@ -13,21 +13,22 @@ def test_out_neighbours_found(graph):
         query {
           graph(path: "g") {
             node(name: "a") {
-              filter(expr: { node: {
+              filter(expr: {
                 and: [
                   {
-                    name: {
-                      where: { eq: { str: "d" } }
+                    eq: {
+                      lhs: { read: { entity: NODE, target: { field: NAME } } }
+                      rhs: { const: { str: "d" } }
                     }
                   },
                   {
-                    property: {
-                      name: "prop1"
-                      where: { gt: { i64: 10 } }
+                    gt: {
+                      lhs: { read: { entity: NODE, target: { property: "prop1" } } }
+                      rhs: { const: { i64: 10 } }
                     }
                   }
                 ]
-              } }) {
+              }) {
                 outNeighbours {
                   list { name }
                 }
@@ -48,25 +49,27 @@ def test_out_neighbours_found_select(graph):
         query {
           graph(path: "g") {
             node(name: "a") {
-              filter(expr: { node: {
+              filter(expr: {
                 and: [
                   {
-                    name: {
-                      where: { eq: { str: "d" } }
+                    eq: {
+                      lhs: { read: { entity: NODE, target: { field: NAME } } }
+                      rhs: { const: { str: "d" } }
                     }
                   },
                   {
-                    property: {
-                      name: "prop1"
-                      where: { gt: { i64: 10 } }
+                    gt: {
+                      lhs: { read: { entity: NODE, target: { property: "prop1" } } }
+                      rhs: { const: { i64: 10 } }
                     }
                   }
                 ]
-              } }) {
+              }) {
                 outNeighbours(select: {
-                    name: { 
-                        where: { eq: { str: "d" } }
-                    }                         
+                  eq: {
+                    lhs: { read: { entity: NODE, target: { field: NAME } } }
+                    rhs: { const: { str: "d" } }
+                  }
                 }) {
                   list { name }
                 }
@@ -87,11 +90,12 @@ def test_out_neighbours_not_found(graph):
         query {
           graph(path: "g") {
             node(name: "a") {
-              filter(expr: { node: {
-                name: {
-                  where: { eq: { str: "e" } }
+              filter(expr: {
+                eq: {
+                  lhs: { read: { entity: NODE, target: { field: NAME } } }
+                  rhs: { const: { str: "e" } }
                 }
-              } }) {
+              }) {
                 outNeighbours {
                   list { name }
                 }
@@ -110,12 +114,12 @@ def test_in_neighbours_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              filter(expr: { node: {
-                property: {
-                  name: "prop1"
-                  where: { gt: { i64: 10 } }
+              filter(expr: {
+                gt: {
+                  lhs: { read: { entity: NODE, target: { property: "prop1" } } }
+                  rhs: { const: { i64: 10 } }
                 }
-              } }) {
+              }) {
                 inNeighbours {
                   list { name }
                 }
@@ -140,16 +144,17 @@ def test_in_neighbours_found_select(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              filter(expr: { node: {
-                property: {
-                  name: "prop1"
-                  where: { gt: { i64: 10 } }
+              filter(expr: {
+                gt: {
+                  lhs: { read: { entity: NODE, target: { property: "prop1" } } }
+                  rhs: { const: { i64: 10 } }
                 }
-              } }) {
+              }) {
                 inNeighbours(select: {
-                    name: { 
-                        where: { eq: { str: "c" } }
-                    }                    
+                  eq: {
+                    lhs: { read: { entity: NODE, target: { field: NAME } } }
+                    rhs: { const: { str: "c" } }
+                  }
                 }) {
                   list { name }
                 }
@@ -170,11 +175,12 @@ def test_in_neighbours_not_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              filter(expr: { node: {
-                name: {
-                  where: { eq: { str: "e" } }
+              filter(expr: {
+                eq: {
+                  lhs: { read: { entity: NODE, target: { field: NAME } } }
+                  rhs: { const: { str: "e" } }
                 }
-              } }) {
+              }) {
                 inNeighbours {
                   list { name }
                 }
@@ -193,11 +199,12 @@ def test_neighbours_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              filter(expr: { node: {
-                name: {
-                  where: { ne: { str: "a" } }
+              filter(expr: {
+                ne: {
+                  lhs: { read: { entity: NODE, target: { field: NAME } } }
+                  rhs: { const: { str: "a" } }
                 }
-              } }) {
+              }) {
                 neighbours {
                   list { name }
                 }
@@ -220,15 +227,17 @@ def test_neighbours_found_select(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              filter(expr: { node: {
-                name: {
-                  where: { ne: { str: "a" } }
+              filter(expr: {
+                ne: {
+                  lhs: { read: { entity: NODE, target: { field: NAME } } }
+                  rhs: { const: { str: "a" } }
                 }
-              } }) {
+              }) {
                 neighbours(select: {
-                    name: { 
-                        where: { eq: { str: "b" } }
-                    }
+                  eq: {
+                    lhs: { read: { entity: NODE, target: { field: NAME } } }
+                    rhs: { const: { str: "b" } }
+                  }
                 }) {
                   list { name }
                 }
@@ -249,11 +258,12 @@ def test_neighbours_not_found(graph):
         query {
           graph(path: "g") {
             node(name: "d") {
-              filter(expr: { node: {
-                name: {
-                  where: { eq: { str: "e" } }
+              filter(expr: {
+                eq: {
+                  lhs: { read: { entity: NODE, target: { field: NAME } } }
+                  rhs: { const: { str: "e" } }
                 }
-              } }) {
+              }) {
                 neighbours {
                   list { name }
                 }
@@ -275,12 +285,20 @@ def test_neighbours_selection(graph):
     query = """
         query {
           graph(path: "g") {
-            nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+            nodes(select: {
+              gt: {
+                lhs: { read: { entity: NODE, target: { property: "p100" } } }
+                rhs: { const: { i64: 30 } }
+              }
+            }) {
               list {
                 neighbours {
-                  select(expr: { node: {
-                     property: { name: "p2", where: { gt: { i64: 3 } } }
-                  } }) {
+                  select(expr: {
+                    gt: {
+                      lhs: { read: { entity: NODE, target: { property: "p2" } } }
+                      rhs: { const: { i64: 3 } }
+                    }
+                  }) {
                     list {
                     name
                   }
@@ -309,13 +327,21 @@ def test_neighbours_neighbours_filtering(graph):
     query = """
         query {
           graph(path: "g") {
-            nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
+            nodes(select: {
+              gt: {
+                lhs: { read: { entity: NODE, target: { property: "p100" } } }
+                rhs: { const: { i64: 30 } }
+              }
+            }) {
               list {
                 name
                 neighbours {
-                  filter(expr: { node: {
-                     property: { name: "p2", where: { gt: { i64: 3 } } }
-                  } }) {
+                  filter(expr: {
+                    gt: {
+                      lhs: { read: { entity: NODE, target: { property: "p2" } } }
+                      rhs: { const: { i64: 3 } }
+                    }
+                  }) {
                     list {
                       name
                       neighbours {

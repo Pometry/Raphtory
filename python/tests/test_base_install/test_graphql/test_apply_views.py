@@ -2072,10 +2072,10 @@ def test_apply_view_node_filter():
       graph(path: "g") {
         applyViews(views: [
           {
-            nodeFilter: {
-              property: {
-                name: "where"
-                where: { eq: { str: "Berlin" } }
+            filter: {
+              eq: {
+                lhs: { read: { entity: NODE, target: { property: "where" } } }
+                rhs: { const: { str: "Berlin" } }
               }
             }
           }
@@ -2101,10 +2101,10 @@ def test_apply_view_edge_filter():
       graph(path: "g") {
         applyViews(views: [
           {
-            edgeFilter: {
-              property: {
-                name: "where"
-                where: { eq: { str: "fishbowl" } }
+            filter: {
+              eq: {
+                lhs: { read: { entity: EDGE, target: { property: "where" } } }
+                rhs: { const: { str: "fishbowl" } }
               }
             }
           }
@@ -2263,7 +2263,12 @@ def test_apply_view_a_lot_of_views():
           applyViews(views: [
             { window: { start: 1735689600000, end: 1735862400000 } },
             { layers: ["follows"] },
-            { nodeFilter: { property: { name: "where", where: { eq: { str: "Berlin" } } } } }
+            { filter: {
+              eq: {
+                lhs: { read: { entity: NODE, target: { property: "where" } } }
+                rhs: { const: { str: "Berlin" } }
+              }
+            } }
           ]) {
             list {
               name

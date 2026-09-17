@@ -1,13 +1,9 @@
 use crate::{
-    db::graph::views::filter::model::{
-        graph_filter::GraphFilter, DynView, FilterTree, GraphViewOp, ViewWrapOps,
-    },
-    prelude::Layer,
+    db::graph::views::filter::model::tree::{FilterExpr, ViewOp},
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
-use std::sync::Arc;
+use raphtory_api::core::storage::timeindex::EventTime;
 
 /// A graph-level view scope.
 ///
@@ -21,17 +17,17 @@ use std::sync::Arc;
     extends = PyFilterExpr,
     frozen
 )]
-pub struct PyGraphFilter(pub(crate) DynView, pub(crate) Vec<GraphViewOp>);
+pub struct PyGraphFilter(pub(crate) Vec<ViewOp>);
 
 impl PyGraphFilter {
     pub(crate) fn root() -> Self {
-        PyGraphFilter(Arc::new(GraphFilter), Vec::new())
+        PyGraphFilter(Vec::new())
     }
 
-    fn extend(&self, view: DynView, op: GraphViewOp) -> Self {
-        let mut ops = self.1.clone();
-        ops.push(op);
-        PyGraphFilter(view, ops)
+    fn with_view(&self, view: ViewOp) -> Self {
+        let mut ops = self.0.clone();
+        ops.push(view);
+        PyGraphFilter(ops)
     }
 }
 
@@ -48,10 +44,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyGraphFilter {
-        self.extend(
-            self.0.clone().window(start, end),
-            GraphViewOp::Window { start, end },
-        )
+        self.with_view(ViewOp::Window { start, end })
     }
 
     /// Restricts evaluation to a single point in time.
@@ -62,13 +55,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn at(&self, time: EventTime) -> PyGraphFilter {
-        self.extend(
-            self.0.clone().at(time),
-            GraphViewOp::Window {
-                start: time,
-                end: EventTime::end(time.t().saturating_add(1)),
-            },
-        )
+        self.with_view(ViewOp::At(time))
     }
 
     /// Restricts evaluation to times strictly after the given time.
@@ -79,13 +66,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn after(&self, time: EventTime) -> PyGraphFilter {
-        self.extend(
-            self.0.clone().after(time),
-            GraphViewOp::Window {
-                start: EventTime::start(time.t().saturating_add(1)),
-                end: EventTime::end(i64::MAX),
-            },
-        )
+        self.with_view(ViewOp::After(time))
     }
 
     /// Restricts evaluation to times strictly before the given time.
@@ -96,13 +77,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn before(&self, time: EventTime) -> PyGraphFilter {
-        self.extend(
-            self.0.clone().before(time),
-            GraphViewOp::Window {
-                start: EventTime::start(i64::MIN),
-                end: EventTime::end(time.t()),
-            },
-        )
+        self.with_view(ViewOp::Before(time))
     }
 
     /// Evaluates filters against the latest available state of the graph.
@@ -110,7 +85,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn latest(&self) -> PyGraphFilter {
-        self.extend(Arc::new(self.0.clone().latest()), GraphViewOp::Latest)
+        self.with_view(ViewOp::Latest)
     }
 
     /// Evaluates filters against a snapshot of the graph at a given time.
@@ -121,10 +96,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn snapshot_at(&self, time: EventTime) -> PyGraphFilter {
-        self.extend(
-            Arc::new(self.0.clone().snapshot_at(time)),
-            GraphViewOp::SnapshotAt(time),
-        )
+        self.with_view(ViewOp::SnapshotAt(time))
     }
 
     /// Evaluates filters against the most recent snapshot of the graph.
@@ -132,10 +104,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn snapshot_latest(&self) -> PyGraphFilter {
-        self.extend(
-            Arc::new(self.0.clone().snapshot_latest()),
-            GraphViewOp::SnapshotLatest,
-        )
+        self.with_view(ViewOp::SnapshotLatest)
     }
 
     /// Restricts evaluation to a single layer.
@@ -146,10 +115,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn layer(&self, layer: String) -> PyGraphFilter {
-        self.extend(
-            Arc::new(self.0.clone().layer(layer.clone())),
-            GraphViewOp::Layers(Layer::from(layer)),
-        )
+        self.with_view(ViewOp::Layers(vec![layer]))
     }
 
     /// Restricts evaluation to any of the given layers.
@@ -160,11 +126,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        let names: Vec<String> = layers.into();
-        self.extend(
-            Arc::new(self.0.clone().layer(names.clone())),
-            GraphViewOp::Layers(Layer::from(names)),
-        )
+        self.with_view(ViewOp::Layers(layers.into()))
     }
 }
 
@@ -289,7 +251,7 @@ impl<'py> IntoPyObject<'py> for PyGraphFilter {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let parent = PyFilterExpr(self.0.clone(), Some(FilterTree::View(self.1.clone())));
+        let parent = PyFilterExpr(FilterExpr::View(self.0.clone()));
         Bound::new(py, (self, parent))
     }
 }

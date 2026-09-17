@@ -393,7 +393,9 @@ def test_degree_filter_with_invalid_expressions():
     ]
 
     for make_filter in invalid_filters:
-        with pytest.raises(Exception, match=r"Invalid filter|not comparable"):
+        with pytest.raises(
+            Exception, match=r"Invalid filter|not comparable|always has a value"
+        ):
             graph.filter(make_filter()).nodes.id
 
 

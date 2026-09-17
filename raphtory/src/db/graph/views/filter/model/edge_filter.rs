@@ -16,8 +16,7 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_expr::{CreateOp, EntityExpr, PredicateLhs},
-                node_filter::{CompositeNodeFilter, NodeFilter},
-                property_filter::PropertyFilter,
+                node_filter::NodeFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 CombinedFilter, ComposableFilter, DynFilter, EdgeViewFilterOps, EntityMarker,
@@ -33,6 +32,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::graph::GraphStorage;
+use serde::{Deserialize, Serialize};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -93,7 +93,8 @@ impl EdgeViewFilterOps for EdgeFilter {
     }
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Endpoint {
     Src,
     Dst,
@@ -225,47 +226,6 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> 
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         self.inner.filter_graph_view(graph)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompositeEdgeFilter {
-    Src(CompositeNodeFilter),
-    Dst(CompositeNodeFilter),
-    Property(PropertyFilter<EdgeFilter>),
-    Windowed(Box<Windowed<CompositeEdgeFilter>>),
-    Latest(Box<Latest<CompositeEdgeFilter>>),
-    SnapshotAt(Box<SnapshotAt<CompositeEdgeFilter>>),
-    SnapshotLatest(Box<SnapshotLatest<CompositeEdgeFilter>>),
-    IsActiveEdge(IsActiveEdge),
-    IsValidEdge(IsValidEdge),
-    IsDeletedEdge(IsDeletedEdge),
-    IsSelfLoopEdge(IsSelfLoopEdge),
-    Layered(Box<Layered<CompositeEdgeFilter>>),
-    And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
-    Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
-    Not(Box<CompositeEdgeFilter>),
-}
-
-impl Display for CompositeEdgeFilter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompositeEdgeFilter::Src(filter) => write!(f, "SRC({})", filter),
-            CompositeEdgeFilter::Dst(filter) => write!(f, "DST({})", filter),
-            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::Windowed(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::Latest(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::IsActiveEdge(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::IsValidEdge(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::IsDeletedEdge(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::IsSelfLoopEdge(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::Layered(filter) => write!(f, "{}", filter),
-            CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
-            CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
-            CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
-        }
     }
 }
 

@@ -657,8 +657,8 @@ class RemoteGraph(object):
             RemoteGraph: a new filtered graph view.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter` or `EdgeFilter`.
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def get_all_node_types(self) -> list[str]:
@@ -1238,7 +1238,8 @@ class RemoteEdge(object):
             RemoteEdge: a new filtered edge view.
 
         Raises:
-            ValueError: if the filter cannot be represented remotely.
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -1689,8 +1690,8 @@ class RemoteNode(object):
             RemoteNode: a new filtered node view.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter` (e.g. references edge fields).
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -2189,8 +2190,8 @@ class RemoteNodes(object):
             RemoteNodes: a new collection with the filter applied.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter` (e.g. references edge fields).
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -2658,8 +2659,8 @@ class RemotePathFromNode(object):
             RemotePathFromNode: a new collection with the filter applied.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter`.
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -3115,8 +3116,8 @@ class RemotePathFromGraph(object):
             RemotePathFromGraph: a new collection with the filter applied.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `NodeFilter`.
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -3570,8 +3571,8 @@ class RemoteEdges(object):
             RemoteEdges: a new collection with the filter applied.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `EdgeFilter` (e.g. references node-only fields).
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4029,8 +4030,8 @@ class RemoteNestedEdges(object):
             RemoteNestedEdges: a new collection with the filter applied.
 
         Raises:
-            ValueError: if the filter cannot be represented as a GraphQL
-                `EdgeFilter`.
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
         """
 
     def has_layer(self, name: str) -> bool:

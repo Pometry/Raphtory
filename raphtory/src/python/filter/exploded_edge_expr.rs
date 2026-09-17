@@ -1,26 +1,17 @@
 use crate::{
-    db::graph::views::filter::model::{
-        exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-        is_active_edge_filter::IsActiveEdge,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        property_filter::PropertyRef,
-        FilterTree,
+    db::graph::views::filter::model::tree::{
+        Entity, Expr, FilterExpr, Scope, Structural, Target, ViewOp,
     },
     python::{
         filter::{
-            edge_expr::DynEdgeFilterFactory,
             filter_expr::PyFilterExpr,
             node_expr::{PyExpr, PyPropertyExpr},
-            wire::{wrap_exploded_views, WireEntity, WireLhs, WireTarget, WireView},
         },
         types::iterable::FromIterable,
     },
 };
 use pyo3::{pyclass, pymethods};
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
-use std::sync::Arc;
+use raphtory_api::core::storage::timeindex::EventTime;
 
 /// An exploded-edge filter scoped to a view.
 ///
@@ -29,26 +20,21 @@ use std::sync::Arc;
 /// methods on [`ExplodedEdge`]; its property and structural predicates evaluate
 /// within that view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "ExplodedEdgeFilter", module = "raphtory.filter")]
-pub struct PyExplodedEdgeFilter(Arc<dyn DynEdgeFilterFactory>, Vec<WireView>);
+pub struct PyExplodedEdgeFilter(pub(crate) Scope);
 
 impl PyExplodedEdgeFilter {
     pub(crate) fn root() -> Self {
-        PyExplodedEdgeFilter(Arc::new(ExplodedEdgeFilter), Vec::new())
+        PyExplodedEdgeFilter(Scope::new(Entity::ExplodedEdge))
     }
 
-    fn wrap(&self, factory: Arc<dyn DynEdgeFilterFactory>, view: WireView) -> Self {
-        let mut views = self.1.clone();
-        views.push(view);
-        PyExplodedEdgeFilter(factory, views)
+    fn with_view(&self, view: ViewOp) -> Self {
+        PyExplodedEdgeFilter(self.0.clone().with_view(view))
     }
 
-    fn lhs(&self, target: WireTarget) -> WireLhs {
-        WireLhs {
-            entity: WireEntity::ExplodedEdge,
-            endpoint: None,
+    fn read(&self, target: Target) -> Expr {
+        Expr::Read {
+            scope: self.0.clone(),
             target,
-            ops: Vec::new(),
-            views: self.1.clone(),
         }
     }
 }
@@ -70,8 +56,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        let lhs = self.lhs(WireTarget::Prop(PropertyRef::Property(name.clone())));
-        PyPropertyExpr::new(self.0.dyn_property(name), Some(lhs))
+        PyPropertyExpr(self.read(Target::Property(name)))
     }
 
     /// Filters an exploded edge metadata field by name.
@@ -84,8 +69,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        let lhs = self.lhs(WireTarget::Prop(PropertyRef::Metadata(name.clone())));
-        PyExpr::new(self.0.dyn_metadata(name), Some(lhs))
+        PyExpr(self.read(Target::Metadata(name)))
     }
 
     /// Restricts exploded edge evaluation to the given time window.
@@ -99,7 +83,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyExplodedEdgeFilter {
-        self.wrap(self.0.dyn_window(start, end), WireView::Window(start, end))
+        self.with_view(ViewOp::Window { start, end })
     }
 
     /// Restricts exploded edge evaluation to a single point in time.
@@ -110,10 +94,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn at(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.wrap(
-            self.0.dyn_at(time),
-            WireView::Window(time, EventTime::end(time.t().saturating_add(1))),
-        )
+        self.with_view(ViewOp::At(time))
     }
 
     /// Restricts exploded edge evaluation to times strictly after the given time.
@@ -124,13 +105,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn after(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.wrap(
-            self.0.dyn_after(time),
-            WireView::Window(
-                EventTime::start(time.t().saturating_add(1)),
-                EventTime::end(i64::MAX),
-            ),
-        )
+        self.with_view(ViewOp::After(time))
     }
 
     /// Restricts exploded edge evaluation to times strictly before the given time.
@@ -141,10 +116,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn before(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.wrap(
-            self.0.dyn_before(time),
-            WireView::Window(EventTime::start(i64::MIN), EventTime::end(time.t())),
-        )
+        self.with_view(ViewOp::Before(time))
     }
 
     /// Evaluates exploded edge predicates against the latest available state.
@@ -152,7 +124,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn latest(&self) -> PyExplodedEdgeFilter {
-        self.wrap(self.0.dyn_latest(), WireView::Latest)
+        self.with_view(ViewOp::Latest)
     }
 
     /// Evaluates exploded edge predicates against a snapshot of the graph at a given time.
@@ -163,7 +135,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn snapshot_at(&self, time: EventTime) -> PyExplodedEdgeFilter {
-        self.wrap(self.0.dyn_snapshot_at(time), WireView::SnapshotAt(time))
+        self.with_view(ViewOp::SnapshotAt(time))
     }
 
     /// Evaluates exploded edge predicates against the most recent snapshot of the graph.
@@ -171,7 +143,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn snapshot_latest(&self) -> PyExplodedEdgeFilter {
-        self.wrap(self.0.dyn_snapshot_latest(), WireView::SnapshotLatest)
+        self.with_view(ViewOp::SnapshotLatest)
     }
 
     /// Restricts evaluation to exploded edges belonging to the given layer.
@@ -182,10 +154,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn layer(&self, layer: String) -> PyExplodedEdgeFilter {
-        self.wrap(
-            self.0.dyn_layer(vec![layer.clone()]),
-            WireView::Layers(vec![layer]),
-        )
+        self.with_view(ViewOp::Layers(vec![layer]))
     }
 
     /// Restricts evaluation to exploded edges belonging to any of the given layers.
@@ -196,8 +165,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyExplodedEdgeFilter {
-        let layers: Vec<String> = layers.into();
-        self.wrap(self.0.dyn_layer(layers.clone()), WireView::Layers(layers))
+        self.with_view(ViewOp::Layers(layers.into()))
     }
 
     /// Matches exploded edges that have at least one event in the current view.
@@ -205,11 +173,10 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.FilterExpr:
     fn is_active(&self) -> PyFilterExpr {
-        let tree = FilterTree::ExplodedEdge(wrap_exploded_views(
-            CompositeExplodedEdgeFilter::IsActiveEdge(IsActiveEdge),
-            &self.1,
-        ));
-        PyFilterExpr(self.0.dyn_is_active(), Some(tree))
+        PyFilterExpr(FilterExpr::Structural {
+            scope: self.0.clone(),
+            pred: Structural::IsActive,
+        })
     }
 
     /// Matches exploded edges that are structurally valid in the current view.
@@ -217,11 +184,10 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.FilterExpr:
     fn is_valid(&self) -> PyFilterExpr {
-        let tree = FilterTree::ExplodedEdge(wrap_exploded_views(
-            CompositeExplodedEdgeFilter::IsValidEdge(IsValidEdge),
-            &self.1,
-        ));
-        PyFilterExpr(self.0.dyn_is_valid(), Some(tree))
+        PyFilterExpr(FilterExpr::Structural {
+            scope: self.0.clone(),
+            pred: Structural::IsValid,
+        })
     }
 
     /// Matches exploded edges that have been deleted.
@@ -229,11 +195,10 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.FilterExpr:
     fn is_deleted(&self) -> PyFilterExpr {
-        let tree = FilterTree::ExplodedEdge(wrap_exploded_views(
-            CompositeExplodedEdgeFilter::IsDeletedEdge(IsDeletedEdge),
-            &self.1,
-        ));
-        PyFilterExpr(self.0.dyn_is_deleted(), Some(tree))
+        PyFilterExpr(FilterExpr::Structural {
+            scope: self.0.clone(),
+            pred: Structural::IsDeleted,
+        })
     }
 
     /// Matches exploded edges that are self-loops (source == destination).
@@ -241,11 +206,10 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.FilterExpr:
     fn is_self_loop(&self) -> PyFilterExpr {
-        let tree = FilterTree::ExplodedEdge(wrap_exploded_views(
-            CompositeExplodedEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge),
-            &self.1,
-        ));
-        PyFilterExpr(self.0.dyn_is_self_loop(), Some(tree))
+        PyFilterExpr(FilterExpr::Structural {
+            scope: self.0.clone(),
+            pred: Structural::IsSelfLoop,
+        })
     }
 }
 
