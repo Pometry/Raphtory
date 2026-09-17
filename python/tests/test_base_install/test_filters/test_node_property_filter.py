@@ -1189,7 +1189,9 @@ def test_filter_nodes_window_out_of_range_is_empty():
         expr = filter.Node.window(10, 20).property("prop5").temporal().sum() >= 0
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
-        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+        with pytest.raises(
+            Exception, match=r"not valid for list properties|cannot be coerced to List"
+        ):
             graph.filter(expr).nodes.id
 
     return check
@@ -1246,7 +1248,9 @@ def test_filter_nodes_after():
         expr = filter.Node.after(1).property("prop5").temporal().sum() >= 0
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
-        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+        with pytest.raises(
+            Exception, match=r"not valid for list properties|cannot be coerced to List"
+        ):
             graph.filter(expr).nodes.id
 
         expr = filter.Node.after(1).property("prop6").temporal().last().sum() == 12
@@ -1264,7 +1268,9 @@ def test_filter_nodes_latest():
         expr = filter.Node.latest().property("prop5").temporal().sum() >= 0
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
-        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+        with pytest.raises(
+            Exception, match=r"not valid for list properties|cannot be coerced to List"
+        ):
             graph.filter(expr).nodes.id
 
     return check
@@ -1284,7 +1290,9 @@ def test_filter_nodes_snapshot_at():
         expr = filter.Node.snapshot_at(1).property("prop6").temporal().sum() >= 0
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
-        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+        with pytest.raises(
+            Exception, match=r"not valid for list properties|cannot be coerced to List"
+        ):
             graph.filter(expr).nodes.id
 
     return check
@@ -1302,7 +1310,9 @@ def test_filter_nodes_snapshot_latest():
         expr = filter.Node.snapshot_latest().property("prop5").temporal().sum() >= 0
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
-        with pytest.raises(Exception, match=r"not valid for list properties|cannot be coerced to List"):
+        with pytest.raises(
+            Exception, match=r"not valid for list properties|cannot be coerced to List"
+        ):
             graph.filter(expr).nodes.id
 
     return check

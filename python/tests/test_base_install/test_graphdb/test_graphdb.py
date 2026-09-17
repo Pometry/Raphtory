@@ -2995,4 +2995,3 @@ def datadir(tmpdir, request):
         except Exception as e:
             raise e
     return tmpdir
-

@@ -50,8 +50,7 @@ def test_sort_key_with_no_or_several_fields_is_rejected(graph):
                 nodes { sorted(sortBys: %s) { list { name } } }
               }
             }
-            """
-            % keys,
+            """ % keys,
             "exactly one",
             graph,
         )
@@ -401,10 +400,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         above_upper = _degree(direction, "gt", f"{{ u64: {upper} }}")
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"{{ and: ["
-                f"{above},"
-                f"{below_upper}"
-                "] }",
+                f"{{ and: [" f"{above}," f"{below_upper}" "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d > threshold and d < upper
                 ),
@@ -412,10 +408,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"{{ and: ["
-                f"{above},"
-                f"{below_upper}"
-                "] }",
+                f"{{ and: [" f"{above}," f"{below_upper}" "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d > threshold and d < upper
                 ),
@@ -424,10 +417,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"{{ or: ["
-                f"{below},"
-                f"{above_upper}"
-                "] }",
+                f"{{ or: [" f"{below}," f"{above_upper}" "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d < threshold or d > upper
                 ),
@@ -435,10 +425,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"{{ or: ["
-                f"{below},"
-                f"{above_upper}"
-                "] }",
+                f"{{ or: [" f"{below}," f"{above_upper}" "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d < threshold or d > upper
                 ),
@@ -447,12 +434,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"{{ or: ["
-                f"{below},"
-                f"{{ not: "
-                f"{above_upper}"
-                f" }}"
-                "] }",
+                f"{{ or: [" f"{below}," f"{{ not: " f"{above_upper}" f" }}" "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d < threshold or d <= upper
                 ),
@@ -460,12 +442,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"{{ or: ["
-                f"{below},"
-                f"{{ not: "
-                f"{above_upper}"
-                f" }}"
-                "] }",
+                f"{{ or: [" f"{below}," f"{{ not: " f"{above_upper}" f" }}" "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d < threshold or d <= upper
                 ),

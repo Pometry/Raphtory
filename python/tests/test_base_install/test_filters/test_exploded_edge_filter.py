@@ -454,7 +454,9 @@ def test_all_property_types(GraphClass):
             "is not a valid string operand",
         ),
         (
-            lambda: filter.ExplodedEdge.property("weight").fuzzy_search("blah", 2, False),
+            lambda: filter.ExplodedEdge.property("weight").fuzzy_search(
+                "blah", 2, False
+            ),
             "string operator requires a Str property",
         ),
         # Floats (confidence)
@@ -467,7 +469,9 @@ def test_all_property_types(GraphClass):
             "is not a valid string operand",
         ),
         (
-            lambda: filter.ExplodedEdge.property("confidence").fuzzy_search("blah", 2, False),
+            lambda: filter.ExplodedEdge.property("confidence").fuzzy_search(
+                "blah", 2, False
+            ),
             "string operator requires a Str property",
         ),
         # Booleans (active)
@@ -480,20 +484,28 @@ def test_all_property_types(GraphClass):
             "string operator requires a Str property",
         ),
         (
-            lambda: filter.ExplodedEdge.property("active").fuzzy_search("blah", 2, False),
+            lambda: filter.ExplodedEdge.property("active").fuzzy_search(
+                "blah", 2, False
+            ),
             "string operator requires a Str property",
         ),
         # Datetimes (created)
         (
-            lambda: filter.ExplodedEdge.property("created").contains(datetime(2023, 1, 1)),
+            lambda: filter.ExplodedEdge.property("created").contains(
+                datetime(2023, 1, 1)
+            ),
             "string operator requires a Str property",
         ),
         (
-            lambda: filter.ExplodedEdge.property("created").not_contains(datetime(2023, 1, 1)),
+            lambda: filter.ExplodedEdge.property("created").not_contains(
+                datetime(2023, 1, 1)
+            ),
             "string operator requires a Str property",
         ),
         (
-            lambda: filter.ExplodedEdge.property("created").fuzzy_search("blah", 2, False),
+            lambda: filter.ExplodedEdge.property("created").fuzzy_search(
+                "blah", 2, False
+            ),
             "string operator requires a Str property",
         ),
         # Lists (tags) — odd comparisons

@@ -10,7 +10,49 @@ from __future__ import annotations
 ###############################################################################
 
 from typing import *
-from raphtory import GraphView, PersistentGraph, _GraphEncoder, Nodes, PathFromNode, PathFromGraph, MutableNode, Edges, NestedEdges, MutableEdge, SortByTime, NodeSortBy, EdgeSortBy, Properties, PyPropValueList, PropType, Metadata, MetadataView, TemporalProperties, PropertiesView, TemporalProperty, EventTime, OptionalEventTime, History, HistoryTimestamp, HistoryDateTime, HistoryEventId, Intervals, WindowSet, Prop, version, graphql, algorithms, graph_loader, graph_gen, vectors, node_state, filter, iterables, nullmodels, plottingutils
+from raphtory import (
+    GraphView,
+    PersistentGraph,
+    _GraphEncoder,
+    Nodes,
+    PathFromNode,
+    PathFromGraph,
+    MutableNode,
+    Edges,
+    NestedEdges,
+    MutableEdge,
+    SortByTime,
+    NodeSortBy,
+    EdgeSortBy,
+    Properties,
+    PyPropValueList,
+    PropType,
+    Metadata,
+    MetadataView,
+    TemporalProperties,
+    PropertiesView,
+    TemporalProperty,
+    EventTime,
+    OptionalEventTime,
+    History,
+    HistoryTimestamp,
+    HistoryDateTime,
+    HistoryEventId,
+    Intervals,
+    WindowSet,
+    Prop,
+    version,
+    graphql,
+    algorithms,
+    graph_loader,
+    graph_gen,
+    vectors,
+    node_state,
+    filter,
+    iterables,
+    nullmodels,
+    plottingutils,
+)
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -29,8 +71,22 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['FilterExpr', 'Expr', 'PropertyExpr', 'Node', 'NodeFilter', 'Edge', 'EdgeFilter', 'EdgeEndpoint', 'ExplodedEdge', 'ExplodedEdgeFilter', 'Graph', 'GraphFilter']
-class FilterExpr(object): 
+__all__ = [
+    "FilterExpr",
+    "Expr",
+    "PropertyExpr",
+    "Node",
+    "NodeFilter",
+    "Edge",
+    "EdgeFilter",
+    "EdgeEndpoint",
+    "ExplodedEdge",
+    "ExplodedEdgeFilter",
+    "Graph",
+    "GraphFilter",
+]
+
+class FilterExpr(object):
     """
     A filter as a tree. The same tree runs locally, is sent to a server, and is
     what `repr` prints, so there is nothing to keep in step.
@@ -54,7 +110,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class Expr(object): 
+class Expr(object):
     """
     A value expression: a field, degree, property, metadata entry or an
     aggregate over one. Comparing it to a value or to another expression gives
@@ -133,7 +189,9 @@ class Expr(object):
             filter.Expr:
         """
 
-    def fuzzy_search(self, other: Prop | filter.Expr, levenshtein_distance: int, prefix_match: bool) -> filter.FilterExpr:
+    def fuzzy_search(
+        self, other: Prop | filter.Expr, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.FilterExpr:
         """
         Performs fuzzy matching against the value's string representation, within a Levenshtein distance and with optional prefix matching.
 
@@ -246,7 +304,7 @@ class Expr(object):
             filter.Expr:
         """
 
-class PropertyExpr(Expr): 
+class PropertyExpr(Expr):
     """A property read, which can switch to the property's history with `temporal()`."""
 
     def temporal(self) -> filter.Expr:
@@ -258,7 +316,7 @@ class PropertyExpr(Expr):
             filter.Expr:
         """
 
-class Node(object): 
+class Node(object):
     """
     Entry point for constructing node filter expressions.
 
@@ -476,7 +534,7 @@ class Node(object):
             filter.NodeFilter:
         """
 
-class NodeFilter(object): 
+class NodeFilter(object):
     """
     A node filter scoped to a view.
 
@@ -678,7 +736,7 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
-class Edge(object): 
+class Edge(object):
     """
     Entry point for constructing edge filter expressions.
 
@@ -868,7 +926,7 @@ class Edge(object):
             filter.EdgeFilter:
         """
 
-class EdgeFilter(object): 
+class EdgeFilter(object):
     """
     An edge filter scoped to a view.
 
@@ -1044,7 +1102,7 @@ class EdgeFilter(object):
             filter.EdgeFilter:
         """
 
-class EdgeEndpoint(object): 
+class EdgeEndpoint(object):
     """
     Entry point for filtering an edge endpoint (source or destination).
 
@@ -1104,7 +1162,7 @@ class EdgeEndpoint(object):
             filter.PropertyExpr:
         """
 
-class ExplodedEdge(object): 
+class ExplodedEdge(object):
     """
     Entry point for constructing exploded-edge filter expressions.
 
@@ -1281,7 +1339,7 @@ class ExplodedEdge(object):
             filter.ExplodedEdgeFilter:
         """
 
-class ExplodedEdgeFilter(object): 
+class ExplodedEdgeFilter(object):
     """
     An exploded-edge filter scoped to a view.
 
@@ -1448,7 +1506,7 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
-class Graph(object): 
+class Graph(object):
     """
     Entry point for graph-level view filters.
 
@@ -1561,7 +1619,7 @@ class Graph(object):
             filter.GraphFilter:
         """
 
-class GraphFilter(FilterExpr): 
+class GraphFilter(FilterExpr):
     """
     A graph-level view scope.
 
