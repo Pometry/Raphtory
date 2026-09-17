@@ -4,6 +4,7 @@ pub use crate::{
     auth::{
         Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
     },
+    auth_policy::{DynGraphWithFolder, MaybeCachedFilteredRead},
     model::graph::{filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };

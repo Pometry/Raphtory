@@ -12,7 +12,7 @@ use crate::{
             InternalNodeFilterOps, Static,
         },
     },
-    prelude::{GraphViewOps, LayerOps},
+    prelude::{GraphViewOps, Layer, LayerOps},
     storage::core_ops::InheritCoreGraphOps,
 };
 use raphtory_api::{
@@ -41,6 +41,11 @@ use storage::EdgeEntryRef;
 pub struct CachedView<G> {
     pub(crate) graph: G,
     pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
+    /// Nodes a view with no layer selected still shows — the unlayered ones, which live in
+    /// `STATIC_GRAPH_LAYER_ID` and are visible in every view (see
+    /// `NodeStorageOps::tprop_iter_layers`). `unique_layers` never yields the no-layer case, so
+    /// this cannot fall out of the per-layer masks and is asked for separately.
+    pub(crate) unlayered_nodes_mask: Arc<RoaringTreemap>,
     pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap, Option<RoaringTreemap>)]>,
 }
 
@@ -78,6 +83,14 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
         let mut layered_masks = vec![];
+        // Derived by asking the graph rather than by reasoning about which nodes are unlayered, so
+        // it follows the same rules as every other mask here.
+        let unlayered_nodes_mask = Arc::new(
+            graph
+                .layers(Layer::None)
+                .map(|no_layers| no_layers.nodes().iter().map(|n| n.node.as_u64()).collect())
+                .unwrap_or_default(),
+        );
         let global_nodes_mask = Arc::new(
             graph
                 .nodes()
@@ -153,6 +166,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
         Self {
             graph,
             global_nodes_mask,
+            unlayered_nodes_mask,
             layered_mask: layered_masks.into(),
         }
     }
@@ -291,7 +305,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
-            LayerIds::None => false,
+            // Not `false`, and not the global mask either: selecting no layers hides every
+            // *layered* node but still shows the unlayered ones. Answering anything else makes
+            // caching a view change what it contains, which is the one thing it must never do.
+            LayerIds::None => self.unlayered_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
@@ -309,5 +326,78 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
 
     fn node_filter_includes_window_filter(&self) -> bool {
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    fn fixture() -> Graph {
+        let graph = Graph::new();
+        // Added without a layer, so it lives in the static layer and every view shows it.
+        graph
+            .add_node(0, "unlayered", NO_PROPS, None, None)
+            .unwrap();
+        graph
+            .add_edge(0, "a", "b", NO_PROPS, Some("layer_a"))
+            .unwrap();
+        graph
+            .add_edge(0, "c", "d", NO_PROPS, Some("layer_b"))
+            .unwrap();
+        graph
+    }
+
+    fn names<'a, G: GraphViewOps<'a>>(graph: &G) -> Vec<String> {
+        let mut names: Vec<String> = graph.nodes().name().into_iter().map(|(_, n)| n).collect();
+        names.sort();
+        names
+    }
+
+    /// Caching a view must not change what it contains, and selecting no layers is the case that
+    /// separates "no nodes" from "the unlayered ones": layered nodes go, unlayered nodes stay.
+    #[test]
+    fn caching_a_no_layer_view_keeps_exactly_its_unlayered_nodes() {
+        let graph = fixture();
+        let no_layers = graph.exclude_layers(["layer_a", "layer_b"]).unwrap();
+
+        let direct = names(&no_layers);
+        assert_eq!(
+            direct,
+            vec!["unlayered".to_string()],
+            "the engine's own answer"
+        );
+        assert_eq!(names(&no_layers.cache_view()), direct);
+        assert_eq!(
+            no_layers.cache_view().edges().len(),
+            no_layers.edges().len()
+        );
+    }
+
+    /// The same, but with the layers excluded *after* caching rather than before. The masks are
+    /// then built over the whole graph, so an implementation that answered the no-layer case with
+    /// its global mask would leak every layered node here while looking correct above.
+    #[test]
+    fn excluding_every_layer_after_caching_also_keeps_only_unlayered_nodes() {
+        let graph = fixture();
+        let cached = graph.cache_view();
+
+        let direct = names(&graph.exclude_layers(["layer_a", "layer_b"]).unwrap());
+        let after = names(&cached.exclude_layers(["layer_a", "layer_b"]).unwrap());
+        assert_eq!(
+            after, direct,
+            "caching must not change what excluding layers shows"
+        );
+    }
+
+    /// And the ordinary cases still agree, so the no-layer fix did not come at their expense.
+    #[test]
+    fn caching_agrees_on_all_layers_and_on_one() {
+        let graph = fixture();
+        assert_eq!(names(&graph.cache_view()), names(&graph));
+
+        let one = graph.layers("layer_a").unwrap();
+        assert_eq!(names(&one.cache_view()), names(&one));
+        assert_eq!(one.cache_view().edges().len(), one.edges().len());
     }
 }
