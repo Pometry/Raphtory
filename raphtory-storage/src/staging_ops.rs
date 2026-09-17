@@ -9,9 +9,9 @@ use crate::graph::graph::GraphStorage;
 
 /// Represents a graph forked from an existing graph.
 pub struct StagedGraph<'a> {
-    staged_graph: GraphStorage,
+    graph: GraphStorage,
 
-    staged_folder: WriteableGraphFolder,
+    folder: WriteableGraphFolder,
 
     live_graph: WriteLockedGraph<'a, Extension>,
 
@@ -24,23 +24,27 @@ pub trait StagingOps {
 
 impl<'a> StagedGraph<'a> {
     pub fn new(
-        staged_graph: GraphStorage,
-        staged_folder: WriteableGraphFolder,
+        graph: GraphStorage,
+        folder: WriteableGraphFolder,
         live_graph: WriteLockedGraph<'a, Extension>,
         live_folder: GraphFolder,
     ) -> Self {
         Self {
-            staged_graph,
-            staged_folder,
+            graph,
+            folder,
             live_graph,
             live_folder,
         }
     }
 
+    pub fn graph(&self) -> &GraphStorage {
+        &self.graph
+    }
+
     pub fn commit(self) -> Result<(), StagingError> {
         // FIXME: Update metadata here.
 
-        self.staged_folder.finish().map_err(StagingError::Commit)?;
+        self.folder.finish().map_err(StagingError::Commit)?;
 
         Ok(())
     }
