@@ -216,6 +216,12 @@ fn node_has_valid_edges_before<G: GraphView>(
             return false;
         }
         let neighbour = gs.core_node(edge_ref.remote());
+        if view.internal_nodes_filtered()
+            && !view.edge_filter_includes_node_filter()
+            && !view.internal_filter_node(neighbour.as_ref(), layers)
+        {
+            return false;
+        }
         let search_start_global = neighbour
             .as_ref()
             .node_deletions(STATIC_GRAPH_LAYER_ID)
