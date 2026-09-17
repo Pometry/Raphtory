@@ -3,7 +3,9 @@ use raphtory::{
     algorithms::{
         centrality::{hits::hits, pagerank::page_rank},
         community_detection::{
-            label_propagation::label_propagation, louvain::louvain, modularity::ModularityUnDir,
+            label_propagation::{label_propagation, label_propagation_fast},
+            louvain::louvain,
+            modularity::ModularityUnDir,
         },
         components::{in_component, in_component_filtered, strongly_connected_components},
         cores::k_core::{k_core, k_core_set},
@@ -152,6 +154,17 @@ pub fn graphgen_label_propagation(c: &mut Criterion) {
         10,
         medium_random_attachment_graph,
         |graph, _| label_propagation(graph, 20, Some(1), None, (), None, None).unwrap(),
+    );
+}
+
+pub fn graphgen_label_propagation_fast(c: &mut Criterion) {
+    graph_benchmark(
+        c,
+        "graphgen_label_propagation_fast",
+        5,
+        10,
+        medium_random_attachment_graph,
+        |graph, _| label_propagation_fast(graph, 20, Some(1), None, (), None, None).unwrap(),
     );
 }
 
@@ -366,6 +379,7 @@ criterion_group!(
     graphgen_reciprocity,
     graphgen_scc,
     graphgen_label_propagation,
+    graphgen_label_propagation_fast,
     graphgen_louvain,
     graphgen_all_local_reciprocity,
     graphgen_balance,
