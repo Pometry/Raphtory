@@ -1,7 +1,9 @@
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
+use proptest::{
+    arbitrary::any, prelude::Strategy, prop_assert, prop_assert_eq, proptest, sample::subsequence,
+};
 use raphtory::{
     algorithms::{
         centrality::{degree_centrality::degree_centrality, pagerank::page_rank},
@@ -26,7 +28,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{LayerId, LayerIds, GID, VID},
+    entities::{properties::prop::prop_hashable::HashableProp, LayerId, LayerIds, GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::{AsTime, EventTime},
@@ -40,8 +42,8 @@ use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalA
 use raphtory_tests::{
     test_storage,
     utils::{
-        build_graph, build_graph_strat, EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture,
-        PropUpdatesFixture,
+        build_graph, build_graph_strat, prop, prop_type, EdgeFixture, EdgeUpdatesFixture,
+        GraphFixture, NodeFixture, PropUpdatesFixture,
     },
 };
 use rayon::{join, prelude::*};
@@ -3897,4 +3899,18 @@ fn test_group_by() {
             expected_subgraphs[v].deref()
         );
     }
+}
+
+#[test]
+fn hashing_proptest() {
+    proptest!(|(a in prop_type(3).prop_flat_map(|dt| prop(&dt)), b in prop_type(3).prop_flat_map(|dt| prop(&dt)))| {
+            let mut set = HashSet::new();
+            set.insert(HashableProp(a.clone()));
+            assert!(set.contains(a.as_ref()));
+            if a == b {
+                assert!(set.contains(b.as_ref()));
+            } else {
+                assert!(!set.contains(b.as_ref()));
+            }
+        } )
 }

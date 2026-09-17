@@ -17,7 +17,7 @@ use raphtory_api::{
             LayerId,
             properties::{
                 meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
-                prop::{AsPropRef, Prop, PropUnwrap},
+                prop::{AsPropRef, Prop, PropUnwrap, prop_hashable::HashableProp},
                 tprop::TPropOps,
             },
         },
@@ -50,7 +50,7 @@ use std::{
 #[derive(Debug, Clone, Copy)]
 pub enum PropPredicate<'a> {
     Eq(&'a Prop),
-    In(&'a std::collections::HashSet<Prop>),
+    In(&'a HashSet<HashableProp>),
     Lt(&'a Prop),
     Le(&'a Prop),
     Gt(&'a Prop),

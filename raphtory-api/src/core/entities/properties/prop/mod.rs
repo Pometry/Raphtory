@@ -7,6 +7,7 @@ mod prop_type;
 mod prop_unwrap;
 mod serde;
 
+pub mod prop_hashable;
 #[cfg(feature = "template")]
 mod template;
 
