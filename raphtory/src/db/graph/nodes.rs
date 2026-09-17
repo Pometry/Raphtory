@@ -20,6 +20,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
@@ -30,6 +31,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use storage::api::nodes::NodeRefOps;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
@@ -209,11 +211,17 @@ where
     ) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
-
-        self.node_list().nodes_iter(&g).filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
-        })
+        let node_list = self.node_list();
+        GenLockedIter::from(
+            (g, view, selector, node_list),
+            |(g, view, selector, node_list)| {
+                Box::new(node_list.clone().node_entries(g).filter_map(move |node| {
+                    let node_ref = node.as_ref();
+                    let vid = node_ref.vid();
+                    (view.filter_node(node_ref) && selector.apply(g, vid)).then_some(vid)
+                }))
+            },
+        )
     }
 
     #[inline]

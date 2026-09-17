@@ -32,7 +32,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::Meta,
-            prop::{sort_comparable_props, Prop, PropType},
+            prop::{prop_hashable::HashableProp, sort_comparable_props, Prop, PropType},
         },
         LayerId, EID,
     },
@@ -109,11 +109,11 @@ impl PropertyRef {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PropertyFilterValue {
     None,
     Single(Prop),
-    Set(Arc<HashSet<Prop>>),
+    Set(Arc<HashSet<HashableProp>>),
 }
 
 pub struct PropertyFilterInput {
@@ -135,7 +135,7 @@ impl PropertyFilterInput {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PropertyFilter<M> {
     pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
@@ -170,7 +170,7 @@ impl<M> Display for PropertyFilter<M> {
             PropertyFilterValue::None => write!(f, "{} {}", expr, self.operator),
             PropertyFilterValue::Single(value) => write!(f, "{} {} {}", expr, self.operator, value),
             PropertyFilterValue::Set(values) => {
-                let sorted = sort_comparable_props(values.iter().collect_vec());
+                let sorted = sort_comparable_props(values.iter().map(Into::into).collect_vec());
                 let values_str = sorted.iter().map(|v| format!("{}", v)).join(", ");
                 write!(f, "{} {} [{}]", expr, self.operator, values_str)
             }

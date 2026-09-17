@@ -23,6 +23,7 @@ use storage::{
     pages::SegmentCounts,
     persist::strategy::PersistenceStrategy,
     state::StateIndex,
+    utils::Iter2,
     Extension, GraphPropEntry, NTI,
 };
 use thiserror::Error;
@@ -418,6 +419,25 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.nodes.segment_counts(),
             GraphStorage::Unlocked(storage) => storage.storage().node_segment_counts(),
+        }
+    }
+
+    pub fn node_entries(&self) -> impl Iterator<Item = NodeStorageEntry<'_>> {
+        match self {
+            GraphStorage::Mem(storage) => Iter2::I1(
+                storage
+                    .nodes
+                    .segment_counts()
+                    .into_iter()
+                    .map(|vid| NodeStorageEntry::Mem(storage.nodes.node_ref(vid))),
+            ),
+            GraphStorage::Unlocked(storage) => Iter2::I2(
+                storage
+                    .storage()
+                    .nodes()
+                    .node_entries()
+                    .map(NodeStorageEntry::Segment),
+            ),
         }
     }
 

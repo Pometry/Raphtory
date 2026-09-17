@@ -781,6 +781,7 @@ impl StagingOps for TemporalGraph {
         // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_path)?;
         let extension = Extension::load(&staged_path, config)?;
+
         let temporal_graph = TemporalGraph::<Extension>::load(staged_path, extension)?;
         let staged_graph = GraphStorage::from(temporal_graph);
 

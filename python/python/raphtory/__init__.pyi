@@ -711,11 +711,13 @@ class Graph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-        config (Config, optional): The configuration options for the graph
+        config (dict[str, Any], optional): The configuration options for the graph
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls,
+        path: Optional[str | PathLike] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -809,7 +811,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def build_property_index(self, props: Optional[list[str]] = None) -> None:
+    def build_property_index(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
@@ -827,6 +831,10 @@ class Graph(GraphView):
                 to change what the next build considers. Defaults to None,
                 which keeps the saved selection (or indexes every supported
                 property if none was ever set).
+            index_gid (bool, optional): also index each node's id. Defaults to False.
+                Filters over the id can then be served from the index instead
+                of a scan. The id has no property name, so it cannot be named
+                in `props`. Always takes effect and is saved with the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1090,6 +1098,14 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def indexed_gid(self) -> bool:
+        """
+        Whether index builds cover each node's id.
+
+        Returns:
+            bool: True when the node id is indexed.
+        """
+
     def indexed_properties(self) -> list[str]:
         """
         The node property names that index builds consider.
@@ -1114,22 +1130,22 @@ class Graph(GraphView):
     @staticmethod
     def load(
         path: str | PathLike,
-        config: Optional[Config] = None,
-        read_only: Optional[bool] = False,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
     ) -> Graph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
-                                       (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-                                        Multiple processes can hold a read-only handle to the same
-                                        graph directory concurrently. Mutating the returned graph will fail.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
-            Graph: the graph
+            Graph: the graph loaded from path
         """
 
     def load_edge_metadata(
@@ -1379,7 +1395,9 @@ class Graph(GraphView):
           bytes:
         """
 
-    def set_indexed_properties(self, props: Optional[list[str]] = None) -> None:
+    def set_indexed_properties(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Choose which node properties later index builds consider, without
         building now.
@@ -1389,6 +1407,7 @@ class Graph(GraphView):
                 list indexes nothing. Defaults to None, which restores
                 indexing every supported property — the way back after a
                 selection has been set.
+            index_gid (bool, optional): whether to index each node's id. Defaults to False.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1425,12 +1444,14 @@ class PersistentGraph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-        config (Config, optional): Storage/config overrides. Defaults to None.
+        config (dict[str, Any], optional): Storage/config overrides. Defaults to None.
 
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls,
+        path: Optional[str | PathLike] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -1521,7 +1542,9 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def build_property_index(self, props: Optional[list[str]] = None) -> None:
+    def build_property_index(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
@@ -1539,6 +1562,10 @@ class PersistentGraph(GraphView):
                 to change what the next build considers. Defaults to None,
                 which keeps the saved selection (or indexes every supported
                 property if none was ever set).
+            index_gid (bool, optional): also index each node's id. Defaults to False.
+                Filters over the id can then be served from the index instead
+                of a scan. The id has no property name, so it cannot be named
+                in `props`. Always takes effect and is saved with the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1798,6 +1825,14 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def indexed_gid(self) -> bool:
+        """
+        Whether index builds cover each node's id.
+
+        Returns:
+            bool: True when the node id is indexed.
+        """
+
     def indexed_properties(self) -> list[str]:
         """
         The node property names that index builds consider.
@@ -1810,22 +1845,22 @@ class PersistentGraph(GraphView):
     @staticmethod
     def load(
         path: str | PathLike,
-        config: Optional[Config] = None,
-        read_only: Optional[bool] = False,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
     ) -> PersistentGraph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
-                                       (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-                                        Multiple processes can hold a read-only handle to the same
-                                        graph directory concurrently. Mutating the returned graph will fail.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
-            PersistentGraph: the graph
+            PersistentGraph: the graph loaded from path
         """
 
     def load_edge_deletions(
@@ -2147,7 +2182,9 @@ class PersistentGraph(GraphView):
           bytes:
         """
 
-    def set_indexed_properties(self, props: Optional[list[str]] = None) -> None:
+    def set_indexed_properties(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Choose which node properties later index builds consider, without
         building now.
@@ -2157,6 +2194,7 @@ class PersistentGraph(GraphView):
                 list indexes nothing. Defaults to None, which restores
                 indexing every supported property — the way back after a
                 selection has been set.
+            index_gid (bool, optional): whether to index each node's id. Defaults to False.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
