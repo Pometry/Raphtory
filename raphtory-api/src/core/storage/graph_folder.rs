@@ -402,18 +402,20 @@ impl GraphFolder {
             return Err(GraphFolderError::ZippedGraphCannotBeSwapped);
         }
 
+        self.ensure_clean_root_dir()?;
+
         let relative_data_path = self.relative_data_path()?;
         let meta = serde_json::to_string(&RelativePath {
             path: relative_data_path.clone(),
         })?;
 
-        self.ensure_clean_root_dir()?;
-
         // Create a .dirty file to indicate that a graph is being written.
         let dirty_path = self.root.join(DIRTY_PATH);
-        let mut path_file = File::create_new(&dirty_path)?;
+        let mut dirty_file = File::create_new(&dirty_path)?;
 
-        path_file.write_all(meta.as_bytes())?;
+        dirty_file.write_all(meta.as_bytes())?;
+        dirty_file.sync_all()?;
+
         fs::create_dir_all(self.root.join(relative_data_path))?;
 
         Ok(WriteableGraphFolder { path: self.root })
@@ -431,7 +433,8 @@ impl GraphFolder {
         let old_swap = match read_path_pointer(self.root(), DIRTY_PATH, DATA_PATH) {
             Ok(path) => path,
             Err(_) => {
-                fs::remove_file(self.root.join(DIRTY_PATH))?; // dirty file is corrupted, clean it up
+                // dirty file is corrupted, clean it up
+                fs::remove_file(self.root.join(DIRTY_PATH))?;
                 None
             }
         };
@@ -457,8 +460,8 @@ impl GraphFolder {
                 let meta = serde_json::to_string(&RelativePath {
                     path: new_relative_data_path,
                 })?;
-                let mut dirty_file = File::create_new(self.root.join(DIRTY_PATH))?;
 
+                let mut dirty_file = File::create_new(self.root.join(DIRTY_PATH))?;
                 dirty_file.write_all(meta.as_bytes())?;
                 dirty_file.sync_all()?;
 
@@ -481,6 +484,7 @@ impl GraphFolder {
 
         fs::remove_dir_all(&self.root)?;
         fs::create_dir_all(&self.root)?;
+
         Ok(())
     }
 
@@ -594,16 +598,18 @@ impl WriteableGraphFolder {
     /// This operation returns an error if there is no write in progress.
     pub fn finish(self) -> Result<GraphFolder, GraphFolderError> {
         let old_data = read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
-        fs::rename(
-            self.root().join(DIRTY_PATH),
-            self.root().join(ROOT_RAPH_PATH),
-        )?;
+        let dirty_path = self.root().join(DIRTY_PATH);
+        let root_path = self.root().join(ROOT_RAPH_PATH);
+
+        fs::rename(dirty_path, root_path)?;
+
         if let Some(old_data) = old_data {
             let old_data_path = self.root().join(old_data);
             if old_data_path.is_dir() {
                 fs::remove_dir_all(old_data_path)?;
             }
         }
+
         Ok(GraphFolder {
             root: self.path,
             write_as_zip_format: false,
