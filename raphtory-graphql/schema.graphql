@@ -2122,7 +2122,7 @@ type Graph {
 	"""
 	nodes(
 		"""
-		Optional filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned.
+		Optional filter expression made of node predicates, graph views, or and/or/not combinations (and is an intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned.
 		"""
 		select: FilterExpr
 	): Nodes!
@@ -2145,7 +2145,7 @@ type Graph {
 	"""
 	edges(
 		"""
-		Optional filter expression: edge predicates (including src/dst reads), graph views, or and/or/not combinations (and = intersection). If omitted, every edge in the view is returned.
+		Optional filter expression made of edge predicates (including src/dst reads), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned.
 		"""
 		select: FilterExpr
 	): Edges!
@@ -2209,7 +2209,7 @@ type Graph {
 	"""
 	filter(
 		"""
-		Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter.
+		Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently and the results intersected. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter.
 		"""
 		expr: FilterExpr
 	): Graph!
@@ -7076,3 +7076,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

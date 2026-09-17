@@ -536,7 +536,7 @@ impl GqlGraph {
     pub async fn nodes(
         &self,
         #[graphql(
-            desc = "Optional filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned."
+            desc = "Optional filter expression made of node predicates, graph views, or and/or/not combinations (and is an intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned."
         )]
         select: Option<GqlFilter>,
     ) -> Result<GqlNodes> {
@@ -570,7 +570,7 @@ impl GqlGraph {
     pub async fn edges<'a>(
         &self,
         #[graphql(
-            desc = "Optional filter expression: edge predicates (including src/dst reads), graph views, or and/or/not combinations (and = intersection). If omitted, every edge in the view is returned."
+            desc = "Optional filter expression made of edge predicates (including src/dst reads), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned."
         )]
         select: Option<GqlFilter>,
     ) -> Result<GqlEdges> {
@@ -717,7 +717,7 @@ impl GqlGraph {
     pub async fn filter(
         &self,
         #[graphql(
-            desc = "Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter."
+            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently and the results intersected. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {
