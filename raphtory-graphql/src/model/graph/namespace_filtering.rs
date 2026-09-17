@@ -60,7 +60,7 @@ pub enum MetaGraphField {
 
 /// Narrows a namespace's graph listing.
 ///
-/// Composes the same way as the graph/node/edge filters: leaves test one
+/// Composes like a filter expression: leaves test one
 /// attribute or metadata key, and `and` / `or` / `not` combine them.
 #[derive(OneOfInput, Clone, Debug)]
 pub enum MetaGraphFilter {

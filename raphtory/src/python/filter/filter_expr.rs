@@ -1,23 +1,18 @@
 use crate::{
     db::{
         api::{
-            state::ops::NodeOp,
-            view::{internal::GraphView, BoxableGraphView},
+            state::NodeOp,
+            view::internal::{DynGraphArc, GraphView},
         },
-        graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
-                TryAsCompositeFilter,
-            },
-            CreateFilter,
-        },
+        graph::views::filter::{model::tree::FilterExpr, CreateFilter},
     },
     errors::GraphError,
 };
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::sync::Arc;
 
+/// A filter as a tree. The same tree runs locally, is sent to a server, and is
+/// what `repr` prints, so there is nothing to keep in step.
 #[pyclass(
     frozen,
     name = "FilterExpr",
@@ -26,44 +21,57 @@ use std::sync::Arc;
     from_py_object
 )]
 #[derive(Clone)]
-pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
+pub struct PyFilterExpr(pub FilterExpr);
 
 impl PyFilterExpr {
-    pub fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        self.0.try_as_filter_tree()
-    }
-
-    pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.0.try_as_composite_node_filter()
-    }
-
-    pub fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.0.try_as_composite_edge_filter()
+    pub fn tree(&self) -> &FilterExpr {
+        &self.0
     }
 }
 
 #[pymethods]
 impl PyFilterExpr {
     pub fn __and__(&self, other: &Self) -> Self {
-        let left = self.0.clone();
-        let right = other.0.clone();
-        PyFilterExpr(Arc::new(AndFilter { left, right }))
+        PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.0.clone()]))
     }
 
-    pub fn __or__(&self, other: &Self) -> Self {
-        let left = self.0.clone();
-        let right = other.0.clone();
-        PyFilterExpr(Arc::new(OrFilter { left, right }))
+    pub fn __or__(&self, other: &Self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        no_view(&other.0)?;
+        Ok(PyFilterExpr(FilterExpr::Or(vec![
+            self.0.clone(),
+            other.0.clone(),
+        ])))
     }
 
-    fn __invert__(&self) -> Self {
-        PyFilterExpr(Arc::new(NotFilter(self.0.clone())))
+    fn __invert__(&self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        Ok(PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone()))))
+    }
+
+    /// Shows the filter tree: what runs locally and what a server receives.
+    fn __repr__(&self) -> String {
+        format!("FilterExpr({})", self.0)
     }
 }
 
+/// A view applies to the whole filter, so it can be `&`-ed with predicates or applied
+/// alone, but has no meaning under `|` or `~`. Refused where it is written, as the
+/// engine would refuse it when applied.
+fn no_view(filter: &FilterExpr) -> PyResult<()> {
+    if filter.has_view() {
+        return Err(PyTypeError::new_err(
+            "a view (filter.Graph...) applies to the whole filter: combine it with `&` or apply it alone, not with `|` or `~`",
+        ));
+    }
+    Ok(())
+}
+
 impl CreateFilter for PyFilterExpr {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn BoxableGraphView + 'graph>;
+    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
         = Arc<dyn NodeOp<Output = bool> + 'graph>
@@ -71,7 +79,7 @@ impl CreateFilter for PyFilterExpr {
         Self: 'graph;
 
     type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;

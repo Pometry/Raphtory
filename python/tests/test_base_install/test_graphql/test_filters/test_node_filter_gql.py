@@ -21,11 +21,12 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-            id: {
-              where: { eq: { str: "1" } }
-            }
-          } }) {
+        filterNodes: filter(expr: {
+          eq: {
+            lhs: { read: { entity: NODE, target: { field: ID } } }
+            rhs: { const: { str: "1" } }
+          }
+        }) {
           nodes {
             list { name }
           }
@@ -60,11 +61,12 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-            id: {
-              where: { eq: { u64: 1 } }
-            }
-          } }) {
+        filterNodes: filter(expr: {
+          eq: {
+            lhs: { read: { entity: NODE, target: { field: ID } } }
+            rhs: { const: { u64: 1 } }
+          }
+        }) {
           nodes {
             list { name }
           }
@@ -72,7 +74,9 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
       }
     }
     """
-    expected_error_message = "Invalid filter: Filter value type does not match node ID type. Expected Str but got \\"
+    expected_error_message = (
+        "Invalid filter: value U64(1) of type U64 cannot be coerced to Str"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -85,11 +89,12 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-            id: {
-              where: { eq: { u64: 1 } }
-            }
-          } }) {
+        filterNodes: filter(expr: {
+          eq: {
+            lhs: { read: { entity: NODE, target: { field: ID } } }
+            rhs: { const: { u64: 1 } }
+          }
+        }) {
           nodes {
             list { name }
           }
@@ -107,13 +112,24 @@ def test_nodes_chained_selection_with_node_filter(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { node: { nodeType: { 
-            where: { eq: { str: "fire_nation" } }
-          } } }) {
-            select(expr: { node: { property: { name: "p9", where: { eq:{ i64: 5 } } } } }) {
-              filter(expr: { node: {
-                property: { name: "p100", where: { gt: { i64: 30 } } }
-              } }) {
+          select(expr: {
+            eq: {
+              lhs: { read: { entity: NODE, target: { field: NODE_TYPE } } }
+              rhs: { const: { str: "fire_nation" } }
+            }
+          }) {
+            select(expr: {
+              eq: {
+                lhs: { read: { entity: NODE, target: { property: "p9" } } }
+                rhs: { const: { i64: 5 } }
+              }
+            }) {
+              filter(expr: {
+                gt: {
+                  lhs: { read: { entity: NODE, target: { property: "p100" } } }
+                  rhs: { const: { i64: 30 } }
+                }
+              }) {
                 list {
                   name
                 }
@@ -138,7 +154,9 @@ def test_nodes_filter_windowed_is_active(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: {node: {window: {start: 1, end: 4, expr: {isActive: true}}}}) {
+          select(expr: {
+            isActive: { entity: NODE, views: [{ window: { start: 1, end: 4 } }] }
+          }) {
             list {
               name
             }
@@ -166,7 +184,11 @@ def test_nodes_filter_windowed_is_not_active(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: {node: {window: {start: 1, end: 4, expr: {isActive: false}}}}) {
+          select(expr: {
+            not: {
+              isActive: { entity: NODE, views: [{ window: { start: 1, end: 4 } }] }
+            }
+          }) {
             list {
               name
             }
@@ -213,11 +235,25 @@ def _expected_degree_select_names(graph, direction, predicate):
     )
 
 
+def _degree(direction, op, value=None, over=None):
+    """A degree predicate in the tree grammar: `degree(direction) <op> value`, the degree
+    optionally wrapped in an aggregate or qualifier (`over`) so invalid chains can be spelled.
+    """
+    lhs = f"{{ read: {{ entity: NODE, target: {{ degree: {direction} }} }} }}"
+    if over:
+        lhs = f"{{ {over}: {lhs} }}"
+    if op in ("isSome", "isNone"):
+        return f"{{ {op}: {lhs} }}"
+    if op in ("isIn", "isNotIn"):
+        return f"{{ {op}: {{ expr: {lhs}, values: {value} }} }}"
+    return f"{{ {op}: {{ lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
+
+
 def _degree_filter_nodes_query_expected_pair(expr, expected_names):
     query = f"""
   query {{
     graph(path: "g") {{
-    filterNodes: filter(expr: {{ node: {{ {expr} }} }}) {{
+    filterNodes: filter(expr: {expr}) {{
       nodes {{
       list {{ name }}
       }}
@@ -241,7 +277,7 @@ def _degree_select_nodes_query_expected_pair(expr, expected_names):
   query {{
     graph(path: "g") {{
       nodes {{
-        select(expr: {{ node: {{ {expr} }} }}) {{
+        select(expr: {expr}) {{
           list {{ name }}
         }}
       }}
@@ -265,7 +301,7 @@ def test_filter_nodes_degree_ops_and_gql(graph):
     for direction in ["BOTH", "IN", "OUT"]:
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ lt: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "lt", f"{{ u64: {threshold} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d < threshold
                 ),
@@ -273,13 +309,13 @@ def test_filter_nodes_degree_ops_and_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ lt: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "lt", f"{{ u64: {threshold} }}"),
                 _expected_degree_names(graph, direction, lambda d: d < threshold),
             )
         )
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ le: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "le", f"{{ u64: {threshold} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d <= threshold
                 ),
@@ -287,13 +323,13 @@ def test_filter_nodes_degree_ops_and_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ le: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "le", f"{{ u64: {threshold} }}"),
                 _expected_degree_names(graph, direction, lambda d: d <= threshold),
             )
         )
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ eq: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "eq", f"{{ u64: {threshold} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d == threshold
                 ),
@@ -301,13 +337,13 @@ def test_filter_nodes_degree_ops_and_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ eq: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "eq", f"{{ u64: {threshold} }}"),
                 _expected_degree_names(graph, direction, lambda d: d == threshold),
             )
         )
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ ne: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "ne", f"{{ u64: {threshold} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d != threshold
                 ),
@@ -315,13 +351,13 @@ def test_filter_nodes_degree_ops_and_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ ne: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "ne", f"{{ u64: {threshold} }}"),
                 _expected_degree_names(graph, direction, lambda d: d != threshold),
             )
         )
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ ge: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "ge", f"{{ u64: {threshold} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d >= threshold
                 ),
@@ -329,13 +365,13 @@ def test_filter_nodes_degree_ops_and_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ ge: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "ge", f"{{ u64: {threshold} }}"),
                 _expected_degree_names(graph, direction, lambda d: d >= threshold),
             )
         )
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ gt: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "gt", f"{{ u64: {threshold} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d > threshold
                 ),
@@ -343,7 +379,7 @@ def test_filter_nodes_degree_ops_and_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ gt: {{ u64: {threshold} }} }} }}",
+                _degree(direction, "gt", f"{{ u64: {threshold} }}"),
                 _expected_degree_names(graph, direction, lambda d: d > threshold),
             )
         )
@@ -358,12 +394,13 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
     queries_and_expected_outputs = []
 
     for direction in ["BOTH", "IN", "OUT"]:
+        above = _degree(direction, "gt", f"{{ u64: {threshold} }}")
+        below_upper = _degree(direction, "lt", f"{{ u64: {upper} }}")
+        below = _degree(direction, "lt", f"{{ u64: {threshold} }}")
+        above_upper = _degree(direction, "gt", f"{{ u64: {upper} }}")
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                "and: ["
-                f"{{ degree: {{ direction: {direction}, where: {{ gt: {{ u64: {threshold} }} }} }} }},"
-                f"{{ degree: {{ direction: {direction}, where: {{ lt: {{ u64: {upper} }} }} }} }}"
-                "]",
+                f"{{ and: [" f"{above}," f"{below_upper}" "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d > threshold and d < upper
                 ),
@@ -371,10 +408,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                "and: ["
-                f"{{ degree: {{ direction: {direction}, where: {{ gt: {{ u64: {threshold} }} }} }} }},"
-                f"{{ degree: {{ direction: {direction}, where: {{ lt: {{ u64: {upper} }} }} }} }}"
-                "]",
+                f"{{ and: [" f"{above}," f"{below_upper}" "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d > threshold and d < upper
                 ),
@@ -383,10 +417,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                "or: ["
-                f"{{ degree: {{ direction: {direction}, where: {{ lt: {{ u64: {threshold} }} }} }} }},"
-                f"{{ degree: {{ direction: {direction}, where: {{ gt: {{ u64: {upper} }} }} }} }}"
-                "]",
+                f"{{ or: [" f"{below}," f"{above_upper}" "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d < threshold or d > upper
                 ),
@@ -394,10 +425,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                "or: ["
-                f"{{ degree: {{ direction: {direction}, where: {{ lt: {{ u64: {threshold} }} }} }} }},"
-                f"{{ degree: {{ direction: {direction}, where: {{ gt: {{ u64: {upper} }} }} }} }}"
-                "]",
+                f"{{ or: [" f"{below}," f"{above_upper}" "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d < threshold or d > upper
                 ),
@@ -406,12 +434,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                "or: ["
-                f"{{ degree: {{ direction: {direction}, where: {{ lt: {{ u64: {threshold} }} }} }} }},"
-                "{ not: "
-                f"{{ degree: {{ direction: {direction}, where: {{ gt: {{ u64: {upper} }} }} }} }}"
-                " }"
-                "]",
+                f"{{ or: [" f"{below}," f"{{ not: " f"{above_upper}" f" }}" "] }",
                 _expected_degree_select_names(
                     graph, direction, lambda d: d < threshold or d <= upper
                 ),
@@ -419,12 +442,7 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                "or: ["
-                f"{{ degree: {{ direction: {direction}, where: {{ lt: {{ u64: {threshold} }} }} }} }},"
-                "{ not: "
-                f"{{ degree: {{ direction: {direction}, where: {{ gt: {{ u64: {upper} }} }} }} }}"
-                " }"
-                "]",
+                f"{{ or: [" f"{below}," f"{{ not: " f"{above_upper}" f" }}" "] }",
                 _expected_degree_names(
                     graph, direction, lambda d: d < threshold or d <= upper
                 ),
@@ -433,7 +451,11 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ isIn: {{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }} }} }}",
+                _degree(
+                    direction,
+                    "isIn",
+                    f"{{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }}",
+                ),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d in [threshold, threshold + 1]
                 ),
@@ -441,7 +463,11 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ isIn: {{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }} }} }}",
+                _degree(
+                    direction,
+                    "isIn",
+                    f"{{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }}",
+                ),
                 _expected_degree_names(
                     graph, direction, lambda d: d in [threshold, threshold + 1]
                 ),
@@ -450,7 +476,11 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ isNotIn: {{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }} }} }}",
+                _degree(
+                    direction,
+                    "isNotIn",
+                    f"{{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }}",
+                ),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d not in [threshold, threshold + 1]
                 ),
@@ -458,7 +488,11 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ isNotIn: {{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }} }} }}",
+                _degree(
+                    direction,
+                    "isNotIn",
+                    f"{{ list: [{{u64: {threshold}}}, {{u64: {threshold + 1}}}] }}",
+                ),
                 _expected_degree_names(
                     graph, direction, lambda d: d not in [threshold, threshold + 1]
                 ),
@@ -477,7 +511,7 @@ def test_filter_nodes_degree_numeric_coercion_gql(graph):
     for direction in ["BOTH", "IN", "OUT"]:
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f'degree: {{ direction: {direction}, where: {{ eq: {{ str: "{threshold_str}" }} }} }}',
+                _degree(direction, "eq", f'{{ str: "{threshold_str}" }}'),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d == int(threshold_str)
                 ),
@@ -485,7 +519,7 @@ def test_filter_nodes_degree_numeric_coercion_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f'degree: {{ direction: {direction}, where: {{ eq: {{ str: "{threshold_str}" }} }} }}',
+                _degree(direction, "eq", f'{{ str: "{threshold_str}" }}'),
                 _expected_degree_names(
                     graph, direction, lambda d: d == int(threshold_str)
                 ),
@@ -494,7 +528,7 @@ def test_filter_nodes_degree_numeric_coercion_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ ge: {{ f64: {threshold_float} }} }} }}",
+                _degree(direction, "ge", f"{{ f64: {threshold_float} }}"),
                 _expected_degree_select_names(
                     graph, direction, lambda d: d >= int(threshold_float)
                 ),
@@ -502,7 +536,7 @@ def test_filter_nodes_degree_numeric_coercion_gql(graph):
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f"degree: {{ direction: {direction}, where: {{ ge: {{ f64: {threshold_float} }} }} }}",
+                _degree(direction, "ge", f"{{ f64: {threshold_float} }}"),
                 _expected_degree_names(
                     graph, direction, lambda d: d >= int(threshold_float)
                 ),
@@ -511,13 +545,13 @@ def test_filter_nodes_degree_numeric_coercion_gql(graph):
 
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                f'degree: {{ direction: {direction}, where: {{ isIn: {{ list: [{{str: "3"}}, {{f64: 4.9}}] }} }} }}',
+                _degree(direction, "isIn", f'{{ list: [{{str: "3"}}, {{f64: 4.9}}] }}'),
                 _expected_degree_select_names(graph, direction, lambda d: d in [3, 4]),
             )
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                f'degree: {{ direction: {direction}, where: {{ isIn: {{ list: [{{str: "3"}}, {{f64: 4.9}}] }} }} }}',
+                _degree(direction, "isIn", f'{{ list: [{{str: "3"}}, {{f64: 4.9}}] }}'),
                 _expected_degree_names(graph, direction, lambda d: d in [3, 4]),
             )
         )
@@ -528,17 +562,17 @@ def test_filter_nodes_degree_numeric_coercion_gql(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
     invalid_exprs = [
-        'degree: { direction: BOTH, where: { lt: { str: "foo" } } }',
-        'degree: { direction: IN, where: { eq: { str: "bar" } } }',
-        'degree: { direction: OUT, where: { isIn: { list: [{str: "a"}, {str: "b"}] } } }',
-        'degree: { direction: BOTH, where: { isNotIn: { list: [{str: "x"}, {str: "y"}] } } }',
+        _degree("BOTH", "lt", '{ str: "foo" }'),
+        _degree("IN", "eq", '{ str: "bar" }'),
+        _degree("OUT", "isIn", '{ list: [{str: "a"}, {str: "b"}] }'),
+        _degree("BOTH", "isNotIn", '{ list: [{str: "x"}, {str: "y"}] }'),
     ]
 
     for expr in invalid_exprs:
         filter_nodes_query = f"""
     query {{
       graph(path: "g") {{
-      filterNodes: filter(expr: {{ node: {{ {expr} }} }}) {{
+      filterNodes: filter(expr: {expr}) {{
         nodes {{
         list {{ name }}
         }}
@@ -551,7 +585,7 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
     query {{
       graph(path: "g") {{
         nodes {{
-          select(expr: {{ node: {{ {expr} }} }}) {{
+          select(expr: {expr}) {{
             list {{ name }}
           }}
         }}
@@ -566,26 +600,26 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_filter_nodes_degree_invalid_expressions_gql(graph):
     invalid_exprs = [
-        "degree: { direction: BOTH, where: { isNone: true } }",
-        "degree: { direction: IN, where: { isSome: true } }",
-        'degree: { direction: OUT, where: { startsWith: { str: "1" } } }',
-        'degree: { direction: BOTH, where: { endsWith: { str: "1" } } }',
-        'degree: { direction: IN, where: { contains: { str: "1" } } }',
-        'degree: { direction: OUT, where: { notContains: { str: "1" } } }',
-        "degree: { direction: BOTH, where: { any: { eq: { u64: 1 } } } }",
-        "degree: { direction: IN, where: { all: { eq: { u64: 1 } } } }",
-        "degree: { direction: OUT, where: { len: { gt: { u64: 0 } } } }",
-        "degree: { direction: BOTH, where: { sum: { eq: { u64: 1 } } } }",
-        "degree: { direction: IN, where: { avg: { eq: { u64: 1 } } } }",
-        "degree: { direction: OUT, where: { first: { eq: { u64: 1 } } } }",
-        "degree: { direction: BOTH, where: { last: { eq: { u64: 1 } } } }",
+        _degree("BOTH", "isNone", "true"),
+        _degree("IN", "isSome", "true"),
+        _degree("OUT", "startsWith", '{ str: "1" }'),
+        _degree("BOTH", "endsWith", '{ str: "1" }'),
+        _degree("IN", "contains", '{ str: "1" }'),
+        _degree("OUT", "notContains", '{ str: "1" }'),
+        _degree("BOTH", "eq", "{ u64: 1 }", over="any"),
+        _degree("IN", "eq", "{ u64: 1 }", over="all"),
+        _degree("OUT", "gt", "{ u64: 0 }", over="len"),
+        _degree("BOTH", "eq", "{ u64: 1 }", over="sum"),
+        _degree("IN", "eq", "{ u64: 1 }", over="avg"),
+        _degree("OUT", "eq", "{ u64: 1 }", over="first"),
+        _degree("BOTH", "eq", "{ u64: 1 }", over="last"),
     ]
 
     for expr in invalid_exprs:
         filter_nodes_query = f"""
     query {{
       graph(path: "g") {{
-      filterNodes: filter(expr: {{ node: {{ {expr} }} }}) {{
+      filterNodes: filter(expr: {expr}) {{
         nodes {{
         list {{ name }}
         }}
@@ -598,7 +632,7 @@ def test_filter_nodes_degree_invalid_expressions_gql(graph):
     query {{
       graph(path: "g") {{
         nodes {{
-          select(expr: {{ node: {{ {expr} }} }}) {{
+          select(expr: {expr}) {{
             list {{ name }}
           }}
         }}
