@@ -11,7 +11,7 @@ use crate::{
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
 use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
-use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
+use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_RAPH_PATH};
 use std::{path::Path, sync::Arc};
 
 pub(crate) struct TestSetup {
@@ -72,10 +72,10 @@ pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_
 pub(crate) fn assert_is_namespace_dir(path: &Path) {
     assert!(path.is_dir(), "expected directory at {:?}", path);
     assert!(
-        !path.join(ROOT_META_PATH).exists(),
+        !path.join(ROOT_RAPH_PATH).exists(),
         "{:?} contains a graph metadata file ({}); expected a plain namespace directory",
         path,
-        ROOT_META_PATH,
+        ROOT_RAPH_PATH,
     );
     assert!(
         !path.join(DIRTY_PATH).exists(),

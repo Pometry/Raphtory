@@ -26,7 +26,7 @@ use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 /// Metadata file that stores path to the data folder.
-pub const ROOT_META_PATH: &str = ".raph";
+pub const ROOT_RAPH_PATH: &str = ".raph";
 /// Outer most directory containing all data.
 pub const DATA_PATH: &str = "data";
 pub const DEFAULT_DATA_PATH: &str = "data0";
@@ -173,7 +173,7 @@ pub fn read_or_default_path_pointer(
 pub fn get_zip_data_path<R: Read + Seek>(
     zip: &mut ZipArchive<R>,
 ) -> Result<String, GraphFolderError> {
-    let file = zip.by_name(ROOT_META_PATH)?;
+    let file = zip.by_name(ROOT_RAPH_PATH)?;
     read_path_from_file(file, DATA_PATH)
 }
 
@@ -215,7 +215,7 @@ pub trait GraphPaths {
     fn root(&self) -> &Path;
 
     fn root_meta_path(&self) -> PathBuf {
-        self.root().join(ROOT_META_PATH)
+        self.root().join(ROOT_RAPH_PATH)
     }
 
     fn data_path(&self) -> Result<DataFolder, GraphFolderError> {
@@ -267,7 +267,7 @@ pub trait GraphPaths {
             let mut zip = self.read_zip()?;
             get_zip_data_path(&mut zip)?
         } else {
-            read_or_default_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?
+            read_or_default_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?
         };
         Ok(path)
     }
@@ -384,7 +384,7 @@ impl GraphFolder {
             .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
 
         // Ensure `.raph` exists and contains a valid pointer to a 'data{id}' dir.
-        if read_path_pointer(root, ROOT_META_PATH, DATA_PATH)?.is_none() {
+        if read_path_pointer(root, ROOT_RAPH_PATH, DATA_PATH)?.is_none() {
             return Err(GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()));
         }
 
@@ -452,7 +452,7 @@ impl GraphFolder {
             None => {
                 // Prepare a new data folder with an incremented id for the swap.
                 let new_relative_data_path =
-                    make_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
+                    make_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
                 let new_data_path = self.root.join(&new_relative_data_path);
                 let meta = serde_json::to_string(&RelativePath {
                     path: new_relative_data_path,
@@ -489,7 +489,7 @@ impl GraphFolder {
             let mut zip = self.read_zip()?;
             Ok([get_zip_data_path(&mut zip)?, get_zip_graph_path(&mut zip)?].join("/"))
         } else {
-            let data_path = read_or_default_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
+            let data_path = read_or_default_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
             let graph_path = read_or_default_path_pointer(
                 &self.root().join(&data_path),
                 GRAPH_META_PATH,
@@ -593,10 +593,10 @@ impl WriteableGraphFolder {
     ///
     /// This operation returns an error if there is no write in progress.
     pub fn finish(self) -> Result<GraphFolder, GraphFolderError> {
-        let old_data = read_path_pointer(self.root(), ROOT_META_PATH, DATA_PATH)?;
+        let old_data = read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
         fs::rename(
             self.root().join(DIRTY_PATH),
-            self.root().join(ROOT_META_PATH),
+            self.root().join(ROOT_RAPH_PATH),
         )?;
         if let Some(old_data) = old_data {
             let old_data_path = self.root().join(old_data);

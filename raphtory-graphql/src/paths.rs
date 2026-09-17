@@ -18,7 +18,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
-    WriteableGraphFolder, DIRTY_PATH, ROOT_META_PATH,
+    WriteableGraphFolder, DIRTY_PATH, ROOT_RAPH_PATH,
 };
 use std::{
     cmp::Ordering,
@@ -136,12 +136,12 @@ impl ValidPath {
 
     /// path exists and is a graph
     pub fn is_graph(&self) -> bool {
-        self.0.exists() && self.0.join(ROOT_META_PATH).exists()
+        self.0.exists() && self.0.join(ROOT_RAPH_PATH).exists()
     }
 
     /// path exists and is a namespace
     pub fn is_namespace(&self) -> bool {
-        self.0.exists() && !self.0.join(ROOT_META_PATH).exists()
+        self.0.exists() && !self.0.join(ROOT_RAPH_PATH).exists()
     }
 
     pub fn into_path(self) -> PathBuf {
@@ -311,7 +311,7 @@ fn extend_and_validate(
 ) -> Result<(), InternalPathValidationError> {
     let component = valid_component(component)?;
     // check if some intermediate path is already a graph
-    if full_path.join(ROOT_META_PATH).exists() {
+    if full_path.join(ROOT_RAPH_PATH).exists() {
         return Err(InvalidPathReason::ParentIsGraph.into());
     }
     full_path.push(component);

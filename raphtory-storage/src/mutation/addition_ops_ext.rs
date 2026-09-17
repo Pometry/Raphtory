@@ -756,7 +756,7 @@ impl RecoveryOps for TemporalGraph {}
 
 impl StagingOps for TemporalGraph {
     fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
-        // Acquire full write lock to prevent modifications during staging.
+        // Acquire full write locks to flush and prevent writes during staging.
         let mut write_locked_graph = self.write_locked_graph();
 
         // Make sure graph is on disk before creating hard links.
