@@ -38,6 +38,17 @@ pub trait GraphTimeSemanticsOps {
     fn earliest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the latest activity
     fn latest_time_global(&self) -> Option<i64>;
+    /// Returns the earliest activity as a full `EventTime`, whose event id is the id of that
+    /// update. `None` when unknown, in which case callers derive it from the entities.
+    fn earliest_event_time_global(&self) -> Option<EventTime> {
+        None
+    }
+    /// Returns the latest activity as a full `EventTime`, whose event id is the id of that
+    /// update (not the graph's next-event counter). `None` when unknown, in which case
+    /// callers derive it from the entities.
+    fn latest_event_time_global(&self) -> Option<EventTime> {
+        None
+    }
     /// Returns the timestamp for the earliest activity in the window
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64>;
 
@@ -174,6 +185,14 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         self.graph().latest_time_global()
+    }
+    #[inline]
+    fn earliest_event_time_global(&self) -> Option<EventTime> {
+        self.graph().earliest_event_time_global()
+    }
+    #[inline]
+    fn latest_event_time_global(&self) -> Option<EventTime> {
+        self.graph().latest_event_time_global()
     }
     #[inline]
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {

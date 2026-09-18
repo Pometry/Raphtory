@@ -328,3 +328,62 @@ fn expanding_dates() {
         assert_bounds(windows, &expected);
     });
 }
+
+#[test]
+fn graph_latest_and_earliest_time_carry_a_real_event_id_on_every_view() {
+    use raphtory::prelude::*;
+    use raphtory_api::core::storage::timeindex::EventTime;
+
+    let g = Graph::new();
+    g.add_edge(2, "a", "b", NO_PROPS, None).unwrap();
+    g.add_edge(2, "c", "d", NO_PROPS, None).unwrap();
+    g.add_node(1, "e", NO_PROPS, None, None).unwrap();
+
+    let history_ids: Vec<usize> = g
+        .edges()
+        .iter()
+        .flat_map(|e| e.history().iter().map(|t| t.i()).collect::<Vec<_>>())
+        .chain(g.node("e").unwrap().history().iter().map(|t| t.i()))
+        .collect();
+
+    let latest = g.latest_time().unwrap();
+    let earliest = g.earliest_time().unwrap();
+    // the id is the id of an update, not the graph's next-event counter
+    assert!(
+        history_ids.contains(&latest.i()),
+        "{latest:?} not in {history_ids:?}"
+    );
+    assert!(
+        history_ids.contains(&earliest.i()),
+        "{earliest:?} not in {history_ids:?}"
+    );
+    assert_eq!(latest.t(), 2);
+    assert_eq!(earliest.t(), 1);
+
+    // and it is the same instant on every view that contains every update
+    let all_nodes = ["a", "b", "c", "d", "e"];
+    let views: Vec<Option<EventTime>> = vec![
+        g.window(0, 10).latest_time(),
+        g.before(3).latest_time(),
+        g.exclude_layers(Vec::<&str>::new()).unwrap().latest_time(),
+        g.subgraph(all_nodes).latest_time(),
+        g.exclude_nodes(Vec::<&str>::new()).latest_time(),
+        g.at(2).latest_time(),
+        g.latest().latest_time(),
+        g.after(1).latest_time(),
+        g.window(2, 3).latest_time(),
+        g.materialize().unwrap().latest_time(),
+    ];
+    for (i, view_latest) in views.iter().enumerate() {
+        assert_eq!(*view_latest, Some(latest), "view #{i} disagrees");
+    }
+    let views: Vec<Option<EventTime>> = vec![
+        g.window(0, 10).earliest_time(),
+        g.subgraph(all_nodes).earliest_time(),
+        g.exclude_nodes(Vec::<&str>::new()).earliest_time(),
+        g.materialize().unwrap().earliest_time(),
+    ];
+    for (i, view_earliest) in views.iter().enumerate() {
+        assert_eq!(*view_earliest, Some(earliest), "view #{i} disagrees");
+    }
+}

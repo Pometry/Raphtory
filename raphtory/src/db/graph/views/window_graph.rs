@@ -342,6 +342,26 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         }
     }
 
+    // A bounding window is a filter, so the graph derives its bounds from the entities in
+    // that case; only an unbounding window can pass the storage's answer through.
+    #[inline]
+    fn earliest_event_time_global(&self) -> Option<EventTime> {
+        if self.window_is_empty() || self.window_is_bounding() {
+            None
+        } else {
+            self.graph.earliest_event_time_global()
+        }
+    }
+
+    #[inline]
+    fn latest_event_time_global(&self) -> Option<EventTime> {
+        if self.window_is_empty() || self.window_is_bounding() {
+            None
+        } else {
+            self.graph.latest_event_time_global()
+        }
+    }
+
     #[inline]
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.graph.earliest_time_window(start, end)

@@ -19,7 +19,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
     entities::{EID, VID},
-    storage::timeindex::AsTime,
+    storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
 use std::{
@@ -203,6 +203,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn t_len(&self) -> usize {
         self.segments.iter().map(|(_, page)| page.t_len()).sum()
+    }
+
+    /// Earliest activity on any node, timestamp and event id.
+    pub fn earliest(&self) -> Option<EventTime> {
+        Iterator::min(self.segments.iter().filter_map(|(_, page)| page.earliest()))
+    }
+
+    /// Latest activity on any node, timestamp and event id.
+    pub fn latest(&self) -> Option<EventTime> {
+        Iterator::max(self.segments.iter().filter_map(|(_, page)| page.latest()))
     }
 
     pub fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {

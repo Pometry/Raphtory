@@ -183,6 +183,14 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.latest_time_global())
     }
 
+    fn earliest_event_time_global(&self) -> Option<EventTime> {
+        for_all!(self, g => g.earliest_event_time_global())
+    }
+
+    fn latest_event_time_global(&self) -> Option<EventTime> {
+        for_all!(self, g => g.latest_event_time_global())
+    }
+
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         for_all!(self, g => g.earliest_time_window(start, end))
     }

@@ -756,11 +756,20 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 
     /// Get the `EventTime` of the earliest activity in the graph.
+    ///
+    /// The event id is the id of that update, so it matches the corresponding history entry
+    /// and is the same on every view that contains the update.
     #[inline]
     fn earliest_time(&self) -> Option<EventTime> {
         if self.layer_ids().is_all() && !self.filtered() {
-            self.earliest_time_global().map(EventTime::start)
-        } else {
+            // the storage tracks the bound as a full EventTime; when it cannot say (a view
+            // that does not pass it through), derive it from the entities like a filtered
+            // view does, so both branches always give the same answer
+            if let Some(earliest) = self.earliest_event_time_global() {
+                return Some(earliest);
+            }
+        }
+        {
             self.properties()
                 .temporal()
                 .values()
@@ -779,13 +788,18 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 
     /// Get the `EventTime` of the latest activity in the graph.
+    ///
+    /// The event id is the id of that update (not the graph's next-event counter), so it
+    /// matches the corresponding history entry and is the same on every view that contains
+    /// the update.
     #[inline]
     fn latest_time(&self) -> Option<EventTime> {
         if self.layer_ids().is_all() && !self.filtered() {
-            let event_id = self.read_event_id();
-            self.latest_time_global()
-                .map(|t| EventTime::new(t, event_id))
-        } else {
+            if let Some(latest) = self.latest_event_time_global() {
+                return Some(latest);
+            }
+        }
+        {
             self.properties()
                 .temporal()
                 .values()

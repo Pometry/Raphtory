@@ -329,6 +329,33 @@ where
         Some(self.storage().latest()).filter(|t| *t != i64::MIN)
     }
 
+    /// The earliest activity on a node or an edge as a full `EventTime`, i.e. the timestamp
+    /// together with the event id of that update, not a bound.
+    pub fn graph_earliest_event_time(&self) -> Option<EventTime> {
+        let storage = self.storage();
+        Iterator::min(
+            storage
+                .nodes()
+                .earliest()
+                .into_iter()
+                .chain(storage.edges().earliest()),
+        )
+    }
+
+    /// The latest activity on a node or an edge as a full `EventTime`: the event id is the
+    /// id of that update, which a history entry can be compared with, not the graph's
+    /// next-event counter.
+    pub fn graph_latest_event_time(&self) -> Option<EventTime> {
+        let storage = self.storage();
+        Iterator::max(
+            storage
+                .nodes()
+                .latest()
+                .into_iter()
+                .chain(storage.edges().latest()),
+        )
+    }
+
     pub fn layer_ids(&self, key: entities::Layer) -> Result<LayerIds, InvalidLayer> {
         match key {
             entities::Layer::None => Ok(LayerIds::None),

@@ -60,6 +60,24 @@ impl GraphTimeSemanticsOps for GraphStorage {
         }
     }
 
+    #[inline]
+    fn earliest_event_time_global(&self) -> Option<EventTime> {
+        match self {
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_earliest_event_time()
+            }
+        }
+    }
+
+    #[inline]
+    fn latest_event_time_global(&self) -> Option<EventTime> {
+        match self {
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_latest_event_time()
+            }
+        }
+    }
+
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
