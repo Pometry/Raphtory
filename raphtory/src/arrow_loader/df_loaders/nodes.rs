@@ -726,9 +726,11 @@ fn resolve_node_and_meta_for_node_col<
                     .inner()
             }
         } else {
+            // Metadata can only be attached to a node that exists: an unknown id is an error,
+            // the same one load_edge_metadata gives for an unknown endpoint, not a row to skip.
             graph
                 .internalise_node(gid.as_node_ref())
-                .unwrap_or_default()
+                .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?
         };
         *vid = res_vid;
         last_node_type = node_type;

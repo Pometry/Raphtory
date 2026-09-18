@@ -311,14 +311,23 @@ def test_load_from_pandas_with_types():
 
     assert g.node(666) is None
     assert g.node(3) is not None
+    # metadata for an id the graph does not have is an error, and nothing is applied
+    with pytest.raises(Exception, match="Node 666 does not exist"):
+        g.load_node_metadata(
+            nodes_meta_df,
+            "id",
+            metadata=["name", "coins"],
+        )
+    assert g.node(666) is None
+    assert g.node(3) is not None
+    assert g.node(3).metadata.get("name") is None
+
     g.load_node_metadata(
-        nodes_meta_df,
+        nodes_meta_df[nodes_meta_df["id"] != 666],
         "id",
         metadata=["name", "coins"],
     )
-
     assert g.node(666) is None
-    assert g.node(3) is not None
     assert g.node(3).metadata.get("name") == "Carol"
     assert g.node(3).metadata.get("coins") == 100
 
@@ -2040,3 +2049,64 @@ def test_load_edges_with_datetime_schema():
     assert g.edge("a", "b").properties["scheduled_at"] == datetime.datetime(
         2024, 6, 1, 9, 0, 0, tzinfo=datetime.timezone.utc
     )
+
+
+def test_failed_load_edge_metadata_leaves_the_graph_unchanged():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    rows = pd.DataFrame({"src": ["a", "x"], "dst": ["b", "y"], "m": ["t", "f"]})
+
+    # a regular exception that names the unknown node, never a PanicException
+    with pytest.raises(Exception, match="Node x does not exist"):
+        g.load_edge_metadata(rows, src="src", dst="dst", metadata=["m"])
+
+    # no phantom node was created ...
+    assert g.count_nodes() == 2
+    assert not g.has_node("x")
+    assert not g.has_node("y")
+    # ... reading every node name used to panic on the phantom ...
+    assert sorted(n.name for n in g.nodes) == ["a", "b"]
+    # ... and nothing was partially applied
+    assert g.edge("a", "b").metadata.get("m") is None
+
+
+def test_load_edge_metadata_unknown_edge_between_known_nodes_is_an_error():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    g.add_edge(1, "c", "d")
+    rows = pd.DataFrame({"src": ["a"], "dst": ["c"], "m": ["t"]})
+    with pytest.raises(Exception):
+        g.load_edge_metadata(rows, src="src", dst="dst", metadata=["m"])
+    assert g.count_nodes() == 4
+    assert sorted(n.name for n in g.nodes) == ["a", "b", "c", "d"]
+
+
+def test_load_node_metadata_unknown_node_is_an_error():
+    g = Graph()
+    g.add_node(1, "a")
+    rows = pd.DataFrame({"id": ["a", "x"], "m": ["t", "f"]})
+
+    # the two metadata loaders agree: an unknown id is an error, not a row to skip
+    with pytest.raises(Exception, match="Node x does not exist"):
+        g.load_node_metadata(rows, id="id", metadata=["m"])
+
+    assert g.count_nodes() == 1
+    assert not g.has_node("x")
+    assert g.node("a").metadata.get("m") is None
+
+
+def test_load_metadata_for_known_entities_still_works():
+    g = Graph()
+    g.add_edge(1, "a", "b")
+    g.load_node_metadata(
+        pd.DataFrame({"id": ["a", "b"], "m": ["t", "f"]}), id="id", metadata=["m"]
+    )
+    g.load_edge_metadata(
+        pd.DataFrame({"src": ["a"], "dst": ["b"], "m": ["e"]}),
+        src="src",
+        dst="dst",
+        metadata=["m"],
+    )
+    assert g.node("a").metadata.get("m") == "t"
+    assert g.node("b").metadata.get("m") == "f"
+    assert g.edge("a", "b").metadata.get("m") == "e"
