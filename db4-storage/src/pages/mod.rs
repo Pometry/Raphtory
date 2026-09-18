@@ -160,13 +160,9 @@ impl<
             ext.clone(),
         ));
 
-        let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
-            edges_path,
-            edge_meta,
-            ext.clone(),
-        ));
+        let edge_storage = Arc::new(EdgeStorageInner::new(edges_path, edge_meta, ext.clone()));
 
-        let graph_prop_storage = Arc::new(GraphPropStorageInner::new_with_meta(
+        let graph_prop_storage = Arc::new(GraphPropStorageInner::new(
             graph_props_path.as_deref(),
             graph_props_meta,
             ext.clone(),

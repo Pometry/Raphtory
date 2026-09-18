@@ -170,13 +170,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.segments.count()
     }
 
-    pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
+    pub fn new(path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
             free_segments: free_segments.try_into().unwrap(),
-            path: edges_path,
+            path,
             prop_meta: edge_meta,
             ext,
         };
@@ -204,10 +204,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             segment.set_dirty(true);
         }
         empty
-    }
-
-    pub fn new(edges_path: Option<PathBuf>, ext: EXT) -> Self {
-        Self::new_with_meta(edges_path, Meta::new_for_edges().into(), ext)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
@@ -254,11 +250,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let max_page_len = ext.config().max_edge_page_len();
-
         let meta = Arc::new(Meta::new_for_edges());
 
         if !path.exists() {
-            return Ok(Self::new(Some(path.to_path_buf()), ext.clone()));
+            return Ok(Self::new(Some(path.to_path_buf()), meta, ext.clone()));
         }
 
         let mut segments = std::fs::read_dir(path)?
@@ -293,7 +288,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
         let Some(max_segment) = segments.keys().copied().max() else {
             // Empty directory, nothing to load.
-            return Ok(Self::new(Some(path.to_path_buf()), ext.clone()));
+            return Ok(Self::new(Some(path.to_path_buf()), meta, ext.clone()));
         };
 
         // Segments flush independently, so ids below max may be missing on disk.
