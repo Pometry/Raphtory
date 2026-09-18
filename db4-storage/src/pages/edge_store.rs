@@ -36,8 +36,8 @@ pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
-    free_pages: Box<[RwLock<usize>]>,
-    edges_path: Option<PathBuf>,
+    free_segments: Box<[RwLock<usize>]>,
+    path: Option<PathBuf>,
     prop_meta: Arc<Meta>,
     ext: EXT,
 }
@@ -171,12 +171,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
-        let free_pages = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+        let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
-            free_pages: free_pages.try_into().unwrap(),
-            edges_path,
+            free_segments: free_segments.try_into().unwrap(),
+            path: edges_path,
             prop_meta: edge_meta,
             ext,
         };
@@ -215,7 +215,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn edges_path(&self) -> Option<&Path> {
-        self.edges_path.as_deref()
+        self.path.as_deref()
     }
 
     pub fn earliest(&self) -> Option<EventTime> {
@@ -251,71 +251,85 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         resolve_pos(e_id, self.max_page_len())
     }
 
-    pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let edges_path = edges_path.as_ref();
+    pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        let path = path.as_ref();
         let max_page_len = ext.config().max_edge_page_len();
 
         let meta = Arc::new(Meta::new_for_edges());
 
-        if !edges_path.exists() {
-            return Ok(Self::new(Some(edges_path.to_path_buf()), ext.clone()));
+        if !path.exists() {
+            return Ok(Self::new(Some(path.to_path_buf()), ext.clone()));
         }
 
-        let mut pages = std::fs::read_dir(edges_path)?
+        let mut segments = std::fs::read_dir(path)?
             .par_bridge()
-            .filter(|entry| {
-                entry
-                    .as_ref()
-                    .ok()
-                    .and_then(|entry| entry.file_type().ok().map(|ft| ft.is_dir()))
-                    .unwrap_or_default()
-            })
             .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let page_id = entry
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                let is_dir = match entry.file_type() {
+                    Ok(ft) => ft.is_dir(),
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                if !is_dir {
+                    return None;
+                }
+
+                // Ignore directories that aren't segments.
+                let segment_id = entry
                     .path()
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
-                let page = ES::load(page_id, max_page_len, meta.clone(), edges_path, ext.clone())
-                    .map(|page| (page_id, page));
 
-                Some(page)
+                Some(ES::load(
+                    segment_id,
+                    max_page_len,
+                    meta.clone(),
+                    path,
+                    ext.clone(),
+                )
+                .map(|segment| (segment_id, segment)))
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
-        if pages.is_empty() {
-            return Err(StorageError::EmptyGraphDir(edges_path.to_path_buf()));
+        if segments.is_empty() {
+            return Err(StorageError::EmptyGraphDir(path.to_path_buf()));
         }
 
-        let max_page = Iterator::max(pages.keys().copied()).unwrap();
+        let max_segment = Iterator::max(segments.keys().copied()).unwrap();
 
-        let pages: boxcar::Vec<Arc<ES>> = (0..=max_page)
-            .map(|page_id| {
-                let np = pages.remove(&page_id).unwrap_or_else(|| {
+        let segments: boxcar::Vec<Arc<ES>> = (0..=max_segment)
+            .map(|segment_id| {
+                let segment = segments.remove(&segment_id).unwrap_or_else(|| {
                     ES::new(
-                        page_id,
+                        segment_id,
                         meta.clone(),
-                        Some(edges_path.to_path_buf()),
+                        Some(path.to_path_buf()),
                         ext.clone(),
                     )
                 });
-                Arc::new(np)
+
+                Arc::new(segment)
             })
             .collect::<boxcar::Vec<_>>();
 
-        let first_page = pages.iter().next().unwrap().1;
-        let first_p_id = first_page.segment_id();
+        let first_segment = segments.iter().next().unwrap().1;
+        let first_segment_id = first_segment.segment_id();
 
-        if first_p_id != 0 {
+        if first_segment_id != 0 {
             return Err(StorageError::GenericFailure(format!(
-                "First page id is not 0 in {edges_path:?}"
+                "First page id is not 0 in {path:?}"
             )));
         }
 
-        let mut free_pages = pages
+        let mut free_segments = segments
             .iter()
             .filter_map(|(_, page)| {
                 let len = page.num_edges();
+
                 if len < max_page_len {
                     Some(RwLock::new(page.segment_id()))
                 } else {
@@ -324,23 +338,23 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             })
             .collect::<Vec<_>>();
 
-        let mut next_free_page = free_pages
+        let mut next_free_segment = free_segments
             .last()
             .map(|page| *(page.read()))
             .map(|last| last + 1)
-            .unwrap_or_else(|| pages.count());
+            .unwrap_or_else(|| segments.count());
 
-        free_pages.resize_with(*N, || {
-            let lock = RwLock::new(next_free_page);
-            next_free_page += 1;
+        free_segments.resize_with(*N, || {
+            let lock = RwLock::new(next_free_segment);
+            next_free_segment += 1;
             lock
         });
 
         let mut layer_counts = vec![];
 
-        for (_, page) in pages.iter() {
-            for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(LayerId(layer_id)) as usize;
+        for (_, segment) in segments.iter() {
+            for layer_id in 0..segment.num_layers() {
+                let count = segment.layer_count(LayerId(layer_id)) as usize;
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
@@ -348,16 +362,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             }
         }
 
-        let earliest = pages
+        let earliest = segments
             .iter()
-            .filter_map(|(_, page)| page.earliest().filter(|t| t.t() != i64::MAX))
+            .filter_map(|(_, segment)| segment.earliest().filter(|t| t.t() != i64::MAX))
             .map(|t| t.t())
             .min()
             .unwrap_or(i64::MAX);
 
-        let latest = pages
+        let latest = segments
             .iter()
-            .filter_map(|(_, page)| page.latest().filter(|t| t.t() != i64::MIN))
+            .filter_map(|(_, segment)| segment.latest().filter(|t| t.t() != i64::MIN))
             .map(|t| t.t())
             .max()
             .unwrap_or(i64::MIN);
@@ -365,10 +379,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         let stats = GraphStats::load(layer_counts, earliest, latest);
 
         Ok(Self {
-            segments: pages,
-            edges_path: Some(edges_path.to_path_buf()),
+            segments,
+            path: Some(path.to_path_buf()),
             layer_counter: stats.into(),
-            free_pages: free_pages.into(),
+            free_segments: free_segments.into(),
             prop_meta: meta,
             ext,
         })
@@ -378,12 +392,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.get_or_create_segment(size - 1);
     }
 
-    pub fn push_new_page(&self) -> usize {
+    pub fn push_new_segment(&self) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             Arc::new(ES::new(
                 segment_id,
                 self.prop_meta.clone(),
-                self.edges_path.clone(),
+                self.path.clone(),
                 self.ext.clone(),
             ))
         });
@@ -427,7 +441,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                     Arc::new(ES::new(
                         segment_id,
                         self.prop_meta.clone(),
-                        self.edges_path.clone(),
+                        self.path.clone(),
                         self.ext.clone(),
                     ))
                 });
@@ -542,7 +556,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
         let slot_idx = num_edges % *N;
-        let maybe_free_page = self.free_pages[slot_idx..]
+        let maybe_free_segment = self.free_segments[slot_idx..]
             .iter()
             .cycle()
             .take(3)
@@ -558,18 +572,18 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             })
             .next();
 
-        if let Some((edge_page, writer)) = maybe_free_page {
+        if let Some((edge_page, writer)) = maybe_free_segment {
             EdgeWriter::new(&self.layer_counter, edge_page, writer)
         } else {
             // not lucky, go wait on your slot
             loop {
-                let mut slot = self.free_pages[slot_idx].write();
+                let mut slot = self.free_segments[slot_idx].write();
                 match self.segments.get(*slot).map(|page| (page, page.head_mut())) {
-                    Some((edge_page, writer)) if edge_page.num_edges() < self.max_page_len() => {
-                        return EdgeWriter::new(&self.layer_counter, edge_page, writer);
+                    Some((edge_segment, writer)) if edge_segment.num_edges() < self.max_page_len() => {
+                        return EdgeWriter::new(&self.layer_counter, edge_segment, writer);
                     }
                     _ => {
-                        *slot = self.push_new_page();
+                        *slot = self.push_new_segment();
                     }
                 }
             }
@@ -583,28 +597,29 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % *N;
-        let maybe_free_page = {
-            let lock_slot = self.free_pages[slot_idx].read_recursive();
-            let page_id = *lock_slot;
-            let page = self.segments.get(page_id);
-            page.and_then(|page| {
-                self.reserve_page_row(page)
-                    .map(|pos| (page.segment_id(), LocalPOS(pos)))
+        let maybe_free_segment = {
+            let lock_slot = self.free_segments[slot_idx].read_recursive();
+            let segment_id = *lock_slot;
+            let segment = self.segments.get(segment_id);
+
+            segment.and_then(|segment| {
+                self.reserve_page_row(segment)
+                    .map(|pos| (segment.segment_id(), LocalPOS(pos)))
             })
         };
 
-        if let Some(reserved_pos) = maybe_free_page {
+        if let Some(reserved_pos) = maybe_free_segment {
             reserved_pos
         } else {
             // not lucky, go wait on your slot
-            let mut slot = self.free_pages[slot_idx].write();
+            let mut slot = self.free_segments[slot_idx].write();
             loop {
-                if let Some(page) = self.segments.get(*slot)
-                    && let Some(pos) = self.reserve_page_row(page)
+                if let Some(segment) = self.segments.get(*slot)
+                    && let Some(pos) = self.reserve_page_row(segment)
                 {
-                    return (page.segment_id(), LocalPOS(pos));
+                    return (segment.segment_id(), LocalPOS(pos));
                 }
-                *slot = self.push_new_page();
+                *slot = self.push_new_segment();
             }
         }
     }

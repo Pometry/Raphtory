@@ -492,28 +492,35 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         let mut segments = std::fs::read_dir(path)?
             .par_bridge()
-            .filter(|entry| {
-                entry
-                    .as_ref()
-                    .ok()
-                    .and_then(|entry| entry.file_type().ok().map(|ft| ft.is_dir()))
-                    .unwrap_or_default()
-            })
             .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let page_id = entry
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                let is_dir = match entry.file_type() {
+                    Ok(file_type) => file_type.is_dir(),
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                if !is_dir {
+                    return None;
+                }
+
+                // Ignore directories that aren't segments.
+                let segment_id = entry
                     .path()
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
-                let page = NS::load(
-                    page_id,
+
+                Some(NS::load(
+                    segment_id,
                     node_meta.clone(),
                     edge_meta.clone(),
                     path,
                     ext.clone(),
                 )
-                .map(|page| (page_id, page));
-                Some(page)
+                .map(|segment| (segment_id, segment)))
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
