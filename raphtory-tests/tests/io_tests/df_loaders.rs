@@ -779,6 +779,79 @@ mod io_tests {
         ];
         assert_eq!(result, expected);
     }
+    #[test]
+    fn failed_edge_metadata_load_leaves_no_phantom_node() {
+        use raphtory::arrow_loader::df_loaders::edge_props::load_edges_from_df as load_edge_metadata_from_df;
+
+        let g = Graph::new();
+        g.add_edge(1, 1u64, 2u64, NO_PROPS, None).unwrap();
+
+        // the second row names nodes the graph has never seen
+        let rows = vec![
+            (1u64, 2u64, 0i64, "kept".to_owned(), 1i64),
+            (7u64, 8u64, 0i64, "dropped".to_owned(), 2i64),
+        ];
+        let err = load_edge_metadata_from_df(
+            build_df(10, &rows),
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &["str_prop"],
+            None,
+            None,
+            &g,
+        )
+        .err()
+        .expect("an unknown endpoint must fail the load");
+        assert!(
+            matches!(err, GraphError::NodeMissingError(_)),
+            "expected NodeMissingError, got {err:?}"
+        );
+        assert!(err.to_string().contains("does not exist"), "{err}");
+
+        // nothing was created and nothing was applied
+        assert_eq!(g.count_nodes(), 2);
+        assert!(!g.has_node(7u64));
+        assert!(!g.has_node(8u64));
+        // reading every node name used to panic on the phantom node
+        let mut names = g.nodes().name().collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(names, vec!["1", "2"]);
+        assert_eq!(g.edge(1u64, 2u64).unwrap().metadata().get("str_prop"), None);
+    }
+
+    #[test]
+    fn node_metadata_for_an_unknown_node_is_an_error() {
+        let g = Graph::new();
+        g.add_node(1, 1u64, NO_PROPS, None, None).unwrap();
+
+        let rows = vec![
+            (1u64, 1i64, 0u64, "kept", 1i64, "T"),
+            (9u64, 1i64, 0u64, "dropped", 2i64, "T"),
+        ];
+        let err = load_node_props_from_df(
+            build_nodes_df_with_secondary_index(10, &rows),
+            "node_id",
+            None,
+            None,
+            None,
+            None,
+            &["str_prop"],
+            None,
+            &g,
+            false,
+            None,
+            None,
+        )
+        .err()
+        .expect("an unknown node must fail the load");
+        assert!(
+            matches!(err, GraphError::NodeMissingError(_)),
+            "expected NodeMissingError, got {err:?}"
+        );
+        assert_eq!(g.count_nodes(), 1);
+        assert!(!g.has_node(9u64));
+        assert_eq!(g.node(1u64).unwrap().metadata().get("str_prop"), None);
+    }
 }
 
 mod parquet_tests {
