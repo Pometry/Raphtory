@@ -760,7 +760,7 @@ impl StagingOps for TemporalGraph {
         // Acquire full write locks to flush and prevent writes during staging.
         let mut live_graph = self.write_locked_graph();
 
-        // The live graph needs to be fully on disk before it's data
+        // The live graph needs to be fully on disk before its data
         // is copied to the staged graph.
         live_graph.flush()?;
 

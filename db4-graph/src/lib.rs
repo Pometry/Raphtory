@@ -502,11 +502,12 @@ where
     /// Creates `dst` if it does not exist. Assumes the graph has been flushed
     /// to disk.
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        let dst = GraphDir::from(dst);
-        std::fs::create_dir_all(dst.path())?;
+        std::fs::create_dir_all(dst)?;
 
         let config = self.graph.extension().config();
-        config.save_to_dir(dst.path())?;
+        config.save_to_dir(dst)?;
+
+        let dst = GraphDir::from(dst);
 
         self.graph.gid_resolver.copy_to(dst.gid_resolver())?;
         self.nodes.copy_to(&dst.nodes())?;
