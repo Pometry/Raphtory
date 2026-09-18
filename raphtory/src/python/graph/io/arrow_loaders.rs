@@ -290,6 +290,18 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     let py = data.py();
     is_jupyter(py);
 
+    // Ask for the row count BEFORE exporting the stream. A lazy producer such as a
+    // DuckDBPyRelation re-executes on len(), which drains a stream exported earlier, so the
+    // order matters. The count is only a hint for the progress bar: an object whose __len__
+    // raises, or lies, must load exactly as one without a __len__ does.
+    let len_from_python: Option<usize> = if data.hasattr("__len__")? {
+        data.call_method0("__len__")
+            .ok()
+            .and_then(|len| len.extract().ok())
+    } else {
+        None
+    };
+
     let reader: PyRecordBatchReader = data.extract()?;
 
     let reader = reader.into_reader().map_err(|e| {
@@ -309,12 +321,6 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
             indices.push(idx);
         }
     }
-
-    let len_from_python: Option<usize> = if data.hasattr("__len__")? {
-        Some(data.call_method0("__len__")?.extract()?)
-    } else {
-        None
-    };
 
     let chunks = reader
         .into_iter()

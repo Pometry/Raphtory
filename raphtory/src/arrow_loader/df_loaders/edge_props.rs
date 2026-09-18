@@ -52,10 +52,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     layer: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
-
     let ColumnNames {
         src,
         dst,

@@ -166,10 +166,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     graph: &G,
     delete: bool, // whether to update edge deletions or additions
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
-
     let ColumnNames {
         time,
         secondary_index,
