@@ -352,6 +352,13 @@ impl MemEdgeSegment {
         self.layers.get(layer_id).map_or(0, |layer| layer.t_len())
     }
 
+    /// Distinct temporal edge updates in `layer_id`; `t_len` is the physical row count.
+    pub fn t_additions_count(&self, layer_id: usize) -> usize {
+        self.layers
+            .get(layer_id)
+            .map_or(0, |layer| layer.t_additions_count())
+    }
+
     pub fn num_updates(&self) -> usize {
         self.layers
             .iter()
@@ -480,6 +487,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn t_len(&self, layer_id: usize) -> usize {
         self.head().t_len(layer_id)
+    }
+
+    fn t_additions_count(&self, layer_id: usize) -> usize {
+        self.head().t_additions_count(layer_id)
     }
 
     fn num_layers(&self) -> usize {
@@ -713,6 +724,33 @@ mod test {
 
         // Verify time length increased
         assert_eq!(segment.t_len(0), 3);
+        assert_eq!(segment.t_additions_count(0), 3);
+
+        // Replay an update that already exists, same (timestamp, event_id): the row is
+        // appended to the column store, so the physical count grows, but the TCell
+        // deduplicates it, so the distinct count must not.
+        segment.insert_edge_internal(
+            EventTime::new(3, 2),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            LayerId(0),
+            vec![(0, Prop::from("test3 again"))],
+        );
+        assert_eq!(segment.t_len(0), 4);
+        assert_eq!(segment.t_additions_count(0), 3);
+
+        // a genuinely new event id at the same timestamp is a distinct update
+        segment.insert_edge_internal(
+            EventTime::new(3, 9),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            LayerId(0),
+            vec![(0, Prop::from("test3 later"))],
+        );
+        assert_eq!(segment.t_len(0), 5);
+        assert_eq!(segment.t_additions_count(0), 4);
     }
 
     #[test]
