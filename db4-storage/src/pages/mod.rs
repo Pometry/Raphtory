@@ -152,7 +152,7 @@ impl<
         let edge_meta = Arc::new(edge_meta);
         let graph_props_meta = Arc::new(graph_props_meta);
 
-        let node_storage = Arc::new(NodeStorageInner::new_with_meta(
+        let node_storage = Arc::new(NodeStorageInner::new(
             nodes_path,
             node_type_index_path,
             node_meta,

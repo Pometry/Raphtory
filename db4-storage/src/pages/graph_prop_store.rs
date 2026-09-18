@@ -36,16 +36,12 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     }
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let graph_props_meta = Arc::new(Meta::new_for_graph_props());
-        let segment = Arc::new(GS::load(
-            graph_props_meta.clone(),
-            path.as_ref(),
-            ext.clone(),
-        )?);
+        let meta = Arc::new(Meta::new_for_graph_props());
+        let segment = Arc::new(GS::load(meta.clone(), path.as_ref(), ext.clone())?);
 
         Ok(Self {
             segment,
-            meta: graph_props_meta,
+            meta,
             _ext: PhantomData,
         })
     }

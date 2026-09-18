@@ -284,46 +284,35 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
 
-                Some(ES::load(
-                    segment_id,
-                    max_page_len,
-                    meta.clone(),
-                    path,
-                    ext.clone(),
+                Some(
+                    ES::load(segment_id, max_page_len, meta.clone(), path, ext.clone())
+                        .map(|segment| (segment_id, segment)),
                 )
-                .map(|segment| (segment_id, segment)))
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
-        if segments.is_empty() {
-            return Err(StorageError::EmptyGraphDir(path.to_path_buf()));
-        }
+        let Some(max_segment) = segments.keys().copied().max() else {
+            // Empty directory, nothing to load.
+            return Ok(Self::new(Some(path.to_path_buf()), ext.clone()));
+        };
 
-        let max_segment = Iterator::max(segments.keys().copied()).unwrap();
-
+        // Segments flush independently, so ids below max may be missing on disk.
         let segments: boxcar::Vec<Arc<ES>> = (0..=max_segment)
             .map(|segment_id| {
-                let segment = segments.remove(&segment_id).unwrap_or_else(|| {
+                let segment = if let Some(segment) = segments.remove(&segment_id) {
+                    segment
+                } else {
                     ES::new(
                         segment_id,
                         meta.clone(),
                         Some(path.to_path_buf()),
                         ext.clone(),
                     )
-                });
+                };
 
                 Arc::new(segment)
             })
             .collect::<boxcar::Vec<_>>();
-
-        let first_segment = segments.iter().next().unwrap().1;
-        let first_segment_id = first_segment.segment_id();
-
-        if first_segment_id != 0 {
-            return Err(StorageError::GenericFailure(format!(
-                "First page id is not 0 in {path:?}"
-            )));
-        }
 
         let mut free_segments = segments
             .iter()
@@ -579,7 +568,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             loop {
                 let mut slot = self.free_segments[slot_idx].write();
                 match self.segments.get(*slot).map(|page| (page, page.head_mut())) {
-                    Some((edge_segment, writer)) if edge_segment.num_edges() < self.max_page_len() => {
+                    Some((edge_segment, writer))
+                        if edge_segment.num_edges() < self.max_page_len() =>
+                    {
                         return EdgeWriter::new(&self.layer_counter, edge_segment, writer);
                     }
                     _ => {

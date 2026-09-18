@@ -254,20 +254,30 @@ impl<'a, NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     NodeStorageInner<NS, EXT>
 {
-    pub fn new_with_meta(
+    pub fn new(
         path: Option<PathBuf>,
         type_index_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
+        let type_index = EXT::NTI::new(type_index_path.as_deref(), ext.clone());
+        Self::new_with_type_index(path, type_index, node_meta, edge_meta, ext)
+    }
+
+    fn new_with_type_index(
+        path: Option<PathBuf>,
+        type_index: EXT::NTI,
+        node_meta: Arc<Meta>,
+        edge_meta: Arc<Meta>,
+        ext: EXT,
+    ) -> Self {
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
-        let type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
 
         let empty = Self {
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
-            type_index,
+            type_index: Arc::new(type_index),
             free_segments,
             path,
             node_meta,
@@ -481,7 +491,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !path.exists() {
-            return Ok(Self::new_with_meta(
+            return Ok(Self::new(
                 Some(path.to_path_buf()),
                 Some(type_index_path.to_path_buf()),
                 node_meta,
@@ -489,6 +499,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 ext.clone(),
             ));
         }
+
+        let type_index = EXT::NTI::load(type_index_path, ext.clone())?;
 
         let mut segments = std::fs::read_dir(path)?
             .par_bridge()
@@ -513,26 +525,38 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
 
-                Some(NS::load(
-                    segment_id,
-                    node_meta.clone(),
-                    edge_meta.clone(),
-                    path,
-                    ext.clone(),
+                Some(
+                    NS::load(
+                        segment_id,
+                        node_meta.clone(),
+                        edge_meta.clone(),
+                        path,
+                        ext.clone(),
+                    )
+                    .map(|segment| (segment_id, segment)),
                 )
-                .map(|segment| (segment_id, segment)))
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
-        if segments.is_empty() {
-            return Err(StorageError::EmptyGraphDir(path.to_path_buf()));
-        }
+        let Some(max_segment) = segments.keys().copied().max() else {
+            // Empty directory, no segments to load.
+            let storage = Self::new_with_type_index(
+                Some(path.to_path_buf()),
+                type_index,
+                node_meta,
+                edge_meta,
+                ext,
+            );
 
-        let max_segment = Iterator::max(segments.keys().copied()).unwrap();
+            return Ok(storage);
+        };
 
+        // Segments flush independently, so ids below max may be missing on disk.
         let segments = (0..=max_segment)
             .map(|segment_id| {
-                let segment = segments.remove(&segment_id).unwrap_or_else(|| {
+                let segment = if let Some(segment) = segments.remove(&segment_id) {
+                    segment
+                } else {
                     NS::new(
                         segment_id,
                         node_meta.clone(),
@@ -540,20 +564,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                         Some(path.to_path_buf()),
                         ext.clone(),
                     )
-                });
+                };
 
                 Arc::new(segment)
             })
             .collect::<boxcar::Vec<_>>();
-
-        let first_segment = segments.iter().next().unwrap().1;
-        let first_segment_id = first_segment.segment_id();
-
-        if first_segment_id != 0 {
-            return Err(StorageError::GenericFailure(format!(
-                "First segment id is not 0 in {path:?}"
-            )));
-        }
 
         let mut layer_counts = vec![];
 
@@ -609,14 +624,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         });
 
         let stats = GraphStats::load(layer_counts, earliest, latest);
-        let type_index = Arc::new(EXT::NTI::load(type_index_path, ext.clone())?);
 
         Ok(Self {
             segments,
             free_segments: free_segments.into(),
             path: Some(path.to_path_buf()),
             stats: stats.into(),
-            type_index,
+            type_index: Arc::new(type_index),
             node_meta,
             edge_meta,
             ext,

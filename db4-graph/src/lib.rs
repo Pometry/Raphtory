@@ -100,7 +100,7 @@ where
     ) -> Result<Self, StorageError> {
         let mut graph_dir = graph_dir.map(GraphDir::from);
 
-        // Short-circuit graph_dir to None if disk storage is not enabled
+        // Ignore graph_dir so in-memory graphs avoid creating files on disk.
         if !Extension::disk_storage_enabled() {
             graph_dir = None;
         }
