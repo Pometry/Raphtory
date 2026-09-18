@@ -2040,3 +2040,56 @@ def test_load_edges_with_datetime_schema():
     assert g.edge("a", "b").properties["scheduled_at"] == datetime.datetime(
         2024, 6, 1, 9, 0, 0, tzinfo=datetime.timezone.utc
     )
+
+
+@pytest.mark.parametrize("dtype", ["uint64", "int64", "int32", "uint32"])
+def test_load_edges_event_id_integer_widths_are_accepted(dtype):
+    # a default pandas integer column is int64, so this must not need an astype
+    rows = pd.DataFrame(
+        {
+            "t": [1, 1],
+            "s": ["a", "c"],
+            "d": ["b", "d"],
+            "eid": numpy.array([10, 7], dtype=dtype),
+        }
+    )
+    g = Graph()
+    g.load_edges(rows, time="t", src="s", dst="d", event_id="eid")
+    assert g.edge("a", "b").history[0].event_id == 10
+    assert g.edge("c", "d").history[0].event_id == 7
+
+
+@pytest.mark.parametrize("dtype", ["int64", "int32"])
+def test_load_edges_negative_event_id_is_an_error(dtype):
+    rows = pd.DataFrame(
+        {
+            "t": [1, 1],
+            "s": ["a", "c"],
+            "d": ["b", "d"],
+            "eid": numpy.array([10, -3], dtype=dtype),
+        }
+    )
+    g = Graph()
+    # a regular exception, never a PanicException, and it names the value
+    with pytest.raises(Exception, match="non-negative.*-3"):
+        g.load_edges(rows, time="t", src="s", dst="d", event_id="eid")
+
+
+@pytest.mark.parametrize("values", [[1.5], ["10"]])
+def test_load_edges_non_integer_event_id_is_an_error(values):
+    rows = pd.DataFrame({"t": [1], "s": ["a"], "d": ["b"], "eid": values})
+    g = Graph()
+    with pytest.raises(
+        Exception, match="Only integer columns .* are supported for event_id"
+    ):
+        g.load_edges(rows, time="t", src="s", dst="d", event_id="eid")
+
+
+def test_load_nodes_event_id_int64_is_accepted():
+    rows = pd.DataFrame(
+        {"t": [1, 2], "id": ["a", "b"], "eid": numpy.array([5, 6], dtype="int64")}
+    )
+    g = Graph()
+    g.load_nodes(rows, time="t", id="id", event_id="eid")
+    assert g.node("a").history[0].event_id == 5
+    assert g.node("b").history[0].event_id == 6

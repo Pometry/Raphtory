@@ -82,6 +82,12 @@ pub enum LoadError {
     InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(DataType),
+    #[error(
+        "Only integer columns (uint64, uint32, int64, int32) are supported for event_id, got {0:?}"
+    )]
+    InvalidSecondaryIndexType(DataType),
+    #[error("event_id values must be non-negative, got {0}")]
+    NegativeSecondaryIndex(i64),
     #[error("Error during parsing of time string: {source}")]
     ParseTime {
         #[from]
