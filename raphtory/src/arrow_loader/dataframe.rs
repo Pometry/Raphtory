@@ -20,6 +20,8 @@ use std::{
 pub struct DFView<I> {
     pub names: Vec<String>,
     pub chunks: I,
+    /// Total row count when the producer could tell us cheaply. Only a hint, for the progress
+    /// bar: the loaders read `chunks` to the end whatever it says.
     pub num_rows: Option<usize>,
 }
 
@@ -58,11 +60,6 @@ impl<I> DFView<I> {
 
     pub(crate) fn get_index_opt(&self, name: &str) -> Option<usize> {
         self.names.iter().position(|n| n == name)
-    }
-
-    /// Returns Some(_) only if we know the total number of rows.
-    pub fn is_empty(&self) -> bool {
-        self.num_rows.is_some_and(|num_rows| num_rows == 0)
     }
 
     pub fn new(names: Vec<String>, chunks: I, num_rows: Option<usize>) -> Self {

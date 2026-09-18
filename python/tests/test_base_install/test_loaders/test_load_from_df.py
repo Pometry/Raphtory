@@ -594,3 +594,94 @@ def test_malformed_files_and_directory():
                     properties=["block_timestamp"],
                     schema={"block_timestamp": pa.timestamp("ms", tz="UTC")},
                 )
+
+
+def _two_edges_table():
+    return pa.table({"src": ["a", "b"], "dst": ["b", "c"], "ts": [1, 2]})
+
+
+def test_load_edges_from_duckdb_relation():
+    duckdb = pytest.importorskip("duckdb")
+    rel = duckdb.query("SELECT * FROM (VALUES ('a','b',1),('b','c',2)) t(src,dst,ts)")
+    g = Graph()
+    g.load_edges(data=rel, src="src", dst="dst", time="ts")
+    assert g.count_edges() == 2
+    assert g.count_temporal_edges() == 2
+
+
+def test_load_edges_asks_for_len_before_exporting_the_stream():
+    calls = []
+
+    class Recording:
+        def __init__(self, table):
+            self._table = table
+
+        def __arrow_c_stream__(self, requested_schema=None):
+            calls.append("__arrow_c_stream__")
+            return self._table.__arrow_c_stream__(requested_schema)
+
+        def __len__(self):
+            calls.append("__len__")
+            return self._table.num_rows
+
+    g = Graph()
+    g.load_edges(data=Recording(_two_edges_table()), src="src", dst="dst", time="ts")
+    assert g.count_edges() == 2
+    # a lazy producer re-executes on len(), which drains a stream exported before it
+    assert calls == ["__len__", "__arrow_c_stream__"]
+
+
+@pytest.mark.parametrize("claimed_len", [0, 1, 1000])
+def test_load_edges_does_not_trust_a_lying_len(claimed_len):
+    class LyingLen:
+        def __init__(self, table):
+            self._table = table
+
+        def __arrow_c_stream__(self, requested_schema=None):
+            return self._table.__arrow_c_stream__(requested_schema)
+
+        def __len__(self):
+            return claimed_len
+
+    g = Graph()
+    g.load_edges(data=LyingLen(_two_edges_table()), src="src", dst="dst", time="ts")
+    assert g.count_edges() == 2
+
+
+def test_load_edges_survives_a_len_that_raises():
+    class RaisingLen:
+        def __init__(self, table):
+            self._table = table
+
+        def __arrow_c_stream__(self, requested_schema=None):
+            return self._table.__arrow_c_stream__(requested_schema)
+
+        def __len__(self):
+            raise TypeError("no length here")
+
+    g = Graph()
+    g.load_edges(data=RaisingLen(_two_edges_table()), src="src", dst="dst", time="ts")
+    assert g.count_edges() == 2
+
+
+def test_load_nodes_and_metadata_from_a_lying_len():
+    class LyingLen:
+        def __init__(self, table):
+            self._table = table
+
+        def __arrow_c_stream__(self, requested_schema=None):
+            return self._table.__arrow_c_stream__(requested_schema)
+
+        def __len__(self):
+            return 0
+
+    nodes = pa.table({"id": ["a", "b"], "ts": [1, 2], "m": ["x", "y"]})
+    g = Graph()
+    g.load_nodes(data=LyingLen(nodes), id="id", time="ts")
+    assert g.count_nodes() == 2
+    g.load_node_metadata(data=LyingLen(nodes), id="id", metadata=["m"])
+    assert g.node("a").metadata.get("m") == "x"
+    g.load_edges(data=LyingLen(_two_edges_table()), src="src", dst="dst", time="ts")
+    edges = pa.table({"src": ["a"], "dst": ["b"], "m": ["e"]})
+    g.load_edge_metadata(data=LyingLen(edges), src="src", dst="dst", metadata=["m"])
+    assert g.edge("a", "b").metadata.get("m") == "e"

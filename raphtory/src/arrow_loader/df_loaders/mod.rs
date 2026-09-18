@@ -156,9 +156,6 @@ pub(crate) fn load_graph_props_from_df<
     metadata: Option<&[&str]>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    if df_view.is_empty() {
-        return Ok(());
-    }
     let properties = properties.unwrap_or(&[]);
     let metadata = metadata.unwrap_or(&[]);
 
