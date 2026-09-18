@@ -324,6 +324,14 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.latest_time_global()
     }
 
+    fn earliest_event_time_global(&self) -> Option<EventTime> {
+        self.0.earliest_event_time_global()
+    }
+
+    fn latest_event_time_global(&self) -> Option<EventTime> {
+        self.0.latest_event_time_global()
+    }
+
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.earliest_time_global()
             .map(|t| t.max(start.t()))

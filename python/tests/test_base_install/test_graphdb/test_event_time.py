@@ -184,3 +184,42 @@ def test_optional_vs_optional():
     g4.add_node(1000, 1)
     t1000_2 = g4.earliest_time
     assert t1000 == t1000_2
+
+
+def test_graph_latest_time_event_id_is_an_update_id_and_agrees_across_views():
+    g = Graph()
+    g.add_edge(2, "a", "b")
+    g.add_edge(2, "c", "d")
+    g.add_node(1, "e")
+
+    history_ids = {t.event_id for e in g.edges for t in e.history} | {
+        t.event_id for t in g.node("e").history
+    }
+    # the id names an update that exists, not the graph's next-event counter
+    assert g.latest_time.event_id in history_ids
+    assert g.earliest_time.event_id in history_ids
+    assert g.latest_time.t == 2
+    assert g.earliest_time.t == 1
+
+    nodes = ["a", "b", "c", "d", "e"]
+    views = [
+        g,
+        g.window(0, 10),
+        g.before(3),
+        g.exclude_layers([]),
+        g.layers(list(g.unique_layers)),
+        g.subgraph(nodes),
+        g.exclude_nodes([]),
+        g.at(2),
+        g.latest(),
+        g.after(1),
+        g.window(2, 3),
+        g.materialize(),
+    ]
+    latest = [(v.latest_time.t, v.latest_time.event_id) for v in views]
+    assert len(set(latest)) == 1, latest
+    earliest = [
+        (v.earliest_time.t, v.earliest_time.event_id)
+        for v in [g, g.window(0, 10), g.subgraph(nodes), g.materialize()]
+    ]
+    assert len(set(earliest)) == 1, earliest
