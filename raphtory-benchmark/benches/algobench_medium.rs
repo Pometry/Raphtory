@@ -341,7 +341,7 @@ pub fn graphgen_temporal_bipartite_projection(c: &mut Criterion) {
         5,
         10,
         medium_typed_random_attachment_graph,
-        |graph, _| temporal_bipartite_projection(graph, 1, "Right".to_string()),
+        |graph, _| temporal_bipartite_projection(graph, 1, "Right".to_string()).unwrap(),
     );
 }
 

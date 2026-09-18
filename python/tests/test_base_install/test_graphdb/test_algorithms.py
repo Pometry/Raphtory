@@ -852,3 +852,46 @@ def test_fast_rp():
         assert (
             within_group < outside_group
         )  # nearest neighbour in the embedding space should be in the same component
+
+
+def test_temporal_bipartite_graph_projection():
+    g = Graph()
+    for t, src, dst in [
+        (1, "A", "1"),
+        (3, "A", "2"),
+        (3, "B", "2"),
+        (4, "C", "3"),
+        (6, "B", "3"),
+    ]:
+        g.add_node(t, src, node_type="Left")
+        g.add_node(t, dst, node_type="Right")
+        g.add_edge(t, src, dst)
+
+    projected = algorithms.temporal_bipartite_graph_projection(g, 1, "Right")
+    assert projected.has_edge("A", "B")
+    assert not projected.has_edge("A", "C")
+
+    # a pivot type no node carries gives an empty graph, not an error
+    empty = algorithms.temporal_bipartite_graph_projection(g, 1, "Item")
+    assert empty.count_nodes() == 0
+
+
+def test_temporal_bipartite_graph_projection_untyped_node_raises():
+    # add_edge creates its endpoints without a node type
+    g = Graph()
+    g.add_edge(1, "alice", "laptop")
+    g.add_edge(2, "bob", "laptop")
+
+    # must be a regular exception (not a PanicException) and must name the node
+    with pytest.raises(Exception, match="has no node type") as info:
+        algorithms.temporal_bipartite_graph_projection(g, 5, "Item")
+    assert any(name in str(info.value) for name in ("alice", "bob", "laptop"))
+
+    # one untyped node among typed ones is still an error
+    g = Graph()
+    g.add_node(1, "A", node_type="Left")
+    g.add_node(1, "1", node_type="Right")
+    g.add_edge(1, "A", "1")
+    g.add_edge(2, "B", "1")
+    with pytest.raises(Exception, match="node B has no node type"):
+        algorithms.temporal_bipartite_graph_projection(g, 5, "Right")
