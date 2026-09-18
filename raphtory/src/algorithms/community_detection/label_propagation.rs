@@ -1,21 +1,11 @@
 use crate::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             state::{GenericNodeState, Index, TypedNodeState},
             view::{internal::filtered_node::FilteredNodeStorageOps, StaticGraphViewOps},
         },
-        task::{
-            context::{Context, GlobalState},
-            custom_pool,
-            node::eval_node::EvalNodeView,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-            POOL,
-        },
+        task::{custom_pool, POOL},
     },
     errors::GraphError,
     prelude::*,
@@ -26,11 +16,10 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::RefCell,
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
 use tracing::debug;
@@ -60,15 +49,9 @@ pub struct LabelPropState {
     is_changed: bool, // derive(Default) initializes to false
 }
 
-// Per-thread scratch tally for `step3` vote counts. Keeping them out of `LabelPropState` spares
-// the runner a deep `HashMap` clone per node per superstep.
-thread_local! {
-    static LABEL_COUNTS: RefCell<FxHashMap<usize, usize>> = RefCell::new(FxHashMap::default());
-}
-
 /// Deterministic pseudorandom rank for `label` as seen by a node whose `node_key` is
-/// `calculate_hash(&(seed, node))`, used only to break vote-count ties in `step3`.
-/// Splitting the mix in two lets `step3` hoist the per-node half out of its per-label loop.
+/// `calculate_hash(&(seed, node))`, used only to break vote-count ties.
+/// Splitting the mix in two lets the sweep hoist the per-node half out of its per-label loop.
 #[inline]
 fn tie_rank(node_key: u64, label: usize) -> u64 {
     let mut x = node_key ^ (label as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
@@ -77,10 +60,7 @@ fn tie_rank(node_key: u64, label: usize) -> u64 {
     x ^ (x >> 31)
 }
 
-/// Computes components using a label propagation algorithm
-///
-/// An initial community assignment, as accepted by [`label_propagation`] and
-/// [`label_propagation_fast`].
+/// An initial community assignment, as accepted by [`label_propagation`].
 ///
 /// Implemented for `()`, meaning unseeded, and for a `HashMap` keyed by anything that names a node
 /// -- a name, a global id, or a `Node` -- so that callers never have to reach for the internal
@@ -140,219 +120,11 @@ impl<T: IntoInitState> IntoInitState for Option<T> {
     }
 }
 
-/// # Arguments
-///
-/// - `g` - A reference to the graph
-/// - `iter_count` - Number of iterations
-/// - `seed` - (Optional) Seeds the tie-break draw. The value used is printed in the stopping summary
-///   and can be passed back here to reproduce a run.
-/// - `threads` - (Optional) Number of threads to use
-/// - `init_state` - `()` for unseeded, or a HashMap of node to community ID. When unseeded, every node starts
-///   in its own community. When present, only the nodes it names are labelled and active; the rest
-///   start unlabelled and may acquire a label from their neighbours. A map covering every node
-///   reproduces a previous warm-start behaviour exactly.
-/// - `rel_tol` - (Optional) Relative-improvement threshold to track convergence. An iteration counts
-///   as progress only if its changed-node count drops below `best * (1 - rel_tol)`. Defaults to 3e-4.
-/// - `patience` - (Optional) Stop after this many consecutive iterations without progress. Defaults to 10.
-///
-/// # Returns
-///
-/// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
-/// `alternate_id` (the previous label it swaps with while oscillating; `None` once converged, and
-/// also `None` until the node has been labeled a whole iteration, and `confidence`, the share of
-/// its votes that went to `community_id`.
-pub fn label_propagation<G>(
-    g: &G,
-    iter_count: usize,
-    seed: Option<u64>,
-    threads: Option<usize>,
-    init_state: impl IntoInitState,
-    rel_tol: Option<f64>,
-    patience: Option<usize>,
-) -> Result<TypedNodeState<'static, LabelPropState, G>, GraphError>
-where
-    G: StaticGraphViewOps,
-{
-    let init_state = init_state.into_init_state(g)?;
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
-    let global_diff = accumulators::sum::<usize>(2);
-    ctx.global_agg_reset(global_diff);
-
-    let num_nodes = g.count_nodes();
-    let active: Arc<Vec<AtomicBool>> =
-        Arc::new((0..num_nodes).map(|_| AtomicBool::new(false)).collect());
-
-    // Unseeded runs draw random number
-    let tie_seed: u64 = seed.unwrap_or_else(|| rand::rng().random());
-    let rel_tol = rel_tol.unwrap_or(DEFAULT_REL_TOL);
-    let patience = patience.unwrap_or(DEFAULT_PATIENCE);
-
-    let step1 = ATask::new(move |s| {
-        let id = s.node.index();
-        let state: &mut LabelPropState = s.get_mut();
-        match init_state.as_ref() {
-            // Unseeded
-            None => {
-                state.community_id = id;
-                state.is_changed = true; // the actual initialization
-            }
-            // Seeded: only nodes named in the map get a label, and only they start live.
-            Some(map) => {
-                let seed = map.get(&id).copied();
-                state.community_id = seed.unwrap_or(NO_LABEL);
-                state.is_changed = seed.is_some();
-                if seed.is_some() {
-                    // A seed's label is GIVEN, not inferred, so it starts fully confident.
-                    state.confidence = 1.0;
-                }
-            }
-        }
-        Step::Continue
-    });
-
-    let active_step2 = Arc::clone(&active);
-    let step2 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
-        if s.prev().is_changed {
-            for nbor in s.neighbours() {
-                active_step2[nbor.state_pos].store(true, Ordering::Relaxed);
-            }
-        }
-        Step::Continue
-    });
-
-    let active_step3 = Arc::clone(&active);
-    let step3 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
-        // Gate: consume this node's activation flag atomically.
-        if !active_step3[s.state_pos].swap(false, Ordering::AcqRel) {
-            let state = s.get_mut();
-            state.is_changed = false;
-            state.alternate_id = None; // clear any stale value from a prior iter
-                                       // NB: state.community_id and state.confidence unchanged
-            return Step::Continue;
-        }
-
-        let node_key = calculate_hash(&(tie_seed, s.node.index())); // tie_rank's 1st arg
-        let prev_label = s.prev().community_id;
-        let winner = LABEL_COUNTS.with(|counts| {
-            let mut counts = counts.borrow_mut();
-            counts.clear();
-
-            let mut best_label = prev_label;
-            let mut best_count = 0;
-            let mut best_rank = 0u64;
-            // `confidence`'s denominator: the votes CAST -- labelled neighbours plus the self-vote --
-            // and not the degree, since an unlabelled neighbour is skipped below and has no opinion
-            // to divide by. Tallied as we go, because the incremental argmax below never walks
-            // `counts` a second time to sum it.
-            let mut total = 0usize;
-            if prev_label != NO_LABEL {
-                // initialised nodes vote for their own label
-                counts.insert(prev_label, 1);
-                best_count = 1;
-                best_rank = tie_rank(node_key, prev_label);
-                total = 1;
-            }
-            for nbor in s.neighbours() {
-                let nbor_label = nbor.prev().community_id;
-                if nbor_label == NO_LABEL {
-                    continue; // unlabelled neighbours don't cast a vote
-                }
-                let count = counts.entry(nbor_label).or_insert(0);
-                *count += 1;
-                let count = *count;
-                total += 1;
-
-                if nbor_label == best_label {
-                    best_count = count;
-                } else if count >= best_count {
-                    let rank = tie_rank(node_key, nbor_label);
-                    if (count, rank) > (best_count, best_rank) {
-                        best_label = nbor_label;
-                        best_count = count;
-                        best_rank = rank;
-                    }
-                    // TODO: delete
-                    // REMOVED: get max label (use usize ID to resolve tie)
-                    // .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
-                    // REMOVED: a tie settled by pseudorandom rank of (tie_seed) id and label
-                    // .max_by_key(|&(&label, &count)| (count, tie_rank(tie_seed, id, label)))
-                }
-            }
-            // `best_label` is still NO_LABEL only when no voting happened; otherwise the winner
-            // holds at least one of `total` votes, so the division is neither by zero nor ever NaN.
-            (best_label != NO_LABEL).then(|| (best_label, best_count as f64 / total as f64))
-        });
-
-        let state: &mut LabelPropState = s.get_mut();
-        // No votes at all (unlabelled node, no labelled neighbours) leaves community_id standing --
-        // and its confidence with it, so the two always describe the same vote.
-        if let Some((label, confidence)) = winner {
-            state.community_id = label;
-            state.confidence = confidence;
-        }
-        state.is_changed = state.community_id != prev_label;
-        if state.is_changed {
-            state.alternate_id = (prev_label != NO_LABEL).then_some(prev_label);
-            s.global_update(&global_diff, 1);
-        } else {
-            state.alternate_id = None;
-        }
-        Step::Continue
-    });
-
-    // Synchronous LPA never reaches global_diff == 0 on graphs with locally-bipartite pockets
-    // (results in ~period-2 oscillations), so the stopping criterion we use is to wait for
-    // `patience` iterations since the improvement was no better than `rel_tol`.
-
-    // (best, stale, n_iter): Check is Fn + called once/iter single-threaded, so the Mutex is uncontended
-    let convergence_state = Arc::new(Mutex::new((usize::MAX, 0usize, 0usize)));
-    let step4 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
-        let diff = state.read(&global_diff);
-        let (best, stale, n_iter) = &mut *convergence_state.lock().unwrap();
-        *n_iter += 1;
-        // check for improvement
-        let improved = (diff as f64) < (*best as f64) * (1.0 - rel_tol);
-        *best = (*best).min(diff);
-        *stale = if improved { 0 } else { *stale + 1 };
-        // Stop once fully converged (diff == 0) or the changed-node count has plateaued.
-        if diff == 0 || *stale >= patience {
-            let pct = 100.0 * diff as f64 / num_nodes as f64;
-            // println!("label_propagation: stopped after {n_iter} iters; diff={diff} ({pct:.2}%)");
-            debug!(
-                "label_propagation: stopped after {n_iter} iters; \
-                 diff={diff} ({pct:.2}%); seed={tie_seed}"
-            );
-            Step::Done
-        } else {
-            Step::Continue
-        }
-    }));
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    Ok(runner.run(
-        vec![Job::new(step1)],
-        vec![Job::read_only(step2), Job::new(step3), step4],
-        None,
-        |_, _, _, local, index| {
-            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-                g.clone(),
-                local,
-                index,
-                None,
-            ))
-        },
-        threads,
-        iter_count,
-        None,
-        None,
-    ))
-}
-
 /// Scratch vote counter for the node currently being evaluated, reused across the nodes of a
 /// rayon job. Both variants answer the same question -- how many votes has this slot collected --
 /// and differ only in how a slot reaches its counter.
 ///
-/// `Dense` indexes an array directly, which is the whole reason [`label_propagation_fast`]
+/// `Dense` indexes an array directly, which is the whole reason [`label_propagation`]
 /// compacts labels into slots: with a seeded run the label space is the handful of labels named in
 /// `init_state`, so the array is small enough to stay in cache. `Sparse` hashes instead, and is
 /// there for the unseeded case, where every node starts in its own community and the label space
@@ -408,31 +180,44 @@ impl Counts {
     }
 }
 
-/// Label propagation over flat label arrays, bypassing the task framework.
+/// Computes communities using a label propagation algorithm.
 ///
-/// Same result as [`label_propagation`] called with the same arguments: same activation gating,
-/// same tie-break, same plateau stopping criterion. It differs only in
-/// how it gets there, which is where the speed comes from:
+/// Labels live in flat arrays held alongside the graph rather than in per-node task state, which is
+/// where the speed comes from:
 ///
 /// - votes are counted in a buffer indexed by a compacted label, so resetting it between nodes is
 ///   proportional to the node's degree rather than to the high-water capacity of a hash map;
 /// - the adjacency is read through a [`GraphStorage::lock`]ed view of the storage, taken once,
 ///   so traversing a node's neighbours does not re-acquire a segment lock per node;
-/// - a node that changes its label activates its neighbours directly, which removes the separate
-///   full pass over the graph that the task version needs to build the next frontier.
+/// - a node that changes its label activates its neighbours directly, so no separate full pass over
+///   the graph is needed to build the next frontier.
 ///
 /// The label space decides how the votes are counted; see [`Counts`].
 ///
 /// # Arguments
 ///
-/// See [`label_propagation`]; the arguments mean the same thing. Seed label values are
-/// unconstrained — they are compacted internally, so the vote counter is sized by the number of
-/// *distinct* labels, not by the largest one.
+/// - `g` - A reference to the graph
+/// - `iter_count` - Number of iterations
+/// - `seed` - (Optional) Seeds the tie-break draw. The value used is printed in the stopping summary
+///   and can be passed back here to reproduce a run.
+/// - `threads` - (Optional) Number of threads to use
+/// - `init_state` - `()` for unseeded, or a HashMap of node to community ID. When unseeded, every node starts
+///   in its own community. When present, only the nodes it names are labelled and active; the rest
+///   start unlabelled and may acquire a label from their neighbours. A map covering every node
+///   reproduces a previous warm-start behaviour exactly. Seed label values are unconstrained -- they
+///   are compacted internally, so the vote counter is sized by the number of *distinct* labels, not
+///   by the largest one.
+/// - `rel_tol` - (Optional) Relative-improvement threshold to track convergence. An iteration counts
+///   as progress only if its changed-node count drops below `best * (1 - rel_tol)`. Defaults to 3e-4.
+/// - `patience` - (Optional) Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// # Returns
 ///
-/// A `TypedNodeState` mapping each node to its `LabelPropState`, exactly as [`label_propagation`].
-pub fn label_propagation_fast<G>(
+/// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
+/// `alternate_id` (the previous label it swaps with while oscillating; `None` once converged, and
+/// also `None` until the node has been labeled a whole iteration, and `confidence`, the share of
+/// its votes that went to `community_id`.
+pub fn label_propagation<G>(
     g: &G,
     iter_count: usize,
     seed: Option<u64>,
@@ -469,8 +254,8 @@ where
             (labels, slot_of)
         }
         // Unseeded
-        // The position -> VID table, which is what makes `tie_rank` hash the VID here exactly as
-        // the task version does. `slot_of` goes unused: a node's slot is its position.
+        // The position -> VID table, which is what makes `tie_rank` hash the VID rather than the
+        // position. `slot_of` goes unused: a node's slot is its position.
         None => {
             let table: Vec<AtomicUsize> = (0..n).map(|_| AtomicUsize::new(0)).collect();
             index
@@ -512,13 +297,13 @@ where
     //
     // NOT DOUBLE-BUFFERED, unlike `prev`/`cur`: confidence is an output and no neighbour reads it,
     // so there is nothing for a sweep to race against and nothing to swap. A node that does not
-    // re-evaluate leaves its entry alone, which is exactly the task version's "no votes at all
-    // leaves community_id standing -- and its confidence with it".
+    // re-evaluate leaves its entry alone, so no votes at all leaves `community_id` standing --
+    // and its confidence with it.
     let votes: Vec<AtomicU64> = (0..n).map(|_| AtomicU64::new(0)).collect();
-    // Unseeded leaves every entry at 0, deliberately. The task version does not set a confidence
-    // when it seeds that case either, so an `iter_count` of 0 reports 0.0 on both sides; and from
-    // the first sweep on, every entry is overwritten, because a labelled node always casts a
-    // self-vote and so never takes the `total == 0` branch.
+    // Unseeded leaves every entry at 0, deliberately: no confidence is set when that case is
+    // seeded, so an `iter_count` of 0 reports 0.0; and from the first sweep on, every entry is
+    // overwritten, because a labelled node always casts a self-vote and so never takes the
+    // `total == 0` branch.
     if let Some(map) = &init_state {
         index.par_iter().for_each(|(pos, vid)| {
             if let Some(slot) = map.get(&vid.index()).and_then(|l| slot_of.get(l)) {
@@ -534,8 +319,8 @@ where
         .collect();
 
     // The frontier for the first sweep. Seeded: the neighbours of the seeded nodes, which costs a
-    // pass to collect. Unseeded: everything, matching the task version setting `is_changed` on
-    // every node, so there is nothing to collect and the pass is skipped.
+    // pass to collect. Unseeded: every node starts active, so there is nothing to collect and the
+    // pass is skipped.
     let mut active_cur: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(!seeded)).collect();
     let mut active_next: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(false)).collect();
     if seeded {
@@ -572,8 +357,8 @@ where
                 |(counts, touched, nbors), (pos, vid)| {
                     let prev_slot = prev[pos].load(Ordering::Relaxed);
                     // Gate: consume this node's activation flag atomically. A node that does not run
-                    // still has to carry its label over, which the task version gets for free from the
-                    // runner copying `prev` into `cur` between supersteps.
+                    // still has to carry its label over, which is why the inactive branch stores
+                    // `prev_slot` into `cur` rather than leaving the entry stale.
                     if !active_cur[pos].swap(false, Ordering::AcqRel) {
                         cur[pos].store(prev_slot, Ordering::Relaxed);
                         return;
@@ -586,8 +371,8 @@ where
                     let mut best_rank = 0u64;
                     // The denominator of `confidence`: the votes CAST -- labelled neighbours plus the
                     // self-vote -- and not the degree, since an unlabelled neighbour is skipped below
-                    // and has no opinion to divide by. The task version sums its tally map for this;
-                    // `counts` is never walked a second time, in either variant, so it is counted.
+                    // and has no opinion to divide by. `counts` is never walked a second time, in
+                    // either variant, so the total is accumulated as the votes land.
                     let mut total = 0u32;
                     if prev_slot != NO_LABEL {
                         // initialised nodes vote for their own label
@@ -627,7 +412,7 @@ where
                     touched.clear();
 
                     // `best_slot` is still `prev_slot` when no voting happened, so an unlabelled node
-                    // with no labelled neighbours keeps its label, as in the task version.
+                    // with no labelled neighbours keeps its label.
                     cur[pos].store(best_slot, Ordering::Relaxed);
                     // `best_count` is the winner's FINAL tally: a vote landing on the reigning
                     // `best_slot` refreshes it through the `nbor_slot == best_slot` arm above, and a
@@ -662,7 +447,7 @@ where
             if diff == 0 || stale >= patience {
                 let pct = 100.0 * diff as f64 / n as f64;
                 debug!(
-                    "label_propagation_fast: stopped after {n_iter} iters; \
+                    "label_propagation: stopped after {n_iter} iters; \
                      diff={diff} ({pct:.2}%); seed={tie_seed}"
                 );
                 break;

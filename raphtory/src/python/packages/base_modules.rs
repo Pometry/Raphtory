@@ -223,7 +223,6 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         hits,
         balance,
         label_propagation,
-        label_propagation_fast,
         k_core,
         temporal_SEIR,
         louvain,

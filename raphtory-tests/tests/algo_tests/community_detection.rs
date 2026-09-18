@@ -1,6 +1,6 @@
 use raphtory::{
     algorithms::community_detection::{
-        label_propagation::{label_propagation, label_propagation_fast},
+        label_propagation::label_propagation,
         louvain::louvain,
         modularity::{ComID, ModularityFunction, ModularityUnDir, Partition},
     },
@@ -112,12 +112,12 @@ fn lpa_vote_share() {
     });
 }
 
-/// `label_propagation_fast` must agree with `label_propagation` node for node, in two modes: no
-/// `init_state`, where every node starts in its own community, and a partial one, which exercises
-/// the `NO_LABEL` front advancing from a couple of seeds. Both should be deterministic given `seed`,
-/// including across thread counts.
+/// `label_propagation` must reach the same partition however many threads it runs on, in two
+/// modes: no `init_state`, where every node starts in its own community, and a partial one, which
+/// exercises the `NO_LABEL` front advancing from a couple of seeds. A fixed `seed` is what makes a
+/// run reproducible at all.
 #[test]
-fn lpa_fast_matches_lpa() {
+fn lpa_deterministic() {
     let graph: Graph = Graph::new();
     let edges = vec![
         (1, "R1", "R2"),
@@ -145,8 +145,8 @@ fn lpa_fast_matches_lpa() {
 
         for init_state in [None, Some(partial)] {
             for seed in [8u64, 42] {
-                for threads in [None, Some(4)] {
-                    let expected = label_propagation(
+                let run = |threads: Option<usize>| {
+                    label_propagation(
                         graph,
                         20,
                         Some(seed),
@@ -156,21 +156,13 @@ fn lpa_fast_matches_lpa() {
                         None,
                     )
                     .unwrap()
-                    .to_hashmap(|value| (value.community_id, value.confidence));
-                    let actual = label_propagation_fast(
-                        graph,
-                        20,
-                        Some(seed),
-                        threads,
-                        init_state.clone(),
-                        None,
-                        None,
-                    )
-                    .unwrap()
-                    .to_hashmap(|value| (value.community_id, value.confidence));
-                    // Labels exactly; shares within a tolerance. Both sides divide the same two
-                    // integers, so this should be bit-identical -- the tolerance is here so that a
-                    // genuine disagreement reports as one rather than as a last-bit artefact.
+                    .to_hashmap(|value| (value.community_id, value.confidence))
+                };
+                // One thread is the reference: no pool size may change what the run settles on.
+                // `None` takes rayon's default pool, which is however many cores the machine has.
+                let expected = run(Some(1));
+                for threads in [Some(4), None] {
+                    let actual = run(threads);
                     assert_eq!(
                         expected.keys().collect::<HashSet<_>>(),
                         actual.keys().collect::<HashSet<_>>(),
@@ -182,6 +174,9 @@ fn lpa_fast_matches_lpa() {
                             got_label, *want_label,
                             "{name} seed={seed} threads={threads:?}"
                         );
+                        // Labels exactly; shares within a tolerance. Every run divides the same two
+                        // integers, so this should be bit-identical -- the tolerance is here so that
+                        // a genuine disagreement reports as one rather than as a last-bit artefact.
                         assert!(
                             (got_conf - want_conf).abs() < 1e-12,
                             "{name} share {got_conf} != {want_conf} seed={seed} threads={threads:?}"

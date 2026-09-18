@@ -10,12 +10,8 @@ use crate::{
             pagerank::page_rank,
         },
         community_detection::{
-            label_propagation::{
-                label_propagation as label_propagation_rs,
-                label_propagation_fast as label_propagation_fast_rs,
-            },
-            louvain::louvain as louvain_rs,
-            modularity::ModularityUnDir,
+            label_propagation::label_propagation as label_propagation_rs,
+            louvain::louvain as louvain_rs, modularity::ModularityUnDir,
         },
         components,
         cores::k_core::k_core_set,
@@ -817,46 +813,6 @@ pub fn label_propagation(
     patience: Option<usize>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     let result = label_propagation_rs(
-        &graph.graph,
-        iter_count,
-        seed,
-        None,
-        init_state,
-        rel_tol,
-        patience,
-    )?;
-    Ok(result.to_output_nodestate())
-}
-
-/// Computes components using a label propagation algorithm, bypassing the task framework
-///
-/// Returns the same communities as `label_propagation` called with the same arguments.
-///
-/// Arguments:
-///     graph (GraphView): A reference to the graph
-///     iter_count (int): Number of iterations. Defaults to 20.
-///     seed (int, optional): Seeds the tie-break draw. Pass the value back to reproduce a run.
-///     init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
-///     rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
-///     patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
-///
-/// Returns:
-///     OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
-///
-/// Raises:
-///     Exception: If a key of `init_state` is not a node in `graph`.
-///
-#[pyfunction]
-#[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
-pub fn label_propagation_fast(
-    graph: &PyGraphView,
-    iter_count: usize,
-    seed: Option<u64>,
-    init_state: Option<HashMap<PyNodeRef, usize>>,
-    rel_tol: Option<f64>,
-    patience: Option<usize>,
-) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
-    let result = label_propagation_fast_rs(
         &graph.graph,
         iter_count,
         seed,
