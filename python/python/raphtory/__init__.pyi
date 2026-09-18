@@ -4525,6 +4525,8 @@ class Edge(object):
         """
         Gets the latest time of an edge.
 
+        For an exploded edge on a persistent graph that has not been deleted, this is the end of the view it is seen through (the window end, or the graph's latest time), with event id 0: it marks where the view stops, not an update of the edge.
+
         Returns:
             OptionalEventTime: The latest time of an edge
         """
