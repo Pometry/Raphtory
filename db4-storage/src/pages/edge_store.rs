@@ -510,10 +510,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .unwrap_or(0)
     }
 
+    /// Distinct temporal edge updates in `layer_id`, the number `explode()` yields; a replayed
+    /// update is counted once. `t_len` is the physical row count.
     pub fn num_temporal_edges_layer(&self, layer_id: LayerId) -> usize {
         self.segments
             .iter()
-            .map(|(_, page)| page.t_len(layer_id.0))
+            .map(|(_, page)| page.t_additions_count(layer_id.0))
             .sum()
     }
 

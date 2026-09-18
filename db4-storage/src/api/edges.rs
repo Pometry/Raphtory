@@ -34,7 +34,17 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
 
+    /// Physical number of temporal rows in `layer_id`, one per write accepted.
     fn t_len(&self, layer_id: usize) -> usize;
+
+    /// Number of distinct `(timestamp, event_id)` edge updates in `layer_id`, what exploding
+    /// the layer's edges yields. A write that replays an existing update is not counted again.
+    ///
+    /// The default is the physical row count, so an implementor that does not track the
+    /// distinct count keeps compiling; override it wherever updates are deduplicated.
+    fn t_additions_count(&self, layer_id: usize) -> usize {
+        self.t_len(layer_id)
+    }
     fn num_layers(&self) -> usize;
     // Persistent layer count, not used for up-to-date counts
     fn layer_count(&self, layer_id: LayerId) -> u32;

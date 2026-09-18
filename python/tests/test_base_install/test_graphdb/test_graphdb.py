@@ -3023,3 +3023,29 @@ def datadir(tmpdir, request):
 # l_index = l_g.index()
 # assert len(index.search_edges("value_str:ddddd")) == 1
 # assert len(index.search_edges("value:>60")) == 2
+
+
+def test_count_temporal_edges_counts_distinct_updates_not_replays():
+    g = Graph()
+    rows = [(1, "a", "b", 10), (2, "b", "c", 11), (3, "c", "d", 12)]
+    for t, src, dst, event_id in rows:
+        g.add_edge(t, src, dst, event_id=event_id)
+    exploded = lambda g: sum(len(e.explode()) for e in g.edges)
+    assert g.count_temporal_edges() == exploded(g) == 3
+
+    # replaying the same (timestamp, event_id) updates does not add temporal edges
+    for t, src, dst, event_id in rows:
+        g.add_edge(t, src, dst, event_id=event_id)
+    assert exploded(g) == 3
+    assert g.count_temporal_edges() == 3
+    assert g.window(0, 10).count_temporal_edges() == 3
+    assert g.subgraph(["a", "b", "c", "d"]).count_temporal_edges() == 3
+    assert g.materialize().count_temporal_edges() == 3
+
+    # five writes of one update to one edge are one temporal edge
+    h = Graph()
+    for _ in range(5):
+        h.add_edge(1, "a", "b", event_id=7)
+    assert h.count_temporal_edges() == 1
+    assert len(h.edge("a", "b").history) == 1
+    assert len(h.edge("a", "b").explode()) == 1
