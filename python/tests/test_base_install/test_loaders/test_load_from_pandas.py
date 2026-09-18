@@ -71,7 +71,9 @@ def test_load_from_pandas_with_invalid_data():
     )
 
     def assertions(exc_info):
-        assert "ArrowInvalid" in str(exc_info.value)
+        # the pyarrow exception reaches the caller with its own class, not as text inside
+        # a generic Exception
+        assert exc_info.typename == "ArrowInvalid"
         assert (
             "Could not convert '3.0 KG' with type str: tried to convert to double"
             in str(exc_info.value)
@@ -89,7 +91,7 @@ def test_load_from_pandas_with_invalid_data():
     assertions(exc_info)
 
     # Optionally, you can check the exception message or type
-    assert "ArrowInvalid" in str(exc_info.value)
+    assert exc_info.typename == "ArrowInvalid"
     assert (
         "Could not convert '3.0 KG' with type str: tried to convert to double"
         in str(exc_info.value)

@@ -306,13 +306,13 @@ def _as_list(value):
 )
 def test_mixed_type_list_property_raises_instead_of_panicking(value):
     g = Graph()
-    # a regular exception that names the two types, never a PanicException
-    # (add_node wraps the TypeError raised while converting the value)
-    with pytest.raises(Exception, match="list elements have mixed types"):
+    # a TypeError that names the two types, never a PanicException; the error keeps its
+    # class through add_node rather than being flattened into a generic Exception
+    with pytest.raises(TypeError, match="list elements have mixed types"):
         g.add_node(1, "n", properties={"mixed": value})
-    with pytest.raises(Exception, match="list elements have mixed types"):
+    with pytest.raises(TypeError, match="list elements have mixed types"):
         g.add_edge(1, "a", "b", properties={"mixed": value})
-    with pytest.raises(Exception, match="list elements have mixed types"):
+    with pytest.raises(TypeError, match="list elements have mixed types"):
         g.add_metadata({"mixed": value})
     # nothing was written by the failed calls
     assert g.count_nodes() == 0
