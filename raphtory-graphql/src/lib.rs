@@ -3671,4 +3671,20 @@ mod graphql_test {
             } } } })
         );
     }
+
+    #[tokio::test]
+    async fn test_subgraph_on_uncached() {
+        let tmp_dir = TempDir::new().unwrap();
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        setup_with_graphs(&[("g", g.into())], tmp_dir.path()).await; // write to folder and drop the cache
+        let setup = setup_with_graphs(&[], tmp_dir.path()).await; // new data pointing at the folder with the graph unloaded
+
+        let query = r#"
+            mutation {
+                createSubgraph(newPath: "sg", parentPath: "g", nodes: [1], overwrite: false)
+            }"#;
+        let res = run_mutation(&setup.schema, query).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+    }
 }
