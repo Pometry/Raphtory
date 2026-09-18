@@ -486,7 +486,16 @@ impl<'py> FromPyObject<'_, 'py> for Prop {
             return Ok(Prop::List(PropArray::Array(arr)));
         }
         if let Ok(list) = ob.extract::<Vec<Prop>>() {
-            return Ok(Prop::List(PropArray::Vec(list.into())));
+            // a list's elements must share one type: find out here, where a TypeError is the
+            // answer, rather than in PropArray::dtype(), where the mismatch is a panic
+            let array = PropArray::Vec(list.into());
+            array.try_dtype().map_err(|e| {
+                PyTypeError::new_err(format!(
+                    "Could not convert {:?} to Prop: list elements have mixed types, {:?} and {:?}",
+                    ob, e.expected, e.actual
+                ))
+            })?;
+            return Ok(Prop::List(array));
         }
 
         if let Ok(map) = ob.extract() {

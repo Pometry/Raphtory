@@ -1,6 +1,6 @@
 use crate::{
     core::entities::properties::prop::{
-        unify_types, ArrowRow, DirectConvert, Prop, PropType, EMPTY_MAP_FIELD_NAME,
+        unify_types, ArrowRow, DirectConvert, Prop, PropError, PropType, EMPTY_MAP_FIELD_NAME,
     },
     iter::{BoxedLIter, IntoDynBoxed},
 };
@@ -76,19 +76,26 @@ impl PropArray {
         }
     }
 
-    pub fn dtype(&self) -> PropType {
+    /// The element type of the array, or the `PropError` naming the two element types that
+    /// do not unify. A `PropArray::Vec` can hold `Prop`s of different variants; this is the
+    /// place to find out before the mismatch reaches `dtype()`.
+    pub fn try_dtype(&self) -> Result<PropType, PropError> {
         match self {
-            PropArray::Vec(ps) if ps.is_empty() => PropType::Empty,
             PropArray::Vec(ps) => ps
                 .iter()
                 .map(|p| p.dtype())
-                .reduce(|dt1, dt2| {
-                    unify_types(&dt1, &dt2, &mut false)
-                        .unwrap_or_else(|e| panic!("Failed to unify props {e}"))
-                })
-                .unwrap(),
-            PropArray::Array(a) => PropType::from(a.data_type()),
+                .try_fold(PropType::Empty, |acc, dt| {
+                    unify_types(&acc, &dt, &mut false)
+                }),
+            PropArray::Array(a) => Ok(PropType::from(a.data_type())),
         }
+    }
+
+    /// The element type of the array. Panics on a `PropArray::Vec` with elements of different
+    /// types: every constructor that takes untrusted input checks `try_dtype()` first.
+    pub fn dtype(&self) -> PropType {
+        self.try_dtype()
+            .unwrap_or_else(|e| panic!("Failed to unify props {e}"))
     }
 
     pub fn into_array_ref(self) -> Option<ArrayRef> {
@@ -368,7 +375,7 @@ impl PropArrayUnwrap for Prop {
 
 #[cfg(test)]
 mod test {
-    use crate::core::entities::properties::prop::{Prop, PropArray};
+    use crate::core::entities::properties::prop::{Prop, PropArray, PropType};
     use arrow_array::Int64Array;
     use std::sync::Arc;
 
@@ -388,5 +395,33 @@ mod test {
         println!("{json}");
         let recovered: PropArray = serde_json::from_str(&json).unwrap();
         assert_eq!(array, recovered);
+    }
+
+    #[test]
+    fn try_dtype_agrees_with_dtype_on_uniform_lists() {
+        let empty = PropArray::Vec(Vec::<Prop>::new().into());
+        assert_eq!(empty.try_dtype().unwrap(), PropType::Empty);
+        assert_eq!(empty.dtype(), PropType::Empty);
+
+        let ints = PropArray::Vec(vec![Prop::I64(1), Prop::I64(2)].into());
+        assert_eq!(ints.try_dtype().unwrap(), PropType::I64);
+        assert_eq!(ints.dtype(), PropType::I64);
+    }
+
+    #[test]
+    fn try_dtype_reports_mixed_element_types_instead_of_panicking() {
+        let mixed = PropArray::Vec(vec![Prop::I64(1), Prop::str("a")].into());
+        let err = mixed.try_dtype().err().expect("mixed list must not unify");
+        assert_eq!(err.expected, PropType::I64);
+        assert_eq!(err.actual, PropType::Str);
+
+        let nested = PropArray::Vec(
+            vec![
+                Prop::List(PropArray::Vec(vec![Prop::I64(1)].into())),
+                Prop::List(PropArray::Vec(vec![Prop::str("a")].into())),
+            ]
+            .into(),
+        );
+        assert!(nested.try_dtype().is_err());
     }
 }
