@@ -245,6 +245,12 @@ impl<T: HasRow> SegmentContainer<T> {
             + data_size
             + self.t_prop_est_size()
             + self.c_prop_est_size()
+            + self.props_seen_est_size()
+    }
+
+    #[inline]
+    fn props_seen_est_size(&self) -> usize {
+        self.t_props_seen.capacity() + self.c_props_seen.capacity()
     }
 
     pub fn get(&self, item_pos: LocalPOS) -> Option<&T> {
