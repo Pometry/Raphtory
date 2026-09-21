@@ -638,7 +638,6 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
 #[cfg(test)]
 mod test {
-    use super::MemNodeSegment;
     use crate::{
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,

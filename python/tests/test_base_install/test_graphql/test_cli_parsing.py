@@ -19,7 +19,7 @@ def get_app_config(stdout: str) -> dict:
 
 def get_config_file():
     cfg = tempfile.NamedTemporaryFile(mode="w+", suffix=".toml", delete=False)
-    cfg.write("[cache]\ncapacity = 123\n")
+    cfg.write("[cache]\ncapacity = 123\nread_only=true\n")
     cfg.flush()
     return cfg
 
@@ -75,7 +75,9 @@ def test_raphtory_server_with_config_file():
     stdout, stderr = process.communicate(timeout=1)
     app_config = get_app_config(stdout)
     cache_capacity = app_config["cache"]["capacity"]
+    read_only = app_config["cache"]["read_only"]
     assert cache_capacity == 123
+    assert read_only == True
 
 
 def test_raphtory_server_with_env_variable():
