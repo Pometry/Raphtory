@@ -28,10 +28,7 @@ interface PerfFixtures {
      * `canvas.click({ position })`. Reads sigma's live render position via
      * `getNodeDisplayData` + `framedGraphToViewport`.
      */
-    getNodeViewportPosition(
-        page: Page,
-        nodeId: string,
-    ): Promise<{ x: number; y: number }>;
+    getNodeViewportPosition(page: Page, nodeId: string): Promise<{ x: number; y: number }>;
 }
 
 async function waitForGraphReady(page: Page, timeout: number): Promise<void> {
@@ -65,12 +62,8 @@ export const test = base.extend<PerfFixtures>({
     // eslint-disable-next-line no-empty-pattern
     loadGraphWithSeedNode: async ({}, use) => {
         await use(async (page, { baseGraph, seedNodeId }) => {
-            const initialNodes = encodeURIComponent(
-                JSON.stringify([seedNodeId]),
-            );
-            await page.goto(
-                `/graph?baseGraph=${baseGraph}&initialNodes=${initialNodes}`,
-            );
+            const initialNodes = encodeURIComponent(JSON.stringify([seedNodeId]));
+            await page.goto(`/graph?baseGraph=${baseGraph}&initialNodes=${initialNodes}`);
             await waitForGraphReady(page, 30_000);
         });
     },
@@ -81,13 +74,11 @@ export const test = base.extend<PerfFixtures>({
                 const w = window as unknown as {
                     __SIGMA__?: {
                         sigma: {
-                            getNodeDisplayData(
-                                node: string,
-                            ): { x: number; y: number } | undefined;
-                            framedGraphToViewport(p: {
+                            getNodeDisplayData(node: string): { x: number; y: number } | undefined;
+                            framedGraphToViewport(p: { x: number; y: number }): {
                                 x: number;
                                 y: number;
-                            }): { x: number; y: number };
+                            };
                         };
                     };
                 };

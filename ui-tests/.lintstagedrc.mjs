@@ -1,12 +1,9 @@
 const config = {
     '!(**/__generated/**/*)*.{ts,tsx,graphql}': () => ['pnpm run tsc'],
     '!(**/__generated/**/*)!(**/types/**/*)*.{ts,tsx,graphql,cjs,mjs,js,jsx}': [
-        'pnpm run eslint',
-        'pnpm run format',
+        'oxlint --fix --max-warnings 0',
+        'oxfmt --write',
     ],
-    '!(**/__generated/**/*)*.css': (filenames) => [
-        `pnpm run format ${filenames}`,
-    ],
-    '!(**/__generated/**/*)*.html': ['pnpm run format'],
+    '!(**/__generated/**/*)*.{html,json,md,yaml,yml}': ['oxfmt --write'],
 };
 export default config;

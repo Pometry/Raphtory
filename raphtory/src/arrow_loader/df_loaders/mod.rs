@@ -9,6 +9,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::*,
 };
+use dashmap::SharedValue;
 #[cfg(feature = "progress")]
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::{
@@ -20,6 +21,7 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
+    hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use storage::pages::resolve_pos;
@@ -27,6 +29,8 @@ use storage::pages::resolve_pos;
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
+
+pub(crate) mod cache;
 
 #[cfg(feature = "progress")]
 fn progress_bars_enabled() -> bool {
@@ -279,30 +283,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
         },
         |gid, _, _| {
             let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            Ok(vid)
-        },
-    )
-}
-
-fn resolve_nodes_and_type_with_cache<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    graph: &G,
-    cols_to_resolve: &[&'a NodeCol],
-    node_types: &[&'a [usize]],
-    resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<FxDashMap<GidRef<'a>, (VID, usize)>, GraphError> {
-    resolve_nodes_with_cache_generic(
-        cols_to_resolve,
-        |vid: &(VID, usize), row, col_idx| {
-            let (vid, _) = vid;
-            resolved_cols[col_idx][row].store(vid.index(), Ordering::Relaxed);
-        },
-        |gid, row, col_idx| {
-            let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            let node_type = node_types[col_idx][row];
-            Ok((vid, node_type))
+            Ok(vid.inner())
         },
     )
 }
@@ -314,14 +295,13 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
 ) -> Result<FxDashMap<GidRef<'a>, V>, GraphError> {
     let gid_str_cache: dashmap::DashMap<GidRef<'_>, V, _> = FxDashMap::default();
     let hasher_factory = gid_str_cache.hasher().clone();
+
     gid_str_cache
         .shards()
         .par_iter()
         .enumerate()
         .try_for_each(|(shard_idx, shard)| {
             let mut shard_guard = shard.write();
-            use dashmap::SharedValue;
-            use std::hash::BuildHasher;
 
             // Create hasher function for this shard
             let hash_key = |key: &GidRef<'_>| -> u64 { hasher_factory.hash_one(key) };
@@ -355,6 +335,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
 
             Ok::<(), GraphError>(())
         })?;
+
     Ok(gid_str_cache)
 }
 
@@ -364,13 +345,16 @@ pub(crate) fn group_rows_by_vid_segment(
     num_segments: usize,
 ) -> Vec<Vec<usize>> {
     let mut rows_by_segment = vec![Vec::new(); num_segments];
+
     for (row, vid) in vids.iter().enumerate() {
         let (segment_id, _) = resolve_pos(vid.index(), max_segment_len);
         let rows = rows_by_segment
             .get_mut(segment_id)
             .expect("segment not found while grouping by vid");
+
         rows.push(row);
     }
+
     rows_by_segment
 }
 

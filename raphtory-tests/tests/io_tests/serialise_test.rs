@@ -6,7 +6,7 @@ mod serialise_test {
     use raphtory::{
         db::{
             api::properties::internal::InternalMetadataOps,
-            graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+            graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
         },
         prelude::*,
         serialise::metadata::assert_metadata_correct,

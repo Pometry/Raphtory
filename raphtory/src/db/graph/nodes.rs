@@ -20,6 +20,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
 use rayon::iter::ParallelIterator;
 use std::{
@@ -30,6 +31,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use storage::api::nodes::NodeRefOps;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
@@ -151,8 +153,8 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            elems @ Index::Partial(_) => NodeList::List { elems },
-            _ => self.graph.node_list(),
+            elems @ (Index::Partial(_) | Index::Sorted { .. }) => NodeList::List { elems },
+            Index::Full(_) => self.base_graph.node_list(),
         }
     }
 
@@ -209,11 +211,17 @@ where
     ) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
-
-        self.node_list().nodes_iter(&g).filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
-        })
+        let node_list = self.node_list();
+        GenLockedIter::from(
+            (g, view, selector, node_list),
+            |(g, view, selector, node_list)| {
+                Box::new(node_list.clone().node_entries(g).filter_map(move |node| {
+                    let node_ref = node.as_ref();
+                    let vid = node_ref.vid();
+                    (view.filter_node(node_ref) && selector.apply(g, vid)).then_some(vid)
+                }))
+            },
+        )
     }
 
     #[inline]
@@ -265,13 +273,24 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
+        // An exact index has already had the whole predicate applied to every
+        // key — `apply_iter_filter` drops the claim as soon as a conjunct is
+        // not reflected in the keys — so the only thing that could still
+        // remove one is the view's own node filtering. Same pair of conditions
+        // `GraphViewOps::count_nodes` uses via `trusted_node_list`.
+        if let Index::Sorted { keys, exact: true } = &self.nodes {
+            if self.base_graph.node_list_trusted() {
+                return keys.len();
+            }
+        }
         if self.is_list_filtered() {
             let g = self.locked_storage();
             self.par_iter_refs(g).count()
         } else {
             match &self.nodes {
-                Index::Full(_) => self.graph.count_nodes(),
+                Index::Full(_) => self.base_graph.count_nodes(),
                 Index::Partial(nodes) => nodes.len(),
+                Index::Sorted { keys, .. } => keys.len(),
             }
         }
     }
@@ -291,15 +310,8 @@ where
         &self,
         node_types: I,
     ) -> Nodes<'graph, G, GH, AndOp<F, NodeTypeFilterOp>> {
-        let node_types_filter = NodeTypeFilterOp::new_from_values(node_types, &self.graph);
-        let predicate = self.predicate.clone().and(node_types_filter);
-        Nodes {
-            base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
-            predicate,
-            nodes: self.nodes.clone(),
-            _marker: PhantomData,
-        }
+        let node_types_filter = NodeTypeFilterOp::from_values(node_types, &self.graph);
+        self.apply_iter_filter(node_types_filter)
     }
 
     pub fn id_filter(
@@ -310,6 +322,7 @@ where
             .into_iter()
             .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
+
         self.indexed(index)
     }
 
@@ -327,7 +340,8 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
+        !self.base_graph.node_list_trusted()
+            || self.predicate.is_domain_filtered(self.graph.core_graph())
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -366,6 +380,9 @@ where
     ) -> Self::IterFiltered<Filter> {
         let domain = filter.domain(self.graph.core_graph());
         let nodes = match domain {
+            // `filter` is not reflected in the keys, so an exactness claim
+            // from an earlier filter no longer covers the whole predicate
+            NodeList::All if filter.is_filtered() => self.nodes.clone().into_inexact(),
             NodeList::All => self.nodes.clone(),
             NodeList::List { elems } => self.nodes.intersection(&elems),
         };

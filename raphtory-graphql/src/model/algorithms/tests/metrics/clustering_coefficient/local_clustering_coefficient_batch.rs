@@ -42,8 +42,14 @@ async fn test_algorithm_local_clustering_coefficient_batch() {
             "entries": [{ "columnName": "lcc", "value": { "prop": 1.0 } }]
         })
     };
+    // row order is not guaranteed
+    let mut data = res.data.into_json().unwrap();
+    data["graph"]["algorithm"]["localClusteringCoefficientBatch"]["rows"]
+        .as_array_mut()
+        .unwrap()
+        .sort_by_key(|row| row["node"]["id"].as_str().unwrap().to_string());
     assert_eq!(
-        res.data.into_json().unwrap(),
+        data,
         json!({
             "graph": { "algorithm": { "localClusteringCoefficientBatch": { "rows": [
                 entry("a"),

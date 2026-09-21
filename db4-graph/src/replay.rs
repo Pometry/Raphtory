@@ -94,7 +94,7 @@ where
             }
 
             if let Some(src_name) = src_name {
-                src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
+                src_writer.store_node_id(src_pos, src_name);
             }
 
             let is_new_edge_in_static = src_writer
@@ -146,7 +146,7 @@ where
             }
 
             if let Some(dst_name) = dst_name {
-                dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name);
+                dst_writer.store_node_id(dst_pos, dst_name);
             }
 
             let is_new_edge_in_static = dst_writer
@@ -334,7 +334,7 @@ where
             }
 
             if let Some(src_name) = src_name {
-                src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
+                src_writer.store_node_id(src_pos, src_name);
             }
 
             let is_new_edge_in_static = src_writer
@@ -383,7 +383,7 @@ where
             }
 
             if let Some(dst_name) = dst_name {
-                dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name);
+                dst_writer.store_node_id(dst_pos, dst_name);
             }
 
             let is_new_edge_in_static = dst_writer
@@ -518,11 +518,11 @@ where
             }
 
             if let Some(name) = node_name {
-                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
+                node_writer.store_node_id(pos, name);
             }
 
             if let Some((_, node_type_id)) = node_type_and_id {
-                node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
+                node_writer.store_node_type(pos, node_type_id);
             }
 
             // Add the node with its timestamp and props to the specified layer.
@@ -614,7 +614,7 @@ where
             })?;
             let mut node_writer = node_writer.writer();
 
-            node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
+            node_writer.store_node_type(pos, node_type_id);
             node_writer.set_lsn(lsn);
         }
 

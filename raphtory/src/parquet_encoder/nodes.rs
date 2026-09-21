@@ -29,6 +29,7 @@ use rayon::prelude::*;
 pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
     g: &'a G,
     node_list: &'a List<VID>,
+    list_trusted: bool,
     nodes_locked: &'a NodesStorageEntry,
 ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
     let filtered = g.filtered();
@@ -54,13 +55,14 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
                     )
                 }),
         ),
-        List::List {
-            elems: Index::Partial(index),
-        } => {
-            let chunk_size = (index.len() / rayon::current_num_threads().max(1)).max(1);
-            let list_trusted = g.node_list_trusted();
-            let iter = index
-                .par_iter()
+        List::List { elems } => {
+            let chunk_size = (elems.len() / rayon::current_num_threads().max(1)).max(1);
+            let keys = match elems {
+                Index::Partial(index) => Either::Left(index.par_iter()),
+                Index::Sorted { keys, .. } => Either::Right(keys.par_iter()),
+                Index::Full(_) => unreachable!("matched by the first arm"),
+            };
+            let iter = keys
                 .chunks(chunk_size)
                 .enumerate()
                 .map(move |(c_id, chunk)| {
@@ -87,11 +89,11 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
-        get_nodes_par_iter(g, &node_list, &nodes_locked),
+        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
             vec![
@@ -147,11 +149,11 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
-    let node_list = g.node_list();
+    let (node_list, list_trusted) = g.trusted_node_list();
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
-        get_nodes_par_iter(g, &node_list, &nodes_locked),
+        get_nodes_par_iter(g, &node_list, list_trusted, &nodes_locked),
         sink_factory_fn,
         |id_type| {
             vec![

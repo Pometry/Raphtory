@@ -40,8 +40,14 @@ async fn test_algorithm_temporal_seir() {
 
     let res = setup.schema.execute(Request::new(query)).await;
     assert_eq!(res.errors, vec![], "{:?}", res.errors);
+    // row order is not guaranteed
+    let mut data = res.data.into_json().unwrap();
+    data["graph"]["algorithm"]["temporalSeir"]["nodes"]["ids"]
+        .as_array_mut()
+        .unwrap()
+        .sort_by_key(|id| id.as_str().unwrap().to_string());
     assert_eq!(
-        res.data.into_json().unwrap(),
+        data,
         json!({
             "graph": { "algorithm": { "temporalSeir": {
                 "nodes": { "ids": ["a", "b", "c", "d"] },

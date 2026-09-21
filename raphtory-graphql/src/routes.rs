@@ -29,7 +29,8 @@ struct HealthQuery {
 
 #[handler]
 pub(crate) async fn health(Query(params): Query<HealthQuery>) -> impl IntoResponse {
-    // using blocking_compute and blocking_write to identify deadlocks on any of the two rayon pools
+    // Round-trips every pool: one that cannot run a no-op within the timeout (deadlocked, or
+    // saturated beyond use) reports unhealthy.
     let result = tokio::time::timeout(
         Duration::from_secs(params.timeout.unwrap_or(10)),
         join(blocking_compute(|| {}), blocking_write(|| {})),

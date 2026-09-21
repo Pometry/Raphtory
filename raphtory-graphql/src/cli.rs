@@ -18,7 +18,7 @@ use crate::{
     GraphServer,
 };
 use clap::{Parser, Subcommand};
-use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::storage::storage::Args as GraphArgs;
 use serde::Serialize;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
@@ -194,7 +194,7 @@ pub struct ConfigArgs {
     pub(crate) extensions: ArgExtensions,
 }
 
-#[derive(clap::Args, Debug, Serialize)]
+#[derive(clap::Args, Debug)]
 pub struct ServerArgs {
     #[arg(
         long,
@@ -215,11 +215,17 @@ pub struct ServerArgs {
     #[arg(long, help = "Print the configuration and exit.")]
     pub print_config: bool,
 
+    #[arg(
+        long,
+        help = "Print the full config schema (every field every extension accepts) and exit."
+    )]
+    pub print_config_schema: bool,
+
     #[command(flatten)]
     pub config_args: ConfigArgs,
 
     #[command(flatten)]
-    pub graph_config: Config,
+    pub graph_config: GraphArgs,
 }
 
 pub async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
@@ -232,8 +238,12 @@ where
         Commands::Server(server_args) => {
             let port = server_args.port;
             let print_config = server_args.print_config;
+            let print_config_schema = server_args.print_config_schema;
             let server = GraphServer::new_from_args(server_args).await?;
-            if print_config {
+            if print_config_schema {
+                let schema = server.config().config_schema_json()?;
+                println!("{}", schema);
+            } else if print_config {
                 let config = json!(server.config());
                 println!("{}", config);
             } else {

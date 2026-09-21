@@ -2,7 +2,7 @@ use crate::{
     core::entities::{EID, VID},
     db::api::{state::Index, view::Base},
 };
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
 use rayon::{iter::Either, prelude::*};
 use std::{hash::Hash, sync::Arc};
 
@@ -48,6 +48,16 @@ impl<I> Clone for List<I> {
 }
 
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
+    /// Drops any exactness claim; see [`Index::into_inexact`].
+    pub fn into_inexact(self) -> List<I> {
+        match self {
+            List::All => List::All,
+            List::List { elems } => List::List {
+                elems: elems.into_inexact(),
+            },
+        }
+    }
+
     pub fn intersection(&self, other: &List<I>) -> List<I> {
         match (self, other) {
             (List::All, List::All) => List::All,
@@ -76,6 +86,15 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
         matches!(self, List::All)
     }
 
+    /// True when the list is a pushdown candidate list whose producer proved
+    /// every key matches its filter (see [`Index::dynamically_exact`]).
+    pub fn dynamically_trusted(&self) -> bool {
+        match self {
+            List::All => false,
+            List::List { elems } => elems.dynamically_exact(),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         match self {
             List::All => false,
@@ -88,6 +107,14 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             elems: Index::default(),
         }
     }
+
+    pub fn is_subset(&self, other: &List<I>) -> bool {
+        match (self, other) {
+            (_, List::All) => true,
+            (List::All, List::List { .. }) => false,
+            (List::List { elems: a }, List::List { elems: b }) => a.is_subset(b),
+        }
+    }
 }
 
 impl List<VID> {
@@ -98,6 +125,13 @@ impl List<VID> {
                 Either::Left(sc.into_iter())
             }
             List::List { elems } => Either::Right(elems.into_iter()),
+        }
+    }
+
+    pub fn node_entries(self, g: &GraphStorage) -> impl Iterator<Item = NodeStorageEntry<'_>> {
+        match self {
+            List::All => Either::Left(g.node_entries()),
+            List::List { elems } => Either::Right(elems.into_iter().map(|vid| g.core_node(vid))),
         }
     }
 

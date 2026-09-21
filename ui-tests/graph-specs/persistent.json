@@ -85,7 +85,5 @@
             "properties": { "amount": 40 }
         }
     ],
-    "deletions": [
-        { "time": 90, "src": "Ben", "dst": "Pedro", "layer": "meets" }
-    ]
+    "deletions": [{ "time": 90, "src": "Ben", "dst": "Pedro", "layer": "meets" }]
 }

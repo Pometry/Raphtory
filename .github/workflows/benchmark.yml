@@ -70,6 +70,6 @@ jobs:
           summary-always: true
           fail-on-alert: false
           save-data-file: false
-# TODO
-# ON PR DO NOT UPLOAD
-# IF MASTER THEN UPLOAD
+      - name: Clean criterion folder before caching
+        run: |
+          rm -r "target/criterion"

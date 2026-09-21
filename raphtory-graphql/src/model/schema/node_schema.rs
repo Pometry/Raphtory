@@ -100,10 +100,11 @@ impl NodeSchema {
     }
     /// Filter only keeps the nodes carrying this schema's node type. Built once per resolution.
     fn nodes_of_type(&self) -> NodeFilteredGraph<DynamicGraph, NodeTypeFilterOp> {
-        let mut node_types_filter =
+        let mut node_types_mask =
             vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
-        node_types_filter[self.type_id] = true;
-        NodeFilteredGraph::new(self.graph.clone(), TypeId.mask(node_types_filter.into()))
+        node_types_mask[self.type_id] = true;
+        // let filter = NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
+        NodeFilteredGraph::new(self.graph.clone(), TypeId.mask(node_types_mask.into()))
     }
 
     /// Keys this view may report: visible here and marked in the per-layer presence bitset.

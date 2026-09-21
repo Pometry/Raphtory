@@ -1,13 +1,13 @@
 use crate::{
     model::schema::cache::SchemaCache,
     paths::{ExistingGraphFolder, UnlockedGraphFolder, ValidGraphPaths},
-    rayon::blocking_compute,
+    rayon::blocking_load,
 };
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{
                 internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
@@ -103,6 +103,23 @@ impl GraphWithVectors {
         });
         future.await
     }
+    /// Swap in a read-only handle for the graph. No-op with a warning if the inner
+    /// state is unexpectedly shared (only call right after construction).
+    pub(crate) fn into_read_only(self) -> Self {
+        match Arc::try_unwrap(self.inner) {
+            Ok(mut inner) => {
+                inner.graph = inner.graph.read_only();
+                Self {
+                    inner: Arc::new(inner),
+                }
+            }
+            Err(inner) => {
+                tracing::warn!("graph handle shared during load; serving it without read-only");
+                Self { inner }
+            }
+        }
+    }
+
     pub fn graph(&self) -> &MaterializedGraph {
         &self.inner.graph
     }
@@ -196,21 +213,22 @@ impl GraphWithVectors {
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
-            blocking_compute(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+            blocking_load(move || {
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         } else {
-            blocking_compute(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+            blocking_load(move || {
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         };
+
         #[cfg(feature = "vectors")]
         let vectors = {
             let vectors_path = folder.vectors_path()?;
@@ -228,6 +246,7 @@ impl GraphWithVectors {
                 }
             }
         };
+
         #[cfg(not(feature = "vectors"))]
         let vectors = None;
 

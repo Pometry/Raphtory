@@ -1,7 +1,4 @@
-use crate::{
-    LocalPOS, error::StorageError, persist::strategy::PersistenceStrategy,
-    segments::edge::segment::MemEdgeSegment, wal::LSN,
-};
+use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::{
     LayerId,
@@ -24,7 +21,7 @@ use std::{
 };
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
-    type Extension: PersistenceStrategy<ES = Self>;
+    type Extension;
 
     type Entry<'a>: EdgeEntryOps<'a>
     where

@@ -38,6 +38,8 @@ pub enum FilterVariants<Neither, Nodes, Edges, Both> {
     Both(Both),
 }
 
+use crate::db::api::view::internal::list_ops::NodeList;
+
 pub trait FilterOps {
     fn filter_node(&self, node: NodeStorageRef) -> bool;
     fn filter_state(&self) -> FilterState;
@@ -47,7 +49,16 @@ pub trait FilterOps {
 
     fn filtered_excluding_layers(&self) -> bool;
 
+    /// Whether a node list with the given exactness can be used without
+    /// re-checking each node against the view's filters.
+    fn list_trusted(&self, exact: bool) -> bool;
+
     fn node_list_trusted(&self) -> bool;
+
+    /// The node list together with whether it can be used without re-checking
+    /// each node against the view's filters. An exact list is only trusted on
+    /// plain views: any window or layer restriction requires re-verification.
+    fn trusted_node_list(&self) -> (NodeList, bool);
 
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool;
 
@@ -216,11 +227,23 @@ impl<G: GraphView> FilterOps for G {
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
-        self.internal_node_list_trusted()
+    fn list_trusted(&self, exact: bool) -> bool {
+        (self.internal_node_list_trusted()
+            || (exact && !self.window_filtered() && !self.is_layer_filtered()))
             && self.node_filter_includes_edge_filter()
             && self.node_filter_includes_edge_layer_filter()
             && self.node_filter_includes_exploded_edge_filter()
+    }
+
+    #[inline]
+    fn node_list_trusted(&self) -> bool {
+        self.list_trusted(false)
+    }
+
+    fn trusted_node_list(&self) -> (NodeList, bool) {
+        let list = self.node_list();
+        let trusted = self.list_trusted(list.dynamically_trusted());
+        (list, trusted)
     }
 
     #[inline]

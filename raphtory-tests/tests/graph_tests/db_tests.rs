@@ -1,7 +1,9 @@
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
+use proptest::{
+    arbitrary::any, prelude::Strategy, prop_assert, prop_assert_eq, proptest, sample::subsequence,
+};
 use raphtory::{
     algorithms::{
         centrality::{degree_centrality::degree_centrality, pagerank::page_rank},
@@ -17,7 +19,7 @@ use raphtory::{
             },
         },
         graph::{
-            edge::EdgeView, edges::Edges, graph::assert_graph_equal, path::PathFromNode,
+            assertions::assert_graph_equal, edge::EdgeView, edges::Edges, path::PathFromNode,
             views::deletion_graph::PersistentGraph,
         },
     },
@@ -26,7 +28,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{LayerId, GID, VID},
+    entities::{properties::prop::prop_hashable::HashableProp, LayerId, GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::{AsTime, EventTime},
@@ -1940,6 +1942,7 @@ fn check_node_edge_history_count() {
 }
 
 use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use raphtory_tests::utils::{prop, prop_type};
 
 #[test]
 fn check_edge_history_on_multiple_shards() {
@@ -3629,7 +3632,9 @@ fn test_indexed_proptest() {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
         let nodes = graph.nodes().id_filter(nodes);
-        assert_eq!(nodes.id(), expected_node_ids);
+        let mut actual = nodes.id().collect_vec();
+        actual.sort();
+        assert_eq!(actual, expected_node_ids);
     })
 }
 
@@ -3898,4 +3903,18 @@ fn test_group_by() {
             expected_subgraphs[v].deref()
         );
     }
+}
+
+#[test]
+fn hashing_proptest() {
+    proptest!(|(a in prop_type(3).prop_flat_map(|dt| prop(&dt)), b in prop_type(3).prop_flat_map(|dt| prop(&dt)))| {
+            let mut set = HashSet::new();
+            set.insert(HashableProp(a.clone()));
+            assert!(set.contains(a.as_ref()));
+            if a == b {
+                assert!(set.contains(b.as_ref()));
+            } else {
+                assert!(!set.contains(b.as_ref()));
+            }
+        } )
 }

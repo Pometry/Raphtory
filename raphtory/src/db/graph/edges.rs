@@ -13,7 +13,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::{and_filtered_graph::AndFilteredGraph, CreateFilter},
+            views::filter::CreateFilter,
         },
     },
     errors::GraphError,
@@ -238,19 +238,15 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        let filtered_graph = filter.filter_graph_view(self.base_graph.clone())?;
-        let filtered_graph = filter.create_filter(self.base_graph.clone(), filtered_graph)?;
-
-        let edges = self.edges.clone();
-        let select = Arc::new(AndFilteredGraph::new(
-            self.base_graph.clone(),
-            self.select.clone(),
-            filtered_graph,
-        ));
+        // Chain onto the current select rather than AND a fresh filter with the base graph:
+        // AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
+        // after/snapshot) on the right operand is silently dropped and the collection fails open.
+        let filtered_graph = filter.filter_graph_view(self.select.clone())?;
+        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
         Ok(Edges {
             base_graph: self.base_graph.clone(),
-            select,
-            edges,
+            select: Arc::new(filtered_graph),
+            edges: self.edges.clone(),
         })
     }
 }
@@ -437,20 +433,13 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        let filtered_graph = filter.filter_graph_view(self.graph.clone())?;
-        let filtered_graph = filter.create_filter(self.graph.clone(), filtered_graph)?;
-        let edges = self.edges.clone();
-        let select = Arc::new(AndFilteredGraph::new(
-            self.graph.clone(),
-            self.select.clone(),
-            filtered_graph,
-        ));
-
+        let filtered_graph = filter.filter_graph_view(self.select.clone())?;
+        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            select,
-            edges,
+            select: Arc::new(filtered_graph),
+            edges: self.edges.clone(),
         })
     }
 }

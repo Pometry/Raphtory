@@ -16,7 +16,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
-        config::PyConfig,
+        config::PyArgs,
         graph::{
             edge::PyEdge,
             io::arrow_loaders::{
@@ -55,7 +55,7 @@ use std::{
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-///     config (Config, optional): Storage/config overrides. Defaults to None.
+///     config (dict[str, Any], optional): Storage/config overrides. Defaults to None.
 ///
 #[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen, module="raphtory")]
 pub struct PyPersistentGraph {
@@ -119,23 +119,23 @@ impl PyPersistentGraph {
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): the path to persist the graph (only works with disk storage enabled)
-///     config (Config, optional): the configuration options for the graph
+///     config (dict[str, Any], optional): the configuration options for the graph
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
     #[pyo3(signature = (path = None, config=None))]
     pub fn py_new(
         path: Option<PathBuf>,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
     ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             Some(path) => match config {
                 None => PersistentGraph::new_at_path(&path)?,
-                Some(PyConfig(config)) => PersistentGraph::new_at_path_with_config(&path, config)?,
+                Some(PyArgs(args)) => PersistentGraph::new_at_path_with_config(&path, args)?,
             },
             None => match config {
                 None => PersistentGraph::new(),
-                Some(PyConfig(config)) => PersistentGraph::new_with_config(config)?,
+                Some(PyArgs(args)) => PersistentGraph::new_with_config(args)?,
             },
         };
         Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
@@ -145,28 +145,26 @@ impl PyPersistentGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Config, optional): specify a new config to override the values saved for the graph
-    ///                                (note that the page sizes cannot be overridden and are ignored)
-    ///     read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-    ///                                 Multiple processes can hold a read-only handle to the same
-    ///                                 graph directory concurrently. Mutating the returned graph will fail.
+    ///     config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+    ///                                (note that page sizes cannot be overridden; providing them raises an error)
+    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
+    ///                       Multiple processes can hold a read-only handle to the same graph
+    ///                       directory concurrently. Mutating the returned graph will fail.
     ///
     /// Returns:
-    ///     PersistentGraph: the graph
+    ///     PersistentGraph: the graph loaded from path
     #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
     pub fn load(
         path: PathBuf,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
         read_only: bool,
     ) -> Result<PersistentGraph, GraphError> {
         match (config, read_only) {
             (None, false) => PersistentGraph::load(&path),
-            (Some(PyConfig(config)), false) => PersistentGraph::load_with_config(&path, config),
+            (Some(PyArgs(args)), false) => PersistentGraph::load_with_config(&path, args),
             (None, true) => PersistentGraph::load_read_only(&path),
-            (Some(PyConfig(config)), true) => {
-                PersistentGraph::load_read_only_with_config(&path, config)
-            }
+            (Some(PyArgs(args)), true) => PersistentGraph::load_read_only_with_config(&path, args),
         }
     }
 
@@ -176,6 +174,82 @@ impl PyPersistentGraph {
     ///     None: This function does not return a value, if the operation is successful.
     pub fn flush(&self) -> Result<(), GraphError> {
         self.graph.flush()
+    }
+
+    /// Build secondary indexes over node property values to speed up
+    /// property filters (equality, comparisons and string matching).
+    ///
+    /// The index describes the graph as of this call: values written
+    /// afterwards are not searchable through it until the next build, so call
+    /// this again after loading more data. Filters over properties the index
+    /// does not cover fall back to a scan and stay correct either way; an
+    /// index only changes how fast they run.
+    ///
+    /// Arguments:
+    ///     props (list[str], optional): the property names to index, replacing
+    ///         any previously configured selection. The selection is saved
+    ///         with the graph, so later builds reuse it; pass a different list
+    ///         to change what the next build considers. Defaults to None,
+    ///         which keeps the saved selection (or indexes every supported
+    ///         property if none was ever set).
+    ///     index_gid (bool, optional): also index each node's id. Defaults to False.
+    ///         Filters over the id can then be served from the index instead
+    ///         of a scan. The id has no property name, so it cannot be named
+    ///         in `props`. Always takes effect and is saved with the graph.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    #[pyo3(signature = (props = None, index_gid = false))]
+    pub fn build_property_index(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), GraphError> {
+        self.graph
+            .core_graph()
+            .build_node_prop_index(props, index_gid)?;
+        Ok(())
+    }
+
+    /// Choose which node properties later index builds consider, without
+    /// building now.
+    ///
+    /// Arguments:
+    ///     props (list[str], optional): the property names to index. An empty
+    ///         list indexes nothing. Defaults to None, which restores
+    ///         indexing every supported property — the way back after a
+    ///         selection has been set.
+    ///     index_gid (bool, optional): whether to index each node's id. Defaults to False.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    #[pyo3(signature = (props = None, index_gid = false))]
+    pub fn set_indexed_properties(
+        &self,
+        props: Option<Vec<String>>,
+        index_gid: bool,
+    ) -> Result<(), GraphError> {
+        self.graph
+            .core_graph()
+            .set_indexed_node_props(props, index_gid)?;
+        Ok(())
+    }
+
+    /// The node property names that index builds consider.
+    ///
+    /// Returns:
+    ///     list[str]: the saved selection, or None when every supported
+    ///         property is indexed.
+    pub fn indexed_properties(&self) -> Option<Vec<String>> {
+        self.graph.core_graph().indexed_node_props()
+    }
+
+    /// Whether index builds cover each node's id.
+    ///
+    /// Returns:
+    ///     bool: True when the node id is indexed.
+    pub fn indexed_gid(&self) -> bool {
+        self.graph.core_graph().indexed_gid()
     }
 
     /// Return a read-only handle to this graph.

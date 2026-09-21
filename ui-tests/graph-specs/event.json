@@ -89,9 +89,7 @@
         "_ui_node_metadata_presentation": [
             {
                 "name": "Properties",
-                "values": [
-                    { "key": "age", "label": "Age", "is_property": true }
-                ]
+                "values": [{ "key": "age", "label": "Age", "is_property": true }]
             }
         ],
         "_ui_edge_metadata_presentation": [
@@ -99,7 +97,12 @@
                 "name": "Properties",
                 "values": [
                     { "key": "where", "label": "Where", "is_property": true },
-                    { "key": "amount", "label": "Amount", "is_property": true, "type": "currency-gbp" }
+                    {
+                        "key": "amount",
+                        "label": "Amount",
+                        "is_property": true,
+                        "type": "currency-gbp"
+                    }
                 ]
             }
         ]

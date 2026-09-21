@@ -1255,7 +1255,7 @@ Target node ids.
 <td valign="top"><a href="#string">String</a></td>
 <td>
 
-Edge property to use as weight. If unset, all edges have weight 1.
+Edge property to use as weight.
 
 </td>
 </tr>
@@ -1265,6 +1265,15 @@ Edge property to use as weight. If unset, all edges have weight 1.
 <td>
 
 Edge direction to follow. Defaults to BOTH.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">defaultWeight</td>
+<td valign="top"><a href="#value">Value</a></td>
+<td>
+
+Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1.
 
 </td>
 </tr>
@@ -6512,6 +6521,42 @@ List of `{key, value}` pairs to upsert.
 
 Persist any in-memory state for this graph to disk so other
 processes attaching a read-only handle observe up-to-date data.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.buildpropertyindex">buildPropertyIndex</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Build secondary indexes over node property values to speed up property
+filters (equality, comparisons and string matching). The index covers
+the graph as of this call, so values added later need another build to
+be searchable through it; filters over uncovered properties fall back
+to a scan and stay correct either way.
+
+`props` replaces the saved selection of property names to index, which
+later builds reuse; omit it to keep the saved one.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">props</td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">indexGid</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.indexedproperties">indexedProperties</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+The node property names that index builds consider, or null when every
+supported property is indexed.
 
 </td>
 </tr>
