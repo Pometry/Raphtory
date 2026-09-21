@@ -9,11 +9,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::{
-            properties::internal::NodePropertySchemaOps,
-            state::ops::{
-                filter::{MaskOp, NodeTypeFilterOp},
-                TypeId,
-            },
+            properties::internal::NodePropertySchemaOps, state::ops::filter::NodeTypeFilterOp,
             view::DynamicGraph,
         },
         graph::views::filter::node_filtered_graph::NodeFilteredGraph,
@@ -103,8 +99,8 @@ impl NodeSchema {
         let mut node_types_mask =
             vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
         node_types_mask[self.type_id] = true;
-        // let filter = NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
-        NodeFilteredGraph::new(self.graph.clone(), TypeId.mask(node_types_mask.into()))
+        let filter = NodeTypeFilterOp::from_mask(node_types_mask.into(), self.graph.clone());
+        NodeFilteredGraph::new(self.graph.clone(), filter)
     }
 
     /// Keys this view may report: visible here and marked in the per-layer presence bitset.

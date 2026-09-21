@@ -26,7 +26,10 @@ use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{properties::prop::AsPropRef, LayerId, EID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+            LayerId, EID,
+        },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
