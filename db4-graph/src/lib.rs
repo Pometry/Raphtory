@@ -500,19 +500,11 @@ where
     /// to disk.
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
-
         let dst = GraphDir::from(dst);
 
-        self.graph.gid_resolver.copy_to(dst.gid_resolver())?;
-        self.nodes.copy_to(&dst.nodes())?;
-        self.node_type_index
-            .copy_to(&type_index_path(dst.nodes()))?;
-        self.edges.copy_to(&dst.edges())?;
-        self.graph_props.copy_to(&dst.graph_props())?;
-
-        // All segments have been flushed, so mark a checkpoint event in the WAL.
+        // Since the graph is fully flushed to disk, we can safely log a checkpoint.
         let wal = self.graph.extension().wal();
-        let redo_lsn = None; // Nothing to redo since all segments have been flushed.
+        let redo_lsn = None; // Nothing to redo prior to this checkpoint.
         let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
         wal.flush(checkpoint_lsn)?;
 
@@ -521,6 +513,14 @@ where
         control_file.set_checkpoint(checkpoint_lsn);
         control_file.save()?;
 
+        self.graph.gid_resolver.copy_to(dst.gid_resolver())?;
+        self.nodes.copy_to(&dst.nodes())?;
+        self.node_type_index
+            .copy_to(&type_index_path(dst.nodes()))?;
+        self.edges.copy_to(&dst.edges())?;
+        self.graph_props.copy_to(&dst.graph_props())?;
+
+        // Because of the checkpoint above, the WAL is pruned during this copy.
         self.graph
             .extension()
             .copy_to(self.graph.graph_dir(), dst.path())
