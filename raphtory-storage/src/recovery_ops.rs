@@ -33,8 +33,7 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
                 } else {
                     match wal.read_checkpoint(checkpoint_lsn)? {
                         Some(redo) => Some(redo),
-                        // Nothing to redo prior to this checkpoint; replay can start at checkpoint
-                        // to get pointer to end of WAL stream.
+                        // Nothing to redo prior to this checkpoint; replay can start at checkpoint.
                         None => Some(checkpoint_lsn),
                     }
                 };

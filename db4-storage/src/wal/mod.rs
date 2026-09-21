@@ -41,8 +41,7 @@ pub trait WalOps {
     /// Copies the latest WAL log file to `dst`.
     ///
     /// Used after a checkpoint is completed, since recovery now only needs the
-    /// WAL file containing the checkpoint. Older files are omitted from the copy
-    /// so the destination WAL is pruned.
+    /// WAL file containing the checkpoint. Older WAL files are omitted from the copy.
     fn copy_tail_to(&self, dst: &Path) -> Result<(), StorageError>;
 }
 
@@ -159,25 +158,31 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint indicating that all records with `LSN < redo` are persisted.
-    /// On recovery, replay will start from `redo` in the WAL stream.
-    /// `None` means there is nothing to redo.
+    /// Logs a checkpoint indicating that entries with `LSN < redo` are reflected on disk.
+    /// Set `redo` to `None` to indicate all entries so far are on disk.
+    ///
+    /// Returns the LSN of the checkpoint entry.
     fn log_checkpoint(&self, redo: Option<LSN>) -> Result<LSN, StorageError>;
 
-    /// Logs a shutdown checkpoint indicating a clean shutdown with all writes persisted.
+    /// Logs a shutdown checkpoint indicating a clean shutdown with all WAL entries
+    /// applied to storage.
+    ///
+    /// Returns the LSN of the shutdown checkpoint entry.
     fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError>;
 
-    /// Reads and decodes the WAL entry at the given LSN and validates that it is a checkpoint.
-    /// Returns the checkpoint redo LSN, denoting where replay should start from.
-    /// `None` means there is nothing to redo.
+    /// Reads and decodes the WAL entry at `lsn` and validates it is a checkpoint.
+    ///
+    /// Returns the checkpoint redo LSN, or `None` if the checkpoint indicates that all prior
+    /// entries are reflected on disk.
     fn read_checkpoint(&self, lsn: LSN) -> Result<Option<LSN>, StorageError>;
 
-    /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
-    /// Returns the LSN immediately after this record, marking the end of the WAL stream.
+    /// Reads and decodes the WAL entry at `lsn` and validates it is a shutdown checkpoint.
+    ///
+    /// Returns the LSN immediately after this entry, denoting the end of the WAL stream.
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
-    /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
-    /// If `start` is `None`, replay begins at the first record in the WAL stream.
+    /// Replays all entries in the WAL to the given graph, starting from `start`.
+    /// If `start` is `None`, replay begins at the first entry in the WAL stream.
     /// Returns the LSN immediately after the last entry in the WAL stream on success.
     fn replay_to_graph<G: GraphReplay>(
         &self,

@@ -517,17 +517,18 @@ where
         self.edges.copy_to(&dst.edges())?;
         self.graph_props.copy_to(&dst.graph_props())?;
 
-        // All segments have been flushed, mark checkpoint event in the WAL and control file.
+        // All segments have been flushed, so mark a checkpoint event in the WAL.
         let wal = self.graph.extension().wal();
         let redo_lsn = None; // Nothing to redo since all segments have been flushed.
         let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
         wal.flush(checkpoint_lsn)?;
 
+        // Point to the new checkpoint in the control file.
         let control_file = self.graph.extension().control_file();
         control_file.set_checkpoint(checkpoint_lsn);
         control_file.save()?;
-        control_file.copy_to(dst.path())?;
 
+        control_file.copy_to(dst.path())?;
         wal.copy_tail_to(&dst.wal())?;
 
         Ok(())
