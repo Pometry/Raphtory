@@ -71,7 +71,7 @@ mod graphql_test {
     use raphtory::{
         db::{
             api::{
-                storage::storage::Config,
+                storage::storage::Args,
                 view::{IntoDynamic, MaterializedGraph},
             },
             graph::views::deletion_graph::PersistentGraph,
@@ -95,7 +95,7 @@ mod graphql_test {
         let graph = Graph::new();
         graph.add_node(1, "test", NO_PROPS, None, None).unwrap();
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let namespace = tmp_dir.path().join("test");
         fs::create_dir(&namespace).unwrap();
         graph.encode(namespace.join("g3")).unwrap();
@@ -123,7 +123,7 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -236,7 +236,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -334,7 +334,7 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -642,7 +642,7 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -736,7 +736,7 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1058,7 +1058,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1112,7 +1112,7 @@ mod graphql_test {
         };
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -1158,7 +1158,7 @@ mod graphql_test {
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -1166,6 +1166,7 @@ mod graphql_test {
             sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
+
         let req = Request::new(query)
             .variables(Variables::from_json(
                 json!({ "graph": graph_str, "overwrite": false }),
@@ -1207,10 +1208,9 @@ mod graphql_test {
         let res_json = res.data.into_json().unwrap();
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
         let temp_dir = tempdir().unwrap();
-        let graph_roundtrip =
-            url_decode_graph_at(graph_encoded, temp_dir.path(), Config::default())
-                .unwrap()
-                .into_dynamic();
+        let graph_roundtrip = url_decode_graph_at(graph_encoded, temp_dir.path(), Args::default())
+            .unwrap()
+            .into_dynamic();
         assert_eq!(g, graph_roundtrip);
     }
 
@@ -1235,7 +1235,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1408,7 +1408,7 @@ mod graphql_test {
             ("graph6".to_string(), graph6.into()),
         ]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -1673,7 +1673,7 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -1987,7 +1987,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_new_graph_rejects_hidden_path_components() {
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         // Valid paths
@@ -2033,14 +2033,14 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         let graph_name = "graph_with_node_types";
         let graphs = HashMap::from([(graph_name.to_string(), graph.into())]);
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
 
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         // Drop and reload data to mimic server restart.
         drop(data);
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data: Data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = format!(
@@ -2724,7 +2724,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
 
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2815,7 +2815,7 @@ mod graphql_test {
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
 
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2920,7 +2920,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2955,7 +2955,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![graph_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -2996,7 +2996,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![allowed_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(allowed_dir.path(), &app_config, Config::default());
+        let data = Data::new(allowed_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -3038,7 +3038,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -3106,7 +3106,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -3173,7 +3173,7 @@ mod graphql_test {
         let app_config = AppConfigBuilder::new()
             .with_allowed_parquet_paths(vec![tmp_dir.path().to_path_buf()])
             .build();
-        let data = Data::new(graph_dir.path(), &app_config, Config::default());
+        let data = Data::new(graph_dir.path(), &app_config, Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -3200,7 +3200,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_flush() {
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
         let folder = data
             .work_dir_write()
             .await
@@ -3671,5 +3671,21 @@ mod graphql_test {
                 ]
             } } } })
         );
+    }
+
+    #[tokio::test]
+    async fn test_subgraph_on_uncached() {
+        let tmp_dir = TempDir::new().unwrap();
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        setup_with_graphs(&[("g", g.into())], tmp_dir.path()).await; // write to folder and drop the cache
+        let setup = setup_with_graphs(&[], tmp_dir.path()).await; // new data pointing at the folder with the graph unloaded
+
+        let query = r#"
+            mutation {
+                createSubgraph(newPath: "sg", parentPath: "g", nodes: [1], overwrite: false)
+            }"#;
+        let res = run_mutation(&setup.schema, query).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
     }
 }

@@ -643,12 +643,11 @@ impl Mut {
         } else {
             ValidWriteableGraphFolder::try_new(work_dir, path)?
         };
-        let config = data.graph_conf.clone();
+        let args = data.graph_args.clone();
         let folder_clone = folder.clone();
-        let g: MaterializedGraph = blocking_compute(move || {
-            url_decode_graph_at(graph, folder_clone.graph_folder(), config)
-        })
-        .await?;
+        let g: MaterializedGraph =
+            blocking_compute(move || url_decode_graph_at(graph, folder_clone.graph_folder(), args))
+                .await?;
         data.insert_graph(folder, g).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
             let _ = data.delete_graph(path).await;
@@ -731,13 +730,13 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(&new_path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
+        let (_, parent_graph) = data
+            .get_graph_requiring_read(ctx, parent_path, None)
+            .await?;
         let folder = data
             .work_dir_write()
             .await
             .validate_path_for_insert(&new_path, overwrite)?;
-        let (_, parent_graph) = data
-            .get_graph_requiring_read(ctx, parent_path, None)
-            .await?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             let subgraph = parent_graph.subgraph(nodes);

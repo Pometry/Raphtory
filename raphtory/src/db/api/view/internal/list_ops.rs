@@ -2,7 +2,7 @@ use crate::{
     core::entities::{EID, VID},
     db::api::{state::Index, view::Base},
 };
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
 use rayon::{iter::Either, prelude::*};
 use std::{hash::Hash, sync::Arc};
 
@@ -125,6 +125,13 @@ impl List<VID> {
                 Either::Left(sc.into_iter())
             }
             List::List { elems } => Either::Right(elems.into_iter()),
+        }
+    }
+
+    pub fn node_entries(self, g: &GraphStorage) -> impl Iterator<Item = NodeStorageEntry<'_>> {
+        match self {
+            List::All => Either::Left(g.node_entries()),
+            List::List { elems } => Either::Right(elems.into_iter().map(|vid| g.core_node(vid))),
         }
     }
 

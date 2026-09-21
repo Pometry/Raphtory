@@ -14,7 +14,7 @@ use crate::{
     io::parquet_loaders::*,
     prelude::*,
     python::{
-        config::PyConfig,
+        config::PyArgs,
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
@@ -50,7 +50,7 @@ use std::{
 ///
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-///     config (Config, optional): The configuration options for the graph
+///     config (dict[str, Any], optional): The configuration options for the graph
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen, from_py_object)]
 pub struct PyGraph {
@@ -164,16 +164,16 @@ impl PyGraph {
     #[pyo3(signature = (path = None, config=None))]
     pub fn py_new(
         path: Option<PathBuf>,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
     ) -> Result<PyClassInitializer<Self>, GraphError> {
         let graph = match path {
             None => match config {
                 None => Graph::new(),
-                Some(PyConfig(config)) => Graph::new_with_config(config)?,
+                Some(PyArgs(args)) => Graph::new_with_config(args)?,
             },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
-                Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
+                Some(PyArgs(args)) => Graph::new_at_path_with_config(&path, args)?,
             },
         };
         Ok(PyClassInitializer::from(PyGraphView::from(graph.clone())).add_subclass(Self { graph }))
@@ -183,26 +183,26 @@ impl PyGraph {
     ///
     /// Arguments:
     ///     path (str | PathLike): the path of the graph folder
-    ///     config (Config, optional): specify a new config to override the values saved for the graph
-    ///                                (note that the page sizes cannot be overridden and are ignored)
-    ///     read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-    ///                                 Multiple processes can hold a read-only handle to the same
-    ///                                 graph directory concurrently. Mutating the returned graph will fail.
+    ///     config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+    ///                                (note that page sizes cannot be overridden; providing them raises an error)
+    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
+    ///                       Multiple processes can hold a read-only handle to the same graph
+    ///                       directory concurrently. Mutating the returned graph will fail.
     ///
     /// Returns:
-    ///     Graph: the graph
+    ///     Graph: the graph loaded from path
     #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
     pub fn load(
         path: PathBuf,
-        config: Option<PyConfig>,
+        config: Option<PyArgs>,
         read_only: bool,
     ) -> Result<Graph, GraphError> {
         match (config, read_only) {
             (None, false) => Graph::load(&path),
-            (Some(PyConfig(config)), false) => Graph::load_with_config(&path, config),
+            (Some(PyArgs(args)), false) => Graph::load_with_config(&path, args),
             (None, true) => Graph::load_read_only(&path),
-            (Some(PyConfig(config)), true) => Graph::load_read_only_with_config(&path, config),
+            (Some(PyArgs(args)), true) => Graph::load_read_only_with_config(&path, args),
         }
     }
 

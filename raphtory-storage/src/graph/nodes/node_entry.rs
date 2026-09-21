@@ -7,15 +7,14 @@ use raphtory_api::core::{
 };
 use raphtory_core::storage::timeindex::EventTime;
 use storage::{
-    api::nodes::{self, NodeEntryOps},
-    generic_time_ops::LayerIter,
-    utils::Iter2,
-    NodeEntry, NodeEntryRef,
+    api::nodes::NodeEntryOps, generic_time_ops::LayerIter,
+    pages::node_store::SegmentLockedNodeEntry, Extension, NodeEntry, NodeEntryRef, NS,
 };
 
 pub enum NodeStorageEntry<'a> {
     Mem(NodeEntryRef<'a>),
     Unlocked(NodeEntry<'a>),
+    Segment(SegmentLockedNodeEntry<NS<Extension>, Extension>),
 }
 
 impl<'a> From<NodeEntryRef<'a>> for NodeStorageEntry<'a> {
@@ -36,6 +35,7 @@ impl<'a> NodeStorageEntry<'a> {
         match self {
             NodeStorageEntry::Mem(entry) => *entry,
             NodeStorageEntry::Unlocked(entry) => entry.as_ref(),
+            NodeStorageEntry::Segment(entry) => entry.as_ref(),
         }
     }
 }
@@ -44,39 +44,6 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
     fn from(value: &'a NodeStorageEntry<'b>) -> Self {
         value.as_ref()
     }
-}
-
-impl<'b> NodeStorageEntry<'b> {
-    pub fn into_edges_iter<'a: 'b>(
-        self,
-        layers: &'a LayerIds,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'b {
-        match self {
-            NodeStorageEntry::Mem(entry) => {
-                Iter2::I1(nodes::NodeRefOps::edges_iter(entry, layers, dir))
-            }
-            NodeStorageEntry::Unlocked(entry) => Iter2::I2(entry.into_edges(layers, dir)),
-        }
-    }
-
-    // pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
-    //     match self {
-    //         NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
-    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-    //             Box::new(e.as_ref().node().const_prop_ids())
-    //         })),
-    //     }
-    // }
-
-    // pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
-    //     match self {
-    //         NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
-    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-    //             Box::new(e.as_ref().temporal_prop_ids())
-    //         })),
-    //     }
-    // }
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
