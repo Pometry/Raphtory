@@ -17,7 +17,7 @@ pub const LAST_CHECKPOINT_INIT: LSN = 0;
 pub trait ControlFileOps {
     fn save(&self) -> Result<(), StorageError>;
 
-    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
+    fn copy_to(src: &Path, dst: &Path) -> Result<(), StorageError>;
 
     fn db_state(&self) -> DBState;
 
@@ -36,7 +36,7 @@ impl ControlFileOps for NoControlFile {
         Ok(())
     }
 
-    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
+    fn copy_to(_src: &Path, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

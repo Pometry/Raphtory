@@ -42,7 +42,7 @@ impl WalOps for NoWal {
         ))
     }
 
-    fn copy_tail_to(&self, _dst: &Path) -> Result<(), StorageError> {
+    fn copy_tail_to(_src: &Path, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 }

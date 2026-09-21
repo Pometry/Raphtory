@@ -38,11 +38,11 @@ pub trait WalOps {
     /// Sets the position in the WAL stream.
     fn set_position(&self, lsn: LSN) -> Result<(), StorageError>;
 
-    /// Copies the latest WAL log file to `dst`.
+    /// Copies the latest WAL log file from `src` to `dst`.
     ///
     /// Used after a checkpoint is completed, since recovery now only needs the
     /// WAL file containing the checkpoint. Older WAL files are omitted from the copy.
-    fn copy_tail_to(&self, dst: &Path) -> Result<(), StorageError>;
+    fn copy_tail_to(src: &Path, dst: &Path) -> Result<(), StorageError>;
 }
 
 #[derive(Debug)]

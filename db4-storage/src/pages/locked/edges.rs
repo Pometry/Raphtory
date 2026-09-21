@@ -171,9 +171,9 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         std::fs::create_dir_all(dst)?;
 
         self.segments.par_iter().try_for_each(|locked_segment| {
-            locked_segment
-                .segment()
-                .copy_to(&dst.join(locked_segment.id().to_string()))
+            let segment_dst = dst.join(locked_segment.id().to_string());
+
+            locked_segment.segment().copy_to(&segment_dst)
         })?;
 
         Ok(())

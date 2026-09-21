@@ -34,7 +34,7 @@ use storage::{
         },
         node_store::type_index_path,
     },
-    persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
+    persist::{control_file::ControlFileOps, strategy::PersistenceStrategy},
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::{GraphWalOps, WalOps},
@@ -484,8 +484,7 @@ where
         self.graph.storage().nodes().stats()
     }
 
-    /// Flush dirty in-memory segments to disk using the existing segment
-    /// write locks.
+    /// Flush dirty in-memory segments to disk using the existing segment write locks.
     pub fn flush(&mut self) -> Result<(), StorageError> {
         self.graph.storage.save_config()?;
 
@@ -504,9 +503,6 @@ where
     /// to disk.
     pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
         std::fs::create_dir_all(dst)?;
-
-        let config = self.graph.extension().config();
-        config.save_to_dir(dst)?;
 
         let dst = GraphDir::from(dst);
 
@@ -528,9 +524,8 @@ where
         control_file.set_checkpoint(checkpoint_lsn);
         control_file.save()?;
 
-        control_file.copy_to(dst.path())?;
-        wal.copy_tail_to(&dst.wal())?;
-
-        Ok(())
+        self.graph
+            .extension()
+            .copy_to(self.graph.graph_dir(), dst.path())
     }
 }
