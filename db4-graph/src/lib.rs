@@ -51,9 +51,6 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    // NOTE: Do not change the order of fields as this affects storage correctness during drop.
-    // The resolver needs to be dropped before storage to ensure that node IDs are not lost
-    // on recovery.
     // TODO: Move resolver inside storage?
     /// Stores mapping between logical to physical node IDs.
     pub gid_resolver: Arc<GIDResolver>,
