@@ -12,11 +12,6 @@ impl GraphDir {
         self.path().join("nodes")
     }
 
-    pub fn node_type_index(&self) -> PathBuf {
-        // NOTE: node_type_index is stored under the nodes dir.
-        self.nodes().join("type_index")
-    }
-
     pub fn edges(&self) -> PathBuf {
         self.path().join("edges")
     }

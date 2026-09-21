@@ -32,13 +32,13 @@ pub struct NodeTypeIndexView<P: PersistenceStrategy> {
 impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     type Extension = P;
 
-    fn new(_path: Option<&Path>, ext: Self::Extension) -> Self {
-        Self {
+    fn new(_path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError> {
+        Ok(Self {
             head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
             est_size: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
             _persistence: ext,
-        }
+        })
     }
 
     fn load(_path: impl AsRef<Path>, _ext: Self::Extension) -> Result<Self, StorageError> {

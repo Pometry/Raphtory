@@ -127,7 +127,7 @@ impl<
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > GraphStore<NS, ES, GS, EXT>
 {
-    pub fn new(graph_dir: Option<GraphDir>, ext: EXT) -> Self {
+    pub fn new(graph_dir: Option<GraphDir>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         let graph_props_meta = Meta::new_for_graph_props();
@@ -141,10 +141,9 @@ impl<
         edge_meta: Meta,
         graph_props_meta: Meta,
         ext: EXT,
-    ) -> Self {
+    ) -> Result<Self, StorageError> {
         let dir = graph_dir.as_ref();
         let nodes_path = dir.map(|dir| dir.nodes());
-        let node_type_index_path = dir.map(|dir| dir.node_type_index());
         let edges_path = dir.map(|dir| dir.edges());
         let graph_props_path = dir.map(|dir| dir.graph_props());
 
@@ -154,33 +153,31 @@ impl<
 
         let node_storage = Arc::new(NodeStorageInner::new(
             nodes_path,
-            node_type_index_path,
             node_meta,
             edge_meta.clone(),
             ext.clone(),
-        ));
+        )?);
 
-        let edge_storage = Arc::new(EdgeStorageInner::new(edges_path, edge_meta, ext.clone()));
+        let edge_storage = Arc::new(EdgeStorageInner::new(edges_path, edge_meta, ext.clone())?);
 
         let graph_prop_storage = Arc::new(GraphPropStorageInner::new(
             graph_props_path.as_deref(),
             graph_props_meta,
             ext.clone(),
-        ));
+        )?);
 
-        Self {
+        Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|dir| dir.path().to_path_buf()),
             ext,
-        }
+        })
     }
 
     pub fn load(graph_dir: GraphDir, ext: EXT) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.nodes();
-        let node_type_index_path = graph_dir.node_type_index();
         let edges_path = graph_dir.edges();
         let graph_props_path = graph_dir.graph_props();
 
@@ -189,7 +186,6 @@ impl<
 
         let node_storage: Arc<NodeStorageInner<NS, EXT>> = Arc::new(NodeStorageInner::load(
             nodes_path,
-            node_type_index_path,
             edge_meta.clone(),
             ext.clone(),
         )?);

@@ -25,14 +25,18 @@ pub struct GraphPropStorageInner<GS, EXT> {
 impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     GraphPropStorageInner<GS, EXT>
 {
-    pub fn new(path: Option<&Path>, meta: Arc<Meta>, ext: EXT) -> Self {
+    pub fn new(path: Option<&Path>, meta: Arc<Meta>, ext: EXT) -> Result<Self, StorageError> {
+        if let Some(path) = path {
+            std::fs::create_dir_all(path)?;
+        }
+
         let segment = Arc::new(GS::new(meta.clone(), path, ext.clone()));
 
-        Self {
+        Ok(Self {
             segment,
             meta,
             _ext: PhantomData,
-        }
+        })
     }
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {

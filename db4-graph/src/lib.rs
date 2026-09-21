@@ -32,6 +32,7 @@ use storage::{
             edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
         },
+        node_store::type_index_path,
     },
     persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
     resolver::GIDResolverOps,
@@ -125,7 +126,7 @@ where
         .into();
 
         let storage: Layer<EXT> =
-            Layer::new_with_meta(graph_dir.clone(), node_meta, edge_meta, graph_meta, ext);
+            Layer::new_with_meta(graph_dir.clone(), node_meta, edge_meta, graph_meta, ext)?;
 
         Ok(Self {
             graph_dir,
@@ -511,7 +512,8 @@ where
 
         self.graph.gid_resolver.copy_to(dst.gid_resolver())?;
         self.nodes.copy_to(&dst.nodes())?;
-        self.node_type_index.copy_to(&dst.node_type_index())?;
+        self.node_type_index
+            .copy_to(&type_index_path(dst.nodes()))?;
         self.edges.copy_to(&dst.edges())?;
         self.graph_props.copy_to(&dst.graph_props())?;
 

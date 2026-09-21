@@ -31,6 +31,10 @@ use std::{
 
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 
+pub fn type_index_path(nodes_path: impl AsRef<Path>) -> PathBuf {
+    nodes_path.as_ref().join("type_index")
+}
+
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT>
 where
@@ -256,12 +260,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 {
     pub fn new(
         path: Option<PathBuf>,
-        type_index_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
-    ) -> Self {
-        let type_index = EXT::NTI::new(type_index_path.as_deref(), ext.clone());
+    ) -> Result<Self, StorageError> {
+        let type_index_path = path.as_ref().map(type_index_path);
+        let type_index = EXT::NTI::new(type_index_path.as_deref(), ext.clone())?;
+
         Self::new_with_type_index(path, type_index, node_meta, edge_meta, ext)
     }
 
@@ -271,7 +276,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
-    ) -> Self {
+    ) -> Result<Self, StorageError> {
+        if let Some(path) = path.as_deref() {
+            std::fs::create_dir_all(path)?;
+        }
+
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
 
         let empty = Self {
@@ -305,7 +314,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             segment.set_dirty(true);
         }
 
-        empty
+        Ok(empty)
     }
 
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
@@ -481,23 +490,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     pub fn load(
         path: impl AsRef<Path>,
-        type_index_path: impl AsRef<Path>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let path = path.as_ref();
-        let type_index_path = type_index_path.as_ref();
+        let type_index_path = type_index_path(path);
         let max_page_len = ext.config().max_node_page_len();
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !path.exists() {
-            return Ok(Self::new(
-                Some(path.to_path_buf()),
-                Some(type_index_path.to_path_buf()),
-                node_meta,
-                edge_meta,
-                ext.clone(),
-            ));
+            return Self::new(Some(path.to_path_buf()), node_meta, edge_meta, ext.clone());
         }
 
         let type_index = EXT::NTI::load(type_index_path, ext.clone())?;
@@ -540,15 +542,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         let Some(max_segment) = segments.keys().copied().max() else {
             // Empty directory, no segments to load.
-            let storage = Self::new_with_type_index(
+            return Self::new_with_type_index(
                 Some(path.to_path_buf()),
                 type_index,
                 node_meta,
                 edge_meta,
                 ext,
             );
-
-            return Ok(storage);
         };
 
         // Segments flush independently, so ids below max may be missing on disk.

@@ -170,7 +170,15 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.segments.count()
     }
 
-    pub fn new(path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
+    pub fn new(
+        path: Option<PathBuf>,
+        edge_meta: Arc<Meta>,
+        ext: EXT,
+    ) -> Result<Self, StorageError> {
+        if let Some(path) = path.as_deref() {
+            std::fs::create_dir_all(path)?;
+        }
+
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
@@ -203,7 +211,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
             segment.set_dirty(true);
         }
-        empty
+        Ok(empty)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
@@ -253,7 +261,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         let meta = Arc::new(Meta::new_for_edges());
 
         if !path.exists() {
-            return Ok(Self::new(Some(path.to_path_buf()), meta, ext.clone()));
+            return Self::new(Some(path.to_path_buf()), meta, ext.clone());
         }
 
         let mut segments = std::fs::read_dir(path)?
@@ -288,7 +296,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
         let Some(max_segment) = segments.keys().copied().max() else {
             // Empty directory, nothing to load.
-            return Ok(Self::new(Some(path.to_path_buf()), meta, ext.clone()));
+            return Self::new(Some(path.to_path_buf()), meta, ext.clone());
         };
 
         // Segments flush independently, so ids below max may be missing on disk.

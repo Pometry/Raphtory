@@ -14,7 +14,7 @@ where
 {
     type Extension;
 
-    fn new(path: Option<&Path>, ext: Self::Extension) -> Self;
+    fn new(path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
