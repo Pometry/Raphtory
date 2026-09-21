@@ -3,7 +3,7 @@ use raphtory::{
         api::view::Filter,
         graph::{
             assertions::assert_graph_equal,
-            views::filter::model::{graph_filter::GraphFilter, ComposableFilter, ViewWrapOps},
+            views::filter::model::{graph_filter::GraphFilter, ViewWrapOps},
         },
     },
     prelude::*,
