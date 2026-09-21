@@ -728,13 +728,13 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(&new_path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
+        let (_, parent_graph) = data
+            .get_graph_requiring_read(ctx, parent_path, None)
+            .await?;
         let folder = data
             .work_dir_write()
             .await
             .validate_path_for_insert(&new_path, overwrite)?;
-        let (_, parent_graph) = data
-            .get_graph_requiring_read(ctx, parent_path, None)
-            .await?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             let subgraph = parent_graph.subgraph(nodes);
