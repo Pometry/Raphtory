@@ -352,11 +352,12 @@ pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
     v: Option<&Bound<PyAny>>,
 ) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
-    if v.is_some() {
-        let v = process_node_param(v.unwrap())?;
-        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate());
-    }
-    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]).to_output_nodestate())
+    // an omitted `v` (and an empty list) means every node of the graph
+    let v = match v {
+        Some(v) => process_node_param(v)?,
+        None => Vec::new(),
+    };
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.
