@@ -883,7 +883,7 @@ async fn refine(
                 msg.into()
             }),
         // No policy: whatever the permission carried is what gets applied.
-        None => Ok(MaybeCachedFilteredRead::Filtered(match perm {
+        None => Ok(MaybeCachedFilteredRead::Filter(match perm {
             GraphPermission::Read { filter } => filter,
             _ => None,
         })),
@@ -1079,7 +1079,7 @@ impl Data {
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         match refined {
             MaybeCachedFilteredRead::Cached(prepared) => Ok(prepared.into_parts()),
-            MaybeCachedFilteredRead::Filtered(filter) => {
+            MaybeCachedFilteredRead::Filter(filter) => {
                 self.load_filtered(path, graph_type, filter.as_ref()).await
             }
         }

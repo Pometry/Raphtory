@@ -141,7 +141,7 @@ impl DynGraphWithFolder {
 /// what the default refinement does.
 pub enum MaybeCachedFilteredRead {
     /// Apply this filter to the graph, as an unrefined read would.
-    Filtered(Option<GraphAccessFilter>),
+    Filter(Option<GraphAccessFilter>),
     /// Nothing left to do: loaded and filtered already.
     Cached(DynGraphWithFolder),
 }
@@ -208,7 +208,7 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             GraphPermission::Read { filter } => filter,
             _ => None,
         };
-        Box::pin(std::future::ready(Ok(MaybeCachedFilteredRead::Filtered(
+        Box::pin(std::future::ready(Ok(MaybeCachedFilteredRead::Filter(
             filter,
         ))))
     }
