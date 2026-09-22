@@ -381,7 +381,6 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         // src: require WRITE on graph
         // require_graph_write(ctx, &data.auth_policy, graph_path)?;
-        // The handle is kept, not just the graph it holds: reporting the write afterwards needs it.
         let handle = data
             .get_graph_with_write_permission(ctx, &graph_path)
             .await?;
@@ -457,7 +456,6 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         // src: require WRITE on graph
         // require_graph_write(ctx, &data.auth_policy, graph_path)?;
-        // The handle is kept, not just the graph it holds: reporting the write afterwards needs it.
         let handle = data
             .get_graph_with_write_permission(ctx, &graph_path)
             .await?;

@@ -371,7 +371,7 @@ mod tests {
         edges
     }
 
-    /// Caching a view must not change what it contains — nodes or edges.
+    /// Caching a view must not change what it contains: nodes or edges.
     fn assert_caching_changes_nothing<'a, G: GraphViewOps<'a> + Clone>(view: &G, what: &str) {
         let cached = view.cache_view();
         assert_eq!(names(&cached), names(view), "nodes disagree for {what}");
@@ -383,8 +383,7 @@ mod tests {
         );
     }
 
-    /// Caching a view must not change what it contains, and selecting no layers is the case that
-    /// separates "no nodes" from "the unlayered ones": layered nodes go, unlayered nodes stay.
+    /// Make sure a cache with a graph with no layers selected still returns unlayered nodes.
     #[test]
     fn caching_a_no_layer_view_keeps_exactly_its_unlayered_nodes() {
         let graph = fixture();
@@ -405,9 +404,7 @@ mod tests {
         );
     }
 
-    /// The same, but with the layers excluded *after* caching rather than before. The masks are
-    /// then built over the whole graph, so an implementation that answered the no-layer case with
-    /// its global mask would leak every layered node here while looking correct above.
+    /// The same, but with the layers excluded *after* caching rather than before.
     #[test]
     fn excluding_every_layer_after_caching_also_keeps_only_unlayered_nodes() {
         let graph = fixture();
@@ -422,7 +419,7 @@ mod tests {
         );
     }
 
-    /// And the ordinary cases still agree, so the no-layer fix did not come at their expense.
+    /// Normal case.
     #[test]
     fn caching_agrees_on_all_layers_and_on_one() {
         let graph = fixture();
@@ -434,8 +431,8 @@ mod tests {
     }
 
     /// Edges across every shape of layer selection. Unlike nodes, edges have no "visible in every
-    /// view" layer — an edge added without a layer name goes to the default layer, which is an
-    /// ordinary one — so selecting no layers really does mean no edges.
+    /// view" layer; an edge added without a layer name goes to the _default layer, which is an
+    /// ordinary one. Selecting no layers really does mean no edges.
     #[test]
     fn caching_agrees_on_edges_for_every_layer_selection() {
         let graph = fixture();
