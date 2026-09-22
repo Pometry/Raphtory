@@ -17,7 +17,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{LayerId, ELID},
+        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, ELID},
         storage::timeindex::{AsTime, EventTime},
     },
     inherit::Base,
@@ -41,11 +41,6 @@ use storage::EdgeEntryRef;
 pub struct CachedView<G> {
     pub(crate) graph: G,
     pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
-    /// Nodes a view with no layer selected still shows — the unlayered ones, which live in
-    /// `STATIC_GRAPH_LAYER_ID` and are visible in every view (see
-    /// `NodeStorageOps::tprop_iter_layers`). `unique_layers` never yields the no-layer case, so
-    /// this cannot fall out of the per-layer masks and is asked for separately.
-    pub(crate) unlayered_nodes_mask: Arc<RoaringTreemap>,
     pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap, Option<RoaringTreemap>)]>,
 }
 
@@ -82,15 +77,16 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
-        let mut layered_masks = vec![];
-        // Derived by asking the graph rather than by reasoning about which nodes are unlayered, so
-        // it follows the same rules as every other mask here.
-        let unlayered_nodes_mask = Arc::new(
-            graph
-                .layers(Layer::None)
-                .map(|no_layers| no_layers.nodes().iter().map(|n| n.node.as_u64()).collect())
-                .unwrap_or_default(),
-        );
+        // Seeding slot 0 here is necessary because `STATIC_GRAPH_LAYER` is not returned by `unique_layers`
+        let static_layer_nodes: RoaringTreemap = graph
+            .layers(Layer::None)
+            .map(|no_layers| no_layers.nodes().iter().map(|n| n.node.as_u64()).collect())
+            .unwrap_or_default();
+        let mut layered_masks = vec![(
+            static_layer_nodes,
+            RoaringTreemap::new(),
+            Some(RoaringTreemap::new()),
+        )];
         let global_nodes_mask = Arc::new(
             graph
                 .nodes()
@@ -166,7 +162,6 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
         Self {
             graph,
             global_nodes_mask,
-            unlayered_nodes_mask,
             layered_mask: layered_masks.into(),
         }
     }
@@ -305,10 +300,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
-            // Not `false`, and not the global mask either: selecting no layers hides every
-            // *layered* node but still shows the unlayered ones. Answering anything else makes
-            // caching a view change what it contains, which is the one thing it must never do.
-            LayerIds::None => self.unlayered_nodes_mask.contains(node.vid().as_u64()),
+            // The unlayered nodes should still be returned when no layer is selected
+            LayerIds::None => self
+                .layered_mask
+                .get(STATIC_GRAPH_LAYER_ID.0)
+                .is_some_and(|(nodes, _, _)| nodes.contains(node.vid().as_u64())),
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
