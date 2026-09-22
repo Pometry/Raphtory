@@ -158,8 +158,8 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint indicating that entries with `LSN < redo` are reflected on disk.
-    /// Set `redo` to `None` to indicate all entries so far are on disk.
+    /// Logs a checkpoint indicating that entries up to `redo` are reflected on disk.
+    /// Set `redo` to `None` to indicate all entries up to this checkpoint are on disk.
     ///
     /// Returns the LSN of the checkpoint entry.
     fn log_checkpoint(&self, redo: Option<LSN>) -> Result<LSN, StorageError>;
@@ -170,13 +170,13 @@ pub trait GraphWalOps {
     /// Returns the LSN of the shutdown checkpoint entry.
     fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError>;
 
-    /// Reads and decodes the WAL entry at `lsn` and validates it is a checkpoint.
+    /// Reads the WAL entry at `lsn` and validates it is a checkpoint.
     ///
-    /// Returns the checkpoint redo LSN, or `None` if the checkpoint indicates that all prior
-    /// entries are reflected on disk.
+    /// Returns the checkpoint redo LSN, or `None` if there is nothing to redo
+    /// up to this checkpoint.
     fn read_checkpoint(&self, lsn: LSN) -> Result<Option<LSN>, StorageError>;
 
-    /// Reads and decodes the WAL entry at `lsn` and validates it is a shutdown checkpoint.
+    /// Reads the WAL entry at `lsn` and validates it is a shutdown checkpoint.
     ///
     /// Returns the LSN immediately after this entry, denoting the end of the WAL stream.
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
