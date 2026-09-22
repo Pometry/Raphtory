@@ -67,6 +67,7 @@ pub mod dyn_factory;
 pub mod edge_expr;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
+pub mod expr;
 pub mod filter;
 pub mod filter_operator;
 pub mod filter_value;
