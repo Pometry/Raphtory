@@ -447,11 +447,11 @@ def test_all_property_types(GraphClass):
         # Integers (weight)
         (
             lambda: filter.ExplodedEdge.property("weight").contains(2),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("weight").not_contains(3),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("weight").fuzzy_search(
@@ -462,11 +462,11 @@ def test_all_property_types(GraphClass):
         # Floats (confidence)
         (
             lambda: filter.ExplodedEdge.property("confidence").contains(0.9),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("confidence").not_contains(0.8),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("confidence").fuzzy_search(
@@ -477,11 +477,11 @@ def test_all_property_types(GraphClass):
         # Booleans (active)
         (
             lambda: filter.ExplodedEdge.property("active").contains(True),
-            "string operator requires a Str property",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("active").not_contains(False),
-            "string operator requires a Str property",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("active").fuzzy_search(
@@ -494,13 +494,13 @@ def test_all_property_types(GraphClass):
             lambda: filter.ExplodedEdge.property("created").contains(
                 datetime(2023, 1, 1)
             ),
-            "string operator requires a Str property",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("created").not_contains(
                 datetime(2023, 1, 1)
             ),
-            "string operator requires a Str property",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("created").fuzzy_search(
@@ -583,14 +583,12 @@ def test_all_property_types(GraphClass):
         print(e.value)
         assert message in str(e.value)
 
-    # Numeric strings coerce to the property's numeric type: each string form
-    # matches exactly what its native-typed twin matches.
     # A string constant never compares against a numeric property, whether or
     # not it happens to parse as a number.
     for prop, val in (("weight", 2), ("weight", 3), ("confidence", 2)):
         for op in ("__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"):
             expr = getattr(filter.ExplodedEdge.property(prop), op)(str(val))
-            with pytest.raises(Exception, match=r"of type Str cannot be coerced"):
+            with pytest.raises(Exception, match=r"of type Str cannot be compared with"):
                 g.filter(expr).edges.explode()
 
     wrong_types = [
@@ -615,110 +613,110 @@ def test_all_property_types(GraphClass):
         # # Strings (name)
         (
             lambda: filter.ExplodedEdge.property("name") == 2,
-            "cannot be coerced to Str",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name") != 3,
-            "cannot be coerced to Str",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name") < 3,
-            "cannot be coerced to Str",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name") > 1,
-            "cannot be coerced to Str",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name") <= 2,
-            "cannot be coerced to Str",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name") >= 3,
-            "cannot be coerced to Str",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name").contains(2),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),
         (
             lambda: filter.ExplodedEdge.property("name").not_contains(3),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),
         # Booleans (active)
         (
             lambda: filter.ExplodedEdge.property("active") == 2,
-            "cannot be coerced to Bool",
+            "cannot be compared with Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") != 3,
-            "cannot be coerced to Bool",
+            "cannot be compared with Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") < 3,
-            "cannot be coerced to Bool",
+            "cannot be compared with Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") > 1,
-            "cannot be coerced to Bool",
+            "cannot be compared with Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") <= 2,
-            "cannot be coerced to Bool",
+            "cannot be compared with Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active") >= 3,
-            "cannot be coerced to Bool",
+            "cannot be compared with Bool",
         ),
         (
             lambda: filter.ExplodedEdge.property("active").contains(2),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         (
             lambda: filter.ExplodedEdge.property("active").not_contains(3),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         # # Datetimes (created)
         (
             lambda: filter.ExplodedEdge.property("created") == 2,
-            "cannot be coerced to NDTime",
+            "cannot be compared with NDTime",
         ),
         (
             lambda: filter.ExplodedEdge.property("created") != 3,
-            "cannot be coerced to NDTime",
+            "cannot be compared with NDTime",
         ),
         (
             lambda: filter.ExplodedEdge.property("created") < 3,
-            "cannot be coerced to NDTime",
+            "cannot be compared with NDTime",
         ),
         (
             lambda: filter.ExplodedEdge.property("created") > 1,
-            "cannot be coerced to NDTime",
+            "cannot be compared with NDTime",
         ),
         (
             lambda: filter.ExplodedEdge.property("created") <= 2,
-            "cannot be coerced to NDTime",
+            "cannot be compared with NDTime",
         ),
         (
             lambda: filter.ExplodedEdge.property("created") >= 3,
-            "cannot be coerced to NDTime",
+            "cannot be compared with NDTime",
         ),
         (
             lambda: filter.ExplodedEdge.property("created").contains(2),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         (
             lambda: filter.ExplodedEdge.property("created").not_contains(3),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         # # Lists (tags)
         (
             lambda: filter.ExplodedEdge.property("tags") == 2,
-            "cannot be coerced to List",
+            "cannot be compared with List",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") != 3,
-            "cannot be coerced to List",
+            "cannot be compared with List",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") < 3,
@@ -738,20 +736,20 @@ def test_all_property_types(GraphClass):
         ),
         (
             lambda: filter.ExplodedEdge.property("tags").contains(2),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         (
             lambda: filter.ExplodedEdge.property("tags").not_contains(3),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         # # Dicts (meta)
         (
             lambda: filter.ExplodedEdge.property("meta") == 2,
-            "cannot be coerced to Map",
+            "cannot be compared with Map",
         ),
         (
             lambda: filter.ExplodedEdge.property("meta") != 3,
-            "cannot be coerced to Map",
+            "cannot be compared with Map",
         ),
         (
             lambda: filter.ExplodedEdge.property("meta") < 3,
@@ -771,11 +769,11 @@ def test_all_property_types(GraphClass):
         ),
         (
             lambda: filter.ExplodedEdge.property("meta").contains(2),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
         (
             lambda: filter.ExplodedEdge.property("meta").not_contains(3),
-            "is not a valid string operand",
+            "cannot be compared with Str",
         ),  # should fail on contains not type
     ]
 
@@ -787,7 +785,7 @@ def test_all_property_types(GraphClass):
 
     with pytest.raises(Exception) as e:
         filter.ExplodedEdge.property("name").fuzzy_search(2, 2, False)
-    assert "is not a valid string operand" in str(e.value)
+    assert "cannot be compared with Str" in str(e.value)
 
     missing_prop = [
         (lambda: filter.ExplodedEdge.property("blah") == 2),
@@ -814,7 +812,7 @@ def test_all_property_types(GraphClass):
         # lookup happens
         assert "Property blah does not exist" in str(
             e.value
-        ) or "is not a valid string operand" in str(e.value)
+        ) or "cannot be compared with Str" in str(e.value)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])

@@ -56,10 +56,7 @@ use crate::{
     prelude::LayerOps,
 };
 use raphtory_api::core::{
-    entities::{
-        properties::prop::{unify_types, Prop},
-        Layer,
-    },
+    entities::{properties::prop::Prop, Layer},
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
@@ -955,25 +952,25 @@ impl<T: PredicateLhs> PredicateLhs for Latest<T> {}
 impl<T: PredicateLhs> PredicateLhs for SnapshotAt<T> {}
 impl<T: PredicateLhs> PredicateLhs for SnapshotLatest<T> {}
 
-/// Reject ordering operators on boolean properties.
-//. TODO: Also check if both the types are comparable.
+/// Reject ordering operators on a type that has no ordering.
+///
+/// An unresolved type (`PropType::Empty`) passes; the check runs again once
+/// the type is known.
 pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), GraphError> {
-    if matches!(
+    let ordering = matches!(
         op,
         BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
-    ) {
-        if matches!(prop_type, PropType::Map(_)) {
-            return Err(GraphError::InvalidFilter(format!(
-                "operator {:?} is not valid for map properties",
-                op
-            )));
-        }
-        if matches!(prop_type, PropType::List(_)) {
-            return Err(GraphError::InvalidFilter(format!(
-                "operator {:?} is not valid for list properties",
-                op
-            )));
-        }
+    );
+    if ordering && !prop_type.has_cmp() {
+        let kind = match prop_type {
+            PropType::List(_) => "list".to_string(),
+            PropType::Map(_) => "map".to_string(),
+            other => other.to_string(),
+        };
+        return Err(GraphError::InvalidFilter(format!(
+            "operator {:?} is not valid for {} properties",
+            op, kind
+        )));
     }
     Ok(())
 }
@@ -982,7 +979,7 @@ pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), Gra
 ///
 /// Only fires when the type is known (`!= PropType::Empty`).
 pub fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
-    if *prop_type != PropType::Empty && *prop_type != PropType::Str {
+    if !(prop_type.is_unknown() || prop_type.is_str()) {
         return Err(GraphError::InvalidFilter(format!(
             "string operator requires a Str property, but the property type is {}",
             prop_type
@@ -1005,121 +1002,41 @@ pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
     }
 }
 
-/// Reject a constant RHS value whose type cannot be coerced to the LHS type.
+/// Reject a constant compared against an expression whose type it can never
+/// equal.
 ///
-/// Cast a constant to the type an expression wants to compare it as, erroring
-/// when it does not convert. Used where the expression defines the comparison's
-/// type rather than adopting the constant's — see [`CreateOp::const_cast_type`].
-pub fn cast_const_to(target: &PropType, value: Option<&Prop>) -> Result<Option<Prop>, GraphError> {
-    value.map(|v| cast_prop_to(target, v)).transpose()
-}
-
-/// [`cast_const_to`] for a value that is known to be present.
-pub fn cast_prop_to(target: &PropType, value: &Prop) -> Result<Prop, GraphError> {
-    if value.dtype() == *target {
-        return Ok(value.clone());
-    }
-    value.clone().try_cast(target.clone()).map_err(|v| {
-        GraphError::InvalidFilter(format!(
-            "value {:?} of type {} cannot be compared as {}",
-            v,
-            v.dtype(),
-            target
-        ))
-    })
-}
-
-/// Only fires when both sides are known and the RHS is a literal/const. Defers
-/// to runtime when the LHS type is unknown (`PropType::Empty`) or the RHS isn't
-/// a const value.
-pub fn validate_const_castable(
+/// Constants are never converted: a numeric constant compares by value with
+/// any numeric expression (`degree() > 2.5` keeps the `.5`), a string constant
+/// never compares with a number, and so on. A missing constant (`None`) and an
+/// unresolved expression type both pass.
+pub fn validate_const_comparable(
     lhs_pt: &PropType,
-    rhs_const: Option<&Prop>,
+    value: Option<&Prop>,
 ) -> Result<(), GraphError> {
-    if *lhs_pt == PropType::Empty {
-        return Ok(());
-    }
-    if let Some(rhs) = rhs_const {
-        // Map values carry partial schemas against a union-schema declared
-        // type and compare structurally at runtime; a non-map constant can
-        // never match a map property.
-        if matches!(lhs_pt, PropType::Map(_)) {
-            return if matches!(rhs, Prop::Map(_)) {
-                Ok(())
-            } else {
-                Err(GraphError::InvalidFilter(format!(
-                    "value {:?} of type {} cannot be coerced to {}",
-                    rhs,
-                    rhs.dtype(),
-                    lhs_pt
-                )))
-            };
+    match value {
+        Some(v) if !lhs_pt.is_comparable_with(&v.dtype()) => {
+            Err(GraphError::InvalidFilter(format!(
+                "value {:?} of type {} cannot be compared with {}",
+                v,
+                v.dtype(),
+                lhs_pt
+            )))
         }
-        // A numeric constant may target any numeric property, since comparison
-        // widens across the numeric variants. Everything else must unify with
-        // the property's own type — a constant that merely *casts* into it
-        // (a numeric string, a bool read as an int) is a cross-type comparison
-        // the caller almost certainly did not mean.
-        let rhs_pt = rhs.dtype();
-        let compatible = (lhs_pt.is_numeric() && rhs_pt.is_numeric())
-            || unify_types(lhs_pt, &rhs_pt, &mut false).is_ok();
-        if !compatible {
-            return Err(GraphError::InvalidFilter(format!(
-                "value {:?} of type {} cannot be coerced to {}",
-                rhs, rhs_pt, lhs_pt
-            )));
-        }
+        _ => Ok(()),
     }
-    Ok(())
 }
 
-/// A representative value for a given `PropType` — used to check type-level
-/// compatibility via the value-based `Prop::try_cast` matrix. Returns `None`
-/// for composite types (List, Map) where no canonical scalar default exists.
-fn representative_prop(pt: &PropType) -> Option<Prop> {
-    Some(match pt {
-        PropType::Str => Prop::Str("".into()),
-        PropType::U8 => Prop::U8(0),
-        PropType::U16 => Prop::U16(0),
-        PropType::U32 => Prop::U32(0),
-        PropType::U64 => Prop::U64(0),
-        PropType::I32 => Prop::I32(0),
-        PropType::I64 => Prop::I64(0),
-        PropType::F32 => Prop::F32(0.0),
-        PropType::F64 => Prop::F64(0.0),
-        PropType::Bool => Prop::Bool(false),
-        PropType::Empty
-        | PropType::List(_)
-        | PropType::Map(_)
-        | PropType::NDTime
-        | PropType::DTime
-        | PropType::Decimal { .. } => return None,
-    })
-}
-
-/// Reject a binary comparison where LHS and RHS types are known but incompatible.
-///
-/// Complements `validate_const_castable` (which only checks const RHS) by also
-/// catching mismatches when the RHS is another expression with a declared
-/// `prop_type`. Uses the same `Prop::try_cast` matrix for coercion checks via
-/// a representative value, so the numeric family (U/I/F) is considered
-/// compatible while cross-domain (Bool vs U64, Str vs I64) is rejected.
-///
-/// Both sides being `Empty` defers to runtime (no-op).
-pub fn validate_types_compatible(lhs_pt: &PropType, rhs_pt: &PropType) -> Result<(), GraphError> {
-    if *lhs_pt == PropType::Empty || *rhs_pt == PropType::Empty || lhs_pt == rhs_pt {
-        return Ok(());
-    }
-    let castable = representative_prop(rhs_pt)
-        .and_then(|v| v.try_cast(lhs_pt.clone()).ok())
-        .is_some();
-    if !castable {
-        return Err(GraphError::InvalidFilter(format!(
+/// Reject a comparison between two expressions whose types can never be
+/// equal. Either side being unresolved defers to runtime.
+pub fn validate_types_comparable(lhs_pt: &PropType, rhs_pt: &PropType) -> Result<(), GraphError> {
+    if lhs_pt.is_comparable_with(rhs_pt) {
+        Ok(())
+    } else {
+        Err(GraphError::InvalidFilter(format!(
             "type mismatch: lhs is {}, rhs is {}",
             lhs_pt, rhs_pt
-        )));
+        )))
     }
-    Ok(())
 }
 
 /// Reject aggregators called on a declared scalar expression.
@@ -1158,37 +1075,19 @@ pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
     }
 }
 
-/// Narrow an `is_in`/`is_not_in` set to the members that could match the LHS.
+/// Narrow an `is_in`/`is_not_in` set to the members that could equal the LHS.
 ///
 /// Set membership asks whether a value is present, so a member of a type the
-/// LHS can never equal simply is not present — it is dropped rather than
-/// rejected, leaving `is_in` answering "no" where a comparison would refuse the
-/// question. Members that share the LHS type, or are numeric alongside a
-/// numeric LHS, are kept and cast so the runtime comparison sees one type.
-/// An unknown LHS type (`PropType::Empty`) defers the whole decision to
-/// runtime.
-pub fn coerce_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Result<Vec<Prop>, GraphError> {
-    if *lhs_pt == PropType::Empty {
-        return Ok(values);
-    }
-    // Map values carry partial schemas and compare structurally; the declared
-    // map type is the union schema, so per-value coercion would reject
-    // legitimate members.
-    if matches!(lhs_pt, PropType::Map(_)) {
-        return Ok(values);
-    }
-    Ok(values
+/// LHS can never equal simply is not present: it is dropped rather than
+/// rejected, leaving `is_in` answering "no" where a comparison would refuse
+/// the question. The members that remain are kept exactly as written; the
+/// runtime comparison handles mixed numeric widths by value. An unresolved
+/// LHS type keeps every member.
+pub fn comparable_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Vec<Prop> {
+    values
         .into_iter()
-        .filter_map(|v| {
-            if v.dtype() == *lhs_pt {
-                return Some(v);
-            }
-            if lhs_pt.is_numeric() && v.dtype().is_numeric() {
-                return v.clone().try_cast(lhs_pt.clone()).ok().or(Some(v));
-            }
-            None
-        })
-        .collect())
+        .filter(|v| lhs_pt.is_comparable_with(&v.dtype()))
+        .collect()
 }
 
 pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}

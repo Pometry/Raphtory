@@ -793,7 +793,7 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
             filter_expr = filter.Node.property("prop8").any() == value
             with pytest.raises(
                 Exception,
-                match=r"of type Str cannot be coerced to I64",
+                match=r"of type Str cannot be compared with I64",
             ):
                 graph.filter(filter_expr).nodes.id
 
@@ -1139,7 +1139,7 @@ def test_filter_nodes_for_temporal_property_ne():
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() == 60
-        msg = r"value I64\(60\) of type I64 cannot be coerced to List"
+        msg = r"value I64\(60\) of type I64 cannot be compared with List"
         with pytest.raises(
             Exception,
             match=msg,
@@ -1147,7 +1147,7 @@ def test_filter_nodes_for_temporal_property_fails():
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop1").temporal() == "pometry"
-        msg = r"of type Str cannot be coerced to List"
+        msg = r"of type Str cannot be compared with List"
         with pytest.raises(
             Exception,
             match=msg,
@@ -1190,7 +1190,8 @@ def test_filter_nodes_window_out_of_range_is_empty():
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
         with pytest.raises(
-            Exception, match=r"not valid for list properties|cannot be coerced to List"
+            Exception,
+            match=r"not valid for list properties|cannot be compared with List",
         ):
             graph.filter(expr).nodes.id
 
@@ -1249,7 +1250,8 @@ def test_filter_nodes_after():
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
         with pytest.raises(
-            Exception, match=r"not valid for list properties|cannot be coerced to List"
+            Exception,
+            match=r"not valid for list properties|cannot be compared with List",
         ):
             graph.filter(expr).nodes.id
 
@@ -1269,7 +1271,8 @@ def test_filter_nodes_latest():
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
         with pytest.raises(
-            Exception, match=r"not valid for list properties|cannot be coerced to List"
+            Exception,
+            match=r"not valid for list properties|cannot be compared with List",
         ):
             graph.filter(expr).nodes.id
 
@@ -1291,7 +1294,8 @@ def test_filter_nodes_snapshot_at():
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
         with pytest.raises(
-            Exception, match=r"not valid for list properties|cannot be coerced to List"
+            Exception,
+            match=r"not valid for list properties|cannot be compared with List",
         ):
             graph.filter(expr).nodes.id
 
@@ -1311,7 +1315,8 @@ def test_filter_nodes_snapshot_latest():
         # Per-snapshot sums form a list; comparing it to a scalar is a type
         # error rather than a silent no-match.
         with pytest.raises(
-            Exception, match=r"not valid for list properties|cannot be coerced to List"
+            Exception,
+            match=r"not valid for list properties|cannot be compared with List",
         ):
             graph.filter(expr).nodes.id
 

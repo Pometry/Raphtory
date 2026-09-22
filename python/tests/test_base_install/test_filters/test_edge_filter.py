@@ -502,7 +502,7 @@ def test_filter_edges_with_str_ids_error():
         filter_expr = filter.Edge.src().id() == 3
         with pytest.raises(
             Exception,
-            match=r"Invalid filter: value I64\(3\) of type I64 cannot be coerced to Str",
+            match=r"Invalid filter: value I64\(3\) of type I64 cannot be compared with Str",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -515,7 +515,7 @@ def test_filter_edges_with_num_ids_error():
         filter_expr = filter.Edge.src().id() == "3"
         with pytest.raises(
             Exception,
-            match=r'value Str\(ArcStr\("3"\)\) of type Str cannot be coerced to U64',
+            match=r'value Str\(ArcStr\("3"\)\) of type Str cannot be compared with U64',
         ):
             graph.filter(filter_expr).nodes.id
 

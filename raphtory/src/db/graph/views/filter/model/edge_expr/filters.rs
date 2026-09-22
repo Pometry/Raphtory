@@ -18,7 +18,7 @@ use crate::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
             model::{
-                coerce_set_values,
+                comparable_set_values,
                 edge_filter::EdgeFilter,
                 elem_prop_type,
                 filter_operator::ElemQual,
@@ -27,8 +27,8 @@ use crate::{
                     ops::{AllEdgeOp, AnyEdgeOp},
                     CreateOp,
                 },
-                resolved_prop_type, validate_binary_op, validate_const_castable,
-                validate_string_op, validate_types_compatible, CreateFilter, ExplodedEdgeFilter,
+                resolved_prop_type, validate_binary_op, validate_const_comparable,
+                validate_string_op, validate_types_comparable, CreateFilter, ExplodedEdgeFilter,
             },
         },
     },
@@ -105,8 +105,8 @@ where
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         match right.const_value() {
-            Some(c) => validate_const_castable(&lhs_pt, c.as_ref())?,
-            None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
+            Some(c) => validate_const_comparable(&lhs_pt, c.as_ref())?,
+            None => validate_types_comparable(&lhs_pt, &rhs_pt)?,
         }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(BinaryCmpEdgeOp {
@@ -171,8 +171,8 @@ where
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
         match right.const_value() {
-            Some(c) => validate_const_castable(&lhs_pt, c.as_ref())?,
-            None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
+            Some(c) => validate_const_comparable(&lhs_pt, c.as_ref())?,
+            None => validate_types_comparable(&lhs_pt, &rhs_pt)?,
         }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(BinaryCmpEdgeOp {
@@ -335,7 +335,7 @@ where
         let right = self.right.create_edge_op(filtered.clone())?;
         validate_string_op(&elem_prop_type(&left.prop_type(), quals.len())?)?;
         match right.const_value() {
-            Some(c) => validate_const_castable(&PropType::Str, c.as_ref())?,
+            Some(c) => validate_const_comparable(&PropType::Str, c.as_ref())?,
             None => {}
         }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
@@ -397,7 +397,7 @@ where
         let right = self.right.create_edge_op(filtered.clone())?;
         validate_string_op(&elem_prop_type(&left.prop_type(), quals.len())?)?;
         match right.const_value() {
-            Some(c) => validate_const_castable(&PropType::Str, c.as_ref())?,
+            Some(c) => validate_const_comparable(&PropType::Str, c.as_ref())?,
             None => {}
         }
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
@@ -458,7 +458,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, EdgeFilter> {
         let expr_pt = self.expr.prop_type();
         let (inner, quals) = self.expr.create_qualified_edge_op(filtered.clone())?;
         let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
-        let values = coerce_set_values(&lhs_pt, self.values)?;
+        let values = comparable_set_values(&lhs_pt, self.values);
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(PropValueSetEdgeOp {
                 inner,
@@ -513,7 +513,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, ExplodedEdgeFilter> {
         let expr_pt = self.expr.prop_type();
         let (inner, quals) = self.expr.create_qualified_edge_op(filtered.clone())?;
         let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
-        let values = coerce_set_values(&lhs_pt, self.values)?;
+        let values = comparable_set_values(&lhs_pt, self.values);
         let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = if quals.is_empty() {
             Arc::new(PropValueSetEdgeOp {
                 inner,

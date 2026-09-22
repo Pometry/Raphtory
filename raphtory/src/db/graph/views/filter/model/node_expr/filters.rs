@@ -51,12 +51,12 @@ use super::{
 use crate::{
     db::{
         api::{
-            state::ops::{Const, NodeOp},
+            state::ops::NodeOp,
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
             model::{
-                cast_const_to, cast_prop_to, coerce_set_values,
+                comparable_set_values,
                 edge_expr::{
                     ops::{
                         ListAwareCmpEdgeOp, ListAwareSetEdgeOp, ListAwareStringEdgeOp,
@@ -66,8 +66,8 @@ use crate::{
                 },
                 elem_prop_type,
                 filter_operator::{BinaryOp, ElemQual, SetOp, StringOp, UnaryOp},
-                resolved_prop_type, validate_binary_op, validate_const_castable,
-                validate_string_op, validate_types_compatible, ComposableFilter, CreateFilter,
+                resolved_prop_type, validate_binary_op, validate_const_comparable,
+                validate_string_op, validate_types_comparable, ComposableFilter, CreateFilter,
                 EntityMarker, ExplodedEdgeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
@@ -229,18 +229,9 @@ where
         let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, left.prop_type()), quals.len())?;
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         validate_binary_op(&self.op, &lhs_pt)?;
-        let mut right = right;
         match right.const_value() {
-            Some(c) => match self.left.const_cast_type() {
-                // The expression fixes the comparison's type, so the constant is
-                // converted into it rather than compared across types.
-                Some(target) => {
-                    let casted = cast_const_to(&target, c.as_ref())?;
-                    right = Arc::new(Const(casted));
-                }
-                None => validate_const_castable(&lhs_pt, c.as_ref())?,
-            },
-            None => validate_types_compatible(&lhs_pt, &rhs_pt)?,
+            Some(c) => validate_const_comparable(&lhs_pt, c.as_ref())?,
+            None => validate_types_comparable(&lhs_pt, &rhs_pt)?,
         }
         if quals.is_empty() {
             let cmp: Arc<dyn NodeOp<Output = bool> + 'graph> = Arc::new(BinaryCmpNodeOp {
@@ -639,7 +630,7 @@ impl<L: CreateOp, R: CreateOp> CreateFilter for StringExpr<L, R, NodeFilter> {
             quals.len(),
         )?)?;
         match right.const_value() {
-            Some(c) => validate_const_castable(&PropType::Str, c.as_ref())?,
+            Some(c) => validate_const_comparable(&PropType::Str, c.as_ref())?,
             None => {}
         }
         if quals.is_empty() {
@@ -821,18 +812,7 @@ impl<E: CreateOp> CreateFilter for PropValueSetExpr<E, NodeFilter> {
         let id_type = filtered.id_type();
         let (inner, quals) = self.expr.create_qualified_node_op(filtered)?;
         let lhs_pt = elem_prop_type(&resolved_prop_type(expr_pt, inner.prop_type()), quals.len())?;
-        // An expression that fixes the comparison's type fixes it for set
-        // members too, so they convert into it or the filter is refused —
-        // unlike the general case, where a member of an unrelated type is
-        // simply absent from the set.
-        let values = match self.expr.const_cast_type() {
-            Some(target) => self
-                .values
-                .into_iter()
-                .map(|v| cast_prop_to(&target, &v))
-                .collect::<Result<Vec<_>, _>>()?,
-            None => coerce_set_values(&lhs_pt, self.values)?,
-        };
+        let values = comparable_set_values(&lhs_pt, self.values);
         if quals.is_empty() {
             let gids: Option<Vec<GID>> = (self.op == SetOp::IsIn && self.expr.selects_node_id())
                 .then(|| {

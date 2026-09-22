@@ -5,6 +5,7 @@ use crate::{
             Agg, CmpOp, Entity, Expr, Field, FilterExpr, OpaqueFilter, Qual, Scope, StrOp,
             Structural, Target, ViewOp,
         },
+        validate_const_comparable,
     },
     python::{
         filter::filter_expr::PyFilterExpr, graph::node_state::PyOutputNodeState,
@@ -73,23 +74,8 @@ fn static_type(lhs: &Expr) -> PyResult<PropType> {
 }
 
 fn check_value(lhs: &Expr, v: &Prop) -> PyResult<()> {
-    let pt = static_type(lhs)?;
-    if pt != PropType::Empty && v.dtype() != pt && v.clone().try_cast(pt.clone()).is_err() {
-        return Err(PyTypeError::new_err(format!(
-            "value {v:?} of type {} is not comparable with an expression of type {pt}",
-            v.dtype()
-        )));
-    }
-    Ok(())
-}
-
-/// Every member of a set is checked the way a single constant is.
-fn checked_values(lhs: &Expr, values: FromIterable<Prop>) -> PyResult<Vec<Prop>> {
-    let values: Vec<Prop> = values.into();
-    for v in &values {
-        check_value(lhs, v)?;
-    }
-    Ok(values)
+    validate_const_comparable(&static_type(lhs)?, Some(v))
+        .map_err(|e| PyTypeError::new_err(e.to_string()))
 }
 
 /// Presence tests only mean something on an expression that can be missing.
@@ -102,15 +88,10 @@ fn check_nullable(lhs: &Expr, op: &str) -> PyResult<()> {
     Ok(())
 }
 
-/// String operators require a string-castable operand whatever the lhs type.
+/// String operators require a string operand whatever the lhs type.
 fn check_str_value(v: &Prop) -> PyResult<()> {
-    if v.dtype() != PropType::Str && v.clone().try_cast(PropType::Str).is_err() {
-        return Err(PyTypeError::new_err(format!(
-            "value {v:?} of type {} is not a valid string operand",
-            v.dtype()
-        )));
-    }
-    Ok(())
+    validate_const_comparable(&PropType::Str, Some(v))
+        .map_err(|e| PyTypeError::new_err(e.to_string()))
 }
 
 /// The right-hand side of a comparison, with a constant checked against the lhs.
@@ -274,7 +255,7 @@ impl PyExpr {
     fn is_in(&self, values: FromIterable<Prop>) -> PyResult<PyFilterExpr> {
         Ok(PyFilterExpr(FilterExpr::In {
             expr: self.0.clone(),
-            values: checked_values(&self.0, values)?,
+            values: values.into(),
             negated: false,
         }))
     }
@@ -288,7 +269,7 @@ impl PyExpr {
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyResult<PyFilterExpr> {
         Ok(PyFilterExpr(FilterExpr::In {
             expr: self.0.clone(),
-            values: checked_values(&self.0, values)?,
+            values: values.into(),
             negated: true,
         }))
     }

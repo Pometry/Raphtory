@@ -245,16 +245,15 @@ fn agg_out_type(pt: PropType, scalar: Option<PropType>) -> PropType {
     agg_out_type_with(pt, &|elem| scalar.clone().unwrap_or(elem))
 }
 
-/// The type a sum produces from its element type. Summing widens: the
+/// The type a sum produces from its element type. Integer sums widen: the
 /// evaluator below accumulates every unsigned width into a `U64`, every signed
-/// width into an `I64`, and either into a `Decimal` when that overflows, so a
-/// narrow element type would understate what the sum can hold. Keep the arms
-/// in step with the evaluator's.
+/// width into an `I64`, and either into a `Decimal` when that overflows.
+/// Floats keep their width, as `Prop::add` does. Keep the arms in step with
+/// the evaluator's.
 fn sum_out_type(pt: PropType) -> PropType {
     agg_out_type_with(pt, &|elem| match elem {
         PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => PropType::U64,
         PropType::I32 | PropType::I64 => PropType::I64,
-        PropType::F32 | PropType::F64 => PropType::F64,
         other => other,
     })
 }
@@ -277,9 +276,12 @@ mod sum_out_type_tests {
         for elem in [PropType::I32, PropType::I64] {
             assert_eq!(sum_out_type(list(elem)), PropType::I64);
         }
-        for elem in [PropType::F32, PropType::F64] {
-            assert_eq!(sum_out_type(list(elem)), PropType::F64);
-        }
+    }
+
+    #[test]
+    fn float_elements_keep_their_width() {
+        assert_eq!(sum_out_type(list(PropType::F32)), PropType::F32);
+        assert_eq!(sum_out_type(list(PropType::F64)), PropType::F64);
     }
 
     #[test]
@@ -364,9 +366,8 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| sum_out_type(pt), |vals| {
                     Prop::I64(s64)
                 })
             }
-            PropType::F32 | PropType::F64 => {
-                scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum))
-            }
+            PropType::F32 => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F32(sum as f32)),
+            PropType::F64 => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum)),
             _ => None,
         }
     })
