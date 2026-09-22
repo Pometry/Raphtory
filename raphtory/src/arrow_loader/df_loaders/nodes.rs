@@ -141,6 +141,10 @@ pub fn load_nodes_from_df<
     layer_col: Option<&str>,
     layer_id_col: Option<&str>,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
+
     LOAD_POOL.install(move || {
         let properties_indices = properties
             .iter()
@@ -346,6 +350,9 @@ pub fn load_node_props_from_df<
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
