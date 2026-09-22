@@ -291,9 +291,8 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     is_jupyter(py);
 
     // Ask for the row count BEFORE exporting the stream. A lazy producer such as a
-    // DuckDBPyRelation re-executes on len(), which drains a stream exported earlier, so the
-    // order matters. The count is only a hint for the progress bar: an object whose __len__
-    // raises, or lies, must load exactly as one without a __len__ does.
+    // DuckDBPyRelation is drained by reading the stream which means that `len()` afterwards
+    // returns the wrong result.
     let len_from_python: Option<usize> = if data.hasattr("__len__")? {
         data.call_method0("__len__")
             .ok()
