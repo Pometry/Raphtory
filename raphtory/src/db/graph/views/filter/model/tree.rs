@@ -906,10 +906,11 @@ mod tests {
         db::{
             api::view::Filter,
             graph::views::filter::model::{
-                edge_filter::EdgeFilter, node_filter::NodeFilter, PropertyExprFactory, ViewWrapOps,
+                edge_filter::EdgeFilter, node_filter::NodeFilter, windowed_filter::Windowed,
+                EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
             },
         },
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
+        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS},
     };
     use raphtory_api::core::entities::properties::prop::IntoProp;
 
@@ -1136,6 +1137,70 @@ mod tests {
         };
         assert_eq!(edges(&g, layered.compile().unwrap()), vec!["bob->carol"]);
         assert_eq!(layered.to_string(), "LAYER[works](IS_ACTIVE)");
+    }
+
+    #[test]
+    fn before_and_at_agree_with_the_graph_views() {
+        // alice→bob @2 (first event at 2) · carol→dave @2 (second event at 2) · eve→fay @5
+        let g = Graph::new();
+        g.add_edge(2, "alice", "bob", NO_PROPS, None).unwrap();
+        g.add_edge(2, "carol", "dave", NO_PROPS, None).unwrap();
+        g.add_edge(5, "eve", "fay", NO_PROPS, None).unwrap();
+        fn edge_names<'graph, G: GraphViewOps<'graph>>(g: &G) -> Vec<String> {
+            let mut ids: Vec<String> = g
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect();
+            ids.sort();
+            ids
+        }
+        let view = |op: ViewOp| FilterExpr::View(vec![op]).compile().unwrap();
+        let typed = |f: Windowed<EdgeFilter>| Arc::new(f.is_active()) as Arc<dyn DynCreateFilter>;
+        let none: [&str; 0] = [];
+        let at_two = ["alice->bob", "carol->dave"];
+
+        // `before(t)` excludes every event at `t`, like the graph view does.
+        assert_eq!(edge_names(&g.before(2)), none);
+        assert_eq!(edges(&g, view(ViewOp::Before(EventTime::start(2)))), none);
+        assert_eq!(edges(&g, typed(EdgeFilter.before(2))), none);
+        assert_eq!(edge_names(&g.before(3)), at_two);
+        assert_eq!(edges(&g, view(ViewOp::Before(EventTime::start(3)))), at_two);
+
+        // `at(t)` covers the whole timestamp, even when handed a time that sits
+        // between two events at `t`.
+        let mid_two = EventTime::start(2).set_event_id(1);
+        assert_eq!(edge_names(&g.at(mid_two)), at_two);
+        assert_eq!(edges(&g, view(ViewOp::At(mid_two))), at_two);
+        assert_eq!(edges(&g, typed(EdgeFilter.at(mid_two))), at_two);
+
+        // A window bound that carries an event id is honoured, as the graph view does.
+        let from_second_event = EventTime::start(2).set_event_id(1);
+        assert_eq!(
+            edge_names(&g.window(from_second_event, EventTime::start(3))),
+            ["carol->dave"]
+        );
+        assert_eq!(
+            edges(
+                &g,
+                view(ViewOp::Window {
+                    start: from_second_event,
+                    end: EventTime::start(3),
+                }),
+            ),
+            ["carol->dave"]
+        );
+        assert_eq!(
+            edges(&g, typed(EdgeFilter.window(from_second_event, 3))),
+            ["carol->dave"]
+        );
+
+        // `after(t)` excludes `t` and everything before it.
+        assert_eq!(edge_names(&g.after(2)), ["eve->fay"]);
+        assert_eq!(
+            edges(&g, view(ViewOp::After(EventTime::start(2)))),
+            ["eve->fay"]
+        );
     }
 
     #[test]

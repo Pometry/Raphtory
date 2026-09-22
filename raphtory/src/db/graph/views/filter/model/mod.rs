@@ -536,9 +536,13 @@ impl<T: DynInternalViewWrapOps + ?Sized> InternalViewWrapOps for Arc<T> {
     }
 }
 
-/// The window `at(t)` means: the single instant `t`.
+/// The window `at(t)` means: every event at the timestamp `t`, whatever its
+/// position within that timestamp.
 pub(crate) fn at_bounds(t: EventTime) -> (EventTime, EventTime) {
-    (t, EventTime::from(t.t().saturating_add(1)))
+    (
+        EventTime::start(t.t()),
+        EventTime::start(t.t().saturating_add(1)),
+    )
 }
 
 /// The window `after(t)` means: everything strictly after `t`.
@@ -549,9 +553,10 @@ pub(crate) fn after_bounds(t: EventTime) -> (EventTime, EventTime) {
     )
 }
 
-/// The window `before(t)` means: everything strictly before `t`.
+/// The window `before(t)` means: everything strictly before `t`. Events at
+/// the timestamp `t` itself are excluded, matching `GraphViewOps::before`.
 pub(crate) fn before_bounds(t: EventTime) -> (EventTime, EventTime) {
-    (EventTime::start(i64::MIN), EventTime::end(t.t()))
+    (EventTime::start(i64::MIN), EventTime::start(t.t()))
 }
 
 pub trait ViewWrapOps: InternalViewWrapOps + Sized {

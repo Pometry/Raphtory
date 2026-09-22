@@ -124,7 +124,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<
         Ok(self
             .inner
             .filter_graph_view(graph)?
-            .window(self.start.t(), self.end.t()))
+            .window(self.start, self.end))
     }
 }
 
@@ -176,7 +176,7 @@ impl<T: CreateView> CreateView for Windowed<T> {
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
         let inner = self.inner.create_view(view)?;
-        Ok(inner.window(self.start.t(), self.end.t()))
+        Ok(inner.window(self.start, self.end))
     }
 }
 
@@ -189,7 +189,7 @@ impl<T: CreateOp> CreateOp for Windowed<T> {
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.inner
-            .create_node_op(graph.window(self.start.t(), self.end.t()))
+            .create_node_op(graph.window(self.start, self.end))
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(
@@ -197,6 +197,6 @@ impl<T: CreateOp> CreateOp for Windowed<T> {
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.inner
-            .create_edge_op(graph.window(self.start.t(), self.end.t()))
+            .create_edge_op(graph.window(self.start, self.end))
     }
 }
