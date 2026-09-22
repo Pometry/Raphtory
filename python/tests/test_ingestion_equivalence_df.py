@@ -28,8 +28,12 @@ def _collect_edges(g: Graph):
     )
 
 
-def duck_query(con, sql: str):
+def duck_query_arrow(con, sql: str):
     return con.execute(sql).arrow()
+
+
+def duck_query_direct(con, sql: str):
+    return con.query(sql)
 
 
 @pytest.fixture(scope="module")
@@ -101,17 +105,28 @@ def test_edge_ingestion_equivalence(dataframes, graph_type):
     assert g_pd == g_arrow, "Arrow edge ingestion failed equivalence check"
 
     # DuckDB
-    g_duckdb = graph_type()
+    g_duckdb_arrow = graph_type()
     con = dataframes["duckdb"]["con"]
-    g_duckdb.load_edges(
-        data=duck_query(con, "SELECT * FROM edges_df"),
+    g_duckdb_arrow.load_edges(
+        data=duck_query_arrow(con, "SELECT * FROM edges_df"),
         time="timestamp",
         src="source",
         dst="destination",
         properties=["data_size_MB", "transaction_type"],
         metadata=["is_encrypted"],
     )
-    assert g_pd == g_duckdb, "DuckDB edge ingestion failed equivalence check"
+    assert g_pd == g_duckdb_arrow, "DuckDB edge ingestion via arrow failed equivalence check"
+
+    g_duckdb_direct = graph_type()
+    g_duckdb_direct.load_edges(
+        data=duck_query_direct(con, "SELECT * FROM edges_df"),
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB", "transaction_type"],
+        metadata=["is_encrypted"],
+    )
+    assert g_pd == g_duckdb_direct, "DuckDB edge ingestion failed equivalence check"
 
     if fpd:
         # FireDucks
@@ -165,7 +180,18 @@ def test_node_ingestion_equivalence(dataframes, graph_type):
     g_duckdb = graph_type()
     con = dataframes["duckdb"]["con"]
     g_duckdb.load_nodes(
-        data=duck_query(con, "SELECT * FROM nodes_df"),
+        data=duck_query_arrow(con, "SELECT * FROM nodes_df"),
+        time="timestamp",
+        id="server_id",
+        properties=["OS_version", "uptime_days"],
+        metadata=["primary_function", "server_name", "hardware_type"],
+    )
+    assert g_pd == g_duckdb, "DuckDB node ingestion failed equivalence check"
+
+    g_duckdb = graph_type()
+    con = dataframes["duckdb"]["con"]
+    g_duckdb.load_nodes(
+        data=duck_query_direct(con, "SELECT * FROM nodes_df"),
         time="timestamp",
         id="server_id",
         properties=["OS_version", "uptime_days"],
@@ -273,24 +299,52 @@ def test_metadata_update_equivalence(dataframes, graph_type):
     g_duckdb = graph_type()
     con = dataframes["duckdb"]["con"]
     g_duckdb.load_edges(
-        data=duck_query(con, "SELECT * FROM edges_df"),
+        data=duck_query_arrow(con, "SELECT * FROM edges_df"),
         time="timestamp",
         src="source",
         dst="destination",
     )
     g_duckdb.load_nodes(
-        data=duck_query(con, "SELECT * FROM nodes_df"),
+        data=duck_query_arrow(con, "SELECT * FROM nodes_df"),
         time="timestamp",
         id="server_id",
     )
     # update metadata
     g_duckdb.load_node_metadata(
-        data=duck_query(con, "SELECT * FROM nodes_df"),
+        data=duck_query_arrow(con, "SELECT * FROM nodes_df"),
         id="server_id",
         metadata=["primary_function", "server_name", "hardware_type"],
     )
     g_duckdb.load_edge_metadata(
-        data=duck_query(con, "SELECT * FROM edges_df"),
+        data=duck_query_arrow(con, "SELECT * FROM edges_df"),
+        src="source",
+        dst="destination",
+        metadata=["is_encrypted"],
+    )
+    assert g_pd == g_duckdb, "DuckDB metadata ingestion failed equivalence check"
+
+    # DuckDB query
+    g_duckdb = graph_type()
+    con = dataframes["duckdb"]["con"]
+    g_duckdb.load_edges(
+        data=duck_query_direct(con, "SELECT * FROM edges_df"),
+        time="timestamp",
+        src="source",
+        dst="destination",
+    )
+    g_duckdb.load_nodes(
+        data=duck_query_direct(con, "SELECT * FROM nodes_df"),
+        time="timestamp",
+        id="server_id",
+    )
+    # update metadata
+    g_duckdb.load_node_metadata(
+        data=duck_query_direct(con, "SELECT * FROM nodes_df"),
+        id="server_id",
+        metadata=["primary_function", "server_name", "hardware_type"],
+    )
+    g_duckdb.load_edge_metadata(
+        data=duck_query_direct(con, "SELECT * FROM edges_df"),
         src="source",
         dst="destination",
         metadata=["is_encrypted"],
@@ -419,7 +473,7 @@ def test_different_data_sources():
 
     ######### mixed directory #########
     mixed_dir_path_str = (
-        str(Path(__file__).parent) + "/data/btc_dataset/mixed_directory"
+            str(Path(__file__).parent) + "/data/btc_dataset/mixed_directory"
     )
     # test path string
     g = Graph()
@@ -454,7 +508,7 @@ def test_different_data_sources():
     print(f"Number of tests ran: {len(nodes_list)}")
     for i in range(len(nodes_list) - 1):
         assert (
-            nodes_list[0] == nodes_list[i + 1]
+                nodes_list[0] == nodes_list[i + 1]
         ), f"Nodes list assertion failed at item i={i}"
 
 
@@ -488,6 +542,7 @@ def test_load_edges_from_polars_df(graph_type):
 if fpd:
     import pandas
 
+
     @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
     def test_load_edges_from_fireducks_df(graph_type):
         # FireDucks DataFrame (pandas-compatible API)
@@ -503,6 +558,7 @@ if fpd:
         g = graph_type()
         g.load_edges(data=df, time="time", src="src", dst="dst", properties=["value"])
         assert [(1, 1, 2, 10.0), (2, 2, 3, 20.0), (3, 3, 4, 30.0)] == _collect_edges(g)
+
 
     @pytest.mark.parametrize("graph_type", [Graph, PersistentGraph])
     def test_fireducks_matches_pandas_for_same_edges(graph_type):
