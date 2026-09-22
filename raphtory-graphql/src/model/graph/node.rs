@@ -1,7 +1,8 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, NodeViewCollection},
+        filter_expr_input::GqlFilter,
+        filtering::NodeViewCollection,
         history::GqlHistory,
         node_id::GqlNodeId,
         nodes::GqlNodes,
@@ -24,12 +25,7 @@ use raphtory::{
             properties::dyn_props::DynProperties,
             view::{filter_ops::Select, Filter, *},
         },
-        graph::{
-            node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
-            },
-        },
+        graph::{node::NodeView, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::NodeStateOps,
@@ -289,9 +285,7 @@ impl GqlNode {
                 NodeViewCollection::After(time) => return_view.after(time).await,
                 NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodeViewCollection::NodeFilter(filter) => {
-                    return_view.filter(GqlFilter::Node(filter)).await?
-                }
+                NodeViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
@@ -453,33 +447,30 @@ impl GqlNode {
     }
 
     /// Returns all connected edges.
-    pub async fn edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.vv.edges();
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
     }
 
     /// Returns outgoing edges.
-    pub async fn out_edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.vv.out_edges();
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
     }
 
     /// Returns incoming edges.
-    pub async fn in_edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.vv.in_edges();
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
@@ -488,12 +479,11 @@ impl GqlNode {
     /// Returns neighbouring nodes.
     pub async fn neighbours<'a>(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.vv.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -502,12 +492,11 @@ impl GqlNode {
     /// Returns the number of neighbours that have at least one in-going edge to this node.
     pub async fn in_neighbours<'a>(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.vv.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -516,12 +505,11 @@ impl GqlNode {
     /// Returns the number of neighbours that have at least one out-going edge from this node.
     pub async fn out_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.vv.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))

@@ -262,10 +262,7 @@ mod in_component_test {
         db::{
             api::mutation::AdditionOps,
             graph::views::filter::{
-                model::{
-                    graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
-                },
+                model::{graph_filter::GraphFilter, PropertyExprFactory, ViewWrapOps},
                 CreateFilter,
             },
         },
@@ -284,7 +281,7 @@ mod in_component_test {
         assert_eq!(results, correct);
     }
 
-    fn check_node_filtered<F: CreateFilter + TryAsCompositeFilter + Clone + 'static>(
+    fn check_node_filtered<F: CreateFilter + Clone + 'static>(
         graph: &Graph,
         node_id: u64,
         filter: F,
@@ -531,10 +528,7 @@ mod components_test {
         db::{
             api::mutation::AdditionOps,
             graph::views::filter::{
-                model::{
-                    graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
-                    PropertyFilterFactory, ViewWrapOps,
-                },
+                model::{graph_filter::GraphFilter, PropertyExprFactory, ViewWrapOps},
                 CreateFilter,
             },
         },

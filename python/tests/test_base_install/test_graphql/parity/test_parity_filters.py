@@ -3,7 +3,7 @@
 Filtering is the one place where the local `Graph` and `RemoteGraph` are asked
 to agree on a *program*, not just a call. Locally a `raphtory.filter`
 expression is handed straight to the engine; remotely the very same Python
-object has to be lowered to a GraphQL `GqlFilter`, shipped, re-parsed and
+object has to be lowered to a GraphQL `FilterExpr`, shipped, re-parsed and
 re-planned on the server. Every step of that lowering can drop a conjunct,
 confuse a property source (metadata vs temporal), invert a comparison, or
 attach a view scope to the wrong subtree — and still return a plausible answer.
@@ -450,6 +450,11 @@ VIEW_EXPRS = {
     "view.and_mixed": lambda: f.Graph.window(2, 8)
     & (f.Node.node_type() != "bot")
     & f.Edge.property("weight").is_some(),
+    # window+latest does not commute: these two must stay distinct on both
+    # sides (the wire nests views in application order; a regression here
+    # inverts the chain remotely while local stays correct).
+    "view.chain_window_latest": lambda: f.Graph.window(2, 5).latest(),
+    "view.chain_latest_window": lambda: f.Graph.latest().window(11, 13),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -468,6 +473,13 @@ SCOPED_EXPRS = {
     "scoped.node.layers": lambda: f.Node.layers(["knows", "works"]).property("score")
     > 15,
     "scoped.node.metadata": lambda: f.Node.window(1, 6).metadata("region") == "eu",
+    # Non-commuting view chains (see view.chain_window_latest above).
+    "scoped.node.window_then_latest": (
+        lambda: f.Node.window(1, 6).latest().property("score") > 1
+    ),
+    "scoped.node.latest_then_window": (
+        lambda: f.Node.latest().window(11, 13).property("score") > 15
+    ),
     "scoped.node.is_active": lambda: f.Node.window(1, 3).is_active(),
     "scoped.edge.window": lambda: f.Edge.window(2, 5).property("weight") > 2.0,
     "scoped.edge.at": lambda: f.Edge.at(3).property("weight") > 2.0,
@@ -482,6 +494,13 @@ SCOPED_EXPRS = {
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
     "scoped.edge.is_deleted": lambda: f.Edge.window(2, 11).is_deleted(),
     "scoped.exploded.is_valid": lambda: f.ExplodedEdge.window(2, 4).is_valid(),
+    # Non-commuting view chains (see view.chain_window_latest above).
+    "scoped.edge.window_then_latest": (
+        lambda: f.Edge.window(2, 6).latest().property("weight") > 2.0
+    ),
+    "scoped.edge.latest_then_window": (
+        lambda: f.Edge.latest().window(11, 13).property("weight") > 2.0
+    ),
 }
 
 PREDICATE_EXPRS = {
@@ -678,17 +697,31 @@ _UNIVERSAL_EXPRS = {
         "a node OR an edge predicate: each branch leaves the other entity "
         "type unconstrained, so the disjunction admits everything",
     ),
-    "universal.view_or": (
-        lambda: f.Graph.at(3) | f.Graph.at(5),
-        "a disjunction of two view scopes widens rather than narrows",
-    ),
-    "universal.view_not": (
-        lambda: ~f.Graph.layer("knows"),
-        "negating a view scope does not exclude entities from the result; the "
-        "intended semantics are undecided (#2718), so this pins today's no-op "
-        "rather than endorsing it",
-    ),
 }
+
+
+def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
+    """A set member of a type the property can never equal is absent, not an error.
+
+    Unlike a comparison against a mistyped value — which both sides reject —
+    set membership asks whether a value is present, and a member of an
+    unrelated type simply is not. That asymmetry has to be the *same* surprise
+    on both sides, since a caller cannot tell "no matches" from "bad query"
+    otherwise.
+    """
+    build = lambda: f.Node.property("score").is_in(["not", "numbers"])
+    assert_parity(
+        filter_pair, lambda g: sorted(n.name for n in g.filter(build()).nodes)
+    )
+
+    for side_name, side in (
+        ("local", filter_pair.local),
+        ("remote", filter_pair.remote),
+    ):
+        assert [n.name for n in side.filter(build()).nodes] == [], (
+            f"{side_name}: a mistyped is_in matched nodes; if this now raises "
+            f"or filters, move the case into REJECTED_EXPRS"
+        )
 
 
 @pytest.mark.parametrize("name", sorted(EXPRS), ids=sorted(EXPRS))
@@ -1032,6 +1065,9 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
+    # A view applies to the whole filter: it composes with `&` only (#2718 decided).
+    "reject.view_or": lambda: f.Graph.at(3) | f.Graph.at(5),
+    "reject.view_not": lambda: ~f.Graph.layer("knows"),
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 
@@ -1067,6 +1103,41 @@ def test_rejected_expr_parity_at_nodes_filter(filter_pair, name):
     assert_parity(
         filter_pair, lambda g: sorted(n.name for n in g.nodes.filter(build()))
     )
+
+
+# Filters that compare two expressions travel as the same tree the local
+# engine compiles, so every application site must agree with the local answer.
+# The deferred sites (`nodes.filter`, `node.filter`, `path.filter`) keep every
+# member and narrow what each one sees, so they are read through degrees, which
+# the filter changes; membership alone would be the same for any filter.
+EXPR_RHS_SITES = {
+    "graph.filter": lambda g, e: sorted(n.name for n in g.filter(e).nodes),
+    "nodes.filter": lambda g, e: sorted(
+        (n.name, n.degree()) for n in g.nodes.filter(e)
+    ),
+    "nodes[expr]": lambda g, e: sorted(n.name for n in g.nodes[e]),
+    "node.filter": lambda g, e: g.node("hub").filter(e).degree(),
+    "path.filter": lambda g, e: sorted(
+        (n.name, n.degree()) for n in g.node("hub").neighbours.filter(e)
+    ),
+}
+
+
+@pytest.mark.parametrize("site", sorted(EXPR_RHS_SITES), ids=sorted(EXPR_RHS_SITES))
+def test_expression_rhs_agrees_on_both_sides(filter_pair, site):
+    """`degree() > in_degree()` has no constant on the right, which the old
+    wire grammar could not say. It is a tree now, so it runs remotely and must
+    give the local answer. The local side is asserted to differ from a filter
+    every node passes, so what is compared is a real filter."""
+    read = EXPR_RHS_SITES[site]
+    expr = f.Node.degree() > f.Node.in_degree()
+    everything = f.Node.degree() >= 0
+
+    local = read(filter_pair.local, expr)
+    assert local != read(
+        filter_pair.local, everything
+    ), f"{site}: the expression narrows nothing"
+    assert_parity(filter_pair, lambda g: read(g, expr))
 
 
 # Node collections that take a `[expr]` subscript. Each must refuse an
@@ -1115,31 +1186,8 @@ def test_edge_expr_in_a_node_subscript_is_refused_the_same_way(
     )
 
 
-def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
-    """`is_in` with values of the wrong type is empty, not an error.
-
-    Unlike `>` against a mistyped value — which both sides reject — a mistyped
-    `is_in` list is accepted and simply matches no node. That asymmetry is
-    surprising enough to pin, and it has to be the *same* surprise on both
-    sides, since a caller cannot tell "no matches" from "bad query" otherwise.
-    """
-    build = lambda: f.Node.property("score").is_in(["not", "numbers"])
-    assert_parity(
-        filter_pair, lambda g: sorted(n.name for n in g.filter(build()).nodes)
-    )
-
-    for side_name, side in (
-        ("local", filter_pair.local),
-        ("remote", filter_pair.remote),
-    ):
-        assert [n.name for n in side.filter(build()).nodes] == [], (
-            f"{side_name}: a mistyped is_in matched nodes; if this now raises "
-            f"or filters, move the case into REJECTED_EXPRS"
-        )
-
-
 # `[expr]` with general (non-kind-typed) expressions: select on the wire now
-# takes GqlFilter, so graph-view / node / mixed expressions narrow membership
+# takes FilterExpr, so graph-view / node / mixed expressions narrow membership
 # the same way local core select does.
 SUBSCRIPT_GENERAL_EXPRS = [
     (
@@ -1241,3 +1289,30 @@ def test_by_state_column_needs_a_boolean_state_column():
 
     with pytest.raises(ValueError):
         f.Node.by_state_column(state, "pagerank_score")
+
+
+def test_edge_views_scope_endpoint_reads_on_both_sides():
+    """A view applied before `src()`/`dst()` scopes the endpoint read, locally and
+    remotely.
+
+    `alice.score` is 3 until t=5 and 9 after; the edge alice→bob has events at
+    t=1 and t=6. Inside [0, 5) alice's score is 3, so asking for 9 there must
+    match nothing on either side. The local engine used to read the endpoint
+    outside the window and keep the edge.
+    """
+
+    def build(g):
+        g.add_node(0, "alice", properties={"score": 3})
+        g.add_node(5, "alice", properties={"score": 9})
+        g.add_node(0, "bob", properties={"score": 1})
+        g.add_edge(1, "alice", "bob")
+        g.add_edge(6, "alice", "bob")
+
+    late = f.Edge.window(0, 5).src().property("score") == 9
+    early = f.Edge.window(0, 5).src().property("score") == 3
+    read = lambda g, e: sorted((x.src.name, x.dst.name) for x in g.filter(e).edges)
+    with graph_pair(build) as pair:
+        assert read(pair.local, late) == []
+        assert read(pair.local, early) == [("alice", "bob")]
+        assert_parity(pair, lambda g: read(g, late))
+        assert_parity(pair, lambda g: read(g, early))

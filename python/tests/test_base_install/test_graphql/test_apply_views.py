@@ -1984,7 +1984,9 @@ def test_apply_view_too_many_arguments():
     graph = Graph()
     create_graph_date(graph)
     queries_and_exceptions = []
-    too_many_arguments_exception = "Fields \\"
+    too_many_arguments_exception = (
+        'Fields "views" conflict because they have differing arguments'
+    )
     query = """
 {
   graph(path: "g") {
@@ -2044,11 +2046,13 @@ def test_apply_view_invalid_argument():
     graph = Graph()
     create_graph_date(graph)
     queries_and_exceptions = []
-    invalid_argument = "Invalid value for argument \\"
+    invalid_argument = (
+        'Invalid value for argument "views.0.layers", expected type "String"'
+    )
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layers: "finds"}]) {
+    applyViews(views: [{layers: 5}]) {
       earliestTime {
         timestamp
       }
@@ -2068,10 +2072,10 @@ def test_apply_view_node_filter():
       graph(path: "g") {
         applyViews(views: [
           {
-            nodeFilter: {
-              property: {
-                name: "where"
-                where: { eq: { str: "Berlin" } }
+            filter: {
+              eq: {
+                lhs: { read: { entity: NODE, target: { property: "where" } } }
+                rhs: { const: { str: "Berlin" } }
               }
             }
           }
@@ -2097,10 +2101,10 @@ def test_apply_view_edge_filter():
       graph(path: "g") {
         applyViews(views: [
           {
-            edgeFilter: {
-              property: {
-                name: "where"
-                where: { eq: { str: "fishbowl" } }
+            filter: {
+              eq: {
+                lhs: { read: { entity: EDGE, target: { property: "where" } } }
+                rhs: { const: { str: "fishbowl" } }
               }
             }
           }
@@ -2259,7 +2263,12 @@ def test_apply_view_a_lot_of_views():
           applyViews(views: [
             { window: { start: 1735689600000, end: 1735862400000 } },
             { layers: ["follows"] },
-            { nodeFilter: { property: { name: "where", where: { eq: { str: "Berlin" } } } } }
+            { filter: {
+              eq: {
+                lhs: { read: { entity: NODE, target: { property: "where" } } }
+                rhs: { const: { str: "Berlin" } }
+              }
+            } }
           ]) {
             list {
               name

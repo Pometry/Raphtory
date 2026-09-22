@@ -13,8 +13,9 @@ def test_graph_node_sort_by_nothing(graph):
     query = """{
       graph(path: "g") {
         nodes(select: {
-          id: { 
-            where: { eq: { u64: 1 } }
+          eq: {
+            lhs: { read: { entity: NODE, target: { field: ID } } }
+            rhs: { const: { u64: 1 } }
           }
         }) {
           list {

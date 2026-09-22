@@ -9,6 +9,8 @@ lands, that test fails and the class moves into the working set by deleting its 
 
 from itertools import combinations
 
+import pytest
+
 from raphtory import filter
 from utils import with_variants
 
@@ -61,25 +63,36 @@ def _kind(name):
 
 
 def _and_is_broken(a, b):
-    # A time view combined with anything via `and` is silently ignored.
-    return a in TIME_VIEWS or b in TIME_VIEWS
+    # `view & X` is not set algebra: the view applies first and `X` runs inside it
+    # (`test_a_view_applies_first_under_and`), so it has no set-derived expectation here.
+    return a in VIEWS or b in VIEWS
+
+
+def _or_is_refused(a, b):
+    # A view under `|` has no meaning the engine can give it, so it is refused when written
+    # (`test_a_view_under_or_or_not_is_refused`).
+    return a in VIEWS or b in VIEWS
 
 
 def _or_is_broken(a, b):
-    # An `or` involving any graph view, or mixing edge- and node-kind operands, returns every edge.
-    return a in VIEWS or b in VIEWS or _kind(a) != _kind(b)
+    # An `or` mixing edge- and node-kind operands returns every edge.
+    return _or_is_refused(a, b) or _kind(a) != _kind(b)
+
+
+def _not_is_refused(a):
+    return a in VIEWS
 
 
 def _not_is_broken(a):
-    # `~view` returns every edge; `~node-filter` distributes the negation into the endpoints
-    # instead of complementing the matching edge set.
-    return a in VIEWS or a in NODE_KIND
+    # `~node-filter` distributes the negation into the endpoints instead of complementing the
+    # matching edge set.
+    return _not_is_refused(a) or a in NODE_KIND
 
 
 def _not_composite_is_broken(a, b):
-    # `~(A & B)` and `~(A | B)`: negating a *composite* reaches the same wrappers
-    # through the negation, so `~(A & view)` degenerates to `~A` and loses the
-    # view entirely. Only a composite of two edge predicates survives.
+    # `~(A & B)` and `~(A | B)`: a composite with a view is refused under `~`; negating a
+    # composite with a node-kind operand reaches the endpoint wrappers. Only a composite of
+    # two edge predicates survives.
     return _kind(a) != "edge" or _kind(b) != "edge"
 
 
@@ -363,6 +376,61 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 
 @with_variants(_init)
+def test_a_view_applies_first_under_and():
+    """`view & X` means `graph.<view>().filter(X)`: the view is applied first and `X` is
+    evaluated inside it, on both the subscript and the `filter()` path. Two views chain.
+    """
+
+    def check(graph):
+        atoms, views = _atoms(), _view_references(graph)
+        mismatches = []
+        for v, viewed in views.items():
+            for name, atom in atoms.items():
+                if name in VIEWS:
+                    continue
+                want = _ids(viewed.edges[atom])
+                for path, got in (
+                    ("edges[]", _ids(graph.edges[atoms[v] & atom])),
+                    ("filter()", _ids(graph.filter(atoms[v] & atom).edges)),
+                ):
+                    if got != want:
+                        mismatches.append(
+                            f"[{path}] {v} & {name}: got {sorted(got)} want {sorted(want)}"
+                        )
+        # Two views: the second applies inside the first.
+        want = _ids(graph.window(3, 12).layers(["work"]).edges)
+        got = _ids(graph.filter(atoms["window"] & atoms["layer"]).edges)
+        if got != want:
+            mismatches.append(
+                f"[filter()] window & layer: got {sorted(got)} want {sorted(want)}"
+            )
+        assert not mismatches, "\n".join(mismatches)
+
+    return check
+
+
+@with_variants(_init)
+def test_a_view_under_or_or_not_is_refused():
+    """A view applies to the whole filter, so it composes with `&` only. Under `|` or `~` the
+    engine has no meaning to give it, and the expression is refused where it is written.
+    """
+
+    def check(graph):
+        atoms = _atoms()
+        for label, build in {
+            "edge_prop | layer": lambda: atoms["edge_prop"] | atoms["layer"],
+            "~layer": lambda: ~atoms["layer"],
+            "~(edge_prop & layer)": lambda: ~(atoms["edge_prop"] & atoms["layer"]),
+            "(edge_prop & layer) | src": lambda: (atoms["edge_prop"] & atoms["layer"])
+            | atoms["src"],
+        }.items():
+            with pytest.raises(TypeError, match="view"):
+                build()
+
+    return check
+
+
+@with_variants(_init)
 def test_broken_combination_classes_are_still_broken():
     """One discriminating representative per known-broken class. When a class is fixed this fails:
     delete its `_*_is_broken` rule above so the combinations join the set-algebra test.
@@ -377,36 +445,13 @@ def test_broken_combination_classes_are_still_broken():
             ["window", "layer", "edge_prop", "node_prop", "node_name"],
         )
         representatives = {
-            "and drops a time view": (
-                atoms["window"] & atoms["edge_prop"],
-                single["window"] & single["edge_prop"],
-            ),
-            "or with a view returns every edge": (
-                atoms["edge_prop"] | atoms["layer"],
-                single["edge_prop"] | single["layer"],
-            ),
             "or of mixed kinds returns every edge": (
                 atoms["edge_prop"] | atoms["node_prop"],
                 single["edge_prop"] | single["node_prop"],
             ),
-            "not of a view returns every edge": (
-                ~atoms["layer"],
-                every - single["layer"],
-            ),
             "not of a node filter is not the complement": (
                 ~atoms["node_name"],
                 every - single["node_name"],
-            ),
-            # Negating a composite that contains a view: the pairwise rules
-            # above only ever negate a single atom, so these shapes need their
-            # own representatives.
-            "not of an and containing a view loses the view": (
-                ~(atoms["edge_prop"] & atoms["layer"]),
-                every - (single["edge_prop"] & single["layer"]),
-            ),
-            "not of an or containing a view returns every edge": (
-                ~(atoms["edge_prop"] | atoms["layer"]),
-                every - (single["edge_prop"] | single["layer"]),
             ),
         }
         fixed = []

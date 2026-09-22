@@ -3,7 +3,8 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
-            filtering::{EdgesViewCollection, GqlFilter},
+            filter_expr_input::GqlFilter,
+            filtering::EdgesViewCollection,
             path_from_node::GqlPathFromNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
@@ -289,9 +290,7 @@ impl GqlEdges {
                 EdgesViewCollection::After(time) => return_view.after(time).await,
                 EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edge(filter)).await?
-                }
+                EdgesViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
 

@@ -113,7 +113,7 @@ impl<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>> Par
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
+impl<'graph, G> Base for WindowedGraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -168,21 +168,21 @@ impl<G: GraphView> WindowedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
+impl<G> Immutable for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for WindowedGraph<G> {}
+impl<G> InheritCoreGraphOps for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for WindowedGraph<G> {}
+impl<G> InheritStorageOps for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
+impl<G> InheritMaterialize for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritMetadataPropertiesOps for WindowedGraph<G> {}
+impl<G> InheritMetadataPropertiesOps for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for WindowedGraph<G> {}
+impl<G> InheritNodePropertySchemaOps for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for WindowedGraph<G> {}
+impl<G> InheritEdgePropertySchemaOps for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
+impl<G> InheritLayerOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     fn node_list(&self) -> NodeList {
@@ -206,7 +206,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G> {
+impl<G: GraphView> InternalNodeFilterOps for WindowedGraph<G> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
         self.window_is_empty() || self.graph.internal_nodes_filtered()
@@ -239,7 +239,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for WindowedGraph<G> {
+impl<G: GraphView> InternalTemporalPropertyViewOps for WindowedGraph<G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .graph_props_meta()
@@ -274,7 +274,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for WindowedGraph<G> {
+impl<G: GraphView> InternalTemporalPropertiesOps for WindowedGraph<G> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .get_temporal_prop_id(name)
@@ -294,7 +294,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for Windowed
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G> {
+impl<G: GraphView> GraphTimeSemanticsOps for WindowedGraph<G> {
     fn node_time_semantics(&self) -> TimeSemantics {
         self.graph.node_time_semantics().window(self.window_bound())
     }
@@ -493,7 +493,7 @@ impl<G: GraphView> InternalExplodedEdgeFilterOps for WindowedGraph<G> {
 /// graph.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
 /// ```
-impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
+impl<G: GraphView> WindowedGraph<G> {
     /// Create a new windowed graph
     ///
     /// # Arguments

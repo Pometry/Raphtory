@@ -1,5 +1,7 @@
 import ast
 import builtins
+import importlib
+import re
 import inspect
 import logging
 import textwrap
@@ -428,6 +430,31 @@ def not_this_module_import(line: str, full_name: str) -> bool:
     )
 
 
+def shadow_free_import(line: str, module: ModuleType, defined: list[str]) -> str:
+    """A `from X import *` that carries a name this module binds to a different
+    object is a redefinition to the type checker, which keeps the imported one
+    and types every use of the local class as the foreign one. Such an import
+    is spelled out without the clashing names. A name both modules bind to the
+    same object (a class re-exported from two places) is not a clash.
+    """
+    star = re.fullmatch(r"from ([\w.]+) import \*", line)
+    if star is None:
+        return line
+    source = importlib.import_module(star[1])
+    exported = getattr(source, "__all__", None)
+    if exported is None:
+        return line
+    clashing = {
+        n
+        for n in defined
+        if n in exported and getattr(source, n, None) is not getattr(module, n)
+    }
+    if not clashing:
+        return line
+    kept = ", ".join(n for n in exported if n not in clashing)
+    return f"from {star[1]} import {kept}"
+
+
 def gen_module(
     module: ModuleType, name: str, path: Path, log_path, full_name=None
 ) -> None:
@@ -458,7 +485,9 @@ def gen_module(
                 if loader is None or isinstance(loader, ExtensionFileLoader):
                     modules.append((obj, obj_name))
     valid_imports = (
-        f"{line}" for line in imports if not_this_module_import(line, full_name)
+        shadow_free_import(line, module, all_names)
+        for line in imports
+        if not_this_module_import(line, full_name)
     )
     doc_str = getattr(module, "__doc__", None)
     if doc_str:

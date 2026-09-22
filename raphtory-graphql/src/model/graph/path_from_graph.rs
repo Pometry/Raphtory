@@ -1,7 +1,8 @@
 use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
-        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
+        filter_expr_input::GqlFilter,
+        filtering::PathFromNodeViewCollection,
         history::GqlHistory,
         nested_edges::GqlNestedEdges,
         path_from_node::GqlPathFromNode,
@@ -14,10 +15,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue}
 use raphtory::{
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{
-            path::PathFromGraph,
-            views::filter::model::{CompositeNodeFilter, DynFilter},
-        },
+        graph::{path::PathFromGraph, views::filter::model::DynFilter},
     },
     errors::GraphError,
     prelude::*,
@@ -543,11 +541,10 @@ impl GqlPathFromGraph {
 
     /// Returns the neighbouring nodes reachable one further hop from each source
     /// path (both directions), as a nested `PathFromGraph`.
-    pub async fn neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+    pub async fn neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -555,11 +552,10 @@ impl GqlPathFromGraph {
 
     /// Returns the in-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn in_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+    pub async fn in_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -567,11 +563,10 @@ impl GqlPathFromGraph {
 
     /// Returns the out-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn out_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+    pub async fn out_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))

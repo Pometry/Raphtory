@@ -1,4 +1,5 @@
 from raphtory import Graph, PersistentGraph
+from raphtory import filter
 from io import StringIO
 import unittest
 from unittest import TestCase
@@ -62,3 +63,25 @@ class PyReprTest(TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FilterExprReprTest(TestCase):
+    """`repr` shows the filter tree, which is both what runs locally and what a
+    server receives."""
+
+    def test_repr_shows_the_recorded_wire_form(self):
+        expr = filter.Node.window(0, 5).property("score") > 4
+        self.assertEqual(repr(expr), "FilterExpr(WINDOW[0..5](score) > 4)")
+
+    def test_repr_shows_temporal_ops_and_combinators(self):
+        expr = (filter.Node.property("score").temporal().sum() > 10) & ~(
+            filter.Node.name() == "carol"
+        )
+        self.assertEqual(
+            repr(expr),
+            "FilterExpr((sum(temporal(score)) > 10 AND NOT(name == carol)))",
+        )
+
+    def test_repr_shows_expressions_on_both_sides(self):
+        expr = filter.Node.degree() > filter.Node.in_degree()
+        self.assertEqual(repr(expr), "FilterExpr(degree > in_degree)")
