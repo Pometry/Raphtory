@@ -82,6 +82,49 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
 
     /// Whether the read is scoped by a view.
     fn has_view(&self) -> bool;
+
+    /// The latest value of a property, or its history when `temporal`, seen
+    /// through `views`.
+    fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self;
+
+    /// A metadata entry seen through `views`.
+    fn metadata(views: Vec<ViewOp>, name: String) -> Self;
+
+    /// Whether the entity is active inside `views`.
+    fn is_active(views: Vec<ViewOp>) -> Self;
+
+    /// A view applied around the read: it scopes the read.
+    fn push_view(&mut self, op: ViewOp);
+
+    /// The filter a yes/no expression over this leaf type is.
+    fn filter(expr: Expr<Self>) -> FilterExpr;
+}
+
+impl<L: Leaf> Expr<L> {
+    /// Scope every read in this expression by one more view, applied after
+    /// the views the reads already carry.
+    pub fn push_view(&mut self, op: ViewOp) {
+        match self {
+            Expr::Const(_) => {}
+            Expr::Read(leaf) => leaf.push_view(op),
+            Expr::Agg(_, e)
+            | Expr::IsSome(e)
+            | Expr::IsNone(e)
+            | Expr::Any(e)
+            | Expr::All(e)
+            | Expr::Not(e) => e.push_view(op),
+            Expr::In { expr, .. } => expr.push_view(op),
+            Expr::Cmp(_, l, r) | Expr::Str(_, l, r) => {
+                l.push_view(op.clone());
+                r.push_view(op);
+            }
+            Expr::And(items) | Expr::Or(items) => {
+                for item in items {
+                    item.push_view(op.clone());
+                }
+            }
+        }
+    }
 }
 
 fn node_factory(views: &[ViewOp]) -> Arc<dyn DynNodeFilterFactory> {
@@ -164,12 +207,52 @@ impl Leaf for NodeLeaf {
     }
 
     fn has_view(&self) -> bool {
+        !self.views().is_empty()
+    }
+
+    fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
+        NodeLeaf::Property {
+            views,
+            name,
+            temporal,
+        }
+    }
+
+    fn metadata(views: Vec<ViewOp>, name: String) -> Self {
+        NodeLeaf::Metadata { views, name }
+    }
+
+    fn is_active(views: Vec<ViewOp>) -> Self {
+        NodeLeaf::IsActive { views }
+    }
+
+    fn push_view(&mut self, op: ViewOp) {
+        self.views_mut().push(op);
+    }
+
+    fn filter(expr: Expr<Self>) -> FilterExpr {
+        FilterExpr::Node(expr)
+    }
+}
+
+impl NodeLeaf {
+    fn views(&self) -> &[ViewOp] {
         match self {
             NodeLeaf::Field { views, .. }
             | NodeLeaf::Degree { views, .. }
             | NodeLeaf::Property { views, .. }
             | NodeLeaf::Metadata { views, .. }
-            | NodeLeaf::IsActive { views } => !views.is_empty(),
+            | NodeLeaf::IsActive { views } => views,
+        }
+    }
+
+    fn views_mut(&mut self) -> &mut Vec<ViewOp> {
+        match self {
+            NodeLeaf::Field { views, .. }
+            | NodeLeaf::Degree { views, .. }
+            | NodeLeaf::Property { views, .. }
+            | NodeLeaf::Metadata { views, .. }
+            | NodeLeaf::IsActive { views } => views,
         }
     }
 }
@@ -233,6 +316,39 @@ impl Leaf for EdgeLeaf {
             EdgeLeaf::Src(inner) | EdgeLeaf::Dst(inner) => inner.has_view(),
         }
     }
+
+    fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
+        EdgeLeaf::Property {
+            views,
+            name,
+            temporal,
+        }
+    }
+
+    fn metadata(views: Vec<ViewOp>, name: String) -> Self {
+        EdgeLeaf::Metadata { views, name }
+    }
+
+    fn is_active(views: Vec<ViewOp>) -> Self {
+        EdgeLeaf::IsActive { views }
+    }
+
+    /// A view around an endpoint read scopes the node read at that end.
+    fn push_view(&mut self, op: ViewOp) {
+        match self {
+            EdgeLeaf::Property { views, .. }
+            | EdgeLeaf::Metadata { views, .. }
+            | EdgeLeaf::IsActive { views }
+            | EdgeLeaf::IsValid { views }
+            | EdgeLeaf::IsDeleted { views }
+            | EdgeLeaf::IsSelfLoop { views } => views.push(op),
+            EdgeLeaf::Src(inner) | EdgeLeaf::Dst(inner) => inner.push_view(op),
+        }
+    }
+
+    fn filter(expr: Expr<Self>) -> FilterExpr {
+        FilterExpr::Edge(expr)
+    }
 }
 
 impl Leaf for ExplodedEdgeLeaf {
@@ -274,13 +390,54 @@ impl Leaf for ExplodedEdgeLeaf {
     }
 
     fn has_view(&self) -> bool {
+        !self.views().is_empty()
+    }
+
+    fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
+        ExplodedEdgeLeaf::Property {
+            views,
+            name,
+            temporal,
+        }
+    }
+
+    fn metadata(views: Vec<ViewOp>, name: String) -> Self {
+        ExplodedEdgeLeaf::Metadata { views, name }
+    }
+
+    fn is_active(views: Vec<ViewOp>) -> Self {
+        ExplodedEdgeLeaf::IsActive { views }
+    }
+
+    fn push_view(&mut self, op: ViewOp) {
+        self.views_mut().push(op);
+    }
+
+    fn filter(expr: Expr<Self>) -> FilterExpr {
+        FilterExpr::ExplodedEdge(expr)
+    }
+}
+
+impl ExplodedEdgeLeaf {
+    fn views(&self) -> &[ViewOp] {
         match self {
             ExplodedEdgeLeaf::Property { views, .. }
             | ExplodedEdgeLeaf::Metadata { views, .. }
             | ExplodedEdgeLeaf::IsActive { views }
             | ExplodedEdgeLeaf::IsValid { views }
             | ExplodedEdgeLeaf::IsDeleted { views }
-            | ExplodedEdgeLeaf::IsSelfLoop { views } => !views.is_empty(),
+            | ExplodedEdgeLeaf::IsSelfLoop { views } => views,
+        }
+    }
+
+    fn views_mut(&mut self) -> &mut Vec<ViewOp> {
+        match self {
+            ExplodedEdgeLeaf::Property { views, .. }
+            | ExplodedEdgeLeaf::Metadata { views, .. }
+            | ExplodedEdgeLeaf::IsActive { views }
+            | ExplodedEdgeLeaf::IsValid { views }
+            | ExplodedEdgeLeaf::IsDeleted { views }
+            | ExplodedEdgeLeaf::IsSelfLoop { views } => views,
         }
     }
 }
@@ -500,12 +657,17 @@ fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
 }
 
 fn require_bool(pt: &PropType, what: &str) -> Result<(), GraphError> {
-    if *pt == PropType::Bool {
-        Ok(())
-    } else {
-        Err(invalid(format!(
-            "{what} needs a yes/no answer, but this expression has type {pt}"
-        )))
+    match pt {
+        PropType::Bool => Ok(()),
+        PropType::List(inner) if matches!(**inner, PropType::Bool | PropType::List(_)) => {
+            Err(invalid(format!(
+                "{what} needs a yes/no answer, but this comparison gives one answer per \
+                 element ({pt}); add any() or all() to say which elements must match"
+            )))
+        }
+        other => Err(invalid(format!(
+            "{what} needs a yes/no answer, but this expression has type {other}"
+        ))),
     }
 }
 

@@ -7883,8 +7883,8 @@ mod test_node_property_filter_agg {
     fn test_node_property_all() {
         let filter = NodeFilter
             .property("p_bools_all")
-            .all()
-            .eq(Prop::Bool(true));
+            .eq(Prop::Bool(true))
+            .all();
         let expected = vec!["n10", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -8041,8 +8041,8 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_bools_all")
             .temporal()
-            .all()
             .eq(true)
+            .all()
             .all();
         let expected = vec!["n4", "n10"];
         apply_assertion(filter, &expected);

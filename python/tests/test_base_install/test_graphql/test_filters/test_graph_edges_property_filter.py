@@ -54,9 +54,7 @@ def test_graph_edge_property_filter_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = (
-        "Invalid filter: value I64(1) of type I64 cannot be compared with List<I64>"
-    )
+    expected_error_message = "Invalid filter: a filter needs a yes/no answer, but this comparison gives one answer per element (List<Bool>); add any() or all() to say which elements must match"
     run_graphql_error_test(query, expected_error_message, graph)
 
 

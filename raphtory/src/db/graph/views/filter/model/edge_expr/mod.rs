@@ -22,7 +22,6 @@
 use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::PropType};
 use raphtory_storage::graph::graph::GraphStorage;
 
-pub mod filters;
 pub mod ops;
 
 pub use super::{Metadata, Property};

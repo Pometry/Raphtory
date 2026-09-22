@@ -6,7 +6,7 @@ pub use crate::{
             filter::{
                 model::{
                     edge_filter::{EdgeEndpointWrapper, EdgeFilter},
-                    exploded_edge_filter::{ExplodedEdgeEndpointWrapper, ExplodedEdgeFilter},
+                    exploded_edge_filter::ExplodedEdgeFilter,
                     filter_operator::{
                         BinaryOp, Comparable, FilterOperator, SetOp, StringComparable, StringOp,
                         UnaryOp,
@@ -312,8 +312,8 @@ impl<E: EntityExpr> EntityExpr for PropertyExpr<E> {
 
 #[derive(Clone)]
 pub struct MetadataExpr<E> {
-    view_expr: E,
-    name: String,
+    pub(crate) view_expr: E,
+    pub(crate) name: String,
 }
 
 impl<E: EntityExpr> EntityExpr for MetadataExpr<E> {
@@ -802,8 +802,8 @@ pub trait EdgeViewFilterOps: ViewWrapOps {
 
 /// Comparison, string, set, and presence operators on any [`CreateOp`].
 ///
-/// `.any()` / `.all()` are qualifiers on a list-valued expression: the comparison that follows
-/// is applied to each element and the results are reduced, so `.any().gt(10i64)` holds when any
+/// A comparison against a list-valued expression gives one answer per element; `.any()` /
+/// `.all()` written after it collapse those answers, so `.gt(10i64).any()` holds when any
 /// element is greater than ten.
 ///
 /// ```rust,ignore
@@ -1042,30 +1042,9 @@ pub fn validate_types_comparable(lhs_pt: &PropType, rhs_pt: &PropType) -> Result
 
 /// Reject aggregators called on a declared scalar expression.
 ///
-/// Lists and unresolved (`PropType::Empty`) types pass through — unresolved
-/// is the case where a property name hasn't been looked up yet at expression-
-/// build time, so we defer to filter-build / runtime to catch scalar/list
-/// mismatches there. Anything declaring a scalar type up front (e.g.
-/// `IsActiveNode` → `Bool`, `DegreeExpr` → `U64`) is rejected.
-/// The element type a leading `any()`/`all()` chain compares against: one
-/// list level is stripped per qualifier. Unknown types stay unknown; a
-/// qualifier over a known scalar is an error.
-pub fn elem_prop_type(pt: &PropType, levels: usize) -> Result<PropType, GraphError> {
-    let mut pt = pt.clone();
-    for _ in 0..levels {
-        pt = match pt {
-            PropType::List(inner) => *inner,
-            PropType::Empty => PropType::Empty,
-            other => {
-                return Err(GraphError::InvalidFilter(format!(
-                    "any()/all() require list or temporal values, found {other}"
-                )))
-            }
-        };
-    }
-    Ok(pt)
-}
-
+/// Lists and unresolved (`PropType::Empty`) types pass through; anything
+/// declaring a scalar type up front (`IsActiveNode` → `Bool`, `DegreeExpr` →
+/// `U64`) is rejected.
 pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
     match pt {
         PropType::List(_) | PropType::Empty => Ok(()),

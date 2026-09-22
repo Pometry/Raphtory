@@ -20,23 +20,20 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                and_filter::AndFilter,
-                dyn_factory::{DynEdgeFilterFactory, DynNodeFilterFactory},
-                edge_filter::{EdgeEndpointNodeFilter, EdgeEndpointWrapper, EdgeFilter, Endpoint},
-                exploded_edge_filter::ExplodedEdgeFilter,
-                graph_filter::GraphFilter,
+                edge_filter::Endpoint,
+                expr::{
+                    EdgeLeaf, ExplodedEdgeLeaf, Expr as SplitExpr, FilterExpr as SplitFilter, Leaf,
+                    NodeLeaf,
+                },
                 layered_filter::layer_label,
-                node_expr::{DynCreateOp, DynTemporal},
-                node_filter::NodeFilter,
-                not_filter::NotFilter,
-                or_filter::OrFilter,
-                DynCreateFilter, DynView, ViewWrapOps,
+                node_expr::DynCreateOp,
+                DynCreateFilter,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::{EntityAggOps, EntityExprFilterOps, Layer},
+    prelude::Layer,
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
@@ -296,406 +293,321 @@ impl FilterExpr {
     }
 }
 
-// ── compiling ────────────────────────────────────────────────────────────────
-
-/// A partly compiled value. Property reads keep the ability to switch to
-/// their history until an aggregate or qualifier is applied.
-enum Compiled {
-    Op(Arc<dyn DynCreateOp>),
-    Property(Arc<dyn DynTemporal>),
-}
-
-impl Compiled {
-    fn op(self) -> Arc<dyn DynCreateOp> {
-        match self {
-            Compiled::Op(op) => op,
-            Compiled::Property(prop) => prop,
-        }
-    }
-
-    /// An endpoint read is a node read the edge evaluates on the node at that
-    /// end. The wrapping happens here, at the read, so that qualifiers and
-    /// aggregates applied above it see an edge expression and are compiled the
-    /// way an edge filter compiles them.
-    fn through(self, endpoint: Endpoint) -> Self {
-        match self {
-            Compiled::Op(op) => Compiled::Op(Arc::new(EdgeEndpointWrapper::new(op, endpoint))),
-            Compiled::Property(prop) => {
-                Compiled::Property(Arc::new(EdgeEndpointWrapper::new(prop, endpoint)))
-            }
-        }
-    }
-
-    fn map_op(self, f: impl FnOnce(Arc<dyn DynCreateOp>) -> Arc<dyn DynCreateOp>) -> Self {
-        Compiled::Op(f(self.op()))
-    }
-}
+// ── compiling: through the entity-split tree ────────────────────────────────
+//
+// This tree predates the per-entity one in `model::expr`; python and GraphQL
+// still speak it. It compiles by converting to that tree, so there is one
+// compiler and one set of checks. A qualifier written on a value here
+// (`x.any() == v`) becomes the qualifier on the comparison there
+// (`(x == v).any()`).
 
 fn invalid(msg: impl Into<String>) -> GraphError {
     GraphError::InvalidFilter(msg.into())
 }
 
-fn node_factory(views: &[ViewOp]) -> Arc<dyn DynNodeFilterFactory> {
-    let mut f: Arc<dyn DynNodeFilterFactory> = Arc::new(NodeFilter);
-    for op in views {
-        f = match op {
-            ViewOp::Window { start, end } => f.window(*start, *end),
-            ViewOp::At(t) => f.at(*t),
-            ViewOp::After(t) => f.after(*t),
-            ViewOp::Before(t) => f.before(*t),
-            ViewOp::Latest => Arc::new(f.latest()),
-            ViewOp::SnapshotAt(t) => Arc::new(f.snapshot_at(*t)),
-            ViewOp::SnapshotLatest => Arc::new(f.snapshot_latest()),
-            ViewOp::Layers(names) => Arc::new(f.layer(names.clone())),
-        };
-    }
-    f
+/// A leaf of the per-entity tree built from this tree's read.
+trait FromOldRead: Leaf {
+    fn from_read(scope: &Scope, target: &Target) -> Result<Self, GraphError>;
+    fn structural(scope: &Scope, pred: Structural) -> Result<Self, GraphError>;
+    /// Switch a property read to its history.
+    fn temporal(self) -> Result<Self, GraphError>;
 }
 
-fn edge_factory(entity: Entity, views: &[ViewOp]) -> Arc<dyn DynEdgeFilterFactory> {
-    let mut f: Arc<dyn DynEdgeFilterFactory> = match entity {
-        Entity::ExplodedEdge => Arc::new(ExplodedEdgeFilter),
-        Entity::Edge | Entity::Node => Arc::new(EdgeFilter),
+fn not_a_property() -> GraphError {
+    invalid("temporal() applies to a property")
+}
+
+impl FromOldRead for NodeLeaf {
+    fn from_read(scope: &Scope, target: &Target) -> Result<Self, GraphError> {
+        if scope.endpoint.is_some() {
+            return Err(invalid("a node expression has no src()/dst() endpoint"));
+        }
+        let views = scope.views.clone();
+        Ok(match target {
+            Target::Field(field) => NodeLeaf::Field {
+                views,
+                field: *field,
+            },
+            Target::Degree(direction) => NodeLeaf::Degree {
+                views,
+                direction: *direction,
+            },
+            Target::Property(name) => NodeLeaf::property(views, name.clone(), false),
+            Target::Metadata(name) => NodeLeaf::metadata(views, name.clone()),
+        })
+    }
+
+    fn structural(scope: &Scope, pred: Structural) -> Result<Self, GraphError> {
+        if scope.endpoint.is_some() {
+            return Err(invalid("a node has no src()/dst() endpoint"));
+        }
+        match pred {
+            Structural::IsActive => Ok(NodeLeaf::is_active(scope.views.clone())),
+            other => Err(invalid(format!("{other} is an edge predicate"))),
+        }
+    }
+
+    fn temporal(self) -> Result<Self, GraphError> {
+        match self {
+            NodeLeaf::Property {
+                views,
+                name,
+                temporal: false,
+            } => Ok(NodeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            }),
+            _ => Err(not_a_property()),
+        }
+    }
+}
+
+impl FromOldRead for EdgeLeaf {
+    fn from_read(scope: &Scope, target: &Target) -> Result<Self, GraphError> {
+        // An endpoint read is a node read, scoped by the same views, that the
+        // edge evaluates on the node at that end.
+        if let Some(endpoint) = scope.endpoint {
+            let node_scope = Scope {
+                entity: Entity::Node,
+                views: scope.views.clone(),
+                endpoint: None,
+            };
+            let inner = Box::new(SplitExpr::Read(NodeLeaf::from_read(&node_scope, target)?));
+            return Ok(match endpoint {
+                Endpoint::Src => EdgeLeaf::Src(inner),
+                Endpoint::Dst => EdgeLeaf::Dst(inner),
+            });
+        }
+        let views = scope.views.clone();
+        match target {
+            Target::Property(name) => Ok(EdgeLeaf::property(views, name.clone(), false)),
+            Target::Metadata(name) => Ok(EdgeLeaf::metadata(views, name.clone())),
+            Target::Field(_) | Target::Degree(_) => Err(invalid(
+                "an edge has no fields or degree; read them through src() or dst()",
+            )),
+        }
+    }
+
+    fn structural(scope: &Scope, pred: Structural) -> Result<Self, GraphError> {
+        if let Some(endpoint) = scope.endpoint {
+            if pred != Structural::IsActive {
+                return Err(invalid(format!("{pred} is an edge predicate")));
+            }
+            let inner = Box::new(SplitExpr::Read(NodeLeaf::is_active(scope.views.clone())));
+            return Ok(match endpoint {
+                Endpoint::Src => EdgeLeaf::Src(inner),
+                Endpoint::Dst => EdgeLeaf::Dst(inner),
+            });
+        }
+        let views = scope.views.clone();
+        Ok(match pred {
+            Structural::IsActive => EdgeLeaf::IsActive { views },
+            Structural::IsValid => EdgeLeaf::IsValid { views },
+            Structural::IsDeleted => EdgeLeaf::IsDeleted { views },
+            Structural::IsSelfLoop => EdgeLeaf::IsSelfLoop { views },
+        })
+    }
+
+    fn temporal(self) -> Result<Self, GraphError> {
+        match self {
+            EdgeLeaf::Property {
+                views,
+                name,
+                temporal: false,
+            } => Ok(EdgeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            }),
+            EdgeLeaf::Src(inner) => Ok(EdgeLeaf::Src(Box::new(temporal_read(*inner)?))),
+            EdgeLeaf::Dst(inner) => Ok(EdgeLeaf::Dst(Box::new(temporal_read(*inner)?))),
+            _ => Err(not_a_property()),
+        }
+    }
+}
+
+impl FromOldRead for ExplodedEdgeLeaf {
+    fn from_read(scope: &Scope, target: &Target) -> Result<Self, GraphError> {
+        if scope.endpoint.is_some() {
+            return Err(invalid("an exploded edge has no src()/dst() endpoint"));
+        }
+        let views = scope.views.clone();
+        match target {
+            Target::Property(name) => Ok(ExplodedEdgeLeaf::property(views, name.clone(), false)),
+            Target::Metadata(name) => Ok(ExplodedEdgeLeaf::metadata(views, name.clone())),
+            Target::Field(_) | Target::Degree(_) => Err(invalid(
+                "an edge has no fields or degree; read them through src() or dst()",
+            )),
+        }
+    }
+
+    fn structural(scope: &Scope, pred: Structural) -> Result<Self, GraphError> {
+        if scope.endpoint.is_some() {
+            return Err(invalid("an exploded edge has no src()/dst() endpoint"));
+        }
+        let views = scope.views.clone();
+        Ok(match pred {
+            Structural::IsActive => ExplodedEdgeLeaf::IsActive { views },
+            Structural::IsValid => ExplodedEdgeLeaf::IsValid { views },
+            Structural::IsDeleted => ExplodedEdgeLeaf::IsDeleted { views },
+            Structural::IsSelfLoop => ExplodedEdgeLeaf::IsSelfLoop { views },
+        })
+    }
+
+    fn temporal(self) -> Result<Self, GraphError> {
+        match self {
+            ExplodedEdgeLeaf::Property {
+                views,
+                name,
+                temporal: false,
+            } => Ok(ExplodedEdgeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            }),
+            _ => Err(not_a_property()),
+        }
+    }
+}
+
+/// `temporal()` on a read: the read must be a property's latest value.
+fn temporal_read<L: FromOldRead>(expr: SplitExpr<L>) -> Result<SplitExpr<L>, GraphError> {
+    match expr {
+        SplitExpr::Read(leaf) => Ok(SplitExpr::Read(leaf.temporal()?)),
+        _ => Err(not_a_property()),
+    }
+}
+
+/// Convert a value, collecting the qualifiers written on it (innermost first)
+/// so the predicate around it can take them.
+fn convert_value<L: FromOldRead>(
+    expr: &Expr,
+    quals: &mut Vec<Qual>,
+) -> Result<SplitExpr<L>, GraphError> {
+    Ok(match expr {
+        Expr::Const(value) => SplitExpr::Const(value.clone()),
+        Expr::Read { scope, target } => SplitExpr::Read(L::from_read(scope, target)?),
+        Expr::Temporal(inner) => temporal_read(convert_value(inner, quals)?)?,
+        Expr::Agg(agg, inner) => SplitExpr::Agg(*agg, Box::new(convert_value(inner, quals)?)),
+        Expr::Qual(qual, inner) => {
+            let value = convert_value(inner, quals)?;
+            quals.push(*qual);
+            value
+        }
+    })
+}
+
+/// Wrap a predicate in the qualifiers its value carried. The innermost
+/// qualifier written collapses the outermost list level, so it goes on last.
+fn qualify<L: Leaf>(mut pred: SplitExpr<L>, quals: Vec<Qual>) -> SplitExpr<L> {
+    for qual in quals.iter().rev() {
+        pred = match qual {
+            Qual::Any => SplitExpr::Any(Box::new(pred)),
+            Qual::All => SplitExpr::All(Box::new(pred)),
+        };
+    }
+    pred
+}
+
+fn convert_predicate<L: FromOldRead>(filter: &FilterExpr) -> Result<SplitExpr<L>, GraphError> {
+    let mut quals = Vec::new();
+    let pred = match filter {
+        FilterExpr::Cmp { op, lhs, rhs } => SplitExpr::Cmp(
+            *op,
+            Box::new(convert_value(lhs, &mut quals)?),
+            Box::new(convert_value(rhs, &mut quals)?),
+        ),
+        FilterExpr::Str { op, lhs, rhs } => SplitExpr::Str(
+            op.clone(),
+            Box::new(convert_value(lhs, &mut quals)?),
+            Box::new(convert_value(rhs, &mut quals)?),
+        ),
+        FilterExpr::IsSome(e) => SplitExpr::IsSome(Box::new(convert_value(e, &mut quals)?)),
+        FilterExpr::IsNone(e) => SplitExpr::IsNone(Box::new(convert_value(e, &mut quals)?)),
+        FilterExpr::In {
+            expr,
+            values,
+            negated,
+        } => SplitExpr::In {
+            expr: Box::new(convert_value(expr, &mut quals)?),
+            values: values.clone(),
+            negated: *negated,
+        },
+        FilterExpr::Structural { scope, pred } => SplitExpr::Read(L::structural(scope, *pred)?),
+        FilterExpr::View(_)
+        | FilterExpr::And(_)
+        | FilterExpr::Or(_)
+        | FilterExpr::Not(_)
+        | FilterExpr::Opaque(_) => unreachable!("handled by FilterExpr::to_split"),
     };
-    for op in views {
-        f = match op {
-            ViewOp::Window { start, end } => f.dyn_window(*start, *end),
-            ViewOp::At(t) => f.dyn_at(*t),
-            ViewOp::After(t) => f.dyn_after(*t),
-            ViewOp::Before(t) => f.dyn_before(*t),
-            ViewOp::Latest => f.dyn_latest(),
-            ViewOp::SnapshotAt(t) => f.dyn_snapshot_at(*t),
-            ViewOp::SnapshotLatest => f.dyn_snapshot_latest(),
-            ViewOp::Layers(names) => f.dyn_layer(names.clone()),
-        };
-    }
-    f
+    Ok(qualify(pred, quals))
 }
 
-fn read_node(f: &Arc<dyn DynNodeFilterFactory>, target: &Target) -> Compiled {
-    match target {
-        Target::Field(Field::Id) => Compiled::Op(f.dyn_id()),
-        Target::Field(Field::Name) => Compiled::Op(f.dyn_name()),
-        Target::Field(Field::NodeType) => Compiled::Op(f.dyn_node_type()),
-        Target::Degree(Direction::BOTH) => Compiled::Op(f.dyn_degree()),
-        Target::Degree(Direction::IN) => Compiled::Op(f.dyn_in_degree()),
-        Target::Degree(Direction::OUT) => Compiled::Op(f.dyn_out_degree()),
-        Target::Property(name) => Compiled::Property(f.dyn_property(name.clone())),
-        Target::Metadata(name) => Compiled::Op(f.dyn_metadata(name.clone())),
+/// The entity a value reads from, if it reads at all.
+fn value_entity(expr: &Expr) -> Option<Entity> {
+    match expr {
+        Expr::Const(_) => None,
+        Expr::Read { scope, .. } => Some(scope.entity),
+        Expr::Temporal(e) | Expr::Agg(_, e) | Expr::Qual(_, e) => value_entity(e),
+    }
+}
+
+fn predicate_entity(filter: &FilterExpr) -> Result<Entity, GraphError> {
+    let entity = match filter {
+        FilterExpr::Cmp { lhs, rhs, .. } | FilterExpr::Str { lhs, rhs, .. } => {
+            value_entity(lhs).or_else(|| value_entity(rhs))
+        }
+        FilterExpr::IsSome(e) | FilterExpr::IsNone(e) | FilterExpr::In { expr: e, .. } => {
+            value_entity(e)
+        }
+        FilterExpr::Structural { scope, .. } => Some(scope.entity),
+        _ => None,
+    };
+    entity.ok_or_else(|| invalid("a comparison needs an entity value on at least one side"))
+}
+
+impl FilterExpr {
+    /// This filter as the per-entity tree.
+    pub fn to_split(&self) -> Result<SplitFilter, GraphError> {
+        Ok(match self {
+            FilterExpr::View(ops) => SplitFilter::View(ops.clone()),
+            FilterExpr::And(items) => {
+                SplitFilter::And(items.iter().map(Self::to_split).collect::<Result<_, _>>()?)
+            }
+            FilterExpr::Or(items) => {
+                SplitFilter::Or(items.iter().map(Self::to_split).collect::<Result<_, _>>()?)
+            }
+            FilterExpr::Not(inner) => SplitFilter::Not(Box::new(inner.to_split()?)),
+            FilterExpr::Opaque(filter) => SplitFilter::Opaque(filter.clone()),
+            predicate => match predicate_entity(predicate)? {
+                Entity::Node => SplitFilter::Node(convert_predicate(predicate)?),
+                Entity::Edge => SplitFilter::Edge(convert_predicate(predicate)?),
+                Entity::ExplodedEdge => SplitFilter::ExplodedEdge(convert_predicate(predicate)?),
+            },
+        })
+    }
+
+    /// The erased, applicable form of this filter.
+    pub fn compile(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
+        self.to_split()?.compile()
     }
 }
 
 impl Expr {
-    /// The erased, compilable form of this value.
+    /// The erased, compilable form of this value. A qualifier written on the
+    /// value has no meaning without the comparison that follows it and is
+    /// left out here; the value it qualifies is what compiles.
     pub fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
-        Ok(self.compile_inner()?.op())
-    }
-
-    fn compile_inner(&self) -> Result<Compiled, GraphError> {
-        match self {
-            Expr::Const(value) => Ok(Compiled::Op(Arc::new(value.clone()))),
-            Expr::Read { scope, target } => match (scope.entity, scope.endpoint) {
-                (Entity::Node, Some(_)) => {
-                    Err(invalid("a node expression has no src()/dst() endpoint"))
-                }
-                (Entity::Node, None) => Ok(read_node(&node_factory(&scope.views), target)),
-                // An endpoint read is a node read, scoped by the same views,
-                // that the edge evaluates on the node at that end. It is an
-                // edge's read: an edge update has no endpoint wrapper of its own.
-                (Entity::ExplodedEdge, Some(_)) => {
-                    Err(invalid("an exploded edge has no src()/dst() endpoint"))
-                }
-                (Entity::Edge, Some(endpoint)) => {
-                    Ok(read_node(&node_factory(&scope.views), target).through(endpoint))
-                }
-                (entity, None) => {
-                    let f = edge_factory(entity, &scope.views);
-                    Ok(match target {
-                        Target::Property(name) => Compiled::Property(f.dyn_property(name.clone())),
-                        Target::Metadata(name) => Compiled::Op(f.dyn_metadata(name.clone())),
-                        Target::Field(_) | Target::Degree(_) => {
-                            return Err(invalid(
-                                "an edge has no fields or degree; read them through src() or dst()",
-                            ))
-                        }
-                    })
-                }
-            },
-            Expr::Temporal(inner) => match inner.compile_inner()? {
-                Compiled::Property(prop) => Ok(Compiled::Op(prop.temporal())),
-                Compiled::Op(_) => Err(invalid("temporal() applies to a property")),
-            },
-            Expr::Agg(agg, inner) => Ok(inner.compile_inner()?.map_op(|op| match agg {
-                Agg::Sum => Arc::new(op.sum()),
-                Agg::Avg => Arc::new(op.avg()),
-                Agg::Min => Arc::new(op.min()),
-                Agg::Max => Arc::new(op.max()),
-                Agg::First => Arc::new(op.first()),
-                Agg::Last => Arc::new(op.last()),
-                Agg::Len => Arc::new(op.len()),
-            })),
-            Expr::Qual(qual, inner) => Ok(inner.compile_inner()?.map_op(|op| match qual {
-                Qual::Any => Arc::new(op.any()),
-                Qual::All => Arc::new(op.all()),
-            })),
-        }
-    }
-}
-
-/// Compile a comparison whose right-hand side is either a constant or an
-/// expression; both go through the same typed method, a constant being the
-/// expression of its own value.
-macro_rules! binary {
-    ($lhs:expr, $rhs:expr, $method:ident $(, $arg:expr)*) => {{
-        let lhs = $lhs.compile()?;
-        let rhs: Arc<dyn DynCreateOp> = $rhs.compile()?;
-        let filter: Arc<dyn DynCreateFilter> = Arc::new(lhs.$method(rhs $(, $arg)*));
-        filter
-    }};
-}
-
-impl FilterExpr {
-    /// The erased, applicable form of this filter.
-    ///
-    /// A view (`View`) applies first: the graph is seen through it and the other
-    /// legs run inside it, reads included, the way `graph.window(..).filter(expr)`
-    /// does. A view therefore stands alone or is a leg of the top-level `and`
-    /// (nested `and`s count as top level); under `or` or `not` it has no meaning the
-    /// engine can give it and is refused.
-    pub fn compile(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-        let (views, predicates, saw_view) = self.split_top_views();
-        if saw_view && views.is_empty() {
-            return Err(invalid("a view filter needs at least one view"));
-        }
-        if views.is_empty() {
-            return self.compile_nested();
-        }
-        let inner: Arc<dyn DynCreateFilter> = if predicates.is_empty() {
-            Arc::new(GraphFilter)
-        } else {
-            combine(
-                predicates.iter().map(|p| p.compile_nested()),
-                "and",
-                |left, right| Arc::new(AndFilter { left, right }),
-            )?
-        };
-        Ok(Arc::new(Viewed { views, inner }))
-    }
-
-    /// The view ops at the top of the filter, in order, and the predicates beside
-    /// them. `and` nests flatten; anything else is a predicate. The flag says whether
-    /// a `View` node was seen at all, so an empty one can be told from none.
-    fn split_top_views(&self) -> (Vec<ViewOp>, Vec<&FilterExpr>, bool) {
-        fn walk<'a>(
-            filter: &'a FilterExpr,
-            views: &mut Vec<ViewOp>,
-            predicates: &mut Vec<&'a FilterExpr>,
-            saw_view: &mut bool,
-        ) {
-            match filter {
-                FilterExpr::View(ops) => {
-                    *saw_view = true;
-                    views.extend(ops.iter().cloned());
-                }
-                FilterExpr::And(items) => {
-                    for item in items {
-                        walk(item, views, predicates, saw_view);
-                    }
-                }
-                other => predicates.push(other),
+        let mut quals = Vec::new();
+        match value_entity(self).unwrap_or(Entity::Node) {
+            Entity::Node => convert_value::<NodeLeaf>(self, &mut quals)?.compile_value(),
+            Entity::Edge => convert_value::<EdgeLeaf>(self, &mut quals)?.compile_value(),
+            Entity::ExplodedEdge => {
+                convert_value::<ExplodedEdgeLeaf>(self, &mut quals)?.compile_value()
             }
         }
-        let (mut views, mut predicates, mut saw_view) = (Vec::new(), Vec::new(), false);
-        walk(self, &mut views, &mut predicates, &mut saw_view);
-        (views, predicates, saw_view)
     }
-
-    /// A filter below the top level: every node but a view.
-    fn compile_nested(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-        Ok(match self {
-            FilterExpr::Cmp { op, lhs, rhs } => match op {
-                CmpOp::Eq => binary!(lhs, rhs, eq),
-                CmpOp::Ne => binary!(lhs, rhs, ne),
-                CmpOp::Lt => binary!(lhs, rhs, lt),
-                CmpOp::Le => binary!(lhs, rhs, le),
-                CmpOp::Gt => binary!(lhs, rhs, gt),
-                CmpOp::Ge => binary!(lhs, rhs, ge),
-            },
-            FilterExpr::Str { op, lhs, rhs } => match op {
-                StrOp::StartsWith => binary!(lhs, rhs, starts_with),
-                StrOp::EndsWith => binary!(lhs, rhs, ends_with),
-                StrOp::Contains => binary!(lhs, rhs, contains),
-                StrOp::NotContains => binary!(lhs, rhs, not_contains),
-                StrOp::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => binary!(lhs, rhs, fuzzy_search, *levenshtein_distance, *prefix_match),
-            },
-            FilterExpr::IsSome(expr) => Arc::new(expr.compile()?.is_some()),
-            FilterExpr::IsNone(expr) => Arc::new(expr.compile()?.is_none()),
-            FilterExpr::In {
-                expr,
-                values,
-                negated,
-            } => {
-                let lhs = expr.compile()?;
-                if *negated {
-                    Arc::new(lhs.is_not_in(values.clone()))
-                } else {
-                    Arc::new(lhs.is_in(values.clone()))
-                }
-            }
-            FilterExpr::Structural { scope, pred } => {
-                // Through an endpoint, the predicate is a node predicate
-                // evaluated on the node at that end of the edge.
-                if let Some(endpoint) = scope.endpoint {
-                    if scope.entity == Entity::Node {
-                        return Err(invalid("a node has no src()/dst() endpoint"));
-                    }
-                    if scope.entity == Entity::ExplodedEdge {
-                        return Err(invalid("an exploded edge has no src()/dst() endpoint"));
-                    }
-                    if *pred != Structural::IsActive {
-                        return Err(invalid(format!("{pred} is an edge predicate")));
-                    }
-                    return Ok(Arc::new(EdgeEndpointNodeFilter {
-                        endpoint,
-                        inner: node_factory(&scope.views).dyn_is_active(),
-                    }));
-                }
-                match (scope.entity, pred) {
-                    (Entity::Node, Structural::IsActive) => {
-                        node_factory(&scope.views).dyn_is_active()
-                    }
-                    (Entity::Node, other) => {
-                        return Err(invalid(format!("{other} is an edge predicate")))
-                    }
-                    (entity, pred) => {
-                        let f = edge_factory(entity, &scope.views);
-                        match pred {
-                            Structural::IsActive => f.dyn_is_active(),
-                            Structural::IsValid => f.dyn_is_valid(),
-                            Structural::IsDeleted => f.dyn_is_deleted(),
-                            Structural::IsSelfLoop => f.dyn_is_self_loop(),
-                        }
-                    }
-                }
-            }
-            FilterExpr::View(_) => {
-                return Err(invalid(
-                    "a view applies to the whole filter: use it alone or as a leg of the \
-                     top-level `and`, not under `or` or `not`",
-                ))
-            }
-            FilterExpr::And(items) => combine(
-                items.iter().map(Self::compile_nested),
-                "and",
-                |left, right| Arc::new(AndFilter { left, right }),
-            )?,
-            FilterExpr::Or(items) => combine(
-                items.iter().map(Self::compile_nested),
-                "or",
-                |left, right| Arc::new(OrFilter { left, right }),
-            )?,
-            FilterExpr::Not(inner) => Arc::new(NotFilter(inner.compile_nested()?)),
-            FilterExpr::Opaque(filter) => filter.0.clone(),
-        })
-    }
-}
-
-/// The graph-level view a chain of view ops describes, applied in order.
-fn compile_view(views: &[ViewOp]) -> DynView {
-    let mut v: DynView = Arc::new(GraphFilter);
-    for op in views {
-        v = match op {
-            ViewOp::Window { start, end } => v.window(*start, *end),
-            ViewOp::At(t) => v.at(*t),
-            ViewOp::After(t) => v.after(*t),
-            ViewOp::Before(t) => v.before(*t),
-            ViewOp::Latest => Arc::new(v.latest()),
-            ViewOp::SnapshotAt(t) => Arc::new(v.snapshot_at(*t)),
-            ViewOp::SnapshotLatest => Arc::new(v.snapshot_latest()),
-            ViewOp::Layers(names) => Arc::new(v.layer(Layer::from(names.clone()))),
-        };
-    }
-    v
-}
-
-/// A filter applied inside a view: the graph is seen through `views` first and
-/// `inner` runs on that graph, reads included, so `and: [view, pred]` is
-/// `graph.view(..).filter(pred)`.
-#[derive(Clone)]
-struct Viewed {
-    views: Vec<ViewOp>,
-    inner: Arc<dyn DynCreateFilter>,
-}
-
-impl Viewed {
-    fn view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        compile_view(&self.views).dyn_filter_graph_view(Arc::new(graph))
-    }
-}
-
-impl CreateFilter for Viewed {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph;
-
-    type FilteredGraph<'graph, G>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let viewed = self.view(graph)?;
-        self.inner.create_dyn_filter(viewed, Arc::new(filtered))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        let viewed = self.view(graph)?;
-        self.inner
-            .create_dyn_node_filter(viewed, Arc::new(filtered))
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        let viewed = self.view(graph)?;
-        self.inner.dyn_filter_graph_view(viewed)
-    }
-}
-
-/// Fold compiled operands pairwise, left to right. An empty list has no
-/// meaning either way (`and` of nothing is not "everything", `or` of nothing
-/// is not "nothing" the caller asked for), so it is refused.
-fn combine(
-    mut compiled: impl Iterator<Item = Result<Arc<dyn DynCreateFilter>, GraphError>>,
-    name: &str,
-    join: impl Fn(Arc<dyn DynCreateFilter>, Arc<dyn DynCreateFilter>) -> Arc<dyn DynCreateFilter>,
-) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-    let first = compiled
-        .next()
-        .ok_or_else(|| invalid(format!("`{name}` needs at least one operand")))??;
-    compiled.try_fold(first, |acc, next| Ok(join(acc, next?)))
 }
 
 /// A tree is a filter in its own right: applying it compiles it first.
@@ -910,7 +822,10 @@ mod tests {
                 EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
             },
         },
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS},
+        prelude::{
+            AdditionOps, EdgeViewOps, EntityAggOps, EntityExprFilterOps, Graph, GraphViewOps,
+            NodeViewOps, TimeOps, NO_PROPS,
+        },
     };
     use raphtory_api::core::entities::properties::prop::IntoProp;
 

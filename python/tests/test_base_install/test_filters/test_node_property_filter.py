@@ -793,7 +793,7 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
             filter_expr = filter.Node.property("prop8").any() == value
             with pytest.raises(
                 Exception,
-                match=r"of type Str cannot be compared with I64",
+                match=r"of type Str cannot be compared with List<I64>",
             ):
                 graph.filter(filter_expr).nodes.id
 
@@ -803,9 +803,12 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
-        # Elementwise presence with a qualifier collapse: list elements are
-        # always present, so this matches every node carrying the property.
+        # Presence is a whole-value question; a qualifier has nothing to
+        # collapse on a single yes/no.
         filter_expr = filter.Node.property("prop8").any().is_some()
+        with pytest.raises(Exception, match=r"any\(\)/all\(\) collapse"):
+            graph.filter(filter_expr).nodes.id
+        filter_expr = filter.Node.property("prop8").is_some()
         assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
 
     return check
@@ -817,14 +820,14 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
         filter_expr = filter.Node.property("prop8").all().len() > 0
         with pytest.raises(
             Exception,
-            match=r"len\(\) is not valid on a scalar expression",
+            match=r"any\(\)/all\(\) collapse",
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop8").sum().any() > 0
         with pytest.raises(
             Exception,
-            match=r"any\(\)/all\(\) require list or temporal values",
+            match=r"any\(\)/all\(\) collapse",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1139,7 +1142,7 @@ def test_filter_nodes_for_temporal_property_ne():
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() == 60
-        msg = r"value I64\(60\) of type I64 cannot be compared with List"
+        msg = r"one answer per element"
         with pytest.raises(
             Exception,
             match=msg,
@@ -1191,7 +1194,7 @@ def test_filter_nodes_window_out_of_range_is_empty():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|cannot be compared with List",
+            match=r"not valid for list properties|one answer per element",
         ):
             graph.filter(expr).nodes.id
 
@@ -1251,7 +1254,7 @@ def test_filter_nodes_after():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|cannot be compared with List",
+            match=r"not valid for list properties|one answer per element",
         ):
             graph.filter(expr).nodes.id
 
@@ -1272,7 +1275,7 @@ def test_filter_nodes_latest():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|cannot be compared with List",
+            match=r"not valid for list properties|one answer per element",
         ):
             graph.filter(expr).nodes.id
 
@@ -1295,7 +1298,7 @@ def test_filter_nodes_snapshot_at():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|cannot be compared with List",
+            match=r"not valid for list properties|one answer per element",
         ):
             graph.filter(expr).nodes.id
 
@@ -1316,7 +1319,7 @@ def test_filter_nodes_snapshot_latest():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|cannot be compared with List",
+            match=r"not valid for list properties|one answer per element",
         ):
             graph.filter(expr).nodes.id
 

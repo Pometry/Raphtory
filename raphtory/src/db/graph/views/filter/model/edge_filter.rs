@@ -1,37 +1,25 @@
 use crate::{
     db::{
-        api::{
-            state::ops::{NodeOp, NotANodeFilter},
-            view::internal::GraphView,
-        },
-        graph::views::filter::{
-            edge_expr_filtered_graph::EdgeExprFilteredGraph,
-            edge_node_filtered_graph::EdgeNodeFilteredGraph,
-            model::{
-                edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
-                is_active_edge_filter::IsActiveEdge,
-                is_deleted_filter::IsDeletedEdge,
-                is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge,
-                latest_filter::Latest,
-                layered_filter::Layered,
-                node_expr::{CreateOp, EntityExpr, PredicateLhs},
-                node_filter::NodeFilter,
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
-                CombinedFilter, ComposableFilter, DynFilter, EdgeViewFilterOps, EntityMarker,
-                InternalViewWrapOps, Wrap,
-            },
-            CreateFilter,
+        api::view::internal::GraphView,
+        graph::views::filter::model::{
+            edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
+            is_active_edge_filter::IsActiveEdge,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            latest_filter::Latest,
+            layered_filter::Layered,
+            node_expr::{CreateOp, EntityExpr, PredicateLhs},
+            node_filter::NodeFilter,
+            snapshot_filter::{SnapshotAt, SnapshotLatest},
+            windowed_filter::Windowed,
+            CombinedFilter, ComposableFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
+            Wrap,
         },
     },
     errors::GraphError,
 };
-use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop},
-    storage::timeindex::EventTime,
-};
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use serde::{Deserialize, Serialize};
 use std::{fmt, fmt::Display, sync::Arc};
 
@@ -182,127 +170,6 @@ impl<M> Wrap for EdgeEndpointWrapper<M> {
 }
 
 impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: Clone + Send + Sync {}
-
-impl<T: CreateFilter + Clone + 'static> CreateFilter for EdgeEndpointWrapper<T> {
-    type EntityFiltered<'graph, G, F>
-        = EdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type NodeFilter<'graph, G, F>
-        = NotANodeFilter
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = T::FilteredGraph<'graph, G>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let filter = self.inner.create_node_filter(graph.clone(), filtered)?;
-        Ok(EdgeNodeFilteredGraph::new(graph, self.endpoint, filter))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        _filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner.filter_graph_view(graph)
-    }
-}
-
-// ── expr layer: a full node filter evaluated on an edge endpoint ──
-
-/// Evaluates an erased node filter against the src or dst node of each edge.
-///
-/// Carries whatever the nested filter is (combinators, views, property
-/// conditions) by compiling it to a boolean node op and applying that to the
-/// endpoint's VID at evaluation time.
-#[derive(Clone)]
-pub struct EdgeEndpointNodeFilter {
-    pub endpoint: Endpoint,
-    pub inner: DynFilter,
-}
-
-#[derive(Clone)]
-struct EndpointNodeBoolOp<'g> {
-    endpoint: Endpoint,
-    node_op: Arc<dyn NodeOp<Output = bool> + 'g>,
-}
-
-impl<'g> EdgeOp for EndpointNodeBoolOp<'g> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
-        let vid = match self.endpoint {
-            Endpoint::Src => edge.src(),
-            Endpoint::Dst => edge.dst(),
-        };
-        self.node_op.apply(storage, vid)
-    }
-}
-
-impl CreateFilter for EdgeEndpointNodeFilter {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        EdgeExprFilteredGraph<G, Arc<dyn EdgeOp<Output = bool> + 'graph>>;
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NotANodeFilter;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let node_op = self
-            .inner
-            .create_dyn_node_filter(Arc::new(graph.clone()), Arc::new(filtered))?;
-        let op: Arc<dyn EdgeOp<Output = bool> + 'graph> = Arc::new(EndpointNodeBoolOp {
-            endpoint: self.endpoint,
-            node_op,
-        });
-        Ok(EdgeExprFilteredGraph::new(graph, op))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        _filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
-}
-
-impl ComposableFilter for EdgeEndpointNodeFilter {}
 
 // ── expr layer: endpoint expressions bridge node ops into edge ops ──
 

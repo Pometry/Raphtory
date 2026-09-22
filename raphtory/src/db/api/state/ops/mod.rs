@@ -3,12 +3,9 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::db::{
-    api::{
-        state::ops::filter::{AndOp, NotOp, OrOp},
-        view::internal::NodeList,
-    },
-    graph::views::filter::model::{node_expr::BinaryCmpNodeOp, BinaryOp, Comparable},
+use crate::db::api::{
+    state::ops::filter::{AndOp, NotOp, OrOp},
+    view::internal::NodeList,
 };
 pub use history::*;
 pub use node::*;
@@ -18,7 +15,6 @@ use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
-// this probably needs the 'graph lifetime to make bin_cmp work with ops that capture the graph
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
@@ -48,23 +44,6 @@ pub trait NodeOp: Send + Sync {
         Self: Sized,
     {
         Map { op: self, map }
-    }
-
-    /// Override if binary comparison can be optimized
-    fn bin_cmp(
-        &self,
-        op: BinaryOp,
-        rhs: Arc<dyn NodeOp<Output = Self::Output>>,
-    ) -> Arc<dyn NodeOp<Output = bool>>
-    where
-        Self: Clone + 'static,
-        Self::Output: Comparable,
-    {
-        Arc::new(BinaryCmpNodeOp {
-            left: Arc::new(self.clone()),
-            right: rhs,
-            op,
-        })
     }
 }
 

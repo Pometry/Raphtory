@@ -511,15 +511,15 @@ def test_all_property_types(GraphClass):
         # Lists (tags) — odd comparisons
         (
             lambda: filter.ExplodedEdge.property("tags").contains("team_a"),
-            "string operator requires a Str property",
+            "one answer per element",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags").not_contains("team_z"),
-            "string operator requires a Str property",
+            "one answer per element",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags").fuzzy_search("blah", 2, False),
-            "string operator requires a Str property",
+            "one answer per element",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") < ["x"],
@@ -720,19 +720,19 @@ def test_all_property_types(GraphClass):
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") < 3,
-            "not valid for list properties",
+            "cannot be compared with List",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") > 1,
-            "not valid for list properties",
+            "cannot be compared with List",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") <= 2,
-            "not valid for list properties",
+            "cannot be compared with List",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") >= 3,
-            "not valid for list properties",
+            "cannot be compared with List",
         ),
         (
             lambda: filter.ExplodedEdge.property("tags").contains(2),
@@ -753,19 +753,19 @@ def test_all_property_types(GraphClass):
         ),
         (
             lambda: filter.ExplodedEdge.property("meta") < 3,
-            "not valid for map properties",
+            "cannot be compared with Map",
         ),
         (
             lambda: filter.ExplodedEdge.property("meta") > 1,
-            "not valid for map properties",
+            "cannot be compared with Map",
         ),
         (
             lambda: filter.ExplodedEdge.property("meta") <= 2,
-            "not valid for map properties",
+            "cannot be compared with Map",
         ),
         (
             lambda: filter.ExplodedEdge.property("meta") >= 3,
-            "not valid for map properties",
+            "cannot be compared with Map",
         ),
         (
             lambda: filter.ExplodedEdge.property("meta").contains(2),
@@ -860,8 +860,8 @@ def test_temporal_constant(GraphClass):
         (filter.ExplodedEdge.property("weight").temporal().any() >= 3, 2),
         (filter.ExplodedEdge.property("weight").temporal().any().is_in([1, 2]), 4),
         (filter.ExplodedEdge.property("weight").temporal().any().is_not_in([3]), 4),
-        (filter.ExplodedEdge.property("weight").temporal().any().is_some(), 6),
-        (filter.ExplodedEdge.property("weight").temporal().any().is_none(), 0),
+        (filter.ExplodedEdge.property("weight").temporal().is_some(), 6),
+        (filter.ExplodedEdge.property("weight").temporal().is_none(), 0),
         (filter.ExplodedEdge.property("weight").temporal().last() == 2, 2),
         (filter.ExplodedEdge.property("weight").temporal().last() != 3, 4),
         (filter.ExplodedEdge.property("weight").temporal().last() < 3, 4),

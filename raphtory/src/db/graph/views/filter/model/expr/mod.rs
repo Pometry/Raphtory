@@ -22,12 +22,14 @@
 //! graph, in [`compile`].
 
 mod compile;
+pub mod convert;
 mod display;
 #[cfg(test)]
 mod tests;
 
 pub use super::tree::{Agg, CmpOp, Field, OpaqueFilter, StrOp, ViewOp, OPAQUE_FILTER_ERROR};
 pub use compile::Leaf;
+pub use convert::{FactoryLeaf, MarkerLeaf, ToExpr, ToFilterExpr};
 
 use raphtory_api::core::{entities::properties::prop::Prop, Direction};
 use serde::{Deserialize, Serialize};
