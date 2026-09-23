@@ -32,7 +32,7 @@ use raphtory::{
                     self, Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, Leaf, NodeLeaf,
                     StrOp, ViewOp, OPAQUE_FILTER_ERROR,
                 },
-                tree, DynFilter,
+                DynFilter,
             },
             CreateFilter,
         },
@@ -762,15 +762,6 @@ impl TryFrom<expr::FilterExpr> for GqlFilter {
     }
 }
 
-/// The tree python objects still hold, until they move to the per-entity one.
-impl TryFrom<tree::FilterExpr> for GqlFilter {
-    type Error = GraphError;
-
-    fn try_from(filter: tree::FilterExpr) -> Result<Self, Self::Error> {
-        GqlFilter::try_from(&filter.to_split()?)
-    }
-}
-
 /// The compiled filter, for callers that apply one filter to several handles.
 impl TryFrom<GqlFilter> for DynFilter {
     type Error = GraphError;
@@ -936,28 +927,5 @@ mod tests {
         let opaque = F::Opaque(expr::OpaqueFilter(compiled));
         let err = GqlFilter::try_from(&opaque).unwrap_err();
         assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
-    }
-
-    #[test]
-    fn the_python_tree_still_crosses_the_wire() {
-        let old = tree::FilterExpr::Cmp {
-            op: CmpOp::Eq,
-            lhs: tree::Expr::Qual(
-                tree::Qual::Any,
-                Box::new(tree::Expr::Temporal(Box::new(tree::Expr::Read {
-                    scope: tree::Scope::new(tree::Entity::Node),
-                    target: tree::Target::Property("p".into()),
-                }))),
-            ),
-            rhs: tree::Expr::Const(Prop::I64(1)),
-        };
-        let wire = GqlFilter::try_from(old).unwrap();
-        assert_eq!(
-            serde_json::to_value(&wire).unwrap(),
-            serde_json::json!({ "node": { "any": { "eq": {
-                "lhs": { "temporalProperty": "p" },
-                "rhs": { "const": { "i64": 1 } }
-            } } } })
-        );
     }
 }

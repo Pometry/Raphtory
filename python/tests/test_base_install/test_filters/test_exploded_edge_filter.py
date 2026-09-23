@@ -852,14 +852,14 @@ def test_temporal_constant(GraphClass):
 
     # Temporal shoudl act exactly the same as non-temporal
     test_cases = [
-        (filter.ExplodedEdge.property("weight").temporal().any() == 2, 2),
-        (filter.ExplodedEdge.property("weight").temporal().any() != 3, 4),
-        (filter.ExplodedEdge.property("weight").temporal().any() < 3, 4),
-        (filter.ExplodedEdge.property("weight").temporal().any() > 1, 4),
-        (filter.ExplodedEdge.property("weight").temporal().any() <= 2, 4),
-        (filter.ExplodedEdge.property("weight").temporal().any() >= 3, 2),
-        (filter.ExplodedEdge.property("weight").temporal().any().is_in([1, 2]), 4),
-        (filter.ExplodedEdge.property("weight").temporal().any().is_not_in([3]), 4),
+        ((filter.ExplodedEdge.property("weight").temporal() == 2).any(), 2),
+        ((filter.ExplodedEdge.property("weight").temporal() != 3).any(), 4),
+        ((filter.ExplodedEdge.property("weight").temporal() < 3).any(), 4),
+        ((filter.ExplodedEdge.property("weight").temporal() > 1).any(), 4),
+        ((filter.ExplodedEdge.property("weight").temporal() <= 2).any(), 4),
+        ((filter.ExplodedEdge.property("weight").temporal() >= 3).any(), 2),
+        ((filter.ExplodedEdge.property("weight").temporal().is_in([1, 2])).any(), 4),
+        ((filter.ExplodedEdge.property("weight").temporal().is_not_in([3])).any(), 4),
         (filter.ExplodedEdge.property("weight").temporal().is_some(), 6),
         (filter.ExplodedEdge.property("weight").temporal().is_none(), 0),
         (filter.ExplodedEdge.property("weight").temporal().last() == 2, 2),

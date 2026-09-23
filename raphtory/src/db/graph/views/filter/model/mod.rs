@@ -86,7 +86,6 @@ pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
-pub mod tree;
 pub mod windowed_filter;
 
 #[derive(Debug, Copy, Clone)]

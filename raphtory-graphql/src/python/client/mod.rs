@@ -7,7 +7,7 @@ use crate::{
 };
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory::{
-    db::graph::views::filter::model::tree::FilterExpr, errors::GraphError,
+    db::graph::views::filter::model::expr::FilterExpr, errors::GraphError,
     python::filter::filter_expr::PyFilterExpr,
 };
 use raphtory_api::{

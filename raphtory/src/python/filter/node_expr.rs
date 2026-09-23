@@ -1,20 +1,24 @@
 use crate::{
     db::graph::views::filter::model::{
-        node_state_filter::NodeStateBoolColOp,
-        tree::{
-            Agg, CmpOp, Entity, Expr, Field, FilterExpr, OpaqueFilter, Qual, Scope, StrOp,
-            Structural, Target, ViewOp,
+        expr::{
+            Agg, CmpOp, EdgeExpr, ExplodedEdgeExpr, Expr, Field, FilterExpr, Leaf, NodeExpr,
+            NodeLeaf, OpaqueFilter, StrOp, ViewOp,
         },
+        node_expr::DynCreateOp,
+        node_state_filter::NodeStateBoolColOp,
         validate_const_comparable,
     },
+    errors::GraphError,
     python::{
-        filter::filter_expr::PyFilterExpr, graph::node_state::PyOutputNodeState,
+        filter::filter_expr::{no_view, ExprOrFilter, PyFilterExpr},
+        graph::node_state::PyOutputNodeState,
         types::iterable::FromIterable,
     },
 };
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
-    pyclass, pymethods, Bound, FromPyObject, IntoPyObject, PyErr, PyResult, Python,
+    prelude::*,
+    IntoPyObjectExt,
 };
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType},
@@ -23,9 +27,103 @@ use raphtory_api::core::{
 };
 use std::sync::Arc;
 
-/// A value expression: a field, degree, property, metadata entry or an
-/// aggregate over one. Comparing it to a value or to another expression gives
-/// a [`FilterExpr`].
+/// An expression over one kind of entity. Which kind is fixed by where the
+/// chain started (`filter.Node`, `filter.Edge`, `filter.ExplodedEdge`), so
+/// the tree it holds is the entity's own.
+#[derive(Clone)]
+pub(crate) enum Typed {
+    Node(NodeExpr),
+    Edge(EdgeExpr),
+    ExplodedEdge(ExplodedEdgeExpr),
+}
+
+/// The same construction on the expression, whatever its entity.
+macro_rules! map_typed {
+    ($typed:expr, |$e:ident| $body:expr) => {
+        match $typed {
+            Typed::Node($e) => Typed::Node($body),
+            Typed::Edge($e) => Typed::Edge($body),
+            Typed::ExplodedEdge($e) => Typed::ExplodedEdge($body),
+        }
+    };
+}
+
+/// A construction over two expressions of the same entity; a mix is refused.
+macro_rules! zip_typed {
+    ($a:expr, $b:expr, |$l:ident, $r:ident| $body:expr) => {
+        match ($a, $b) {
+            (Typed::Node($l), Typed::Node($r)) => Ok(Typed::Node($body)),
+            (Typed::Edge($l), Typed::Edge($r)) => Ok(Typed::Edge($body)),
+            (Typed::ExplodedEdge($l), Typed::ExplodedEdge($r)) => Ok(Typed::ExplodedEdge($body)),
+            (a, b) => Err(mixed(&a, &b)),
+        }
+    };
+}
+
+fn mixed(a: &Typed, b: &Typed) -> PyErr {
+    PyTypeError::new_err(format!(
+        "cannot combine {} expression with {} expression",
+        a.entity(),
+        b.entity()
+    ))
+}
+
+impl Typed {
+    fn entity(&self) -> &'static str {
+        match self {
+            Typed::Node(_) => "a node",
+            Typed::Edge(_) => "an edge",
+            Typed::ExplodedEdge(_) => "an exploded edge",
+        }
+    }
+
+    /// The compiled value, for its statically known type and nullability.
+    fn compile_value(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
+        match self {
+            Typed::Node(e) => e.compile_value(),
+            Typed::Edge(e) => e.compile_value(),
+            Typed::ExplodedEdge(e) => e.compile_value(),
+        }
+    }
+
+    /// A constant standing on the other side of this expression.
+    fn constant(&self, value: Prop) -> Typed {
+        match self {
+            Typed::Node(_) => Typed::Node(Expr::Const(value)),
+            Typed::Edge(_) => Typed::Edge(Expr::Const(value)),
+            Typed::ExplodedEdge(_) => Typed::ExplodedEdge(Expr::Const(value)),
+        }
+    }
+
+    /// The filter this yes/no expression is, on its entity.
+    pub(crate) fn into_filter(self) -> FilterExpr {
+        match self {
+            Typed::Node(e) => NodeLeaf::filter(e),
+            Typed::Edge(e) => <Expr<_> as Into<FilterExpr>>::into(e),
+            Typed::ExplodedEdge(e) => FilterExpr::ExplodedEdge(e),
+        }
+    }
+}
+
+impl From<EdgeExpr> for FilterExpr {
+    fn from(e: EdgeExpr) -> Self {
+        FilterExpr::Edge(e)
+    }
+}
+
+impl std::fmt::Display for Typed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Typed::Node(e) => e.fmt(f),
+            Typed::Edge(e) => e.fmt(f),
+            Typed::ExplodedEdge(e) => e.fmt(f),
+        }
+    }
+}
+
+/// A value expression: a field, degree, property, metadata entry, an aggregate
+/// over one, or a yes/no built from them. Comparing it to a value or to another
+/// expression gives a yes/no [`Expr`], which is a filter on its entity.
 #[pyclass(
     frozen,
     subclass,
@@ -34,7 +132,7 @@ use std::sync::Arc;
     from_py_object
 )]
 #[derive(Clone)]
-pub struct PyExpr(pub(crate) Expr);
+pub struct PyExpr(pub(crate) Typed);
 
 /// A property read, which can switch to the property's history with `temporal()`.
 #[pyclass(
@@ -45,7 +143,20 @@ pub struct PyExpr(pub(crate) Expr);
     from_py_object
 )]
 #[derive(Clone)]
-pub struct PyPropertyExpr(pub(crate) Expr);
+pub struct PyPropertyExpr {
+    latest: Typed,
+    history: Typed,
+}
+
+impl PyPropertyExpr {
+    /// Both readings of the property, built by `read(temporal)`.
+    pub(crate) fn new(read: impl Fn(bool) -> Typed) -> Self {
+        PyPropertyExpr {
+            latest: read(false),
+            history: read(true),
+        }
+    }
+}
 
 impl<'py> IntoPyObject<'py> for PyPropertyExpr {
     type Target = PyPropertyExpr;
@@ -53,7 +164,7 @@ impl<'py> IntoPyObject<'py> for PyPropertyExpr {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let parent = PyExpr(self.0.clone());
+        let parent = PyExpr(self.latest.clone());
         Bound::new(py, (self, parent))
     }
 }
@@ -68,19 +179,20 @@ enum ExprOrValue {
 
 /// Values are checked against the expression's statically known type at the
 /// comparison itself, so a mistyped literal fails where it is written instead
-/// of at some later `filter()` call. Unknown types defer to filter time.
-fn static_type(lhs: &Expr) -> PyResult<PropType> {
-    Ok(lhs.compile()?.dyn_prop_type())
+/// of at some later `filter()` call. Unknown types defer to filter time. The
+/// check is the engine's own; python only asks it early.
+fn static_type(lhs: &Typed) -> PyResult<PropType> {
+    Ok(lhs.compile_value()?.dyn_prop_type())
 }
 
-fn check_value(lhs: &Expr, v: &Prop) -> PyResult<()> {
+fn check_value(lhs: &Typed, v: &Prop) -> PyResult<()> {
     validate_const_comparable(&static_type(lhs)?, Some(v))
         .map_err(|e| PyTypeError::new_err(e.to_string()))
 }
 
 /// Presence tests only mean something on an expression that can be missing.
-fn check_nullable(lhs: &Expr, op: &str) -> PyResult<()> {
-    if !lhs.compile()?.dyn_nullable() {
+fn check_nullable(lhs: &Typed, op: &str) -> PyResult<()> {
+    if !lhs.compile_value()?.dyn_nullable() {
         return Err(PyTypeError::new_err(format!(
             "{op}() is not valid on an expression that always has a value"
         )));
@@ -94,155 +206,248 @@ fn check_str_value(v: &Prop) -> PyResult<()> {
         .map_err(|e| PyTypeError::new_err(e.to_string()))
 }
 
-/// The right-hand side of a comparison, with a constant checked against the lhs.
-fn compared(lhs: &Expr, other: ExprOrValue) -> PyResult<Expr> {
-    Ok(match other {
-        ExprOrValue::Expr(e) => e.0,
-        ExprOrValue::Value(v) => {
-            check_value(lhs, &v)?;
-            Expr::Const(v)
-        }
-    })
-}
-
-/// The right-hand side of a string operator.
-fn string_operand(lhs: &Expr, other: ExprOrValue, typed: bool) -> PyResult<Expr> {
-    Ok(match other {
-        ExprOrValue::Expr(e) => e.0,
-        ExprOrValue::Value(v) => {
-            check_str_value(&v)?;
-            if typed {
-                check_value(lhs, &v)?;
+impl PyExpr {
+    fn compare(&self, op: CmpOp, other: ExprOrValue) -> PyResult<PyExpr> {
+        let rhs = match other {
+            ExprOrValue::Expr(e) => e.0,
+            ExprOrValue::Value(v) => {
+                check_value(&self.0, &v)?;
+                self.0.constant(v)
             }
-            Expr::Const(v)
+        };
+        Ok(PyExpr(zip_typed!(self.0.clone(), rhs, |l, r| Expr::Cmp(
+            op,
+            Box::new(l),
+            Box::new(r)
+        ))?))
+    }
+
+    fn string_op(&self, op: StrOp, other: ExprOrValue) -> PyResult<PyExpr> {
+        let rhs = match other {
+            ExprOrValue::Expr(e) => e.0,
+            ExprOrValue::Value(v) => {
+                check_str_value(&v)?;
+                self.0.constant(v)
+            }
+        };
+        Ok(PyExpr(zip_typed!(self.0.clone(), rhs, |l, r| Expr::Str(
+            op.clone(),
+            Box::new(l),
+            Box::new(r)
+        ))?))
+    }
+
+    fn membership(&self, values: FromIterable<Prop>, negated: bool) -> PyExpr {
+        let values: Vec<Prop> = values.into();
+        PyExpr(map_typed!(self.0.clone(), |e| Expr::In {
+            expr: Box::new(e),
+            values: values.clone(),
+            negated,
+        }))
+    }
+
+    fn presence(&self, none: bool, name: &str) -> PyResult<PyExpr> {
+        check_nullable(&self.0, name)?;
+        Ok(PyExpr(map_typed!(self.0.clone(), |e| if none {
+            Expr::IsNone(Box::new(e))
+        } else {
+            Expr::IsSome(Box::new(e))
+        })))
+    }
+
+    fn agg(&self, agg: Agg) -> PyExpr {
+        PyExpr(map_typed!(self.0.clone(), |e| Expr::Agg(agg, Box::new(e))))
+    }
+
+    /// `&` / `|` with another expression of the same entity stays an
+    /// expression; with a filter, or across entities, it is a filter.
+    fn combine<'py>(
+        &self,
+        py: Python<'py>,
+        other: ExprOrFilter,
+        all: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if let ExprOrFilter::Expr(other) = &other {
+            let joined = zip_typed!(self.0.clone(), other.0.clone(), |l, r| if all {
+                Expr::And(vec![l, r])
+            } else {
+                Expr::Or(vec![l, r])
+            });
+            if let Ok(joined) = joined {
+                return PyExpr(joined).into_bound_py_any(py);
+            }
         }
-    })
+        let other = other.into_filter();
+        let mine = self.0.clone().into_filter();
+        let filter = if all {
+            FilterExpr::And(vec![mine, other])
+        } else {
+            no_view(&other)?;
+            FilterExpr::Or(vec![mine, other])
+        };
+        PyFilterExpr(filter).into_bound_py_any(py)
+    }
 }
 
 #[pymethods]
 impl PyExpr {
-    fn __eq__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Cmp {
-            op: CmpOp::Eq,
-            lhs: self.0.clone(),
-            rhs: compared(&self.0, other)?,
-        }))
-    }
-    fn __ne__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Cmp {
-            op: CmpOp::Ne,
-            lhs: self.0.clone(),
-            rhs: compared(&self.0, other)?,
-        }))
-    }
-    fn __lt__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Cmp {
-            op: CmpOp::Lt,
-            lhs: self.0.clone(),
-            rhs: compared(&self.0, other)?,
-        }))
-    }
-    fn __le__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Cmp {
-            op: CmpOp::Le,
-            lhs: self.0.clone(),
-            rhs: compared(&self.0, other)?,
-        }))
-    }
-    fn __gt__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Cmp {
-            op: CmpOp::Gt,
-            lhs: self.0.clone(),
-            rhs: compared(&self.0, other)?,
-        }))
-    }
-    fn __ge__(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Cmp {
-            op: CmpOp::Ge,
-            lhs: self.0.clone(),
-            rhs: compared(&self.0, other)?,
-        }))
+    fn __eq__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Eq, other)
     }
 
-    /// Checks whether the value's string representation starts with the given value.
-    ///
-    /// Arguments:
-    ///     other (Prop | filter.Expr): Prefix to check for.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn starts_with(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Str {
-            op: StrOp::StartsWith,
-            lhs: self.0.clone(),
-            rhs: string_operand(&self.0, other, true)?,
-        }))
+    fn __ne__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Ne, other)
     }
-    /// Checks whether the value's string representation ends with the given value.
-    ///
-    /// Arguments:
-    ///     other (Prop | filter.Expr): Suffix to check for.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn ends_with(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Str {
-            op: StrOp::EndsWith,
-            lhs: self.0.clone(),
-            rhs: string_operand(&self.0, other, true)?,
-        }))
+
+    fn __lt__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Lt, other)
     }
-    /// Checks whether the value's string representation contains the given value.
-    ///
-    /// Arguments:
-    ///     other (Prop | filter.Expr): Substring that must appear within the value.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn contains(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Str {
-            op: StrOp::Contains,
-            lhs: self.0.clone(),
-            rhs: string_operand(&self.0, other, true)?,
-        }))
+
+    fn __le__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Le, other)
     }
-    /// Checks whether the value's string representation **does not** contain the given value.
-    ///
-    /// Arguments:
-    ///     other (Prop | filter.Expr): Substring that must not appear within the value.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn not_contains(&self, other: ExprOrValue) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Str {
-            op: StrOp::NotContains,
-            lhs: self.0.clone(),
-            rhs: string_operand(&self.0, other, true)?,
-        }))
+
+    fn __gt__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Gt, other)
     }
-    /// Performs fuzzy matching against the value's string representation, within a Levenshtein distance and with optional prefix matching.
+
+    fn __ge__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Ge, other)
+    }
+
+    /// `self == other`, as a method, so a qualifier can follow without brackets:
+    /// `filter.Node.property("p").temporal().eq(3).any()`.
     ///
     /// Arguments:
-    ///     other (Prop | filter.Expr): String to approximately match against.
-    ///     levenshtein_distance (int): Maximum allowed Levenshtein distance.
-    ///     prefix_match (bool): Whether to require a matching prefix.
+    ///     other (Prop | filter.Expr): The value or expression to compare with.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
+    fn eq(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Eq, other)
+    }
+
+    /// `self != other`, as a method.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): The value or expression to compare with.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn ne(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Ne, other)
+    }
+
+    /// `self < other`, as a method.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): The value or expression to compare with.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn lt(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Lt, other)
+    }
+
+    /// `self <= other`, as a method.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): The value or expression to compare with.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn le(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Le, other)
+    }
+
+    /// `self > other`, as a method.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): The value or expression to compare with.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn gt(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Gt, other)
+    }
+
+    /// `self >= other`, as a method.
+    ///
+    /// Arguments:
+    ///     other (Prop | filter.Expr): The value or expression to compare with.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn ge(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.compare(CmpOp::Ge, other)
+    }
+
+    /// Checks whether the string value starts with the given prefix.
+    ///
+    /// Arguments:
+    ///     other (str | filter.Expr): The prefix, or an expression giving it.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn starts_with(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.string_op(StrOp::StartsWith, other)
+    }
+
+    /// Checks whether the string value ends with the given suffix.
+    ///
+    /// Arguments:
+    ///     other (str | filter.Expr): The suffix, or an expression giving it.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn ends_with(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.string_op(StrOp::EndsWith, other)
+    }
+
+    /// Checks whether the string value contains the given substring.
+    ///
+    /// Arguments:
+    ///     other (str | filter.Expr): The substring, or an expression giving it.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn contains(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.string_op(StrOp::Contains, other)
+    }
+
+    /// Checks whether the string value does **not** contain the given substring.
+    ///
+    /// Arguments:
+    ///     other (str | filter.Expr): The substring, or an expression giving it.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn not_contains(&self, other: ExprOrValue) -> PyResult<PyExpr> {
+        self.string_op(StrOp::NotContains, other)
+    }
+
+    /// Checks whether the string value is within a Levenshtein distance of the given text.
+    ///
+    /// Arguments:
+    ///     other (str | filter.Expr): The text to match, or an expression giving it.
+    ///     levenshtein_distance (int): Maximum edit distance for a match.
+    ///     prefix_match (bool): Whether a prefix match within the distance also passes.
+    ///
+    /// Returns:
+    ///     filter.Expr:
     fn fuzzy_search(
         &self,
         other: ExprOrValue,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::Str {
-            op: StrOp::FuzzySearch {
+    ) -> PyResult<PyExpr> {
+        self.string_op(
+            StrOp::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
             },
-            lhs: self.0.clone(),
-            rhs: string_operand(&self.0, other, false)?,
-        }))
+            other,
+        )
     }
 
     /// Checks whether the value is contained within the given values.
@@ -251,121 +456,142 @@ impl PyExpr {
     ///     values (list[Prop]): Values to match against.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_in(&self, values: FromIterable<Prop>) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::In {
-            expr: self.0.clone(),
-            values: values.into(),
-            negated: false,
-        }))
+    ///     filter.Expr:
+    fn is_in(&self, values: FromIterable<Prop>) -> PyExpr {
+        self.membership(values, false)
     }
+
     /// Checks whether the value is **not** contained within the given values.
     ///
     /// Arguments:
     ///     values (list[Prop]): Values to exclude.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_not_in(&self, values: FromIterable<Prop>) -> PyResult<PyFilterExpr> {
-        Ok(PyFilterExpr(FilterExpr::In {
-            expr: self.0.clone(),
-            values: values.into(),
-            negated: true,
-        }))
+    ///     filter.Expr:
+    fn is_not_in(&self, values: FromIterable<Prop>) -> PyExpr {
+        self.membership(values, true)
     }
 
-    /// Checks whether the value is present (not `None`).
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn is_some(&self) -> PyResult<PyFilterExpr> {
-        check_nullable(&self.0, "is_some")?;
-        Ok(PyFilterExpr(FilterExpr::IsSome(self.0.clone())))
-    }
-    /// Checks whether the value is `None` / missing.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
-    fn is_none(&self) -> PyResult<PyFilterExpr> {
-        check_nullable(&self.0, "is_none")?;
-        Ok(PyFilterExpr(FilterExpr::IsNone(self.0.clone())))
-    }
-
-    /// Requires that **any** element matches when the value is list-like (a temporal history or a list property).
+    /// Checks whether the value is present.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn any(&self) -> Self {
-        PyExpr(Expr::Qual(Qual::Any, Box::new(self.0.clone())))
+    fn is_some(&self) -> PyResult<PyExpr> {
+        self.presence(false, "is_some")
     }
-    /// Requires that **all** elements match when the value is list-like (a temporal history or a list property).
+
+    /// Checks whether the value is missing.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn all(&self) -> Self {
-        PyExpr(Expr::Qual(Qual::All, Box::new(self.0.clone())))
+    fn is_none(&self) -> PyResult<PyExpr> {
+        self.presence(true, "is_none")
+    }
+
+    /// Requires that **any** element matches. Follows a comparison against a
+    /// list-like value (a temporal history or a list property):
+    /// `(filter.Node.property("p").temporal() > 4).any()`.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn any(&self) -> PyExpr {
+        PyExpr(map_typed!(self.0.clone(), |e| Expr::Any(Box::new(e))))
+    }
+
+    /// Requires that **all** elements match. Follows a comparison against a
+    /// list-like value (a temporal history or a list property):
+    /// `(filter.Node.property("p").temporal() > 4).all()`.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn all(&self) -> PyExpr {
+        PyExpr(map_typed!(self.0.clone(), |e| Expr::All(Box::new(e))))
     }
 
     /// Sums the elements when the value is numeric and list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn sum(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::Sum, Box::new(self.0.clone())))
+    fn sum(&self) -> PyExpr {
+        self.agg(Agg::Sum)
     }
+
     /// Averages the elements when the value is numeric and list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn avg(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::Avg, Box::new(self.0.clone())))
+    fn avg(&self) -> PyExpr {
+        self.agg(Agg::Avg)
     }
+
     /// Selects the minimum element when the value is list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn min(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::Min, Box::new(self.0.clone())))
+    fn min(&self) -> PyExpr {
+        self.agg(Agg::Min)
     }
+
     /// Selects the maximum element when the value is list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn max(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::Max, Box::new(self.0.clone())))
+    fn max(&self) -> PyExpr {
+        self.agg(Agg::Max)
     }
+
     /// Selects the first element when the value is list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn first(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::First, Box::new(self.0.clone())))
+    fn first(&self) -> PyExpr {
+        self.agg(Agg::First)
     }
+
     /// Selects the last element when the value is list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn last(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::Last, Box::new(self.0.clone())))
+    fn last(&self) -> PyExpr {
+        self.agg(Agg::Last)
     }
+
     /// Selects the number of elements when the value is list-like.
     ///
     /// Returns:
     ///     filter.Expr:
-    fn len(&self) -> Self {
-        PyExpr(Expr::Agg(Agg::Len, Box::new(self.0.clone())))
+    fn len(&self) -> PyExpr {
+        self.agg(Agg::Len)
+    }
+
+    fn __and__<'py>(&self, py: Python<'py>, other: ExprOrFilter) -> PyResult<Bound<'py, PyAny>> {
+        self.combine(py, other, true)
+    }
+
+    fn __or__<'py>(&self, py: Python<'py>, other: ExprOrFilter) -> PyResult<Bound<'py, PyAny>> {
+        self.combine(py, other, false)
+    }
+
+    fn __invert__(&self) -> PyExpr {
+        PyExpr(map_typed!(self.0.clone(), |e| Expr::Not(Box::new(e))))
+    }
+
+    /// Shows the expression tree: what runs locally and what a server receives.
+    fn __repr__(&self) -> String {
+        format!("Expr({})", self.0)
     }
 }
 
 #[pymethods]
 impl PyPropertyExpr {
     /// Switches from the property's latest value to its full temporal history,
-    /// unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, `any`, ...).
+    /// unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, ...) and the
+    /// element-wise comparisons `any()` / `all()` collapse.
     ///
     /// Returns:
     ///     filter.Expr:
     fn temporal(&self) -> PyExpr {
-        PyExpr(Expr::Temporal(Box::new(self.0.clone())))
+        PyExpr(self.history.clone())
     }
 }
 
@@ -375,38 +601,56 @@ impl PyPropertyExpr {
 /// `Node.latest()`, ...); its field and property methods evaluate within that
 /// view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "NodeFilter", module = "raphtory.filter")]
-pub struct PyNodeFilter(pub(crate) Scope);
+pub struct PyNodeFilter(pub(crate) Vec<ViewOp>);
 
 impl PyNodeFilter {
     pub(crate) fn root() -> Self {
-        PyNodeFilter(Scope::new(Entity::Node))
+        PyNodeFilter(Vec::new())
     }
 
     fn with_view(&self, view: ViewOp) -> Self {
-        PyNodeFilter(self.0.clone().with_view(view))
+        let mut views = self.0.clone();
+        views.push(view);
+        PyNodeFilter(views)
     }
 
-    fn read(&self, target: Target) -> Expr {
-        Expr::Read {
-            scope: self.0.clone(),
-            target,
-        }
+    fn read(&self, leaf: NodeLeaf) -> PyExpr {
+        PyExpr(Typed::Node(Expr::Read(leaf)))
+    }
+
+    fn field(&self, field: Field) -> PyExpr {
+        self.read(NodeLeaf::Field {
+            views: self.0.clone(),
+            field,
+        })
+    }
+
+    fn degree_read(&self, direction: Direction) -> PyExpr {
+        self.read(NodeLeaf::Degree {
+            views: self.0.clone(),
+            direction,
+        })
+    }
+
+    fn property_read(&self, name: String) -> PyPropertyExpr {
+        PyPropertyExpr::new(|temporal| {
+            Typed::Node(Expr::Read(NodeLeaf::property(
+                self.0.clone(),
+                name.clone(),
+                temporal,
+            )))
+        })
     }
 }
 
 #[pymethods]
 impl PyNodeFilter {
-    #[new]
-    fn new() -> PyNodeFilter {
-        Self::root()
-    }
-
     /// Selects the node ID field for filtering.
     ///
     /// Returns:
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
-        PyExpr(self.read(Target::Field(Field::Id)))
+        self.field(Field::Id)
     }
 
     /// Selects the node name field for filtering.
@@ -414,7 +658,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
-        PyExpr(self.read(Target::Field(Field::Name)))
+        self.field(Field::Name)
     }
 
     /// Selects the node type field for filtering.
@@ -422,7 +666,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
-        PyExpr(self.read(Target::Field(Field::NodeType)))
+        self.field(Field::NodeType)
     }
 
     /// Selects incoming node degree for filtering.
@@ -430,7 +674,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn in_degree(&self) -> PyExpr {
-        PyExpr(self.read(Target::Degree(Direction::IN)))
+        self.degree_read(Direction::IN)
     }
 
     /// Selects total node degree for filtering.
@@ -438,7 +682,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn degree(&self) -> PyExpr {
-        PyExpr(self.read(Target::Degree(Direction::BOTH)))
+        self.degree_read(Direction::BOTH)
     }
 
     /// Selects outgoing node degree for filtering.
@@ -446,7 +690,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn out_degree(&self) -> PyExpr {
-        PyExpr(self.read(Target::Degree(Direction::OUT)))
+        self.degree_read(Direction::OUT)
     }
 
     /// Filters a node property by name.
@@ -459,7 +703,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr(self.read(Target::Property(name)))
+        self.property_read(name)
     }
 
     /// Filters a node metadata field by name.
@@ -472,7 +716,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.read(Target::Metadata(name)))
+        self.read(NodeLeaf::metadata(self.0.clone(), name))
     }
 
     /// Restricts node evaluation to the given time window.
@@ -574,12 +818,9 @@ impl PyNodeFilter {
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_active(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsActive,
-        })
+    ///     filter.Expr:
+    fn is_active(&self) -> PyExpr {
+        self.read(NodeLeaf::is_active(self.0.clone()))
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.
@@ -797,9 +1038,9 @@ impl PyNode {
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_active() -> PyFilterExpr {
+    fn is_active() -> PyExpr {
         PyNodeFilter::root().is_active()
     }
 

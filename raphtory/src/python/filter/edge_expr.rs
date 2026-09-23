@@ -1,13 +1,10 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::Endpoint,
-        tree::{Entity, Expr, Field, FilterExpr, Scope, Structural, Target, ViewOp},
+        expr::{EdgeLeaf, Expr, Field, Leaf, NodeExpr, NodeLeaf, ViewOp},
     },
     python::{
-        filter::{
-            filter_expr::PyFilterExpr,
-            node_expr::{PyExpr, PyPropertyExpr},
-        },
+        filter::node_expr::{PyExpr, PyPropertyExpr, Typed},
         types::iterable::FromIterable,
     },
 };
@@ -25,14 +22,40 @@ use raphtory_api::core::storage::timeindex::EventTime;
 ///     Edge.dst().name().starts_with("user:")
 ///     Edge.src().property("country") == "UK"
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
-pub struct PyEdgeEndpoint(pub(crate) Scope);
+pub struct PyEdgeEndpoint {
+    views: Vec<ViewOp>,
+    endpoint: Endpoint,
+}
 
 impl PyEdgeEndpoint {
-    fn read(&self, target: Target) -> Expr {
-        Expr::Read {
-            scope: self.0.clone(),
-            target,
+    /// A node expression evaluated on the node at this end of the edge. The
+    /// edge's views scope that node read.
+    fn through(&self, inner: NodeExpr) -> EdgeLeaf {
+        match self.endpoint {
+            Endpoint::Src => EdgeLeaf::Src(Box::new(inner)),
+            Endpoint::Dst => EdgeLeaf::Dst(Box::new(inner)),
         }
+    }
+
+    fn read(&self, leaf: NodeLeaf) -> PyExpr {
+        PyExpr(Typed::Edge(Expr::Read(self.through(Expr::Read(leaf)))))
+    }
+
+    fn field(&self, field: Field) -> PyExpr {
+        self.read(NodeLeaf::Field {
+            views: self.views.clone(),
+            field,
+        })
+    }
+
+    fn property_read(&self, name: String) -> PyPropertyExpr {
+        PyPropertyExpr::new(|temporal| {
+            Typed::Edge(Expr::Read(self.through(Expr::Read(NodeLeaf::property(
+                self.views.clone(),
+                name.clone(),
+                temporal,
+            )))))
+        })
     }
 }
 
@@ -43,7 +66,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
-        PyExpr(self.read(Target::Field(Field::Id)))
+        self.field(Field::Id)
     }
 
     /// Selects the endpoint node name field for filtering.
@@ -51,7 +74,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
-        PyExpr(self.read(Target::Field(Field::Name)))
+        self.field(Field::Name)
     }
 
     /// Selects the endpoint node type field for filtering.
@@ -59,7 +82,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
-        PyExpr(self.read(Target::Field(Field::NodeType)))
+        self.field(Field::NodeType)
     }
 
     /// Filters an endpoint node property by name.
@@ -70,7 +93,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr(self.read(Target::Property(name)))
+        self.property_read(name)
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -81,24 +104,33 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.read(Target::Metadata(name)))
+        self.read(NodeLeaf::metadata(self.views.clone(), name))
     }
 }
 
 impl PyEdgeFilter {
     pub(crate) fn root() -> Self {
-        PyEdgeFilter(Scope::new(Entity::Edge))
+        PyEdgeFilter(Vec::new())
     }
 
     fn with_view(&self, view: ViewOp) -> Self {
-        PyEdgeFilter(self.0.clone().with_view(view))
+        let mut views = self.0.clone();
+        views.push(view);
+        PyEdgeFilter(views)
     }
 
-    fn read(&self, target: Target) -> Expr {
-        Expr::Read {
-            scope: self.0.clone(),
-            target,
-        }
+    fn read(&self, leaf: EdgeLeaf) -> PyExpr {
+        PyExpr(Typed::Edge(Expr::Read(leaf)))
+    }
+
+    fn property_read(&self, name: String) -> PyPropertyExpr {
+        PyPropertyExpr::new(|temporal| {
+            Typed::Edge(Expr::Read(EdgeLeaf::property(
+                self.0.clone(),
+                name.clone(),
+                temporal,
+            )))
+        })
     }
 }
 
@@ -108,21 +140,19 @@ impl PyEdgeFilter {
 /// `Edge.layer(...)`, ...); its endpoint, property and structural predicates
 /// evaluate within that view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "EdgeFilter", module = "raphtory.filter")]
-pub struct PyEdgeFilter(pub(crate) Scope);
+pub struct PyEdgeFilter(pub(crate) Vec<ViewOp>);
 
 #[pymethods]
 impl PyEdgeFilter {
-    #[new]
-    fn new() -> PyEdgeFilter {
-        Self::root()
-    }
-
     /// Selects the edge **source endpoint** for filtering.
     ///
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn src(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(self.0.clone().through(Endpoint::Src))
+        PyEdgeEndpoint {
+            views: self.0.clone(),
+            endpoint: Endpoint::Src,
+        }
     }
 
     /// Selects the edge **destination endpoint** for filtering.
@@ -130,7 +160,10 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn dst(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(self.0.clone().through(Endpoint::Dst))
+        PyEdgeEndpoint {
+            views: self.0.clone(),
+            endpoint: Endpoint::Dst,
+        }
     }
 
     /// Filters an edge property by name.
@@ -141,7 +174,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr(self.read(Target::Property(name)))
+        self.property_read(name)
     }
 
     /// Filters an edge metadata field by name.
@@ -152,7 +185,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.read(Target::Metadata(name)))
+        self.read(EdgeLeaf::metadata(self.0.clone(), name))
     }
 
     /// Restricts edge evaluation to the given time window.
@@ -252,44 +285,40 @@ impl PyEdgeFilter {
     /// Matches edges that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_active(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsActive,
+    ///     filter.Expr:
+    fn is_active(&self) -> PyExpr {
+        self.read(EdgeLeaf::IsActive {
+            views: self.0.clone(),
         })
     }
 
     /// Matches edges that are structurally valid in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_valid(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsValid,
+    ///     filter.Expr:
+    fn is_valid(&self) -> PyExpr {
+        self.read(EdgeLeaf::IsValid {
+            views: self.0.clone(),
         })
     }
 
     /// Matches edges that have been deleted.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_deleted(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsDeleted,
+    ///     filter.Expr:
+    fn is_deleted(&self) -> PyExpr {
+        self.read(EdgeLeaf::IsDeleted {
+            views: self.0.clone(),
         })
     }
 
     /// Matches edges that are self-loops (source == destination).
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_self_loop(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsSelfLoop,
+    ///     filter.Expr:
+    fn is_self_loop(&self) -> PyExpr {
+        self.read(EdgeLeaf::IsSelfLoop {
+            views: self.0.clone(),
         })
     }
 }
@@ -452,36 +481,36 @@ impl PyEdge {
     /// Matches edges that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_active() -> PyFilterExpr {
+    fn is_active() -> PyExpr {
         PyEdgeFilter::root().is_active()
     }
 
     /// Matches edges that are structurally valid in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_valid() -> PyFilterExpr {
+    fn is_valid() -> PyExpr {
         PyEdgeFilter::root().is_valid()
     }
 
     /// Matches edges that have been deleted.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_deleted() -> PyFilterExpr {
+    fn is_deleted() -> PyExpr {
         PyEdgeFilter::root().is_deleted()
     }
 
     /// Matches edges that are self-loops (source == destination).
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_self_loop() -> PyFilterExpr {
+    fn is_self_loop() -> PyExpr {
         PyEdgeFilter::root().is_self_loop()
     }
 }

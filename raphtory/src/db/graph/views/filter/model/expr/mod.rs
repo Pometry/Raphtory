@@ -27,12 +27,108 @@ mod display;
 #[cfg(test)]
 mod tests;
 
-pub use super::tree::{Agg, CmpOp, Field, OpaqueFilter, StrOp, ViewOp, OPAQUE_FILTER_ERROR};
 pub use compile::Leaf;
 pub use convert::{FactoryLeaf, MarkerLeaf, ToExpr, ToFilterExpr};
 
-use raphtory_api::core::{entities::properties::prop::Prop, Direction};
+use super::DynCreateFilter;
+use raphtory_api::core::{
+    entities::properties::prop::Prop, storage::timeindex::EventTime, Direction,
+};
 use serde::{Deserialize, Serialize};
+use std::{fmt, sync::Arc};
+
+/// One view restriction, in the order it was applied.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ViewOp {
+    Window { start: EventTime, end: EventTime },
+    At(EventTime),
+    After(EventTime),
+    Before(EventTime),
+    Latest,
+    SnapshotAt(EventTime),
+    SnapshotLatest,
+    Layers(Vec<String>),
+}
+
+/// A built-in node field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Field {
+    Id,
+    Name,
+    NodeType,
+}
+
+/// A reduction over a list-valued expression.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Agg {
+    Sum,
+    Avg,
+    Min,
+    Max,
+    First,
+    Last,
+    Len,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CmpOp {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StrOp {
+    StartsWith,
+    EndsWith,
+    Contains,
+    NotContains,
+    FuzzySearch {
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    },
+}
+
+/// An already compiled filter carried inside a tree. It exists for filters
+/// built from data that lives only in this process, so it runs but does not
+/// serialise: asking for its wire form is an error, not a guess.
+#[derive(Clone)]
+pub struct OpaqueFilter(pub Arc<dyn DynCreateFilter>);
+
+pub const OPAQUE_FILTER_ERROR: &str =
+    "this filter has no server-side form; it was built from in-process state";
+
+impl fmt::Debug for OpaqueFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("OpaqueFilter")
+    }
+}
+
+impl PartialEq for OpaqueFilter {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Serialize for OpaqueFilter {
+    fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+        Err(serde::ser::Error::custom(OPAQUE_FILTER_ERROR))
+    }
+}
+
+impl<'de> Deserialize<'de> for OpaqueFilter {
+    fn deserialize<D: serde::Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
+        Err(serde::de::Error::custom(OPAQUE_FILTER_ERROR))
+    }
+}
 
 /// What every entity can do with a value, whatever the entity reads.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

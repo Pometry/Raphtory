@@ -1,8 +1,15 @@
 use super::*;
 use crate::{
-    db::api::view::Filter,
-    prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
+    db::{
+        api::view::Filter,
+        graph::views::filter::model::{
+            edge_filter::EdgeFilter, windowed_filter::Windowed, DynCreateFilter, EdgeViewFilterOps,
+            ViewWrapOps,
+        },
+    },
+    prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS},
 };
+use std::sync::Arc;
 use raphtory_api::core::{
     entities::properties::prop::IntoProp, storage::timeindex::EventTime, Direction,
 };
@@ -428,4 +435,77 @@ fn an_opaque_filter_refuses_to_serialise() {
     let f = FilterExpr::Opaque(OpaqueFilter(node(c(true)).compile().unwrap()));
     let err = serde_json::to_string(&f).unwrap_err().to_string();
     assert!(err.contains(OPAQUE_FILTER_ERROR));
+}
+
+#[test]
+fn before_and_at_agree_with_the_graph_views() {
+    // alice→bob @2 (first event at 2) · carol→dave @2 (second event at 2) · eve→fay @5
+    let g = Graph::new();
+    g.add_edge(2, "alice", "bob", NO_PROPS, None).unwrap();
+    g.add_edge(2, "carol", "dave", NO_PROPS, None).unwrap();
+    g.add_edge(5, "eve", "fay", NO_PROPS, None).unwrap();
+    fn edge_names<'graph, G: GraphViewOps<'graph>>(g: &G) -> Vec<String> {
+        let mut ids: Vec<String> = g
+            .edges()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect();
+        ids.sort();
+        ids
+    }
+    let view = |op: ViewOp| FilterExpr::View(vec![op]);
+    let typed = |f: Windowed<EdgeFilter>| Arc::new(f.is_active()) as Arc<dyn DynCreateFilter>;
+    fn applied(g: &Graph, filter: Arc<dyn DynCreateFilter>) -> Vec<String> {
+        let mut ids: Vec<String> = g
+            .filter(filter)
+            .unwrap()
+            .edges()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect();
+        ids.sort();
+        ids
+    }
+    let none: [&str; 0] = [];
+    let at_two = ["alice->bob", "carol->dave"];
+
+    // `before(t)` excludes every event at `t`, like the graph view does.
+    assert_eq!(edge_names(&g.before(2)), none);
+    assert_eq!(edges(&g, &view(ViewOp::Before(EventTime::start(2)))), none);
+    assert_eq!(applied(&g, typed(EdgeFilter.before(2))), none);
+    assert_eq!(edge_names(&g.before(3)), at_two);
+    assert_eq!(edges(&g, &view(ViewOp::Before(EventTime::start(3)))), at_two);
+
+    // `at(t)` covers the whole timestamp, even when handed a time that sits
+    // between two events at `t`.
+    let mid_two = EventTime::start(2).set_event_id(1);
+    assert_eq!(edge_names(&g.at(mid_two)), at_two);
+    assert_eq!(edges(&g, &view(ViewOp::At(mid_two))), at_two);
+    assert_eq!(applied(&g, typed(EdgeFilter.at(mid_two))), at_two);
+
+    // A window bound that carries an event id is honoured, as the graph view does.
+    let from_second_event = EventTime::start(2).set_event_id(1);
+    assert_eq!(
+        edge_names(&g.window(from_second_event, EventTime::start(3))),
+        ["carol->dave"]
+    );
+    assert_eq!(
+        edges(&g, &view(ViewOp::Window {
+                start: from_second_event,
+                end: EventTime::start(3),
+            }),
+        ),
+        ["carol->dave"]
+    );
+    assert_eq!(
+        applied(&g, typed(EdgeFilter.window(from_second_event, 3))),
+        ["carol->dave"]
+    );
+
+    // `after(t)` excludes `t` and everything before it.
+    assert_eq!(edge_names(&g.after(2)), ["eve->fay"]);
+    assert_eq!(
+        edges(&g, &view(ViewOp::After(EventTime::start(2)))),
+        ["eve->fay"]
+    );
 }

@@ -296,8 +296,8 @@ NODE_PROPERTY_EXPRS = {
     "node.metadata.is_none": lambda: f.Node.metadata("region").is_none(),
     "node.metadata.contains": lambda: f.Node.metadata("region").contains("a"),
     "node.prop.level_eq": lambda: f.Node.property("level") == "bronze",
-    "node.temporal.any": lambda: f.Node.property("score").temporal().any() > 50,
-    "node.temporal.all": lambda: f.Node.property("score").temporal().all() > 5,
+    "node.temporal.any": lambda: (f.Node.property("score").temporal() > 50).any(),
+    "node.temporal.all": lambda: (f.Node.property("score").temporal() > 5).all(),
     "node.temporal.first": (lambda: f.Node.property("score").temporal().first() > 15),
     "node.temporal.last": (lambda: f.Node.property("score").temporal().last() > 15),
     "node.temporal.min": lambda: f.Node.property("score").temporal().min() > 5,
@@ -373,7 +373,7 @@ EDGE_PROPERTY_EXPRS = {
     "edge.metadata.is_some": lambda: f.Edge.metadata("kind").is_some(),
     "edge.metadata.is_none": lambda: f.Edge.metadata("kind").is_none(),
     "edge.prop.note_eq": lambda: f.Edge.property("note") == "zz",
-    "edge.temporal.any": (lambda: f.Edge.property("weight").temporal().any() > 3.0),
+    "edge.temporal.any": (lambda: (f.Edge.property("weight").temporal() > 3.0).any()),
     "edge.temporal.avg": (lambda: f.Edge.property("weight").temporal().avg() > 3.0),
     "edge.temporal.first": (lambda: f.Edge.property("weight").temporal().first() > 2.0),
     "edge.temporal.last": (lambda: f.Edge.property("weight").temporal().last() > 2.0),
@@ -791,7 +791,7 @@ def test_property_sources_are_distinct(filter_pair):
     aggregated = lambda g: _names(g.filter(f.Node.property("level") == "bronze"))
     crossed = lambda g: _names(g.filter(f.Node.property("level") == "gold"))
     temporal = lambda g: _names(
-        g.filter(f.Node.property("level").temporal().any() == "bronze")
+        g.filter((f.Node.property("level").temporal() == "bronze").any())
     )
 
     for read in (metadata, aggregated, crossed, temporal):

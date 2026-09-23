@@ -4956,9 +4956,7 @@ mod tests {
         use raphtory::{
             db::{
                 api::storage::storage::Config,
-                graph::views::filter::model::tree::{
-                    CmpOp, Entity, Expr, FilterExpr, Scope, Target,
-                },
+                graph::views::filter::model::expr::{CmpOp, Expr, FilterExpr, NodeLeaf},
             },
             prelude::Prop,
         };
@@ -5053,14 +5051,15 @@ mod tests {
         // select() narrows membership only — handles see the unfiltered graph.
         // Passed as a tree to pin that tree-typed callers satisfy the widened
         // `TryInto<GqlFilter>` bound.
-        let score_gt_15_tree = FilterExpr::Cmp {
-            op: CmpOp::Gt,
-            lhs: Expr::Read {
-                scope: Scope::new(Entity::Node),
-                target: Target::Property("score".into()),
-            },
-            rhs: Expr::Const(Prop::I64(15)),
-        };
+        let score_gt_15_tree = FilterExpr::Node(Expr::Cmp(
+            CmpOp::Gt,
+            Box::new(Expr::Read(NodeLeaf::Property {
+                views: Vec::new(),
+                name: "score".into(),
+                temporal: false,
+            })),
+            Box::new(Expr::Const(Prop::I64(15))),
+        ));
         let selected = rg.nodes().select(score_gt_15_tree).unwrap();
         let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();

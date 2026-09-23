@@ -412,8 +412,8 @@ def test_degree_filter_with_invalid_expressions():
         lambda: filter.Node.out_degree().contains("1"),
         lambda: filter.Node.out_degree().not_contains("1"),
         lambda: filter.Node.out_degree().fuzzy_search("1", 1, False),
-        lambda: filter.Node.degree().any() == 1,
-        lambda: filter.Node.degree().all() == 1,
+        lambda: (filter.Node.degree() == 1).any(),
+        lambda: (filter.Node.degree() == 1).all(),
         lambda: filter.Node.degree().len() > 0,
         lambda: filter.Node.degree().sum() == 1,
         lambda: filter.Node.degree().avg() == 1,
@@ -421,8 +421,8 @@ def test_degree_filter_with_invalid_expressions():
         lambda: filter.Node.degree().max() == 1,
         lambda: filter.Node.degree().first() == 1,
         lambda: filter.Node.degree().last() == 1,
-        lambda: filter.Node.in_degree().any() == 1,
-        lambda: filter.Node.in_degree().all() == 1,
+        lambda: (filter.Node.in_degree() == 1).any(),
+        lambda: (filter.Node.in_degree() == 1).all(),
         lambda: filter.Node.in_degree().len() > 0,
         lambda: filter.Node.in_degree().sum() == 1,
         lambda: filter.Node.in_degree().avg() == 1,
@@ -430,8 +430,8 @@ def test_degree_filter_with_invalid_expressions():
         lambda: filter.Node.in_degree().max() == 1,
         lambda: filter.Node.in_degree().first() == 1,
         lambda: filter.Node.in_degree().last() == 1,
-        lambda: filter.Node.out_degree().any() == 1,
-        lambda: filter.Node.out_degree().all() == 1,
+        lambda: (filter.Node.out_degree() == 1).any(),
+        lambda: (filter.Node.out_degree() == 1).all(),
         lambda: filter.Node.out_degree().len() > 0,
         lambda: filter.Node.out_degree().sum() == 1,
         lambda: filter.Node.out_degree().avg() == 1,
@@ -554,7 +554,7 @@ def test_node_type_comparison_to_a_non_string_type_is_a_python_error():
     with pytest.raises(TypeError):
         filter.Node.node_type() != 5
     # A correctly typed comparison still builds an expression.
-    assert isinstance(filter.Node.node_type() == "person", filter.FilterExpr)
+    assert isinstance(filter.Node.node_type() == "person", filter.Expr)
 
 
 @with_variants(init_graph)
@@ -948,7 +948,7 @@ def test_filter_nodes_for_node_name_all_is_invalid():
         # The expression builds (the python surface is one Expr type); applying
         # it rejects the qualifier on a scalar field.
         with pytest.raises(Exception, match=r"cannot be compared with Str"):
-            filter_expr = filter.Node.name().all() == True
+            filter_expr = (filter.Node.name() == True).all()
             graph.filter(filter_expr).nodes.id
 
     return check

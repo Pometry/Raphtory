@@ -3,8 +3,26 @@
 use super::{
     Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, StrOp, ViewOp,
 };
-use raphtory_api::core::Direction;
+use crate::{db::graph::views::filter::model::layered_filter::layer_label, prelude::Layer};
+use raphtory_api::core::{storage::timeindex::AsTime, Direction};
 use std::fmt::{self, Display};
+
+impl Display for ViewOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ViewOp::Window { start, end } => write!(f, "WINDOW[{}..{}]", start.t(), end.t()),
+            ViewOp::At(t) => write!(f, "AT[{}]", t.t()),
+            ViewOp::After(t) => write!(f, "AFTER[{}]", t.t()),
+            ViewOp::Before(t) => write!(f, "BEFORE[{}]", t.t()),
+            ViewOp::Latest => write!(f, "LATEST"),
+            ViewOp::SnapshotAt(t) => write!(f, "SNAPSHOT_AT[{}]", t.t()),
+            ViewOp::SnapshotLatest => write!(f, "SNAPSHOT_LATEST"),
+            ViewOp::Layers(names) => {
+                write!(f, "LAYER[{}]", layer_label(&Layer::from(names.clone())))
+            }
+        }
+    }
+}
 
 fn views(f: &mut fmt::Formatter<'_>, views: &[ViewOp], inner: &dyn Display) -> fmt::Result {
     if views.is_empty() {

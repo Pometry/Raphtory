@@ -90,6 +90,9 @@ class FilterExpr(object):
     """
     A filter as a tree. The same tree runs locally, is sent to a server, and is
     what `repr` prints, so there is nothing to keep in step.
+
+    Anywhere a filter is expected, a yes/no [`Expr`] is accepted too: it is the
+    filter on its own entity.
     """
 
     def __and__(self, value):
@@ -112,10 +115,13 @@ class FilterExpr(object):
 
 class Expr(object):
     """
-    A value expression: a field, degree, property, metadata entry or an
-    aggregate over one. Comparing it to a value or to another expression gives
-    a [`FilterExpr`].
+    A value expression: a field, degree, property, metadata entry, an aggregate
+    over one, or a yes/no built from them. Comparing it to a value or to another
+    expression gives a yes/no [`Expr`], which is a filter on its entity.
     """
+
+    def __and__(self, value):
+        """Return self&value."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -126,6 +132,9 @@ class Expr(object):
     def __gt__(self, value):
         """Return self>value."""
 
+    def __invert__(self):
+        """~self"""
+
     def __le__(self, value):
         """Return self<=value."""
 
@@ -135,9 +144,23 @@ class Expr(object):
     def __ne__(self, value):
         """Return self!=value."""
 
+    def __or__(self, value):
+        """Return self|value."""
+
+    def __rand__(self, value):
+        """Return value&self."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __ror__(self, value):
+        """Return value|self."""
+
     def all(self) -> filter.Expr:
         """
-        Requires that **all** elements match when the value is list-like (a temporal history or a list property).
+        Requires that **all** elements match. Follows a comparison against a
+        list-like value (a temporal history or a list property):
+        `(filter.Node.property("p").temporal() > 4).all()`.
 
         Returns:
             filter.Expr:
@@ -145,7 +168,9 @@ class Expr(object):
 
     def any(self) -> filter.Expr:
         """
-        Requires that **any** element matches when the value is list-like (a temporal history or a list property).
+        Requires that **any** element matches. Follows a comparison against a
+        list-like value (a temporal history or a list property):
+        `(filter.Node.property("p").temporal() > 4).any()`.
 
         Returns:
             filter.Expr:
@@ -159,26 +184,38 @@ class Expr(object):
             filter.Expr:
         """
 
-    def contains(self, other: Prop | filter.Expr) -> filter.FilterExpr:
+    def contains(self, other: str | filter.Expr) -> filter.Expr:
         """
-        Checks whether the value's string representation contains the given value.
+        Checks whether the string value contains the given substring.
 
         Arguments:
-            other (Prop | filter.Expr): Substring that must appear within the value.
+            other (str | filter.Expr): The substring, or an expression giving it.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def ends_with(self, other: Prop | filter.Expr) -> filter.FilterExpr:
+    def ends_with(self, other: str | filter.Expr) -> filter.Expr:
         """
-        Checks whether the value's string representation ends with the given value.
+        Checks whether the string value ends with the given suffix.
 
         Arguments:
-            other (Prop | filter.Expr): Suffix to check for.
+            other (str | filter.Expr): The suffix, or an expression giving it.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
+        """
+
+    def eq(self, other: Prop | filter.Expr) -> filter.Expr:
+        """
+        `self == other`, as a method, so a qualifier can follow without brackets:
+        `filter.Node.property("p").temporal().eq(3).any()`.
+
+        Arguments:
+            other (Prop | filter.Expr): The value or expression to compare with.
+
+        Returns:
+            filter.Expr:
         """
 
     def first(self) -> filter.Expr:
@@ -190,21 +227,43 @@ class Expr(object):
         """
 
     def fuzzy_search(
-        self, other: Prop | filter.Expr, levenshtein_distance: int, prefix_match: bool
-    ) -> filter.FilterExpr:
+        self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.Expr:
         """
-        Performs fuzzy matching against the value's string representation, within a Levenshtein distance and with optional prefix matching.
+        Checks whether the string value is within a Levenshtein distance of the given text.
 
         Arguments:
-            other (Prop | filter.Expr): String to approximately match against.
-            levenshtein_distance (int): Maximum allowed Levenshtein distance.
-            prefix_match (bool): Whether to require a matching prefix.
+            other (str | filter.Expr): The text to match, or an expression giving it.
+            levenshtein_distance (int): Maximum edit distance for a match.
+            prefix_match (bool): Whether a prefix match within the distance also passes.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_in(self, values: list[Prop]) -> filter.FilterExpr:
+    def ge(self, other: Prop | filter.Expr) -> filter.Expr:
+        """
+        `self >= other`, as a method.
+
+        Arguments:
+            other (Prop | filter.Expr): The value or expression to compare with.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def gt(self, other: Prop | filter.Expr) -> filter.Expr:
+        """
+        `self > other`, as a method.
+
+        Arguments:
+            other (Prop | filter.Expr): The value or expression to compare with.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def is_in(self, values: list[Prop]) -> filter.Expr:
         """
         Checks whether the value is contained within the given values.
 
@@ -212,18 +271,18 @@ class Expr(object):
             values (list[Prop]): Values to match against.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_none(self) -> filter.FilterExpr:
+    def is_none(self) -> filter.Expr:
         """
-        Checks whether the value is `None` / missing.
+        Checks whether the value is missing.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_not_in(self, values: list[Prop]) -> filter.FilterExpr:
+    def is_not_in(self, values: list[Prop]) -> filter.Expr:
         """
         Checks whether the value is **not** contained within the given values.
 
@@ -231,15 +290,15 @@ class Expr(object):
             values (list[Prop]): Values to exclude.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_some(self) -> filter.FilterExpr:
+    def is_some(self) -> filter.Expr:
         """
-        Checks whether the value is present (not `None`).
+        Checks whether the value is present.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     def last(self) -> filter.Expr:
@@ -250,9 +309,31 @@ class Expr(object):
             filter.Expr:
         """
 
+    def le(self, other: Prop | filter.Expr) -> filter.Expr:
+        """
+        `self <= other`, as a method.
+
+        Arguments:
+            other (Prop | filter.Expr): The value or expression to compare with.
+
+        Returns:
+            filter.Expr:
+        """
+
     def len(self) -> filter.Expr:
         """
         Selects the number of elements when the value is list-like.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def lt(self, other: Prop | filter.Expr) -> filter.Expr:
+        """
+        `self < other`, as a method.
+
+        Arguments:
+            other (Prop | filter.Expr): The value or expression to compare with.
 
         Returns:
             filter.Expr:
@@ -274,26 +355,37 @@ class Expr(object):
             filter.Expr:
         """
 
-    def not_contains(self, other: Prop | filter.Expr) -> filter.FilterExpr:
+    def ne(self, other: Prop | filter.Expr) -> filter.Expr:
         """
-        Checks whether the value's string representation **does not** contain the given value.
+        `self != other`, as a method.
 
         Arguments:
-            other (Prop | filter.Expr): Substring that must not appear within the value.
+            other (Prop | filter.Expr): The value or expression to compare with.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def starts_with(self, other: Prop | filter.Expr) -> filter.FilterExpr:
+    def not_contains(self, other: str | filter.Expr) -> filter.Expr:
         """
-        Checks whether the value's string representation starts with the given value.
+        Checks whether the string value does **not** contain the given substring.
 
         Arguments:
-            other (Prop | filter.Expr): Prefix to check for.
+            other (str | filter.Expr): The substring, or an expression giving it.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
+        """
+
+    def starts_with(self, other: str | filter.Expr) -> filter.Expr:
+        """
+        Checks whether the string value starts with the given prefix.
+
+        Arguments:
+            other (str | filter.Expr): The prefix, or an expression giving it.
+
+        Returns:
+            filter.Expr:
         """
 
     def sum(self) -> filter.Expr:
@@ -310,7 +402,8 @@ class PropertyExpr(Expr):
     def temporal(self) -> filter.Expr:
         """
         Switches from the property's latest value to its full temporal history,
-        unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, `any`, ...).
+        unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, ...) and the
+        element-wise comparisons `any()` / `all()` collapse.
 
         Returns:
             filter.Expr:
@@ -402,12 +495,12 @@ class Node(object):
         """
 
     @staticmethod
-    def is_active() -> filter.FilterExpr:
+    def is_active() -> filter.Expr:
         """
         Matches nodes that have at least one event in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
@@ -543,9 +636,6 @@ class NodeFilter(object):
     view, and its own view methods narrow it further.
     """
 
-    def __new__(cls) -> NodeFilter:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
     def after(self, time: int) -> filter.NodeFilter:
         """
         Restricts node evaluation to times strictly after the given time.
@@ -615,12 +705,12 @@ class NodeFilter(object):
             filter.Expr:
         """
 
-    def is_active(self) -> filter.FilterExpr:
+    def is_active(self) -> filter.Expr:
         """
         Matches nodes that have at least one event in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     def latest(self) -> filter.NodeFilter:
@@ -791,39 +881,39 @@ class Edge(object):
         """
 
     @staticmethod
-    def is_active() -> filter.FilterExpr:
+    def is_active() -> filter.Expr:
         """
         Matches edges that have at least one event in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
-    def is_deleted() -> filter.FilterExpr:
+    def is_deleted() -> filter.Expr:
         """
         Matches edges that have been deleted.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
-    def is_self_loop() -> filter.FilterExpr:
+    def is_self_loop() -> filter.Expr:
         """
         Matches edges that are self-loops (source == destination).
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
-    def is_valid() -> filter.FilterExpr:
+    def is_valid() -> filter.Expr:
         """
         Matches edges that are structurally valid in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
@@ -935,9 +1025,6 @@ class EdgeFilter(object):
     evaluate within that view, and its own view methods narrow it further.
     """
 
-    def __new__(cls) -> EdgeFilter:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
     def after(self, time: int) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to times strictly after the given time.
@@ -979,36 +1066,36 @@ class EdgeFilter(object):
             filter.EdgeEndpoint:
         """
 
-    def is_active(self) -> filter.FilterExpr:
+    def is_active(self) -> filter.Expr:
         """
         Matches edges that have at least one event in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_deleted(self) -> filter.FilterExpr:
+    def is_deleted(self) -> filter.Expr:
         """
         Matches edges that have been deleted.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_self_loop(self) -> filter.FilterExpr:
+    def is_self_loop(self) -> filter.Expr:
         """
         Matches edges that are self-loops (source == destination).
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_valid(self) -> filter.FilterExpr:
+    def is_valid(self) -> filter.Expr:
         """
         Matches edges that are structurally valid in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     def latest(self) -> filter.EdgeFilter:
@@ -1207,39 +1294,39 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
-    def is_active() -> filter.FilterExpr:
+    def is_active() -> filter.Expr:
         """
         Matches exploded edges that have at least one event in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
-    def is_deleted() -> filter.FilterExpr:
+    def is_deleted() -> filter.Expr:
         """
         Matches exploded edges that have been deleted.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
-    def is_self_loop() -> filter.FilterExpr:
+    def is_self_loop() -> filter.Expr:
         """
         Matches exploded edges that are self-loops (source == destination).
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
-    def is_valid() -> filter.FilterExpr:
+    def is_valid() -> filter.Expr:
         """
         Matches exploded edges that are structurally valid in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     @staticmethod
@@ -1349,9 +1436,6 @@ class ExplodedEdgeFilter(object):
     within that view, and its own view methods narrow it further.
     """
 
-    def __new__(cls) -> ExplodedEdgeFilter:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
     def after(self, time: int) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to times strictly after the given time.
@@ -1385,36 +1469,36 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
-    def is_active(self) -> filter.FilterExpr:
+    def is_active(self) -> filter.Expr:
         """
         Matches exploded edges that have at least one event in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_deleted(self) -> filter.FilterExpr:
+    def is_deleted(self) -> filter.Expr:
         """
         Matches exploded edges that have been deleted.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_self_loop(self) -> filter.FilterExpr:
+    def is_self_loop(self) -> filter.Expr:
         """
         Matches exploded edges that are self-loops (source == destination).
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
-    def is_valid(self) -> filter.FilterExpr:
+    def is_valid(self) -> filter.Expr:
         """
         Matches exploded edges that are structurally valid in the current view.
 
         Returns:
-            filter.FilterExpr:
+            filter.Expr:
         """
 
     def latest(self) -> filter.ExplodedEdgeFilter:

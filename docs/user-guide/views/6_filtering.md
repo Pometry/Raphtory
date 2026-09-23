@@ -122,8 +122,8 @@ assert [n.name for n in g.filter(early_high).nodes] == ["bob"]
 
 `.temporal()` switches a property read from its latest value to its whole history. An aggregate
 then turns the history back into one value: `.sum()`, `.avg()`, `.min()`, `.max()`, `.first()`,
-`.last()`, `.len()`. `.any()` and `.all()` ask whether the comparison holds for any, or every,
-value in the history.
+`.last()`, `.len()`. Comparing the history itself gives one answer per value; `.any()` and
+`.all()`, written after the comparison, ask whether any, or every, answer holds.
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -131,7 +131,7 @@ value in the history.
 total = filter.Node.property("score").temporal().sum() > 8
 assert [n.name for n in g.filter(total).nodes] == ["alice"]
 
-ever_low = filter.Node.property("score").temporal().any() < 4
+ever_low = (filter.Node.property("score").temporal() < 4).any()
 assert [n.name for n in g.filter(ever_low).nodes] == ["alice"]
 ```
 ///
