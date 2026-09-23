@@ -389,9 +389,9 @@ impl<
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 
-        // Skip running a clean flush if the DB is in shutdown or crash recovery.
-        // Note that the state can be Shutdown after load is called and before recovery is complete.
-        // A clean flush is performed even when state is WalDisabled or NotSupported.
+        // Skip running a flush if the DB is in shutdown or crash recovery.
+        // Note that the state can be Shutdown after startup and before recovery finishes.
+        // A flush is performed even when state is WalDisabled or NotSupported.
         if matches!(
             control_file.db_state(),
             DBState::Shutdown | DBState::CrashRecovery

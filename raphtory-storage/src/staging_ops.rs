@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::graph::graph::GraphStorage;
 
-/// Represents a graph forked from an existing graph.
+/// Isolated fork of a graph used for batching writes before an atomic commit.
 pub struct StagedGraph<'a> {
     graph: GraphStorage,
 
