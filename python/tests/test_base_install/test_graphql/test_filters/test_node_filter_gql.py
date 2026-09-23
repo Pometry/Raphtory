@@ -22,11 +22,19 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { read: { entity: NODE, target: { field: ID } } }
-            rhs: { const: { str: "1" } }
-          }
-        }) {
+                                    node: {
+                                      eq: {
+                                        lhs: {
+                                          field: ID
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "1"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes {
             list { name }
           }
@@ -50,7 +58,8 @@ def test_sort_key_with_no_or_several_fields_is_rejected(graph):
                 nodes { sorted(sortBys: %s) { list { name } } }
               }
             }
-            """ % keys,
+            """
+            % keys,
             "exactly one",
             graph,
         )
@@ -62,11 +71,19 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { read: { entity: NODE, target: { field: ID } } }
-            rhs: { const: { u64: 1 } }
-          }
-        }) {
+                                    node: {
+                                      eq: {
+                                        lhs: {
+                                          field: ID
+                                        }
+                                        rhs: {
+                                          const: {
+                                            u64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes {
             list { name }
           }
@@ -75,7 +92,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     }
     """
     expected_error_message = (
-        "Invalid filter: value U64(1) of type U64 cannot be coerced to Str"
+        "Invalid filter: value U64(1) of type U64 cannot be compared with Str"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -90,11 +107,19 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { read: { entity: NODE, target: { field: ID } } }
-            rhs: { const: { u64: 1 } }
-          }
-        }) {
+                                    node: {
+                                      eq: {
+                                        lhs: {
+                                          field: ID
+                                        }
+                                        rhs: {
+                                          const: {
+                                            u64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes {
             list { name }
           }
@@ -113,23 +138,47 @@ def test_nodes_chained_selection_with_node_filter(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { field: NODE_TYPE } } }
-              rhs: { const: { str: "fire_nation" } }
-            }
-          }) {
+                         node: {
+                           eq: {
+                             lhs: {
+                               field: NODE_TYPE
+                             }
+                             rhs: {
+                               const: {
+                                 str: "fire_nation"
+                               }
+                             }
+                           }
+                         }
+                       }) {
             select(expr: {
-              eq: {
-                lhs: { read: { entity: NODE, target: { property: "p9" } } }
-                rhs: { const: { i64: 5 } }
-              }
-            }) {
+                           node: {
+                             eq: {
+                               lhs: {
+                                 property: "p9"
+                               }
+                               rhs: {
+                                 const: {
+                                   i64: 5
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               filter(expr: {
-                gt: {
-                  lhs: { read: { entity: NODE, target: { property: "p100" } } }
-                  rhs: { const: { i64: 30 } }
-                }
-              }) {
+                             node: {
+                               gt: {
+                                 lhs: {
+                                   property: "p100"
+                                 }
+                                 rhs: {
+                                   const: {
+                                     i64: 30
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 list {
                   name
                 }
@@ -155,8 +204,20 @@ def test_nodes_filter_windowed_is_active(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isActive: { entity: NODE, views: [{ window: { start: 1, end: 4 } }] }
-          }) {
+                         node: {
+                           viewed: {
+                             views: [{
+                               window: {
+                                 start: 1
+                                 end: 4
+                               }
+                             }]
+                             expr: {
+                               isActive: true
+                             }
+                           }
+                         }
+                       }) {
             list {
               name
             }
@@ -185,10 +246,22 @@ def test_nodes_filter_windowed_is_not_active(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            not: {
-              isActive: { entity: NODE, views: [{ window: { start: 1, end: 4 } }] }
-            }
-          }) {
+                         not: {
+                           node: {
+                             viewed: {
+                               views: [{
+                                 window: {
+                                   start: 1
+                                   end: 4
+                                 }
+                               }]
+                               expr: {
+                                 isActive: true
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list {
               name
             }
@@ -236,17 +309,22 @@ def _expected_degree_select_names(graph, direction, predicate):
 
 
 def _degree(direction, op, value=None, over=None):
-    """A degree predicate in the tree grammar: `degree(direction) <op> value`, the degree
-    optionally wrapped in an aggregate or qualifier (`over`) so invalid chains can be spelled.
+    """A degree predicate in the tree grammar: `degree(direction) <op> value`. `over` wraps
+    the degree in an aggregate, or the comparison in a qualifier, so invalid chains can be
+    spelled.
     """
-    lhs = f"{{ read: {{ entity: NODE, target: {{ degree: {direction} }} }} }}"
-    if over:
+    lhs = f"{{ degree: {direction} }}"
+    if over in ("sum", "avg", "min", "max", "first", "last", "len"):
         lhs = f"{{ {over}: {lhs} }}"
     if op in ("isSome", "isNone"):
-        return f"{{ {op}: {lhs} }}"
-    if op in ("isIn", "isNotIn"):
-        return f"{{ {op}: {{ expr: {lhs}, values: {value} }} }}"
-    return f"{{ {op}: {{ lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
+        pred = f"{{ {op}: {lhs} }}"
+    elif op in ("isIn", "isNotIn"):
+        pred = f"{{ {op}: {{ expr: {lhs}, values: {value} }} }}"
+    else:
+        pred = f"{{ {op}: {{ lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
+    if over in ("any", "all"):
+        pred = f"{{ {over}: {pred} }}"
+    return f"{{ node: {pred} }}"
 
 
 def _degree_filter_nodes_query_expected_pair(expr, expected_names):
@@ -503,59 +581,79 @@ def test_filter_nodes_degree_logic_and_sets_gql(graph):
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
-def test_filter_nodes_degree_numeric_coercion_gql(graph):
-    threshold_str = "4"
-    threshold_float = 4.5
+def test_filter_nodes_degree_float_constants_gql(graph):
+    # A float constant is compared as written: 4.5 sits between 4 and 5, and a
+    # fractional set member matches no degree while a whole one still does.
     queries_and_expected_outputs = []
 
     for direction in ["BOTH", "IN", "OUT"]:
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                _degree(direction, "eq", f'{{ str: "{threshold_str}" }}'),
-                _expected_degree_select_names(
-                    graph, direction, lambda d: d == int(threshold_str)
-                ),
+                _degree(direction, "ge", "{ f64: 4.5 }"),
+                _expected_degree_select_names(graph, direction, lambda d: d >= 4.5),
             )
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                _degree(direction, "eq", f'{{ str: "{threshold_str}" }}'),
-                _expected_degree_names(
-                    graph, direction, lambda d: d == int(threshold_str)
-                ),
+                _degree(direction, "ge", "{ f64: 4.5 }"),
+                _expected_degree_names(graph, direction, lambda d: d >= 4.5),
             )
         )
-
         queries_and_expected_outputs.append(
             _degree_select_nodes_query_expected_pair(
-                _degree(direction, "ge", f"{{ f64: {threshold_float} }}"),
-                _expected_degree_select_names(
-                    graph, direction, lambda d: d >= int(threshold_float)
-                ),
+                _degree(direction, "eq", "{ f64: 3.0 }"),
+                _expected_degree_select_names(graph, direction, lambda d: d == 3),
             )
         )
         queries_and_expected_outputs.append(
             _degree_filter_nodes_query_expected_pair(
-                _degree(direction, "ge", f"{{ f64: {threshold_float} }}"),
-                _expected_degree_names(
-                    graph, direction, lambda d: d >= int(threshold_float)
-                ),
+                _degree(direction, "isIn", "{ list: [{f64: 3.0}, {f64: 4.9}] }"),
+                _expected_degree_names(graph, direction, lambda d: d == 3),
             )
         )
 
-        queries_and_expected_outputs.append(
-            _degree_select_nodes_query_expected_pair(
-                _degree(direction, "isIn", f'{{ list: [{{str: "3"}}, {{f64: 4.9}}] }}'),
-                _expected_degree_select_names(graph, direction, lambda d: d in [3, 4]),
-            )
-        )
-        queries_and_expected_outputs.append(
-            _degree_filter_nodes_query_expected_pair(
-                _degree(direction, "isIn", f'{{ list: [{{str: "3"}}, {{f64: 4.9}}] }}'),
-                _expected_degree_names(graph, direction, lambda d: d in [3, 4]),
-            )
+    run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=True)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_filter_nodes_degree_string_constants_gql(graph):
+    # A string constant never compares with a degree, even one that spells a
+    # number; in a set it is simply not a member, so the numbers still count.
+    for direction in ["BOTH", "IN", "OUT"]:
+        expr = _degree(direction, "eq", '{ str: "4" }')
+        query = f"""
+    query {{
+      graph(path: "g") {{
+        filterNodes: filter(expr: {expr}) {{
+          nodes {{ list {{ name }} }}
+        }}
+      }}
+    }}
+    """
+        run_graphql_error_test(
+            query,
+            'Invalid filter: value Str(ArcStr("4")) of type Str cannot be compared with U64',
+            graph,
         )
 
+    queries_and_expected_outputs = [
+        _degree_filter_nodes_query_expected_pair(
+            _degree("BOTH", "isIn", '{ list: [{str: "3"}, {u64: 4}] }'),
+            _expected_degree_names(graph, "BOTH", lambda d: d == 4),
+        ),
+        _degree_filter_nodes_query_expected_pair(
+            _degree("BOTH", "isNotIn", '{ list: [{str: "3"}, {u64: 4}] }'),
+            _expected_degree_names(graph, "BOTH", lambda d: d != 4),
+        ),
+        _degree_filter_nodes_query_expected_pair(
+            _degree("OUT", "isIn", '{ list: [{str: "a"}, {str: "b"}] }'),
+            _expected_degree_names(graph, "OUT", lambda d: False),
+        ),
+        _degree_filter_nodes_query_expected_pair(
+            _degree("BOTH", "isNotIn", '{ list: [{str: "x"}, {str: "y"}] }'),
+            _expected_degree_names(graph, "BOTH", lambda d: True),
+        ),
+    ]
     run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=True)
 
 
@@ -564,8 +662,6 @@ def test_filter_nodes_degree_invalid_non_numeric_string_values_gql(graph):
     invalid_exprs = [
         _degree("BOTH", "lt", '{ str: "foo" }'),
         _degree("IN", "eq", '{ str: "bar" }'),
-        _degree("OUT", "isIn", '{ list: [{str: "a"}, {str: "b"}] }'),
-        _degree("BOTH", "isNotIn", '{ list: [{str: "x"}, {str: "y"}] }'),
     ]
 
     for expr in invalid_exprs:

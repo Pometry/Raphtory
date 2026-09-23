@@ -213,7 +213,9 @@ def test_filter_edges_for_property_starts_with():
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().any().starts_with("Paper")
+        filter_expr = (
+            filter.Edge.property("p10").temporal().starts_with("Paper")
+        ).any()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
@@ -240,7 +242,7 @@ def test_filter_edges_for_property_starts_with():
         ]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p20").temporal().all().starts_with("Gold")
+        filter_expr = (filter.Edge.property("p20").temporal().starts_with("Gold")).all()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [
             ("1", "2"),
@@ -268,7 +270,7 @@ def test_filter_edges_for_property_ends_with():
         expected_ids = [("2", "3")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().any().ends_with("lane")
+        filter_expr = (filter.Edge.property("p10").temporal().ends_with("lane")).any()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("2", "1")]
         assert result_ids == expected_ids
@@ -288,7 +290,7 @@ def test_filter_edges_for_property_ends_with():
         expected_ids = [("2", "3"), ("David Gilmour", "John Mayer")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p20").temporal().all().ends_with("ship")
+        filter_expr = (filter.Edge.property("p20").temporal().ends_with("ship")).all()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("John Mayer", "Jimmy Page")]
         assert result_ids == expected_ids
@@ -311,7 +313,7 @@ def test_filter_edges_for_property_contains():
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().any().contains("Paper")
+        filter_expr = (filter.Edge.property("p10").temporal().contains("Paper")).any()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
@@ -344,7 +346,9 @@ def test_filter_edges_for_property_not_contains():
         expected_ids = [("1", "2"), ("2", "1")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().any().not_contains("ship")
+        filter_expr = (
+            filter.Edge.property("p10").temporal().not_contains("ship")
+        ).any()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("2", "1")]
         assert result_ids == expected_ids
@@ -817,7 +821,7 @@ def test_edge_property_temporal_last_len_u64s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_all_sum_i64s():
     def check(graph):
-        expr = filter.Edge.property("p_i64s").temporal().all().sum() == Prop.i64(-3)
+        expr = (filter.Edge.property("p_i64s").temporal().sum() == Prop.i64(-3)).all()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -827,7 +831,7 @@ def test_edge_property_temporal_all_sum_i64s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_all_avg_f32s():
     def check(graph):
-        expr = filter.Edge.property("p_f32s").temporal().all().avg() == Prop.f64(2.0)
+        expr = (filter.Edge.property("p_f32s").temporal().avg() == Prop.f64(2.0)).all()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -837,7 +841,7 @@ def test_edge_property_temporal_all_avg_f32s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_all_min_u64s():
     def check(graph):
-        expr = filter.Edge.property("p_u64s").temporal().all().min() == Prop.u64(1)
+        expr = (filter.Edge.property("p_u64s").temporal().min() == Prop.u64(1)).all()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b"), ("d", "a")}
 
@@ -847,9 +851,9 @@ def test_edge_property_temporal_all_min_u64s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_all_max_u32s():
     def check(graph):
-        expr = filter.Edge.property("p_u32s").temporal().all().max() == Prop.u32(
-            3_000_000
-        )
+        expr = (
+            filter.Edge.property("p_u32s").temporal().max() == Prop.u32(3_000_000)
+        ).all()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("b", "c")}
 
@@ -859,7 +863,7 @@ def test_edge_property_temporal_all_max_u32s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_all_len_u16s():
     def check(graph):
-        expr = filter.Edge.property("p_u16s").temporal().all().len() == Prop.u64(2)
+        expr = (filter.Edge.property("p_u16s").temporal().len() == Prop.u64(2)).all()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -921,7 +925,7 @@ def test_edge_property_temporal_first_len_u32s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_any_sum_u64s():
     def check(graph):
-        expr = filter.Edge.property("p_u64s").temporal().any().sum() == Prop.u64(3)
+        expr = (filter.Edge.property("p_u64s").temporal().sum() == Prop.u64(3)).any()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -931,7 +935,7 @@ def test_edge_property_temporal_any_sum_u64s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_any_avg_i32s():
     def check(graph):
-        expr = filter.Edge.property("p_i32s").temporal().any().avg() == Prop.f64(0.0)
+        expr = (filter.Edge.property("p_i32s").temporal().avg() == Prop.f64(0.0)).any()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("d", "a")}
 
@@ -941,7 +945,7 @@ def test_edge_property_temporal_any_avg_i32s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_any_min_f32s():
     def check(graph):
-        expr = filter.Edge.property("p_f32s").temporal().any().min() == Prop.f32(-1.5)
+        expr = (filter.Edge.property("p_f32s").temporal().min() == Prop.f32(-1.5)).any()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("d", "a")}
 
@@ -951,7 +955,7 @@ def test_edge_property_temporal_any_min_f32s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_any_max_u8s():
     def check(graph):
-        expr = filter.Edge.property("p_u8s").temporal().any().max() == Prop.u8(U8_MAX)
+        expr = (filter.Edge.property("p_u8s").temporal().max() == Prop.u8(U8_MAX)).any()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("d", "a")}
 
@@ -961,7 +965,7 @@ def test_edge_property_temporal_any_max_u8s():
 @with_variants(create_test_graph2)
 def test_edge_property_temporal_any_len_f64s():
     def check(graph):
-        expr = filter.Edge.property("p_f64s").temporal().any().len() == Prop.u64(3)
+        expr = (filter.Edge.property("p_f64s").temporal().len() == Prop.u64(3)).any()
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("d", "a")}
 
@@ -1060,7 +1064,7 @@ def test_edge_unsupported_ops_agg():
 @with_variants(create_test_graph2)
 def test_edge_property_any():
     def check(graph):
-        expr = filter.Edge.property("p_u8s").any() == Prop.u8(2)
+        expr = (filter.Edge.property("p_u8s") == Prop.u8(2)).any()
         assert _pairs(graph.filter(expr).edges) == {("a", "b")}
 
     return check
@@ -1069,7 +1073,7 @@ def test_edge_property_any():
 @with_variants(create_test_graph2)
 def test_edge_property_all():
     def check(graph):
-        expr = filter.Edge.property("p_bools").all() == Prop.bool(True)
+        expr = (filter.Edge.property("p_bools") == Prop.bool(True)).all()
         assert _pairs(graph.filter(expr).edges) == {("b", "c")}
 
     return check
@@ -1078,7 +1082,7 @@ def test_edge_property_all():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_first_any():
     def check(graph):
-        expr = filter.Edge.property("p_u64s").temporal().first().any() == Prop.u64(2)
+        expr = (filter.Edge.property("p_u64s").temporal().first() == Prop.u64(2)).any()
         assert _pairs(graph.filter(expr).edges) == {("a", "b")}
 
     return check
@@ -1087,9 +1091,9 @@ def test_edge_temporal_property_first_any():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_first_all():
     def check(graph):
-        expr = filter.Edge.property("p_bools").temporal().first().all() == Prop.bool(
-            True
-        )
+        expr = (
+            filter.Edge.property("p_bools").temporal().first() == Prop.bool(True)
+        ).all()
         assert _pairs(graph.filter(expr).edges) == {("b", "c")}
 
     return check
@@ -1098,7 +1102,7 @@ def test_edge_temporal_property_first_all():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_last_any():
     def check(graph):
-        expr = filter.Edge.property("p_i64s").temporal().last().any() == Prop.i64(-2)
+        expr = (filter.Edge.property("p_i64s").temporal().last() == Prop.i64(-2)).any()
         assert _pairs(graph.filter(expr).edges) == {("a", "b")}
 
     return check
@@ -1107,7 +1111,7 @@ def test_edge_temporal_property_last_any():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_last_all():
     def check(graph):
-        expr = filter.Edge.property("p_f32s").temporal().last().all() == Prop.f32(3.0)
+        expr = (filter.Edge.property("p_f32s").temporal().last() == Prop.f32(3.0)).all()
         assert _pairs(graph.filter(expr).edges) == {("b", "c")}
 
     return check
@@ -1116,8 +1120,8 @@ def test_edge_temporal_property_last_all():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_all_any():
     def check(graph):
-        expr = filter.Edge.property("p_bools").temporal().all().any() == Prop.bool(
-            False
+        expr = (
+            (filter.Edge.property("p_bools").temporal() == Prop.bool(False)).any().all()
         )
         assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("d", "a")}
 
@@ -1127,8 +1131,8 @@ def test_edge_temporal_property_all_any():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_all_all():
     def check(graph):
-        expr = filter.Edge.property("p_bools").temporal().all().all() == Prop.bool(
-            False
+        expr = (
+            (filter.Edge.property("p_bools").temporal() == Prop.bool(False)).all().all()
         )
         assert _pairs(graph.filter(expr).edges) == {("d", "a")}
 
@@ -1138,7 +1142,7 @@ def test_edge_temporal_property_all_all():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_any_any():
     def check(graph):
-        expr = filter.Edge.property("p_strs").temporal().any().any() == Prop.str("x")
+        expr = (filter.Edge.property("p_strs").temporal() == Prop.str("x")).any().any()
         assert _pairs(graph.filter(expr).edges) == {("b", "c")}
 
     return check
@@ -1147,8 +1151,10 @@ def test_edge_temporal_property_any_any():
 @with_variants(create_test_graph2)
 def test_edge_temporal_property_any_all():
     def check(graph):
-        expr = filter.Edge.property("p_strs").temporal().any().all() == Prop.str(
-            "longword"
+        expr = (
+            (filter.Edge.property("p_strs").temporal() == Prop.str("longword"))
+            .all()
+            .any()
         )
         assert _pairs(graph.filter(expr).edges) == {("d", "a")}
 

@@ -31,7 +31,7 @@ def test_edges_dst_property_contains():
 def test_edges_dst_property_any_contains():
     def check(graph):
         # dst node "3" has p20 == "Gold_boat"; dst node "4" has p20 updated from Gold_boat to Gold_ship so it appears with .temporal().any()
-        expr = filter.Edge.dst().property("p20").temporal().any().contains("boat")
+        expr = (filter.Edge.dst().property("p20").temporal().contains("boat")).any()
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3"), ("3", "4")])
         assert result == expected
@@ -67,7 +67,7 @@ def test_edges_src_property_temporal_sum():
 def test_edges_src_property_any_equals():
     def check(graph):
         # src node "d" doesn't exist as src; src of edges are a,b,c; node "a" has prop8 = [2,3,3]
-        expr = filter.Edge.src().property("prop8").temporal().any().any() == 3
+        expr = (filter.Edge.src().property("prop8").temporal() == 3).any().any()
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])
         assert result == expected
@@ -103,7 +103,7 @@ def test_edges_src_metadata_avg():
 def test_edges_src_property_and_edge_property():
     def check(graph):
         expr = (filter.Edge.src().property("p2") == 2) & (
-            filter.Edge.property("p20").temporal().any().contains("ship")
+            (filter.Edge.property("p20").temporal().contains("ship")).any()
         )
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("2", "3")])

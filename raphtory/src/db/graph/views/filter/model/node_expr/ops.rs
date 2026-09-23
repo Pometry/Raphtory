@@ -14,8 +14,8 @@
 //!  ──► NodePropOp { graph, prop_id: 3 }  ← NodeOp: apply() reads column 3 in O(1)
 //!
 //! NodeFilter.property("age").gt(30i64)   ← BinaryCmpExpr (pure data)
-//!   .create_node_filter(graph)?
-//!  ──► BinaryCmpNodeOp { left: NodePropOp, right: Const(Some(I64(30))), op: Gt }
+//!   converts to the expression tree (`model::expr`) and compiles there:
+//!  ──► a comparison op over NodePropOp and Const(Some(I64(30)))
 //!        apply: Prop::binary_cmp(Gt, age_value, Some(I64(30)))
 //!
 //! NodeFilter.property("score").temporal().sum()  ← SumExpr (pure data)
@@ -26,14 +26,13 @@
 //!
 //! # Quantified evaluation
 //!
-//! Filter types (`BinaryCmpExpr`, `StringExpr`, `PropValueSetExpr`) also
-//! implement `NodeExpr`, producing list-aware ops for mid-chain use before `.any()`/`.all()`:
+//! A comparison against a list-valued side gives one answer per element;
+//! `.any()` / `.all()` written after it collapse that list:
 //!
 //! ```text
 //! temporal values = [8, 12, 5],  rhs = 10
-//! .gt(10i64) as NodeExpr  →  ListAwareCmpNodeOp → Prop::List([false, true, false])
-//! .any()                  →  AnyNodeOp reduces boolean list → Prop::Bool(true)
-//! Eq Bool(true)           →  true    (at least one matched)
+//! .gt(10i64)   →  Prop::List([false, true, false])   (element-wise, in `model::expr`)
+//! .any()       →  AnyNodeOp reduces the list → Prop::Bool(true)
 //! ```
 
 use super::EdgeOp;
@@ -48,11 +47,8 @@ use crate::{
                 NodeViewOps,
             },
         },
-        graph::views::filter::model::{
-            filter_operator::{BinaryOp, Comparable, SetOp, StringComparable, StringOp, UnaryOp},
-            property_filter::evaluate::{
-                aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
-            },
+        graph::views::filter::model::property_filter::evaluate::{
+            aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
         },
     },
     prelude::GraphViewOps,
@@ -175,7 +171,7 @@ impl<T: NodeOp> NodeOp for WithPropType<T> {
 ///
 /// Collects all recorded values within the current view window into a `Some(Prop::List([...]))`.
 /// That list is then consumed by aggregator ops (`SumNodeOp`, `LenNodeOp`, …) or
-/// by `ListAwareCmpNodeOp` for element-wise comparisons before `.any()`/`.all()` reduction.
+/// compared element-wise, one answer per element, for `.any()`/`.all()` to collapse.
 #[derive(Clone)]
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
@@ -245,16 +241,15 @@ fn agg_out_type(pt: PropType, scalar: Option<PropType>) -> PropType {
     agg_out_type_with(pt, &|elem| scalar.clone().unwrap_or(elem))
 }
 
-/// The type a sum produces from its element type. Summing widens: the
+/// The type a sum produces from its element type. Integer sums widen: the
 /// evaluator below accumulates every unsigned width into a `U64`, every signed
-/// width into an `I64`, and either into a `Decimal` when that overflows, so a
-/// narrow element type would understate what the sum can hold. Keep the arms
-/// in step with the evaluator's.
+/// width into an `I64`, and either into a `Decimal` when that overflows.
+/// Floats keep their width, as `Prop::add` does. Keep the arms in step with
+/// the evaluator's.
 fn sum_out_type(pt: PropType) -> PropType {
     agg_out_type_with(pt, &|elem| match elem {
         PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => PropType::U64,
         PropType::I32 | PropType::I64 => PropType::I64,
-        PropType::F32 | PropType::F64 => PropType::F64,
         other => other,
     })
 }
@@ -277,9 +272,12 @@ mod sum_out_type_tests {
         for elem in [PropType::I32, PropType::I64] {
             assert_eq!(sum_out_type(list(elem)), PropType::I64);
         }
-        for elem in [PropType::F32, PropType::F64] {
-            assert_eq!(sum_out_type(list(elem)), PropType::F64);
-        }
+    }
+
+    #[test]
+    fn float_elements_keep_their_width() {
+        assert_eq!(sum_out_type(list(PropType::F32)), PropType::F32);
+        assert_eq!(sum_out_type(list(PropType::F64)), PropType::F64);
     }
 
     #[test]
@@ -364,9 +362,8 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| sum_out_type(pt), |vals| {
                     Prop::I64(s64)
                 })
             }
-            PropType::F32 | PropType::F64 => {
-                scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum))
-            }
+            PropType::F32 => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F32(sum as f32)),
+            PropType::F64 => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum)),
             _ => None,
         }
     })
@@ -475,70 +472,6 @@ impl_agg_entity_op!(
     }
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ListAwareCmpNodeOp / ListAwareStringNodeOp / ListAwareSetNodeOp
-//
-// These ops implement NodeExpr for BinaryCmpExpr, StringExpr, and
-// PropValueSetExpr respectively, enabling mid-chain use before .any()/.all().
-//
-// Each uses broadcasting so that comparisons applied to a `Prop::List(...)`
-// fan out element-wise; scalar inputs are passed through to the op directly.
-//   temporal().gt(5).any()
-//   temporal().contains("rock").all()
-//   temporal().is_in([...]).any()
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Clone)]
-pub(crate) struct ListAwareCmpNodeOp<'g> {
-    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) op: BinaryOp,
-}
-
-impl<'g> NodeOp for ListAwareCmpNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let lv = self.left.apply(storage, node);
-        let rhs = self.right.apply(storage, node);
-        let op = &self.op;
-        broadcast_binary(lv, rhs, &|lv, rhs| {
-            Some(Prop::Bool(Prop::binary_cmp(op, &lv?, &rhs?)))
-        })
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct ListAwareStringNodeOp<'g> {
-    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) op: StringOp,
-}
-
-impl<'g> NodeOp for ListAwareStringNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let lv = self.left.apply(storage, node);
-        let rhs = self.right.apply(storage, node);
-        let op = &self.op;
-        broadcast_binary(lv, rhs, &|lv, rhs| {
-            Some(Prop::Bool(Option::<Prop>::string_cmp(op, &lv, &rhs)))
-        })
-    }
-}
-
-// [1,2,3] == [1,2,3]
-// [4,5,6] > [1,2,3]
-
 pub fn broadcast_unary(v: Option<Prop>, op: impl Fn(Option<Prop>) -> Option<Prop>) -> Option<Prop> {
     match v {
         Some(Prop::List(v)) => Some(Prop::List(v.iter_all().map(|l| op(l)).flatten().collect())),
@@ -581,155 +514,6 @@ pub fn broadcast_binary(
                 .collect(),
         )),
         (l, r) => op(Some(l), Some(r)),
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct ListAwareSetNodeOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) values: Vec<Prop>,
-    pub(crate) op: SetOp,
-}
-
-impl<'g> NodeOp for ListAwareSetNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let vals = self.inner.apply(storage, node);
-        let values = &self.values;
-        let op = &self.op;
-        broadcast_unary(vals, |v| {
-            let v = v?;
-            Some(Prop::Bool(match op {
-                SetOp::IsIn => values
-                    .iter()
-                    .any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                SetOp::IsNotIn => values
-                    .iter()
-                    .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
-            }))
-        })
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ListAwareUnaryNodeOp — element-wise is_some / is_none via broadcast_unary
-//
-// Unlike `UnaryNodeOp` (which returns `bool` for use in `CreateFilter`), this
-// op returns `Option<Prop::Bool>` so it can plug into the expression chain via
-// `CreateOp`. The closure intentionally does NOT `?`-propagate the inner
-// `None` — the whole purpose of `is_some`/`is_none` is to test that case.
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Clone)]
-pub(crate) struct ListAwareUnaryNodeOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) op: UnaryOp,
-}
-
-impl<'g> NodeOp for ListAwareUnaryNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let vals = self.inner.apply(storage, node);
-        let op = &self.op;
-        broadcast_unary(vals, |v| {
-            Some(Prop::Bool(match op {
-                UnaryOp::IsSome => v.is_some(),
-                UnaryOp::IsNone => v.is_none(),
-            }))
-        })
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PropValueSetNodeOp<'g> — is_in / is_not_in for Option<Prop> (linear scan)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Checks whether an `Option<Prop>` value is in (or not in) a fixed `Vec<Prop>`.
-/// Uses linear scan because `Prop` may contain floats (`F32`, `F64`) which don't
-/// implement `Hash`.
-pub struct PropValueSetNodeOp<'g> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) values: Vec<Prop>,
-    pub(crate) op: SetOp,
-}
-
-impl<'g> Clone for PropValueSetNodeOp<'g> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            values: self.values.clone(),
-            op: self.op,
-        }
-    }
-}
-
-impl<'g> NodeOp for PropValueSetNodeOp<'g> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        match self.inner.apply(storage, node) {
-            None => false,
-            Some(v) => match self.op {
-                SetOp::IsIn => self
-                    .values
-                    .iter()
-                    .any(|x| Prop::binary_cmp(&BinaryOp::Eq, x, &v)),
-                SetOp::IsNotIn => self
-                    .values
-                    .iter()
-                    .all(|x| Prop::binary_cmp(&BinaryOp::Ne, x, &v)),
-            },
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BinaryCmpNodeOp<'g, T> — compares two NodeOp<Output = T> using BinaryOp
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Internal op produced by [`BinaryCmpExpr::create_node_filter`].
-///
-/// Holds two compiled `NodeOp<Output = T>` and applies `T::binary_cmp` per node.
-/// The `'g` lifetime bounds both ops to the graph view they were compiled against.
-///
-/// e.g. `NodeFilter.property("age").gt(30i64)` compiles to:
-/// `BinaryCmpNodeOp { left: NodePropOp(prop_id=3), right: Const(Some(I64(30))), op: Gt }`
-#[derive(Clone)]
-pub struct BinaryCmpNodeOp<'g, T: Comparable> {
-    pub(crate) left: Arc<dyn NodeOp<Output = T> + 'g>,
-    pub(crate) right: Arc<dyn NodeOp<Output = T> + 'g>,
-    pub(crate) op: BinaryOp,
-}
-
-impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinaryCmpNodeOp<'g, T> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        let lv = self.left.apply(storage, node);
-        let rv = self.right.apply(storage, node);
-        T::binary_cmp(&self.op, &lv, &rv)
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
     }
 }
 
@@ -801,70 +585,5 @@ impl<'g> NodeOp for IdDomainNodeOp<'g> {
 
     fn prop_type(&self) -> PropType {
         self.inner.prop_type()
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// StringNodeOp<'g, T> — applies a StringOp to two NodeOp<Output = T>
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Internal op produced by [`StringExpr::create_node_filter`].
-///
-/// e.g. `NodeFilter.name().starts_with("Al")` compiles to:
-/// `StringNodeOp { left: Name.map(...), right: Const(Some(Str("Al"))), op: StartsWith }`
-#[derive(Clone)]
-pub struct StringNodeOp<'g, T: StringComparable> {
-    pub(crate) left: Arc<dyn NodeOp<Output = T> + 'g>,
-    pub(crate) right: Arc<dyn NodeOp<Output = T> + 'g>,
-    pub(crate) op: StringOp,
-}
-
-impl<'g, T: StringComparable> NodeOp for StringNodeOp<'g, T> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        T::string_cmp(
-            &self.op,
-            &self.left.apply(storage, node),
-            &self.right.apply(storage, node),
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UnaryNodeOp<'g, T> — evaluates is_some / is_none
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Internal op produced by [`UnaryExpr::create_node_filter`].
-///
-/// e.g. `NodeFilter.property("age").is_some::<Prop>()` compiles to:
-/// `UnaryNodeOp { inner: NodePropOp(prop_id=3), op: IsSome }`
-#[derive(Clone)]
-pub struct UnaryNodeOp<'g, I: Clone + Send + Sync + 'static> {
-    pub(crate) inner: Arc<dyn NodeOp<Output = Option<I>> + 'g>,
-    pub(crate) op: UnaryOp,
-}
-
-impl<'g, I: Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, I> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
-    }
-
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        let v = self.inner.apply(storage, node);
-        match self.op {
-            UnaryOp::IsSome => v.is_some(),
-            UnaryOp::IsNone => v.is_none(),
-        }
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
     }
 }

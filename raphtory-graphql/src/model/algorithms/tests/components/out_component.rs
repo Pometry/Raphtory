@@ -70,22 +70,19 @@ async fn test_algorithm_out_component_filtered() {
           graph(path: "g") {
             algorithm {
               outComponent(node: "a", filter: {
-                ne: {
-                  lhs: {
-                    read: {
-                      entity: NODE
-                      target: {
-                        field: NAME
-                      }
-                    }
-                  }
-                  rhs: {
-                    const: {
-                      str: "c"
-                    }
-                  }
-                }
-              }) {
+                                                node: {
+                                                  ne: {
+                                                    lhs: {
+                                                      field: NAME
+                                                    }
+                                                    rhs: {
+                                                      const: {
+                                                        str: "c"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }) {
                 nodes { list { id } }
               }
             }
@@ -117,43 +114,34 @@ async fn test_algorithm_out_component_node_filter_composed() {
           graph(path: "g") {
             algorithm {
               outComponent(node: "a", filter: {
-                and: [
-                  {
-                    ne: {
-                      lhs: {
-                        read: {
-                          entity: NODE
-                          target: {
-                            field: NAME
-                          }
-                        }
-                      }
-                      rhs: {
-                        const: {
-                          str: "b"
-                        }
-                      }
-                    }
-                  },
-                  {
-                    ne: {
-                      lhs: {
-                        read: {
-                          entity: NODE
-                          target: {
-                            field: NAME
-                          }
-                        }
-                      }
-                      rhs: {
-                        const: {
-                          str: "c"
-                        }
-                      }
-                    }
-                  }
-                ]
-              }) {
+                                                and: [{
+                                                  node: {
+                                                    ne: {
+                                                      lhs: {
+                                                        field: NAME
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "b"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }, {
+                                                  node: {
+                                                    ne: {
+                                                      lhs: {
+                                                        field: NAME
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "c"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }]
+                                              }) {
                 nodes { list { id } }
               }
             }
@@ -184,45 +172,38 @@ async fn test_algorithm_out_component_edge_filter_composed() {
           graph(path: "g") {
             algorithm {
               outComponent(node: "a", filter: {
-                and: [
-                  {
-                    ne: {
-                      lhs: {
-                        read: {
-                          entity: EDGE
-                          target: {
-                            field: NAME
-                          }
-                          endpoint: DST
-                        }
-                      }
-                      rhs: {
-                        const: {
-                          str: "b"
-                        }
-                      }
-                    }
-                  },
-                  {
-                    ne: {
-                      lhs: {
-                        read: {
-                          entity: EDGE
-                          target: {
-                            field: NAME
-                          }
-                          endpoint: DST
-                        }
-                      }
-                      rhs: {
-                        const: {
-                          str: "c"
-                        }
-                      }
-                    }
-                  }
-                ]
-              }) {
+                                                and: [{
+                                                  edge: {
+                                                    ne: {
+                                                      lhs: {
+                                                        dst: {
+                                                          field: NAME
+                                                        }
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "b"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }, {
+                                                  edge: {
+                                                    ne: {
+                                                      lhs: {
+                                                        dst: {
+                                                          field: NAME
+                                                        }
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "c"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }]
+                                              }) {
                 nodes { list { id } }
               }
             }
@@ -304,22 +285,19 @@ async fn test_algorithm_out_component_filter_equivalence() {
           graph(path: "g") {
             algorithm {
               outComponent(node: "a", filter: {
-                ne: {
-                  lhs: {
-                    read: {
-                      entity: NODE
-                      target: {
-                        field: NAME
-                      }
-                    }
-                  }
-                  rhs: {
-                    const: {
-                      str: "c"
-                    }
-                  }
-                }
-              }) {
+                                                node: {
+                                                  ne: {
+                                                    lhs: {
+                                                      field: NAME
+                                                    }
+                                                    rhs: {
+                                                      const: {
+                                                        str: "c"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }) {
                 rows {
                   node { id }
                   entries {
@@ -337,22 +315,19 @@ async fn test_algorithm_out_component_filter_equivalence() {
         {
           graph(path: "g") {
             filter(expr: {
-              ne: {
-                lhs: {
-                  read: {
-                    entity: NODE
-                    target: {
-                      field: NAME
-                    }
-                  }
-                }
-                rhs: {
-                  const: {
-                    str: "c"
-                  }
-                }
-              }
-            }) {
+                           node: {
+                             ne: {
+                               lhs: {
+                                 field: NAME
+                               }
+                               rhs: {
+                                 const: {
+                                   str: "c"
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               algorithm {
                 outComponent(node: "a") {
                   rows {

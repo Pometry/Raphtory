@@ -1,5 +1,5 @@
 use crate::{
-    db::graph::views::filter::model::tree::{FilterExpr, ViewOp},
+    db::graph::views::filter::model::expr::{FilterExpr, ViewOp},
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};

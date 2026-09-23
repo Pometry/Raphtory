@@ -523,14 +523,6 @@ enum AlignmentUnit {
 }
 
 """
-Two expressions to compare.
-"""
-input Cmp {
-	lhs: Expr!
-	rhs: Expr!
-}
-
-"""
 Collection of items
 """
 type CollectionOfMetaGraph {
@@ -1061,6 +1053,114 @@ input EdgeAddition {
 }
 
 """
+Two expressions to compare.
+"""
+input EdgeCmp {
+	lhs: EdgeExpr!
+	rhs: EdgeExpr!
+}
+
+input EdgeExpr @oneOf {
+	"""
+	A literal.
+	"""
+	const: Value
+	"""
+	The latest value of a property.
+	"""
+	property: String
+	"""
+	The history of a property, as a list.
+	"""
+	temporalProperty: String
+	"""
+	A metadata entry.
+	"""
+	metadata: String
+	"""
+	Whether the entity is active; written `isActive: true`.
+	"""
+	isActive: Boolean
+	"""
+	Whether the edge is valid; written `isValid: true`.
+	"""
+	isValid: Boolean
+	"""
+	Whether the edge is deleted; written `isDeleted: true`.
+	"""
+	isDeleted: Boolean
+	"""
+	Whether the edge is a self loop; written `isSelfLoop: true`.
+	"""
+	isSelfLoop: Boolean
+	"""
+	A node expression evaluated on the edge's source node.
+	"""
+	src: NodeExpr
+	"""
+	A node expression evaluated on the edge's destination node.
+	"""
+	dst: NodeExpr
+	"""
+	Views applied to every read inside.
+	"""
+	viewed: EdgeViewed
+	sum: EdgeExpr
+	avg: EdgeExpr
+	min: EdgeExpr
+	max: EdgeExpr
+	first: EdgeExpr
+	last: EdgeExpr
+	len: EdgeExpr
+	eq: EdgeCmp
+	ne: EdgeCmp
+	lt: EdgeCmp
+	le: EdgeCmp
+	gt: EdgeCmp
+	ge: EdgeCmp
+	startsWith: EdgeCmp
+	endsWith: EdgeCmp
+	contains: EdgeCmp
+	notContains: EdgeCmp
+	fuzzySearch: EdgeFuzzyCmp
+	isIn: EdgeMembership
+	isNotIn: EdgeMembership
+	isSome: EdgeExpr
+	isNone: EdgeExpr
+	"""
+	Holds when the element-wise result inside holds for any element.
+	"""
+	any: EdgeExpr
+	"""
+	Holds when the element-wise result inside holds for every element.
+	"""
+	all: EdgeExpr
+	and: [EdgeExpr!]
+	or: [EdgeExpr!]
+	not: EdgeExpr
+}
+
+"""
+A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+`rhs`, optionally matching by prefix.
+"""
+input EdgeFuzzyCmp {
+	lhs: EdgeExpr!
+	rhs: EdgeExpr!
+	levenshteinDistance: Int!
+	prefixMatch: Boolean!
+}
+
+"""
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+"""
+input EdgeMembership {
+	expr: EdgeExpr!
+	values: Value!
+}
+
+"""
 Describes edges between a specific pair of node types — the property and
 metadata keys seen on such edges, along with their observed value types.
 One `EdgeSchema` per `(srcType, dstType)` pair per layer.
@@ -1172,6 +1272,14 @@ input EdgeViewCollection @oneOf {
 	A filter tree; the entity it tests is written in the tree.
 	"""
 	filter: FilterExpr
+}
+
+"""
+Views applied to every read inside `expr`, in list order.
+"""
+input EdgeViewed {
+	views: [ViewOp!]!
+	expr: EdgeExpr!
 }
 
 """
@@ -1638,23 +1746,6 @@ input EmbeddingModel @oneOf {
 }
 
 """
-Which end of an edge a read looks at.
-"""
-enum Endpoint {
-	SRC
-	DST
-}
-
-"""
-The kind of thing a filter tests: a node, an edge, or one edge update.
-"""
-enum Entity {
-	NODE
-	EDGE
-	EXPLODED_EDGE
-}
-
-"""
 Raphtory’s EventTime.
 Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
@@ -1691,61 +1782,120 @@ type EventTime {
 }
 
 """
-A value: what stands on either side of a comparison.
+Two expressions to compare.
 """
-input Expr @oneOf {
+input ExplodedEdgeCmp {
+	lhs: ExplodedEdgeExpr!
+	rhs: ExplodedEdgeExpr!
+}
+
+input ExplodedEdgeExpr @oneOf {
 	"""
 	A literal.
 	"""
 	const: Value
 	"""
-	A field, degree, property or metadata read from an entity.
+	The latest value of a property.
 	"""
-	read: Read
+	property: String
 	"""
-	The full history of a property instead of its latest value.
+	The history of a property, as a list.
 	"""
-	temporal: Expr
-	sum: Expr
-	avg: Expr
-	min: Expr
-	max: Expr
-	first: Expr
-	last: Expr
-	len: Expr
+	temporalProperty: String
 	"""
-	The predicate holds if it holds for any element.
+	A metadata entry.
 	"""
-	any: Expr
+	metadata: String
 	"""
-	The predicate holds if it holds for every element.
+	Whether the entity is active; written `isActive: true`.
 	"""
-	all: Expr
+	isActive: Boolean
+	"""
+	Whether the edge update is valid; written `isValid: true`.
+	"""
+	isValid: Boolean
+	"""
+	Whether the edge update is deleted; written `isDeleted: true`.
+	"""
+	isDeleted: Boolean
+	"""
+	Whether the edge update is a self loop; written `isSelfLoop: true`.
+	"""
+	isSelfLoop: Boolean
+	"""
+	Views applied to every read inside.
+	"""
+	viewed: ExplodedEdgeViewed
+	sum: ExplodedEdgeExpr
+	avg: ExplodedEdgeExpr
+	min: ExplodedEdgeExpr
+	max: ExplodedEdgeExpr
+	first: ExplodedEdgeExpr
+	last: ExplodedEdgeExpr
+	len: ExplodedEdgeExpr
+	eq: ExplodedEdgeCmp
+	ne: ExplodedEdgeCmp
+	lt: ExplodedEdgeCmp
+	le: ExplodedEdgeCmp
+	gt: ExplodedEdgeCmp
+	ge: ExplodedEdgeCmp
+	startsWith: ExplodedEdgeCmp
+	endsWith: ExplodedEdgeCmp
+	contains: ExplodedEdgeCmp
+	notContains: ExplodedEdgeCmp
+	fuzzySearch: ExplodedEdgeFuzzyCmp
+	isIn: ExplodedEdgeMembership
+	isNotIn: ExplodedEdgeMembership
+	isSome: ExplodedEdgeExpr
+	isNone: ExplodedEdgeExpr
+	"""
+	Holds when the element-wise result inside holds for any element.
+	"""
+	any: ExplodedEdgeExpr
+	"""
+	Holds when the element-wise result inside holds for every element.
+	"""
+	all: ExplodedEdgeExpr
+	and: [ExplodedEdgeExpr!]
+	or: [ExplodedEdgeExpr!]
+	not: ExplodedEdgeExpr
 }
 
 """
-The filter itself: a yes/no over an entity.
+A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+`rhs`, optionally matching by prefix.
+"""
+input ExplodedEdgeFuzzyCmp {
+	lhs: ExplodedEdgeExpr!
+	rhs: ExplodedEdgeExpr!
+	levenshteinDistance: Int!
+	prefixMatch: Boolean!
+}
+
+"""
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+"""
+input ExplodedEdgeMembership {
+	expr: ExplodedEdgeExpr!
+	values: Value!
+}
+
+"""
+Views applied to every read inside `expr`, in list order.
+"""
+input ExplodedEdgeViewed {
+	views: [ViewOp!]!
+	expr: ExplodedEdgeExpr!
+}
+
+"""
+The filter itself: a yes/no over one kind of entity, a view, or a combination.
 """
 input FilterExpr @oneOf {
-	eq: Cmp
-	ne: Cmp
-	lt: Cmp
-	le: Cmp
-	gt: Cmp
-	ge: Cmp
-	startsWith: Cmp
-	endsWith: Cmp
-	contains: Cmp
-	notContains: Cmp
-	fuzzySearch: FuzzyCmp
-	isSome: Expr
-	isNone: Expr
-	isIn: Membership
-	isNotIn: Membership
-	isActive: Scope
-	isValid: Scope
-	isDeleted: Scope
-	isSelfLoop: Scope
+	node: NodeExpr
+	edge: EdgeExpr
+	explodedEdge: ExplodedEdgeExpr
 	"""
 	A graph-level view with no predicate: the result is the view.
 	"""
@@ -1753,17 +1903,6 @@ input FilterExpr @oneOf {
 	and: [FilterExpr!]
 	or: [FilterExpr!]
 	not: FilterExpr
-}
-
-"""
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
-"""
-input FuzzyCmp {
-	lhs: Expr!
-	rhs: Expr!
-	levenshteinDistance: Int!
-	prefixMatch: Boolean!
 }
 
 """
@@ -2847,15 +2986,6 @@ type Matching {
 		"""
 		dst: NodeId!
 	): Boolean!
-}
-
-"""
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
-"""
-input Membership {
-	expr: Expr!
-	values: Value!
 }
 
 """
@@ -4425,6 +4555,82 @@ input NodeAddition {
 }
 
 """
+Two expressions to compare.
+"""
+input NodeCmp {
+	lhs: NodeExpr!
+	rhs: NodeExpr!
+}
+
+input NodeExpr @oneOf {
+	"""
+	A literal.
+	"""
+	const: Value
+	"""
+	The latest value of a property.
+	"""
+	property: String
+	"""
+	The history of a property, as a list.
+	"""
+	temporalProperty: String
+	"""
+	A metadata entry.
+	"""
+	metadata: String
+	"""
+	Whether the entity is active; written `isActive: true`.
+	"""
+	isActive: Boolean
+	"""
+	A built-in node field.
+	"""
+	field: NodeFieldName
+	"""
+	The node's degree in a direction.
+	"""
+	degree: DegreeDirection
+	"""
+	Views applied to every read inside.
+	"""
+	viewed: NodeViewed
+	sum: NodeExpr
+	avg: NodeExpr
+	min: NodeExpr
+	max: NodeExpr
+	first: NodeExpr
+	last: NodeExpr
+	len: NodeExpr
+	eq: NodeCmp
+	ne: NodeCmp
+	lt: NodeCmp
+	le: NodeCmp
+	gt: NodeCmp
+	ge: NodeCmp
+	startsWith: NodeCmp
+	endsWith: NodeCmp
+	contains: NodeCmp
+	notContains: NodeCmp
+	fuzzySearch: NodeFuzzyCmp
+	isIn: NodeMembership
+	isNotIn: NodeMembership
+	isSome: NodeExpr
+	isNone: NodeExpr
+	"""
+	Holds when the element-wise result inside holds for any element.
+	"""
+	any: NodeExpr
+	"""
+	Holds when the element-wise result inside holds for every element.
+	"""
+	all: NodeExpr
+	and: [NodeExpr!]
+	or: [NodeExpr!]
+	not: NodeExpr
+}
+
+"""
 A built-in node field.
 """
 enum NodeFieldName {
@@ -4434,11 +4640,31 @@ enum NodeFieldName {
 }
 
 """
+A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+`rhs`, optionally matching by prefix.
+"""
+input NodeFuzzyCmp {
+	lhs: NodeExpr!
+	rhs: NodeExpr!
+	levenshteinDistance: Int!
+	prefixMatch: Boolean!
+}
+
+"""
 Identifier for a node — either a string (`"alice"`) or a non-negative
 integer (`42`). Use whichever form matches how the graph was indexed
 when nodes were added.
 """
 scalar NodeId
+
+"""
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+"""
+input NodeMembership {
+	expr: NodeExpr!
+	values: Value!
+}
 
 """
 Describes nodes of a specific type in a graph — its property keys and
@@ -4829,6 +5055,14 @@ input NodeViewCollection @oneOf {
 	A filter tree; the entity it tests is written in the tree.
 	"""
 	filter: FilterExpr
+}
+
+"""
+Views applied to every read inside `expr`, in list order.
+"""
+input NodeViewed {
+	views: [ViewOp!]!
+	expr: NodeExpr!
 }
 
 """
@@ -6477,26 +6711,6 @@ type QueryRoot {
 }
 
 """
-A value read from an entity.
-"""
-input Read {
-	entity: Entity!
-	views: [ViewOp!]
-	endpoint: Endpoint
-	target: Target!
-}
-
-"""
-Where a value is read: the entity, the views to read it through, and for an
-edge optionally one of its endpoint nodes.
-"""
-input Scope {
-	entity: Entity!
-	views: [ViewOp!]
-	endpoint: Endpoint
-}
-
-"""
 How the initially infected nodes are chosen.
 """
 input Seeds @oneOf {
@@ -6535,28 +6749,6 @@ enum SpecialFloat {
 	NAN
 	INFINITY
 	NEG_INFINITY
-}
-
-"""
-What a read selects on its entity.
-"""
-input Target @oneOf {
-	"""
-	A built-in node field.
-	"""
-	field: NodeFieldName
-	"""
-	A node degree in a direction.
-	"""
-	degree: DegreeDirection
-	"""
-	A property, by name.
-	"""
-	property: String
-	"""
-	A metadata entry, by name.
-	"""
-	metadata: String
 }
 
 input Template @oneOf {
@@ -7076,4 +7268,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

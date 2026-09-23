@@ -13,11 +13,21 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: { read: { entity: EDGE, target: { field: ID }, endpoint: SRC } }
-            rhs: { const: { str: "3" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          src: {
+                                            field: ID
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "3"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges {
             list {
               src { name }
@@ -53,11 +63,21 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: { read: { entity: EDGE, target: { field: ID }, endpoint: SRC } }
-            rhs: { const: { u64: 1 } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          src: {
+                                            field: ID
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            u64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges {
             list {
               src { name }
@@ -85,17 +105,35 @@ def test_edges_chained_selection_with_edge_filter(graph):
       graph(path: "g") {
         edges {
           select(expr: {
-            eq: {
-              lhs: { read: { entity: EDGE, target: { field: ID }, endpoint: DST } }
-              rhs: { const: { u64: 2 } }
-            }
-          }) {
+                         edge: {
+                           eq: {
+                             lhs: {
+                               dst: {
+                                 field: ID
+                               }
+                             }
+                             rhs: {
+                               const: {
+                                 u64: 2
+                               }
+                             }
+                           }
+                         }
+                       }) {
             select(expr: {
-              gt: {
-                lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-                rhs: { const: { i64: 2 } }
-              }
-            }) {
+                           edge: {
+                             gt: {
+                               lhs: {
+                                 property: "p2"
+                               }
+                               rhs: {
+                                 const: {
+                                   i64: 2
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               list { src { name } dst { name } }
             }        
           }
@@ -126,8 +164,20 @@ def test_edges_filter_window_is_active(graph):
       graph(path: "g") {
         edges {
           select(expr: {
-            isActive: { entity: EDGE, views: [{ window: { start: 1, end: 4 } }] }
-          }) {
+                         edge: {
+                           viewed: {
+                             views: [{
+                               window: {
+                                 start: 1
+                                 end: 4
+                               }
+                             }]
+                             expr: {
+                               isActive: true
+                             }
+                           }
+                         }
+                       }) {
             list {
               src {
                 name
@@ -177,8 +227,20 @@ def test_edges_filter_window_is_deleted(graph, expected_edges):
       graph(path: "g") {
         edges {
           select(expr: {
-            isDeleted: { entity: EDGE, views: [{ window: { start: 1, end: 5 } }] }
-          }) {
+                         edge: {
+                           viewed: {
+                             views: [{
+                               window: {
+                                 start: 1
+                                 end: 5
+                               }
+                             }]
+                             expr: {
+                               isDeleted: true
+                             }
+                           }
+                         }
+                       }) {
             list {
               src {
                 name

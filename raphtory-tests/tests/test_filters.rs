@@ -2087,162 +2087,104 @@ mod test_node_filter {
 
     proptest! {
         #[test]
-        fn prop_degree_filter_with_string_threshold(threshold in 0u64..15) {
-            let graph = degree_graph_with_add_node_and_add_edge();
-            let threshold_str = threshold.to_string();
-            let parsed_str = threshold_str.parse::<u64>().unwrap();
-
-            assert_filter(&graph, NodeFilter.degree().lt(threshold_str.clone()), Direction::BOTH, |d| d < parsed_str as usize, "BOTH < string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.degree().le(threshold_str.clone()), Direction::BOTH, |d| d <= parsed_str as usize, "BOTH <= string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.degree().eq(threshold_str.clone()), Direction::BOTH, |d| d == parsed_str as usize, "BOTH == string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.degree().ne(threshold_str.clone()), Direction::BOTH, |d| d != parsed_str as usize, "BOTH != string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.degree().ge(threshold_str.clone()), Direction::BOTH, |d| d >= parsed_str as usize, "BOTH >= string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.degree().gt(threshold_str.clone()), Direction::BOTH, |d| d > parsed_str as usize, "BOTH > string threshold parsed to u64");
-
-            assert_filter(&graph, NodeFilter.in_degree().lt(threshold_str.clone()), Direction::IN, |d| d < parsed_str as usize, "IN < string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.in_degree().le(threshold_str.clone()), Direction::IN, |d| d <= parsed_str as usize, "IN <= string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.in_degree().eq(threshold_str.clone()), Direction::IN, |d| d == parsed_str as usize, "IN == string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.in_degree().ne(threshold_str.clone()), Direction::IN, |d| d != parsed_str as usize, "IN != string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.in_degree().ge(threshold_str.clone()), Direction::IN, |d| d >= parsed_str as usize, "IN >= string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.in_degree().gt(threshold_str.clone()), Direction::IN, |d| d > parsed_str as usize, "IN > string threshold parsed to u64");
-
-            assert_filter(&graph, NodeFilter.out_degree().lt(threshold_str.clone()), Direction::OUT, |d| d < parsed_str as usize, "OUT < string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.out_degree().le(threshold_str.clone()), Direction::OUT, |d| d <= parsed_str as usize, "OUT <= string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.out_degree().eq(threshold_str.clone()), Direction::OUT, |d| d == parsed_str as usize, "OUT == string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.out_degree().ne(threshold_str.clone()), Direction::OUT, |d| d != parsed_str as usize, "OUT != string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.out_degree().ge(threshold_str.clone()), Direction::OUT, |d| d >= parsed_str as usize, "OUT >= string threshold parsed to u64");
-            assert_filter(&graph, NodeFilter.out_degree().gt(threshold_str), Direction::OUT, |d| d > parsed_str as usize, "OUT > string threshold parsed to u64");
-        }
-
-        #[test]
         fn prop_degree_filter_with_float_threshold(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
-            let threshold_float = threshold as f64;
-            let parsed_float = threshold_float as u64;
-
-            assert_filter(&graph, NodeFilter.degree().lt(threshold_float), Direction::BOTH, |d| d < parsed_float as usize, "BOTH < float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.degree().le(threshold_float), Direction::BOTH, |d| d <= parsed_float as usize, "BOTH <= float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.degree().eq(threshold_float), Direction::BOTH, |d| d == parsed_float as usize, "BOTH == float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.degree().ne(threshold_float), Direction::BOTH, |d| d != parsed_float as usize, "BOTH != float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.degree().ge(threshold_float), Direction::BOTH, |d| d >= parsed_float as usize, "BOTH >= float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.degree().gt(threshold_float), Direction::BOTH, |d| d > parsed_float as usize, "BOTH > float threshold cast to u64");
-
-            assert_filter(&graph, NodeFilter.in_degree().lt(threshold_float), Direction::IN, |d| d < parsed_float as usize, "IN < float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.in_degree().le(threshold_float), Direction::IN, |d| d <= parsed_float as usize, "IN <= float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.in_degree().eq(threshold_float), Direction::IN, |d| d == parsed_float as usize, "IN == float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.in_degree().ne(threshold_float), Direction::IN, |d| d != parsed_float as usize, "IN != float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.in_degree().ge(threshold_float), Direction::IN, |d| d >= parsed_float as usize, "IN >= float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.in_degree().gt(threshold_float), Direction::IN, |d| d > parsed_float as usize, "IN > float threshold cast to u64");
-
-            assert_filter(&graph, NodeFilter.out_degree().lt(threshold_float), Direction::OUT, |d| d < parsed_float as usize, "OUT < float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.out_degree().le(threshold_float), Direction::OUT, |d| d <= parsed_float as usize, "OUT <= float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.out_degree().eq(threshold_float), Direction::OUT, |d| d == parsed_float as usize, "OUT == float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.out_degree().ne(threshold_float), Direction::OUT, |d| d != parsed_float as usize, "OUT != float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.out_degree().ge(threshold_float), Direction::OUT, |d| d >= parsed_float as usize, "OUT >= float threshold cast to u64");
-            assert_filter(&graph, NodeFilter.out_degree().gt(threshold_float), Direction::OUT, |d| d > parsed_float as usize, "OUT > float threshold cast to u64");
-        }
-
-        #[test]
-        fn prop_degree_filter_with_string_is_in(threshold_a in 0u64..15, threshold_b in 0u64..15) {
-            let graph = degree_graph_with_add_node_and_add_edge();
-            let threshold_a_str = threshold_a.to_string();
-            let threshold_b_str = threshold_b.to_string();
-            let parsed_a = threshold_a_str.parse::<u64>().unwrap();
-            let parsed_b = threshold_b_str.parse::<u64>().unwrap();
-            let set = [parsed_a, parsed_b];
-
-            assert_filter(&graph, NodeFilter.degree().is_in(vec![threshold_a_str.clone().into_prop(), threshold_b_str.clone().into_prop()]), Direction::BOTH, |d| set.contains(&(d as u64)), "BOTH is_in(string thresholds parsed to u64)");
-            assert_filter(&graph, NodeFilter.in_degree().is_in(vec![threshold_a_str.clone().into_prop(), threshold_b_str.clone().into_prop()]), Direction::IN, |d| set.contains(&(d as u64)), "IN is_in(string thresholds parsed to u64)");
-            assert_filter(&graph, NodeFilter.out_degree().is_in(vec![threshold_a_str.into_prop(), threshold_b_str.into_prop()]), Direction::OUT, |d| set.contains(&(d as u64)), "OUT is_in(string thresholds parsed to u64)");
-        }
-
-        #[test]
-        fn prop_degree_filter_with_string_is_not_in(threshold_a in 0u64..15, threshold_b in 0u64..15) {
-            let graph = degree_graph_with_add_node_and_add_edge();
-            let threshold_a_str = threshold_a.to_string();
-            let threshold_b_str = threshold_b.to_string();
-            let parsed_a = threshold_a_str.parse::<u64>().unwrap();
-            let parsed_b = threshold_b_str.parse::<u64>().unwrap();
-            let set = [parsed_a, parsed_b];
-
-            assert_filter(&graph, NodeFilter.degree().is_not_in(vec![threshold_a_str.clone().into_prop(), threshold_b_str.clone().into_prop()]), Direction::BOTH, |d| !set.contains(&(d as u64)), "BOTH is_not_in(string thresholds parsed to u64)");
-            assert_filter(&graph, NodeFilter.in_degree().is_not_in(vec![threshold_a_str.clone().into_prop(), threshold_b_str.clone().into_prop()]), Direction::IN, |d| !set.contains(&(d as u64)), "IN is_not_in(string thresholds parsed to u64)");
-            assert_filter(&graph, NodeFilter.out_degree().is_not_in(vec![threshold_a_str.into_prop(), threshold_b_str.into_prop()]), Direction::OUT, |d| !set.contains(&(d as u64)), "OUT is_not_in(string thresholds parsed to u64)");
-        }
-
-        #[test]
-        fn prop_degree_filter_with_float_is_in(threshold_a in 0u64..15, threshold_b in 0u64..15) {
-            let graph = degree_graph_with_add_node_and_add_edge();
-            let threshold_a_float = threshold_a as f64;
-            let threshold_b_float = threshold_b as f64;
-            let parsed_a = threshold_a_float as u64;
-            let parsed_b = threshold_b_float as u64;
-            let set = [parsed_a, parsed_b];
-
-            assert_filter(&graph, NodeFilter.degree().is_in(vec![threshold_a_float.into_prop(), threshold_b_float.into_prop()]), Direction::BOTH, |d| set.contains(&(d as u64)), "BOTH is_in(float thresholds cast to u64)");
-            assert_filter(&graph, NodeFilter.in_degree().is_in(vec![threshold_a_float.into_prop(), threshold_b_float.into_prop()]), Direction::IN, |d| set.contains(&(d as u64)), "IN is_in(float thresholds cast to u64)");
-            assert_filter(&graph, NodeFilter.out_degree().is_in(vec![threshold_a_float.into_prop(), threshold_b_float.into_prop()]), Direction::OUT, |d| set.contains(&(d as u64)), "OUT is_in(float thresholds cast to u64)");
-        }
-
-        #[test]
-        fn prop_degree_filter_with_float_is_not_in(threshold_a in 0u64..15, threshold_b in 0u64..15) {
-            let graph = degree_graph_with_add_node_and_add_edge();
-            let threshold_a_float = threshold_a as f64;
-            let threshold_b_float = threshold_b as f64;
-            let parsed_a = threshold_a_float as u64;
-            let parsed_b = threshold_b_float as u64;
-            let set = [parsed_a, parsed_b];
-
-            assert_filter(&graph, NodeFilter.degree().is_not_in(vec![threshold_a_float.into_prop(), threshold_b_float.into_prop()]), Direction::BOTH, |d| !set.contains(&(d as u64)), "BOTH is_not_in(float thresholds cast to u64)");
-            assert_filter(&graph, NodeFilter.in_degree().is_not_in(vec![threshold_a_float.into_prop(), threshold_b_float.into_prop()]), Direction::IN, |d| !set.contains(&(d as u64)), "IN is_not_in(float thresholds cast to u64)");
-            assert_filter(&graph, NodeFilter.out_degree().is_not_in(vec![threshold_a_float.into_prop(), threshold_b_float.into_prop()]), Direction::OUT, |d| !set.contains(&(d as u64)), "OUT is_not_in(float thresholds cast to u64)");
-        }
-
-        #[test]
-        fn prop_degree_filter_invalid_non_numeric_string_values(value_a in "[a-zA-Z]{1,8}", value_b in "[a-zA-Z]{1,8}") {
-            let graph = degree_graph_with_add_node_and_add_edge();
-
-            let invalid_filters = vec![
-                NodeFilter.degree().lt(value_a.clone()),
-                NodeFilter.degree().le(value_a.clone()),
-                NodeFilter.degree().eq(value_a.clone()),
-                NodeFilter.degree().ne(value_a.clone()),
-                NodeFilter.degree().ge(value_a.clone()),
-                NodeFilter.degree().gt(value_a.clone()),
-                NodeFilter.in_degree().lt(value_a.clone()),
-                NodeFilter.in_degree().le(value_a.clone()),
-                NodeFilter.in_degree().eq(value_a.clone()),
-                NodeFilter.in_degree().ne(value_a.clone()),
-                NodeFilter.in_degree().ge(value_a.clone()),
-                NodeFilter.in_degree().gt(value_a.clone()),
-                NodeFilter.out_degree().lt(value_a.clone()),
-                NodeFilter.out_degree().le(value_a.clone()),
-                NodeFilter.out_degree().eq(value_a.clone()),
-                NodeFilter.out_degree().ne(value_a.clone()),
-                NodeFilter.out_degree().ge(value_a.clone()),
-                NodeFilter.out_degree().gt(value_a.clone()),
+            let whole = threshold as f64;
+            let t = threshold as usize;
+            let degrees = [
+                (NodeFilter.degree(), Direction::BOTH),
+                (NodeFilter.in_degree(), Direction::IN),
+                (NodeFilter.out_degree(), Direction::OUT),
             ];
-            for filter in invalid_filters {
+            for (degree, dir) in degrees {
+                // A whole-number float names that number.
+                assert_filter(&graph, degree.clone().lt(whole), dir, |d| d < t, "< whole float");
+                assert_filter(&graph, degree.clone().le(whole), dir, |d| d <= t, "<= whole float");
+                assert_filter(&graph, degree.clone().eq(whole), dir, |d| d == t, "== whole float");
+                assert_filter(&graph, degree.clone().ne(whole), dir, |d| d != t, "!= whole float");
+                assert_filter(&graph, degree.clone().ge(whole), dir, |d| d >= t, ">= whole float");
+                assert_filter(&graph, degree.clone().gt(whole), dir, |d| d > t, "> whole float");
+                // A fraction is compared as written; nothing is rounded away.
+                let half = whole + 0.5;
+                assert_filter(&graph, degree.clone().lt(half), dir, |d| d <= t, "< half float");
+                assert_filter(&graph, degree.clone().le(half), dir, |d| d <= t, "<= half float");
+                assert_filter(&graph, degree.clone().eq(half), dir, |_| false, "== half float");
+                assert_filter(&graph, degree.clone().ne(half), dir, |_| true, "!= half float");
+                assert_filter(&graph, degree.clone().ge(half), dir, |d| d > t, ">= half float");
+                assert_filter(&graph, degree.clone().gt(half), dir, |d| d > t, "> half float");
+            }
+        }
+
+        #[test]
+        fn prop_degree_filter_with_float_is_in(a in 0u64..15, b in 0u64..15) {
+            let graph = degree_graph_with_add_node_and_add_edge();
+            let whole = [a as f64, b as f64];
+            let set = [a as usize, b as usize];
+            assert_filter(&graph, NodeFilter.degree().is_in(vec![whole[0].into_prop(), whole[1].into_prop()]), Direction::BOTH, |d| set.contains(&d), "is_in(whole floats)");
+            assert_filter(&graph, NodeFilter.degree().is_not_in(vec![whole[0].into_prop(), whole[1].into_prop()]), Direction::BOTH, |d| !set.contains(&d), "is_not_in(whole floats)");
+            // A fractional member matches no degree, so only the whole member counts.
+            let mixed = vec![(a as f64 + 0.5).into_prop(), (b as f64).into_prop()];
+            assert_filter(&graph, NodeFilter.degree().is_in(mixed.clone()), Direction::BOTH, |d| d == b as usize, "is_in(half, whole)");
+            assert_filter(&graph, NodeFilter.degree().is_not_in(mixed), Direction::BOTH, |d| d != b as usize, "is_not_in(half, whole)");
+        }
+    }
+
+    #[test]
+    fn degree_never_compares_with_a_string() {
+        let graph = degree_graph_with_add_node_and_add_edge();
+        let degrees = [
+            (NodeFilter.degree(), Direction::BOTH),
+            (NodeFilter.in_degree(), Direction::IN),
+            (NodeFilter.out_degree(), Direction::OUT),
+        ];
+        for (degree, dir) in degrees {
+            // A string constant is refused even when it spells a number.
+            let refused = [
+                degree.clone().eq("3"),
+                degree.clone().ne("3"),
+                degree.clone().lt("3"),
+                degree.clone().le("3"),
+                degree.clone().gt("3"),
+                degree.clone().ge("3"),
+            ];
+            for filter in refused {
                 assert!(
                     matches!(graph.filter(filter), Err(GraphError::InvalidFilter(_))),
-                    "expected InvalidFilter for non-numeric string values"
+                    "a string constant must not compare with a degree"
                 );
             }
-
-            let set_invalid_filters = vec![
-                NodeFilter.degree().is_in(vec![value_a.clone(), value_b.clone()]),
-                NodeFilter.degree().is_not_in(vec![value_a.clone(), value_b.clone()]),
-                NodeFilter.in_degree().is_in(vec![value_a.clone(), value_b.clone()]),
-                NodeFilter.in_degree().is_not_in(vec![value_a.clone(), value_b.clone()]),
-                NodeFilter.out_degree().is_in(vec![value_a.clone(), value_b.clone()]),
-                NodeFilter.out_degree().is_not_in(vec![value_a.clone(), value_b.clone()]),
-            ];
-            for filter in set_invalid_filters {
-                assert!(
-                    matches!(graph.filter(filter), Err(GraphError::InvalidFilter(_))),
-                    "expected InvalidFilter for is_in/is_not_in on numeric degree"
-                );
-            }
+            // In a set, a string member can never be the degree, so it is simply
+            // not there; the numeric members still count.
+            let strings_only = vec!["3".into_prop(), "4".into_prop()];
+            assert_filter(
+                &graph,
+                degree.clone().is_in(strings_only.clone()),
+                dir,
+                |_| false,
+                "is_in(strings)",
+            );
+            assert_filter(
+                &graph,
+                degree.clone().is_not_in(strings_only),
+                dir,
+                |_| true,
+                "is_not_in(strings)",
+            );
+            let mixed = vec!["3".into_prop(), 4u64.into_prop()];
+            assert_filter(
+                &graph,
+                degree.clone().is_in(mixed.clone()),
+                dir,
+                |d| d == 4,
+                "is_in(string, number)",
+            );
+            assert_filter(
+                &graph,
+                degree.is_not_in(mixed),
+                dir,
+                |d| d != 4,
+                "is_not_in(string, number)",
+            );
         }
     }
 
@@ -3043,6 +2985,70 @@ mod test_node_property_filter {
         // Node 2 (p2=2) and node 3 (p2=6) both have non-empty streams satisfying le(10).
         // Nodes 1 and 4 have empty p2 streams and are correctly rejected.
         let expected_results = vec!["2", "3"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_filter_nodes_for_property_against_a_fraction() {
+        // p40 is a U64 property. Latest values: node "1" holds 15, node "2"
+        // holds 20; first values: 5 and 10. A fractional constant is compared
+        // as written, not rounded to the property's type.
+        let filter = NodeFilter.property("p40").ge(15.5);
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = NodeFilter.property("p40").lt(15.5);
+        let expected_results = vec!["1"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = NodeFilter.property("p40").temporal().first().lt(5.5);
+        let expected_results = vec!["1"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        // Set members compare by value across numeric widths; a member of a
+        // type the property can never equal is simply absent.
+        let filter = NodeFilter.property("p40").is_in(vec![
+            Prop::Str("20".into()),
+            Prop::F64(15.0),
+            Prop::U64(20),
+        ]);
+        let expected_results = vec!["1", "2"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = NodeFilter
+            .property("p40")
+            .is_in(vec![Prop::Str("20".into()), Prop::F64(15.5)]);
+        let expected_results: Vec<&str> = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
@@ -7877,8 +7883,8 @@ mod test_node_property_filter_agg {
     fn test_node_property_all() {
         let filter = NodeFilter
             .property("p_bools_all")
-            .all()
-            .eq(Prop::Bool(true));
+            .eq(Prop::Bool(true))
+            .all();
         let expected = vec!["n10", "n4"];
         apply_assertion(filter, &expected);
     }
@@ -8035,8 +8041,8 @@ mod test_node_property_filter_agg {
         let filter = NodeFilter
             .property("p_bools_all")
             .temporal()
-            .all()
             .eq(true)
+            .all()
             .all();
         let expected = vec!["n4", "n10"];
         apply_assertion(filter, &expected);

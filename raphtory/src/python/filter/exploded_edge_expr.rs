@@ -1,12 +1,7 @@
 use crate::{
-    db::graph::views::filter::model::tree::{
-        Entity, Expr, FilterExpr, Scope, Structural, Target, ViewOp,
-    },
+    db::graph::views::filter::model::expr::{ExplodedEdgeLeaf, Expr, Leaf, ViewOp},
     python::{
-        filter::{
-            filter_expr::PyFilterExpr,
-            node_expr::{PyExpr, PyPropertyExpr},
-        },
+        filter::node_expr::{PyExpr, PyPropertyExpr, Typed},
         types::iterable::FromIterable,
     },
 };
@@ -20,32 +15,36 @@ use raphtory_api::core::storage::timeindex::EventTime;
 /// methods on [`ExplodedEdge`]; its property and structural predicates evaluate
 /// within that view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "ExplodedEdgeFilter", module = "raphtory.filter")]
-pub struct PyExplodedEdgeFilter(pub(crate) Scope);
+pub struct PyExplodedEdgeFilter(pub(crate) Vec<ViewOp>);
 
 impl PyExplodedEdgeFilter {
     pub(crate) fn root() -> Self {
-        PyExplodedEdgeFilter(Scope::new(Entity::ExplodedEdge))
+        PyExplodedEdgeFilter(Vec::new())
     }
 
     fn with_view(&self, view: ViewOp) -> Self {
-        PyExplodedEdgeFilter(self.0.clone().with_view(view))
+        let mut views = self.0.clone();
+        views.push(view);
+        PyExplodedEdgeFilter(views)
     }
 
-    fn read(&self, target: Target) -> Expr {
-        Expr::Read {
-            scope: self.0.clone(),
-            target,
-        }
+    fn read(&self, leaf: ExplodedEdgeLeaf) -> PyExpr {
+        PyExpr(Typed::ExplodedEdge(Expr::Read(leaf)))
+    }
+
+    fn property_read(&self, name: String) -> PyPropertyExpr {
+        PyPropertyExpr::new(|temporal| {
+            Typed::ExplodedEdge(Expr::Read(ExplodedEdgeLeaf::property(
+                self.0.clone(),
+                name.clone(),
+                temporal,
+            )))
+        })
     }
 }
 
 #[pymethods]
 impl PyExplodedEdgeFilter {
-    #[new]
-    fn new() -> PyExplodedEdgeFilter {
-        Self::root()
-    }
-
     /// Filters an exploded edge property by name.
     ///
     /// The property may be static or temporal depending on the query context.
@@ -56,7 +55,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr(self.read(Target::Property(name)))
+        self.property_read(name)
     }
 
     /// Filters an exploded edge metadata field by name.
@@ -69,7 +68,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.read(Target::Metadata(name)))
+        self.read(ExplodedEdgeLeaf::metadata(self.0.clone(), name))
     }
 
     /// Restricts exploded edge evaluation to the given time window.
@@ -171,44 +170,40 @@ impl PyExplodedEdgeFilter {
     /// Matches exploded edges that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_active(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsActive,
+    ///     filter.Expr:
+    fn is_active(&self) -> PyExpr {
+        self.read(ExplodedEdgeLeaf::IsActive {
+            views: self.0.clone(),
         })
     }
 
     /// Matches exploded edges that are structurally valid in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_valid(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsValid,
+    ///     filter.Expr:
+    fn is_valid(&self) -> PyExpr {
+        self.read(ExplodedEdgeLeaf::IsValid {
+            views: self.0.clone(),
         })
     }
 
     /// Matches exploded edges that have been deleted.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_deleted(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsDeleted,
+    ///     filter.Expr:
+    fn is_deleted(&self) -> PyExpr {
+        self.read(ExplodedEdgeLeaf::IsDeleted {
+            views: self.0.clone(),
         })
     }
 
     /// Matches exploded edges that are self-loops (source == destination).
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_self_loop(&self) -> PyFilterExpr {
-        PyFilterExpr(FilterExpr::Structural {
-            scope: self.0.clone(),
-            pred: Structural::IsSelfLoop,
+    ///     filter.Expr:
+    fn is_self_loop(&self) -> PyExpr {
+        self.read(ExplodedEdgeLeaf::IsSelfLoop {
+            views: self.0.clone(),
         })
     }
 }
@@ -358,36 +353,36 @@ impl PyExplodedEdge {
     /// Matches exploded edges that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_active() -> PyFilterExpr {
+    fn is_active() -> PyExpr {
         PyExplodedEdgeFilter::root().is_active()
     }
 
     /// Matches exploded edges that are structurally valid in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_valid() -> PyFilterExpr {
+    fn is_valid() -> PyExpr {
         PyExplodedEdgeFilter::root().is_valid()
     }
 
     /// Matches exploded edges that have been deleted.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_deleted() -> PyFilterExpr {
+    fn is_deleted() -> PyExpr {
         PyExplodedEdgeFilter::root().is_deleted()
     }
 
     /// Matches exploded edges that are self-loops (source == destination).
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.Expr:
     #[staticmethod]
-    fn is_self_loop() -> PyFilterExpr {
+    fn is_self_loop() -> PyExpr {
         PyExplodedEdgeFilter::root().is_self_loop()
     }
 }

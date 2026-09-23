@@ -11,10 +11,9 @@ use crate::{
         graph::views::filter::model::{
             edge_expr::EdgeOp,
             edge_filter::EdgeEndpointWrapper,
-            filter_operator::ElemQual,
             node_expr::{
                 AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
-                MinExpr, PredicateLhs, SumExpr,
+                MinExpr, SumExpr,
             },
             CreateView, EntityMarker, PropertyExpr,
         },
@@ -76,8 +75,6 @@ impl DynTemporal for EdgeEndpointWrapper<Arc<dyn DynTemporal>> {
 }
 
 pub trait DynCreateOp: DynEntityExpr {
-    fn dyn_const_cast_type(&self) -> Option<PropType>;
-
     fn dyn_selects_node_id(&self) -> bool;
 
     fn dyn_create_node_op<'g>(
@@ -89,23 +86,9 @@ pub trait DynCreateOp: DynEntityExpr {
         &self,
         graph: Arc<dyn BoxableGraphView + 'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError>;
-
-    fn dyn_create_qualified_node_op<'g>(
-        &self,
-        graph: Arc<dyn BoxableGraphView + 'g>,
-    ) -> Result<(Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError>;
-
-    fn dyn_create_qualified_edge_op<'g>(
-        &self,
-        graph: Arc<dyn BoxableGraphView + 'g>,
-    ) -> Result<(Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError>;
 }
 
 impl<E: CreateOp> DynCreateOp for E {
-    fn dyn_const_cast_type(&self) -> Option<PropType> {
-        self.const_cast_type()
-    }
-
     fn dyn_selects_node_id(&self) -> bool {
         self.selects_node_id()
     }
@@ -122,20 +105,6 @@ impl<E: CreateOp> DynCreateOp for E {
         graph: Arc<dyn BoxableGraphView + 'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.create_edge_op(graph)
-    }
-
-    fn dyn_create_qualified_node_op<'g>(
-        &self,
-        graph: Arc<dyn BoxableGraphView + 'g>,
-    ) -> Result<(Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError> {
-        self.create_qualified_node_op(graph)
-    }
-
-    fn dyn_create_qualified_edge_op<'g>(
-        &self,
-        graph: Arc<dyn BoxableGraphView + 'g>,
-    ) -> Result<(Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError> {
-        self.create_qualified_edge_op(graph)
     }
 }
 
@@ -155,13 +124,7 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
     }
 }
 
-impl<T: DynEntityExpr + ?Sized> PredicateLhs for Arc<T> {}
-
 impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
-    fn const_cast_type(&self) -> Option<PropType> {
-        self.as_ref().dyn_const_cast_type()
-    }
-
     fn selects_node_id(&self) -> bool {
         self.as_ref().dyn_selects_node_id()
     }
@@ -178,20 +141,6 @@ impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.deref().dyn_create_edge_op(Arc::new(graph))
-    }
-
-    fn create_qualified_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<(Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError> {
-        self.deref().dyn_create_qualified_node_op(Arc::new(graph))
-    }
-
-    fn create_qualified_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<(Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError> {
-        self.deref().dyn_create_qualified_edge_op(Arc::new(graph))
     }
 }
 

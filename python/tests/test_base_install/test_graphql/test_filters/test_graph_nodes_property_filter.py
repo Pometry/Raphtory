@@ -13,11 +13,25 @@ def test_graph_node_property_filter_equal(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { read: { entity: NODE, target: { property: "prop5" } } }
-            rhs: { const: { list: [{ i64: 1 }, { i64: 2 }, { i64: 3 }] } }
-          }
-        }) {
+                                    node: {
+                                      eq: {
+                                        lhs: {
+                                          property: "prop5"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            list: [{
+                                              i64: 1
+                                            }, {
+                                              i64: 2
+                                            }, {
+                                              i64: 3
+                                            }]
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -33,19 +47,25 @@ def test_graph_node_property_filter_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { read: { entity: NODE, target: { property: "prop5" } } }
-            rhs: { const: { i64: 1 } }
-          }
-        }) {
+                                    node: {
+                                      eq: {
+                                        lhs: {
+                                          property: "prop5"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_error_message = (
-        "Invalid filter: value I64(1) of type I64 cannot be coerced to List<I64>"
-    )
+    expected_error_message = "Invalid filter: a filter needs a yes/no answer, but this comparison gives one answer per element (List<Bool>); add any() or all() to say which elements must match"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -55,11 +75,19 @@ def test_graph_node_property_filter_not_equal(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          ne: {
-            lhs: { read: { entity: NODE, target: { property: "prop4" } } }
-            rhs: { const: { bool: true } }
-          }
-        }) {
+                                    node: {
+                                      ne: {
+                                        lhs: {
+                                          property: "prop4"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            bool: true
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -77,18 +105,26 @@ def test_graph_node_property_filter_not_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          ne: {
-            lhs: { read: { entity: NODE, target: { property: "prop4" } } }
-            rhs: { const: { i64: 1 } }
-          }
-        }) {
+                                    node: {
+                                      ne: {
+                                        lhs: {
+                                          property: "prop4"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
     }
     """
     expected_error_message = (
-        "Invalid filter: value I64(1) of type I64 cannot be coerced to Bool"
+        "Invalid filter: value I64(1) of type I64 cannot be compared with Bool"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -99,11 +135,19 @@ def test_graph_node_property_filter_greater_than_or_equal(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          ge: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { i64: 60 } }
-          }
-        }) {
+                                    node: {
+                                      ge: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 60
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -119,17 +163,25 @@ def test_graph_node_property_filter_greater_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          ge: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    node: {
+                                      ge: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be coerced to I64'
+    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be compared with I64'
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -139,11 +191,19 @@ def test_graph_node_property_filter_less_than_or_equal(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          le: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                                    node: {
+                                      le: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 30
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -165,17 +225,25 @@ def test_graph_node_property_filter_less_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          le: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    node: {
+                                      le: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be coerced to I64'
+    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be compared with I64'
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -185,11 +253,19 @@ def test_graph_node_property_filter_greater_than(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                                    node: {
+                                      gt: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 30
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -205,17 +281,25 @@ def test_graph_node_property_filter_greater_than_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    node: {
+                                      gt: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be coerced to I64'
+    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be compared with I64'
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -225,11 +309,19 @@ def test_graph_node_property_filter_less_than(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 30
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -247,17 +339,25 @@ def test_graph_node_property_filter_less_than_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          property: "prop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
     }
     """
-    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be coerced to I64'
+    expected_error_message = 'Invalid filter: value Str(ArcStr("shivam")) of type Str cannot be compared with I64'
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -266,7 +366,7 @@ def test_graph_node_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { isNone: { read: { entity: NODE, target: { property: "prop5" } } } }) {
+        filterNodes: filter(expr: { node: { isNone: { property: "prop5" } } }) {
           nodes { list { name } }
         }
       }
@@ -283,7 +383,7 @@ def test_graph_node_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { isSome: { read: { entity: NODE, target: { property: "prop5" } } } }) {
+        filterNodes: filter(expr: { node: { isSome: { property: "prop5" } } }) {
           nodes { list { name } }
         }
       }
@@ -301,11 +401,25 @@ def test_graph_node_property_filter_is_in(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          isIn: {
-            expr: { read: { entity: NODE, target: { property: "prop1" } } }
-            values: { list: [{ i64: 10 }, { i64: 30 }, { i64: 50 }, { i64: 70 }] }
-          }
-        }) {
+                                    node: {
+                                      isIn: {
+                                        expr: {
+                                          property: "prop1"
+                                        }
+                                        values: {
+                                          list: [{
+                                            i64: 10
+                                          }, {
+                                            i64: 30
+                                          }, {
+                                            i64: 50
+                                          }, {
+                                            i64: 70
+                                          }]
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -324,11 +438,17 @@ def test_node_property_filter_is_in_empty_list(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [] }
-            }
-          }
+                         node: {
+                           isIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: []
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -347,11 +467,17 @@ def test_graph_node_property_filter_is_in_no_value(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          isIn: {
-            expr: { read: { entity: NODE, target: { property: "prop1" } } }
-            values: { list: [] }
-          }
-        }) {
+                                    node: {
+                                      isIn: {
+                                        expr: {
+                                          property: "prop1"
+                                        }
+                                        values: {
+                                          list: []
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -367,11 +493,17 @@ def test_graph_node_property_filter_is_in_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          isIn: {
-            expr: { read: { entity: NODE, target: { property: "prop1" } } }
-            values: { str: "shivam" }
-          }
-        }) {
+                                    node: {
+                                      isIn: {
+                                        expr: {
+                                          property: "prop1"
+                                        }
+                                        values: {
+                                          str: "shivam"
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -389,11 +521,25 @@ def test_graph_node_property_filter_is_not_in_any(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          isNotIn: {
-            expr: { read: { entity: NODE, target: { property: "prop1" } } }
-            values: { list: [{ i64: 10 }, { i64: 30 }, { i64: 50 }, { i64: 70 }] }
-          }
-        }) {
+                                    node: {
+                                      isNotIn: {
+                                        expr: {
+                                          property: "prop1"
+                                        }
+                                        values: {
+                                          list: [{
+                                            i64: 10
+                                          }, {
+                                            i64: 30
+                                          }, {
+                                            i64: 50
+                                          }, {
+                                            i64: 70
+                                          }]
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -412,11 +558,17 @@ def test_node_property_filter_not_is_not_in_empty_list(graph):
       graph(path: "g") {
         nodes {
           filter(expr: {
-            isNotIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [] }
-            }
-          }) {
+                         node: {
+                           isNotIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: []
+                             }
+                           }
+                         }
+                       }) {
             list { name }
           }
         }
@@ -441,11 +593,17 @@ def test_graph_node_property_filter_is_not_in_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          isNotIn: {
-            expr: { read: { entity: NODE, target: { property: "prop1" } } }
-            values: { str: "shivam" }
-          }
-        }) {
+                                    node: {
+                                      isNotIn: {
+                                        expr: {
+                                          property: "prop1"
+                                        }
+                                        values: {
+                                          str: "shivam"
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -463,13 +621,25 @@ def test_graph_node_not_property_filter(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          not: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "prop5" } } }
-              rhs: { const: { list: [{ i64: 1 }, { i64: 2 }] } }
-            }
-          }
-        }) {
+                                    not: {
+                                      node: {
+                                        eq: {
+                                          lhs: {
+                                            property: "prop5"
+                                          }
+                                          rhs: {
+                                            const: {
+                                              list: [{
+                                                i64: 1
+                                              }, {
+                                                i64: 2
+                                              }]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -494,21 +664,36 @@ def test_graph_node_type_and_property_filter(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            and: [
-              {
-                isIn: {
-                  expr: { read: { entity: NODE, target: { field: NODE_TYPE } } }
-                  values: { list: [{ str: "fire_nation" }, { str: "water_tribe" }] }
-                }
-              },
-              {
-                gt: {
-                  lhs: { read: { entity: NODE, target: { property: "prop2" } } }
-                  rhs: { const: { f64: 1 } }
-                }
-              }
-            ]
-          }) {
+                         and: [{
+                           node: {
+                             isIn: {
+                               expr: {
+                                 field: NODE_TYPE
+                               }
+                               values: {
+                                 list: [{
+                                   str: "fire_nation"
+                                 }, {
+                                   str: "water_tribe"
+                                 }]
+                               }
+                             }
+                           }
+                         }, {
+                           node: {
+                             gt: {
+                               lhs: {
+                                 property: "prop2"
+                               }
+                               rhs: {
+                                 const: {
+                                   f64: 1
+                                 }
+                               }
+                             }
+                           }
+                         }]
+                       }) {
             count
             list { name }
           }
@@ -535,11 +720,19 @@ def test_graph_nodes_property_filter_starts_with(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          startsWith: {
-            lhs: { read: { entity: NODE, target: { property: "prop3" } } }
-            rhs: { const: { str: "abc" } }
-          }
-        }) {
+                                    node: {
+                                      startsWith: {
+                                        lhs: {
+                                          property: "prop3"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "abc"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -563,11 +756,19 @@ def test_graph_nodes_property_filter_ends_with(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          endsWith: {
-            lhs: { read: { entity: NODE, target: { property: "prop3" } } }
-            rhs: { const: { str: "123" } }
-          }
-        }) {
+                                    node: {
+                                      endsWith: {
+                                        lhs: {
+                                          property: "prop3"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "123"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -583,13 +784,21 @@ def test_graph_nodes_property_filter_starts_with_temporal_any(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          startsWith: {
-            lhs: {
-              any: { temporal: { read: { entity: NODE, target: { property: "prop3" } } } }
-            }
-            rhs: { const: { str: "abc1" } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        startsWith: {
+                                          lhs: {
+                                            temporalProperty: "prop3"
+                                          }
+                                          rhs: {
+                                            const: {
+                                              str: "abc1"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }

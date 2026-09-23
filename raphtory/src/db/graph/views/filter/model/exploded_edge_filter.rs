@@ -1,21 +1,9 @@
-use crate::{
-    db::{
-        api::{state::ops::NotANodeFilter, view::internal::GraphView},
-        graph::views::filter::{
-            exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
-            model::{
-                edge_filter::Endpoint, is_active_edge_filter::IsActiveEdge,
-                is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge, node_filter::NodeFilter, windowed_filter::Windowed,
-                CombinedFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, Wrap,
-            },
-            CreateFilter,
-        },
-    },
-    errors::GraphError,
+use crate::db::graph::views::filter::model::{
+    is_active_edge_filter::IsActiveEdge, is_deleted_filter::IsDeletedEdge,
+    is_self_loop_filter::IsSelfLoopEdge, is_valid_filter::IsValidEdge, windowed_filter::Windowed,
+    CombinedFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, Wrap,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
-use std::{fmt, fmt::Display};
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
@@ -23,18 +11,6 @@ pub struct ExplodedEdgeFilter;
 impl From<ExplodedEdgeFilter> for EntityMarker {
     fn from(_value: ExplodedEdgeFilter) -> Self {
         EntityMarker::ExplodedEdge
-    }
-}
-
-impl ExplodedEdgeFilter {
-    #[inline]
-    pub fn src() -> ExplodedEdgeEndpointWrapper<NodeFilter> {
-        ExplodedEdgeEndpointWrapper::new(NodeFilter, Endpoint::Src)
-    }
-
-    #[inline]
-    pub fn dst() -> ExplodedEdgeEndpointWrapper<NodeFilter> {
-        ExplodedEdgeEndpointWrapper::new(NodeFilter, Endpoint::Dst)
     }
 }
 
@@ -71,94 +47,5 @@ impl EdgeViewFilterOps for ExplodedEdgeFilter {
 
     fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
         IsSelfLoopEdge
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ExplodedEdgeEndpointWrapper<T> {
-    pub(crate) inner: T,
-    endpoint: Endpoint,
-}
-
-impl<T: Display> Display for ExplodedEdgeEndpointWrapper<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.inner.fmt(f)
-    }
-}
-
-impl<T> ExplodedEdgeEndpointWrapper<T> {
-    #[inline]
-    pub fn new(inner: T, endpoint: Endpoint) -> Self {
-        Self { inner, endpoint }
-    }
-
-    #[inline]
-    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> ExplodedEdgeEndpointWrapper<U> {
-        ExplodedEdgeEndpointWrapper {
-            inner: f(self.inner),
-            endpoint: self.endpoint,
-        }
-    }
-}
-
-impl<M> Wrap for ExplodedEdgeEndpointWrapper<M> {
-    type Wrapped<T> = ExplodedEdgeEndpointWrapper<T>;
-
-    fn wrap<T>(&self, inner: T) -> Self::Wrapped<T> {
-        ExplodedEdgeEndpointWrapper {
-            inner,
-            endpoint: self.endpoint,
-        }
-    }
-}
-
-impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G, F>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G, F>
-        = NotANodeFilter
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-    type FilteredGraph<'graph, G>
-        = T::FilteredGraph<'graph, G>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
-    where
-        T: 'graph,
-    {
-        let filter = self.inner.create_node_filter(graph.clone(), filtered)?;
-        Ok(ExplodedEdgeNodeFilteredGraph::new(
-            graph,
-            self.endpoint,
-            filter,
-        ))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        _filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner.filter_graph_view(graph)
     }
 }

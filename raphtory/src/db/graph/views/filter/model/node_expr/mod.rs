@@ -17,9 +17,7 @@ pub mod ops;
 mod tests;
 
 pub use super::{Metadata, Property};
-use crate::db::graph::views::filter::model::{
-    edge_expr::EdgeOp, filter_operator::ElemQual, EntityMarker,
-};
+use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, EntityMarker};
 pub use dyn_expr::*;
 pub use exprs::*;
 pub use filters::*;
@@ -48,15 +46,6 @@ pub use ops::*;
 /// ```
 ///
 pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
-    /// The type a constant compared against this expression is cast to before
-    /// validation. Degree is a count, so a constant that converts to one — the
-    /// string `"5"` from a wire query, say — is compared as that count rather
-    /// than across types. `None` (the default) leaves the constant alone and
-    /// requires it to match the expression's own type.
-    fn const_cast_type(&self) -> Option<PropType> {
-        None
-    }
-
     /// Whether this expression selects the node id field. Comparisons against
     /// constants use it to narrow the evaluation domain to the named nodes
     /// instead of scanning every node.
@@ -79,24 +68,6 @@ pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
         _graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Err(GraphError::NotEdgeFilter)
-    }
-
-    /// Compile the expression for use as the lhs of a comparison, separating
-    /// any leading `any()`/`all()` qualifiers from the value expression they
-    /// qualify. The default has no qualifiers; `AnyExpr`/`AllExpr` strip
-    /// themselves and record their collapse mode instead of aggregating.
-    fn create_qualified_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<(Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError> {
-        Ok((self.create_node_op(graph)?, Vec::new()))
-    }
-
-    fn create_qualified_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<(Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, Vec<ElemQual>), GraphError> {
-        Ok((self.create_edge_op(graph)?, Vec::new()))
     }
 }
 

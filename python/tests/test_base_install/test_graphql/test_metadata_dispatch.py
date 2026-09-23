@@ -67,7 +67,8 @@ def _read_is_diskgraph(graph_dir):
 def _list_metadata_by_path(client):
     """Query metadata for every graph in the namespace via the standard
     listing field. Returns ``{path: {key: value}}``."""
-    result = client.query("""{
+    result = client.query(
+        """{
             root {
                 graphs {
                     list {
@@ -76,7 +77,8 @@ def _list_metadata_by_path(client):
                     }
                 }
             }
-        }""")
+        }"""
+    )
     return {
         entry["path"]: {item["key"]: item["value"] for item in entry["metadata"]}
         for entry in result["root"]["graphs"]["list"]

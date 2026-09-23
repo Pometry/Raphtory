@@ -477,8 +477,8 @@ fn test_edge_quantified_any_is_not_in() {
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .any()
-        .is_not_in([Prop::str("metal"), Prop::str("blues")]);
+        .is_not_in([Prop::str("metal"), Prop::str("blues")])
+        .any();
     let result = g.filter(filter).unwrap();
     // A->B has "rock" and "rock-n-roll" not in set → passes
     // C->D has "jazz" not in set → passes

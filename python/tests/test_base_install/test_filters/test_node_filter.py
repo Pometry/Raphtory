@@ -107,6 +107,55 @@ def test_degree_filter_both_direction_comparison(value):
 
 
 @pytest.mark.parametrize("value", range(0, 15))
+def test_degree_filter_with_float_constants(value):
+    # A float constant is compared as written: a whole float names that number,
+    # a fraction is never rounded to the degree's type.
+    graph = degree_graph_with_add_node_and_add_edge(Graph())
+    whole = float(value)
+    half = value + 0.5
+    for expr, expected, context in [
+        (filter.Node.degree() == whole, lambda d: d == value, "== whole"),
+        (filter.Node.degree() >= whole, lambda d: d >= value, ">= whole"),
+        (filter.Node.degree() < half, lambda d: d <= value, "< half"),
+        (filter.Node.degree() <= half, lambda d: d <= value, "<= half"),
+        (filter.Node.degree() == half, lambda d: False, "== half"),
+        (filter.Node.degree() != half, lambda d: True, "!= half"),
+        (filter.Node.degree() >= half, lambda d: d > value, ">= half"),
+        (filter.Node.degree() > half, lambda d: d > value, "> half"),
+        (filter.Node.degree().is_in([half, whole]), lambda d: d == value, "is_in"),
+        (
+            filter.Node.degree().is_not_in([half, whole]),
+            lambda d: d != value,
+            "is_not_in",
+        ),
+    ]:
+        assert_filter(graph, expr, "both", expected, context)
+
+
+def test_degree_filter_refuses_string_constants():
+    # A string never compares with a degree, even one that spells a number; in
+    # a set it is simply not a member.
+    graph = degree_graph_with_add_node_and_add_edge(Graph())
+    for op in ("__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"):
+        with pytest.raises(TypeError, match="of type Str cannot be compared with U64"):
+            getattr(filter.Node.degree(), op)("3")
+    assert_filter(
+        graph,
+        filter.Node.degree().is_in(["3", 4]),
+        "both",
+        lambda d: d == 4,
+        "is_in(string, number)",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree().is_in(["3", "4"]),
+        "both",
+        lambda d: False,
+        "is_in(strings)",
+    )
+
+
+@pytest.mark.parametrize("value", range(0, 15))
 def test_degree_filter_in_direction_comparison(value):
     graph = degree_graph_with_add_node_and_add_edge(Graph())
 
@@ -363,8 +412,8 @@ def test_degree_filter_with_invalid_expressions():
         lambda: filter.Node.out_degree().contains("1"),
         lambda: filter.Node.out_degree().not_contains("1"),
         lambda: filter.Node.out_degree().fuzzy_search("1", 1, False),
-        lambda: filter.Node.degree().any() == 1,
-        lambda: filter.Node.degree().all() == 1,
+        lambda: (filter.Node.degree() == 1).any(),
+        lambda: (filter.Node.degree() == 1).all(),
         lambda: filter.Node.degree().len() > 0,
         lambda: filter.Node.degree().sum() == 1,
         lambda: filter.Node.degree().avg() == 1,
@@ -372,8 +421,8 @@ def test_degree_filter_with_invalid_expressions():
         lambda: filter.Node.degree().max() == 1,
         lambda: filter.Node.degree().first() == 1,
         lambda: filter.Node.degree().last() == 1,
-        lambda: filter.Node.in_degree().any() == 1,
-        lambda: filter.Node.in_degree().all() == 1,
+        lambda: (filter.Node.in_degree() == 1).any(),
+        lambda: (filter.Node.in_degree() == 1).all(),
         lambda: filter.Node.in_degree().len() > 0,
         lambda: filter.Node.in_degree().sum() == 1,
         lambda: filter.Node.in_degree().avg() == 1,
@@ -381,8 +430,8 @@ def test_degree_filter_with_invalid_expressions():
         lambda: filter.Node.in_degree().max() == 1,
         lambda: filter.Node.in_degree().first() == 1,
         lambda: filter.Node.in_degree().last() == 1,
-        lambda: filter.Node.out_degree().any() == 1,
-        lambda: filter.Node.out_degree().all() == 1,
+        lambda: (filter.Node.out_degree() == 1).any(),
+        lambda: (filter.Node.out_degree() == 1).all(),
         lambda: filter.Node.out_degree().len() > 0,
         lambda: filter.Node.out_degree().sum() == 1,
         lambda: filter.Node.out_degree().avg() == 1,
@@ -399,8 +448,8 @@ def test_degree_filter_with_invalid_expressions():
             graph.filter(make_filter()).nodes.id
 
 
-@pytest.mark.parametrize("value_a, value_b", [("a", "b"), ("foo", "bar")])
-def test_degree_filter_with_invalid_string_values(value_a, value_b):
+@pytest.mark.parametrize("value_a", ["a", "foo"])
+def test_degree_filter_with_invalid_string_values(value_a):
     graph = degree_graph_with_add_node_and_add_edge(Graph())
     invalid_filters = [
         lambda: filter.Node.degree() < value_a,
@@ -421,12 +470,6 @@ def test_degree_filter_with_invalid_string_values(value_a, value_b):
         lambda: filter.Node.out_degree() != value_a,
         lambda: filter.Node.out_degree() >= value_a,
         lambda: filter.Node.out_degree() > value_a,
-        lambda: filter.Node.degree().is_in([value_a, value_b]),
-        lambda: filter.Node.degree().is_not_in([value_a, value_b]),
-        lambda: filter.Node.in_degree().is_in([value_a, value_b]),
-        lambda: filter.Node.in_degree().is_not_in([value_a, value_b]),
-        lambda: filter.Node.out_degree().is_in([value_a, value_b]),
-        lambda: filter.Node.out_degree().is_not_in([value_a, value_b]),
     ]
 
     for make_filter in invalid_filters:
@@ -434,398 +477,6 @@ def test_degree_filter_with_invalid_string_values(value_a, value_b):
         # statically known, and at filter() otherwise.
         with pytest.raises(Exception, match=r"Invalid filter|not comparable"):
             graph.filter(make_filter()).nodes.id
-
-
-@pytest.mark.parametrize("value", range(0, 15))
-def test_degree_filter_with_string_threshold(value):
-    graph = degree_graph_with_add_node_and_add_edge(Graph())
-    threshold_str = str(value)
-    parsed_str = int(threshold_str)
-
-    assert_filter(
-        graph,
-        filter.Node.degree() < threshold_str,
-        "both",
-        lambda d: d < parsed_str,
-        f"BOTH < string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() <= threshold_str,
-        "both",
-        lambda d: d <= parsed_str,
-        f"BOTH <= string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() == threshold_str,
-        "both",
-        lambda d: d == parsed_str,
-        f"BOTH == string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() != threshold_str,
-        "both",
-        lambda d: d != parsed_str,
-        f"BOTH != string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() >= threshold_str,
-        "both",
-        lambda d: d >= parsed_str,
-        f"BOTH >= string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() > threshold_str,
-        "both",
-        lambda d: d > parsed_str,
-        f"BOTH > string threshold parsed to u64 ({threshold_str})",
-    )
-
-    assert_filter(
-        graph,
-        filter.Node.in_degree() < threshold_str,
-        "in",
-        lambda d: d < parsed_str,
-        f"IN < string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() <= threshold_str,
-        "in",
-        lambda d: d <= parsed_str,
-        f"IN <= string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() == threshold_str,
-        "in",
-        lambda d: d == parsed_str,
-        f"IN == string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() != threshold_str,
-        "in",
-        lambda d: d != parsed_str,
-        f"IN != string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() >= threshold_str,
-        "in",
-        lambda d: d >= parsed_str,
-        f"IN >= string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() > threshold_str,
-        "in",
-        lambda d: d > parsed_str,
-        f"IN > string threshold parsed to u64 ({threshold_str})",
-    )
-
-    assert_filter(
-        graph,
-        filter.Node.out_degree() < threshold_str,
-        "out",
-        lambda d: d < parsed_str,
-        f"OUT < string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() <= threshold_str,
-        "out",
-        lambda d: d <= parsed_str,
-        f"OUT <= string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() == threshold_str,
-        "out",
-        lambda d: d == parsed_str,
-        f"OUT == string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() != threshold_str,
-        "out",
-        lambda d: d != parsed_str,
-        f"OUT != string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() >= threshold_str,
-        "out",
-        lambda d: d >= parsed_str,
-        f"OUT >= string threshold parsed to u64 ({threshold_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() > threshold_str,
-        "out",
-        lambda d: d > parsed_str,
-        f"OUT > string threshold parsed to u64 ({threshold_str})",
-    )
-
-
-@pytest.mark.parametrize("value", range(0, 15))
-def test_degree_filter_with_string_is_in(value):
-    graph = degree_graph_with_add_node_and_add_edge(Graph())
-    threshold_a_str = str(value)
-    threshold_b_str = str(value + 1)
-    set_values = [int(threshold_a_str), int(threshold_b_str)]
-
-    assert_filter(
-        graph,
-        filter.Node.degree().is_in([threshold_a_str, threshold_b_str]),
-        "both",
-        lambda d: d in set_values,
-        f"BOTH is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree().is_in([threshold_a_str, threshold_b_str]),
-        "in",
-        lambda d: d in set_values,
-        f"IN is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree().is_in([threshold_a_str, threshold_b_str]),
-        "out",
-        lambda d: d in set_values,
-        f"OUT is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
-    )
-
-
-@pytest.mark.parametrize("value", range(0, 15))
-def test_degree_filter_with_string_is_not_in(value):
-    graph = degree_graph_with_add_node_and_add_edge(Graph())
-    threshold_a_str = str(value)
-    threshold_b_str = str(value + 1)
-    set_values = [int(threshold_a_str), int(threshold_b_str)]
-
-    assert_filter(
-        graph,
-        filter.Node.degree().is_not_in([threshold_a_str, threshold_b_str]),
-        "both",
-        lambda d: d not in set_values,
-        f"BOTH is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree().is_not_in([threshold_a_str, threshold_b_str]),
-        "in",
-        lambda d: d not in set_values,
-        f"IN is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree().is_not_in([threshold_a_str, threshold_b_str]),
-        "out",
-        lambda d: d not in set_values,
-        f"OUT is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
-    )
-
-
-@pytest.mark.parametrize("value", range(0, 15))
-def test_degree_filter_with_float_threshold(value):
-    graph = degree_graph_with_add_node_and_add_edge(Graph())
-    threshold_float = value + 0.5
-    parsed_float = int(threshold_float)
-
-    assert_filter(
-        graph,
-        filter.Node.degree() < threshold_float,
-        "both",
-        lambda d: d < parsed_float,
-        f"BOTH < float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() <= threshold_float,
-        "both",
-        lambda d: d <= parsed_float,
-        f"BOTH <= float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() == threshold_float,
-        "both",
-        lambda d: d == parsed_float,
-        f"BOTH == float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() != threshold_float,
-        "both",
-        lambda d: d != parsed_float,
-        f"BOTH != float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() >= threshold_float,
-        "both",
-        lambda d: d >= parsed_float,
-        f"BOTH >= float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.degree() > threshold_float,
-        "both",
-        lambda d: d > parsed_float,
-        f"BOTH > float threshold cast to u64 ({value})",
-    )
-
-    assert_filter(
-        graph,
-        filter.Node.in_degree() < threshold_float,
-        "in",
-        lambda d: d < parsed_float,
-        f"IN < float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() <= threshold_float,
-        "in",
-        lambda d: d <= parsed_float,
-        f"IN <= float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() == threshold_float,
-        "in",
-        lambda d: d == parsed_float,
-        f"IN == float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() != threshold_float,
-        "in",
-        lambda d: d != parsed_float,
-        f"IN != float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() >= threshold_float,
-        "in",
-        lambda d: d >= parsed_float,
-        f"IN >= float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree() > threshold_float,
-        "in",
-        lambda d: d > parsed_float,
-        f"IN > float threshold cast to u64 ({value})",
-    )
-
-    assert_filter(
-        graph,
-        filter.Node.out_degree() < threshold_float,
-        "out",
-        lambda d: d < parsed_float,
-        f"OUT < float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() <= threshold_float,
-        "out",
-        lambda d: d <= parsed_float,
-        f"OUT <= float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() == threshold_float,
-        "out",
-        lambda d: d == parsed_float,
-        f"OUT == float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() != threshold_float,
-        "out",
-        lambda d: d != parsed_float,
-        f"OUT != float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() >= threshold_float,
-        "out",
-        lambda d: d >= parsed_float,
-        f"OUT >= float threshold cast to u64 ({value})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree() > threshold_float,
-        "out",
-        lambda d: d > parsed_float,
-        f"OUT > float threshold cast to u64 ({value})",
-    )
-
-
-@pytest.mark.parametrize("value", range(0, 15))
-def test_degree_filter_with_float_is_in(value):
-    graph = degree_graph_with_add_node_and_add_edge(Graph())
-    threshold_a = value + 0.25
-    threshold_b = value + 1.75
-    set_values = [int(threshold_a), int(threshold_b)]
-
-    assert_filter(
-        graph,
-        filter.Node.degree().is_in([threshold_a, threshold_b]),
-        "both",
-        lambda d: d in set_values,
-        f"BOTH is_in(float thresholds cast to u64) ({value}, {value + 1})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree().is_in([threshold_a, threshold_b]),
-        "in",
-        lambda d: d in set_values,
-        f"IN is_in(float thresholds cast to u64) ({value}, {value + 1})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree().is_in([threshold_a, threshold_b]),
-        "out",
-        lambda d: d in set_values,
-        f"OUT is_in(float thresholds cast to u64) ({value}, {value + 1})",
-    )
-
-
-@pytest.mark.parametrize("value", range(0, 15))
-def test_degree_filter_with_float_is_not_in(value):
-    graph = degree_graph_with_add_node_and_add_edge(Graph())
-    threshold_a = value + 0.25
-    threshold_b = value + 1.75
-    set_values = [int(threshold_a), int(threshold_b)]
-
-    assert_filter(
-        graph,
-        filter.Node.degree().is_not_in([threshold_a, threshold_b]),
-        "both",
-        lambda d: d not in set_values,
-        f"BOTH is_not_in(float thresholds cast to u64) ({value}, {value + 1})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.in_degree().is_not_in([threshold_a, threshold_b]),
-        "in",
-        lambda d: d not in set_values,
-        f"IN is_not_in(float thresholds cast to u64) ({value}, {value + 1})",
-    )
-    assert_filter(
-        graph,
-        filter.Node.out_degree().is_not_in([threshold_a, threshold_b]),
-        "out",
-        lambda d: d not in set_values,
-        f"OUT is_not_in(float thresholds cast to u64) ({value}, {value + 1})",
-    )
 
 
 @with_variants(init_graph)
@@ -903,7 +554,7 @@ def test_node_type_comparison_to_a_non_string_type_is_a_python_error():
     with pytest.raises(TypeError):
         filter.Node.node_type() != 5
     # A correctly typed comparison still builds an expression.
-    assert isinstance(filter.Node.node_type() == "person", filter.FilterExpr)
+    assert isinstance(filter.Node.node_type() == "person", filter.Expr)
 
 
 @with_variants(init_graph)
@@ -1124,7 +775,7 @@ def test_filter_nodes_with_str_ids_error():
         filter_expr = filter.Node.id() == 3
         with pytest.raises(
             Exception,
-            match=r"Invalid filter: value I64\(3\) of type I64 cannot be coerced to Str",
+            match=r"Invalid filter: value I64\(3\) of type I64 cannot be compared with Str",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1137,7 +788,7 @@ def test_filter_nodes_with_num_ids_error():
         filter_expr = filter.Node.id() == "3"
         with pytest.raises(
             Exception,
-            match=r'value Str\(ArcStr\("3"\)\) of type Str cannot be coerced to U64',
+            match=r'value Str\(ArcStr\("3"\)\) of type Str cannot be compared with U64',
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1296,11 +947,8 @@ def test_filter_nodes_for_node_name_all_is_invalid():
     def check(graph):
         # The expression builds (the python surface is one Expr type); applying
         # it rejects the qualifier on a scalar field.
-        filter_expr = filter.Node.name().all() == True
-        with pytest.raises(
-            Exception,
-            match=r"any\(\)/all\(\) require list or temporal values, found Str",
-        ):
+        with pytest.raises(Exception, match=r"cannot be compared with Str"):
+            filter_expr = (filter.Node.name() == True).all()
             graph.filter(filter_expr).nodes.id
 
     return check
