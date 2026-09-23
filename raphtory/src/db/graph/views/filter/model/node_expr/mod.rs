@@ -16,7 +16,6 @@ pub mod ops;
 #[cfg(test)]
 mod tests;
 
-pub use super::{Metadata, Property};
 use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, EntityMarker};
 pub use dyn_expr::*;
 pub use exprs::*;

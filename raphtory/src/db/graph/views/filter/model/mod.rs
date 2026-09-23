@@ -261,38 +261,6 @@ pub enum EntityMarker {
     Const,
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared property name expressions
-//
-// These structs carry only a property name. They implement both NodeExpr and
-// EdgeExpr in their respective modules (node_expr/exprs.rs, edge_expr/exprs.rs),
-// reading from node_meta() or edge_meta() depending on the context.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Latest temporal property value — implements both `NodeExpr` and `EdgeExpr`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Property {
-    pub name: String,
-}
-
-impl Property {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
-    }
-}
-
-/// Static metadata field — implements both `NodeExpr` and `EdgeExpr`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Metadata {
-    pub name: String,
-}
-
-impl Metadata {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
-    }
-}
-
 #[derive(Clone)]
 pub struct PropertyExpr<E> {
     pub(crate) view_expr: E,

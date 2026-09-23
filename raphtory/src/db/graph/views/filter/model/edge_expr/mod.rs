@@ -24,8 +24,6 @@ use raphtory_storage::graph::graph::GraphStorage;
 
 pub mod ops;
 
-pub use super::{Metadata, Property};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgeOp — compiled evaluator: EdgeRef → typed value
 // ─────────────────────────────────────────────────────────────────────────────
