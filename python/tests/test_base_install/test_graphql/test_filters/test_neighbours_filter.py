@@ -14,21 +14,34 @@ def test_out_neighbours_found(graph):
           graph(path: "g") {
             node(name: "a") {
               filter(expr: {
-                and: [
-                  {
-                    eq: {
-                      lhs: { read: { entity: NODE, target: { field: NAME } } }
-                      rhs: { const: { str: "d" } }
-                    }
-                  },
-                  {
-                    gt: {
-                      lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-                      rhs: { const: { i64: 10 } }
-                    }
-                  }
-                ]
-              }) {
+                             and: [{
+                               node: {
+                                 eq: {
+                                   lhs: {
+                                     field: NAME
+                                   }
+                                   rhs: {
+                                     const: {
+                                       str: "d"
+                                     }
+                                   }
+                                 }
+                               }
+                             }, {
+                               node: {
+                                 gt: {
+                                   lhs: {
+                                     property: "prop1"
+                                   }
+                                   rhs: {
+                                     const: {
+                                       i64: 10
+                                     }
+                                   }
+                                 }
+                               }
+                             }]
+                           }) {
                 outNeighbours {
                   list { name }
                 }
@@ -50,27 +63,48 @@ def test_out_neighbours_found_select(graph):
           graph(path: "g") {
             node(name: "a") {
               filter(expr: {
-                and: [
-                  {
-                    eq: {
-                      lhs: { read: { entity: NODE, target: { field: NAME } } }
-                      rhs: { const: { str: "d" } }
-                    }
-                  },
-                  {
-                    gt: {
-                      lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-                      rhs: { const: { i64: 10 } }
-                    }
-                  }
-                ]
-              }) {
+                             and: [{
+                               node: {
+                                 eq: {
+                                   lhs: {
+                                     field: NAME
+                                   }
+                                   rhs: {
+                                     const: {
+                                       str: "d"
+                                     }
+                                   }
+                                 }
+                               }
+                             }, {
+                               node: {
+                                 gt: {
+                                   lhs: {
+                                     property: "prop1"
+                                   }
+                                   rhs: {
+                                     const: {
+                                       i64: 10
+                                     }
+                                   }
+                                 }
+                               }
+                             }]
+                           }) {
                 outNeighbours(select: {
-                  eq: {
-                    lhs: { read: { entity: NODE, target: { field: NAME } } }
-                    rhs: { const: { str: "d" } }
-                  }
-                }) {
+                                        node: {
+                                          eq: {
+                                            lhs: {
+                                              field: NAME
+                                            }
+                                            rhs: {
+                                              const: {
+                                                str: "d"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }) {
                   list { name }
                 }
               }
@@ -91,11 +125,19 @@ def test_out_neighbours_not_found(graph):
           graph(path: "g") {
             node(name: "a") {
               filter(expr: {
-                eq: {
-                  lhs: { read: { entity: NODE, target: { field: NAME } } }
-                  rhs: { const: { str: "e" } }
-                }
-              }) {
+                             node: {
+                               eq: {
+                                 lhs: {
+                                   field: NAME
+                                 }
+                                 rhs: {
+                                   const: {
+                                     str: "e"
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 outNeighbours {
                   list { name }
                 }
@@ -115,11 +157,19 @@ def test_in_neighbours_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: {
-                gt: {
-                  lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-                  rhs: { const: { i64: 10 } }
-                }
-              }) {
+                             node: {
+                               gt: {
+                                 lhs: {
+                                   property: "prop1"
+                                 }
+                                 rhs: {
+                                   const: {
+                                     i64: 10
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 inNeighbours {
                   list { name }
                 }
@@ -145,17 +195,33 @@ def test_in_neighbours_found_select(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: {
-                gt: {
-                  lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-                  rhs: { const: { i64: 10 } }
-                }
-              }) {
+                             node: {
+                               gt: {
+                                 lhs: {
+                                   property: "prop1"
+                                 }
+                                 rhs: {
+                                   const: {
+                                     i64: 10
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 inNeighbours(select: {
-                  eq: {
-                    lhs: { read: { entity: NODE, target: { field: NAME } } }
-                    rhs: { const: { str: "c" } }
-                  }
-                }) {
+                                       node: {
+                                         eq: {
+                                           lhs: {
+                                             field: NAME
+                                           }
+                                           rhs: {
+                                             const: {
+                                               str: "c"
+                                             }
+                                           }
+                                         }
+                                       }
+                                     }) {
                   list { name }
                 }
               }
@@ -176,11 +242,19 @@ def test_in_neighbours_not_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: {
-                eq: {
-                  lhs: { read: { entity: NODE, target: { field: NAME } } }
-                  rhs: { const: { str: "e" } }
-                }
-              }) {
+                             node: {
+                               eq: {
+                                 lhs: {
+                                   field: NAME
+                                 }
+                                 rhs: {
+                                   const: {
+                                     str: "e"
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 inNeighbours {
                   list { name }
                 }
@@ -200,11 +274,19 @@ def test_neighbours_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: {
-                ne: {
-                  lhs: { read: { entity: NODE, target: { field: NAME } } }
-                  rhs: { const: { str: "a" } }
-                }
-              }) {
+                             node: {
+                               ne: {
+                                 lhs: {
+                                   field: NAME
+                                 }
+                                 rhs: {
+                                   const: {
+                                     str: "a"
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 neighbours {
                   list { name }
                 }
@@ -228,17 +310,33 @@ def test_neighbours_found_select(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: {
-                ne: {
-                  lhs: { read: { entity: NODE, target: { field: NAME } } }
-                  rhs: { const: { str: "a" } }
-                }
-              }) {
+                             node: {
+                               ne: {
+                                 lhs: {
+                                   field: NAME
+                                 }
+                                 rhs: {
+                                   const: {
+                                     str: "a"
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 neighbours(select: {
-                  eq: {
-                    lhs: { read: { entity: NODE, target: { field: NAME } } }
-                    rhs: { const: { str: "b" } }
-                  }
-                }) {
+                                     node: {
+                                       eq: {
+                                         lhs: {
+                                           field: NAME
+                                         }
+                                         rhs: {
+                                           const: {
+                                             str: "b"
+                                           }
+                                         }
+                                       }
+                                     }
+                                   }) {
                   list { name }
                 }
               }
@@ -259,11 +357,19 @@ def test_neighbours_not_found(graph):
           graph(path: "g") {
             node(name: "d") {
               filter(expr: {
-                eq: {
-                  lhs: { read: { entity: NODE, target: { field: NAME } } }
-                  rhs: { const: { str: "e" } }
-                }
-              }) {
+                             node: {
+                               eq: {
+                                 lhs: {
+                                   field: NAME
+                                 }
+                                 rhs: {
+                                   const: {
+                                     str: "e"
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 neighbours {
                   list { name }
                 }
@@ -286,19 +392,35 @@ def test_neighbours_selection(graph):
         query {
           graph(path: "g") {
             nodes(select: {
-              gt: {
-                lhs: { read: { entity: NODE, target: { property: "p100" } } }
-                rhs: { const: { i64: 30 } }
-              }
-            }) {
+                            node: {
+                              gt: {
+                                lhs: {
+                                  property: "p100"
+                                }
+                                rhs: {
+                                  const: {
+                                    i64: 30
+                                  }
+                                }
+                              }
+                            }
+                          }) {
               list {
                 neighbours {
                   select(expr: {
-                    gt: {
-                      lhs: { read: { entity: NODE, target: { property: "p2" } } }
-                      rhs: { const: { i64: 3 } }
-                    }
-                  }) {
+                                 node: {
+                                   gt: {
+                                     lhs: {
+                                       property: "p2"
+                                     }
+                                     rhs: {
+                                       const: {
+                                         i64: 3
+                                       }
+                                     }
+                                   }
+                                 }
+                               }) {
                     list {
                     name
                   }
@@ -328,20 +450,36 @@ def test_neighbours_neighbours_filtering(graph):
         query {
           graph(path: "g") {
             nodes(select: {
-              gt: {
-                lhs: { read: { entity: NODE, target: { property: "p100" } } }
-                rhs: { const: { i64: 30 } }
-              }
-            }) {
+                            node: {
+                              gt: {
+                                lhs: {
+                                  property: "p100"
+                                }
+                                rhs: {
+                                  const: {
+                                    i64: 30
+                                  }
+                                }
+                              }
+                            }
+                          }) {
               list {
                 name
                 neighbours {
                   filter(expr: {
-                    gt: {
-                      lhs: { read: { entity: NODE, target: { property: "p2" } } }
-                      rhs: { const: { i64: 3 } }
-                    }
-                  }) {
+                                 node: {
+                                   gt: {
+                                     lhs: {
+                                       property: "p2"
+                                     }
+                                     rhs: {
+                                       const: {
+                                         i64: 3
+                                       }
+                                     }
+                                   }
+                                 }
+                               }) {
                     list {
                       name
                       neighbours {

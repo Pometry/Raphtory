@@ -1,10 +1,10 @@
 """The filter tree as a GraphQL input.
 
-`FilterExpr` is the same tree the local engine compiles: one grammar for
-nodes, edges and views, with an expression on *both* sides of a comparison.
-These tests send trees as JSON variables and check the answers against the
-same graph read locally, so the wire grammar is pinned by results, not by
-shape.
+`FilterExpr` is the same tree the local engine compiles: the entity is the key
+(`node`, `edge`, `explodedEdge`), what it reads is a plain field, and an
+expression stands on *both* sides of a comparison. These tests send trees as
+JSON variables and check the answers against the same graph read locally, so
+the wire grammar is pinned by results, not by shape.
 """
 
 import pytest
@@ -50,12 +50,20 @@ query($f: FilterExpr!) {
 """
 
 
-def read(t):
-    return {"read": {"entity": "NODE", "target": t}}
+def node(expr):
+    return {"node": expr}
+
+
+def edge(expr):
+    return {"edge": expr}
 
 
 def const(v):
     return {"const": v}
+
+
+def viewed(views, expr):
+    return {"viewed": {"views": views, "expr": expr}}
 
 
 def node_names(client, tree):
@@ -76,7 +84,7 @@ def test_both_sides_of_a_comparison_are_expressions():
     constant-only grammar could not say. The tree can, and the server answers
     what the local engine answers."""
     g = build()
-    tree = {"gt": {"lhs": read({"degree": "BOTH"}), "rhs": read({"degree": "IN"})}}
+    tree = node({"gt": {"lhs": {"degree": "BOTH"}, "rhs": {"degree": "IN"}}})
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["alice", "bob", "carol"]
     local = sorted(n.name for n in g.filter(f.Node.degree() > f.Node.in_degree()).nodes)
@@ -86,15 +94,9 @@ def test_both_sides_of_a_comparison_are_expressions():
 def test_views_belong_to_the_read():
     """Inside [0, 5) alice's latest score is 7 and bob's is 5."""
     g = build()
-    windowed = {
-        "read": {
-            "entity": "NODE",
-            "views": [{"window": {"start": 0, "end": 5}}],
-            "target": {"property": "score"},
-        }
-    }
-    tree = {"gt": {"lhs": windowed, "rhs": const({"f64": 4.0})}}
-    plain = {"gt": {"lhs": read({"property": "score"}), "rhs": const({"f64": 4.0})}}
+    windowed = viewed([{"window": {"start": 0, "end": 5}}], {"property": "score"})
+    tree = node({"gt": {"lhs": windowed, "rhs": const({"f64": 4.0})}})
+    plain = node({"gt": {"lhs": {"property": "score"}, "rhs": const({"f64": 4.0})}})
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["alice", "bob"]
         assert node_names(client, plain) == ["alice"]
@@ -102,10 +104,11 @@ def test_views_belong_to_the_read():
 
 def test_temporal_aggregates_and_qualifiers():
     g = build()
-    history = {"temporal": read({"property": "score"})}
-    total = {"gt": {"lhs": {"sum": history}, "rhs": const({"f64": 10.0})}}
-    any_high = {"gt": {"lhs": {"any": history}, "rhs": const({"f64": 4.0})}}
-    two_updates = {"eq": {"lhs": {"len": history}, "rhs": const({"u64": 2})}}
+    history = {"temporalProperty": "score"}
+    total = node({"gt": {"lhs": {"sum": history}, "rhs": const({"f64": 10.0})}})
+    # The qualifier follows the comparison: one answer per update, any must hold.
+    any_high = node({"any": {"gt": {"lhs": history, "rhs": const({"f64": 4.0})}}})
+    two_updates = node({"eq": {"lhs": {"len": history}, "rhs": const({"u64": 2})}})
     with graphql_client(g) as client:
         assert node_names(client, total) == ["alice"]
         assert node_names(client, any_high) == ["alice", "bob"]
@@ -117,15 +120,10 @@ def test_edge_reads_through_an_endpoint_keep_the_edge_views():
     alice's latest score is 7, so asking for the later 9 matches nothing."""
     g = build()
     src_score = {
-        "read": {
-            "entity": "EDGE",
-            "endpoint": "SRC",
-            "views": [{"window": {"start": 0, "end": 5}}],
-            "target": {"property": "score"},
-        }
+        "src": viewed([{"window": {"start": 0, "end": 5}}], {"property": "score"})
     }
-    late = {"eq": {"lhs": src_score, "rhs": const({"f64": 9.0})}}
-    early = {"eq": {"lhs": src_score, "rhs": const({"f64": 7.0})}}
+    late = edge({"eq": {"lhs": src_score, "rhs": const({"f64": 9.0})}})
+    early = edge({"eq": {"lhs": src_score, "rhs": const({"f64": 7.0})}})
     with graphql_client(g) as client:
         assert edge_pairs(client, late) == []
         assert edge_pairs(client, early) == [("alice", "bob")]
@@ -137,7 +135,7 @@ def test_a_view_leg_restricts_the_whole_filter():
     outside [0, 2), so he is gone before the predicate runs."""
     g = build()
     window = {"view": [{"window": {"start": 0, "end": 2}}]}
-    has_score = {"isSome": read({"property": "score"})}
+    has_score = node({"isSome": {"property": "score"}})
     with graphql_client(g) as client:
         assert node_names(client, {"and": [window, has_score]}) == ["alice", "bob"]
         assert node_names(client, has_score) == ["alice", "bob", "dave"]
@@ -148,7 +146,7 @@ def test_a_view_leg_restricts_the_whole_filter():
 
 def test_structural_predicates_and_views():
     g = build()
-    works = {"isActive": {"entity": "EDGE", "views": [{"layers": ["works"]}]}}
+    works = edge(viewed([{"layers": ["works"]}], {"isActive": True}))
     window_then_latest = {
         "view": [{"window": {"start": 0, "end": 5}}, {"latest": True}]
     }
@@ -159,25 +157,29 @@ def test_structural_predicates_and_views():
 
 def test_combinators_presence_and_membership():
     g = build()
-    tree = {
-        "and": [
-            {"isSome": read({"property": "score"})},
-            {
-                "not": {
-                    "startsWith": {
-                        "lhs": read({"field": "NAME"}),
-                        "rhs": const({"str": "a"}),
+    tree = node(
+        {
+            "and": [
+                {"isSome": {"property": "score"}},
+                {
+                    "not": {
+                        "startsWith": {
+                            "lhs": {"field": "NAME"},
+                            "rhs": const({"str": "a"}),
+                        }
                     }
-                }
-            },
-        ]
-    }
-    members = {
-        "isIn": {
-            "expr": read({"field": "NAME"}),
-            "values": {"list": [{"str": "alice"}, {"str": "dave"}]},
+                },
+            ]
         }
-    }
+    )
+    members = node(
+        {
+            "isIn": {
+                "expr": {"field": "NAME"},
+                "values": {"list": [{"str": "alice"}, {"str": "dave"}]},
+            }
+        }
+    )
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["bob", "dave"]
         assert node_names(client, members) == ["alice", "dave"]

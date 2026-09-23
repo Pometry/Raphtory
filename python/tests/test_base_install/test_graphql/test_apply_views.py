@@ -2073,11 +2073,19 @@ def test_apply_view_node_filter():
         applyViews(views: [
           {
             filter: {
-              eq: {
-                lhs: { read: { entity: NODE, target: { property: "where" } } }
-                rhs: { const: { str: "Berlin" } }
-              }
-            }
+                      node: {
+                        eq: {
+                          lhs: {
+                            property: "where"
+                          }
+                          rhs: {
+                            const: {
+                              str: "Berlin"
+                            }
+                          }
+                        }
+                      }
+                    }
           }
         ]) {
           nodes {
@@ -2102,11 +2110,19 @@ def test_apply_view_edge_filter():
         applyViews(views: [
           {
             filter: {
-              eq: {
-                lhs: { read: { entity: EDGE, target: { property: "where" } } }
-                rhs: { const: { str: "fishbowl" } }
-              }
-            }
+                      edge: {
+                        eq: {
+                          lhs: {
+                            property: "where"
+                          }
+                          rhs: {
+                            const: {
+                              str: "fishbowl"
+                            }
+                          }
+                        }
+                      }
+                    }
           }
         ]) {
           edges {
@@ -2264,11 +2280,19 @@ def test_apply_view_a_lot_of_views():
             { window: { start: 1735689600000, end: 1735862400000 } },
             { layers: ["follows"] },
             { filter: {
-              eq: {
-                lhs: { read: { entity: NODE, target: { property: "where" } } }
-                rhs: { const: { str: "Berlin" } }
-              }
-            } }
+                        node: {
+                          eq: {
+                            lhs: {
+                              property: "where"
+                            }
+                            rhs: {
+                              const: {
+                                str: "Berlin"
+                              }
+                            }
+                          }
+                        }
+                      } }
           ]) {
             list {
               name

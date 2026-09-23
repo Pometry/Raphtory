@@ -244,11 +244,19 @@ def test_history():
     {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: { read: { entity: EDGE, target: { property: "weight" } } }
-            rhs: { const: { f64: 0.9 } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          property: "weight"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            f64: 0.9
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -273,11 +281,19 @@ def test_history():
     {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: { read: { entity: EDGE, target: { property: "weight" } } }
-            rhs: { const: { f64: 0.7 } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          property: "weight"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            f64: 0.7
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -296,11 +312,19 @@ def test_history():
     {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: { read: { entity: NODE, target: { property: "Age" } } }
-            rhs: { const: { i64: 51 } }
-          }
-        }) {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 51
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -318,11 +342,19 @@ def test_history():
     {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          ge: {
-            lhs: { read: { entity: NODE, target: { property: "Age" } } }
-            rhs: { const: { i64: 51 } }
-          }
-        }) {
+                                    node: {
+                                      ge: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 51
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -346,11 +378,19 @@ def test_history():
     {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: { read: { entity: NODE, target: { property: "Age" } } }
-            rhs: { const: { i64: 21 } }
-          }
-        }) {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 21
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Harry") {
             history {
               timestamps {
@@ -368,11 +408,19 @@ def test_history():
     {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          ge: {
-            lhs: { read: { entity: NODE, target: { property: "Age" } } }
-            rhs: { const: { i64: 21 } }
-          }
-        }) {
+                                    node: {
+                                      ge: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 21
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Harry") {
             history {
               timestamps {

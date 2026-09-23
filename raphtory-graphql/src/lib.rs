@@ -559,22 +559,19 @@ mod graphql_test {
           graph(path: "g") {
             filterNodes: filter(
                 expr: {
-              gt: {
-                lhs: {
-                  read: {
-                    entity: NODE
-                    target: {
-                      degree: BOTH
-                    }
-                  }
-                }
-                rhs: {
-                  const: {
-                    u64: 0
-                  }
-                }
-              }
-            }
+                        node: {
+                          gt: {
+                            lhs: {
+                              degree: BOTH
+                            }
+                            rhs: {
+                              const: {
+                                u64: 0
+                              }
+                            }
+                          }
+                        }
+                      }
             ) {
               nodes {
                 list {
@@ -584,22 +581,19 @@ mod graphql_test {
             }
             nodes {
               select(expr: {
-                gt: {
-                  lhs: {
-                    read: {
-                      entity: NODE
-                      target: {
-                        degree: BOTH
-                      }
-                    }
-                  }
-                  rhs: {
-                    const: {
-                      u64: 0
-                    }
-                  }
-                }
-              }) {
+                             node: {
+                               gt: {
+                                 lhs: {
+                                   degree: BOTH
+                                 }
+                                 rhs: {
+                                   const: {
+                                     u64: 0
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 list {
                   name
                 }

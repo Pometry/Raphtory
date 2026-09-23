@@ -24,11 +24,25 @@ def test_node_property_filter_equal2(graph):
       graph(path: "g") {
         nodes {
           filter(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "prop5" } } }
-              rhs: { const: { list: [{ i64: 1 }, { i64: 2 }, { i64: 3 }] } }
-            }
-          }) {
+                         node: {
+                           eq: {
+                             lhs: {
+                               property: "prop5"
+                             }
+                             rhs: {
+                               const: {
+                                 list: [{
+                                   i64: 1
+                                 }, {
+                                   i64: 2
+                                 }, {
+                                   i64: 3
+                                 }]
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list {
               name
               neighbours {
@@ -66,11 +80,25 @@ def test_node_property_filter_equal3(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "prop5" } } }
-              rhs: { const: { list: [{ i64: 1 }, { i64: 2 }, { i64: 3 }] } }
-            }
-          }
+                         node: {
+                           eq: {
+                             lhs: {
+                               property: "prop5"
+                             }
+                             rhs: {
+                               const: {
+                                 list: [{
+                                   i64: 1
+                                 }, {
+                                   i64: 2
+                                 }, {
+                                   i64: 3
+                                 }]
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -89,11 +117,19 @@ def test_node_property_filter_equal_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "prop5" } } }
-              rhs: { const: { i64: 1 } }
-            }
-          }
+                         node: {
+                           eq: {
+                             lhs: {
+                               property: "prop5"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 1
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list {
               name
@@ -114,11 +150,19 @@ def test_node_property_filter_not_equal(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            ne: {
-              lhs: { read: { entity: NODE, target: { property: "prop4" } } }
-              rhs: { const: { bool: true } }
-            }
-          }
+                         node: {
+                           ne: {
+                             lhs: {
+                               property: "prop4"
+                             }
+                             rhs: {
+                               const: {
+                                 bool: true
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list {
               name
@@ -141,11 +185,19 @@ def test_node_property_filter_not_equal_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            ne: {
-              lhs: { read: { entity: NODE, target: { property: "prop4" } } }
-              rhs: { const: { i64: 1 } }
-            }
-          }
+                         node: {
+                           ne: {
+                             lhs: {
+                               property: "prop4"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 1
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list {
               name
@@ -168,11 +220,19 @@ def test_node_property_filter_greater_than_or_equal(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            ge: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { i64: 60 } }
-            }
-          }
+                         node: {
+                           ge: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 60
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list {
               name
@@ -193,11 +253,19 @@ def test_node_property_filter_greater_than_or_equal_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            ge: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { str: "shivam" } }
-            }
-          }
+                         node: {
+                           ge: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 str: "shivam"
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list {
               name
@@ -218,11 +286,19 @@ def test_node_property_filter_less_than_or_equal(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            le: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { i64: 30 } }
-            }
-          }
+                         node: {
+                           le: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 30
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list {
               name
@@ -247,11 +323,19 @@ def test_node_property_filter_less_than_or_equal_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            le: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { str: "shivam" } }
-            }
-          }
+                         node: {
+                           le: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 str: "shivam"
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -270,11 +354,19 @@ def test_node_property_filter_greater_than(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            gt: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { i64: 30 } }
-            }
-          }
+                         node: {
+                           gt: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 30
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -293,11 +385,19 @@ def test_node_property_filter_greater_than_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            gt: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { str: "shivam" } }
-            }
-          }
+                         node: {
+                           gt: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 str: "shivam"
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -316,11 +416,19 @@ def test_node_property_filter_less_than(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            lt: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { i64: 30 } }
-            }
-          }
+                         node: {
+                           lt: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 30
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -341,11 +449,19 @@ def test_node_property_filter_less_than_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            lt: {
-              lhs: { read: { entity: NODE, target: { property: "prop1" } } }
-              rhs: { const: { str: "shivam" } }
-            }
-          }
+                         node: {
+                           lt: {
+                             lhs: {
+                               property: "prop1"
+                             }
+                             rhs: {
+                               const: {
+                                 str: "shivam"
+                               }
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -363,7 +479,7 @@ def test_node_property_filter_is_none(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { isNone: { read: { entity: NODE, target: { property: "prop5" } } } }
+          select(expr: { node: { isNone: { property: "prop5" } } }
           ) {
             list { name }
           }
@@ -383,7 +499,7 @@ def test_node_property_filter_is_some(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { isSome: { read: { entity: NODE, target: { property: "prop5" } } } }
+          select(expr: { node: { isSome: { property: "prop5" } } }
           ) {
             list { name }
           }
@@ -404,11 +520,25 @@ def test_node_property_filter_is_in(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [{ i64: 10 }, { i64: 30 }, { i64: 50 }, { i64: 70 }] }
-            }
-          }
+                         node: {
+                           isIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: [{
+                                 i64: 10
+                               }, {
+                                 i64: 30
+                               }, {
+                                 i64: 50
+                               }, {
+                                 i64: 70
+                               }]
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -429,11 +559,17 @@ def test_node_property_filter_is_in_empty_list(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [] }
-            }
-          }
+                         node: {
+                           isIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: []
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -453,11 +589,19 @@ def test_node_property_filter_is_in_no_value(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [{ i64: 100 }] }
-            }
-          }
+                         node: {
+                           isIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: [{
+                                 i64: 100
+                               }]
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -476,11 +620,17 @@ def test_node_property_filter_is_in_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { str: "shivam" }
-            }
-          }
+                         node: {
+                           isIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               str: "shivam"
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -501,11 +651,25 @@ def test_node_property_filter_is_not_in(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isNotIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [{ i64: 10 }, { i64: 30 }, { i64: 50 }, { i64: 70 }] }
-            }
-          }
+                         node: {
+                           isNotIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: [{
+                                 i64: 10
+                               }, {
+                                 i64: 30
+                               }, {
+                                 i64: 50
+                               }, {
+                                 i64: 70
+                               }]
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -526,11 +690,17 @@ def test_node_property_filter_is_not_in_empty_list(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isNotIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { list: [] }
-            }
-          }
+                         node: {
+                           isNotIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               list: []
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -557,11 +727,17 @@ def test_node_property_filter_is_not_in_type_error(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            isNotIn: {
-              expr: { read: { entity: NODE, target: { property: "prop1" } } }
-              values: { str: "shivam" }
-            }
-          }
+                         node: {
+                           isNotIn: {
+                             expr: {
+                               property: "prop1"
+                             }
+                             values: {
+                               str: "shivam"
+                             }
+                           }
+                         }
+                       }
           ) {
             list { name }
           }
@@ -581,11 +757,19 @@ def test_node_property_filter_contains_wrong_value_type_error(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          contains: {
-            lhs: { read: { entity: NODE, target: { property: "p10" } } }
-            rhs: { const: { u64: 2 } }
-          }
-        }) {
+                                    node: {
+                                      contains: {
+                                        lhs: {
+                                          property: "p10"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            u64: 2
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes {
             list { name }
           }
@@ -604,11 +788,19 @@ def test_nodes_property_filter_starts_with(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            startsWith: {
-              lhs: { read: { entity: NODE, target: { property: "prop3" } } }
-              rhs: { const: { str: "abc" } }
-            }
-          }) {
+                         node: {
+                           startsWith: {
+                             lhs: {
+                               property: "prop3"
+                             }
+                             rhs: {
+                               const: {
+                                 str: "abc"
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list { name }
           }
         }
@@ -634,11 +826,19 @@ def test_nodes_property_filter_ends_with(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            endsWith: {
-              lhs: { read: { entity: NODE, target: { property: "prop3" } } }
-              rhs: { const: { str: "333" } }
-            }
-          }) {
+                         node: {
+                           endsWith: {
+                             lhs: {
+                               property: "prop3"
+                             }
+                             rhs: {
+                               const: {
+                                 str: "333"
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list { name }
           }
         }
@@ -656,13 +856,21 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            startsWith: {
-              lhs: {
-                first: { temporal: { read: { entity: NODE, target: { property: "prop3" } } } }
-              }
-              rhs: { const: { str: "abc" } }
-            }
-          }) {
+                         node: {
+                           startsWith: {
+                             lhs: {
+                               first: {
+                                 temporalProperty: "prop3"
+                               }
+                             }
+                             rhs: {
+                               const: {
+                                 str: "abc"
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list { name }
           }
         }
@@ -688,13 +896,21 @@ def test_nodes_property_filter_temporal_all_starts_with(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            startsWith: {
-              lhs: {
-                any: { temporal: { read: { entity: NODE, target: { property: "prop3" } } } }
-              }
-              rhs: { const: { str: "abc1" } }
-            }
-          }) {
+                         node: {
+                           any: {
+                             startsWith: {
+                               lhs: {
+                                 temporalProperty: "prop3"
+                               }
+                               rhs: {
+                                 const: {
+                                   str: "abc1"
+                                 }
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list { name }
           }
         }
@@ -712,11 +928,21 @@ def test_nodes_property_filter_list_agg(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { sum: { read: { entity: NODE, target: { property: "prop5" } } } }
-            rhs: { const: { i64: 6 } }
-          }
-        }) {
+                                    node: {
+                                      eq: {
+                                        lhs: {
+                                          sum: {
+                                            property: "prop5"
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 6
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -732,11 +958,21 @@ def test_nodes_property_filter_list_qualifier(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          eq: {
-            lhs: { any: { read: { entity: NODE, target: { property: "prop5" } } } }
-            rhs: { const: { i64: 6 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        eq: {
+                                          lhs: {
+                                            property: "prop5"
+                                          }
+                                          rhs: {
+                                            const: {
+                                              i64: 6
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -756,13 +992,21 @@ def test_nodes_temporal_property_filter_agg(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: { temporal: { read: { entity: NODE, target: { property: "p2" } } } }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          avg: {
+                                            temporalProperty: "p2"
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            f64: 10.0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -785,15 +1029,23 @@ def test_nodes_temporal_property_filter_any_avg(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: { temporal: { read: { entity: NODE, target: { property: "prop5" } } } }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              temporalProperty: "prop5"
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -815,11 +1067,19 @@ def test_nodes_neighbours_selection_with_prop_filter(graph):
     query {
       graph(path: "g") {
         nodes(select: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "p100" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                        node: {
+                          gt: {
+                            lhs: {
+                              property: "p100"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 30
+                              }
+                            }
+                          }
+                        }
+                      }) {
           list {
             name
             neighbours {
@@ -859,11 +1119,19 @@ def test_nodes_selection(graph):
     query {
       graph(path: "g") {
         nodes(select: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "p100" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                        node: {
+                          gt: {
+                            lhs: {
+                              property: "p100"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 30
+                              }
+                            }
+                          }
+                        }
+                      }) {
             list {
               name
             }
@@ -882,17 +1150,33 @@ def test_nodes_selection_nodes_filter_paired(graph):
     query {
       graph(path: "g") {
         nodes(select: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "p100" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                        node: {
+                          gt: {
+                            lhs: {
+                              property: "p100"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 30
+                              }
+                            }
+                          }
+                        }
+                      }) {
           filter(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "p9" } } }
-              rhs: { const: { i64: 5 } }
-            }
-          }) {
+                         node: {
+                           eq: {
+                             lhs: {
+                               property: "p9"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 5
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list {
               name
             }
@@ -914,17 +1198,33 @@ def test_nodes_selection_nodes_filter_paired2(graph):
     query {
       graph(path: "g") {
         nodes(select: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "p100" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                        node: {
+                          gt: {
+                            lhs: {
+                              property: "p100"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 30
+                              }
+                            }
+                          }
+                        }
+                      }) {
           filter(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "p9" } } }
-              rhs: { const: { i64: 5 } }
-            }
-          }) {
+                         node: {
+                           eq: {
+                             lhs: {
+                               property: "p9"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 5
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list {
               neighbours {
                 list {
@@ -958,23 +1258,47 @@ def test_nodes_chained_selection_node_filter_paired(graph):
     query {
       graph(path: "g") {
         nodes(select: {
-          gt: {
-            lhs: { read: { entity: NODE, target: { property: "p100" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                        node: {
+                          gt: {
+                            lhs: {
+                              property: "p100"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 30
+                              }
+                            }
+                          }
+                        }
+                      }) {
           select(expr: {
-            eq: {
-              lhs: { read: { entity: NODE, target: { property: "p9" } } }
-              rhs: { const: { i64: 5 } }
-            }
-          }) {
+                         node: {
+                           eq: {
+                             lhs: {
+                               property: "p9"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 5
+                               }
+                             }
+                           }
+                         }
+                       }) {
             filter(expr: {
-              eq: {
-                lhs: { read: { entity: NODE, target: { field: NODE_TYPE } } }
-                rhs: { const: { str: "fire_nation" } }
-              }
-            }) {
+                           node: {
+                             eq: {
+                               lhs: {
+                                 field: NODE_TYPE
+                               }
+                               rhs: {
+                                 const: {
+                                   str: "fire_nation"
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               list {
                 name
               }
@@ -997,23 +1321,47 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
       graph(path: "g") {
         nodes {
           select(expr: {
-            gt: {
-              lhs: { read: { entity: NODE, target: { property: "p100" } } }
-              rhs: { const: { i64: 30 } }
-            }
-          }) {
+                         node: {
+                           gt: {
+                             lhs: {
+                               property: "p100"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 30
+                               }
+                             }
+                           }
+                         }
+                       }) {
             select(expr: {
-              eq: {
-                lhs: { read: { entity: NODE, target: { property: "p9" } } }
-                rhs: { const: { i64: 5 } }
-              }
-            }) {
+                           node: {
+                             eq: {
+                               lhs: {
+                                 property: "p9"
+                               }
+                               rhs: {
+                                 const: {
+                                   i64: 5
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               filter(expr: {
-                eq: {
-                  lhs: { read: { entity: NODE, target: { field: NODE_TYPE } } }
-                  rhs: { const: { str: "fire_nation" } }
-                }
-              }) {
+                             node: {
+                               eq: {
+                                 lhs: {
+                                   field: NODE_TYPE
+                                 }
+                                 rhs: {
+                                   const: {
+                                     str: "fire_nation"
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 list {
                   name
                 }
@@ -1042,23 +1390,33 @@ def test_nodes_temporal_property_filter_any_avg_with_window(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ window: { start: 1, end: 3 } }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  window: {
+                                                    start: 1
+                                                    end: 3
+                                                  }
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1077,23 +1435,30 @@ def test_node_property_layer_filter_not_supported(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ layers: ["air_nomads"] }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  layers: ["air_nomads"]
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1114,19 +1479,30 @@ def test_nodes_at_temporal_property(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: { entity: NODE, target: { property: "prop5" }, views: [{ at: 2 }] }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  at: 2
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1142,19 +1518,30 @@ def test_nodes_before_temporal_property(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: { entity: NODE, target: { property: "prop5" }, views: [{ before: 3 }] }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  before: 3
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1172,19 +1559,30 @@ def test_nodes_after_temporal_property(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: { entity: NODE, target: { property: "prop5" }, views: [{ after: 2 }] }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  after: 2
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1202,23 +1600,30 @@ def test_nodes_latest_temporal_property(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ latest: true }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  latest: true
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1234,23 +1639,30 @@ def test_nodes_snapshot_at_temporal_property(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ snapshotAt: 2 }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  snapshotAt: 2
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1268,23 +1680,30 @@ def test_nodes_snapshot_latest_temporal_property(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ snapshotLatest: true }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  snapshotLatest: true
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1305,23 +1724,32 @@ def test_nodes_layer_then_latest(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ layers: ["_default"] }, { latest: true }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  layers: ["_default"]
+                                                }, {
+                                                  latest: true
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -1337,23 +1765,32 @@ def test_nodes_latest_then_layer(graph):
     query {
       graph(path: "g") {
         filterNodes: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                any: {
-                  temporal: {
-                    read: {
-                      entity: NODE
-                      target: { property: "prop5" }
-                      views: [{ latest: true }, { layers: ["_default"] }]
-                    }
-                  }
-                }
-              }
-            }
-            rhs: { const: { f64: 10.0 } }
-          }
-        }) {
+                                    node: {
+                                      any: {
+                                        lt: {
+                                          lhs: {
+                                            avg: {
+                                              viewed: {
+                                                views: [{
+                                                  latest: true
+                                                }, {
+                                                  layers: ["_default"]
+                                                }]
+                                                expr: {
+                                                  temporalProperty: "prop5"
+                                                }
+                                              }
+                                            }
+                                          }
+                                          rhs: {
+                                            const: {
+                                              f64: 10.0
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }

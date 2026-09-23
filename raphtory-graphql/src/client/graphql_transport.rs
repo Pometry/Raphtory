@@ -4296,13 +4296,14 @@ mod tests {
     use crate::{
         data::GqlGraphType,
         model::graph::{
-            filter_expr_input::{GqlCmp, GqlEntity, GqlExpr, GqlRead, GqlTarget},
+            filter_expr_input::{GqlNodeCmp, GqlNodeExpr},
+            filtering::Wrapped,
             property::Value as GqlValue,
         },
         server::GraphServer,
     };
     use raphtory::{
-        db::graph::views::filter::model::tree::FilterExpr,
+        db::graph::views::filter::model::expr::FilterExpr,
         prelude::{Args, NO_PROPS},
     };
     use raphtory_api::core::storage::timeindex::AsTime;
@@ -4313,16 +4314,11 @@ mod tests {
     // ============ Unit tests for the read pipeline ============
 
     /// A node-property comparison in the tree grammar: `property(name) <op> value`.
-    fn node_prop(name: &str, op: fn(GqlCmp) -> GqlFilter, value: GqlValue) -> GqlFilter {
-        op(GqlCmp {
-            lhs: GqlExpr::Read(GqlRead {
-                entity: GqlEntity::Node,
-                views: None,
-                endpoint: None,
-                target: GqlTarget::Property(name.into()),
-            }),
-            rhs: GqlExpr::Const(value),
-        })
+    fn node_prop(name: &str, op: fn(GqlNodeCmp) -> GqlNodeExpr, value: GqlValue) -> GqlFilter {
+        GqlFilter::Node(op(GqlNodeCmp {
+            lhs: Wrapped::from(GqlNodeExpr::Property(name.into())),
+            rhs: Wrapped::from(GqlNodeExpr::Const(value)),
+        }))
     }
 
     /// The tree a client hands to `filter`, as python does.
@@ -4693,7 +4689,7 @@ mod tests {
         // break out of), not rendered into the query text.
         let filter = node_prop(
             "score".into(),
-            GqlFilter::Eq,
+            GqlNodeExpr::Eq,
             GqlValue::Str("O\"Brien".into()),
         );
         let mut vars = VarCollector::default();
@@ -4745,7 +4741,7 @@ mod tests {
     #[test]
     fn property_key_rides_json_variable_intact() {
         // A quote-bearing property KEY is carried as JSON data too.
-        let filter = node_prop("wei\"rd".into(), GqlFilter::Eq, GqlValue::Str("v".into()));
+        let filter = node_prop("wei\"rd".into(), GqlNodeExpr::Eq, GqlValue::Str("v".into()));
         let mut vars = VarCollector::default();
         vars.add_filter(&filter).unwrap();
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
@@ -4761,7 +4757,7 @@ mod tests {
         // with each field arg referencing its own variable — the payloads must
         // not collide or swap.
         let prop_filter =
-            |name: &str| node_prop(name.into(), GqlFilter::Eq, GqlValue::Str("x".into()));
+            |name: &str| node_prop(name.into(), GqlNodeExpr::Eq, GqlValue::Str("x".into()));
         let expr = ReadExpr::Ids {
             input: Arc::new(ReadExpr::Filtered {
                 input: Arc::new(ReadExpr::Filtered {
@@ -4815,7 +4811,7 @@ mod tests {
             GqlValue::F64(f64::INFINITY),
             GqlValue::F32(f32::NEG_INFINITY),
         ] {
-            let filter = node_prop("x".into(), GqlFilter::Eq, bad);
+            let filter = node_prop("x".into(), GqlNodeExpr::Eq, bad);
             let mut vars = VarCollector::default();
             assert!(matches!(
                 vars.add_filter(&filter),
@@ -4824,7 +4820,7 @@ mod tests {
         }
 
         // A finite float serializes fine.
-        let filter = node_prop("x".into(), GqlFilter::Eq, GqlValue::F64(1.5));
+        let filter = node_prop("x".into(), GqlNodeExpr::Eq, GqlValue::F64(1.5));
         let mut vars = VarCollector::default();
         assert!(vars.add_filter(&filter).is_ok());
     }
@@ -4994,7 +4990,7 @@ mod tests {
         rg.add_edge(2i64, "b", "c", NO_PROPS, None).await.unwrap();
         rg.add_edge(3i64, "c", "a", NO_PROPS, None).await.unwrap();
 
-        let score_gt_15 = node_prop("score".into(), GqlFilter::Gt, GqlValue::I64(15));
+        let score_gt_15 = node_prop("score".into(), GqlNodeExpr::Gt, GqlValue::I64(15));
 
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
@@ -5107,7 +5103,7 @@ mod tests {
             .nodes()
             .filter(tree(node_prop(
                 "score".into(),
-                GqlFilter::Gt,
+                GqlNodeExpr::Gt,
                 GqlValue::I64(15),
             )))
             .unwrap();

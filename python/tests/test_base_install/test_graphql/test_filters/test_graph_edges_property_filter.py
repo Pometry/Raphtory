@@ -18,11 +18,25 @@ def test_graph_edge_property_filter_equal(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop5" } } }
-            rhs: { const: { list: [{ i64: 1 }, { i64: 2 }, { i64: 3 }] } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          property: "eprop5"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            list: [{
+                                              i64: 1
+                                            }, {
+                                              i64: 2
+                                            }, {
+                                              i64: 3
+                                            }]
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -44,11 +58,19 @@ def test_graph_edge_property_filter_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop5" } } }
-            rhs: { const: { i64: 1 } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          property: "eprop5"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           nodes { list { name } }
         }
       }
@@ -64,11 +86,19 @@ def test_graph_edge_property_filter_not_equal(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          ne: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop4" } } }
-            rhs: { const: { bool: true } }
-          }
-        }) {
+                                    edge: {
+                                      ne: {
+                                        lhs: {
+                                          property: "eprop4"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            bool: true
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -90,11 +120,19 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          ne: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop4" } } }
-            rhs: { const: { i64: 1 } }
-          }
-        }) {
+                                    edge: {
+                                      ne: {
+                                        lhs: {
+                                          property: "eprop4"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -112,11 +150,19 @@ def test_graph_edge_property_filter_greater_than_or_equal(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          ge: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { i64: 60 } }
-          }
-        }) {
+                                    edge: {
+                                      ge: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 60
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -138,11 +184,19 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          ge: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    edge: {
+                                      ge: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -158,11 +212,19 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          le: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                                    edge: {
+                                      le: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 30
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -189,11 +251,19 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          le: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    edge: {
+                                      le: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -209,11 +279,19 @@ def test_graph_edge_property_filter_greater_than(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          gt: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                                    edge: {
+                                      gt: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 30
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -235,11 +313,19 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          gt: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    edge: {
+                                      gt: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -255,11 +341,19 @@ def test_graph_edge_property_filter_less_than(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          lt: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { i64: 30 } }
-          }
-        }) {
+                                    edge: {
+                                      lt: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 30
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -281,11 +375,19 @@ def test_graph_edge_property_filter_less_than_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          lt: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            rhs: { const: { str: "shivam" } }
-          }
-        }) {
+                                    edge: {
+                                      lt: {
+                                        lhs: {
+                                          property: "eprop1"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "shivam"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -300,7 +402,7 @@ def test_graph_edge_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges: filter(expr: { isNone: { read: { entity: EDGE, target: { property: "eprop5" } } } }) {
+        filterEdges: filter(expr: { edge: { isNone: { property: "eprop5" } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -315,7 +417,7 @@ def test_graph_edge_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges: filter(expr: { isSome: { read: { entity: EDGE, target: { property: "eprop5" } } } }) {
+        filterEdges: filter(expr: { edge: { isSome: { property: "eprop5" } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -343,11 +445,23 @@ def test_graph_edge_property_filter_is_in(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          isIn: {
-            expr: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            values: { list: [{ i64: 10 }, { i64: 20 }, { i64: 30 }] }
-          }
-        }) {
+                                    edge: {
+                                      isIn: {
+                                        expr: {
+                                          property: "eprop1"
+                                        }
+                                        values: {
+                                          list: [{
+                                            i64: 10
+                                          }, {
+                                            i64: 20
+                                          }, {
+                                            i64: 30
+                                          }]
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -374,11 +488,17 @@ def test_graph_edge_property_filter_is_empty_list(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          isIn: {
-            expr: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            values: { list: [] }
-          }
-        }) {
+                                    edge: {
+                                      isIn: {
+                                        expr: {
+                                          property: "eprop1"
+                                        }
+                                        values: {
+                                          list: []
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -394,11 +514,17 @@ def test_graph_edge_property_filter_is_in_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          isIn: {
-            expr: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            values: { str: "shivam" }
-          }
-        }) {
+                                    edge: {
+                                      isIn: {
+                                        expr: {
+                                          property: "eprop1"
+                                        }
+                                        values: {
+                                          str: "shivam"
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -416,11 +542,23 @@ def test_graph_edge_property_filter_is_not_in(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          isNotIn: {
-            expr: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            values: { list: [{ i64: 10 }, { i64: 20 }, { i64: 30 }] }
-          }
-        }) {
+                                    edge: {
+                                      isNotIn: {
+                                        expr: {
+                                          property: "eprop1"
+                                        }
+                                        values: {
+                                          list: [{
+                                            i64: 10
+                                          }, {
+                                            i64: 20
+                                          }, {
+                                            i64: 30
+                                          }]
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -442,11 +580,17 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          isNotIn: {
-            expr: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            values: { list: [] }
-          }
-        }) {
+                                    edge: {
+                                      isNotIn: {
+                                        expr: {
+                                          property: "eprop1"
+                                        }
+                                        values: {
+                                          list: []
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -474,11 +618,17 @@ def test_graph_edge_property_filter_is_not_in_type_error(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          isNotIn: {
-            expr: { read: { entity: EDGE, target: { property: "eprop1" } } }
-            values: { str: "shivam" }
-          }
-        }) {
+                                    edge: {
+                                      isNotIn: {
+                                        expr: {
+                                          property: "eprop1"
+                                        }
+                                        values: {
+                                          str: "shivam"
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -496,13 +646,25 @@ def test_graph_edge_not_property_filter(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          not: {
-            eq: {
-              lhs: { read: { entity: EDGE, target: { property: "eprop5" } } }
-              rhs: { const: { list: [{ i64: 1 }, { i64: 2 }] } }
-            }
-          }
-        }) {
+                                    not: {
+                                      edge: {
+                                        eq: {
+                                          lhs: {
+                                            property: "eprop5"
+                                          }
+                                          rhs: {
+                                            const: {
+                                              list: [{
+                                                i64: 1
+                                              }, {
+                                                i64: 2
+                                              }]
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -530,11 +692,19 @@ def test_edges_property_filter_starts_with(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          startsWith: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop3" } } }
-            rhs: { const: { str: "xyz" } }
-          }
-        }) {
+                                    edge: {
+                                      startsWith: {
+                                        lhs: {
+                                          property: "eprop3"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "xyz"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -562,11 +732,19 @@ def test_edges_property_filter_ends_with(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          endsWith: {
-            lhs: { read: { entity: EDGE, target: { property: "eprop3" } } }
-            rhs: { const: { str: "123" } }
-          }
-        }) {
+                                    edge: {
+                                      endsWith: {
+                                        lhs: {
+                                          property: "eprop3"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "123"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -598,11 +776,19 @@ def test_edges_selection(graph):
     query {
       graph(path: "g") {
         edges(select: {
-          gt: {
-            lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-            rhs: { const: { i64: 3 } }
-          }
-        }) {
+                        edge: {
+                          gt: {
+                            lhs: {
+                              property: "p2"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 3
+                              }
+                            }
+                          }
+                        }
+                      }) {
              list { src { name } dst { name } }
           }
         }
@@ -630,17 +816,33 @@ def test_edges_selection_edges_filter_paired(graph):
     query {
       graph(path: "g") {
         edges(select: {
-          gt: {
-            lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-            rhs: { const: { i64: 3 } }
-          }
-        }) {
+                        edge: {
+                          gt: {
+                            lhs: {
+                              property: "p2"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 3
+                              }
+                            }
+                          }
+                        }
+                      }) {
           filter(expr: {
-            eq: {
-              lhs: { read: { entity: EDGE, target: { property: "p3" } } }
-              rhs: { const: { i64: 5 } }
-            }
-          }) {
+                         edge: {
+                           eq: {
+                             lhs: {
+                               property: "p3"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 5
+                               }
+                             }
+                           }
+                         }
+                       }) {
             list { src { name } dst { name } }
           }
         }
@@ -670,23 +872,49 @@ def test_edges_chained_selection_edges_filter_paired(graph):
     query {
       graph(path: "g") {
         edges(select: {
-          gt: {
-            lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-            rhs: { const: { i64: 3 } }
-          }
-        }) {
+                        edge: {
+                          gt: {
+                            lhs: {
+                              property: "p2"
+                            }
+                            rhs: {
+                              const: {
+                                i64: 3
+                              }
+                            }
+                          }
+                        }
+                      }) {
           select(expr: {
-            lt: {
-              lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-              rhs: { const: { i64: 5 } }
-            }
-          }) {
+                         edge: {
+                           lt: {
+                             lhs: {
+                               property: "p2"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 5
+                               }
+                             }
+                           }
+                         }
+                       }) {
             filter(expr: {
-              eq: {
-                lhs: { read: { entity: EDGE, target: { field: ID }, endpoint: DST } }
-                rhs: { const: { u64: 2 } }
-              }
-            }) {
+                           edge: {
+                             eq: {
+                               lhs: {
+                                 dst: {
+                                   field: ID
+                                 }
+                               }
+                               rhs: {
+                                 const: {
+                                   u64: 2
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               list { src { name } dst { name } }
             }
           }
@@ -713,23 +941,49 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
       graph(path: "g") {
         edges {
           select(expr: {
-            gt: {
-              lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-              rhs: { const: { i64: 3 } }
-            }
-          }) {
+                         edge: {
+                           gt: {
+                             lhs: {
+                               property: "p2"
+                             }
+                             rhs: {
+                               const: {
+                                 i64: 3
+                               }
+                             }
+                           }
+                         }
+                       }) {
             select(expr: {
-              lt: {
-                lhs: { read: { entity: EDGE, target: { property: "p2" } } }
-                rhs: { const: { i64: 5 } }
-              }
-            }) {
+                           edge: {
+                             lt: {
+                               lhs: {
+                                 property: "p2"
+                               }
+                               rhs: {
+                                 const: {
+                                   i64: 5
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               filter(expr: {
-                eq: {
-                  lhs: { read: { entity: EDGE, target: { field: ID }, endpoint: DST } }
-                  rhs: { const: { u64: 2 } }
-                }
-              }) {
+                             edge: {
+                               eq: {
+                                 lhs: {
+                                   dst: {
+                                     field: ID
+                                   }
+                                 }
+                                 rhs: {
+                                   const: {
+                                     u64: 2
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 list { src { name } dst { name } }
               }
             }
@@ -760,17 +1014,28 @@ def test_edge_temporal_property_filter_empty_layers(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          lt: {
-            lhs: {
-              avg: {
-                temporal: {
-                  read: { entity: EDGE, target: { property: "p2" }, views: [{ layers: [] }] }
-                }
-              }
-            }
-            rhs: { const: { f64: 1.0 } }
-          }
-        }) {
+                                    edge: {
+                                      lt: {
+                                        lhs: {
+                                          avg: {
+                                            viewed: {
+                                              views: [{
+                                                layers: []
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p2"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            f64: 1.0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -787,21 +1052,28 @@ def test_edges_temporal_property_last_with_single_layer(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: {
-                    entity: EDGE
-                    target: { property: "p10" }
-                    views: [{ layers: ["air_nomads"] }]
-                  }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_ship" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                layers: ["air_nomads"]
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_ship"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -826,21 +1098,28 @@ def test_edges_temporal_property_last_with_multiple_layers(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: {
-                    entity: EDGE
-                    target: { property: "p10" }
-                    views: [{ layers: ["fire_nation", "air_nomads"] }]
-                  }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_airplane" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                layers: ["fire_nation", "air_nomads"]
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_airplane"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -864,21 +1143,28 @@ def test_edges_temporal_property_last_with_default_layer(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: {
-                    entity: EDGE
-                    target: { property: "p10" }
-                    views: [{ layers: ["_default"] }]
-                  }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_airplane" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                layers: ["_default"]
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_airplane"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -902,17 +1188,28 @@ def test_edges_at_temporal_last(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: { entity: EDGE, target: { property: "p10" }, views: [{ at: 1 }] }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_airplane" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                at: 1
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_airplane"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -935,17 +1232,28 @@ def test_edges_before_temporal_last(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: { entity: EDGE, target: { property: "p10" }, views: [{ before: 2 }] }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_airplane" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                before: 2
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_airplane"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -968,17 +1276,28 @@ def test_edges_after_temporal_last(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: { entity: EDGE, target: { property: "p10" }, views: [{ after: 2 }] }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_ship" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                after: 2
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_ship"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -1001,17 +1320,28 @@ def test_edges_latest_temporal_last(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: { entity: EDGE, target: { property: "p10" }, views: [{ latest: true }] }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_ship" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                latest: true
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_ship"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -1033,21 +1363,28 @@ def test_edges_snapshot_at_temporal_last(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: {
-                    entity: EDGE
-                    target: { property: "p10" }
-                    views: [{ snapshotAt: 2 }]
-                  }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_ship" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                snapshotAt: 2
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_ship"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -1069,21 +1406,28 @@ def test_edges_snapshot_latest_temporal_last(graph):
     query {
       graph(path: "g") {
         filterEdges: filter(expr: {
-          eq: {
-            lhs: {
-              last: {
-                temporal: {
-                  read: {
-                    entity: EDGE
-                    target: { property: "p10" }
-                    views: [{ snapshotLatest: true }]
-                  }
-                }
-              }
-            }
-            rhs: { const: { str: "Paper_ship" } }
-          }
-        }) {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          last: {
+                                            viewed: {
+                                              views: [{
+                                                snapshotLatest: true
+                                              }]
+                                              expr: {
+                                                temporalProperty: "p10"
+                                              }
+                                            }
+                                          }
+                                        }
+                                        rhs: {
+                                          const: {
+                                            str: "Paper_ship"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edges { list { src { name } dst { name } } }
         }
       }
