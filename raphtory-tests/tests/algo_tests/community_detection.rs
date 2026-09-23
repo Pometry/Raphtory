@@ -47,9 +47,10 @@ fn lpa_test() {
         graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let seed = Some([5; 32]);
-        let result =
-            label_propagation(graph, 20, seed, None).to_hashmap(|value| value.community_id);
+        let seed = Some(8); // NB: different seeds affect the partition reached
+        let result = label_propagation(graph, 20, seed, None, (), None, None)
+            .unwrap()
+            .to_hashmap(|value| value.community_id);
         println!("{:?}", result);
         let result = group_by_value(&result);
 
@@ -66,6 +67,123 @@ fn lpa_test() {
         ];
         for hashset in expected {
             assert!(result.contains(&hashset));
+        }
+    });
+}
+
+/// The vote share behind each label.
+///
+/// The graph is small enough to count by hand: X neighbours two A-seeds and one B-seed, Y neighbours
+/// the B-seed alone, and Z—W is a component no seed can reach.
+#[test]
+fn lpa_vote_share() {
+    let graph: Graph = Graph::new();
+    for (src, dst) in [
+        ("A1", "X"),
+        ("A2", "X"),
+        ("B1", "X"),
+        ("B1", "Y"),
+        ("Z", "W"),
+    ] {
+        graph.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+    }
+    test_storage!(&graph, |graph| {
+        let seeds: HashMap<&str, usize> = HashMap::from([("A1", 0), ("A2", 0), ("B1", 1)]);
+        let out = label_propagation(graph, 20, Some(6), None, seeds, None, None)
+            .unwrap()
+            .to_hashmap(|value| (value.community_id, value.confidence));
+
+        let close = |got: (usize, f64), label: usize, share: f64| {
+            assert_eq!(got.0, label, "{got:?}");
+            assert!((got.1 - share).abs() < 1e-9, "{got:?} wanted {share}");
+        };
+
+        // X has no label of its own to add on its first pass, so it divides the seeds' three votes.
+        close(out["X"], 0, 2.0 / 3.0);
+        // Y hears from one seed and nothing else.
+        assert_eq!(out["Y"], (1, 1.0));
+        // The A-seeds re-evaluate once X has a label and find it agrees with them.
+        assert_eq!(out["A1"], (0, 1.0));
+        // The B-seed weighs X's A-label against its own vote and Y's, and keeps its label on 2 of 3.
+        close(out["B1"], 1, 2.0 / 3.0);
+        // Unreachable: never cast or received a vote, which is what the 0.0 means.
+        assert_eq!(out["Z"], (usize::MAX, 0.0));
+        assert_eq!(out["W"], (usize::MAX, 0.0));
+    });
+}
+
+/// `label_propagation` must reach the same partition however many threads it runs on, in two
+/// modes: no `init_state`, where every node starts in its own community, and a partial one, which
+/// exercises the `NO_LABEL` front advancing from a couple of seeds. A fixed `seed` is what makes a
+/// run reproducible at all.
+#[test]
+fn lpa_deterministic() {
+    let graph: Graph = Graph::new();
+    let edges = vec![
+        (1, "R1", "R2"),
+        (1, "R1", "R3"),
+        (1, "R2", "R3"),
+        (1, "R3", "G"),
+        (1, "G", "B1"),
+        (1, "G", "B3"),
+        (1, "B1", "B2"),
+        (1, "B2", "B3"),
+        (1, "B2", "B4"),
+        (1, "B3", "B4"),
+        (1, "B3", "B5"),
+        (1, "B4", "B5"),
+    ];
+    for (ts, src, dst) in edges {
+        graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+    }
+    test_storage!(&graph, |graph| {
+        let partial: HashMap<&str, usize> = ["R1", "B5"]
+            .iter()
+            .enumerate()
+            .map(|(label, name)| (*name, label))
+            .collect();
+
+        for init_state in [None, Some(partial)] {
+            for seed in [8u64, 42] {
+                let run = |threads: Option<usize>| {
+                    label_propagation(
+                        graph,
+                        20,
+                        Some(seed),
+                        threads,
+                        init_state.clone(),
+                        None,
+                        None,
+                    )
+                    .unwrap()
+                    .to_hashmap(|value| (value.community_id, value.confidence))
+                };
+                // One thread is the reference: no pool size may change what the run settles on.
+                // `None` takes rayon's default pool, which is however many cores the machine has.
+                let expected = run(Some(1));
+                for threads in [Some(4), None] {
+                    let actual = run(threads);
+                    assert_eq!(
+                        expected.keys().collect::<HashSet<_>>(),
+                        actual.keys().collect::<HashSet<_>>(),
+                        "seed={seed} threads={threads:?}"
+                    );
+                    for (name, (want_label, want_conf)) in expected.iter() {
+                        let (got_label, got_conf) = actual[name];
+                        assert_eq!(
+                            got_label, *want_label,
+                            "{name} seed={seed} threads={threads:?}"
+                        );
+                        // Labels exactly; shares within a tolerance. Every run divides the same two
+                        // integers, so this should be bit-identical -- the tolerance is here so that
+                        // a genuine disagreement reports as one rather than as a last-bit artefact.
+                        assert!(
+                            (got_conf - want_conf).abs() < 1e-12,
+                            "{name} share {got_conf} != {want_conf} seed={seed} threads={threads:?}"
+                        );
+                    }
+                }
+            }
         }
     });
 }
