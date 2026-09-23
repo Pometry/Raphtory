@@ -9,10 +9,10 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS},
 };
-use std::sync::Arc;
 use raphtory_api::core::{
     entities::properties::prop::IntoProp, storage::timeindex::EventTime, Direction,
 };
+use std::sync::Arc;
 
 /// alice.score 3@0 7@2 9@6 · bob.score 5@1 2@7 · carol none · dave.score 1@2 1@3
 /// eve.scores [1,2]@0 [5,5]@1
@@ -474,7 +474,10 @@ fn before_and_at_agree_with_the_graph_views() {
     assert_eq!(edges(&g, &view(ViewOp::Before(EventTime::start(2)))), none);
     assert_eq!(applied(&g, typed(EdgeFilter.before(2))), none);
     assert_eq!(edge_names(&g.before(3)), at_two);
-    assert_eq!(edges(&g, &view(ViewOp::Before(EventTime::start(3)))), at_two);
+    assert_eq!(
+        edges(&g, &view(ViewOp::Before(EventTime::start(3)))),
+        at_two
+    );
 
     // `at(t)` covers the whole timestamp, even when handed a time that sits
     // between two events at `t`.
@@ -490,7 +493,9 @@ fn before_and_at_agree_with_the_graph_views() {
         ["carol->dave"]
     );
     assert_eq!(
-        edges(&g, &view(ViewOp::Window {
+        edges(
+            &g,
+            &view(ViewOp::Window {
                 start: from_second_event,
                 end: EventTime::start(3),
             }),

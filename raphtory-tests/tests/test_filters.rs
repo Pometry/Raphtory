@@ -5,7 +5,6 @@ use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 mod test_composite_filters {
     use raphtory::{
         db::graph::views::filter::model::{
-            filter::Filter,
             node_filter::NodeFilter,
             property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef},
             FilterOperator,
@@ -41,36 +40,6 @@ mod test_composite_filters {
         PropertyFilterValue::Set(Arc::new(
             values.into_iter().map(HashableProp::from).collect(),
         ))
-    }
-
-    #[test]
-    fn test_fuzzy_search() {
-        let filter = Filter::fuzzy_search("name", "pomet", 2, false);
-        assert!(filter.matches(Some("pometry")));
-
-        let filter = Filter::fuzzy_search("name", "shivam_kapoor", 2, false);
-        assert!(filter.matches(Some("shivam_kapoor2")));
-
-        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
-        assert!(filter.matches(Some("shivam_kapoor2")));
-
-        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
-        assert!(filter.matches(Some("shivam_kapoor2")));
-
-        let filter = Filter::fuzzy_search("name", "shivam kapoor", 2, false);
-        assert!(!filter.matches(Some("shivam1_kapoor2")));
-
-        let filter = Filter::fuzzy_search("name", "khivam sapoor", 2, false);
-        assert!(!filter.matches(Some("shivam1_kapoor2")));
-    }
-
-    #[test]
-    fn test_fuzzy_search_prefix_match() {
-        let filter = Filter::fuzzy_search("name", "pome", 2, false);
-        assert!(!filter.matches(Some("pometry")));
-
-        let filter = Filter::fuzzy_search("name", "pome", 2, true);
-        assert!(filter.matches(Some("pometry")));
     }
 
     #[test]

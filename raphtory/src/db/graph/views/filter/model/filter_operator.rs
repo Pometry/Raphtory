@@ -1,11 +1,9 @@
-use crate::db::graph::views::filter::model::{
-    filter::FilterValue, property_filter::PropertyFilterValue,
-};
+use crate::db::graph::views::filter::model::property_filter::PropertyFilterValue;
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, GidRef, GID},
+    entities::{properties::prop::Prop, GID},
     storage::arc_str::ArcStr,
 };
-use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
+use std::{fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,21 +75,6 @@ impl FilterOperator {
         )
     }
 
-    fn operation<T>(&self) -> impl Fn(&T, &T) -> bool
-    where
-        T: ?Sized + PartialEq + PartialOrd,
-    {
-        match self {
-            FilterOperator::Eq => T::eq,
-            FilterOperator::Ne => T::ne,
-            FilterOperator::Lt => T::lt,
-            FilterOperator::Le => T::le,
-            FilterOperator::Gt => T::gt,
-            FilterOperator::Ge => T::ge,
-            _ => panic!("Operation not supported for this operator"),
-        }
-    }
-
     /// Fuzzy search
     ///
     /// Arguments:
@@ -111,17 +94,6 @@ impl FilterOperator {
             let levenshtein_match = levenshtein(&left, &right) <= levenshtein_distance;
             let prefix_match = prefix_match && right.starts_with(&left);
             levenshtein_match || prefix_match
-        }
-    }
-
-    fn collection_operation<T>(&self) -> impl Fn(&HashSet<T>, &T) -> bool
-    where
-        T: Eq + std::hash::Hash,
-    {
-        match self {
-            FilterOperator::IsIn => |set: &HashSet<T>, value: &T| set.contains(value),
-            FilterOperator::IsNotIn => |set: &HashSet<T>, value: &T| !set.contains(value),
-            _ => panic!("Collection operation not supported for this operator"),
         }
     }
 
@@ -218,97 +190,6 @@ impl FilterOperator {
                     }
                 }
                 _ => false,
-            },
-        }
-    }
-
-    pub fn apply(&self, left: &FilterValue, right: Option<&str>) -> bool {
-        match left {
-            FilterValue::Single(l) => match self {
-                FilterOperator::Eq | FilterOperator::Ne => match right {
-                    Some(r) => self.operation()(r, l),
-                    None => matches!(self, FilterOperator::Ne),
-                },
-                FilterOperator::StartsWith => right.is_some_and(|r| r.starts_with(l)),
-                FilterOperator::EndsWith => right.is_some_and(|r| r.ends_with(l)),
-                FilterOperator::Contains => right.is_some_and(|r| r.contains(l)),
-                FilterOperator::NotContains => right.is_some_and(|r| !r.contains(l)),
-                FilterOperator::FuzzySearch {
-                    levenshtein_distance,
-                    prefix_match,
-                } => right.is_some_and(|r| {
-                    let fuzzy_fn = self.fuzzy_search(*levenshtein_distance, *prefix_match);
-                    fuzzy_fn(l, r)
-                }),
-                _ => unreachable!(),
-            },
-
-            FilterValue::Set(l) => match self {
-                FilterOperator::IsIn | FilterOperator::IsNotIn => match right {
-                    Some(r) => self.collection_operation()(l, &r.to_string()),
-                    None => matches!(self, FilterOperator::IsNotIn),
-                },
-                _ => unreachable!(),
-            },
-
-            FilterValue::ID(_) | FilterValue::IDSet(_) => unreachable!(),
-        }
-    }
-
-    pub fn apply_id(&self, left: &FilterValue, right: GidRef<'_>) -> bool {
-        match left {
-            FilterValue::ID(GID::U64(l)) => match right {
-                GidRef::U64(r) => match self {
-                    FilterOperator::Eq
-                    | FilterOperator::Ne
-                    | FilterOperator::Lt
-                    | FilterOperator::Le
-                    | FilterOperator::Gt
-                    | FilterOperator::Ge => self.operation()(&r, l),
-                    _ => false,
-                },
-                GidRef::Str(_) => false,
-            },
-
-            FilterValue::ID(GID::Str(ls)) | FilterValue::Single(ls) => match right {
-                GidRef::Str(rs) => match self {
-                    FilterOperator::Eq | FilterOperator::Ne => self.operation()(&rs, &ls.as_str()),
-                    FilterOperator::StartsWith => rs.starts_with(ls),
-                    FilterOperator::EndsWith => rs.ends_with(ls),
-                    FilterOperator::Contains => rs.contains(ls),
-                    FilterOperator::NotContains => !rs.contains(ls),
-                    FilterOperator::FuzzySearch {
-                        levenshtein_distance,
-                        prefix_match,
-                    } => {
-                        let f = self.fuzzy_search(*levenshtein_distance, *prefix_match);
-                        f(ls, rs)
-                    }
-                    _ => false,
-                },
-                GidRef::U64(_) => false,
-            },
-
-            FilterValue::IDSet(set) => match right {
-                GidRef::U64(r) => match self {
-                    FilterOperator::IsIn => set.contains(&GID::U64(r)),
-                    FilterOperator::IsNotIn => !set.contains(&GID::U64(r)),
-                    _ => false,
-                },
-                GidRef::Str(s) => match self {
-                    FilterOperator::IsIn => set.contains(&GID::Str(s.to_string())),
-                    FilterOperator::IsNotIn => !set.contains(&GID::Str(s.to_string())),
-                    _ => false,
-                },
-            },
-
-            FilterValue::Set(set) => match right {
-                GidRef::U64(_) => false,
-                GidRef::Str(s) => match self {
-                    FilterOperator::IsIn => set.contains(s),
-                    FilterOperator::IsNotIn => !set.contains(s),
-                    _ => false,
-                },
             },
         }
     }
