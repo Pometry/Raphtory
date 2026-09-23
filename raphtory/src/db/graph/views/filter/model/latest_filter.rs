@@ -1,13 +1,12 @@
 use crate::{
     db::{
-        api::{state::NodeOp, view::internal::GraphView},
+        api::view::internal::GraphView,
         graph::views::{
             filter::{
                 model::{
-                    edge_expr::EdgeOp, is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode, is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge, is_valid_filter::IsValidEdge,
-                    node_expr::CreateOp, windowed_filter::Windowed, CombinedFilter,
+                    is_active_edge_filter::IsActiveEdge, is_active_node_filter::IsActiveNode,
+                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge, windowed_filter::Windowed, CombinedFilter,
                     ComposableFilter, CreateView, EdgeViewFilterOps, InternalViewWrapOps,
                     NodeViewFilterOps, Wrap,
                 },
@@ -19,8 +18,8 @@ use crate::{
     errors::GraphError,
     prelude::TimeOps,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
-use std::{fmt, fmt::Display, sync::Arc};
+use raphtory_api::core::storage::timeindex::EventTime;
+use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Latest<M> {
@@ -152,19 +151,3 @@ impl<T: CreateView> CreateView for Latest<T> {
 
 // ── expr layer: the latest view scopes any inner expression (per-expression view) ──
 // Nesting order of chained views is pinned by the view-semantics tests.
-
-impl<T: CreateOp> CreateOp for Latest<T> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.inner.create_node_op(graph.latest())
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.inner.create_edge_op(graph.latest())
-    }
-}

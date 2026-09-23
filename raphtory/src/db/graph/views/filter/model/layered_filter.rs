@@ -1,14 +1,13 @@
 use crate::{
     db::{
-        api::{state::NodeOp, view::internal::GraphView},
+        api::view::internal::GraphView,
         graph::views::{
             filter::{
                 model::{
-                    edge_expr::EdgeOp, is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode, is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge, is_valid_filter::IsValidEdge,
-                    node_expr::CreateOp, CombinedFilter, ComposableFilter, EdgeViewFilterOps,
-                    InternalViewWrapOps, NodeViewFilterOps, Wrap,
+                    is_active_edge_filter::IsActiveEdge, is_active_node_filter::IsActiveNode,
+                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge, CombinedFilter, ComposableFilter,
+                    EdgeViewFilterOps, InternalViewWrapOps, NodeViewFilterOps, Wrap,
                 },
                 CreateFilter,
             },
@@ -18,11 +17,8 @@ use crate::{
     errors::GraphError,
     prelude::LayerOps,
 };
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, Layer},
-    storage::timeindex::EventTime,
-};
-use std::{fmt, fmt::Display, sync::Arc};
+use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
+use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layered<M> {
@@ -172,19 +168,3 @@ impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Layered<U> {
 
 // ── expr layer: the layer view scopes any inner expression (per-expression view) ──
 // Nesting order of chained views is pinned by the view-semantics tests.
-
-impl<T: CreateOp> CreateOp for Layered<T> {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.inner.create_node_op(graph.layers(self.layer.clone())?)
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.inner.create_edge_op(graph.layers(self.layer.clone())?)
-    }
-}
