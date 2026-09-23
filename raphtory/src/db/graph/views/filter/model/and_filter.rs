@@ -5,11 +5,12 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            and_filtered_graph::AndFilteredGraph, model::ComposableFilter, CreateFilter,
+            and_filtered_graph::AndFilteredGraph,
+            model::{edge_expr::ops::AndEdgeOp, ComposableFilter},
+            CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use std::{fmt, fmt::Display};
 
@@ -28,63 +29,48 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
 impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = AndFilteredGraph<
-        G,
-        L::EntityFiltered<'graph, G, L::FilteredGraph<'graph, F>>,
-        R::EntityFiltered<'graph, G, R::FilteredGraph<'graph, F>>,
-    >
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = AndOp<
-        L::NodeFilter<'graph, G, L::FilteredGraph<'graph, F>>,
-        R::NodeFilter<'graph, G, R::FilteredGraph<'graph, F>>,
-    >
-    where
-        Self: 'graph;
-
     type FilteredGraph<'graph, G>
-        = G
+        = AndFilteredGraph<G, L::FilteredGraph<'graph, G>, R::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    type NodeFilter<'graph, G>
+        = AndOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = AndEdgeOp<L::EdgeFilter<'graph, G>, R::EdgeFilter<'graph, G>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_filter(graph.clone(), l)?;
-        let right = self.right.create_filter(graph.clone(), r)?;
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        let left = self.left.create_graph_filter(graph.clone())?;
+        let right = self.right.create_graph_filter(graph.clone())?;
         Ok(AndFilteredGraph::new(graph, left, right))
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
-    where
-        Self: 'graph,
-    {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_node_filter(graph.clone(), l)?;
-        let right = self.right.create_node_filter(graph, r)?;
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_node_filter(graph.clone())?;
+        let right = self.right.create_node_filter(graph)?;
         Ok(left.and(right))
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
-    where
-        Self: 'graph,
-    {
-        Ok(graph)
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_edge_filter(graph.clone())?;
+        let right = self.right.create_edge_filter(graph)?;
+        Ok(AndEdgeOp { left, right })
     }
 }

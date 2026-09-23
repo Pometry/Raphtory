@@ -31,24 +31,28 @@ pub use crate::{
 use crate::{
     db::{
         api::{
-            state::{
-                ops::{filter::NO_FILTER, Const},
-                NodeOp,
-            },
+            state::NodeOp,
             view::{internal::DynGraphArc, BoxableGraphView},
         },
         graph::views::{
-            filter::model::{
-                is_active_edge_filter::IsActiveEdge,
-                is_active_node_filter::IsActiveNode,
-                is_deleted_filter::IsDeletedEdge,
-                is_self_loop_filter::IsSelfLoopEdge,
-                is_valid_filter::IsValidEdge,
-                latest_filter::Latest,
-                layered_filter::Layered,
-                node_expr::{NodeMetaOp, NodePropOp},
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
+            filter::{
+                model::{
+                    expr::{
+                        convert::{EdgeLeafKind, FactoryLeaf},
+                        NodeLeaf,
+                    },
+                    is_active_edge_filter::IsActiveEdge,
+                    is_active_node_filter::IsActiveNode,
+                    is_deleted_filter::IsDeletedEdge,
+                    is_self_loop_filter::IsSelfLoopEdge,
+                    is_valid_filter::IsValidEdge,
+                    latest_filter::Latest,
+                    layered_filter::Layered,
+                    node_expr::{NodeMetaOp, NodePropOp, Scoped},
+                    snapshot_filter::{SnapshotAt, SnapshotLatest},
+                    windowed_filter::Windowed,
+                },
+                DynEdgeFilter,
             },
             layer_graph::LayeredGraph,
         },
@@ -86,63 +90,10 @@ pub mod property_filter;
 pub mod snapshot_filter;
 pub mod windowed_filter;
 
-#[derive(Debug, Copy, Clone)]
-pub struct Unfiltered;
-
-impl CreateFilter for Unfiltered {
-    type EntityFiltered<'graph, G, F>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-    type NodeFilter<'graph, G, F>
-        = Const<bool>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        _filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        Ok(graph)
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        _filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Ok(NO_FILTER)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
-}
-
 pub trait Wrap {
     type Wrapped<T>;
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T>;
-}
-
-impl<S: Wrap> Wrap for Arc<S> {
-    type Wrapped<T> = S::Wrapped<T>;
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        self.deref().wrap(value)
-    }
 }
 
 pub trait ComposableFilter: Sized {
@@ -166,90 +117,86 @@ pub trait ComposableFilter: Sized {
 }
 
 pub trait DynCreateFilter: Send + Sync + 'static {
-    fn create_dyn_filter<'graph>(
+    fn create_dyn_graph_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
-        filtered: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError>;
 
     fn create_dyn_node_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
-        filtered: DynGraphArc<'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
 
-    fn dyn_filter_graph_view<'graph>(
+    fn create_dyn_edge_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
-    ) -> Result<DynGraphArc<'graph>, GraphError>;
+    ) -> Result<DynEdgeFilter<'graph>, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
 where
     T: CombinedFilter,
 {
-    fn create_dyn_filter<'graph>(
+    fn create_dyn_graph_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
-        filtered: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_filter(graph, filtered)?))
+        Ok(Arc::new(self.clone().create_graph_filter(graph)?))
     }
 
     fn create_dyn_node_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
-        filtered: DynGraphArc<'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_node_filter(graph, filtered)?))
+        Ok(Arc::new(self.clone().create_node_filter(graph)?))
     }
 
-    fn dyn_filter_graph_view<'graph>(
+    fn create_dyn_edge_filter<'graph>(
         &self,
         graph: DynGraphArc<'graph>,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        Ok(Arc::new(self.clone().filter_graph_view(graph)?))
+    ) -> Result<DynEdgeFilter<'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_edge_filter(graph)?))
     }
 }
 
 impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn NodeOp<Output = bool> + 'graph>;
-
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        self.deref()
-            .create_dyn_filter(Arc::new(graph), Arc::new(filtered))
-    }
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        self.deref()
-            .create_dyn_node_filter(Arc::new(graph), Arc::new(filtered))
-    }
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.deref().dyn_filter_graph_view(Arc::new(graph))
+        self.deref().create_dyn_graph_filter(Arc::new(graph))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.deref().create_dyn_node_filter(Arc::new(graph))
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        self.deref().create_dyn_edge_filter(Arc::new(graph))
     }
 }
 
@@ -749,17 +696,42 @@ pub type DynFilter = Arc<dyn DynCreateFilter>;
 impl ComposableFilter for DynFilter {}
 impl ComposableFilter for DynView {}
 
-pub trait EdgeViewFilterOps: ViewWrapOps {
-    type Output<T: CombinedFilter>: CombinedFilter;
+/// The unit predicates of an edge or exploded-edge factory, each scoped to the
+/// factory's view chain.
+pub trait EdgeViewFilterOps: FactoryLeaf + CreateView
+where
+    Self::Leaf: EdgeLeafKind,
+{
+    fn is_active(&self) -> Scoped<Self, IsActiveEdge> {
+        Scoped {
+            view: self.clone(),
+            inner: IsActiveEdge,
+        }
+    }
 
-    fn is_active(&self) -> Self::Output<IsActiveEdge>;
+    fn is_valid(&self) -> Scoped<Self, IsValidEdge> {
+        Scoped {
+            view: self.clone(),
+            inner: IsValidEdge,
+        }
+    }
 
-    fn is_valid(&self) -> Self::Output<IsValidEdge>;
+    fn is_deleted(&self) -> Scoped<Self, IsDeletedEdge> {
+        Scoped {
+            view: self.clone(),
+            inner: IsDeletedEdge,
+        }
+    }
 
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge>;
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge>;
+    fn is_self_loop(&self) -> Scoped<Self, IsSelfLoopEdge> {
+        Scoped {
+            view: self.clone(),
+            inner: IsSelfLoopEdge,
+        }
+    }
 }
+
+impl<T: FactoryLeaf + CreateView> EdgeViewFilterOps for T where T::Leaf: EdgeLeafKind {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityExprFilterOps — comparison and set operators on any EntityExpr
@@ -1037,10 +1009,18 @@ pub fn comparable_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Vec<Prop> 
 
 pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}
 
-pub trait NodeViewFilterOps: ViewWrapOps {
-    type Output<T: CombinedFilter>: CombinedFilter;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode>;
+/// The unit predicates of a node factory, each scoped to the factory's view chain:
+/// `NodeFilter.window(1, 5).is_active()` asks whether the node is active inside that
+/// window.
+pub trait NodeViewFilterOps: FactoryLeaf<Leaf = NodeLeaf> + CreateView {
+    fn is_active(&self) -> Scoped<Self, IsActiveNode> {
+        Scoped {
+            view: self.clone(),
+            inner: IsActiveNode,
+        }
+    }
 }
+
+impl<T: FactoryLeaf<Leaf = NodeLeaf> + CreateView> NodeViewFilterOps for T {}
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CombinedFilter for T {}

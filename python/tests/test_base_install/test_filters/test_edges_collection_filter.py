@@ -287,8 +287,7 @@ def test_working_combinations_follow_set_algebra():
 def test_nested_edge_collection_matches_the_graph_filter():
     def check(graph):
         atoms = _atoms()
-        # Node-kind filters fail open on the nested path — pinned in the broken-classes test.
-        working = {n: e for n, e in atoms.items() if n not in NODE_KIND}
+        working = dict(atoms)
         working["edge_prop & layer"] = atoms["edge_prop"] & atoms["layer"]
         working["edge_prop | src"] = atoms["edge_prop"] | atoms["src"]
         working["~edge_prop"] = ~atoms["edge_prop"]
@@ -306,6 +305,7 @@ def _subset(atoms):
     """A representative slice of the working shapes: one atom per family plus one composite each."""
     return {
         "edge_prop": atoms["edge_prop"],
+        "node_prop": atoms["node_prop"],
         "window": atoms["window"],
         "layer": atoms["layer"],
         "is_deleted": atoms["is_deleted"],
@@ -322,6 +322,7 @@ def test_single_node_edge_collection_selects_incident_edges():
         every = _ids(graph.edges)
         want_sets = {
             "edge_prop": single["edge_prop"],
+            "node_prop": single["node_prop"],
             "window": single["window"],
             "layer": single["layer"],
             "is_deleted": single["is_deleted"],
@@ -329,8 +330,6 @@ def test_single_node_edge_collection_selects_incident_edges():
             "edge_prop | dst": single["edge_prop"] | single["dst"],
             "~edge_prop": every - single["edge_prop"],
         }
-        # Node-kind filters fail open here too when the anchor node fails the predicate — pinned
-        # in the broken-classes test.
         exprs = _subset(atoms)
         for name in ("a", "b"):
             node = graph.node(name)
@@ -338,7 +337,13 @@ def test_single_node_edge_collection_selects_incident_edges():
             for label, expr in exprs.items():
                 got = _ids(node.edges[expr])
                 assert got == incident & want_sets[label], f"node {name}: {label}"
-                reference = _ids(graph.filter(expr).node(name).edges)
+                # A node filter the anchor itself fails leaves it with no edges.
+                filtered_node = graph.filter(expr).node(name)
+                reference = (
+                    _ids(filtered_node.edges)
+                    if filtered_node is not None
+                    else frozenset()
+                )
                 assert got == reference, f"node {name}: {label} vs graph filter"
 
     return check
@@ -351,6 +356,7 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
         every = _ids(graph.edges)
         want_sets = {
             "edge_prop": single["edge_prop"],
+            "node_prop": single["node_prop"],
             "window": single["window"],
             "layer": single["layer"],
             "is_deleted": single["is_deleted"],
@@ -461,15 +467,6 @@ def test_broken_combination_classes_are_still_broken():
                 and _ids(graph.filter(expr).edges) == want
             ):
                 fixed.append(label)
-        nested = sorted(
-            e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es
-        )
-        nested_ref = sorted(
-            e.id for es in graph.filter(atoms["node_prop"]).nodes.edges for e in es
-        )
-        per_node = _ids(graph.node("a").edges[atoms["node_prop"]])
-        if nested == nested_ref and per_node == frozenset():
-            fixed.append("per-node/nested edges with a node filter")
         assert (
             not fixed
         ), f"now FIXED: {fixed} — move the class into the working set by deleting its rule"

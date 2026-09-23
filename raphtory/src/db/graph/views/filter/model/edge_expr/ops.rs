@@ -7,17 +7,19 @@ use crate::{
         api::{
             properties::internal::{InternalMetadataOps, InternalTemporalPropertyViewOps},
             state::ops::Const,
-            view::internal::GraphView,
+            view::internal::{FilterOps, GraphView},
         },
         graph::edge::EdgeView,
     },
     prelude::EdgeViewOps,
 };
+use either::Either;
 use raphtory_api::core::entities::{
     edges::edge_ref::EdgeRef,
     properties::prop::{Prop, PropType},
+    ELID,
 };
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
 use super::EdgeOp;
 use crate::db::{api::state::ops::NodeOp, graph::views::filter::model::edge_filter::Endpoint};
@@ -41,6 +43,14 @@ impl<'a, V: Clone + Send + Sync> EdgeOp for Arc<dyn EdgeOp<Output = V> + 'a> {
 
     fn const_value(&self) -> Option<V> {
         self.as_ref().const_value()
+    }
+
+    fn filters_exploded(&self) -> bool {
+        self.as_ref().filters_exploded()
+    }
+
+    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> V {
+        self.as_ref().apply_exploded(storage, edge)
     }
 }
 
@@ -244,5 +254,145 @@ impl<G: GraphView> EdgeOp for IsSelfLoopEdgePropOp<G> {
 
     fn prop_type(&self) -> PropType {
         PropType::Bool
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edge predicates: existence in a view and the boolean combinators
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Whether the edge exists in `graph`; the edge side of `NodeExistsOp`.
+#[derive(Debug, Clone)]
+pub struct EdgeExistsOp<G> {
+    graph: G,
+}
+
+impl<G> EdgeExistsOp<G> {
+    pub(crate) fn new(graph: G) -> Self {
+        Self { graph }
+    }
+}
+
+impl<G: GraphView> EdgeOp for EdgeExistsOp<G> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        self.graph
+            .filter_edge(storage.core_edge(Either::Right(edge)).as_ref())
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn filters_exploded(&self) -> bool {
+        true
+    }
+
+    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        match (edge.layer(), edge.time()) {
+            (Some(layer), Some(t)) => self
+                .graph
+                .filter_exploded_edge(ELID::new(edge.pid(), layer), t),
+            (Some(layer), None) => self
+                .graph
+                .filter_edge_layer(storage.core_edge(Either::Right(edge)).as_ref(), layer),
+            (None, _) => self.apply(storage, edge),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AndEdgeOp<L, R> {
+    pub(crate) left: L,
+    pub(crate) right: R,
+}
+
+impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for AndEdgeOp<L, R> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        self.left.apply(storage, edge) && self.right.apply(storage, edge)
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn const_value(&self) -> Option<bool> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(true), Some(true)) => Some(true),
+            _ => None,
+        }
+    }
+
+    fn filters_exploded(&self) -> bool {
+        self.left.filters_exploded() || self.right.filters_exploded()
+    }
+
+    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        self.left.apply_exploded(storage, edge) && self.right.apply_exploded(storage, edge)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OrEdgeOp<L, R> {
+    pub(crate) left: L,
+    pub(crate) right: R,
+}
+
+impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for OrEdgeOp<L, R> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        self.left.apply(storage, edge) || self.right.apply(storage, edge)
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn const_value(&self) -> Option<bool> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(false), Some(false)) => Some(false),
+            _ => None,
+        }
+    }
+
+    fn filters_exploded(&self) -> bool {
+        self.left.filters_exploded() || self.right.filters_exploded()
+    }
+
+    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        self.left.apply_exploded(storage, edge) || self.right.apply_exploded(storage, edge)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NotEdgeOp<T>(pub(crate) T);
+
+impl<T: EdgeOp<Output = bool>> EdgeOp for NotEdgeOp<T> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        !self.0.apply(storage, edge)
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn const_value(&self) -> Option<bool> {
+        self.0.const_value().map(|v| !v)
+    }
+
+    fn filters_exploded(&self) -> bool {
+        self.0.filters_exploded()
+    }
+
+    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+        !self.0.apply_exploded(storage, edge)
     }
 }

@@ -3,11 +3,12 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
+                edge_expr::ops::EdgeExistsOp,
                 latest_filter::Latest,
                 layered_filter::Layered,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                CombinedFilter, InternalViewWrapOps, Wrap,
+                CombinedFilter, InternalViewWrapOps,
             },
             CreateFilter,
         },
@@ -25,14 +26,6 @@ impl std::fmt::Display for GraphFilter {
     }
 }
 
-impl Wrap for GraphFilter {
-    type Wrapped<T> = T;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        value
-    }
-}
-
 impl InternalViewWrapOps for GraphFilter {
     type Window = Windowed<GraphFilter>;
 
@@ -42,37 +35,43 @@ impl InternalViewWrapOps for GraphFilter {
 }
 
 impl CreateFilter for GraphFilter {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = F;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> = NodeExistsOp<F>;
-
     type FilteredGraph<'graph, G>
         = G
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        Ok(filtered)
-    }
+    type NodeFilter<'graph, G>
+        = NodeExistsOp<G>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Ok(NodeExistsOp::new(filtered))
-    }
+    type EdgeFilter<'graph, G>
+        = EdgeExistsOp<G>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(NodeExistsOp::new(graph))
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        Ok(EdgeExistsOp::new(graph))
     }
 }
 

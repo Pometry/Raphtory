@@ -3,18 +3,13 @@ use crate::{
         api::view::internal::GraphView,
         graph::views::filter::model::{
             edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
-            is_active_edge_filter::IsActiveEdge,
-            is_deleted_filter::IsDeletedEdge,
-            is_self_loop_filter::IsSelfLoopEdge,
-            is_valid_filter::IsValidEdge,
             latest_filter::Latest,
             layered_filter::Layered,
             node_expr::{CreateOp, EntityExpr, PredicateLhs},
             node_filter::NodeFilter,
             snapshot_filter::{SnapshotAt, SnapshotLatest},
             windowed_filter::Windowed,
-            CombinedFilter, ComposableFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
-            Wrap,
+            ComposableFilter, EntityMarker, InternalViewWrapOps, Wrap,
         },
     },
     errors::GraphError,
@@ -45,39 +40,11 @@ impl EdgeFilter {
     }
 }
 
-impl Wrap for EdgeFilter {
-    type Wrapped<T> = T;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        value
-    }
-}
-
 impl InternalViewWrapOps for EdgeFilter {
     type Window = Windowed<EdgeFilter>;
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         Windowed::from_times(start, end, self)
-    }
-}
-
-impl EdgeViewFilterOps for EdgeFilter {
-    type Output<T: CombinedFilter> = T;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        IsActiveEdge
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        IsValidEdge
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        IsDeletedEdge
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        IsSelfLoopEdge
     }
 }
 

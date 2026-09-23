@@ -13,7 +13,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::CreateFilter,
+            views::filter::{edge_expr_filtered_graph::EdgeExprFilteredGraph, CreateFilter},
         },
     },
     errors::GraphError,
@@ -238,14 +238,11 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        // Chain onto the current select rather than AND a fresh filter with the base graph:
-        // AndFilteredGraph inherits time semantics from its base, so a time view (window/before/
-        // after/snapshot) on the right operand is silently dropped and the collection fails open.
-        let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
+        // Chain onto the current select so every earlier selection keeps its say.
+        let filter = filter.create_edge_filter(self.select.clone())?;
         Ok(Edges {
             base_graph: self.base_graph.clone(),
-            select: Arc::new(filtered_graph),
+            select: Arc::new(EdgeExprFilteredGraph::new(self.select.clone(), filter)),
             edges: self.edges.clone(),
         })
     }
@@ -433,12 +430,11 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        let filtered_graph = filter.filter_graph_view(self.select.clone())?;
-        let filtered_graph = filter.create_filter(self.select.clone(), filtered_graph)?;
+        let filter = filter.create_edge_filter(self.select.clone())?;
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            select: Arc::new(filtered_graph),
+            select: Arc::new(EdgeExprFilteredGraph::new(self.select.clone(), filter)),
             edges: self.edges.clone(),
         })
     }

@@ -16,7 +16,7 @@ pub mod ops;
 #[cfg(test)]
 mod tests;
 
-use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, EntityMarker};
+use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, ComposableFilter, EntityMarker};
 pub use dyn_expr::*;
 pub use exprs::*;
 pub use filters::*;
@@ -129,6 +129,8 @@ impl<V: CreateView, T: EntityExpr> EntityExpr for Scoped<V, T> {
         self.inner.nullable()
     }
 }
+
+impl<V, T> ComposableFilter for Scoped<V, T> {}
 
 impl<V: CreateView, T: CreateOp> CreateOp for Scoped<V, T> {
     fn create_node_op<'g, G: GraphView + 'g>(

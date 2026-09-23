@@ -10,16 +10,10 @@
 
 use crate::db::graph::views::filter::model::{
     after_bounds, at_bounds, before_bounds,
-    is_active_edge_filter::IsActiveEdge,
-    is_active_node_filter::IsActiveNode,
-    is_deleted_filter::IsDeletedEdge,
-    is_self_loop_filter::IsSelfLoopEdge,
-    is_valid_filter::IsValidEdge,
     node_expr::{DynCreateOp, DynEntityExpr, DynTemporal, EntityExpr},
     windowed_filter::Windowed,
-    CombinedFilter, CreateView, DynCreateFilter, DynCreateView, DynPropertyExprFactory,
-    EdgeFilterFactory, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps, NodeFilterFactory,
-    NodeViewFilterOps, PropertyExprFactory, ViewWrapOps,
+    CreateView, DynCreateView, DynPropertyExprFactory, EdgeFilterFactory, EntityMarker,
+    InternalViewWrapOps, NodeFilterFactory, PropertyExprFactory, ViewWrapOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::sync::Arc;
@@ -33,7 +27,6 @@ pub trait DynNodeFilterFactory:
     fn dyn_degree(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_in_degree(&self) -> Arc<dyn DynCreateOp>;
     fn dyn_out_degree(&self) -> Arc<dyn DynCreateOp>;
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
 
     fn dyn_build_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynNodeFilterFactory>;
@@ -57,7 +50,7 @@ impl InternalViewWrapOps for Arc<dyn DynNodeFilterFactory> {
 
 impl<T> DynNodeFilterFactory for T
 where
-    T: NodeFilterFactory + NodeViewFilterOps + Send + Sync + 'static,
+    T: NodeFilterFactory + Send + Sync + 'static,
 {
     fn dyn_id(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(self.id())
@@ -79,10 +72,6 @@ where
         Arc::new(self.out_degree())
     }
 
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_active())
-    }
-
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
         Arc::new(PropertyExprFactory::metadata(self, name))
     }
@@ -100,22 +89,9 @@ impl NodeFilterFactory for Arc<dyn DynNodeFilterFactory> {
     type NodeWindow = Self::Window;
 }
 
-impl NodeViewFilterOps for Arc<dyn DynNodeFilterFactory> {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.as_ref().dyn_is_active()
-    }
-}
-
 pub trait DynEdgeFilterFactory: DynEntityExpr + DynCreateView + Send + Sync + 'static {
     fn dyn_property(&self, name: String) -> Arc<dyn DynTemporal>;
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp>;
-
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter>;
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter>;
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
 
     fn dyn_window(&self, start: EventTime, end: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
     fn dyn_at(&self, time: EventTime) -> Arc<dyn DynEdgeFilterFactory>;
@@ -129,26 +105,6 @@ pub trait DynEdgeFilterFactory: DynEntityExpr + DynCreateView + Send + Sync + 's
 
 impl EdgeFilterFactory for Arc<dyn DynEdgeFilterFactory> {}
 
-impl EdgeViewFilterOps for Arc<dyn DynEdgeFilterFactory> {
-    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.as_ref().dyn_is_active()
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.as_ref().dyn_is_valid()
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.as_ref().dyn_is_deleted()
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.as_ref().dyn_is_self_loop()
-    }
-}
-
 impl InternalViewWrapOps for Arc<dyn DynEdgeFilterFactory> {
     type Window = Arc<dyn DynEdgeFilterFactory>;
 
@@ -159,7 +115,7 @@ impl InternalViewWrapOps for Arc<dyn DynEdgeFilterFactory> {
 
 impl<T> DynEdgeFilterFactory for T
 where
-    T: EdgeFilterFactory + EdgeViewFilterOps + ViewWrapOps + CreateView + EntityExpr + Clone,
+    T: EdgeFilterFactory + ViewWrapOps + CreateView + EntityExpr + Clone,
     T: Send + Sync + 'static,
     <T as EntityExpr>::Marker: Into<EntityMarker>,
 {
@@ -168,19 +124,6 @@ where
     }
     fn dyn_metadata(&self, name: String) -> Arc<dyn DynCreateOp> {
         Arc::new(PropertyExprFactory::metadata(self, name))
-    }
-
-    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_active())
-    }
-    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_valid())
-    }
-    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_deleted())
-    }
-    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.is_self_loop())
     }
 
     // The window wrapper is constructed over the erased factory directly:

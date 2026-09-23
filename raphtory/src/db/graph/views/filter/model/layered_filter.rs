@@ -1,13 +1,11 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::{state::ops::filter::NodeExistsOp, view::internal::GraphView},
         graph::views::{
             filter::{
                 model::{
-                    is_active_edge_filter::IsActiveEdge, is_active_node_filter::IsActiveNode,
-                    is_deleted_filter::IsDeletedEdge, is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge, CombinedFilter, ComposableFilter,
-                    EdgeViewFilterOps, InternalViewWrapOps, NodeViewFilterOps, Wrap,
+                    edge_expr::ops::EdgeExistsOp, graph_filter::GraphFilterOps, ComposableFilter,
+                    InternalViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -75,96 +73,54 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
     }
 }
 
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
-    type EntityFiltered<'graph, G, F>
-        = T::EntityFiltered<'graph, G, F>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type NodeFilter<'graph, G, F>
-        = T::NodeFilter<'graph, G, F>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
+/// A view wrapper applied as a filter: the inner filter's view is applied to the
+/// graph and this view on top of it, in the order the chain was written. The nodes
+/// and edges it selects are the ones that exist in the resulting view.
+impl<T: GraphFilterOps> CreateFilter for Layered<T> {
     type FilteredGraph<'graph, G>
         = LayeredGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G, F>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
+    type NodeFilter<'graph, G>
+        = NodeExistsOp<LayeredGraph<T::FilteredGraph<'graph, G>>>
     where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph,
-    {
-        self.inner.create_filter(graph, filtered)
-    }
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G, F>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    type EdgeFilter<'graph, G>
+        = EdgeExistsOp<LayeredGraph<T::FilteredGraph<'graph, G>>>
     where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph,
-    {
-        self.inner.create_node_filter(graph, filtered)
-    }
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner
-            .filter_graph_view(graph)?
-            .layers(self.layer.clone())
+        Ok(self
+            .inner
+            .create_graph_filter(graph)?
+            .layers(self.layer.clone())?)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(NodeExistsOp::new(self.create_graph_filter(graph)?))
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        Ok(EdgeExistsOp::new(self.create_graph_filter(graph)?))
     }
 }
 
 impl<T: ComposableFilter> ComposableFilter for Layered<T> {}
-
-impl<M> Wrap for Layered<M> {
-    type Wrapped<T> = Layered<T>;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        Layered::new(self.layer.clone(), value)
-    }
-}
-
-impl<U: NodeViewFilterOps> NodeViewFilterOps for Layered<U> {
-    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.wrap(self.inner.is_active())
-    }
-}
-
-impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Layered<U> {
-    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
-    }
-}
 
 // ── expr layer: the layer view scopes any inner expression (per-expression view) ──
 // Nesting order of chained views is pinned by the view-semantics tests.

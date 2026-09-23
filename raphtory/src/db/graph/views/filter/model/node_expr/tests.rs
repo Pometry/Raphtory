@@ -6,6 +6,7 @@ use crate::{
             view::{
                 filter_ops::Select,
                 internal::{CoreGraphOps, NodeList},
+                Filter,
             },
         },
         graph::views::filter::{
@@ -39,12 +40,10 @@ fn build_test_graph() -> Graph {
 fn filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
-        GraphViewOps<'graph>,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
 {
-    let fg = filter.filter_graph_view(g.clone()).unwrap();
-    let mut names: Vec<String> = filter
-        .create_filter(g, fg)
+    let mut names: Vec<String> = g
+        .filter(filter)
         .unwrap()
         .nodes()
         .iter()
@@ -201,12 +200,10 @@ fn build_temporal_graph() -> Graph {
 fn temporal_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
-        GraphViewOps<'graph>,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
 {
-    let fg = filter.filter_graph_view(g.clone()).unwrap();
-    let mut names: Vec<String> = filter
-        .create_filter(g, fg)
+    let mut names: Vec<String> = g
+        .filter(filter)
         .unwrap()
         .nodes()
         .iter()
@@ -349,12 +346,10 @@ fn temporal_expr_ops_blanket_any() {
 fn windowed_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
-        GraphViewOps<'graph>,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
 {
-    let fg = filter.filter_graph_view(g.clone()).unwrap();
-    let mut names: Vec<String> = filter
-        .create_filter(g, fg)
+    let mut names: Vec<String> = g
+        .filter(filter)
         .unwrap()
         .nodes()
         .iter()
@@ -456,12 +451,10 @@ fn build_layered_temporal_graph() -> Graph {
 fn layered_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
 where
     F: CreateFilter,
-    for<'graph> F::EntityFiltered<'graph, Graph, F::FilteredGraph<'graph, Graph>>:
-        GraphViewOps<'graph>,
+    for<'graph> F::FilteredGraph<'graph, Graph>: GraphViewOps<'graph>,
 {
-    let fg = filter.filter_graph_view(g.clone()).unwrap();
-    let mut names: Vec<String> = filter
-        .create_filter(g, fg)
+    let mut names: Vec<String> = g
+        .filter(filter)
         .unwrap()
         .nodes()
         .iter()
@@ -560,7 +553,7 @@ fn string_op_on_numeric_prop_returns_error() {
     let filter = NodeFilter
         .property("score")
         .starts_with(Prop::Str("x".into()));
-    let result = filter.create_filter(g.clone(), g);
+    let result = g.filter(filter);
     assert!(
         result.is_err(),
         "expected Err for string op on numeric property"
@@ -590,11 +583,10 @@ fn ordering_op_on_bool_prop_orders_false_before_true() {
 /// The nodes a compiled node filter will actually visit.
 fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
 where
-    F: CreateFilter + Clone,
-    for<'g> F::NodeFilter<'g, Graph, F::FilteredGraph<'g, Graph>>: NodeOp<Output = bool>,
+    F: CreateFilter,
+    for<'g> F::NodeFilter<'g, Graph>: NodeOp<Output = bool>,
 {
-    let fg = filter.clone().filter_graph_view(g.clone()).unwrap();
-    let op = filter.create_node_filter(g.clone(), fg).unwrap();
+    let op = filter.create_node_filter(g.clone()).unwrap();
     op.domain(&g.core_graph().lock())
 }
 

@@ -1,15 +1,4 @@
-use crate::{
-    db::{
-        api::state::ops::{filter::NodeExistsOp, GraphView},
-        graph::views::{
-            filter::{
-                edge_filtered_graph::EdgeFilteredGraph, model::ComposableFilter, CreateFilter,
-            },
-            is_deleted_graph::IsDeletedGraph,
-        },
-    },
-    errors::GraphError,
-};
+use crate::db::{api::state::ops::GraphView, graph::views::filter::model::ComposableFilter};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,51 +7,6 @@ pub struct IsDeletedEdge;
 impl fmt::Display for IsDeletedEdge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_DELETED_EDGE")
-    }
-}
-
-impl CreateFilter for IsDeletedEdge {
-    type EntityFiltered<'graph, G, F>
-        = EdgeFilteredGraph<G, IsDeletedGraph<F>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type NodeFilter<'graph, G, F>
-        = NodeExistsOp<IsDeletedGraph<F>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        Ok(EdgeFilteredGraph::new(graph, IsDeletedGraph::new(filtered)))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Ok(NodeExistsOp::new(IsDeletedGraph::new(filtered)))
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 

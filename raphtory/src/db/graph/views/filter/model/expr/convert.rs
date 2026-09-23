@@ -35,14 +35,14 @@ use crate::{
                 node_expr::{
                     AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, ConstExpr, DegreeExpr, EntityExpr,
                     FirstExpr, LastExpr, LenExpr, Marker, MaxExpr, MinExpr, PropValueSetExpr,
-                    StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
+                    Scoped, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
                 },
                 node_filter::NodeFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 MetadataExpr, PropertyExpr,
             },
-            CreateFilter,
+            CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
@@ -52,7 +52,7 @@ use raphtory_api::core::entities::{
     properties::prop::{IntoProp, Prop},
     GID,
 };
-use std::sync::Arc;
+use std::{fmt, fmt::Display, sync::Arc};
 
 // ── factories ────────────────────────────────────────────────────────────────
 
@@ -63,6 +63,11 @@ pub trait FactoryLeaf: Clone {
 
     fn views(&self) -> Vec<ViewOp>;
 }
+
+/// The leaf types whose reads describe an edge: the plain edge and the exploded edge.
+pub trait EdgeLeafKind: Leaf {}
+impl EdgeLeafKind for EdgeLeaf {}
+impl EdgeLeafKind for ExplodedEdgeLeaf {}
 
 impl FactoryLeaf for NodeFilter {
     type Leaf = NodeLeaf;
@@ -525,6 +530,41 @@ where
     }
 }
 
+/// A unit predicate scoped to a factory's view chain: the read carries the views.
+impl<V: FactoryLeaf, T: ToExpr<V::Leaf>> ToFilterExpr for Scoped<V, T> {
+    fn to_filter_expr(&self) -> FilterExpr {
+        let mut expr = self.inner.to_expr();
+        for op in self.view.views() {
+            expr.push_view(op);
+        }
+        V::Leaf::filter(expr)
+    }
+}
+
+impl<V: FactoryLeaf, T: ToExpr<V::Leaf>> Display for Scoped<V, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.to_filter_expr().fmt(f)
+    }
+}
+
+impl ToFilterExpr for IsActiveNode {
+    fn to_filter_expr(&self) -> FilterExpr {
+        NodeLeaf::filter(self.to_expr())
+    }
+}
+
+macro_rules! edge_unit_to_filter_expr {
+    ($($t:ident),* $(,)?) => {$(
+        impl ToFilterExpr for $t {
+            fn to_filter_expr(&self) -> FilterExpr {
+                EdgeLeaf::filter(ToExpr::<EdgeLeaf>::to_expr(self))
+            }
+        }
+    )*};
+}
+
+edge_unit_to_filter_expr!(IsActiveEdge, IsValidEdge, IsDeletedEdge, IsSelfLoopEdge);
+
 /// A typed predicate is applied by converting it to its tree and compiling
 /// that: one compiler, one set of checks, whatever built the filter.
 macro_rules! compile_through_tree {
@@ -533,43 +573,43 @@ macro_rules! compile_through_tree {
         where
             Self: ToFilterExpr + Clone + Send + Sync + 'static,
         {
-            type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-                = DynGraphArc<'graph>
-            where
-                Self: 'graph;
+        type FilteredGraph<'graph, G>
+            = DynGraphArc<'graph>
+        where
+            Self: 'graph,
+            G: GraphView + 'graph;
 
-            type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-                Arc<dyn NodeOp<Output = bool> + 'graph>;
+        type NodeFilter<'graph, G>
+            = Arc<dyn NodeOp<Output = bool> + 'graph>
+        where
+            Self: 'graph,
+            G: GraphView + 'graph;
 
-            type FilteredGraph<'graph, G>
-                = DynGraphArc<'graph>
-            where
-                Self: 'graph,
-                G: GraphView + 'graph;
+        type EdgeFilter<'graph, G>
+            = DynEdgeFilter<'graph>
+        where
+            Self: 'graph,
+            G: GraphView + 'graph;
 
-            fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+            fn create_graph_filter<'graph, G: GraphView + 'graph>(
                 self,
-                graph: G,
-                filtered: F,
-            ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-                self.to_filter_expr().compile()?.create_filter(graph, filtered)
-            }
-
-            fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-                self,
-                graph: G,
-                filtered: F,
-            ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-                self.to_filter_expr()
-                    .compile()?
-                    .create_node_filter(graph, filtered)
-            }
-
-            fn filter_graph_view<'graph, G: GraphView + 'graph>(
-                &self,
                 graph: G,
             ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-                self.to_filter_expr().compile()?.filter_graph_view(graph)
+                self.to_filter_expr().compile()?.create_graph_filter(graph)
+            }
+
+            fn create_node_filter<'graph, G: GraphView + 'graph>(
+                self,
+                graph: G,
+            ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+                self.to_filter_expr().compile()?.create_node_filter(graph)
+            }
+
+            fn create_edge_filter<'graph, G: GraphView + 'graph>(
+                self,
+                graph: G,
+            ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+                self.to_filter_expr().compile()?.create_edge_filter(graph)
             }
         }
     )+};
@@ -583,4 +623,10 @@ compile_through_tree! {
     impl<E> for AnyExpr<E>;
     impl<E> for AllExpr<E>;
     impl<T> for EdgeEndpointWrapper<T>;
+    impl<V, T> for Scoped<V, T>;
+    impl<> for IsActiveNode;
+    impl<> for IsActiveEdge;
+    impl<> for IsValidEdge;
+    impl<> for IsDeletedEdge;
+    impl<> for IsSelfLoopEdge;
 }

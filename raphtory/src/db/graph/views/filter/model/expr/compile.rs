@@ -14,7 +14,10 @@ use super::{
 use crate::{
     db::{
         api::{
-            state::NodeOp,
+            state::{
+                ops::{filter::NodeExistsOp, NodeFilterOp},
+                NodeOp,
+            },
             view::internal::{DynGraphArc, GraphView, NodeList},
         },
         graph::views::filter::{
@@ -24,7 +27,10 @@ use crate::{
                 and_filter::AndFilter,
                 comparable_set_values,
                 dyn_factory::{DynEdgeFilterFactory, DynNodeFilterFactory},
-                edge_expr::EdgeOp,
+                edge_expr::{
+                    ops::{AndEdgeOp, EdgeExistsOp},
+                    EdgeOp,
+                },
                 edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
                 exploded_edge_filter::ExplodedEdgeFilter,
                 filter_operator::{BinaryOp, Comparable, StringComparable, StringOp, UnaryOp},
@@ -49,7 +55,7 @@ use crate::{
                 EntityMarker, ViewWrapOps,
             },
             node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+            CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
@@ -1256,57 +1262,68 @@ impl Predicate {
 }
 
 impl CreateFilter for Predicate {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn NodeOp<Output = bool> + 'graph>;
-
     type FilteredGraph<'graph, G>
-        = G
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(match self.entity {
             EntityMarker::Node => {
-                Arc::new(NodeFilteredGraph::new(graph, self.node_filter(filtered)?))
+                let filter = self.node_filter(graph.clone())?;
+                Arc::new(NodeFilteredGraph::new(graph, filter))
             }
-            EntityMarker::Edge => Arc::new(EdgeExprFilteredGraph::new(
-                graph,
-                self.edge_filter(filtered)?,
-            )),
-            EntityMarker::ExplodedEdge => Arc::new(ExplodedEdgeExprFilteredGraph::new(
-                graph,
-                self.edge_filter(filtered)?,
-            )),
+            EntityMarker::Edge => {
+                let filter = self.edge_filter(graph.clone())?;
+                Arc::new(EdgeExprFilteredGraph::new(graph, filter))
+            }
+            EntityMarker::ExplodedEdge => {
+                let filter = self.edge_filter(graph.clone())?;
+                Arc::new(ExplodedEdgeExprFilteredGraph::new(graph, filter))
+            }
             EntityMarker::Const => return Err(invalid("a constant is not a filter")),
         })
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
-        _graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         if !matches!(self.entity, EntityMarker::Node) {
             return Err(GraphError::NotNodeFilter);
         }
-        self.node_filter(filtered)
+        self.node_filter(graph)
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        match self.entity {
+            EntityMarker::Edge => self.edge_filter(graph),
+            // A node or exploded-edge predicate still says which edges survive: the
+            // ones the filtered graph keeps.
+            EntityMarker::Node | EntityMarker::ExplodedEdge => Ok(Arc::new(EdgeExistsOp::new(
+                self.create_graph_filter(graph)?,
+            ))),
+            EntityMarker::Const => Err(invalid("a constant is not a filter")),
+        }
     }
 }
 
@@ -1439,7 +1456,8 @@ fn compile_view(views: &[ViewOp]) -> DynView {
 
 /// A filter applied inside a view: the graph is seen through `views` first and
 /// `inner` runs on that graph, reads included, so `and: [view, pred]` is
-/// `graph.view(..).filter(pred)`.
+/// `graph.view(..).filter(pred)`. As a per-node or per-edge predicate it also asks
+/// that the entity exist in the view, the way the filtered graph would.
 #[derive(Clone)]
 struct Viewed {
     views: Vec<ViewOp>,
@@ -1451,52 +1469,56 @@ impl Viewed {
         &self,
         graph: G,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
-        compile_view(&self.views).dyn_filter_graph_view(Arc::new(graph))
+        compile_view(&self.views).create_dyn_graph_filter(Arc::new(graph))
     }
 }
 
 impl CreateFilter for Viewed {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph;
-
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let viewed = self.view(graph)?;
-        self.inner.create_dyn_filter(viewed, Arc::new(filtered))
-    }
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        let viewed = self.view(graph)?;
-        self.inner
-            .create_dyn_node_filter(viewed, Arc::new(filtered))
-    }
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         let viewed = self.view(graph)?;
-        self.inner.dyn_filter_graph_view(viewed)
+        self.inner.create_dyn_graph_filter(viewed)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let viewed = self.view(graph)?;
+        let inside = self.inner.create_dyn_node_filter(viewed.clone())?;
+        Ok(Arc::new(NodeExistsOp::new(viewed).and(inside)))
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        let viewed = self.view(graph)?;
+        let inside = self.inner.create_dyn_edge_filter(viewed.clone())?;
+        Ok(Arc::new(AndEdgeOp {
+            left: EdgeExistsOp::new(viewed),
+            right: inside,
+        }))
     }
 }
 
@@ -1516,40 +1538,42 @@ fn combine(
 
 /// A tree is a filter in its own right: applying it compiles it first.
 impl CreateFilter for FilterExpr {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn NodeOp<Output = bool> + 'graph>;
-
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        self.compile()?.create_filter(graph, filtered)
-    }
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        self.compile()?.create_node_filter(graph, filtered)
-    }
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.compile()?.filter_graph_view(graph)
+        self.compile()?.create_graph_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.compile()?.create_node_filter(graph)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        self.compile()?.create_edge_filter(graph)
     }
 }

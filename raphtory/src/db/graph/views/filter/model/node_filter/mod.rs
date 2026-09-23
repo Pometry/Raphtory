@@ -6,14 +6,13 @@ use crate::{
             NodeStateValue, TypedNodeState,
         },
         graph::views::filter::model::{
-            is_active_node_filter::IsActiveNode,
             latest_filter::Latest,
             layered_filter::Layered,
             node_expr::{exprs::DegreeExpr, EntityExpr},
             node_state_filter::NodeStateBoolColOp,
             snapshot_filter::{SnapshotAt, SnapshotLatest},
             windowed_filter::Windowed,
-            CombinedFilter, CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps,
+            CreateView, EntityMarker, InternalViewWrapOps,
         },
     },
     errors::GraphError,
@@ -37,20 +36,12 @@ impl InternalViewWrapOps for NodeFilter {
     }
 }
 
-impl NodeViewFilterOps for NodeFilter {
-    type Output<T: CombinedFilter> = T;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        IsActiveNode
-    }
-}
-
 // ── expr-layer factory ──
 
 pub trait NodeFilterFactory:
     InternalViewWrapOps<Window = Self::NodeWindow> + CreateView + EntityExpr
 {
-    type NodeWindow: NodeFilterFactory + NodeViewFilterOps;
+    type NodeWindow: NodeFilterFactory;
     #[inline]
     fn id(&self) -> Id {
         Id
@@ -116,22 +107,22 @@ impl NodeFilterFactory for NodeFilter {
     type NodeWindow = Self::Window;
 }
 
-impl<T: NodeFilterFactory + NodeViewFilterOps> NodeFilterFactory for Windowed<T> {
+impl<T: NodeFilterFactory> NodeFilterFactory for Windowed<T> {
     type NodeWindow = T::NodeWindow;
 }
 
-impl<T: NodeFilterFactory + NodeViewFilterOps> NodeFilterFactory for Latest<T> {
+impl<T: NodeFilterFactory> NodeFilterFactory for Latest<T> {
     type NodeWindow = Self::Window;
 }
 
-impl<T: NodeFilterFactory + NodeViewFilterOps> NodeFilterFactory for SnapshotAt<T> {
+impl<T: NodeFilterFactory> NodeFilterFactory for SnapshotAt<T> {
     type NodeWindow = Self::Window;
 }
 
-impl<T: NodeFilterFactory + NodeViewFilterOps> NodeFilterFactory for SnapshotLatest<T> {
+impl<T: NodeFilterFactory> NodeFilterFactory for SnapshotLatest<T> {
     type NodeWindow = Self::Window;
 }
 
-impl<T: NodeFilterFactory + NodeViewFilterOps> NodeFilterFactory for Layered<T> {
+impl<T: NodeFilterFactory> NodeFilterFactory for Layered<T> {
     type NodeWindow = Self::Window;
 }

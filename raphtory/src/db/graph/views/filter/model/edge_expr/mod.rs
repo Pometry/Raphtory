@@ -44,4 +44,21 @@ pub trait EdgeOp: Send + Sync {
     fn const_value(&self) -> Option<Self::Output> {
         None
     }
+
+    /// Whether the answer depends on which layer or exploded instance of the edge is
+    /// asked about. A plain op answers for the edge as a whole, and a filtered graph
+    /// consults it once per edge.
+    fn filters_exploded(&self) -> bool {
+        false
+    }
+
+    /// The answer for one layer, or one exploded instance, of an edge: `edge` carries
+    /// the layer and, for an instance, the time. An op that answers per edge sees the
+    /// edge as a whole.
+    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> Self::Output {
+        self.apply(
+            storage,
+            EdgeRef::new(edge.pid(), edge.src(), edge.dst(), edge.dir()),
+        )
+    }
 }

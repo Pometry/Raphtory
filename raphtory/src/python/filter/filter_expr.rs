@@ -4,7 +4,7 @@ use crate::{
             state::NodeOp,
             view::internal::{DynGraphArc, GraphView},
         },
-        graph::views::filter::{model::expr::FilterExpr, CreateFilter},
+        graph::views::filter::{model::expr::FilterExpr, CreateFilter, DynEdgeFilter},
     },
     errors::GraphError,
     python::filter::node_expr::PyExpr,
@@ -114,42 +114,42 @@ pub(crate) fn no_view(filter: &FilterExpr) -> PyResult<()> {
 }
 
 impl CreateFilter for PyFilterExpr {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph;
-
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        self.0.create_filter(graph, filtered)
-    }
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        self.0.create_node_filter(graph, filtered)
-    }
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.0.filter_graph_view(graph)
+        self.0.create_graph_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.0.create_node_filter(graph)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        self.0.create_edge_filter(graph)
     }
 }
