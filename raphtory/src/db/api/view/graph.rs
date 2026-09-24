@@ -59,7 +59,9 @@ use raphtory_storage::graph::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
-use storage::{persist::strategy::PersistenceStrategy, Extension};
+use storage::{
+    api::node_type_index::NodeTypeIndexOps, persist::strategy::PersistenceStrategy, Extension,
+};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -190,70 +192,75 @@ pub trait GraphViewOps<'graph>: GraphView + 'graph {
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let edges: Arc<
         dyn Fn(DynGraphArc<'graph>) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph,
-    > = Arc::new(move |graph| match graph.trusted_node_list() {
-        (NodeList::List { elems }, list_trusted) => {
-            // The `node_edges` function below trusts the local node (it only filters
-            // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
-            // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
-            if list_trusted {
-                let graph = graph.clone();
-                let gs = if locked {
-                    graph.core_graph().lock()
-                } else {
-                    graph.core_graph().clone()
-                };
-                elems
-                    .clone()
-                    .into_iter()
-                    .flat_map(move |node| {
-                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
-                    })
-                    .into_dyn_boxed()
-            } else {
-                let gs = if locked {
-                    graph.core_graph().lock()
-                } else {
-                    graph.core_graph().clone()
-                };
-                let graph = graph.clone();
-                let graph_copy = graph.clone();
-                let gs_copy = gs.clone();
-                elems
-                    .clone()
-                    .into_iter()
-                    .filter(move |node| {
-                        // layer/window/edge filters are handled below, only explict node filters need to be handled here
-                        graph_copy.internal_filter_node(
-                            gs_copy.core_node(*node).as_ref(),
-                            graph_copy.layer_ids(),
-                        )
-                    })
-                    .flat_map(move |node| {
-                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
-                    })
-                    .into_dyn_boxed()
-            }
-        }
-        (NodeList::All, _) => {
-            let layer_ids = graph.layer_ids().clone();
-            let graph = graph.clone();
-            let gs = if locked {
-                graph.core_graph().lock()
-            } else {
-                graph.core_graph().clone()
-            };
-
-            GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
-                let edges = gs.edges();
-                let iter = edges.iter(layer_ids);
-                if graph.filtered_excluding_layers() {
-                    iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+    > = Arc::new(move |graph| {
+        match graph.trusted_node_list() {
+            (NodeList::List { elems }, list_trusted) => {
+                // The `node_edges` function below trusts the local node (it only filters
+                // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
+                // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
+                if list_trusted {
+                    let graph = graph.clone();
+                    let gs = if locked {
+                        graph.core_graph().lock()
+                    } else {
+                        graph.core_graph().clone()
+                    };
+                    elems
+                        .clone()
+                        .into_iter()
+                        .flat_map(move |node| {
+                            node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                        })
                         .into_dyn_boxed()
                 } else {
-                    iter.map(|e| e.out_ref()).into_dyn_boxed()
+                    let gs = if locked {
+                        graph.core_graph().lock()
+                    } else {
+                        graph.core_graph().clone()
+                    };
+                    let graph = graph.clone();
+                    let graph_copy = graph.clone();
+                    let gs_copy = gs.clone();
+                    elems
+                        .clone()
+                        .into_iter()
+                        .filter(move |node| {
+                            // layer/window/edge filters are handled below, only explict node filters need to be handled here
+                            graph_copy.internal_filter_node(
+                                gs_copy.core_node(*node).as_ref(),
+                                graph_copy.layer_ids(),
+                            )
+                        })
+                        .flat_map(move |node| {
+                            node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                        })
+                        .into_dyn_boxed()
                 }
-            })
-            .into_dyn_boxed()
+            }
+            (NodeList::All, _) => {
+                let layer_ids = graph.layer_ids().clone();
+                let graph = graph.clone();
+                let gs = if locked {
+                    graph.core_graph().lock()
+                } else {
+                    graph.core_graph().clone()
+                };
+
+                GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
+                    let edges = gs.edges();
+                    let iter = edges.iter(layer_ids);
+                    if graph.filtered_excluding_layers() {
+                        iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
+                            .into_dyn_boxed()
+                    } else {
+                        iter.map(|e| e.out_ref()).into_dyn_boxed()
+                    }
+                })
+                .into_dyn_boxed()
+            }
+            (NodeList::NodeTypeIdx { types }, list_trusted) => {
+                todo!()
+            }
         }
     });
     Edges::new(g.clone(), edges)
@@ -803,6 +810,12 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         if trusted {
             match node_list {
                 NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
+                NodeList::NodeTypeIdx { types } => self
+                    .core_graph()
+                    .node_type_index()
+                    .node_type_entry(&types)
+                    .iter()
+                    .count(), // TODO implement count in node_type_entry
                 NodeList::List { elems } => elems.len(),
             }
         } else {
@@ -813,6 +826,15 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     .par_iter()
                     .filter(|node| self.filter_node(*node))
                     .count(),
+                NodeList::NodeTypeIdx { types } => {
+                    let nodes = self.core_nodes();
+                    self.core_graph()
+                        .node_type_index()
+                        .node_type_entry(&types)
+                        .iter()
+                        .filter(|&node| self.filter_node(nodes.node_entry(node)))
+                        .count() // TODO: can we get a par iter out of node type entry?
+                }
                 NodeList::List { elems } => {
                     let nodes = self.core_nodes();
                     elems

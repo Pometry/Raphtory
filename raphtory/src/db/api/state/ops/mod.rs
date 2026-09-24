@@ -227,7 +227,7 @@ where
     fn domain(&self, storage: &GraphStorage) -> NodeList {
         self.left
             .domain(storage)
-            .intersection(&self.right.domain(storage))
+            .intersection(&self.right.domain(storage), storage)
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {

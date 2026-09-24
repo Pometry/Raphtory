@@ -2,8 +2,11 @@ use dashmap::mapref::{multiple::RefMulti, one::Ref};
 use itertools::Itertools;
 use ouroboros::self_referencing;
 use parking_lot::RwLockReadGuard;
-use raphtory_api::core::storage::FxDashMap;
-use raphtory_core::entities::VID;
+use raphtory_api::{
+    core::storage::{ArcRwLockReadGuard, FxDashMap},
+    iter::IntoDynBoxed,
+};
+use raphtory_core::{entities::VID, utils::iter::GenLockedIter};
 use std::{
     collections::BTreeSet,
     sync::{
@@ -118,6 +121,32 @@ pub struct MemNodeTypeEntry<'a> {
     #[borrows(head)]
     #[covariant]
     sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
+}
+
+#[self_referencing]
+pub struct ArcMemNodeTypeEntry {
+    head: ArcRwLockReadGuard<MemNodeTypeIndex>,
+    #[borrows(head)]
+    #[covariant]
+    sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
+}
+
+impl ArcMemNodeTypeEntry {
+    pub fn with_types(head: ArcRwLockReadGuard<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
+        Self::new(head, |head| head.type_sets(type_ids))
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn into_iter(self) -> impl Iterator<Item = VID> {
+        GenLockedIter::from(self, |entry| {
+            entry
+                .borrow_sets()
+                .iter()
+                .map(|set| set.iter().copied())
+                .kmerge()
+                .into_dyn_boxed()
+        })
+    }
 }
 
 impl<'a> MemNodeTypeEntry<'a> {

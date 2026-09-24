@@ -1,10 +1,13 @@
 pub mod index;
 
 use crate::{
-    api::node_type_index::NodeTypeIndexOps, error::StorageError,
-    persist::strategy::PersistenceStrategy, segments::node_type_index::index::MemNodeTypeIndex,
+    api::node_type_index::NodeTypeIndexOps,
+    error::StorageError,
+    persist::strategy::PersistenceStrategy,
+    segments::node_type_index::index::{ArcMemNodeTypeEntry, MemNodeTypeIndex},
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use raphtory_api::core::storage::ArcRwLockReadGuard;
 use std::{
     path::Path,
     sync::{
@@ -31,6 +34,8 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     where
         Self: 'a;
 
+    type ArcNodeTypeEntry = ArcMemNodeTypeEntry;
+
     fn new(_path: Option<&Path>, ext: Self::Extension) -> Self {
         Self {
             head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
@@ -50,12 +55,20 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.read()
     }
 
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex> {
+        self.head.read_arc_recursive()
+    }
+
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex> {
         self.head.write()
     }
 
     fn node_type_entry(&self, type_ids: &[usize]) -> MemNodeTypeEntry<'_> {
         MemNodeTypeEntry::with_types(self.head(), type_ids)
+    }
+
+    fn arc_node_type_entry(&self, type_ids: &[usize]) -> Self::ArcNodeTypeEntry {
+        ArcMemNodeTypeEntry::with_types(self.head_arc(), type_ids)
     }
 
     fn is_empty(&self) -> bool {

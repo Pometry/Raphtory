@@ -3,7 +3,7 @@ use bigdecimal::BigDecimal;
 use derive_more::From;
 use num_bigint::BigInt;
 use num_rational::Ratio;
-use num_traits::{float::FloatCore, Float, ToPrimitive};
+use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
 use std::{
     fmt::{Display, Formatter},

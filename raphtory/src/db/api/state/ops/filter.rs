@@ -222,7 +222,7 @@ impl NodeOp for NodeNameFilterOp {
                 Some(candidates) => NodeList::List {
                     elems: Index::from_sorted(candidates.vids, candidates.exact),
                 }
-                .intersection(&NodeList::All),
+                .intersection(&NodeList::All, storage),
                 None => NodeList::All,
             },
         }
@@ -339,7 +339,7 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
             let list = NodeList::List {
                 elems: Index::from_sorted(candidates.vids, candidates.exact),
             };
-            return list.intersection(&self.graph.node_list());
+            return list.intersection(&self.graph.node_list(), storage);
         }
         // No index could serve this filter, so it has not been applied to
         // anything: the inner list may be exact for the filters that built it,
@@ -411,7 +411,9 @@ where
         if matches!(self.const_value_in_domain(storage), Some(false)) {
             NodeList::empty()
         } else {
-            self.left.domain(storage).union(&self.right.domain(storage))
+            self.left
+                .domain(storage)
+                .union(&self.right.domain(storage), storage)
         }
     }
 
@@ -483,7 +485,7 @@ where
         } else {
             self.left
                 .domain(storage)
-                .intersection(&self.right.domain(storage))
+                .intersection(&self.right.domain(storage), storage)
         }
     }
 
