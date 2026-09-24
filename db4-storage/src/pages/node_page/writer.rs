@@ -173,6 +173,22 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
     }
 
+    /// As [`Self::add_props`] but without per-prop layer-presence marking.
+    pub fn add_props_bulk<T: AsTime, P: AsPropRef>(
+        &mut self,
+        t: T,
+        pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        self.graph_stats.update_time(t.t());
+        let (is_new_node, add) = self.writer.add_props_bulk(t, pos, layer_id, props);
+        self.writer.increment_est_size(add);
+        if is_new_node && !self.segment.has_node(pos, layer_id) {
+            self.graph_stats.increment(layer_id);
+        }
+    }
+
     pub fn check_metadata<P: AsPropRef>(
         &self,
         pos: LocalPOS,
@@ -205,6 +221,21 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.writer.increment_est_size(add);
         if is_new_node && !self.segment.has_node(pos, layer_id) {
             layer_counter(layer_id);
+        }
+    }
+
+    /// As [`Self::update_c_props`] but without per-prop layer-presence marking.
+    /// See [`Self::add_props_bulk`].
+    pub fn update_c_props_bulk<P: AsPropRef>(
+        &mut self,
+        pos: LocalPOS,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
+        let (is_new_node, add) = self.writer.update_metadata_bulk(pos, layer_id, props);
+        self.writer.increment_est_size(add);
+        if is_new_node && !self.segment.has_node(pos, layer_id) {
+            self.graph_stats.increment(layer_id);
         }
     }
 

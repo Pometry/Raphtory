@@ -1,6 +1,6 @@
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{LayerId, VID};
 use rayon::iter::ParallelIterator;
 use storage::{Extension, ReadLockedNodes};
 
@@ -43,6 +43,30 @@ impl<'a> NodesStorageEntry<'a> {
 
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.iter())
+    }
+
+    /// O(1) check
+    pub fn layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            NodesStorageEntry::Mem(nodes) => nodes.storage(),
+            NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
+        };
+        inner
+            .prop_meta()
+            .temporal_prop_mapper()
+            .layer_has(layer_id, prop_id)
+    }
+
+    /// O(1) check
+    pub fn layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            NodesStorageEntry::Mem(nodes) => nodes.storage(),
+            NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
+        };
+        inner
+            .prop_meta()
+            .metadata_mapper()
+            .layer_has(layer_id, prop_id)
     }
 
     /// Returns a parallel iterator over nodes row groups

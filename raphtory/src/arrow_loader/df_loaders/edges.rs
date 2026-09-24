@@ -26,7 +26,10 @@ use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{properties::prop::AsPropRef, LayerId, EID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+            LayerId, EID,
+        },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
@@ -205,6 +208,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .resolve_edge_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+    // resolved outside the chunk's columns, so marked separately below
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     assert!(
         resolve_nodes ^ edge_index.is_some(),
@@ -257,6 +262,16 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             })
             .transpose()?;
         let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
+
+        // mark this chunk's per-layer property presence once
+        mark_chunk_prop_presence(
+            graph.edge_meta(),
+            Some(&layer_col_resolved),
+            STATIC_GRAPH_LAYER_ID,
+            &prop_cols,
+            &metadata_cols,
+            &shared_metadata_ids,
+        );
 
         let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
             let cache = node_resolve_cache

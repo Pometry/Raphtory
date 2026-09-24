@@ -21,7 +21,7 @@ use crate::{
             remote_path_from_graph::PyRemotePathFromGraph,
             remote_path_from_node::PyRemotePathFromNode,
             remote_schema::{
-                PyRemoteEdgeSchema, PyRemoteGraphSchema, PyRemoteLayerSchema, PyRemoteNodeSchema,
+                PyRemoteGraphSchema, PyRemoteLayerSchema, PyRemoteNodeSchema,
                 PyRemotePropertySchema,
             },
             PyEdgeAddition, PyNodeAddition, PyUpdate,
@@ -83,7 +83,6 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRemoteGraphSchema>()?;
     graphql_module.add_class::<PyRemoteNodeSchema>()?;
     graphql_module.add_class::<PyRemoteLayerSchema>()?;
-    graphql_module.add_class::<PyRemoteEdgeSchema>()?;
     graphql_module.add_class::<PyRemotePropertySchema>()?;
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
