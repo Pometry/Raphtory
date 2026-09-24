@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::{state::ops::filter::NodeExistsOp, view::internal::GraphView},
+        api::{
+            state::ops::filter::NodeExistsOp,
+            view::internal::{GraphView, Static},
+        },
         graph::views::{
             filter::{
                 model::{
@@ -23,6 +26,8 @@ pub struct Layered<M> {
     pub layer: Layer,
     pub inner: M,
 }
+
+impl<M> Static for Layered<M> {}
 
 impl<M: Display> Display for Layered<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

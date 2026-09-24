@@ -37,6 +37,7 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
+                    dyn_factory::DynEdgeFilterFactory,
                     expr::{
                         convert::{EdgeLeafKind, FactoryLeaf},
                         NodeLeaf,
@@ -388,7 +389,12 @@ impl<E: EntityExpr> EntityAggOps for MetadataExpr<E> {
 ///
 /// Disjoint from `NodeFilterFactory`: no type implements both, so `PropertyExpr<E>`
 /// can have two separate sets of comparison methods gated on each.
-pub trait EdgeFilterFactory: PropertyExprFactory + Clone {}
+pub trait EdgeFilterFactory:
+    PropertyExprFactory + InternalViewWrapOps<Window = Self::EdgeWindow> + Clone
+{
+    /// The factory a window over this one is; erased factories window to themselves.
+    type EdgeWindow: EdgeFilterFactory + DynEdgeFilterFactory;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PropertyExpr<E> / MetadataExpr<E> — EdgeExpr impls

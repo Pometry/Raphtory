@@ -2,7 +2,10 @@ use crate::{
     db::{
         api::{
             state::ops::filter::NodeExistsOp,
-            view::{internal::GraphView, time::TimeOps},
+            view::{
+                internal::{GraphView, Static},
+                time::TimeOps,
+            },
         },
         graph::views::{
             filter::{
@@ -25,6 +28,8 @@ pub struct SnapshotAt<M> {
     pub time: EventTime,
     pub inner: M,
 }
+
+impl<M> Static for SnapshotAt<M> {}
 
 impl<M> SnapshotAt<M> {
     #[inline]
@@ -103,6 +108,8 @@ impl<T: ComposableFilter> ComposableFilter for SnapshotAt<T> {}
 pub struct SnapshotLatest<M> {
     pub inner: M,
 }
+
+impl<M> Static for SnapshotLatest<M> {}
 
 impl<M> SnapshotLatest<M> {
     #[inline]

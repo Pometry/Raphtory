@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::{state::ops::filter::NodeExistsOp, view::internal::GraphView},
+        api::{
+            state::ops::filter::NodeExistsOp,
+            view::internal::{GraphView, Static},
+        },
         graph::views::{
             filter::{
                 model::{
@@ -22,6 +25,8 @@ use std::{fmt, fmt::Display};
 pub struct Latest<M> {
     pub inner: M,
 }
+
+impl<M> Static for Latest<M> {}
 
 impl<M> Latest<M> {
     #[inline]

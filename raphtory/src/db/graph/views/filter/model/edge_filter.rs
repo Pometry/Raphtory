@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::view::internal::{GraphView, Static},
         graph::views::filter::model::{
             edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
             latest_filter::Latest,
@@ -21,6 +21,8 @@ use std::{fmt, fmt::Display, sync::Arc};
 // User facing entry for building edge filters.
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct EdgeFilter;
+
+impl Static for EdgeFilter {}
 
 impl From<EdgeFilter> for EntityMarker {
     fn from(_value: EdgeFilter) -> Self {
@@ -172,13 +174,27 @@ use crate::db::{
     },
 };
 
-impl EdgeFilterFactory for EdgeFilter {}
-impl EdgeFilterFactory for ExplodedEdgeFilter {}
-impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Windowed<T> {}
-impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Latest<T> {}
-impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {}
-impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotAt<T> {}
-impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> {}
+impl EdgeFilterFactory for EdgeFilter {
+    type EdgeWindow = Windowed<EdgeFilter>;
+}
+impl EdgeFilterFactory for ExplodedEdgeFilter {
+    type EdgeWindow = Windowed<ExplodedEdgeFilter>;
+}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Windowed<T> {
+    type EdgeWindow = T::EdgeWindow;
+}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Latest<T> {
+    type EdgeWindow = Windowed<Latest<T>>;
+}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for Layered<T> {
+    type EdgeWindow = Layered<T::EdgeWindow>;
+}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotAt<T> {
+    type EdgeWindow = Windowed<SnapshotAt<T>>;
+}
+impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> {
+    type EdgeWindow = Windowed<SnapshotLatest<T>>;
+}
 
 // ── expr layer: temporal chains on endpoint properties ──
 

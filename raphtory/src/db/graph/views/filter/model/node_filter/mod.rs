@@ -1,11 +1,15 @@
 use crate::{
     api::core::Direction,
     db::{
-        api::state::{
-            ops::node::{Id, Name, Type},
-            NodeStateValue, TypedNodeState,
+        api::{
+            state::{
+                ops::node::{Id, Name, Type},
+                NodeStateValue, TypedNodeState,
+            },
+            view::internal::Static,
         },
         graph::views::filter::model::{
+            dyn_factory::DynNodeFilterFactory,
             latest_filter::Latest,
             layered_filter::Layered,
             node_expr::{exprs::DegreeExpr, EntityExpr},
@@ -21,6 +25,8 @@ use raphtory_api::core::storage::timeindex::EventTime;
 
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]
 pub struct NodeFilter;
+
+impl Static for NodeFilter {}
 
 impl From<NodeFilter> for EntityMarker {
     fn from(_value: NodeFilter) -> Self {
@@ -41,7 +47,7 @@ impl InternalViewWrapOps for NodeFilter {
 pub trait NodeFilterFactory:
     InternalViewWrapOps<Window = Self::NodeWindow> + CreateView + EntityExpr
 {
-    type NodeWindow: NodeFilterFactory;
+    type NodeWindow: NodeFilterFactory + DynNodeFilterFactory;
     #[inline]
     fn id(&self) -> Id {
         Id

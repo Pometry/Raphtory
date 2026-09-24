@@ -1,10 +1,13 @@
-use crate::db::graph::views::filter::model::{
-    windowed_filter::Windowed, EntityMarker, InternalViewWrapOps,
+use crate::db::{
+    api::view::internal::Static,
+    graph::views::filter::model::{windowed_filter::Windowed, EntityMarker, InternalViewWrapOps},
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 
 #[derive(Clone, Debug, Copy, Default, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
+
+impl Static for ExplodedEdgeFilter {}
 
 impl From<ExplodedEdgeFilter> for EntityMarker {
     fn from(_value: ExplodedEdgeFilter) -> Self {

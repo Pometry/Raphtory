@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::{state::ops::filter::NodeExistsOp, view::internal::GraphView},
+        api::{
+            state::ops::filter::NodeExistsOp,
+            view::internal::{GraphView, Static},
+        },
         graph::views::{
             filter::{
                 model::{
@@ -27,6 +30,8 @@ pub struct Windowed<M> {
     pub end: EventTime,
     pub inner: M,
 }
+
+impl<M> Static for Windowed<M> {}
 
 impl<M: Display> Display for Windowed<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
