@@ -8,7 +8,8 @@ use crate::{
                 Index,
             },
             view::{
-                internal::GraphView, BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                internal::{GraphView, NodeList},
+                BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{

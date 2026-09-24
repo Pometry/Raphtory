@@ -1,10 +1,9 @@
-use crate::db::api::view::internal::NodeList;
 use crate::{
     core::entities::VID,
     db::{
         api::{
             state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
-            view::{Filter, NodeViewOps, StaticGraphViewOps},
+            view::{internal::NodeList, Filter, NodeViewOps, StaticGraphViewOps},
         },
         graph::{
             node::NodeView,

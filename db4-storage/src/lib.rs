@@ -74,7 +74,7 @@ pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
-pub type NodeTypeEntry<'a> = MemNodeTypeEntry<'a>;
+pub type NodeTypeEntry = MemNodeTypeEntry;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;

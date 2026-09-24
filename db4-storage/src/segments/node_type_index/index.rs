@@ -1,7 +1,6 @@
 use dashmap::mapref::{multiple::RefMulti, one::Ref};
 use itertools::Itertools;
 use ouroboros::self_referencing;
-use parking_lot::RwLockReadGuard;
 use raphtory_api::{
     core::storage::{ArcRwLockReadGuard, FxDashMap},
     iter::IntoDynBoxed,
@@ -116,41 +115,15 @@ impl MemNodeTypeIndex {
 }
 
 #[self_referencing]
-pub struct MemNodeTypeEntry<'a> {
-    head: RwLockReadGuard<'a, MemNodeTypeIndex>,
-    #[borrows(head)]
-    #[covariant]
-    sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
-}
-
-#[self_referencing]
-pub struct ArcMemNodeTypeEntry {
+pub struct MemNodeTypeEntry {
     head: ArcRwLockReadGuard<MemNodeTypeIndex>,
     #[borrows(head)]
     #[covariant]
     sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
 }
 
-impl ArcMemNodeTypeEntry {
+impl MemNodeTypeEntry {
     pub fn with_types(head: ArcRwLockReadGuard<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
-        Self::new(head, |head| head.type_sets(type_ids))
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn into_iter(self) -> impl Iterator<Item = VID> {
-        GenLockedIter::from(self, |entry| {
-            entry
-                .borrow_sets()
-                .iter()
-                .map(|set| set.iter().copied())
-                .kmerge()
-                .into_dyn_boxed()
-        })
-    }
-}
-
-impl<'a> MemNodeTypeEntry<'a> {
-    pub fn with_types(head: RwLockReadGuard<'a, MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
         Self::new(head, |head| head.type_sets(type_ids))
     }
 
@@ -167,6 +140,18 @@ impl<'a> MemNodeTypeEntry<'a> {
             .iter()
             .map(|set| set.iter().copied())
             .kmerge()
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn into_iter(self) -> impl Iterator<Item = VID> {
+        GenLockedIter::from(self, |entry| {
+            entry
+                .borrow_sets()
+                .iter()
+                .map(|set| set.iter().copied())
+                .kmerge()
+                .into_dyn_boxed()
+        })
     }
 }
 
@@ -193,6 +178,18 @@ impl FrozenNodeTypeEntry {
             .map(|set| set.iter().copied())
             .kmerge()
     }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn into_iter(self) -> impl Iterator<Item = VID> {
+        GenLockedIter::from(self, |entry| {
+            entry
+                .borrow_sets()
+                .iter()
+                .map(|set| set.iter().copied())
+                .kmerge()
+                .into_dyn_boxed()
+        })
+    }
 }
 
 #[cfg(test)]
@@ -201,15 +198,33 @@ mod tests {
     use parking_lot::RwLock;
     use std::{sync::Arc, thread};
 
-    fn nodes_of_type(index: &RwLock<MemNodeTypeIndex>, type_ids: &[usize]) -> Vec<VID> {
-        MemNodeTypeEntry::with_types(index.read(), type_ids)
+    fn nodes_of_type(index: &Arc<RwLock<MemNodeTypeIndex>>, type_ids: &[usize]) -> Vec<VID> {
+        MemNodeTypeEntry::with_types(index.read_arc(), type_ids)
             .iter()
             .collect()
     }
 
     #[test]
+    fn frozen_into_iter_matches_iter() {
+        let index = Arc::new(MemNodeTypeIndex::new());
+        index.insert(1, VID(4));
+        index.insert(1, VID(1));
+        index.insert(2, VID(2));
+
+        let via_iter: Vec<_> = FrozenNodeTypeEntry::with_types(index.clone(), &[1, 2])
+            .iter()
+            .collect();
+        let via_into: Vec<_> = FrozenNodeTypeEntry::with_types(index, &[1, 2])
+            .into_iter()
+            .collect();
+
+        assert_eq!(via_iter, via_into);
+        assert_eq!(via_into, vec![VID(1), VID(2), VID(4)]);
+    }
+
+    #[test]
     fn get_returns_sorted_unique_vids() {
-        let index = RwLock::new(MemNodeTypeIndex::new());
+        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
 
         index.read().insert(1, VID(4));
         index.read().insert(1, VID(1));
@@ -221,27 +236,33 @@ mod tests {
 
     #[test]
     fn len_sums_type_sets() {
-        let index = RwLock::new(MemNodeTypeIndex::new());
+        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
 
         index.read().insert(1, VID(4));
         index.read().insert(1, VID(1));
         index.read().insert(2, VID(2));
         index.read().insert(3, VID(5));
 
-        assert_eq!(MemNodeTypeEntry::with_types(index.read(), &[1, 2]).len(), 3);
-        assert_eq!(MemNodeTypeEntry::with_types(index.read(), &[3, 9]).len(), 1);
-        assert!(MemNodeTypeEntry::with_types(index.read(), &[]).is_empty());
+        assert_eq!(
+            MemNodeTypeEntry::with_types(index.read_arc(), &[1, 2]).len(),
+            3
+        );
+        assert_eq!(
+            MemNodeTypeEntry::with_types(index.read_arc(), &[3, 9]).len(),
+            1
+        );
+        assert!(MemNodeTypeEntry::with_types(index.read_arc(), &[]).is_empty());
     }
 
     #[test]
     fn get_missing_type_is_empty() {
-        let index = RwLock::new(MemNodeTypeIndex::new());
+        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
         assert!(nodes_of_type(&index, &[3]).is_empty());
     }
 
     #[test]
     fn get_merges_sorted_vids() {
-        let index = RwLock::new(MemNodeTypeIndex::new());
+        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
 
         index.read().insert(1, VID(4));
         index.read().insert(1, VID(1));
@@ -286,7 +307,7 @@ mod tests {
 
     #[test]
     fn insert_batch_is_idempotent_and_counts_unique_pairs() {
-        let index = RwLock::new(MemNodeTypeIndex::new());
+        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
 
         index.read().insert_batch(1, [VID(2), VID(1), VID(1)]);
         index.read().insert_batch(1, [VID(1), VID(3)]);
@@ -324,12 +345,12 @@ mod tests {
 
     #[test]
     fn take_drains_index() {
-        let index = RwLock::new(MemNodeTypeIndex::new());
+        let index = Arc::new(RwLock::new(MemNodeTypeIndex::new()));
         index.read().insert(1, VID(1));
         index.read().insert(1, VID(3));
         index.read().insert(2, VID(2));
 
-        let taken = RwLock::new(index.write().take());
+        let taken = Arc::new(RwLock::new(index.write().take()));
         assert!(index.read().is_empty());
         assert_eq!(nodes_of_type(&taken, &[1]), vec![VID(1), VID(3)]);
         assert_eq!(nodes_of_type(&taken, &[2]), vec![VID(2)]);
@@ -349,7 +370,9 @@ mod tests {
         });
 
         assert_eq!(index.num_entries(), 100);
-        let index = RwLock::new(Arc::try_unwrap(index).expect("threads have joined"));
+        let index = Arc::new(RwLock::new(
+            Arc::try_unwrap(index).expect("threads have joined"),
+        ));
         assert_eq!(nodes_of_type(&index, &[1]).len(), 100);
     }
 }

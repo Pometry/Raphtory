@@ -9,11 +9,7 @@ where
 {
     type Extension;
 
-    type NodeTypeEntry<'a>
-    where
-        Self: 'a;
-
-    type ArcNodeTypeEntry;
+    type Entry;
 
     fn new(path: Option<&Path>, ext: Self::Extension) -> Self;
 
@@ -25,8 +21,7 @@ where
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
-    fn node_type_entry(&self, type_ids: &[usize]) -> Self::NodeTypeEntry<'_>;
-    fn arc_node_type_entry(&self, type_ids: &[usize]) -> Self::ArcNodeTypeEntry;
+    fn entry(&self, type_ids: &[usize]) -> Self::Entry;
 
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;

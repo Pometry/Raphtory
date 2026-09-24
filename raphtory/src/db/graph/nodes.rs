@@ -143,20 +143,25 @@ where
     GH: GraphViewOps<'graph> + 'graph,
     F: NodeFilterOp + Clone + 'graph,
 {
-    pub fn new_filtered(base_graph: G, graph: GH, predicate: F, nodes: impl Into<NodeList>) -> Self {
+    pub fn new_filtered(
+        base_graph: G,
+        graph: GH,
+        predicate: F,
+        nodes: impl Into<NodeList>,
+    ) -> Self {
         Self {
             base_graph,
             graph,
             predicate,
-            nodes,
+            nodes: nodes.into(),
             _marker: PhantomData,
         }
     }
 
     pub fn node_list(&self) -> NodeList {
         match &self.nodes {
-            NodeList::All
-            | NodeList::List {
+            NodeList::All => self.base_graph.node_list(),
+            NodeList::List {
                 elems: Index::Full(_),
             } => self.base_graph.node_list(),
             nodes => nodes.clone(),
@@ -299,7 +304,7 @@ where
                     .base_graph
                     .core_graph()
                     .node_type_index()
-                    .node_type_entry(types)
+                    .entry(types)
                     .len(),
                 NodeList::List { elems } => elems.len(),
             }

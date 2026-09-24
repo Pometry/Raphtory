@@ -58,7 +58,7 @@ impl<I> Clone for List<I> {
 
 /// The nodes of the given types in ascending order.
 fn node_type_vids(g: &GraphStorage, types: &[usize]) -> Vec<VID> {
-    g.node_type_index().node_type_entry(types).iter().collect()
+    g.node_type_index().entry(types).iter().collect()
 }
 
 fn has_node_type<I: Into<usize>>(g: &GraphStorage, types: &[usize], key: I) -> bool {
@@ -215,7 +215,7 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             }
             (List::NodeTypeIdx { types }, List::List { elems }) => g
                 .node_type_index()
-                .node_type_entry(types)
+                .entry(types)
                 .iter()
                 .all(|vid| elems.contains(&I::from(vid.0))),
         }
@@ -229,9 +229,7 @@ impl List<VID> {
                 let sc = g.node_segment_counts();
                 Iter3::I(sc.into_iter())
             }
-            List::NodeTypeIdx { types } => {
-                Iter3::J(g.node_type_index().arc_node_type_entry(&types).into_iter())
-            }
+            List::NodeTypeIdx { types } => Iter3::J(g.node_type_index().entry(&types).into_iter()),
             List::List { elems } => Iter3::K(elems.into_iter()),
         }
     }

@@ -1,8 +1,10 @@
 use super::node_state_ops::ToOwnedValue;
-use crate::db::api::view::internal::NodeList;
 use crate::{
     db::{
-        api::state::{ops::Const, Index},
+        api::{
+            state::{ops::Const, Index},
+            view::internal::NodeList,
+        },
         graph::{nodes::Nodes, views::node_subgraph::UnfilteredSubgraph},
     },
     prelude::{GraphViewOps, NodeStateOps},

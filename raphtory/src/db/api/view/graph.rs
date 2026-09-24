@@ -796,11 +796,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         if trusted {
             match node_list {
                 NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
-                NodeList::NodeTypeIdx { types } => self
-                    .core_graph()
-                    .node_type_index()
-                    .node_type_entry(&types)
-                    .len(),
+                NodeList::NodeTypeIdx { types } => {
+                    self.core_graph().node_type_index().entry(&types).len()
+                }
                 NodeList::List { elems } => elems.len(),
             }
         } else {

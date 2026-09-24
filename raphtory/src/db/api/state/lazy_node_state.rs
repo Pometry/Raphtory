@@ -697,7 +697,7 @@ impl<
                     .graph()
                     .core_graph()
                     .node_type_index()
-                    .node_type_entry(&types)
+                    .entry(&types)
                     .iter()
                     .nth(index)?,
                 NodeList::List { elems } => elems.value(index)?,

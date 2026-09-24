@@ -14,9 +14,10 @@ fn work(g: &Graph) -> Result<(), GraphError> {
 
     use raphtory::{errors::GraphError, prelude::*};
     use raphtory_core::storage::timeindex::{AsTime, EventTime, TimeIndexOps};
-    use raphtory_storage::core_ops::CoreGraphOps;
-    use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-    use raphtory_storage::layer_ops::InternalLayerOps;
+    use raphtory_storage::{
+        core_ops::CoreGraphOps, graph::edges::edge_storage_ops::EdgeStorageOps,
+        layer_ops::InternalLayerOps,
+    };
     use rayon::prelude::*;
 
     // let locked = g.core_graph().lock();
