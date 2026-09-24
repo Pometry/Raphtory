@@ -10,10 +10,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{
-                    index_with_node_types, DynGraphArc, FilterOps, InternalFilter,
-                    InternalNodeSelect, NodeList,
-                },
+                internal::{DynGraphArc, FilterOps, InternalFilter, InternalNodeSelect, NodeList},
                 sort::{compare_node, NodeSortBy},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -34,14 +31,14 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use storage::api::nodes::NodeRefOps;
+use storage::api::{node_type_index::NodeTypeIndexOps, nodes::NodeRefOps};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
     pub(crate) predicate: F,
-    pub(crate) nodes: Index<VID>,
+    pub(crate) nodes: NodeList,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -131,7 +128,9 @@ where
         Self {
             base_graph,
             graph,
-            nodes: node_index.into(),
+            nodes: NodeList::List {
+                elems: node_index.into(),
+            },
             predicate: NO_FILTER,
             _marker: PhantomData,
         }
@@ -144,7 +143,7 @@ where
     GH: GraphViewOps<'graph> + 'graph,
     F: NodeFilterOp + Clone + 'graph,
 {
-    pub fn new_filtered(base_graph: G, graph: GH, predicate: F, nodes: Index<VID>) -> Self {
+    pub fn new_filtered(base_graph: G, graph: GH, predicate: F, nodes: impl Into<NodeList>) -> Self {
         Self {
             base_graph,
             graph,
@@ -155,9 +154,12 @@ where
     }
 
     pub fn node_list(&self) -> NodeList {
-        match self.nodes.clone() {
-            elems @ (Index::Partial(_) | Index::Sorted { .. }) => NodeList::List { elems },
-            Index::Full(_) => self.base_graph.node_list(),
+        match &self.nodes {
+            NodeList::All
+            | NodeList::List {
+                elems: Index::Full(_),
+            } => self.base_graph.node_list(),
+            nodes => nodes.clone(),
         }
     }
 
@@ -186,15 +188,15 @@ where
             })
             .map(|node_view| node_view.node)
             .collect();
-        self.indexed(index)
+        self.indexed(NodeList::List { elems: index })
     }
 
-    pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH, F> {
+    fn indexed(&self, nodes: NodeList) -> Nodes<'graph, G, GH, F> {
         Nodes::new_filtered(
             self.base_graph.clone(),
             self.graph.clone(),
             self.predicate.clone(),
-            index,
+            nodes,
         )
     }
 
@@ -276,12 +278,10 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        // An exact index has already had the whole predicate applied to every
-        // key — `apply_iter_filter` drops the claim as soon as a conjunct is
-        // not reflected in the keys — so the only thing that could still
-        // remove one is the view's own node filtering. Same pair of conditions
-        // `GraphViewOps::count_nodes` uses via `trusted_node_list`.
-        if let Index::Sorted { keys, exact: true } = &self.nodes {
+        if let NodeList::List {
+            elems: Index::Sorted { keys, exact: true },
+        } = &self.nodes
+        {
             if self.base_graph.node_list_trusted() {
                 return keys.len();
             }
@@ -291,9 +291,17 @@ where
             self.par_iter_refs(g).count()
         } else {
             match &self.nodes {
-                Index::Full(_) => self.base_graph.count_nodes(),
-                Index::Partial(nodes) => nodes.len(),
-                Index::Sorted { keys, .. } => keys.len(),
+                NodeList::All
+                | NodeList::List {
+                    elems: Index::Full(_),
+                } => self.base_graph.count_nodes(),
+                NodeList::NodeTypeIdx { types } => self
+                    .base_graph
+                    .core_graph()
+                    .node_type_index()
+                    .node_type_entry(types)
+                    .len(),
+                NodeList::List { elems } => elems.len(),
             }
         }
     }
@@ -326,7 +334,7 @@ where
             .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
 
-        self.indexed(index)
+        self.indexed(NodeList::List { elems: index })
     }
 
     /// Collect nodes into a vec
@@ -355,7 +363,8 @@ where
         (&&self.base_graph)
             .node(node)
             .filter(|node| {
-                self.nodes.contains(&node.node)
+                self.nodes
+                    .contains(&node.node, self.base_graph.core_graph())
                     && self
                         .predicate
                         .apply(self.base_graph.core_graph(), node.node)
@@ -381,16 +390,13 @@ where
         &self,
         filter: Filter,
     ) -> Self::IterFiltered<Filter> {
-        let domain = filter.domain(self.graph.core_graph());
+        let storage = self.graph.core_graph();
+        let domain = filter.domain(storage);
         let nodes = match domain {
             // `filter` is not reflected in the keys, so an exactness claim
             // from an earlier filter no longer covers the whole predicate
             NodeList::All if filter.is_filtered() => self.nodes.clone().into_inexact(),
-            NodeList::All => self.nodes.clone(),
-            NodeList::NodeTypeIdx { types, exact } => {
-                index_with_node_types(&self.nodes, &types, exact, self.graph.core_graph())
-            }
-            NodeList::List { elems } => self.nodes.intersection(&elems),
+            domain => self.nodes.intersection(&domain, storage),
         };
         let predicate = self.predicate.clone().and(filter);
         Nodes {
@@ -497,5 +503,61 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter_owned())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        db::api::{state::Index, view::internal::NodeList},
+        prelude::*,
+    };
+    use itertools::Itertools;
+    use rayon::prelude::*;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn test_indexed_nodes_respect_index() {
+        let graph = Graph::new();
+        for n in 0..6u64 {
+            graph.add_node(0, n, NO_PROPS, None, None).unwrap();
+        }
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+
+        for graph in [&graph.subgraph([0, 1, 2, 3, 4]), &graph.subgraph([0, 1, 2])] {
+            let nodes = graph.nodes();
+            let all = nodes.iter().map(|n| n.id()).collect_vec();
+
+            // Restrict to every other node of the view.
+            let picked = nodes.iter().step_by(2).map(|n| n.node).collect_vec();
+            let expected = nodes
+                .iter()
+                .step_by(2)
+                .map(|n| n.id())
+                .collect::<BTreeSet<_>>();
+            assert!(picked.len() < all.len(), "index should be a strict subset");
+
+            let indexed = nodes.indexed(NodeList::List {
+                elems: Index::from_iter(picked),
+            });
+            assert_eq!(
+                indexed.iter().map(|n| n.id()).collect::<BTreeSet<_>>(),
+                expected
+            );
+            assert_eq!(
+                indexed.par_iter().map(|n| n.id()).collect::<BTreeSet<_>>(),
+                expected
+            );
+            assert_eq!(
+                indexed
+                    .collect()
+                    .iter()
+                    .map(|n| n.id())
+                    .collect::<BTreeSet<_>>(),
+                expected
+            );
+            assert_eq!(indexed.len(), expected.len());
+        }
     }
 }

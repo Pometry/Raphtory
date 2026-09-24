@@ -3,6 +3,7 @@
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
 
+use crate::db::api::view::internal::NodeList;
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
@@ -41,7 +42,9 @@ impl PathState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.path),
+                NodeList::List {
+                    elems: Index::from_iter(value.path),
+                },
             ),
         }
     }

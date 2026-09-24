@@ -7,6 +7,7 @@ use crate::{
     prelude::{Graph, NodeStateGroupBy},
 };
 use raphtory_api::core::entities::VID;
+use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Gives the large connected component of a graph.
 /// The large connected component is the largest (i.e., with the highest number of nodes)
@@ -39,7 +40,7 @@ impl LargestConnectedComponent for Graph {
             .max_by(|l, r| l.len().cmp(&r.len()))
             .map(|nodes| NodeSubgraph {
                 graph: self.clone(),
-                nodes: nodes.nodes,
+                nodes: nodes.nodes.into_index(self.core_graph()),
             });
 
         lcc.unwrap_or(self.subgraph(Vec::<VID>::new()))

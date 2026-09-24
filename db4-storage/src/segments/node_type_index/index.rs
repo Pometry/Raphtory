@@ -154,6 +154,14 @@ impl<'a> MemNodeTypeEntry<'a> {
         Self::new(head, |head| head.type_sets(type_ids))
     }
 
+    pub fn len(&self) -> usize {
+        self.borrow_sets().iter().map(|set| set.len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
         self.borrow_sets()
             .iter()
@@ -173,6 +181,10 @@ pub struct FrozenNodeTypeEntry {
 impl FrozenNodeTypeEntry {
     pub fn with_types(frozen: Arc<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
         Self::new(frozen, |frozen| frozen.type_sets(type_ids))
+    }
+
+    pub fn len(&self) -> usize {
+        self.borrow_sets().iter().map(|set| set.len()).sum()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
@@ -205,6 +217,20 @@ mod tests {
         index.read().insert(1, VID(1));
 
         assert_eq!(nodes_of_type(&index, &[1]), vec![VID(1), VID(2), VID(4)]);
+    }
+
+    #[test]
+    fn len_sums_type_sets() {
+        let index = RwLock::new(MemNodeTypeIndex::new());
+
+        index.read().insert(1, VID(4));
+        index.read().insert(1, VID(1));
+        index.read().insert(2, VID(2));
+        index.read().insert(3, VID(5));
+
+        assert_eq!(MemNodeTypeEntry::with_types(index.read(), &[1, 2]).len(), 3);
+        assert_eq!(MemNodeTypeEntry::with_types(index.read(), &[3, 9]).len(), 1);
+        assert!(MemNodeTypeEntry::with_types(index.read(), &[]).is_empty());
     }
 
     #[test]

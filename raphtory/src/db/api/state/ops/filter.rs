@@ -285,13 +285,13 @@ impl<G> NodePropertyFilterOp<G> {
                 Some(NodePropPredicate::In(values.as_ref()))
             }
             (FilterOperator::StartsWith, PropertyFilterValue::Single(Prop::Str(p))) => {
-                Some(NodePropPredicate::StartsWith(&**p))
+                Some(NodePropPredicate::StartsWith(p))
             }
             (FilterOperator::EndsWith, PropertyFilterValue::Single(Prop::Str(p))) => {
-                Some(NodePropPredicate::EndsWith(&**p))
+                Some(NodePropPredicate::EndsWith(p))
             }
             (FilterOperator::Contains, PropertyFilterValue::Single(Prop::Str(p))) => {
-                Some(NodePropPredicate::Contains(&**p))
+                Some(NodePropPredicate::Contains(p))
             }
             _ => None,
         }
@@ -578,7 +578,7 @@ impl NodeOp for NodeTypeFilterOp {
             .filter_map(|(type_id, keep)| keep.then_some(type_id))
             .collect();
 
-        NodeList::NodeTypeIdx { types, exact: true }
+        NodeList::NodeTypeIdx { types }
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {

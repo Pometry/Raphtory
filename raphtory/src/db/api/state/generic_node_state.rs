@@ -381,7 +381,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                                 base_graph.clone(),
                                 base_graph,
                                 Const(true),
-                                index,
+                                NodeList::List { elems: index },
                             )),
                         )
                     }
@@ -414,7 +414,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             self.base_graph.clone(),
             self.base_graph.clone(),
             NO_FILTER,
-            self.keys.clone(),
+            NodeList::List {
+                elems: self.keys.clone(),
+            },
         )
     }
 
@@ -904,7 +906,9 @@ impl<
                         self.graph().clone(),
                         self.graph().clone(),
                         Const(true),
-                        Index::new(nodes),
+                        NodeList::List {
+                            elems: Index::new(nodes),
+                        },
                     ),
                 )
             })

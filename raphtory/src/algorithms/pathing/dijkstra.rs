@@ -1,4 +1,5 @@
 /// Dijkstra's algorithm
+use crate::db::api::view::internal::NodeList;
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
@@ -79,7 +80,9 @@ impl DistanceState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.path),
+                NodeList::List {
+                    elems: Index::from_iter(value.path),
+                },
             ),
         }
     }

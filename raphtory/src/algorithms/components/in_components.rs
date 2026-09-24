@@ -1,3 +1,4 @@
+use crate::db::api::view::internal::NodeList;
 use crate::{
     core::entities::VID,
     db::{
@@ -53,7 +54,9 @@ impl InState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.in_components),
+                NodeList::List {
+                    elems: Index::from_iter(value.in_components),
+                },
             ),
         }
     }

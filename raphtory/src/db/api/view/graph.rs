@@ -42,7 +42,6 @@ use crate::{
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
-use itertools::Itertools;
 #[cfg(feature = "io")]
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 #[cfg(feature = "io")]
@@ -797,13 +796,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         if trusted {
             match node_list {
                 NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
-                NodeList::NodeTypeIdx { types, .. } => self
+                NodeList::NodeTypeIdx { types } => self
                     .core_graph()
                     .node_type_index()
                     .node_type_entry(&types)
-                    .iter()
-                    .dedup()
-                    .count(), // TODO implement count in node_type_entry
+                    .len(),
                 NodeList::List { elems } => elems.len(),
             }
         } else {

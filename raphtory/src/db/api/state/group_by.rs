@@ -1,4 +1,5 @@
 use super::node_state_ops::ToOwnedValue;
+use crate::db::api::view::internal::NodeList;
 use crate::{
     db::{
         api::state::{ops::Const, Index},
@@ -42,7 +43,9 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    nodes.clone(),
+                    NodeList::List {
+                        elems: nodes.clone(),
+                    },
                 ),
             )
         })
@@ -85,7 +88,9 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    nodes.clone(),
+                    NodeList::List {
+                        elems: nodes.clone(),
+                    },
                 ),
             )
         })

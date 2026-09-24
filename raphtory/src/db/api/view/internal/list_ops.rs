@@ -35,17 +35,8 @@ where
 #[derive(Debug)]
 pub enum List<I> {
     All,
-    /// Every node whose type id is in `types` (ascending, deduplicated), served
-    /// lazily from the node type index. `exact` has the same meaning as for
-    /// [`Index::Sorted`]: every node here satisfies the filters that produced
-    /// the list. Only meaningful for [`NodeList`].
-    NodeTypeIdx {
-        types: Arc<[usize]>,
-        exact: bool,
-    },
-    List {
-        elems: Index<I>,
-    },
+    NodeTypeIdx { types: Arc<[usize]> },
+    List { elems: Index<I> },
 }
 
 pub type NodeList = List<VID>;
@@ -55,9 +46,8 @@ impl<I> Clone for List<I> {
     fn clone(&self) -> Self {
         match self {
             List::All => List::All,
-            List::NodeTypeIdx { types, exact } => List::NodeTypeIdx {
+            List::NodeTypeIdx { types } => List::NodeTypeIdx {
                 types: types.clone(),
-                exact: *exact,
             },
             List::List { elems } => List::List {
                 elems: elems.clone(),
@@ -66,55 +56,23 @@ impl<I> Clone for List<I> {
     }
 }
 
-/// The nodes of the given types, ascending and deduplicated.
+/// The nodes of the given types in ascending order.
 fn node_type_vids(g: &GraphStorage, types: &[usize]) -> Vec<VID> {
-    g.node_type_index()
-        .node_type_entry(types)
-        .iter()
-        .dedup()
-        .collect()
+    g.node_type_index().node_type_entry(types).iter().collect()
 }
 
-/// `elems` restricted to the nodes whose type is in `types`, keeping the shape
-/// of `elems` where possible (a `Full` index holds every node, so the result is
-/// read straight from the node type index).
-pub(crate) fn index_with_node_types<I>(
-    elems: &Index<I>,
-    types: &[usize],
-    exact: bool,
-    g: &GraphStorage,
-) -> Index<I>
-where
-    I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync,
-{
-    let has_type = |k: &I| types.contains(&g.node_type_id(VID((*k).into())));
-    match elems {
-        Index::Full(_) => Index::from_sorted(
-            node_type_vids(g, types)
-                .into_iter()
-                .map(|vid| I::from(vid.0))
-                .collect(),
-            exact,
-        ),
-        Index::Partial(index) => index.iter().copied().filter(has_type).collect(),
-        Index::Sorted { keys, exact: e } => {
-            Index::from_sorted(keys.iter().copied().filter(has_type).collect(), *e && exact)
-        }
-    }
+fn has_node_type<I: Into<usize>>(g: &GraphStorage, types: &[usize], key: I) -> bool {
+    types.contains(&g.node_type_id(VID(key.into())))
 }
 
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
     /// Drops any exactness claim; see [`Index::into_inexact`].
     pub fn into_inexact(self) -> List<I> {
         match self {
-            List::All => List::All,
-            List::NodeTypeIdx { types, .. } => List::NodeTypeIdx {
-                types,
-                exact: false,
-            },
             List::List { elems } => List::List {
                 elems: elems.into_inexact(),
             },
+            other => other,
         }
     }
 
@@ -124,23 +82,41 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             (List::List { elems: a }, List::List { elems: b }) => List::List {
                 elems: a.intersection(b),
             },
-            (List::List { elems }, List::NodeTypeIdx { types, exact })
-            | (List::NodeTypeIdx { types, exact }, List::List { elems }) => List::List {
-                elems: index_with_node_types(elems, types, *exact, g),
-            },
+            // `Full` holds every node
             (
-                List::NodeTypeIdx {
-                    types: left,
-                    exact: el,
+                List::List {
+                    elems: Index::Full(_),
                 },
-                List::NodeTypeIdx {
-                    types: right,
-                    exact: er,
+                list @ List::NodeTypeIdx { .. },
+            )
+            | (
+                list @ List::NodeTypeIdx { .. },
+                List::List {
+                    elems: Index::Full(_),
                 },
-            ) => List::NodeTypeIdx {
-                types: left.iter().copied().filter(|i| right.contains(i)).collect(),
-                exact: *el && *er,
+            ) => list.clone(),
+            // exactness is not carried through a node type list
+            (List::List { elems }, List::NodeTypeIdx { types })
+            | (List::NodeTypeIdx { types }, List::List { elems }) => List::List {
+                elems: match elems {
+                    Index::Sorted { keys, .. } => Index::from_sorted(
+                        keys.iter()
+                            .copied()
+                            .filter(|k| has_node_type(g, types, *k))
+                            .collect(),
+                        false,
+                    ),
+                    _ => elems
+                        .iter()
+                        .filter(|k| has_node_type(g, types, *k))
+                        .collect(),
+                },
             },
+            (List::NodeTypeIdx { types: left }, List::NodeTypeIdx { types: right }) => {
+                List::NodeTypeIdx {
+                    types: left.iter().copied().filter(|i| right.contains(i)).collect(),
+                }
+            }
         }
     }
 
@@ -150,37 +126,50 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             (List::List { elems: left }, List::List { elems: right }) => List::List {
                 elems: left.union(right),
             },
-            (List::NodeTypeIdx { types, exact }, List::List { elems })
-            | (List::List { elems }, List::NodeTypeIdx { types, exact }) => {
+            (
+                list @ List::List {
+                    elems: Index::Full(_),
+                },
+                List::NodeTypeIdx { .. },
+            )
+            | (
+                List::NodeTypeIdx { .. },
+                list @ List::List {
+                    elems: Index::Full(_),
+                },
+            ) => list.clone(),
+            // TODO: this collects every node of `types`
+            (List::NodeTypeIdx { types }, List::List { elems })
+            | (List::List { elems }, List::NodeTypeIdx { types }) => {
                 let typed = Index::from_sorted(
                     node_type_vids(g, types)
                         .into_iter()
                         .map(|vid| I::from(vid.0))
                         .collect(),
-                    *exact,
+                    false,
                 );
                 List::List {
                     elems: typed.union(elems),
                 }
             }
-            (
+            (List::NodeTypeIdx { types: left }, List::NodeTypeIdx { types: right }) => {
                 List::NodeTypeIdx {
-                    types: left,
-                    exact: el,
-                },
-                List::NodeTypeIdx {
-                    types: right,
-                    exact: er,
-                },
-            ) => List::NodeTypeIdx {
-                types: left
-                    .iter()
-                    .copied()
-                    .merge(right.iter().copied())
-                    .dedup()
-                    .collect(),
-                exact: *el && *er,
-            },
+                    types: left
+                        .iter()
+                        .copied()
+                        .merge(right.iter().copied())
+                        .dedup()
+                        .collect(),
+                }
+            }
+        }
+    }
+
+    pub fn contains(&self, key: &I, g: &GraphStorage) -> bool {
+        match self {
+            List::All => true,
+            List::NodeTypeIdx { types } => has_node_type(g, types, *key),
+            List::List { elems } => elems.contains(key),
         }
     }
 
@@ -188,23 +177,18 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
         matches!(self, List::All)
     }
 
-    /// True when the list is a pushdown candidate list whose producer proved
-    /// every key matches its filter (see [`Index::dynamically_exact`]).
     pub fn dynamically_trusted(&self) -> bool {
         match self {
             List::All => false,
-            List::NodeTypeIdx { exact, .. } => *exact,
+            List::NodeTypeIdx { .. } => false,
             List::List { elems } => elems.dynamically_exact(),
         }
     }
 
-    /// Whether the list is known to be empty. A `NodeTypeIdx` list is only
-    /// reported empty when it selects no types, as answering precisely needs
-    /// the storage; a false negative only costs callers an optimisation.
     pub fn is_empty(&self) -> bool {
         match self {
             List::All => false,
-            List::NodeTypeIdx { types, .. } => types.is_empty(),
+            List::NodeTypeIdx { types } => types.is_empty(),
             List::List { elems } => elems.is_empty(),
         }
     }
@@ -223,13 +207,13 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             (List::All, _) => false,
             (List::List { elems: a }, List::List { elems: b }) => a.is_subset(b),
             // every node has exactly one type
-            (List::NodeTypeIdx { types: a, .. }, List::NodeTypeIdx { types: b, .. }) => {
+            (List::NodeTypeIdx { types: a }, List::NodeTypeIdx { types: b }) => {
                 a.iter().all(|t| b.contains(t))
             }
-            (List::List { elems }, List::NodeTypeIdx { types, .. }) => elems
-                .iter()
-                .all(|k| types.contains(&g.node_type_id(VID(k.into())))),
-            (List::NodeTypeIdx { types, .. }, List::List { elems }) => g
+            (List::List { elems }, List::NodeTypeIdx { types }) => {
+                elems.iter().all(|k| has_node_type(g, types, k))
+            }
+            (List::NodeTypeIdx { types }, List::List { elems }) => g
                 .node_type_index()
                 .node_type_entry(types)
                 .iter()
@@ -245,12 +229,9 @@ impl List<VID> {
                 let sc = g.node_segment_counts();
                 Iter3::I(sc.into_iter())
             }
-            List::NodeTypeIdx { types, .. } => Iter3::J(
-                g.node_type_index()
-                    .arc_node_type_entry(&types)
-                    .into_iter()
-                    .dedup(),
-            ),
+            List::NodeTypeIdx { types } => {
+                Iter3::J(g.node_type_index().arc_node_type_entry(&types).into_iter())
+            }
             List::List { elems } => Iter3::K(elems.into_iter()),
         }
     }
@@ -266,9 +247,7 @@ impl List<VID> {
     pub fn into_index(self, g: &GraphStorage) -> Index<VID> {
         match self {
             List::All => Index::Full(Arc::new(g.node_state_index())),
-            List::NodeTypeIdx { types, exact } => {
-                Index::from_sorted(node_type_vids(g, &types), exact)
-            }
+            List::NodeTypeIdx { types } => Index::from_sorted(node_type_vids(g, &types), false),
             List::List { elems } => elems,
         }
     }
