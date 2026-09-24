@@ -1,10 +1,15 @@
-use dashmap::mapref::multiple::RefMulti;
+use dashmap::mapref::{multiple::RefMulti, one::Ref};
 use itertools::Itertools;
+use ouroboros::self_referencing;
+use parking_lot::RwLockReadGuard;
 use raphtory_api::core::storage::FxDashMap;
 use raphtory_core::entities::VID;
 use std::{
     collections::BTreeSet,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 /// In-memory index that maps a node type id to `VID`s.
@@ -69,33 +74,6 @@ impl MemNodeTypeIndex {
         }
     }
 
-    /// Returns the sorted VIDs for `type_ids`.
-    pub fn nodes_of_type(&self, type_ids: &[usize]) -> Vec<VID> {
-        if type_ids.is_empty() {
-            return vec![];
-        }
-
-        // Fast path for single type that avoids kmerge.
-        if let [type_id] = type_ids {
-            return self
-                .map
-                .get(type_id)
-                .map(|set| set.iter().copied().collect())
-                .unwrap_or_default();
-        }
-
-        let sets: Vec<_> = type_ids
-            .iter()
-            .filter_map(|type_id| self.map.get(type_id))
-            .collect();
-
-        // No need to dedup after kmerge since a node can only have one type.
-        sets.iter()
-            .map(|set| set.iter().copied())
-            .kmerge()
-            .collect()
-    }
-
     pub fn max_type_id(&self) -> Option<usize> {
         self.map.iter().map(|entry| *entry.key()).max()
     }
@@ -125,48 +103,104 @@ impl MemNodeTypeIndex {
 
         entries
     }
+
+    fn type_sets(&self, type_ids: &[usize]) -> Vec<Ref<'_, usize, BTreeSet<VID>>> {
+        type_ids
+            .iter()
+            .filter_map(|type_id| self.map.get(type_id))
+            .collect()
+    }
+}
+
+#[self_referencing]
+pub struct MemNodeTypeEntry<'a> {
+    head: RwLockReadGuard<'a, MemNodeTypeIndex>,
+    #[borrows(head)]
+    #[covariant]
+    sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
+}
+
+impl<'a> MemNodeTypeEntry<'a> {
+    pub fn with_types(head: RwLockReadGuard<'a, MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
+        Self::new(head, |head| head.type_sets(type_ids))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
+        self.borrow_sets()
+            .iter()
+            .map(|set| set.iter().copied())
+            .kmerge()
+    }
+}
+
+#[self_referencing]
+pub struct FrozenNodeTypeEntry {
+    frozen: Arc<MemNodeTypeIndex>,
+    #[borrows(frozen)]
+    #[covariant]
+    sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
+}
+
+impl FrozenNodeTypeEntry {
+    pub fn with_types(frozen: Arc<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
+        Self::new(frozen, |frozen| frozen.type_sets(type_ids))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
+        self.borrow_sets()
+            .iter()
+            .map(|set| set.iter().copied())
+            .kmerge()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use parking_lot::RwLock;
     use std::{sync::Arc, thread};
+
+    fn nodes_of_type(index: &RwLock<MemNodeTypeIndex>, type_ids: &[usize]) -> Vec<VID> {
+        MemNodeTypeEntry::with_types(index.read(), type_ids)
+            .iter()
+            .collect()
+    }
 
     #[test]
     fn get_returns_sorted_unique_vids() {
-        let index = MemNodeTypeIndex::new();
+        let index = RwLock::new(MemNodeTypeIndex::new());
 
-        index.insert(1, VID(4));
-        index.insert(1, VID(1));
-        index.insert(1, VID(2));
-        index.insert(1, VID(1));
+        index.read().insert(1, VID(4));
+        index.read().insert(1, VID(1));
+        index.read().insert(1, VID(2));
+        index.read().insert(1, VID(1));
 
-        assert_eq!(index.nodes_of_type(&[1]), vec![VID(1), VID(2), VID(4)]);
+        assert_eq!(nodes_of_type(&index, &[1]), vec![VID(1), VID(2), VID(4)]);
     }
 
     #[test]
     fn get_missing_type_is_empty() {
-        let index = MemNodeTypeIndex::new();
-        assert!(index.nodes_of_type(&[3]).is_empty());
+        let index = RwLock::new(MemNodeTypeIndex::new());
+        assert!(nodes_of_type(&index, &[3]).is_empty());
     }
 
     #[test]
     fn get_merges_sorted_vids() {
-        let index = MemNodeTypeIndex::new();
+        let index = RwLock::new(MemNodeTypeIndex::new());
 
-        index.insert(1, VID(4));
-        index.insert(1, VID(1));
-        index.insert(2, VID(2));
-        index.insert(2, VID(1));
-        index.insert(3, VID(5));
+        index.read().insert(1, VID(4));
+        index.read().insert(1, VID(1));
+        index.read().insert(2, VID(2));
+        index.read().insert(2, VID(1));
+        index.read().insert(3, VID(5));
 
         assert_eq!(
-            index.nodes_of_type(&[1, 2]),
+            nodes_of_type(&index, &[1, 2]),
             vec![VID(1), VID(1), VID(2), VID(4)]
         );
-        assert_eq!(index.nodes_of_type(&[3]), vec![VID(5)]);
-        assert!(index.nodes_of_type(&[9]).is_empty());
-        assert!(index.nodes_of_type(&[]).is_empty());
+        assert_eq!(nodes_of_type(&index, &[3]), vec![VID(5)]);
+        assert!(nodes_of_type(&index, &[9]).is_empty());
+        assert!(nodes_of_type(&index, &[]).is_empty());
     }
 
     #[test]
@@ -197,15 +231,15 @@ mod tests {
 
     #[test]
     fn insert_batch_is_idempotent_and_counts_unique_pairs() {
-        let index = MemNodeTypeIndex::new();
+        let index = RwLock::new(MemNodeTypeIndex::new());
 
-        index.insert_batch(1, [VID(2), VID(1), VID(1)]);
-        index.insert_batch(1, [VID(1), VID(3)]);
-        index.insert_batch(2, [VID(4)]);
+        index.read().insert_batch(1, [VID(2), VID(1), VID(1)]);
+        index.read().insert_batch(1, [VID(1), VID(3)]);
+        index.read().insert_batch(2, [VID(4)]);
 
-        assert_eq!(index.num_entries(), 4);
-        assert_eq!(index.nodes_of_type(&[1]), vec![VID(1), VID(2), VID(3)]);
-        assert_eq!(index.nodes_of_type(&[2]), vec![VID(4)]);
+        assert_eq!(index.read().num_entries(), 4);
+        assert_eq!(nodes_of_type(&index, &[1]), vec![VID(1), VID(2), VID(3)]);
+        assert_eq!(nodes_of_type(&index, &[2]), vec![VID(4)]);
     }
 
     #[test]
@@ -235,15 +269,15 @@ mod tests {
 
     #[test]
     fn take_drains_index() {
-        let mut index = MemNodeTypeIndex::new();
-        index.insert(1, VID(1));
-        index.insert(1, VID(3));
-        index.insert(2, VID(2));
+        let index = RwLock::new(MemNodeTypeIndex::new());
+        index.read().insert(1, VID(1));
+        index.read().insert(1, VID(3));
+        index.read().insert(2, VID(2));
 
-        let taken = index.take();
-        assert!(index.is_empty());
-        assert_eq!(taken.nodes_of_type(&[1]), vec![VID(1), VID(3)]);
-        assert_eq!(taken.nodes_of_type(&[2]), vec![VID(2)]);
+        let taken = RwLock::new(index.write().take());
+        assert!(index.read().is_empty());
+        assert_eq!(nodes_of_type(&taken, &[1]), vec![VID(1), VID(3)]);
+        assert_eq!(nodes_of_type(&taken, &[2]), vec![VID(2)]);
     }
 
     #[test]
@@ -260,6 +294,7 @@ mod tests {
         });
 
         assert_eq!(index.num_entries(), 100);
-        assert_eq!(index.nodes_of_type(&[1]).len(), 100);
+        let index = RwLock::new(Arc::try_unwrap(index).expect("threads have joined"));
+        assert_eq!(nodes_of_type(&index, &[1]).len(), 100);
     }
 }

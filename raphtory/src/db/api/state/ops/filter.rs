@@ -572,10 +572,12 @@ impl NodeOp for NodeTypeFilterOp {
             .filter_map(|(type_id, keep)| keep.then_some(type_id))
             .collect();
 
-        let nodes = storage.node_type_index().nodes_of_type(&type_ids);
+        let entry = storage.node_type_index().node_type_entry(&type_ids);
+        let mut keys: Vec<VID> = entry.iter().collect();
+        keys.dedup();
 
         NodeList::List {
-            elems: nodes.into(),
+            elems: Index::from_sorted(keys, true),
         }
     }
 

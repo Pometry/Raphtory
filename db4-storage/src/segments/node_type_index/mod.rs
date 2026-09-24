@@ -4,10 +4,7 @@ use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
     persist::strategy::PersistenceStrategy, segments::node_type_index::index::MemNodeTypeIndex,
 };
-use ahash::RandomState;
-use indexmap::IndexSet;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raphtory_core::entities::VID;
 use std::{
     path::Path,
     sync::{
@@ -15,6 +12,8 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
+
+pub use index::{FrozenNodeTypeEntry, MemNodeTypeEntry};
 
 /// Fully in-memory node type index.
 #[derive(Debug)]
@@ -27,6 +26,10 @@ pub struct NodeTypeIndexView<P: PersistenceStrategy> {
 
 impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     type Extension = P;
+    type NodeTypeEntry<'a>
+        = MemNodeTypeEntry<'a>
+    where
+        Self: 'a;
 
     fn new(_path: Option<&Path>, ext: Self::Extension) -> Self {
         Self {
@@ -51,8 +54,8 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         self.head.write()
     }
 
-    fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState> {
-        self.head().nodes_of_type(type_ids).into_iter().collect()
+    fn node_type_entry(&self, type_ids: &[usize]) -> MemNodeTypeEntry<'_> {
+        MemNodeTypeEntry::with_types(self.head(), type_ids)
     }
 
     fn is_empty(&self) -> bool {

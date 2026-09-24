@@ -21,7 +21,6 @@ mod test {
         prelude::*,
     };
     use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
-    use indexmap::IndexSet;
     use itertools::Itertools;
     use raphtory_api::core::{
         entities::{
@@ -322,11 +321,19 @@ mod test {
         let storage = graph.core_graph();
         let a_id = graph.node_meta().get_node_type_id("a").unwrap();
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
-        let a_nodes = storage.node_type_index().nodes_of_type(&[a_id]);
-        let b_nodes = storage.node_type_index().nodes_of_type(&[b_id]);
+        let a_nodes: Vec<_> = storage
+            .node_type_index()
+            .node_type_entry(&[a_id])
+            .iter()
+            .collect();
+        let b_nodes: Vec<_> = storage
+            .node_type_index()
+            .node_type_entry(&[b_id])
+            .iter()
+            .collect();
 
-        assert_eq!(a_nodes, IndexSet::from([graph.node(1u64).unwrap().node]));
-        assert_eq!(b_nodes, IndexSet::from([graph.node(2u64).unwrap().node]));
+        assert_eq!(a_nodes, vec![graph.node(1u64).unwrap().node]);
+        assert_eq!(b_nodes, vec![graph.node(2u64).unwrap().node]);
     }
 
     #[test]
@@ -500,8 +507,16 @@ mod test {
         let a_id = graph.node_meta().get_node_type_id("a").unwrap();
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
         let storage = graph.core_graph();
-        let a_nodes = storage.node_type_index().nodes_of_type(&[a_id]);
-        let b_nodes = storage.node_type_index().nodes_of_type(&[b_id]);
+        let a_nodes: Vec<_> = storage
+            .node_type_index()
+            .node_type_entry(&[a_id])
+            .iter()
+            .collect();
+        let b_nodes: Vec<_> = storage
+            .node_type_index()
+            .node_type_entry(&[b_id])
+            .iter()
+            .collect();
 
         assert_eq!(a_nodes.len(), 1);
         assert_eq!(b_nodes.len(), 1);
@@ -550,16 +565,26 @@ mod test {
 
         assert!(storage
             .node_type_index()
-            .nodes_of_type(&[DEFAULT_NODE_TYPE_ID])
-            .is_empty());
+            .node_type_entry(&[DEFAULT_NODE_TYPE_ID])
+            .iter()
+            .next()
+            .is_none());
         assert_eq!(storage.node_type_index().head().num_entries(), 2);
         assert_eq!(
-            storage.node_type_index().nodes_of_type(&[a_id]),
-            IndexSet::from([typed_a])
+            storage
+                .node_type_index()
+                .node_type_entry(&[a_id])
+                .iter()
+                .collect::<Vec<_>>(),
+            vec![typed_a]
         );
         assert_eq!(
-            storage.node_type_index().nodes_of_type(&[b_id]),
-            IndexSet::from([typed_b])
+            storage
+                .node_type_index()
+                .node_type_entry(&[b_id])
+                .iter()
+                .collect::<Vec<_>>(),
+            vec![typed_b]
         );
     }
 
@@ -589,8 +614,22 @@ mod test {
             entries_before
         );
         assert_eq!(entries_before, 2);
-        assert_eq!(storage.node_type_index().nodes_of_type(&[a_id]).len(), 1);
-        assert_eq!(storage.node_type_index().nodes_of_type(&[b_id]).len(), 1);
+        assert_eq!(
+            storage
+                .node_type_index()
+                .node_type_entry(&[a_id])
+                .iter()
+                .count(),
+            1
+        );
+        assert_eq!(
+            storage
+                .node_type_index()
+                .node_type_entry(&[b_id])
+                .iter()
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -607,10 +646,12 @@ mod test {
         .expect("first type assignment on an untyped node should succeed");
 
         let person_id = graph.node_meta().get_node_type_id("Person").unwrap();
-        let indexed = graph
+        let indexed: Vec<_> = graph
             .core_graph()
             .node_type_index()
-            .nodes_of_type(&[person_id]);
+            .node_type_entry(&[person_id])
+            .iter()
+            .collect();
 
         assert!(indexed.contains(&graph.node(1u64).unwrap().node));
         assert_eq!(indexed.len(), 1);
