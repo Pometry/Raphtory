@@ -10,7 +10,10 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{DynGraphArc, FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{
+                    index_with_node_types, DynGraphArc, FilterOps, InternalFilter,
+                    InternalNodeSelect, NodeList,
+                },
                 sort::{compare_node, NodeSortBy},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -384,6 +387,9 @@ where
             // from an earlier filter no longer covers the whole predicate
             NodeList::All if filter.is_filtered() => self.nodes.clone().into_inexact(),
             NodeList::All => self.nodes.clone(),
+            NodeList::NodeTypeIdx { types, exact } => {
+                index_with_node_types(&self.nodes, &types, exact, self.graph.core_graph())
+            }
             NodeList::List { elems } => self.nodes.intersection(&elems),
         };
         let predicate = self.predicate.clone().and(filter);

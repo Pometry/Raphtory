@@ -21,7 +21,10 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::entities::{
-    properties::{meta::NODE_ID_PROP_ID, prop::Prop},
+    properties::{
+        meta::{DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID},
+        prop::Prop,
+    },
     VID,
 };
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
@@ -440,7 +443,7 @@ where
             && self
                 .right
                 .domain(storage)
-                .is_subset(&self.left.domain(storage))
+                .is_subset(&self.left.domain(storage), storage)
         {
             return Some(true);
         }
@@ -448,7 +451,7 @@ where
             && self
                 .left
                 .domain(storage)
-                .is_subset(&self.right.domain(storage))
+                .is_subset(&self.right.domain(storage), storage)
         {
             return Some(true);
         }
@@ -551,36 +554,31 @@ impl NodeTypeFilterOp {
     }
 
     pub fn from_mask(mask: Arc<[bool]>, view: impl GraphView) -> Self {
-        Self {
-            mask,
-            index_backed: !view.core_graph().node_type_index().is_empty(),
-        }
+        // Nodes of the default type are not indexed, so a mask selecting it
+        // cannot be served from the index.
+        let selects_default = mask.get(DEFAULT_NODE_TYPE_ID).copied().unwrap_or(false);
+        let index_backed = !selects_default && !view.core_graph().node_type_index().is_empty();
+        Self { mask, index_backed }
     }
 }
 
 impl NodeOp for NodeTypeFilterOp {
     type Output = bool;
 
-    fn domain(&self, storage: &GraphStorage) -> NodeList {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
         if !self.index_backed {
             // No index, switch to full scan.
             return NodeList::All;
         }
 
-        let type_ids: Vec<usize> = self
+        let types = self
             .mask
             .iter()
             .enumerate()
             .filter_map(|(type_id, keep)| keep.then_some(type_id))
             .collect();
 
-        let entry = storage.node_type_index().node_type_entry(&type_ids);
-        let mut keys: Vec<VID> = entry.iter().collect();
-        keys.dedup();
-
-        NodeList::List {
-            elems: Index::from_sorted(keys, true),
-        }
+        NodeList::NodeTypeIdx { types, exact: true }
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {

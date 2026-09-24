@@ -29,6 +29,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
+use itertools::Itertools;
 use raphtory_api::core::{
     entities::VID,
     storage::timeindex::{AsTime, EventTime, TimeError},
@@ -36,6 +37,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
+use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G, F = Const<bool>> {
@@ -692,6 +694,14 @@ impl<
                     .core_graph()
                     .node_state_index()
                     .global_index(index)?,
+                NodeList::NodeTypeIdx { types, .. } => self
+                    .graph()
+                    .core_graph()
+                    .node_type_index()
+                    .node_type_entry(&types)
+                    .iter()
+                    .dedup()
+                    .nth(index)?,
                 NodeList::List { elems } => elems.value(index)?,
             };
             let cg = self.graph().core_graph();

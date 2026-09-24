@@ -20,7 +20,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 
@@ -80,19 +80,20 @@ where
 
 impl<G, L, R> ListOps for AndFilteredGraph<G, L, R>
 where
+    G: CoreGraphOps,
     L: ListOps,
     R: ListOps,
 {
     fn node_list(&self) -> NodeList {
         let left = self.left.node_list();
         let right = self.right.node_list();
-        left.intersection(&right)
+        left.intersection(&right, self.graph.core_graph())
     }
 
     fn edge_list(&self) -> EdgeList {
         let left = self.left.edge_list();
         let right = self.right.edge_list();
-        left.intersection(&right)
+        left.intersection(&right, self.graph.core_graph())
     }
 }
 

@@ -119,6 +119,7 @@ impl Index<VID> {
         if trusted {
             match node_list {
                 NodeList::All { .. } => Self::Full(graph.core_graph().node_state_index().into()),
+                list @ NodeList::NodeTypeIdx { .. } => list.into_index(graph.core_graph()),
                 NodeList::List { elems } => elems,
             }
         } else {
