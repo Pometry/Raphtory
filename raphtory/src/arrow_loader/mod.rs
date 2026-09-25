@@ -321,16 +321,8 @@ mod test {
         let storage = graph.core_graph();
         let a_id = graph.node_meta().get_node_type_id("a").unwrap();
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
-        let a_nodes: Vec<_> = storage
-            .node_type_index()
-            .entry(&[a_id])
-            .iter()
-            .collect();
-        let b_nodes: Vec<_> = storage
-            .node_type_index()
-            .entry(&[b_id])
-            .iter()
-            .collect();
+        let a_nodes: Vec<_> = storage.node_type_index().entry(&[a_id]).iter().collect();
+        let b_nodes: Vec<_> = storage.node_type_index().entry(&[b_id]).iter().collect();
 
         assert_eq!(a_nodes, vec![graph.node(1u64).unwrap().node]);
         assert_eq!(b_nodes, vec![graph.node(2u64).unwrap().node]);
@@ -507,16 +499,8 @@ mod test {
         let a_id = graph.node_meta().get_node_type_id("a").unwrap();
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
         let storage = graph.core_graph();
-        let a_nodes: Vec<_> = storage
-            .node_type_index()
-            .entry(&[a_id])
-            .iter()
-            .collect();
-        let b_nodes: Vec<_> = storage
-            .node_type_index()
-            .entry(&[b_id])
-            .iter()
-            .collect();
+        let a_nodes: Vec<_> = storage.node_type_index().entry(&[a_id]).iter().collect();
+        let b_nodes: Vec<_> = storage.node_type_index().entry(&[b_id]).iter().collect();
 
         assert_eq!(a_nodes.len(), 1);
         assert_eq!(b_nodes.len(), 1);
@@ -614,22 +598,8 @@ mod test {
             entries_before
         );
         assert_eq!(entries_before, 2);
-        assert_eq!(
-            storage
-                .node_type_index()
-                .entry(&[a_id])
-                .iter()
-                .count(),
-            1
-        );
-        assert_eq!(
-            storage
-                .node_type_index()
-                .entry(&[b_id])
-                .iter()
-                .count(),
-            1
-        );
+        assert_eq!(storage.node_type_index().entry(&[a_id]).iter().count(), 1);
+        assert_eq!(storage.node_type_index().entry(&[b_id]).iter().count(), 1);
     }
 
     #[test]
