@@ -12,8 +12,8 @@ use crate::{
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_gid_list, expect_optional_event_time, expect_optional_i64,
-            expect_string, expect_string_list, Transport,
+            expect_edge_id, expect_optional_event_time, expect_optional_typed, expect_string_list,
+            expect_typed, Transport,
         },
         ClientError,
     },
@@ -255,7 +255,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::FirstUpdate {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "firstUpdate")
+        expect_optional_typed(self.transport.execute(&op).await?, "firstUpdate")
     }
 
     /// Terminal: last update timestamp on this edge under the current view.
@@ -264,7 +264,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::LastUpdate {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "lastUpdate")
+        expect_optional_typed(self.transport.execute(&op).await?, "lastUpdate")
     }
 
     /// Terminal: the specific event time this exploded edge event happened at.
@@ -298,15 +298,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::EdgeIdPair {
             input: self.expr.clone(),
         });
-        let list = expect_gid_list(self.transport.execute(&op).await?, "id")?;
-        let mut it = list.into_iter();
-        let src = it
-            .next()
-            .ok_or_else(|| ClientError::InvalidResponse("edge id list missing src".into()))?;
-        let dst = it
-            .next()
-            .ok_or_else(|| ClientError::InvalidResponse("edge id list missing dst".into()))?;
-        Ok((src, dst))
+        expect_edge_id(self.transport.execute(&op).await?, "id")
     }
 
     /// Terminal: layer names this edge is present in. Fires one RPC.
@@ -324,7 +316,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::LayerName {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "layerName")
+        expect_typed(self.transport.execute(&op).await?, "layerName")
     }
 
     /// Terminal: whether the edge has any events in the current view. Fires one RPC.
@@ -332,7 +324,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::IsActive {
             input: self.expr.clone(),
         });
-        expect_bool(self.transport.execute(&op).await?, "isActive")
+        expect_typed(self.transport.execute(&op).await?, "isActive")
     }
 
     /// Terminal: whether the edge is valid at the current time. Fires one RPC.
@@ -340,7 +332,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::IsValid {
             input: self.expr.clone(),
         });
-        expect_bool(self.transport.execute(&op).await?, "isValid")
+        expect_typed(self.transport.execute(&op).await?, "isValid")
     }
 
     /// Terminal: whether the edge has been deleted at the current time. Fires one RPC.
@@ -348,7 +340,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::IsDeleted {
             input: self.expr.clone(),
         });
-        expect_bool(self.transport.execute(&op).await?, "isDeleted")
+        expect_typed(self.transport.execute(&op).await?, "isDeleted")
     }
 
     /// Terminal: whether the edge is a self-loop (src == dst). Fires one RPC.
@@ -356,7 +348,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::IsSelfLoop {
             input: self.expr.clone(),
         });
-        expect_bool(self.transport.execute(&op).await?, "isSelfLoop")
+        expect_typed(self.transport.execute(&op).await?, "isSelfLoop")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -365,7 +357,7 @@ impl RemoteEdge {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -374,7 +366,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Add temporal updates to the edge at the specified time. `event_id` locks

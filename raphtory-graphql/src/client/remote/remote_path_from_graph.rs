@@ -8,10 +8,10 @@ use crate::{
         remote_node::RemoteNode,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_i64, expect_nested_gid_list, expect_nested_i64_list,
-            expect_nested_optional_event_time_list, expect_nested_optional_string_list,
-            expect_nested_string_list, expect_optional_event_time, expect_optional_i64,
-            expect_string_list, Transport,
+            expect_nested_gid_list, expect_nested_optional_event_time_list,
+            expect_nested_typed_list, expect_optional_event_time, expect_optional_typed,
+            expect_string_list, expect_tagged_nested_tagged_typed_list,
+            expect_tagged_nested_typed_list, expect_typed, Transport,
         },
         ClientError,
     },
@@ -267,7 +267,7 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::NestedNames {
             input: self.expr.clone(),
         });
-        expect_nested_string_list(self.transport.execute(&op).await?, "name")
+        expect_tagged_nested_tagged_typed_list(self.transport.execute(&op).await?, "list", "name")
     }
 
     /// Columnar accessor: each source's neighbour types (`None` when unset) —
@@ -277,7 +277,11 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::NestedNodeTypes {
             input: self.expr.clone(),
         });
-        expect_nested_optional_string_list(self.transport.execute(&op).await?, "nodeType")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "nodeType",
+        )
     }
 
     /// Columnar accessor: the nested per-node earliest event time — one inner
@@ -287,7 +291,11 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::NestedEarliestTime {
             input: self.expr.clone(),
         });
-        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+        expect_nested_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "earliestTime",
+            "earliestTime",
+        )
     }
 
     /// Columnar accessor: the nested per-node latest event time — one inner
@@ -297,7 +305,11 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::NestedLatestTime {
             input: self.expr.clone(),
         });
-        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+        expect_nested_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "latestTime",
+            "latestTime",
+        )
     }
 
     /// The non-temporal metadata of this collection as a nested columnar view —
@@ -327,38 +339,38 @@ impl RemotePathFromGraph {
     /// Terminal: the nested per-node degree — one inner list per source node,
     /// each holding that source's per-neighbour degrees — `Vec<Vec<i64>>`.
     /// Fires one RPC.
-    pub async fn degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub async fn degree(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedDegree {
             input: self.expr.clone(),
         });
-        expect_nested_i64_list(self.transport.execute(&op).await?, "degree")
+        expect_nested_typed_list(self.transport.execute(&op).await?, "degree")
     }
 
     /// Terminal: the nested per-node in-degree — one inner list per source
     /// node — `Vec<Vec<i64>>`. Fires one RPC.
-    pub async fn in_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub async fn in_degree(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedInDegree {
             input: self.expr.clone(),
         });
-        expect_nested_i64_list(self.transport.execute(&op).await?, "inDegree")
+        expect_nested_typed_list(self.transport.execute(&op).await?, "inDegree")
     }
 
     /// Terminal: the nested per-node out-degree — one inner list per source
     /// node — `Vec<Vec<i64>>`. Fires one RPC.
-    pub async fn out_degree(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub async fn out_degree(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedOutDegree {
             input: self.expr.clone(),
         });
-        expect_nested_i64_list(self.transport.execute(&op).await?, "outDegree")
+        expect_nested_typed_list(self.transport.execute(&op).await?, "outDegree")
     }
 
     /// Terminal: the nested per-node count of incident edge updates — one
     /// inner list per source node — `Vec<Vec<i64>>`. Fires one RPC.
-    pub async fn edge_history_count(&self) -> Result<Vec<Vec<i64>>, ClientError> {
+    pub async fn edge_history_count(&self) -> Result<Vec<Vec<u64>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEdgeHistoryCount {
             input: self.expr.clone(),
         });
-        expect_nested_i64_list(self.transport.execute(&op).await?, "edgeHistoryCount")
+        expect_tagged_nested_typed_list(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
 
     /// Terminal: the number of *sources* — the outer length, not the total
@@ -369,7 +381,7 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -378,7 +390,7 @@ impl RemotePathFromGraph {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -387,7 +399,7 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Returns a single combined event history for all nodes in this view —

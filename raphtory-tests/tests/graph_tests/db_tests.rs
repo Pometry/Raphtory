@@ -1756,7 +1756,7 @@ fn node_properties() -> Result<(), GraphError> {
         6,
         3,
         [
-            ("list_prop", vec![1.1, 2.2, 3.3].into_prop_list()),
+            ("list_prop", vec![1.1, 2.2, 3.3].into_prop_list().unwrap()),
             ("cost_b", Prop::F64(76.0)),
         ],
         Some("b"),
@@ -2071,8 +2071,10 @@ fn test_graph_metadata_proptest() {
 fn test_graph_metadata() {
     let g = Graph::new();
 
-    let as_props: Vec<(&str, Prop)> =
-        vec![("mylist", Prop::list(vec![Prop::I64(1), Prop::I64(2)]))];
+    let as_props: Vec<(&str, Prop)> = vec![(
+        "mylist",
+        Prop::list(vec![Prop::I64(1), Prop::I64(2)]).unwrap(),
+    )];
 
     g.add_metadata(as_props.clone()).unwrap();
 

@@ -1,6 +1,6 @@
 use crate::{
     core::entities::properties::prop::{
-        unify_types, ArrowRow, DirectConvert, Prop, PropType, EMPTY_MAP_FIELD_NAME,
+        unify_types, ArrowRow, DirectConvert, Prop, PropType, PropTypeError, EMPTY_MAP_FIELD_NAME,
     },
     iter::{BoxedLIter, IntoDynBoxed},
 };
@@ -14,12 +14,53 @@ use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
     io::Cursor,
+    ops::Deref,
     sync::Arc,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct PropList {
+    values: Arc<[Prop]>,
+    dtype: PropType,
+}
+
+impl Deref for PropList {
+    type Target = [Prop];
+
+    fn deref(&self) -> &Self::Target {
+        self.values.deref()
+    }
+}
+
+impl PropList {
+    /// Make a new list and unify types
+    pub fn try_from_vec(values: Vec<Prop>) -> Result<Self, PropTypeError> {
+        Self::try_new(values.into())
+    }
+
+    /// Make a new list and unify types
+    pub fn try_new(values: Arc<[Prop]>) -> Result<Self, PropTypeError> {
+        let dtype = values
+            .iter()
+            .map(|p| p.dtype())
+            .try_fold(PropType::Empty, |acc, dt| {
+                unify_types(&acc, &dt, &mut false)
+            })?;
+        Ok(Self { values, dtype })
+    }
+
+    /// This is here to support some legacy use cases, do not use!
+    pub fn new_untyped(values: Arc<[Prop]>) -> Self {
+        Self {
+            values,
+            dtype: PropType::Empty,
+        }
+    }
+}
+
 #[derive(Debug, Clone, derive_more::From)]
 pub enum PropArray {
-    Vec(Arc<[Prop]>),
+    Vec(PropList),
     Array(ArrayRef),
 }
 
@@ -31,13 +72,34 @@ enum SerializedPropArray {
 
 impl Default for PropArray {
     fn default() -> Self {
-        PropArray::Vec(vec![].into())
+        PropArray::Vec(Default::default())
     }
 }
 
-impl From<Vec<Prop>> for PropArray {
-    fn from(vec: Vec<Prop>) -> Self {
-        PropArray::Vec(Arc::from(vec))
+impl TryFrom<Vec<Prop>> for PropArray {
+    type Error = PropTypeError;
+
+    fn try_from(value: Vec<Prop>) -> Result<Self, Self::Error> {
+        let list = PropList::try_from_vec(value)?;
+        Ok(PropArray::Vec(list))
+    }
+}
+
+impl TryFrom<Arc<[Prop]>> for PropArray {
+    type Error = PropTypeError;
+
+    fn try_from(value: Arc<[Prop]>) -> Result<Self, Self::Error> {
+        let list = PropList::try_new(value)?;
+        Ok(PropArray::Vec(list))
+    }
+}
+
+impl<const N: usize> TryFrom<[Prop; N]> for PropArray {
+    type Error = PropTypeError;
+
+    fn try_from(value: [Prop; N]) -> Result<Self, Self::Error> {
+        let list = PropList::try_new(value.into())?;
+        Ok(PropArray::Vec(list))
     }
 }
 
@@ -76,18 +138,11 @@ impl PropArray {
         }
     }
 
+    /// The element type of the array.
     pub fn dtype(&self) -> PropType {
         match self {
-            PropArray::Vec(ps) if ps.is_empty() => PropType::Empty,
-            PropArray::Vec(ps) => ps
-                .iter()
-                .map(|p| p.dtype())
-                .reduce(|dt1, dt2| {
-                    unify_types(&dt1, &dt2, &mut false)
-                        .unwrap_or_else(|e| panic!("Failed to unify props {e}"))
-                })
-                .unwrap(),
-            PropArray::Array(a) => PropType::from(a.data_type()),
+            PropArray::Vec(list) => list.dtype.clone(),
+            PropArray::Array(array) => PropType::from(array.data_type()),
         }
     }
 
@@ -146,6 +201,17 @@ impl PropArray {
                 }
             }
         }
+    }
+
+    /// Join two lists into a new list with efficient data type unification
+    pub fn join(&self, other: &PropArray) -> Result<Self, PropTypeError> {
+        let dtype = unify_types(&self.dtype(), &other.dtype(), &mut false)?;
+        let values: Vec<_> = self.iter().chain(other.iter()).collect();
+        let proplist = PropList {
+            values: values.into(),
+            dtype,
+        };
+        Ok(PropArray::Vec(proplist))
     }
 }
 
@@ -209,7 +275,7 @@ impl Serialize for PropArray {
         S: Serializer,
     {
         let serializable = match self {
-            PropArray::Vec(inner) => SerializedPropArray::Vec(inner.clone()),
+            PropArray::Vec(inner) => SerializedPropArray::Vec(inner.values.clone()),
             PropArray::Array(array) => {
                 let mut bytes = Vec::new();
                 let cursor = Cursor::new(&mut bytes);
@@ -239,7 +305,9 @@ impl<'de> Deserialize<'de> for PropArray {
     {
         let data = SerializedPropArray::deserialize(deserializer)?;
         let deserialized = match data {
-            SerializedPropArray::Vec(res) => PropArray::Vec(res),
+            SerializedPropArray::Vec(res) => {
+                PropArray::Vec(PropList::try_new(res).map_err(de::Error::custom)?)
+            }
             SerializedPropArray::Array(bytes) => {
                 let cursor = Cursor::new(bytes);
                 let mut reader = FileReader::try_new(cursor, None)
@@ -368,7 +436,7 @@ impl PropArrayUnwrap for Prop {
 
 #[cfg(test)]
 mod test {
-    use crate::core::entities::properties::prop::{Prop, PropArray};
+    use crate::core::entities::properties::prop::{Prop, PropArray, PropType};
     use arrow_array::Int64Array;
     use std::sync::Arc;
 
@@ -383,10 +451,32 @@ mod test {
 
     #[test]
     fn test_prop_array_list_json() {
-        let array = PropArray::Vec([Prop::U64(1), Prop::U64(2)].into());
+        let array = PropArray::try_from([Prop::U64(1), Prop::U64(2)]).unwrap();
         let json = serde_json::to_string(&array).unwrap();
         println!("{json}");
         let recovered: PropArray = serde_json::from_str(&json).unwrap();
         assert_eq!(array, recovered);
+    }
+
+    #[test]
+    fn test_dtype_on_uniform_lists() {
+        let empty = PropArray::try_from(Vec::<Prop>::new()).unwrap();
+        assert_eq!(empty.dtype(), PropType::Empty);
+        let ints = PropArray::try_from(vec![Prop::I64(1), Prop::I64(2)]).unwrap();
+        assert_eq!(ints.dtype(), PropType::I64);
+    }
+
+    #[test]
+    fn test_list_construction_errors_on_mixed_types() {
+        let mixed = PropArray::try_from(vec![Prop::I64(1), Prop::str("a")]);
+        let err = mixed.err().expect("mixed list must not unify");
+        assert_eq!(err.expected, PropType::I64);
+        assert_eq!(err.actual, PropType::Str);
+
+        let nested = PropArray::try_from(vec![
+            Prop::List(PropArray::try_from(vec![Prop::I64(1)]).unwrap()),
+            Prop::List(PropArray::try_from(vec![Prop::str("a")]).unwrap()),
+        ]);
+        assert!(nested.is_err());
     }
 }

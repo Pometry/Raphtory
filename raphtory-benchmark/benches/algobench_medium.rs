@@ -37,7 +37,7 @@ use raphtory::{
 use raphtory_api::core::Direction;
 use raphtory_benchmark::algobench_common::{
     first_node_id, graph_benchmark, graph_benchmark_with_setup,
-    large_dense_random_attachment_graph, large_random_attachment_graph,
+    large_dense_random_attachment_graph,
     medium_random_attachment_filtered, medium_random_attachment_graph,
     medium_random_attachment_layered, medium_random_attachment_subgraph,
     medium_typed_random_attachment_graph, medium_weighted_random_attachment_graph,

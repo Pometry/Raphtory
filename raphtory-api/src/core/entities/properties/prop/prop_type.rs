@@ -16,9 +16,20 @@ pub struct PropError {
     pub(crate) actual: PropType,
 }
 
-impl PropError {
+#[derive(thiserror::Error, Debug, PartialEq)]
+#[error("Mismatched value type: expected {expected:?} but actual type is {actual:?}")]
+pub struct PropTypeError {
+    pub expected: PropType,
+    pub actual: PropType,
+}
+
+impl PropTypeError {
     pub fn with_name(self, name: String) -> PropError {
-        Self { name, ..self }
+        PropError {
+            name,
+            expected: self.expected,
+            actual: self.actual,
+        }
     }
 }
 
@@ -396,7 +407,11 @@ pub mod arrow {
 // step through these types trees and check they are structurally the same
 // if we encounter an empty we replace it with the other type
 // the result is the unified type or err if the types are not compatible
-pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<PropType, PropError> {
+pub fn unify_types(
+    l: &PropType,
+    r: &PropType,
+    unified: &mut bool,
+) -> Result<PropType, PropTypeError> {
     match (l, r) {
         (PropType::Empty, r) => {
             *unified = true;
@@ -447,8 +462,7 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
         {
             Ok(PropType::Decimal { scale: *l_scale })
         }
-        (_, _) => Err(PropError {
-            name: "unknown".to_string(),
+        (_, _) => Err(PropTypeError {
             expected: l.clone(),
             actual: r.clone(),
         }),

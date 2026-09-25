@@ -407,10 +407,7 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("tags").is_some(), 6),
         (filter.ExplodedEdge.property("tags").is_none(), 0),
         (filter.ExplodedEdge.property("tags").is_in([1, 2]), 0),
-        (
-            filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]]),
-            0,
-        ),  # actually does the filter, maybe should be a type error on the heterogeneous list
+
         (
             filter.ExplodedEdge.property("tags").is_not_in([3]),
             6,
@@ -449,7 +446,7 @@ def test_all_property_types(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-            len(result) == expected
+                len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     nonsense_filter_cases = [
@@ -847,6 +844,10 @@ def test_all_property_types(GraphClass):
             _ = g.filter(expr).edges.explode()
         assert "Property blah does not exist" in str(e.value)
 
+    with pytest.raises(TypeError) as e:
+        filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]])
+    assert "list elements have mixed types" in str(e.value)
+
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_temporal_constant(GraphClass):
@@ -912,7 +913,7 @@ def test_temporal_constant(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-            len(result) == expected
+                len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     g = GraphClass()
@@ -942,5 +943,5 @@ def test_temporal_constant(GraphClass):
         result = g.filter(expr).edges.explode()
         print(g.edges.explode().metadata.get("weight"))
         assert (
-            len(result) == expected
+                len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"

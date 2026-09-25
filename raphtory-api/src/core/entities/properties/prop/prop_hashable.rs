@@ -3,7 +3,7 @@ use bigdecimal::BigDecimal;
 use derive_more::From;
 use num_bigint::BigInt;
 use num_rational::Ratio;
-use num_traits::{float::FloatCore, Float, ToPrimitive};
+use num_traits::ToPrimitive;
 use ordered_float::OrderedFloat;
 use std::{
     fmt::{Display, Formatter},
@@ -136,7 +136,6 @@ impl AsRef<HashableProp> for Prop {
 #[cfg(test)]
 mod tests {
     use crate::core::entities::properties::prop::{prop_hashable::HashableProp, Prop};
-    use proptest::{arbitrary::any, proptest};
     use std::collections::HashSet;
 
     #[test]

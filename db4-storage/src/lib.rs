@@ -90,7 +90,8 @@ pub mod error {
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
     use raphtory_api::core::{
-        entities::properties::prop::PropError, storage::graph_folder::GraphFolderError,
+        entities::properties::prop::{PropError, PropTypeError},
+        storage::graph_folder::GraphFolderError,
         utils::time::ParseTimeError,
     };
     use raphtory_core::entities::properties::props::MetadataError;
@@ -112,6 +113,8 @@ pub mod error {
         Parquet(#[from] parquet::errors::ParquetError),
         #[error(transparent)]
         PropError(#[from] PropError),
+        #[error(transparent)]
+        PropTypeError(#[from] PropTypeError),
         #[error(transparent)]
         MetadataError(#[from] MetadataError),
         #[error("Empty Graph: {0}")]

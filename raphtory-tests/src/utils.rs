@@ -15,7 +15,7 @@ use raphtory::{
 use raphtory_api::core::{
     entities::properties::{
         meta::STATIC_GRAPH_LAYER_NAME,
-        prop::{PropType, DECIMAL_MAX},
+        prop::{PropArray, PropType, DECIMAL_MAX},
     },
     storage::{
         arc_str::{ArcStr, OptionAsStr},
@@ -506,7 +506,7 @@ pub fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
             })
             .boxed(),
         PropType::List(p_type) => proptest::collection::vec(prop(p_type), 0..10)
-            .prop_map(|props| Prop::List(props.into()))
+            .prop_map(|props| Prop::List(PropArray::try_from(props).unwrap()))
             .boxed(),
         PropType::Map(p_types) => {
             let key_val: Vec<_> = p_types

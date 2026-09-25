@@ -179,7 +179,7 @@ The graph itself may also have its own `global properties` added using the `add_
 a `timestamp` and a `properties` dictionary.
 
 Properties can consist of primitives (`Integer`, `Float`, `String`, `Boolean`, `Datetime`) and structures (`Dictionary`,
-`List`). This allows you to store both basic values as well as do complex hierarchical modelling depending on your use
+`PropList`). This allows you to store both basic values as well as do complex hierarchical modelling depending on your use
 case.
 
 In the example below, we use all of these functions to add a mixture of properties to a node, an edge, and the

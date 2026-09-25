@@ -4793,39 +4793,39 @@ mod test_node_property_filter_agg {
     };
 
     fn list_u8(xs: &[u8]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::U8))
+        Prop::list(xs.iter().copied().map(Prop::U8)).unwrap()
     }
     fn list_u16(xs: &[u16]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::U16))
+        Prop::list(xs.iter().copied().map(Prop::U16)).unwrap()
     }
     fn list_u32(xs: &[u32]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::U32))
+        Prop::list(xs.iter().copied().map(Prop::U32)).unwrap()
     }
     fn list_u64(xs: &[u64]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::U64))
+        Prop::list(xs.iter().copied().map(Prop::U64)).unwrap()
     }
     fn list_i32(xs: &[i32]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::I32))
+        Prop::list(xs.iter().copied().map(Prop::I32)).unwrap()
     }
     fn list_i64(xs: &[i64]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::I64))
+        Prop::list(xs.iter().copied().map(Prop::I64)).unwrap()
     }
     fn list_f32(xs: &[f32]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::F32))
+        Prop::list(xs.iter().copied().map(Prop::F32)).unwrap()
     }
     fn list_f64(xs: &[f64]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::F64))
+        Prop::list(xs.iter().copied().map(Prop::F64)).unwrap()
     }
     fn list_str(xs: &[&str]) -> Prop {
-        Prop::list(xs.iter().map(|s| Prop::Str(ArcStr::from(*s))))
+        Prop::list(xs.iter().map(|s| Prop::Str(ArcStr::from(*s)))).unwrap()
     }
     fn list_bool(xs: &[bool]) -> Prop {
-        Prop::list(xs.iter().copied().map(Prop::Bool))
+        Prop::list(xs.iter().copied().map(Prop::Bool)).unwrap()
     }
 
     #[inline]
     fn list(v: Vec<Prop>) -> Prop {
-        Prop::List(v.into())
+        Prop::List(v.try_into().unwrap())
     }
 
     /// Writes a set of node temporal properties and node metadata to the given graph.

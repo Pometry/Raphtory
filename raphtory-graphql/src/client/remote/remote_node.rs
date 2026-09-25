@@ -13,8 +13,8 @@ use crate::{
         remote_nodes::RemoteNodes,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_gid, expect_i64, expect_optional_event_time, expect_optional_i64,
-            expect_optional_string, expect_string, Transport,
+            expect_gid, expect_optional_event_time, expect_optional_string, expect_optional_typed,
+            expect_typed, Transport,
         },
         ClientError,
     },
@@ -105,7 +105,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::Degree {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "degree")
+        expect_typed(self.transport.execute(&op).await?, "degree")
     }
 
     /// Terminal: node in-degree. Fires one RPC.
@@ -113,7 +113,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::InDegree {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "inDegree")
+        expect_typed(self.transport.execute(&op).await?, "inDegree")
     }
 
     /// Terminal: node out-degree. Fires one RPC.
@@ -121,7 +121,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::OutDegree {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "outDegree")
+        expect_typed(self.transport.execute(&op).await?, "outDegree")
     }
 
     /// Terminal: node name. Fires one RPC.
@@ -129,7 +129,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::Name {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "name")
+        expect_typed(self.transport.execute(&op).await?, "name")
     }
 
     /// Terminal: earliest event timestamp on this node under the current view.
@@ -189,7 +189,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::IsActive {
             input: self.expr.clone(),
         });
-        expect_bool(self.transport.execute(&op).await?, "isActive")
+        expect_typed(self.transport.execute(&op).await?, "isActive")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -198,7 +198,7 @@ impl RemoteNode {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -207,7 +207,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: count of temporal edge events on this node. Fires one RPC.
@@ -215,7 +215,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::EdgeHistoryCount {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "edgeHistoryCount")
+        expect_typed(self.transport.execute(&op).await?, "edgeHistoryCount")
     }
 
     /// Terminal: first update timestamp on this node under the current view.
@@ -224,7 +224,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::FirstUpdate {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "firstUpdate")
+        expect_optional_typed(self.transport.execute(&op).await?, "firstUpdate")
     }
 
     /// Terminal: last update timestamp on this node under the current view.
@@ -233,7 +233,7 @@ impl RemoteNode {
         let op = Op::Read(ReadExpr::LastUpdate {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "lastUpdate")
+        expect_optional_typed(self.transport.execute(&op).await?, "lastUpdate")
     }
 
     /// Returns the "path from node" collection of this node's neighbours

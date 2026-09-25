@@ -4,7 +4,10 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{
+        meta::Meta,
+        prop::{Prop, PropArray, PropList},
+    },
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
@@ -81,16 +84,22 @@ pub(crate) fn extract_properties<P>(
                 let mut prop_vec = vec![];
                 prop_view.iter().for_each(|(time, prop)| {
                     let prop_time = Prop::DTime(time.dt().unwrap());
-                    prop_vec.push(Prop::List(vec![prop_time, prop].into()))
+                    prop_vec.push(Prop::List(PropArray::Vec(PropList::new_untyped(
+                        [prop_time, prop].into(),
+                    ))))
                 });
-                let wrapped = Prop::from(prop_vec);
+                let wrapped = Prop::List(PropArray::Vec(PropList::new_untyped(prop_vec.into())));
                 let _ = properties_map.insert(column_name, wrapped);
             } else {
                 let vec_props = prop_view
                     .iter()
-                    .map(|(k, v)| Prop::from(vec![Prop::from(k.t()), v]))
+                    .map(|(k, v)| {
+                        Prop::List(PropArray::Vec(PropList::new_untyped(
+                            [Prop::from(k.t()), v].into(),
+                        )))
+                    })
                     .collect_vec();
-                let wrapped = Prop::List(vec_props.into());
+                let wrapped = Prop::List(PropArray::Vec(PropList::new_untyped(vec_props.into())));
                 let _ = properties_map.insert(column_name, wrapped);
             }
         });
@@ -180,13 +189,11 @@ pub(crate) fn create_row(
         }
 
         if convert_datetime {
-            let update_list = history
-                .iter()
-                .map(|val| Prop::DTime(val.dt().unwrap()))
-                .collect_vec();
-            row.push(Prop::from(update_list));
+            let update_list = history.iter().map(|val| Prop::DTime(val.dt().unwrap()));
+            row.push(Prop::list(update_list).expect("history has correct type"));
         } else {
-            let update_list = Prop::from(history.iter().map(|&val| Prop::from(val)).collect_vec());
+            let update_list = Prop::list(history.iter().map(|&val| Prop::from(val)))
+                .expect("history has correct type");
             row.push(update_list);
         }
         vec![row]
