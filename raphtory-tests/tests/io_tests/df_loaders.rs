@@ -1296,10 +1296,8 @@ mod parquet_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let graph_f = edges.into();
         let g = Graph::from(build_graph(&graph_f));
-        dbg!(&g);
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
-        dbg!(&g2);
         assert_eq!(g2.valid_layers("b").count_edges(), 1);
         assert_eq!(g2.valid_layers("a").count_edges(), 1);
 

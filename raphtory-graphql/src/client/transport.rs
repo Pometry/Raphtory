@@ -178,7 +178,6 @@ pub(crate) fn expect_typed_list<V: DeserializeOwned>(
     v: JsonValue,
     context: &str,
 ) -> Result<Vec<V>, ClientError> {
-    dbg!(&v);
     let results = expect_list(v, context)?;
     results
         .into_iter()
@@ -190,7 +189,6 @@ pub(crate) fn expect_tagged_typed_list<V: DeserializeOwned>(
     v: JsonValue,
     context: &str,
 ) -> Result<Vec<V>, ClientError> {
-    dbg!(&v);
     let results = expect_list(v, context)?;
     results
         .into_iter()
@@ -206,7 +204,6 @@ pub(crate) fn expect_tagged_nested_typed_list<V: DeserializeOwned>(
     v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<V>>, ClientError> {
-    dbg!(&v);
     let results = expect_list(v, context)?;
     results
         .into_iter()
@@ -235,7 +232,6 @@ pub(crate) fn expect_nested_typed_list<V: DeserializeOwned>(
     v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<V>>, ClientError> {
-    dbg!(&v);
     let results = expect_list(v, context)?;
     results
         .into_iter()
@@ -287,7 +283,6 @@ pub(crate) fn expect_nested_columnar_property_list(
     num_cols: usize,
     context: &str,
 ) -> Result<Vec<Vec<Vec<Option<Prop>>>>, ClientError> {
-    dbg!(&v);
     let result = expect_list(v, context)?;
     let mut columns: Vec<_> = (0..num_cols)
         .map(|_| (0..result.len()).map(|_| Vec::new()).collect::<Vec<_>>())
@@ -640,7 +635,6 @@ pub(crate) fn expect_nested_edge_list(
     v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
-    dbg!(&v);
     let records = expect_list(v, context)?;
     records
         .into_iter()

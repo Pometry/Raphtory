@@ -554,7 +554,6 @@ impl GraphqlTransport {
             .client
             .query(&query, JsonValue::Object(variables))
             .await?;
-        dbg!(&res);
         parse_read(expr, res)
     }
 }
