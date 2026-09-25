@@ -8,7 +8,7 @@ use raphtory::{
     },
     db::{
         api::view::{GraphViewOps, NodeViewOps, Select, StaticGraphViewOps},
-        graph::views::filter::model::{graph_filter::GraphFilter, EdgeViewFilterOps, ViewWrapOps},
+        graph::views::filter::model::{graph_filter::GraphFilter, EdgeViewFilterOps},
         task::{
             context::Context,
             edge::eval_edge::EvalEdgeView,

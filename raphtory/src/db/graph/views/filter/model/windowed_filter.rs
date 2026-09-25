@@ -15,7 +15,7 @@ use crate::{
                     },
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
+                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree,
                     InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
                     InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
                     TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
@@ -34,6 +34,11 @@ use raphtory_api::core::{
 };
 use std::{fmt, fmt::Display};
 
+/// A predicate read within a window: `Node.window(0, 3).property("p")`. The
+/// window is the scope the inner filter is evaluated in and restricts nothing
+/// else — the graph-level `Graph.window(0, 3)` is a [`GraphFilter`] op.
+///
+/// [`GraphFilter`]: crate::db::graph::views::filter::model::graph_filter::GraphFilter
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Windowed<M> {
     pub start: EventTime,
@@ -138,15 +143,7 @@ impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
         if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
             return Ok(FilterTree::ExplodedEdge(f));
         }
-        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
-            return Err(GraphError::NotSupported);
-        };
-        let mut chain = vec![GraphViewOp::Window {
-            start: self.start,
-            end: self.end,
-        }];
-        chain.extend(ops);
-        Ok(FilterTree::View(chain))
+        Err(GraphError::NotSupported)
     }
 
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
