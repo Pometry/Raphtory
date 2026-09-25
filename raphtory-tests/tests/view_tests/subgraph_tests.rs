@@ -164,6 +164,7 @@ fn materialize_proptest_failure() {
     let graph = Graph::from(build_graph(&graph_f));
     let subgraph = graph.subgraph([1]);
     let nodes = subgraph.default_layer().nodes().id().collect_vec();
+    assert_eq!(nodes, []);
     assert_eq!(subgraph.default_layer().count_nodes(), 0);
     assert_eq!(subgraph.count_edges(), 1);
     let materialised = subgraph.materialize().unwrap();
