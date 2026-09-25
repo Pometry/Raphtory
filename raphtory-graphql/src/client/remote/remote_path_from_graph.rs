@@ -8,11 +8,10 @@ use crate::{
         remote_node::RemoteNode,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_i64, expect_nested_gid_list, expect_nested_node_type,
-            expect_nested_optional_event_time_list, expect_nested_string_list,
-            expect_nested_typed_list, expect_optional_event_time, expect_optional_i64,
+            expect_nested_gid_list, expect_nested_optional_event_time_list,
+            expect_nested_typed_list, expect_optional_event_time, expect_optional_typed,
             expect_string_list, expect_tagged_nested_tagged_typed_list,
-            expect_tagged_nested_typed_list, Transport,
+            expect_tagged_nested_typed_list, expect_typed, Transport,
         },
         ClientError,
     },
@@ -382,7 +381,7 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -391,7 +390,7 @@ impl RemotePathFromGraph {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -400,7 +399,7 @@ impl RemotePathFromGraph {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Returns a single combined event history for all nodes in this view —

@@ -16,8 +16,8 @@ use raphtory_api::core::{
     },
     storage::timeindex::{AsTime, EventTime},
 };
-use serde::{de::DeserializeOwned, Deserialize};
-use serde_json::Value;
+use serde::de::DeserializeOwned;
+use serde_json::Value as JsonValue;
 use std::fmt::Display;
 
 /// Executes a graph operation against a remote server.
@@ -37,7 +37,7 @@ use std::fmt::Display;
 /// constructing child references (`RemoteGraph::node`, etc.).
 #[async_trait::async_trait]
 pub trait Transport: Send + Sync {
-    async fn execute(&self, op: &Op) -> Result<serde_json::Value, ClientError>;
+    async fn execute(&self, op: &Op) -> Result<JsonValue, ClientError>;
 }
 
 // ============ Result decoding ============
@@ -58,12 +58,15 @@ fn unexpected_err(context: &str, err: impl Display) -> ClientError {
 }
 
 /// The shared "shape mismatch" decode error.
-fn unexpected_value(context: &str, value: &serde_json::Value) -> ClientError {
+fn unexpected_value(context: &str, value: &JsonValue) -> ClientError {
     ClientError::InvalidResponse(format!("`{context}` returned unexpected value: {value}"))
 }
 
 /// Cast a required scalar.
-fn cast<T: DeserializeOwned>(v: serde_json::Value, context: &str) -> Result<T, ClientError> {
+pub(crate) fn expect_typed<T: DeserializeOwned>(
+    v: JsonValue,
+    context: &str,
+) -> Result<T, ClientError> {
     T::deserialize(v).map_err(|err| unexpected_err(context, err))
 }
 
@@ -73,31 +76,20 @@ fn cast<T: DeserializeOwned>(v: serde_json::Value, context: &str) -> Result<T, C
 // unwrap its pieces with a context for the error, mirroring the `expect_*`
 // family above, which does the same for whole `Transport::execute` results.
 
-/// Unwrap a `Transport::execute` result expecting a `Str` scalar.
-pub(crate) fn expect_string(
-    result: serde_json::Value,
-    context: &str,
-) -> Result<String, ClientError> {
-    cast(result, context)
-}
-
-pub(crate) fn map_optional<R>(
-    result: serde_json::Value,
-    map: impl FnOnce(serde_json::Value) -> Result<R, ClientError>,
+fn map_optional<R>(
+    result: JsonValue,
+    map: impl FnOnce(JsonValue) -> Result<R, ClientError>,
 ) -> Result<Option<R>, ClientError> {
     match result {
-        serde_json::Value::Null => Ok(None),
+        JsonValue::Null => Ok(None),
         v => Ok(Some(map(v)?)),
     }
 }
 
 /// Unwrap a `List` field of a decoded record.
-pub(crate) fn expect_list(
-    result: serde_json::Value,
-    context: &str,
-) -> Result<Vec<serde_json::Value>, ClientError> {
+pub(crate) fn expect_list(result: JsonValue, context: &str) -> Result<Vec<JsonValue>, ClientError> {
     match result {
-        serde_json::Value::Array(items) => Ok(items),
+        JsonValue::Array(items) => Ok(items),
         _ => Err(ClientError::InvalidResponse(format!(
             "`{}` expected list",
             context
@@ -106,60 +98,40 @@ pub(crate) fn expect_list(
 }
 
 /// Look up a required key in a decoded `Prop::Map` record.
-pub(crate) fn map_extract(
-    map: &mut serde_json::value::Map<String, serde_json::Value>,
+pub(crate) fn extract_element(
+    map: &mut serde_json::value::Map<String, JsonValue>,
     key: &str,
-) -> Result<serde_json::Value, ClientError> {
+) -> Result<JsonValue, ClientError> {
     map.remove(key)
         .ok_or_else(|| ClientError::InvalidResponse(format!("record missing `{}`", key)))
 }
 
-/// Unwrap a `Transport::execute` result expecting a `i64` scalar.
-/// `context` is used for the error message if the shape doesn't match.
-pub(crate) fn expect_i64(v: serde_json::Value, context: &str) -> Result<i64, ClientError> {
-    cast(v, context)
-}
-
-/// Unwrap a `Transport::execute` result expecting a nullable `i64`
-/// scalar. `Ok(None)` from the transport means the server returned JSON null
-/// (e.g. earliest_time on an empty graph); `Ok(Some(Prop::I64(n)))` is the
-/// happy path. Wrong-type payloads become an error.
-pub(crate) fn expect_optional_i64(
-    v: serde_json::Value,
+/// Expect an optional value (helps with type inference)
+pub(crate) fn expect_optional_typed<V: DeserializeOwned>(
+    v: JsonValue,
     context: &str,
-) -> Result<Option<i64>, ClientError> {
-    cast(v, context)
-}
-
-/// Unwrap a `Transport::execute` result expecting a `bool` scalar.
-pub(crate) fn expect_bool(v: serde_json::Value, context: &str) -> Result<bool, ClientError> {
-    cast(v, context)
+) -> Result<Option<V>, ClientError> {
+    expect_typed(v, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a nullable `str`
 /// scalar. `Ok(None)` means the server returned JSON null (e.g. `node_type`
 /// when the type isn't set).
 pub(crate) fn expect_optional_string(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Option<String>, ClientError> {
-    cast(v, context)
+    expect_typed(v, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a list of strings (e.g. the result of `.ids()` on a collection).
-pub(crate) fn expect_string_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<String>, ClientError> {
-    cast(v, context)
+pub(crate) fn expect_string_list(v: JsonValue, context: &str) -> Result<Vec<String>, ClientError> {
+    expect_typed(v, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of node ids
 /// (e.g. the result of `.ids()` on a collection) — typed, not stringified.
-pub(crate) fn expect_gid_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<GID>, ClientError> {
+pub(crate) fn expect_gid_list(v: JsonValue, context: &str) -> Result<Vec<GID>, ClientError> {
     let records = expect_list(v, context)?;
     records
         .into_iter()
@@ -168,10 +140,7 @@ pub(crate) fn expect_gid_list(
 }
 
 /// Expect an edge id result
-pub(crate) fn expect_edge_id(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<(GID, GID), ClientError> {
+pub(crate) fn expect_edge_id(v: JsonValue, context: &str) -> Result<(GID, GID), ClientError> {
     let res = expect_list(v, context)?;
     let mut values = res.into_iter().map(|v| expect_gid(v, context));
     let src = values
@@ -189,7 +158,7 @@ pub(crate) fn expect_edge_id(
 /// Nested variant of `expect_gid_list` — e.g. `.ids()` on a `PathFromGraph`
 /// collection, where each inner list holds the neighbours of one source node.
 pub(crate) fn expect_nested_gid_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<GID>>, ClientError> {
     let v = expect_list(v, context)?;
@@ -199,66 +168,33 @@ pub(crate) fn expect_nested_gid_list(
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
-/// `Prop::List` of `Prop::Str` (a nested list of node ids) — e.g. the result
-/// of `.ids()` on a `PathFromGraph` collection, where each inner list holds
-/// the neighbours of one source node.
-pub(crate) fn expect_nested_string_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<Vec<String>>, ClientError> {
-    dbg!(&v);
-    cast(v, context)
-}
-
-/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
-/// `Prop::Bool`s — e.g. the per-edge `is_valid()` / `is_active()` accessors
-/// on a flat `Edges` collection.
-pub(crate) fn expect_bool_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<bool>, ClientError> {
-    cast(v, context)
-}
-
-/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
-/// `Prop::List` of `Prop::Bool` (a nested list of booleans) — e.g. the
-/// per-edge `is_valid()` accessor on a `NestedEdges` collection, where each
-/// inner list holds one source node's incident edges.
-pub(crate) fn expect_nested_bool_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<Vec<bool>>, ClientError> {
-    cast(v, context)
-}
-
-/// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::I64`s. Used by sub-container list/page terminals when the parent
 /// is `Timestamps`, `EventIds`, or `Intervals`.
-pub(crate) fn expect_i64_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<i64>, ClientError> {
-    cast(v, context)
+pub(crate) fn expect_i64_list(v: JsonValue, context: &str) -> Result<Vec<i64>, ClientError> {
+    expect_typed(v, context)
 }
 
 pub(crate) fn expect_typed_list<V: DeserializeOwned>(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<V>, ClientError> {
-    dbg!(&v);
-    let results = expect_list(v, context)?;
-    results.into_iter().map(|v| cast(v, context)).collect()
-}
-
-pub(crate) fn expect_tagged_typed_list<V: DeserializeOwned>(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<V>, ClientError> {
     dbg!(&v);
     let results = expect_list(v, context)?;
     results
         .into_iter()
-        .map(|v| cast(into_element(v, context, context)?, context))
+        .map(|v| expect_typed(v, context))
+        .collect()
+}
+
+pub(crate) fn expect_tagged_typed_list<V: DeserializeOwned>(
+    v: JsonValue,
+    context: &str,
+) -> Result<Vec<V>, ClientError> {
+    dbg!(&v);
+    let results = expect_list(v, context)?;
+    results
+        .into_iter()
+        .map(|v| expect_typed(into_element(v, context, context)?, context))
         .collect()
 }
 
@@ -267,7 +203,7 @@ pub(crate) fn expect_tagged_typed_list<V: DeserializeOwned>(
 /// of `.degree()` on a `PathFromGraph` collection, where each inner list holds
 /// the per-node degrees of one source node's neighbours.
 pub(crate) fn expect_tagged_nested_typed_list<V: DeserializeOwned>(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<V>>, ClientError> {
     dbg!(&v);
@@ -279,7 +215,7 @@ pub(crate) fn expect_tagged_nested_typed_list<V: DeserializeOwned>(
 }
 
 pub(crate) fn expect_tagged_nested_tagged_typed_list<V: DeserializeOwned>(
-    v: serde_json::Value,
+    v: JsonValue,
     outer_context: &str,
     inner_context: &str,
 ) -> Result<Vec<Vec<V>>, ClientError> {
@@ -296,7 +232,7 @@ pub(crate) fn expect_tagged_nested_tagged_typed_list<V: DeserializeOwned>(
 }
 
 pub(crate) fn expect_nested_typed_list<V: DeserializeOwned>(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<V>>, ClientError> {
     dbg!(&v);
@@ -310,7 +246,7 @@ pub(crate) fn expect_nested_typed_list<V: DeserializeOwned>(
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// `Prop::Map({key, value})` records — used by `PropertyValues`.
 pub(crate) fn expect_property_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<(String, Prop)>, ClientError> {
     let result = expect_list(v, context)?;
@@ -326,7 +262,7 @@ pub(crate) fn expect_property_list(
 /// The wire carries one aliased field per requested column, so the response is
 /// already column-shaped — there is no key to match and nothing to pivot.
 pub(crate) fn expect_columnar_property_list(
-    v: serde_json::Value,
+    v: JsonValue,
     num_cols: usize,
     context: &str,
 ) -> Result<Vec<Vec<Option<Prop>>>, ClientError> {
@@ -335,7 +271,7 @@ pub(crate) fn expect_columnar_property_list(
         .map(|_| Vec::with_capacity(result.len()))
         .collect();
     for row in result {
-        let mut properties = expect_map(into_element(row, context, context)?, context)?;
+        let properties = expect_map(into_element(row, context, context)?, context)?;
         for (v, column) in properties.into_values().zip(columns.iter_mut()) {
             let prop = expect_optional_prop(v, "value")?;
             column.push(prop);
@@ -347,7 +283,7 @@ pub(crate) fn expect_columnar_property_list(
 /// Nested variant: a `Prop::List` of columns, each a `Prop::List` of sources,
 /// each a `Prop::List` of per-member optionals.
 pub(crate) fn expect_nested_columnar_property_list(
-    v: serde_json::Value,
+    v: JsonValue,
     num_cols: usize,
     context: &str,
 ) -> Result<Vec<Vec<Vec<Option<Prop>>>>, ClientError> {
@@ -359,7 +295,7 @@ pub(crate) fn expect_nested_columnar_property_list(
     for (i, outer_row) in result.into_iter().enumerate() {
         let inner_row = expect_list(into_element(outer_row, "list", context)?, context)?;
         for row in inner_row {
-            let mut properties = expect_map(into_element(row, context, context)?, context)?;
+            let properties = expect_map(into_element(row, context, context)?, context)?;
             for (v, column) in properties.into_values().zip(columns.iter_mut()) {
                 let prop = expect_optional_prop(v, "value")?;
                 column[i].push(prop);
@@ -370,38 +306,35 @@ pub(crate) fn expect_nested_columnar_property_list(
 }
 
 fn expect_prop_key_value_pair(
-    map: serde_json::Value,
+    map: JsonValue,
     context: &str,
 ) -> Result<(String, Prop), ClientError> {
     let mut map = expect_map(map, context)?;
-    let dtype = expect_prop_type(map_extract(&mut map, "dtype")?, context)?;
-    let name = expect_string(map_extract(&mut map, "key")?, context)?;
-    let value = map_extract(&mut map, "value")?;
+    let dtype = expect_prop_type(extract_element(&mut map, "dtype")?, context)?;
+    let name = expect_typed(extract_element(&mut map, "key")?, context)?;
+    let value = extract_element(&mut map, "value")?;
     let prop = json_to_prop_typed(&dtype, value)?;
     Ok((name, prop))
 }
 
 /// Decode a `{value, dtype?}` record's value, type-directed when the server
 /// sent a `dtype` sibling (older servers may not).
-pub(crate) fn expect_prop(obj: serde_json::Value, context: &str) -> Result<Prop, ClientError> {
+pub(crate) fn expect_prop(obj: JsonValue, context: &str) -> Result<Prop, ClientError> {
     let mut map = expect_map(obj, context)?;
-    let dtype = match map_extract(&mut map, "dtype") {
+    let dtype = match extract_element(&mut map, "dtype") {
         Ok(v) => expect_prop_type(v, context)?,
         Err(_) => PropType::Empty, // untyped conversion
     };
-    let value = map_extract(&mut map, context)?;
+    let value = extract_element(&mut map, context)?;
     json_to_prop_typed(&dtype, value)
 }
 
-pub(crate) fn expect_prop_type(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<PropType, ClientError> {
-    cast(v, context)
+pub(crate) fn expect_prop_type(v: JsonValue, context: &str) -> Result<PropType, ClientError> {
+    expect_typed(v, context)
 }
 
 pub(crate) fn expect_optional_prop_type(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Option<PropType>, ClientError> {
     map_optional(v, |v| {
@@ -413,17 +346,17 @@ pub(crate) fn expect_optional_prop_type(
 /// `Prop` scalar. Used by TemporalProperty terminals like `at` / `latest`
 /// that return an arbitrary property value or null.
 pub(crate) fn expect_optional_prop(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Option<Prop>, ClientError> {
     match v {
-        serde_json::Value::Null => Ok(None),
-        serde_json::Value::Object(mut map) => match map_extract(&mut map, context) {
+        JsonValue::Null => Ok(None),
+        JsonValue::Object(mut map) => match extract_element(&mut map, context) {
             Ok(v) => {
                 if v.is_null() {
                     return Ok(None);
                 }
-                let dtype = match map_extract(&mut map, "dtype") {
+                let dtype = match extract_element(&mut map, "dtype") {
                     Ok(v) => expect_prop_type(v, context)?,
                     Err(_) => PropType::Empty, // untyped conversion
                 };
@@ -439,24 +372,24 @@ pub(crate) fn expect_optional_prop(
 /// (a `Prop::Map` with `time` and `value` keys). Used by TemporalProperty
 /// stats returning an optional `(time, value)` pair.
 pub(crate) fn expect_optional_property_tuple(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Option<(EventTime, Prop)>, ClientError> {
     let mut map = expect_map(v, context)?;
-    let dtype = expect_prop_type(map_extract(&mut map, "dtype")?, context)?;
-    map_optional(map_extract(&mut map, context)?, |v| {
+    let dtype = expect_prop_type(extract_element(&mut map, "dtype")?, context)?;
+    map_optional(extract_element(&mut map, context)?, |v| {
         expect_property_tuple(v, &dtype, context)
     })
 }
 
 /// Unwrap a list of property tuples (used by `orderedDedupe`).
 pub(crate) fn expect_property_tuple_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<RemotePropertyTuple>, ClientError> {
     let mut map = expect_map(v, context)?;
-    let dtype = expect_prop_type(map_extract(&mut map, "dtype")?, context)?;
-    let results = expect_list(map_extract(&mut map, context)?, context)?;
+    let dtype = expect_prop_type(extract_element(&mut map, "dtype")?, context)?;
+    let results = expect_list(extract_element(&mut map, context)?, context)?;
     results
         .into_iter()
         .map(|v| {
@@ -467,13 +400,13 @@ pub(crate) fn expect_property_tuple_list(
 }
 
 fn expect_property_tuple(
-    map: serde_json::Value,
+    map: JsonValue,
     dtype: &PropType,
     context: &str,
 ) -> Result<(EventTime, Prop), ClientError> {
     let mut map = expect_map(map, context)?;
-    let time = expect_event_time(map_extract(&mut map, "time")?, context)?;
-    let value = json_to_prop_typed(dtype, map_extract(&mut map, "value")?)?;
+    let time = expect_event_time(extract_element(&mut map, "time")?, context)?;
+    let value = json_to_prop_typed(dtype, extract_element(&mut map, "value")?)?;
     Ok((time, value))
 }
 
@@ -485,21 +418,21 @@ fn expect_property_tuple(
 ///
 /// The datetime is *not* read from the wire — `EventTime::dt()` derives it from
 /// the timestamp locally, so the server never renders one.
-fn expect_event_time(map: serde_json::Value, context: &str) -> Result<EventTime, ClientError> {
+fn expect_event_time(map: JsonValue, context: &str) -> Result<EventTime, ClientError> {
     let mut map = expect_map(map, context)?;
-    let timestamp = cast(map_extract(&mut map, "timestamp")?, context)?;
-    let event_id = cast(map_extract(&mut map, "eventId")?, context)?;
+    let timestamp = expect_typed(extract_element(&mut map, "timestamp")?, context)?;
+    let event_id = expect_typed(extract_element(&mut map, "eventId")?, context)?;
     Ok(EventTime::new(timestamp, event_id))
 }
 
 ///
 pub(crate) fn expect_typed_prop_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Prop>, ClientError> {
     let mut map = expect_map(v, context)?;
-    let dtype = expect_prop_type(map_extract(&mut map, "dtype")?, context)?;
-    let values = expect_list(map_extract(&mut map, context)?, context)?;
+    let dtype = expect_prop_type(extract_element(&mut map, "dtype")?, context)?;
+    let values = expect_list(extract_element(&mut map, context)?, context)?;
     values
         .into_iter()
         .map(|v| json_to_prop_typed(&dtype, v))
@@ -508,10 +441,7 @@ pub(crate) fn expect_typed_prop_list(
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of
 /// arbitrary polymorphic `Prop`s.
-pub(crate) fn expect_prop_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<Prop>, ClientError> {
+pub(crate) fn expect_prop_list(v: JsonValue, context: &str) -> Result<Vec<Prop>, ClientError> {
     let result = expect_list(v, context)?;
     result
         .into_iter()
@@ -524,26 +454,17 @@ pub(crate) fn expect_prop_list(
 /// transport returns `Some(Prop::Map({timestamp, datetime, eventId}))` for a
 /// present value, or `None` (JSON null) for an absent one (e.g. empty graph).
 pub(crate) fn expect_optional_event_time(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Option<EventTime>, ClientError> {
     let mut map = expect_map(v, context)?;
-    let timestamp = match expect_optional_i64(map_extract(&mut map, "timestamp")?, context)? {
+    let timestamp = match expect_optional_typed(extract_element(&mut map, "timestamp")?, context)? {
         None => return Ok(None),
         Some(v) => v,
     };
 
-    let event_id = cast(map_extract(&mut map, "eventId")?, context)?;
+    let event_id = expect_typed(extract_element(&mut map, "eventId")?, context)?;
     Ok(Some(EventTime::new(timestamp, event_id)))
-}
-
-/// Unwrap a `Transport::execute` result expecting a nullable `Prop::F64`
-/// scalar. Used by `IntervalsMean`.
-pub(crate) fn expect_optional_f64(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Option<f64>, ClientError> {
-    cast(v, context)
 }
 
 /// Unwrap a `Transport::execute` result expecting a `HistoryList` /
@@ -551,11 +472,11 @@ pub(crate) fn expect_optional_f64(
 /// each map may contain `timestamp` (i64), `dt` (String), and `eventId`
 /// (i64). Missing keys decode to `None` on the corresponding field.
 pub(crate) fn expect_event_time_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<EventTime>, ClientError> {
     match v {
-        serde_json::Value::Array(items) => items
+        JsonValue::Array(items) => items
             .into_iter()
             .map(|p| expect_event_time(p, context))
             .collect(),
@@ -566,17 +487,14 @@ pub(crate) fn expect_event_time_list(
     }
 }
 
-pub(crate) fn expect_edge_record(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<(GID, GID), ClientError> {
+pub(crate) fn expect_edge_record(v: JsonValue, context: &str) -> Result<(GID, GID), ClientError> {
     let mut map = expect_map(v, context)?;
     let src = expect_gid(
-        into_element(map_extract(&mut map, "src")?, "id", context)?,
+        into_element(extract_element(&mut map, "src")?, "id", context)?,
         context,
     )?;
     let dst = expect_gid(
-        into_element(map_extract(&mut map, "dst")?, "id", context)?,
+        into_element(extract_element(&mut map, "dst")?, "id", context)?,
         context,
     )?;
     Ok((src, dst))
@@ -585,7 +503,7 @@ pub(crate) fn expect_edge_record(
 /// Unwrap a `Transport::execute` result expecting an EdgesList terminal — a
 /// `Prop::List` of 2-element `Prop::List([src, dst])` typed-id pairs.
 pub(crate) fn expect_edge_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<(GID, GID)>, ClientError> {
     let records = expect_list(v, context)?;
@@ -595,75 +513,60 @@ pub(crate) fn expect_edge_list(
         .collect()
 }
 
-pub(crate) fn expect_edge_id_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<(GID, GID)>, ClientError> {
-    let records = expect_list(v, context)?;
-    records
-        .into_iter()
-        .map(|v| expect_edge_id(v, context))
-        .collect()
-}
-
 /// One member of an exploded-edge fetch: `(src, dst, time, event_id,
 /// layer_name)` — everything needed to pin a handle to the event.
 pub(crate) type ExplodedEdgeRecord = (GID, GID, i64, i64, String);
 
 fn expect_map(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
-) -> Result<serde_json::value::Map<String, serde_json::Value>, ClientError> {
+) -> Result<serde_json::value::Map<String, JsonValue>, ClientError> {
     match v {
-        serde_json::Value::Object(map) => Ok(map),
+        JsonValue::Object(map) => Ok(map),
         v => Err(unexpected_value(context, &v)),
     }
 }
 
-fn into_element(
-    v: serde_json::Value,
-    key: &str,
-    context: &str,
-) -> Result<serde_json::Value, ClientError> {
+fn into_element(v: JsonValue, key: &str, context: &str) -> Result<JsonValue, ClientError> {
     let mut value = expect_map(v, context)?;
-    map_extract(&mut value, key)
+    extract_element(&mut value, key)
 }
 
-pub(crate) fn expect_gid(v: serde_json::Value, context: &str) -> Result<GID, ClientError> {
+pub(crate) fn expect_gid(v: JsonValue, context: &str) -> Result<GID, ClientError> {
     let gid = match v {
-        serde_json::Value::Number(number) => GID::U64(
+        JsonValue::Number(number) => GID::U64(
             number
                 .as_u64()
                 .ok_or_else(|| unexpected_err(context, "invalid numeric id"))?,
         ),
-        serde_json::Value::String(v) => GID::Str(v),
+        JsonValue::String(v) => GID::Str(v),
         v => Err(unexpected_value(context, &v))?,
     };
     Ok(gid)
 }
 
 fn expect_exploded_edge_record(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<ExplodedEdgeRecord, ClientError> {
     let mut record = expect_map(v, context)?;
     let src = expect_gid(
-        into_element(map_extract(&mut record, "src")?, "id", context)?,
+        into_element(extract_element(&mut record, "src")?, "id", context)?,
         context,
     )?;
     let dst = expect_gid(
-        into_element(map_extract(&mut record, "dst")?, "id", context)?,
+        into_element(extract_element(&mut record, "dst")?, "id", context)?,
         context,
     )?;
-    let time = expect_event_time(map_extract(&mut record, "time")?, context)?;
-    let layer_name = expect_string(map_extract(&mut record, "layerName")?, context)?;
+    let time = expect_event_time(extract_element(&mut record, "time")?, context)?;
+    let layer_name = expect_typed(extract_element(&mut record, "layerName")?, context)?;
     Ok((src, dst, time.t(), time.i() as i64, layer_name))
 }
 
 /// Unwrap a `Transport::execute` result expecting a `Prop::List` of exploded
 /// edge records. Used by `.collect()` on an exploded `Edges` collection.
 pub(crate) fn expect_exploded_edge_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<ExplodedEdgeRecord>, ClientError> {
     expect_list(v, context)?
@@ -673,19 +576,19 @@ pub(crate) fn expect_exploded_edge_list(
 }
 
 fn expect_layered_edge_record(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<(GID, GID, String), ClientError> {
     let mut record = expect_map(v, context)?;
     let src = expect_gid(
-        into_element(map_extract(&mut record, "src")?, "id", context)?,
+        into_element(extract_element(&mut record, "src")?, "id", context)?,
         context,
     )?;
     let dst = expect_gid(
-        into_element(map_extract(&mut record, "dst")?, "id", context)?,
+        into_element(extract_element(&mut record, "dst")?, "id", context)?,
         context,
     )?;
-    let layer_name = expect_string(map_extract(&mut record, "layerName")?, context)?;
+    let layer_name = expect_typed(extract_element(&mut record, "layerName")?, context)?;
     Ok((src, dst, layer_name))
 }
 
@@ -693,7 +596,7 @@ fn expect_layered_edge_record(
 /// `Prop::List` of `[src, dst, layer]` inner lists (no time). Used by
 /// `.collect()` on a layer-exploded `Edges` collection.
 pub(crate) fn expect_exploded_layers_edge_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<(GID, GID, String)>, ClientError> {
     let records = expect_list(v, context)?;
@@ -706,7 +609,7 @@ pub(crate) fn expect_exploded_layers_edge_list(
 /// Nested variant — one inner list of `[src, dst, layer]` records per source
 /// node. Used by `.collect()` on a layer-exploded `NestedEdges` collection.
 pub(crate) fn expect_nested_exploded_layers_edge_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<(GID, GID, String)>>, ClientError> {
     let records = expect_list(v, context)?;
@@ -719,7 +622,7 @@ pub(crate) fn expect_nested_exploded_layers_edge_list(
 /// Nested variant of `expect_exploded_edge_list` — one inner list per source
 /// node. Used by `.collect()` on an exploded `NestedEdges` collection.
 pub(crate) fn expect_nested_exploded_edge_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<ExplodedEdgeRecord>>, ClientError> {
     let records = expect_list(v, context)?;
@@ -734,7 +637,7 @@ pub(crate) fn expect_nested_exploded_edge_list(
 /// inner list per source node. Used by `.collect()` on a `NestedEdges`
 /// collection. Mirrors `expect_edge_list`, one level deeper.
 pub(crate) fn expect_nested_edge_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
     dbg!(&v);
@@ -749,7 +652,7 @@ pub(crate) fn expect_nested_edge_list(
 /// `Prop::List` where each element is a `Prop::List` of 0 (`None`) or 1
 /// (`Some`) `Prop::Str`. Used by `Nodes.node_type` / `PathFromNode.node_type`.
 pub(crate) fn expect_node_type_list(
-    v: serde_json::Value,
+    v: JsonValue,
     context: &str,
 ) -> Result<Vec<Option<String>>, ClientError> {
     let records = expect_list(v, context)?;
@@ -759,24 +662,11 @@ pub(crate) fn expect_node_type_list(
         .collect()
 }
 
-/// Nested form of `expect_optional_string_list` → `Vec<Vec<Option<String>>>`
-/// (one inner list per source node). Used by `PathFromGraph.node_type`.
-pub(crate) fn expect_nested_node_type(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<Vec<Option<String>>>, ClientError> {
-    let records = expect_list(v, context)?;
-    records
-        .into_iter()
-        .map(|v| expect_node_type_list(into_element(v, "list", context)?, context))
-        .collect()
-}
-
 /// Unwrap a columnar accessor producing `Vec<Option<EventTime>>` — a flat
 /// `Prop::List` where each element is a `Prop::List` of 0 (`None`) or 1
 /// (`Some`) `Prop::Map`. Used by `Edges.earliest_time` / `latest_time` / `time`.
 pub(crate) fn expect_optional_event_time_list(
-    v: serde_json::Value,
+    v: JsonValue,
     inner_key: &str,
     context: &str,
 ) -> Result<Vec<Option<EventTime>>, ClientError> {
@@ -790,7 +680,7 @@ pub(crate) fn expect_optional_event_time_list(
 /// Nested form of `expect_optional_event_time_list` →
 /// `Vec<Vec<Option<EventTime>>>`. Used by `NestedEdges.earliest_time` etc.
 pub(crate) fn expect_nested_optional_event_time_list(
-    v: serde_json::Value,
+    v: JsonValue,
     inner_key: &str,
     context: &str,
 ) -> Result<Vec<Vec<Option<EventTime>>>, ClientError> {
@@ -800,19 +690,5 @@ pub(crate) fn expect_nested_optional_event_time_list(
         .map(|v| {
             expect_optional_event_time_list(into_element(v, "list", context)?, inner_key, context)
         })
-        .collect()
-}
-
-/// Unwrap a triply-nested string list → `Vec<Vec<Vec<String>>>`. Used by
-/// `NestedEdges.layer_names`, where each edge carries a list of layer names,
-/// grouped per source node.
-pub(crate) fn expect_double_nested_string_list(
-    v: serde_json::Value,
-    context: &str,
-) -> Result<Vec<Vec<Vec<String>>>, ClientError> {
-    let records = expect_list(v, context)?;
-    records
-        .into_iter()
-        .map(|v| expect_nested_string_list(into_element(v, "list", context)?, context))
         .collect()
 }

@@ -16,8 +16,8 @@ use crate::{
         remote_nodes::RemoteNodes,
         remote_schema::RemoteGraphSchema,
         transport::{
-            expect_bool, expect_gid_list, expect_i64, expect_optional_event_time,
-            expect_optional_i64, expect_string, expect_string_list, Transport,
+            expect_gid_list, expect_optional_event_time, expect_optional_typed, expect_string_list,
+            expect_typed, Transport,
         },
         ClientError,
     },
@@ -289,7 +289,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::CountNodes {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "countNodes")
+        expect_typed(self.transport.execute(&op).await?, "countNodes")
     }
 
     /// Terminal: count of edges under the current view. Fires one RPC.
@@ -297,7 +297,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::CountEdges {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "countEdges")
+        expect_typed(self.transport.execute(&op).await?, "countEdges")
     }
 
     /// Terminal: earliest event timestamp under the current view. Returns
@@ -342,7 +342,7 @@ impl RemoteGraph {
             input: self.expr.clone(),
             id: id.into(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasNode")
+        expect_typed(self.transport.execute(&op).await?, "hasNode")
     }
 
     /// Terminal: does the graph have an edge `(src, dst)`? Fires one RPC.
@@ -356,7 +356,7 @@ impl RemoteGraph {
             src: src.into(),
             dst: dst.into(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasEdge")
+        expect_typed(self.transport.execute(&op).await?, "hasEdge")
     }
 
     /// Terminal: total temporal-edge count (edge updates) under the current view.
@@ -365,7 +365,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::CountTemporalEdges {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "countTemporalEdges")
+        expect_typed(self.transport.execute(&op).await?, "countTemporalEdges")
     }
 
     /// Terminal: graph name. Fires one RPC.
@@ -373,7 +373,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::Name {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "name")
+        expect_typed(self.transport.execute(&op).await?, "name")
     }
 
     /// Terminal: graph path. Fires one RPC.
@@ -381,7 +381,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::Path {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "path")
+        expect_typed(self.transport.execute(&op).await?, "path")
     }
 
     /// Terminal: parent namespace of the graph path. Fires one RPC.
@@ -389,7 +389,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::Namespace {
             input: self.expr.clone(),
         });
-        expect_string(self.transport.execute(&op).await?, "namespace")
+        expect_typed(self.transport.execute(&op).await?, "namespace")
     }
 
     /// Terminal: graph creation timestamp — never null (server metadata).
@@ -398,7 +398,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::Created {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "created")
+        expect_typed(self.transport.execute(&op).await?, "created")
     }
 
     /// Terminal: graph last-opened timestamp — never null. Fires one RPC.
@@ -406,7 +406,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::LastOpened {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "lastOpened")
+        expect_typed(self.transport.execute(&op).await?, "lastOpened")
     }
 
     /// Terminal: graph last-updated timestamp — never null. Fires one RPC.
@@ -414,7 +414,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::LastUpdated {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "lastUpdated")
+        expect_typed(self.transport.execute(&op).await?, "lastUpdated")
     }
 
     /// Terminal: list of unique layer names present in this graph. Fires one RPC.
@@ -431,7 +431,7 @@ impl RemoteGraph {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -440,7 +440,7 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: earliest edge event time under the current view. Returns
@@ -489,7 +489,7 @@ impl RemoteGraph {
             input: self.expr.clone(),
             id: id.clone(),
         });
-        let exists = expect_bool(self.transport.execute(&check).await?, "hasNode")?;
+        let exists: bool = expect_typed(self.transport.execute(&check).await?, "hasNode")?;
         if !exists {
             return Ok(None);
         }
@@ -627,7 +627,7 @@ impl RemoteGraph {
             src: src.clone(),
             dst: dst.clone(),
         });
-        let exists = expect_bool(self.transport.execute(&check).await?, "hasEdge")?;
+        let exists: bool = expect_typed(self.transport.execute(&check).await?, "hasEdge")?;
         if !exists {
             return Ok(None);
         }

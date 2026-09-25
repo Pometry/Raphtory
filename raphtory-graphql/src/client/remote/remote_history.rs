@@ -1,8 +1,8 @@
 use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
     transport::{
-        expect_bool, expect_event_time_list, expect_i64, expect_i64_list,
-        expect_optional_event_time, expect_optional_f64, expect_optional_i64, Transport,
+        expect_event_time_list, expect_optional_event_time, expect_optional_typed, expect_typed,
+        expect_typed_list, Transport,
     },
     ClientError,
 };
@@ -59,7 +59,7 @@ impl RemoteHistory {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this history has no events. Fires one RPC.
@@ -67,7 +67,7 @@ impl RemoteHistory {
         let op = Op::Read(ReadExpr::IsEmpty {
             input: self.expr.clone(),
         });
-        expect_bool(self.transport.execute(&op).await?, "isEmpty")
+        expect_typed(self.transport.execute(&op).await?, "isEmpty")
     }
 
     /// Terminal: earliest event time in this history. Returns `None` if the
@@ -168,7 +168,7 @@ impl RemoteHistory {
             timestamp,
             event_id,
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Sub-container: timestamps view of this history — plain integer
@@ -250,7 +250,7 @@ impl RemoteHistoryTimestamps {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether the given value is present. Fires one RPC — the
@@ -260,7 +260,7 @@ impl RemoteHistoryTimestamps {
             input: self.expr.clone(),
             value,
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
@@ -287,7 +287,7 @@ impl RemoteHistoryTimestamps {
         let op = Op::Read(ReadExpr::SubList {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "list")
+        expect_typed_list(self.transport.execute(&op).await?, "list")
     }
 
     /// Terminal: all timestamps in descending order. Fires one RPC.
@@ -295,7 +295,7 @@ impl RemoteHistoryTimestamps {
         let op = Op::Read(ReadExpr::SubListRev {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "listRev")
+        expect_typed_list(self.transport.execute(&op).await?, "listRev")
     }
 
     /// Terminal: paginated timestamps in ascending order. Fires one RPC.
@@ -311,7 +311,7 @@ impl RemoteHistoryTimestamps {
             offset,
             page_index,
         });
-        expect_i64_list(self.transport.execute(&op).await?, "page")
+        expect_typed_list(self.transport.execute(&op).await?, "page")
     }
 
     /// Terminal: paginated timestamps in descending order. Fires one RPC.
@@ -327,7 +327,7 @@ impl RemoteHistoryTimestamps {
             offset,
             page_index,
         });
-        expect_i64_list(self.transport.execute(&op).await?, "pageRev")
+        expect_typed_list(self.transport.execute(&op).await?, "pageRev")
     }
 }
 
@@ -348,7 +348,7 @@ impl RemoteHistoryEventIds {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether the given value is present. Fires one RPC — the
@@ -358,7 +358,7 @@ impl RemoteHistoryEventIds {
             input: self.expr.clone(),
             value,
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
@@ -385,7 +385,7 @@ impl RemoteHistoryEventIds {
         let op = Op::Read(ReadExpr::SubList {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "list")
+        expect_typed_list(self.transport.execute(&op).await?, "list")
     }
 
     /// Terminal: all event ids in descending order. Fires one RPC.
@@ -393,7 +393,7 @@ impl RemoteHistoryEventIds {
         let op = Op::Read(ReadExpr::SubListRev {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "listRev")
+        expect_typed_list(self.transport.execute(&op).await?, "listRev")
     }
 
     /// Terminal: paginated event ids in ascending order. Fires one RPC.
@@ -409,7 +409,7 @@ impl RemoteHistoryEventIds {
             offset,
             page_index,
         });
-        expect_i64_list(self.transport.execute(&op).await?, "page")
+        expect_typed_list(self.transport.execute(&op).await?, "page")
     }
 
     /// Terminal: paginated event ids in descending order. Fires one RPC.
@@ -425,7 +425,7 @@ impl RemoteHistoryEventIds {
             offset,
             page_index,
         });
-        expect_i64_list(self.transport.execute(&op).await?, "pageRev")
+        expect_typed_list(self.transport.execute(&op).await?, "pageRev")
     }
 }
 
@@ -458,7 +458,7 @@ impl RemoteHistoryDateTimes {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether an event exists at the given epoch-millisecond
@@ -469,7 +469,7 @@ impl RemoteHistoryDateTimes {
             input: self.expr.clone(),
             value,
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
@@ -496,7 +496,10 @@ impl RemoteHistoryDateTimes {
         let op = Op::Read(ReadExpr::SubList {
             input: self.expr.clone(),
         });
-        to_datetimes(expect_i64_list(self.transport.execute(&op).await?, "list")?)
+        to_datetimes(expect_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+        )?)
     }
 
     /// Terminal: all datetimes in descending order. Fires one RPC.
@@ -504,7 +507,7 @@ impl RemoteHistoryDateTimes {
         let op = Op::Read(ReadExpr::SubListRev {
             input: self.expr.clone(),
         });
-        to_datetimes(expect_i64_list(
+        to_datetimes(expect_typed_list(
             self.transport.execute(&op).await?,
             "listRev",
         )?)
@@ -523,7 +526,10 @@ impl RemoteHistoryDateTimes {
             offset,
             page_index,
         });
-        to_datetimes(expect_i64_list(self.transport.execute(&op).await?, "page")?)
+        to_datetimes(expect_typed_list(
+            self.transport.execute(&op).await?,
+            "page",
+        )?)
     }
 
     /// Terminal: paginated datetimes in descending order. Fires one RPC.
@@ -539,7 +545,7 @@ impl RemoteHistoryDateTimes {
             offset,
             page_index,
         });
-        to_datetimes(expect_i64_list(
+        to_datetimes(expect_typed_list(
             self.transport.execute(&op).await?,
             "pageRev",
         )?)
@@ -564,7 +570,7 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether the given value is present. Fires one RPC — the
@@ -574,7 +580,7 @@ impl RemoteIntervals {
             input: self.expr.clone(),
             value,
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Reversed view of this container. Lazy — no RPC: the reversal wraps the
@@ -601,7 +607,7 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::SubList {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "list")
+        expect_typed_list(self.transport.execute(&op).await?, "list")
     }
 
     /// Terminal: all intervals in descending order. Fires one RPC.
@@ -609,7 +615,7 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::SubListRev {
             input: self.expr.clone(),
         });
-        expect_i64_list(self.transport.execute(&op).await?, "listRev")
+        expect_typed_list(self.transport.execute(&op).await?, "listRev")
     }
 
     /// Terminal: paginated intervals in ascending order. Fires one RPC.
@@ -625,7 +631,7 @@ impl RemoteIntervals {
             offset,
             page_index,
         });
-        expect_i64_list(self.transport.execute(&op).await?, "page")
+        expect_typed_list(self.transport.execute(&op).await?, "page")
     }
 
     /// Terminal: paginated intervals in descending order. Fires one RPC.
@@ -641,7 +647,7 @@ impl RemoteIntervals {
             offset,
             page_index,
         });
-        expect_i64_list(self.transport.execute(&op).await?, "pageRev")
+        expect_typed_list(self.transport.execute(&op).await?, "pageRev")
     }
 
     /// Terminal: mean interval. `None` if fewer than 2 events (no intervals).
@@ -650,7 +656,7 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::IntervalsMean {
             input: self.expr.clone(),
         });
-        expect_optional_f64(self.transport.execute(&op).await?, "mean")
+        expect_optional_typed(self.transport.execute(&op).await?, "mean")
     }
 
     /// Terminal: median interval. `None` if fewer than 2 events. Fires one RPC.
@@ -658,7 +664,7 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::IntervalsMedian {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "median")
+        expect_optional_typed(self.transport.execute(&op).await?, "median")
     }
 
     /// Terminal: max interval. `None` if fewer than 2 events. Fires one RPC.
@@ -666,7 +672,7 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::IntervalsMax {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "max")
+        expect_optional_typed(self.transport.execute(&op).await?, "max")
     }
 
     /// Terminal: min interval. `None` if fewer than 2 events. Fires one RPC.
@@ -674,6 +680,6 @@ impl RemoteIntervals {
         let op = Op::Read(ReadExpr::IntervalsMin {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "min")
+        expect_optional_typed(self.transport.execute(&op).await?, "min")
     }
 }

@@ -2688,41 +2688,9 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
     out
 }
 
-/// Decode an untagged JSON value into a `Prop`. Mirrors the server's
-/// `prop_to_gql` — server serializes `Prop` as native JSON (number / string /
-/// bool / array / object) with no type tag. Recovering the exact original
-/// variant isn't possible for numbers (I64 vs F64 vs DTime all wire as
-/// numbers) — we pick the widest fitting variant.
-/// Decode a leaf property value from a JSON response. Delegates to the model's
-/// `gql_to_prop` (the single source of truth for JSON→`Prop` value semantics)
-/// after lifting `serde_json::Value` into `async_graphql::Value`.
-/// Replace every `dtype` value in a schema response with its own JSON text,
-/// so the typed form rides the `Prop` tree as an opaque string instead of
-/// being decoded as if it were property data.
-fn stash_dtypes_as_json_text(v: &mut JsonValue) {
-    match v {
-        JsonValue::Object(map) => {
-            for (key, value) in map.iter_mut() {
-                if key == "dtype" {
-                    *value = JsonValue::String(value.to_string());
-                } else {
-                    stash_dtypes_as_json_text(value);
-                }
-            }
-        }
-        JsonValue::Array(items) => items.iter_mut().for_each(stash_dtypes_as_json_text),
-        _ => {}
-    }
-}
-
 fn json_to_prop(v: JsonValue) -> Result<Prop, ClientError> {
     let gql = GqlValue::from_json(v).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
     gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
-}
-
-/// Decode the serde JSON form of `PropType` served by the `dtype` fields.
-pub(crate) fn json_to_prop_type(v: &JsonValue) -> Result<PropType, ClientError> {
-    PropType::deserialize(v).map_err(|e| ClientError::InvalidResponse(format!("bad dtype: {e}")))
 }
 
 /// Type-directed decode of an untagged JSON property value: the server-declared
@@ -3051,8 +3019,8 @@ mod tests {
     use super::*;
     use crate::{
         client::{
-            Column, RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteMetadata,
-            RemoteNodeSchema, RemotePropertySchema, RemotePropertyTuple,
+            Column, RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema,
+            RemotePropertySchema, RemotePropertyTuple,
         },
         data::GqlGraphType,
         model::graph::{

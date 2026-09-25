@@ -11,10 +11,10 @@
 //! `parse_read` decoded.
 
 use crate::client::{
-    transport::{expect_list, expect_prop_type, expect_string, expect_string_list, map_extract},
+    transport::{expect_list, expect_prop_type, expect_string_list, expect_typed, extract_element},
     ClientError,
 };
-use raphtory_api::core::entities::properties::prop::{Prop, PropMap, PropType};
+use raphtory_api::core::entities::properties::prop::PropType;
 use serde_json::Map;
 
 /// A single property schema entry — one key on a node/edge type, with its
@@ -70,11 +70,11 @@ impl RemoteGraphSchema {
     pub(crate) fn from_query(prop: serde_json::Value) -> Result<Self, ClientError> {
         let mut map = expect_map(prop, "schema")?;
         Ok(Self {
-            nodes: expect_list(map_extract(&mut map, "nodes")?, "schema.nodes")?
+            nodes: expect_list(extract_element(&mut map, "nodes")?, "schema.nodes")?
                 .into_iter()
                 .map(RemoteNodeSchema::from_query)
                 .collect::<Result<_, _>>()?,
-            layers: expect_list(map_extract(&mut map, "layers")?, "schema.layers")?
+            layers: expect_list(extract_element(&mut map, "layers")?, "schema.layers")?
                 .into_iter()
                 .map(RemoteLayerSchema::from_query)
                 .collect::<Result<_, _>>()?,
@@ -86,9 +86,12 @@ impl RemoteNodeSchema {
     fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
         let mut map = expect_map(value, "nodeSchema")?;
         Ok(Self {
-            type_name: expect_string(map_extract(&mut map, "typeName")?, "nodeSchema.typeName")?,
-            properties: decode_property_schemas(map_extract(&mut map, "properties")?)?,
-            metadata: decode_property_schemas(map_extract(&mut map, "metadata")?)?,
+            type_name: expect_typed(
+                extract_element(&mut map, "typeName")?,
+                "nodeSchema.typeName",
+            )?,
+            properties: decode_property_schemas(extract_element(&mut map, "properties")?)?,
+            metadata: decode_property_schemas(extract_element(&mut map, "metadata")?)?,
         })
     }
 }
@@ -97,8 +100,8 @@ impl RemoteLayerSchema {
     fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
         let mut map = expect_map(value, "layerSchema")?;
         Ok(Self {
-            name: expect_string(map_extract(&mut map, "name")?, "layerSchema.name")?,
-            edges: expect_list(map_extract(&mut map, "edges")?, "layerSchema.edges")?
+            name: expect_typed(extract_element(&mut map, "name")?, "layerSchema.name")?,
+            edges: expect_list(extract_element(&mut map, "edges")?, "layerSchema.edges")?
                 .into_iter()
                 .map(RemoteEdgeSchema::from_query)
                 .collect::<Result<_, _>>()?,
@@ -110,10 +113,10 @@ impl RemoteEdgeSchema {
     fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
         let mut map = expect_map(value, "edgeSchema")?;
         Ok(Self {
-            src_type: expect_string(map_extract(&mut map, "srcType")?, "edgeSchema.srcType")?,
-            dst_type: expect_string(map_extract(&mut map, "dstType")?, "edgeSchema.dstType")?,
-            properties: decode_property_schemas(map_extract(&mut map, "properties")?)?,
-            metadata: decode_property_schemas(map_extract(&mut map, "metadata")?)?,
+            src_type: expect_typed(extract_element(&mut map, "srcType")?, "edgeSchema.srcType")?,
+            dst_type: expect_typed(extract_element(&mut map, "dstType")?, "edgeSchema.dstType")?,
+            properties: decode_property_schemas(extract_element(&mut map, "properties")?)?,
+            metadata: decode_property_schemas(extract_element(&mut map, "metadata")?)?,
         })
     }
 }
@@ -122,13 +125,13 @@ impl RemotePropertySchema {
     fn from_query(result: serde_json::Value) -> Result<Self, ClientError> {
         let mut map = expect_map(result, "propertySchema")?;
         Ok(Self {
-            key: expect_string(map_extract(&mut map, "key")?, "propertySchema.key")?,
+            key: expect_typed(extract_element(&mut map, "key")?, "propertySchema.key")?,
             property_type: expect_prop_type(
-                map_extract(&mut map, "dtype")?,
+                extract_element(&mut map, "dtype")?,
                 "propertySchema.dtype",
             )?,
             variants: expect_string_list(
-                map_extract(&mut map, "variants")?,
+                extract_element(&mut map, "variants")?,
                 "propertySchema.variants",
             )?,
         })

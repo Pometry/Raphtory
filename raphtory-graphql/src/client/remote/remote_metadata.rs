@@ -2,10 +2,10 @@ use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
     remote_history::RemoteHistory,
     transport::{
-        expect_bool, expect_i64, expect_optional_f64, expect_optional_prop,
-        expect_optional_prop_type, expect_optional_property_tuple, expect_prop_list,
-        expect_property_list, expect_property_tuple_list, expect_string_list,
-        expect_tagged_typed_list, expect_typed_prop_list, Transport,
+        expect_optional_prop, expect_optional_prop_type, expect_optional_property_tuple,
+        expect_optional_typed, expect_prop_list, expect_property_list, expect_property_tuple_list,
+        expect_string_list, expect_tagged_typed_list, expect_typed, expect_typed_prop_list,
+        Transport,
     },
     ClientError,
 };
@@ -61,7 +61,7 @@ impl RemoteMetadata {
             input: self.expr.clone(),
             key: key.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Terminal: all metadata keys present on this entity. Fires one RPC.
@@ -147,7 +147,7 @@ impl RemoteProperties {
             input: self.expr.clone(),
             key: key.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Terminal: all property keys in the current view. Does not include
@@ -239,7 +239,7 @@ impl RemoteTemporalProperties {
             input: self.expr.clone(),
             key: key_str.clone(),
         });
-        let exists = expect_bool(self.transport.execute(&op).await?, "contains")?;
+        let exists: bool = expect_typed(self.transport.execute(&op).await?, "contains")?;
         if !exists {
             return Ok(None);
         }
@@ -261,7 +261,7 @@ impl RemoteTemporalProperties {
             input: self.expr.clone(),
             key: key.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "contains")
+        expect_typed(self.transport.execute(&op).await?, "contains")
     }
 
     /// Terminal: all temporal property keys. Fires one RPC.
@@ -367,7 +367,7 @@ impl RemoteTemporalProperty {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: distinct values this property has ever taken. Order is not
@@ -407,7 +407,7 @@ impl RemoteTemporalProperty {
         let op = Op::Read(ReadExpr::TemporalPropertyMean {
             input: self.expr.clone(),
         });
-        expect_optional_f64(self.transport.execute(&op).await?, "mean")
+        expect_optional_typed(self.transport.execute(&op).await?, "mean")
     }
 
     /// Terminal: alias for `mean`. Fires one RPC.
@@ -415,7 +415,7 @@ impl RemoteTemporalProperty {
         let op = Op::Read(ReadExpr::TemporalPropertyAverage {
             input: self.expr.clone(),
         });
-        expect_optional_f64(self.transport.execute(&op).await?, "average")
+        expect_optional_typed(self.transport.execute(&op).await?, "average")
     }
 
     /// Terminal: minimum `(time, value)` pair. `None` if not comparable or

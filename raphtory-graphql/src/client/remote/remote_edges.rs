@@ -6,10 +6,9 @@ use crate::{
         remote_edge::RemoteEdge,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_bool_list, expect_edge_list, expect_exploded_edge_list,
-            expect_exploded_layers_edge_list, expect_i64, expect_optional_event_time,
-            expect_optional_event_time_list, expect_optional_i64, expect_tagged_nested_typed_list,
-            expect_tagged_typed_list, Transport,
+            expect_edge_list, expect_exploded_edge_list, expect_exploded_layers_edge_list,
+            expect_optional_event_time, expect_optional_event_time_list, expect_optional_typed,
+            expect_tagged_nested_typed_list, expect_tagged_typed_list, expect_typed, Transport,
         },
         ClientError,
     },
@@ -210,7 +209,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -219,7 +218,7 @@ impl RemoteEdges {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Columnar accessor: each edge's `(src, dst)` id pair — mirrors the local
@@ -352,7 +351,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: view start bound for this collection — `None` if unbounded.

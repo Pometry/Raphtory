@@ -59,7 +59,7 @@ mod write_guard_tests {
     };
     use async_graphql::async_trait;
     use raphtory::prelude::NO_PROPS;
-    use raphtory_api::core::entities::{properties::prop::Prop, GID};
+    use raphtory_api::core::entities::GID;
     use std::sync::Arc;
 
     struct NoRpc;
