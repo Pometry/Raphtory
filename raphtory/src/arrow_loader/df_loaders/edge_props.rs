@@ -6,13 +6,12 @@ use kdam::BarExt;
 use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
-        df_loaders::{
-            edges::{get_or_resolve_node_vids, store_node_ids, ColumnNames},
-            process_shared_properties,
-        },
+        df_loaders::{edges::ColumnNames, process_shared_properties},
         layer_col::lift_layer_col,
+        node_col::NodeCol,
         prop_handler::*,
     },
+    core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     prelude::*,
@@ -114,7 +113,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .transpose()?;
         let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
 
-        let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
+        // Metadata can only be attached to an edge that exists, so its endpoints must exist too:
+        // look the ids up, never create them. Resolving the whole chunk before taking the write
+        // lock means a row naming an unknown node fails before the graph is touched.
+        let (src_vids, dst_vids) = lookup_node_vids(
             graph,
             src_index,
             dst_index,
@@ -133,17 +135,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         let WriteLockedGraph { nodes, .. } = &mut write_locked_graph;
 
-        // Generate all edge_ids + add outbound edges
+        // Find the edge id of every row
         nodes.par_iter_mut().try_for_each(|locked_page| {
             // Zip all columns for iteration.
             let zip = izip!(src_vids.iter(), dst_vids.iter());
             add_and_resolve_outbound_edges(&eid_col_shared, locked_page, zip)?;
-            // resolve_nodes=false
-            // assumes we are loading our own graph, via the parquet loaders,
-            // so previous calls have already stored the node ids and types
-            if resolve_nodes {
-                store_node_ids(&gid_str_cache, locked_page);
-            }
             Ok::<_, GraphError>(())
         })?;
 
@@ -214,6 +210,55 @@ pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps +
     })?;
 
     Ok(())
+}
+
+/// Resolve the `src` and `dst` columns of a chunk to VIDs without creating any node.
+///
+/// With `resolve_nodes` the columns hold node ids and every one of them must already be in the
+/// graph; the first that is not fails the load with `GraphError::NodeMissingError`, naming it.
+/// Without it the columns hold VIDs written by our own parquet encoder and are used as they are.
+#[allow(clippy::too_many_arguments)]
+fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
+    graph: &G,
+    src_index: usize,
+    dst_index: usize,
+    src_col_resolved: &'a mut Vec<VID>,
+    dst_col_resolved: &'a mut Vec<VID>,
+    resolve_nodes: bool,
+    df: &'b DFChunk,
+    src_col: &'a NodeCol,
+    dst_col: &'a NodeCol,
+) -> Result<(&'c [VID], &'c [VID]), GraphError> {
+    if resolve_nodes {
+        src_col_resolved.resize(src_col.len(), VID::default());
+        dst_col_resolved.resize(src_col.len(), VID::default());
+        for (col, resolved) in [
+            (src_col, &mut *src_col_resolved),
+            (dst_col, &mut *dst_col_resolved),
+        ] {
+            col.par_iter()
+                .zip_eq(resolved.par_iter_mut())
+                .try_for_each(|(gid, vid)| {
+                    *vid = graph
+                        .internalise_node(gid.as_node_ref())
+                        .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?;
+                    Ok::<(), GraphError>(())
+                })?;
+        }
+        Ok((src_col_resolved.as_slice(), dst_col_resolved.as_slice()))
+    } else {
+        let srcs = df.chunk[src_index]
+            .as_primitive_opt::<UInt64Type>()
+            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[src_index].data_type().clone()))?
+            .values()
+            .as_ref();
+        let dsts = df.chunk[dst_index]
+            .as_primitive_opt::<UInt64Type>()
+            .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[dst_index].data_type().clone()))?
+            .values()
+            .as_ref();
+        Ok((bytemuck::cast_slice(srcs), bytemuck::cast_slice(dsts)))
+    }
 }
 
 #[inline(never)]

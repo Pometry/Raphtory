@@ -301,7 +301,7 @@ impl PyPersistentGraph {
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
@@ -344,7 +344,7 @@ impl PyPersistentGraph {
     ///   MutableNode: the newly created node.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
