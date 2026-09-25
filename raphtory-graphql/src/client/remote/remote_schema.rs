@@ -11,10 +11,11 @@
 //! `parse_read` decoded.
 
 use crate::client::{
-    transport::{prop_list, prop_map_get, prop_str},
+    transport::{expect_list, expect_prop_type, expect_string, expect_string_list, map_extract},
     ClientError,
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropMap, PropType};
+use serde_json::Map;
 
 /// A single property schema entry — one key on a node/edge type, with its
 /// observed property type and (for string-valued properties) the set of
@@ -66,90 +67,93 @@ pub struct RemoteGraphSchema {
 impl RemoteGraphSchema {
     /// Decode a `Prop`-shaped tree (produced by `parse_read` on the `Schema`
     /// terminal) into a typed schema tree.
-    pub(crate) fn from_prop(prop: Prop) -> Result<Self, ClientError> {
-        let map = expect_map(prop, "schema")?;
+    pub(crate) fn from_query(prop: serde_json::Value) -> Result<Self, ClientError> {
+        let mut map = expect_map(prop, "schema")?;
         Ok(Self {
-            nodes: prop_list(prop_map_get(&map, "nodes")?, "schema.nodes")?
+            nodes: expect_list(map_extract(&mut map, "nodes")?, "schema.nodes")?
                 .into_iter()
-                .map(RemoteNodeSchema::from_prop)
+                .map(RemoteNodeSchema::from_query)
                 .collect::<Result<_, _>>()?,
-            layers: prop_list(prop_map_get(&map, "layers")?, "schema.layers")?
+            layers: expect_list(map_extract(&mut map, "layers")?, "schema.layers")?
                 .into_iter()
-                .map(RemoteLayerSchema::from_prop)
+                .map(RemoteLayerSchema::from_query)
                 .collect::<Result<_, _>>()?,
         })
     }
 }
 
 impl RemoteNodeSchema {
-    fn from_prop(prop: Prop) -> Result<Self, ClientError> {
-        let map = expect_map(prop, "nodeSchema")?;
+    fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
+        let mut map = expect_map(value, "nodeSchema")?;
         Ok(Self {
-            type_name: prop_str(prop_map_get(&map, "typeName")?, "nodeSchema.typeName")?,
-            properties: decode_property_schemas(prop_map_get(&map, "properties")?)?,
-            metadata: decode_property_schemas(prop_map_get(&map, "metadata")?)?,
+            type_name: expect_string(map_extract(&mut map, "typeName")?, "nodeSchema.typeName")?,
+            properties: decode_property_schemas(map_extract(&mut map, "properties")?)?,
+            metadata: decode_property_schemas(map_extract(&mut map, "metadata")?)?,
         })
     }
 }
 
 impl RemoteLayerSchema {
-    fn from_prop(prop: Prop) -> Result<Self, ClientError> {
-        let map = expect_map(prop, "layerSchema")?;
+    fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
+        let mut map = expect_map(value, "layerSchema")?;
         Ok(Self {
-            name: prop_str(prop_map_get(&map, "name")?, "layerSchema.name")?,
-            edges: prop_list(prop_map_get(&map, "edges")?, "layerSchema.edges")?
+            name: expect_string(map_extract(&mut map, "name")?, "layerSchema.name")?,
+            edges: expect_list(map_extract(&mut map, "edges")?, "layerSchema.edges")?
                 .into_iter()
-                .map(RemoteEdgeSchema::from_prop)
+                .map(RemoteEdgeSchema::from_query)
                 .collect::<Result<_, _>>()?,
         })
     }
 }
 
 impl RemoteEdgeSchema {
-    fn from_prop(prop: Prop) -> Result<Self, ClientError> {
-        let map = expect_map(prop, "edgeSchema")?;
+    fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
+        let mut map = expect_map(value, "edgeSchema")?;
         Ok(Self {
-            src_type: prop_str(prop_map_get(&map, "srcType")?, "edgeSchema.srcType")?,
-            dst_type: prop_str(prop_map_get(&map, "dstType")?, "edgeSchema.dstType")?,
-            properties: decode_property_schemas(prop_map_get(&map, "properties")?)?,
-            metadata: decode_property_schemas(prop_map_get(&map, "metadata")?)?,
+            src_type: expect_string(map_extract(&mut map, "srcType")?, "edgeSchema.srcType")?,
+            dst_type: expect_string(map_extract(&mut map, "dstType")?, "edgeSchema.dstType")?,
+            properties: decode_property_schemas(map_extract(&mut map, "properties")?)?,
+            metadata: decode_property_schemas(map_extract(&mut map, "metadata")?)?,
         })
     }
 }
 
 impl RemotePropertySchema {
-    fn from_prop(prop: Prop) -> Result<Self, ClientError> {
-        let map = expect_map(prop, "propertySchema")?;
+    fn from_query(result: serde_json::Value) -> Result<Self, ClientError> {
+        let mut map = expect_map(result, "propertySchema")?;
         Ok(Self {
-            key: prop_str(prop_map_get(&map, "key")?, "propertySchema.key")?,
-            property_type: {
-                let json = prop_str(prop_map_get(&map, "dtype")?, "propertySchema.dtype")?;
-                serde_json::from_str(&json).map_err(|e| {
-                    ClientError::InvalidResponse(format!("propertySchema.dtype: {e}"))
-                })?
-            },
-            variants: prop_list(prop_map_get(&map, "variants")?, "propertySchema.variants")?
-                .into_iter()
-                .map(|p| prop_str(p, "propertySchema.variants[]"))
-                .collect::<Result<_, _>>()?,
+            key: expect_string(map_extract(&mut map, "key")?, "propertySchema.key")?,
+            property_type: expect_prop_type(
+                map_extract(&mut map, "dtype")?,
+                "propertySchema.dtype",
+            )?,
+            variants: expect_string_list(
+                map_extract(&mut map, "variants")?,
+                "propertySchema.variants",
+            )?,
         })
     }
 }
 
-fn decode_property_schemas(prop: Prop) -> Result<Vec<RemotePropertySchema>, ClientError> {
-    prop_list(prop, "propertySchemas")?
+fn decode_property_schemas(
+    value: serde_json::Value,
+) -> Result<Vec<RemotePropertySchema>, ClientError> {
+    expect_list(value, "propertySchemas")?
         .into_iter()
-        .map(RemotePropertySchema::from_prop)
+        .map(RemotePropertySchema::from_query)
         .collect()
 }
 
 // ============ Prop tree helpers ============
 
-fn expect_map(prop: Prop, context: &str) -> Result<std::sync::Arc<PropMap>, ClientError> {
-    match prop {
-        Prop::Map(m) => Ok(m),
+fn expect_map(
+    result: serde_json::Value,
+    context: &str,
+) -> Result<Map<String, serde_json::Value>, ClientError> {
+    match result {
+        serde_json::Value::Object(m) => Ok(m),
         _ => Err(ClientError::InvalidResponse(format!(
-            "`{}` expected Prop::Map",
+            "`{}` expected map",
             context
         ))),
     }

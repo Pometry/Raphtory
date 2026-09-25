@@ -2,9 +2,10 @@ use crate::client::{
     op::{HandleCtx, Op, ReadExpr},
     remote_history::RemoteHistory,
     transport::{
-        expect_bool, expect_i64, expect_optional_prop, expect_optional_property_tuple,
-        expect_prop_list, expect_property_list, expect_property_tuple_list, expect_string_list,
-        Transport,
+        expect_bool, expect_i64, expect_optional_f64, expect_optional_prop,
+        expect_optional_prop_type, expect_optional_property_tuple, expect_prop_list,
+        expect_property_list, expect_property_tuple_list, expect_string_list,
+        expect_tagged_typed_list, expect_typed_prop_list, Transport,
     },
     ClientError,
 };
@@ -51,7 +52,7 @@ impl RemoteMetadata {
             input: self.expr.clone(),
             key: key.to_string(),
         });
-        expect_optional_prop(self.transport.execute(&op).await?, "get")
+        expect_optional_prop(self.transport.execute(&op).await?, "value")
     }
 
     /// Terminal: check whether a metadata entry with this key exists. Fires one RPC.
@@ -137,7 +138,7 @@ impl RemoteProperties {
             input: self.expr.clone(),
             key: key.to_string(),
         });
-        expect_optional_prop(self.transport.execute(&op).await?, "get")
+        expect_optional_prop(self.transport.execute(&op).await?, "value")
     }
 
     /// Terminal: whether a property with this key exists. Fires one RPC.
@@ -194,17 +195,7 @@ impl RemoteProperties {
             input: self.expr.clone(),
             key: key.to_string(),
         });
-        match self.transport.execute(&op).await? {
-            None => Ok(None),
-            Some(Prop::Str(s)) => {
-                Ok(Some(serde_json::from_str(&s).map_err(|e| {
-                    ClientError::InvalidResponse(format!("bad dtype: {e}"))
-                })?))
-            }
-            Some(_) => Err(ClientError::InvalidResponse(
-                "dtype fetch returned unexpected value type".into(),
-            )),
-        }
+        expect_optional_prop_type(self.transport.execute(&op).await?, "getDtypeOf")
     }
 
     /// Sub-container: the temporal-only view of these properties — excludes
@@ -293,7 +284,8 @@ impl RemoteTemporalProperties {
             input: self.expr.clone(),
             keys,
         });
-        let key_list = expect_string_list(self.transport.execute(&op).await?, "values")?;
+        let key_list =
+            expect_tagged_typed_list::<String>(self.transport.execute(&op).await?, "key")?;
         Ok(key_list
             .into_iter()
             .map(|key| RemoteTemporalProperty {
@@ -347,7 +339,7 @@ impl RemoteTemporalProperty {
         let op = Op::Read(ReadExpr::TemporalPropertyValueList {
             input: self.expr.clone(),
         });
-        expect_prop_list(self.transport.execute(&op).await?, "values")
+        expect_typed_prop_list(self.transport.execute(&op).await?, "values")
     }
 
     /// Terminal: value at or before time `t` (latest update on or before
@@ -384,7 +376,7 @@ impl RemoteTemporalProperty {
         let op = Op::Read(ReadExpr::TemporalPropertyUnique {
             input: self.expr.clone(),
         });
-        expect_prop_list(self.transport.execute(&op).await?, "unique")
+        expect_typed_prop_list(self.transport.execute(&op).await?, "unique")
     }
 
     /// Terminal: collapse consecutive-equal updates into single `(time,
@@ -398,12 +390,7 @@ impl RemoteTemporalProperty {
             input: self.expr.clone(),
             latest_time,
         });
-        let tuples =
-            expect_property_tuple_list(self.transport.execute(&op).await?, "orderedDedupe")?;
-        Ok(tuples
-            .into_iter()
-            .map(|(time, value)| RemotePropertyTuple { time, value })
-            .collect())
+        expect_property_tuple_list(self.transport.execute(&op).await?, "orderedDedupe")
     }
 
     /// Terminal: sum of all updates. `None` if not additive. Fires one RPC.
@@ -416,19 +403,19 @@ impl RemoteTemporalProperty {
 
     /// Terminal: mean of all updates as `f64`. `None` if not numeric or empty.
     /// Fires one RPC.
-    pub async fn mean(&self) -> Result<Option<Prop>, ClientError> {
+    pub async fn mean(&self) -> Result<Option<f64>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyMean {
             input: self.expr.clone(),
         });
-        expect_optional_prop(self.transport.execute(&op).await?, "mean")
+        expect_optional_f64(self.transport.execute(&op).await?, "mean")
     }
 
     /// Terminal: alias for `mean`. Fires one RPC.
-    pub async fn average(&self) -> Result<Option<Prop>, ClientError> {
+    pub async fn average(&self) -> Result<Option<f64>, ClientError> {
         let op = Op::Read(ReadExpr::TemporalPropertyAverage {
             input: self.expr.clone(),
         });
-        expect_optional_prop(self.transport.execute(&op).await?, "average")
+        expect_optional_f64(self.transport.execute(&op).await?, "average")
     }
 
     /// Terminal: minimum `(time, value)` pair. `None` if not comparable or

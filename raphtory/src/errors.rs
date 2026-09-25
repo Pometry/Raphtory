@@ -37,6 +37,7 @@ use zip::result::ZipError;
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
 
+use raphtory_api::core::entities::properties::prop::PropTypeError;
 #[cfg(any(feature = "vectors", feature = "io"))]
 use tempfile::PersistError;
 
@@ -135,6 +136,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     PropError(#[from] PropError),
+
+    #[error(transparent)]
+    PropTypeError(#[from] PropTypeError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),

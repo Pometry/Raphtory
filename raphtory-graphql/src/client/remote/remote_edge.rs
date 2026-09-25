@@ -12,8 +12,8 @@ use crate::{
         remote_metadata::{RemoteMetadata, RemoteProperties},
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_gid_list, expect_optional_event_time, expect_optional_i64,
-            expect_string, expect_string_list, Transport,
+            expect_bool, expect_edge_id, expect_gid_list, expect_optional_event_time,
+            expect_optional_i64, expect_string, expect_string_list, Transport,
         },
         ClientError,
     },
@@ -298,15 +298,7 @@ impl RemoteEdge {
         let op = Op::Read(ReadExpr::EdgeIdPair {
             input: self.expr.clone(),
         });
-        let list = expect_gid_list(self.transport.execute(&op).await?, "id")?;
-        let mut it = list.into_iter();
-        let src = it
-            .next()
-            .ok_or_else(|| ClientError::InvalidResponse("edge id list missing src".into()))?;
-        let dst = it
-            .next()
-            .ok_or_else(|| ClientError::InvalidResponse("edge id list missing dst".into()))?;
-        Ok((src, dst))
+        expect_edge_id(self.transport.execute(&op).await?, "id")
     }
 
     /// Terminal: layer names this edge is present in. Fires one RPC.

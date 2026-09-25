@@ -1,7 +1,8 @@
 use crate::core::{
     entities::{
         properties::prop::{
-            prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType, PropUnwrap,
+            prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType,
+            PropTypeError, PropUnwrap,
         },
         GidRef,
     },
@@ -25,6 +26,7 @@ use num_traits::{Bounded, FromPrimitive, ToPrimitive, Zero};
 use ordered_float::OrderedFloat;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{
+    de,
     de::{MapAccess, SeqAccess, Visitor},
     ser::{Error, SerializeMap, SerializeSeq},
     Deserialize, Deserializer, Serialize, Serializer,
@@ -126,7 +128,7 @@ impl<'de> Deserialize<'de> for PropUntagged {
             PropUntaggedHelper::F64(v) => Prop::F64(v),
             PropUntaggedHelper::F32(v) => Prop::F32(v),
             PropUntaggedHelper::Str(v) => Prop::Str(v),
-            PropUntaggedHelper::List(v) => Prop::list(v),
+            PropUntaggedHelper::List(v) => Prop::list(v).map_err(de::Error::custom)?,
             PropUntaggedHelper::Map(v) => {
                 Prop::Map(Arc::new(v.into_iter().map(|(k, p)| (k, p.0)).collect()))
             }
@@ -215,7 +217,7 @@ impl<'de> Deserialize<'de> for PropExact {
                 while let Some(v) = seq.next_element::<PropExact>()? {
                     values.push(v.0);
                 }
-                Ok(Prop::list(values))
+                Ok(Prop::list(values).map_err(de::Error::custom)?)
             }
             fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Prop, A::Error> {
                 let mut values = PropMap::default();
@@ -899,11 +901,13 @@ impl Prop {
         Prop::Str(s.into())
     }
 
-    pub fn list<P: Into<Prop>, I: IntoIterator<Item = P>>(vals: I) -> Prop {
-        Prop::List(PropArray::Vec(
-            vals.into_iter().map_into().collect::<Vec<_>>().into(),
-        ))
+    pub fn list<P: Into<Prop>, I: IntoIterator<Item = P>>(vals: I) -> Result<Prop, PropTypeError> {
+        Ok(Prop::List(PropArray::try_from(
+            vals.into_iter().map_into().collect::<Vec<_>>(),
+        )?))
     }
+
+
 
     /// Consume a numeric prop into a `BigDecimal` — exact for integers and existing decimals, the
     /// nearest decimal for floats. `None` for non-numerics (and non-finite floats).
@@ -970,9 +974,7 @@ impl Prop {
             (F64(a), F64(b)) => Some(F64(a + b)),
             (Str(a), Str(b)) => Some(Str((a.to_string() + b.as_ref()).into())),
             (Decimal(a), Decimal(b)) => Some(Decimal(a + b)),
-            (List(a), List(b)) if a.dtype() == b.dtype() => Some(List(PropArray::Vec(
-                a.iter().chain(b.iter()).collect::<Vec<_>>().into(),
-            ))),
+            (List(a), List(b)) if a.dtype() == b.dtype() => Some(List(a.join(&b).ok()?)),
             // Cross-type numeric pair: cast to a common compatible dtype, non-numeric fails
             (a, b) => {
                 let (left, right) = a.try_cast_compatible_numeric(b)?;
@@ -1316,9 +1318,11 @@ impl From<PropMap> for Prop {
     }
 }
 
-impl From<Vec<Prop>> for Prop {
-    fn from(value: Vec<Prop>) -> Self {
-        Prop::List(value.into())
+impl TryFrom<Vec<Prop>> for Prop {
+    type Error = PropTypeError;
+
+    fn try_from(value: Vec<Prop>) -> Result<Self, Self::Error> {
+        Ok(Prop::List(value.try_into()?))
     }
 }
 
@@ -1349,13 +1353,13 @@ impl<I: IntoIterator<Item = (K, V)>, K: Into<ArcStr>, V: Into<Prop>> IntoPropMap
 }
 
 pub trait IntoPropList {
-    fn into_prop_list(self) -> Prop;
+    fn into_prop_list(self) -> Result<Prop, PropTypeError>;
 }
 
 impl<I: IntoIterator<Item = K>, K: Into<Prop>> IntoPropList for I {
-    fn into_prop_list(self) -> Prop {
+    fn into_prop_list(self) -> Result<Prop, PropTypeError> {
         let vec = self.into_iter().map(|v| v.into()).collect::<Vec<_>>();
-        Prop::List(vec.into())
+        Prop::try_from(vec)
     }
 }
 
@@ -1555,18 +1559,18 @@ mod agg_arith_tests {
             Prop::str("ab").add(Prop::str("cd")),
             Some(Prop::str("abcd"))
         );
-        let a = Prop::list([Prop::I64(1), Prop::I64(2)]);
-        let b = Prop::list([Prop::I64(3)]);
+        let a = Prop::list([Prop::I64(1), Prop::I64(2)]).unwrap();
+        let b = Prop::list([Prop::I64(3)]).unwrap();
         assert_eq!(
             a.add(b),
-            Some(Prop::list([Prop::I64(1), Prop::I64(2), Prop::I64(3)]))
+            Some(Prop::list([Prop::I64(1), Prop::I64(2), Prop::I64(3)]).unwrap())
         );
     }
 
     #[test]
     fn add_rejects_lists_with_different_inner_types() {
-        let a = Prop::list([1i64, 2, 3]);
-        let b = Prop::list(["hi", "there"]);
+        let a = Prop::list([1i64, 2, 3]).unwrap();
+        let b = Prop::list(["hi", "there"]).unwrap();
 
         assert_eq!(a.add(b), None);
     }

@@ -66,7 +66,7 @@ mod write_guard_tests {
 
     #[async_trait::async_trait]
     impl Transport for NoRpc {
-        async fn execute(&self, _op: &Op) -> Result<Option<Prop>, ClientError> {
+        async fn execute(&self, _op: &Op) -> Result<serde_json::Value, ClientError> {
             panic!("a guarded write reached the transport")
         }
     }

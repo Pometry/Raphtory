@@ -1,6 +1,8 @@
 use crate::core::{
     entities::{
-        properties::prop::{check_for_unification, unify_types, PropError, PropType},
+        properties::prop::{
+            check_for_unification, unify_types, PropError, PropType, PropTypeError,
+        },
         LayerId, LayerIds,
     },
     storage::{
@@ -466,12 +468,12 @@ impl<'a> WriteLockedPropMapper<'a> {
         key: impl Into<ArcStr>,
         id: usize,
         dtype: PropType,
-    ) -> Result<(), PropError> {
+    ) -> Result<(), PropTypeError> {
         self.dict_mapper.set_id(key, id);
         self.set_or_unify_dtype(id, dtype)
     }
 
-    pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropError> {
+    pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropTypeError> {
         let dtypes = self.d_types.deref_mut();
 
         match dtypes.get_mut(id) {
@@ -762,10 +764,7 @@ mod write_locked_prop_mapper_tests {
 
         assert!(result.is_err());
 
-        if let Err(PropError {
-            expected, actual, ..
-        }) = result
-        {
+        if let Err(PropTypeError { expected, actual }) = result {
             assert_eq!(expected, PropType::U8);
             assert_eq!(actual, PropType::U16);
         } else {

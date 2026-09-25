@@ -16,8 +16,8 @@ use crate::{
         remote_nodes::RemoteNodes,
         remote_schema::RemoteGraphSchema,
         transport::{
-            expect_bool, expect_i64, expect_optional_event_time, expect_optional_i64,
-            expect_string, expect_string_list, Transport,
+            expect_bool, expect_gid_list, expect_i64, expect_optional_event_time,
+            expect_optional_i64, expect_string, expect_string_list, Transport,
         },
         ClientError,
     },
@@ -539,12 +539,8 @@ impl RemoteGraph {
         let op = Op::Read(ReadExpr::Schema {
             input: self.expr.clone(),
         });
-        let prop = self
-            .transport
-            .execute(&op)
-            .await?
-            .ok_or_else(|| ClientError::InvalidResponse("schema returned null".into()))?;
-        RemoteGraphSchema::from_prop(prop)
+        let result = self.transport.execute(&op).await?;
+        RemoteGraphSchema::from_query(result)
     }
 
     /// Terminal: the set-intersection of neighbours across the given node
@@ -561,11 +557,10 @@ impl RemoteGraph {
             input: self.expr.clone(),
             ids,
         });
-        let names = expect_string_list(self.transport.execute(&op).await?, "sharedNeighbours")?;
+        let names = expect_gid_list(self.transport.execute(&op).await?, "sharedNeighbours")?;
         Ok(names
             .into_iter()
-            .map(|name| {
-                let id = GID::Str(name);
+            .map(|id| {
                 RemoteNode::with_expr(
                     self.path.clone(),
                     id.clone(),

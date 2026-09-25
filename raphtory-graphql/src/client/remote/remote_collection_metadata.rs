@@ -56,7 +56,7 @@ impl Column {
 // The two views share every accessor; only the ReadExpr variants they fire
 // differ. The macro pins the two impls in lockstep.
 macro_rules! columnar_view_impl {
-    ($ty:ident, $values_flat:ident, $values_nested:ident, $keys_flat:ident, $keys_nested:ident) => {
+    ($ty:ident, $values_flat:ident, $values_nested:ident, $keys_flat:ident, $keys_nested:ident, $context:expr) => {
         impl $ty {
             pub fn with_expr(
                 path: String,
@@ -78,6 +78,7 @@ macro_rules! columnar_view_impl {
             /// key, so only those columns travel and the response arrives
             /// already column-shaped (no key matching, no pivot).
             async fn fetch_columns(&self, keys: Arc<[String]>) -> Result<Vec<Column>, ClientError> {
+                let num_cols = keys.len();
                 if self.nested {
                     let op = Op::Read(ReadExpr::$values_nested {
                         input: self.expr.clone(),
@@ -85,7 +86,8 @@ macro_rules! columnar_view_impl {
                     });
                     let cols = expect_nested_columnar_property_list(
                         self.transport.execute(&op).await?,
-                        "values",
+                        num_cols,
+                        $context,
                     )?;
                     Ok(cols.into_iter().map(Column::Nested).collect())
                 } else {
@@ -95,7 +97,8 @@ macro_rules! columnar_view_impl {
                     });
                     let cols = expect_columnar_property_list(
                         self.transport.execute(&op).await?,
-                        "values",
+                        num_cols,
+                        $context,
                     )?;
                     Ok(cols.into_iter().map(Column::Flat).collect())
                 }
@@ -131,7 +134,7 @@ macro_rules! columnar_view_impl {
             /// entirely empty does a key lookup distinguish registered-but-
             /// absent (`Some` column of `None`s) from unregistered (`None`).
             pub async fn get(&self, key: &str) -> Result<Option<Column>, ClientError> {
-                let keys: Arc<[String]> = Arc::from(vec![key.to_string()]);
+                let keys: Arc<[String]> = Arc::from([key.to_string()]);
                 let column = self.fetch_columns(keys).await?.pop().ok_or_else(|| {
                     ClientError::InvalidResponse("`get` returned no column".into())
                 })?;
@@ -177,7 +180,8 @@ columnar_view_impl!(
     CollectionMetadataValues,
     NestedMetadataValues,
     CollectionMetadataKeys,
-    NestedMetadataKeys
+    NestedMetadataKeys,
+    "metadata"
 );
 
 /// A columnar view over the full properties (temporal → latest) of a remote
@@ -197,5 +201,6 @@ columnar_view_impl!(
     CollectionPropertiesValues,
     NestedPropertiesValues,
     CollectionPropertiesKeys,
-    NestedPropertiesKeys
+    NestedPropertiesKeys,
+    "properties"
 );

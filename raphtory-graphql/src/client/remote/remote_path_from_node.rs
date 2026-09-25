@@ -7,9 +7,9 @@ use crate::{
         remote_history::RemoteHistory,
         remote_node::RemoteNode,
         transport::{
-            expect_bool, expect_gid_list, expect_i64, expect_i64_list, expect_optional_event_time,
-            expect_optional_event_time_list, expect_optional_i64, expect_optional_string_list,
-            expect_string_list, Transport,
+            expect_bool, expect_gid_list, expect_i64, expect_i64_list, expect_node_type_list,
+            expect_optional_event_time, expect_optional_event_time_list, expect_optional_i64,
+            expect_tagged_typed_list, Transport,
         },
         ClientError,
     },
@@ -221,7 +221,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionNames {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "name")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "name")
     }
 
     /// Columnar accessor: each node's type (`None` when unset) — mirrors the
@@ -230,7 +230,7 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionNodeTypes {
             input: self.expr.clone(),
         });
-        expect_optional_string_list(self.transport.execute(&op).await?, "nodeType")
+        expect_node_type_list(self.transport.execute(&op).await?, "nodeType")
     }
 
     /// Columnar accessor: each node's earliest event time — mirrors the local
@@ -239,7 +239,11 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "earliestTime",
+            "earliestTime",
+        )
     }
 
     /// Columnar accessor: each node's latest event time — mirrors the local
@@ -248,7 +252,11 @@ impl RemotePathFromNode {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "latestTime",
+            "latestTime",
+        )
     }
 
     /// The non-temporal metadata of this path as a columnar view — mirrors the

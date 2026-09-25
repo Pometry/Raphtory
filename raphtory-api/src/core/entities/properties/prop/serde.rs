@@ -1,4 +1,4 @@
-use crate::core::entities::properties::prop::{IntoPropMap, Prop};
+use crate::core::entities::properties::prop::{IntoPropMap, Prop, PropArray};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -26,7 +26,12 @@ impl TryFrom<Value> for Prop {
                 .into_iter()
                 .map(|item| item.try_into())
                 .collect::<Result<Vec<Prop>, Self::Error>>()
-                .map(|item| item.into()),
+                .and_then(|item| {
+                    Ok(Prop::List(
+                        PropArray::try_from(item)
+                            .map_err(|err| format!("Mixed types in list: {err}"))?,
+                    ))
+                }),
             Value::Object(value) => value
                 .into_iter()
                 .map(|(key, value)| {

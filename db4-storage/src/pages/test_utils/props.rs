@@ -101,7 +101,7 @@ pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> + use<> {
             .boxed(),
         // TODO: empty lists are a type nightmare
         PropType::List(p_type) => proptest::collection::vec(prop(p_type), 1..10)
-            .prop_map(|props| Prop::List(PropArray::Vec(props.into())))
+            .prop_map(|props| Prop::List(PropArray::try_from(props).unwrap()))
             .boxed(),
         PropType::Map(p_types) => {
             let prop_types: Vec<BoxedStrategy<(String, Prop)>> = p_types

@@ -203,7 +203,7 @@ mod test {
             [
                 (
                     "list_prop",
-                    Prop::List(vec![Prop::F64(1.1), Prop::F64(2.2), Prop::F64(3.3)].into()),
+                    Prop::list([Prop::F64(1.1), Prop::F64(2.2), Prop::F64(3.3)]).unwrap(),
                 ),
                 (
                     "map_prop",
