@@ -230,18 +230,20 @@ fn lookup_node_vids<'a: 'c, 'b: 'c, 'c, G: StaticGraphViewOps>(
     dst_col: &'a NodeCol,
 ) -> Result<(&'c [VID], &'c [VID]), GraphError> {
     if resolve_nodes {
-        src_col_resolved.clear();
-        dst_col_resolved.clear();
+        src_col_resolved.resize(src_col.len(), VID::default());
+        dst_col_resolved.resize(src_col.len(), VID::default());
         for (col, resolved) in [
             (src_col, &mut *src_col_resolved),
             (dst_col, &mut *dst_col_resolved),
         ] {
-            for gid in col.iter() {
-                let vid = graph
-                    .internalise_node(gid.as_node_ref())
-                    .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?;
-                resolved.push(vid);
-            }
+            col.par_iter()
+                .zip_eq(resolved.par_iter_mut())
+                .try_for_each(|(gid, vid)| {
+                    *vid = graph
+                        .internalise_node(gid.as_node_ref())
+                        .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?;
+                    Ok::<(), GraphError>(())
+                })?;
         }
         Ok((src_col_resolved.as_slice(), dst_col_resolved.as_slice()))
     } else {
