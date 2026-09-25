@@ -10,6 +10,7 @@ use crate::{
             pagerank::page_rank,
         },
         community_detection::{
+            belief_propagation::belief_propagation as belief_propagation_rs,
             label_propagation::label_propagation as label_propagation_rs,
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
         },
@@ -79,6 +80,7 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
+use std::collections::HashMap;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -808,6 +810,50 @@ pub fn label_propagation(
     //Ok(result) => Ok(result),
     //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     // }
+}
+
+/// Computes belief propagation with Dirichlet certainty.
+/// 
+/// Implementation of NetConf (Eswaran, Günnemann & Faloutsos, 2017) using the modulation
+/// matrix M = cI (homophily).
+///
+/// Arguments:
+///     graph (GraphView): A reference to the graph
+///     seeds (dict[NodeInput, list[tuple[int, float]]]): Seed evidence: each node maps to its (label, mass) pairs.
+///     c (float): Decay per hop, in (0, 1).
+///     epsilon (float): Evidence floor. A belief below the threshold counts as no evidence and does not propagate.
+///     activation_tol (float, optional): Node re-activation threshold. Defaults to `epsilon`.
+///     max_iter (int, optional): Maximum sweeps per label. Defaults to 100.
+///     top_r (int, optional): Number of strongest labels kept per node. Defaults to 5.
+///     threads (int, optional): Number of threads to use
+///
+/// Returns:
+///     OutputNodeState: NodeState mapping nodes to their `top_r` strongest labels and D-beliefs, their `mass`, and entropy sums.
+///
+#[pyfunction]
+#[pyo3[signature = (graph, seeds, c, epsilon, activation_tol=None, max_iter=None, top_r=None, threads=None)]]
+#[allow(clippy::too_many_arguments)]
+pub fn belief_propagation(
+    graph: &PyGraphView,
+    seeds: HashMap<PyNodeRef, Vec<(usize, f64)>>,
+    c: f64,
+    epsilon: f64,
+    activation_tol: Option<f64>,
+    max_iter: Option<usize>,
+    top_r: Option<usize>,
+    threads: Option<usize>,
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
+    let result = belief_propagation_rs(
+        &graph.graph,
+        seeds,
+        c,
+        epsilon,
+        activation_tol,
+        max_iter,
+        top_r,
+        threads,
+    )?;
+    Ok(result.to_output_nodestate())
 }
 
 /// Determines which nodes are in the k-core for a given value of k
