@@ -323,12 +323,12 @@ mod test {
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
         let a_nodes: Vec<_> = storage
             .node_type_index()
-            .node_type_entry(&[a_id])
+            .entry(&[a_id])
             .iter()
             .collect();
         let b_nodes: Vec<_> = storage
             .node_type_index()
-            .node_type_entry(&[b_id])
+            .entry(&[b_id])
             .iter()
             .collect();
 
@@ -509,12 +509,12 @@ mod test {
         let storage = graph.core_graph();
         let a_nodes: Vec<_> = storage
             .node_type_index()
-            .node_type_entry(&[a_id])
+            .entry(&[a_id])
             .iter()
             .collect();
         let b_nodes: Vec<_> = storage
             .node_type_index()
-            .node_type_entry(&[b_id])
+            .entry(&[b_id])
             .iter()
             .collect();
 
@@ -565,7 +565,7 @@ mod test {
 
         assert!(storage
             .node_type_index()
-            .node_type_entry(&[DEFAULT_NODE_TYPE_ID])
+            .entry(&[DEFAULT_NODE_TYPE_ID])
             .iter()
             .next()
             .is_none());
@@ -573,7 +573,7 @@ mod test {
         assert_eq!(
             storage
                 .node_type_index()
-                .node_type_entry(&[a_id])
+                .entry(&[a_id])
                 .iter()
                 .collect::<Vec<_>>(),
             vec![typed_a]
@@ -581,7 +581,7 @@ mod test {
         assert_eq!(
             storage
                 .node_type_index()
-                .node_type_entry(&[b_id])
+                .entry(&[b_id])
                 .iter()
                 .collect::<Vec<_>>(),
             vec![typed_b]
@@ -617,7 +617,7 @@ mod test {
         assert_eq!(
             storage
                 .node_type_index()
-                .node_type_entry(&[a_id])
+                .entry(&[a_id])
                 .iter()
                 .count(),
             1
@@ -625,7 +625,7 @@ mod test {
         assert_eq!(
             storage
                 .node_type_index()
-                .node_type_entry(&[b_id])
+                .entry(&[b_id])
                 .iter()
                 .count(),
             1
@@ -649,7 +649,7 @@ mod test {
         let indexed: Vec<_> = graph
             .core_graph()
             .node_type_index()
-            .node_type_entry(&[person_id])
+            .entry(&[person_id])
             .iter()
             .collect();
 
