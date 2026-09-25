@@ -50,7 +50,7 @@ mod clustering_coefficient_tests {
     use raphtory::{
         algorithms::metrics::clustering_coefficient::{
             local_clustering_coefficient::local_clustering_coefficient,
-            local_clustering_coefficient_batch::local_clustering_coefficient_batch,
+            local_clustering_coefficient_batch::{local_clustering_coefficient_batch, LCCState},
         },
         db::{
             api::{mutation::AdditionOps, view::*},
@@ -60,6 +60,63 @@ mod clustering_coefficient_tests {
     };
     use raphtory_tests::test_storage;
     use std::collections::HashMap;
+
+    fn lcc_by_name<G: StaticGraphViewOps>(
+        state: &raphtory::db::api::state::TypedNodeState<'static, LCCState, G>,
+    ) -> Vec<(String, f64)> {
+        use raphtory::db::api::state::NodeStateOps;
+        let mut out: Vec<(String, f64)> = state
+            .iter()
+            .map(|(node, value)| (node.name(), value.lcc))
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
+
+    #[test]
+    fn lcc_batch_with_no_nodes_given_matches_the_explicit_list() {
+        // a triangle plus an isolated node: VIDs are not the dense range 0..count_nodes(),
+        // so a result built from that range names nodes that do not exist and panics on read
+        let g = Graph::new();
+        for name in ["a", "b", "c", "isolated"] {
+            g.add_node(1, name, NO_PROPS, None, None).unwrap();
+        }
+        g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        g.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        g.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+
+        let implicit = local_clustering_coefficient_batch(&g, Vec::<&str>::new());
+        let explicit = local_clustering_coefficient_batch(&g, vec!["a", "b", "c", "isolated"]);
+        assert_eq!(lcc_by_name(&implicit), lcc_by_name(&explicit));
+        assert_eq!(
+            lcc_by_name(&implicit),
+            vec![
+                ("a".to_string(), 1.0),
+                ("b".to_string(), 1.0),
+                ("c".to_string(), 1.0),
+                ("isolated".to_string(), 0.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn lcc_batch_with_no_nodes_given_respects_the_view() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        g.add_edge(2, "b", "c", NO_PROPS, None).unwrap();
+        g.add_edge(3, "c", "a", NO_PROPS, None).unwrap();
+        g.add_edge(4, "x", "y", NO_PROPS, None).unwrap();
+
+        let view = g.subgraph(["a", "b", "c"]);
+        let names: Vec<String> = lcc_by_name(&local_clustering_coefficient_batch(
+            &view,
+            Vec::<&str>::new(),
+        ))
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+        assert_eq!(names, vec!["a", "b", "c"]);
+    }
 
     #[test]
     fn clusters_of_triangles() {

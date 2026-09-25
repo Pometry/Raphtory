@@ -674,14 +674,24 @@ class GraphView(object):
         """
         Create a VectorisedGraph from the current graph.
 
+        Every node and edge is rendered into a text document by a template, and the document is what gets embedded.
+
         Args:
           model (VectorCache): Cache wrapping the embedding model used to embed documents.
-          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
-          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          nodes (bool | str): True to embed nodes with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each node with. Defaults to True.
+          edges (bool | str): True to embed edges with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each edge with. Defaults to True.
           verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
           VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+
+        Note:
+          A template string is rendered as it is, so a bare word such as `"description"` becomes the literal document `description` for every entity; to embed a property, interpolate it: `"{{ properties.description }}"`.
+
+          A node template can use `name`, `node_type`, `properties`, `metadata` and `temporal_properties` (a mapping from property name to a list of `(time, value)` pairs). An edge template can use `src` and `dst` (each with the node variables above, e.g. `src.name`), `history` (the update times), `layers`, `properties`, `metadata` and `temporal_properties`. A `datetimeformat` filter formats a timestamp, as in `{{ time|datetimeformat }}`.
+
+        Example:
+          >>> vg = g.vectorise(cache, nodes="{{ name }} is a {{ node_type }}", edges="{{ src.name }} -> {{ dst.name }}: {{ properties.description }}")
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
