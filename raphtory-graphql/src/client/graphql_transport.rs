@@ -28,7 +28,7 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropArray, PropMap, PropType},
     GID,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, sync::Arc};
 
@@ -790,20 +790,6 @@ fn gid_var(gid: &GID) -> JsonValue {
     match gid {
         GID::U64(v) => json!(v),
         GID::Str(s) => json!(s),
-    }
-}
-
-/// Decode a `NodeId` scalar from a response — a string or a number, with the
-/// JSON type preserved (`Prop::Str` / `Prop::U64`), matching the local `.id`.
-fn gid_prop(v: &JsonValue) -> Result<Prop, ClientError> {
-    if let Some(s) = v.as_str() {
-        Ok(Prop::Str(s.into()))
-    } else if let Some(n) = v.as_u64() {
-        Ok(Prop::U64(n))
-    } else {
-        Err(ClientError::InvalidResponse(
-            "node id not a string or non-negative int".into(),
-        ))
     }
 }
 
@@ -3344,19 +3330,6 @@ mod tests {
             render_gid_list(&[GID::U64(5), GID::Str("a".into())]),
             r#"5, "a""#
         );
-    }
-
-    #[test]
-    fn node_ids_are_decoded_back_to_their_type() {
-        // The reverse direction: a JSON number decodes to an integer id and a
-        // JSON string to a string id, so `.id` reports what the graph holds
-        // rather than a stringification of it.
-        assert_eq!(gid_prop(&json!(5)).unwrap(), Prop::U64(5));
-        assert_eq!(gid_prop(&json!("5")).unwrap(), Prop::Str("5".into()));
-        // Negative ids are not representable (`GID::U64`), so they are a
-        // protocol error rather than a silent truncation.
-        assert!(gid_prop(&json!(-1)).is_err());
-        assert!(gid_prop(&json!(null)).is_err());
     }
 
     // ============ Unit tests for GraphQL string escaping ============
