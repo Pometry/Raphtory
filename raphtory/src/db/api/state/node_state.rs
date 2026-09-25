@@ -39,14 +39,7 @@ use storage::state::{StateIndex, StateIndexIter};
 pub enum Index<K> {
     Full(Arc<StateIndex<K>>),
     Partial(Arc<IndexSet<K, RandomState>>),
-    /// Keys in ascending `usize`-key order, deduplicated; positions are ranks
-    /// in that order (membership by binary search, no hashing). `exact` means
-    /// every key is known to satisfy the filter that produced this index, so
-    /// consumers may skip per-key verification.
-    Sorted {
-        keys: Arc<[K]>,
-        exact: bool,
-    },
+    Sorted { keys: Arc<[K]>, exact: bool },
 }
 
 /// Two-pointer intersection of ascending, deduplicated key slices.
@@ -119,6 +112,7 @@ impl Index<VID> {
         if trusted {
             match node_list {
                 NodeList::All { .. } => Self::Full(graph.core_graph().node_state_index().into()),
+                list @ NodeList::NodeTypeIdx { .. } => list.into_index(graph.core_graph()),
                 NodeList::List { elems } => elems,
             }
         } else {
@@ -741,7 +735,7 @@ impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
             self.base_graph.clone(),
             self.base_graph.clone(),
             Const(true),
-            self.keys.clone(),
+            NodeList::from(self.keys.clone()),
         )
     }
 

@@ -8,7 +8,8 @@ use crate::{
                 Index,
             },
             view::{
-                internal::GraphView, BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                internal::{GraphView, NodeList},
+                BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{
@@ -381,7 +382,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                                 base_graph.clone(),
                                 base_graph,
                                 Const(true),
-                                index,
+                                NodeList::from(index),
                             )),
                         )
                     }
@@ -414,7 +415,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             self.base_graph.clone(),
             self.base_graph.clone(),
             NO_FILTER,
-            self.keys.clone(),
+            NodeList::from(self.keys.clone()),
         )
     }
 
@@ -904,7 +905,7 @@ impl<
                         self.graph().clone(),
                         self.graph().clone(),
                         Const(true),
-                        Index::new(nodes),
+                        NodeList::from(Index::new(nodes)),
                     ),
                 )
             })

@@ -36,6 +36,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
+use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G, F = Const<bool>> {
@@ -692,6 +693,13 @@ impl<
                     .core_graph()
                     .node_state_index()
                     .global_index(index)?,
+                NodeList::NodeTypeIdx { types } => self
+                    .graph()
+                    .core_graph()
+                    .node_type_index()
+                    .entry(&types)
+                    .iter()
+                    .nth(index)?,
                 NodeList::List { elems } => elems.value(index)?,
             };
             let cg = self.graph().core_graph();

@@ -19,7 +19,7 @@ pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
     /// The domain of validity for this node op
-    fn domain(&self, _storage: &GraphStorage) -> NodeList;
+    fn domain(&self, storage: &GraphStorage) -> NodeList;
 
     /// Returns `Some(value)` if the node op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
@@ -227,7 +227,7 @@ where
     fn domain(&self, storage: &GraphStorage) -> NodeList {
         self.left
             .domain(storage)
-            .intersection(&self.right.domain(storage))
+            .intersection(&self.right.domain(storage), storage)
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {

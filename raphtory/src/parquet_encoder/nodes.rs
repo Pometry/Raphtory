@@ -35,7 +35,9 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
     let filtered = g.filtered();
 
     match node_list {
+        // TODO: use the node type index instead of scanning every row group
         List::All
+        | List::NodeTypeIdx { .. }
         | List::List {
             elems: Index::Full(_),
         } => Either::Left(

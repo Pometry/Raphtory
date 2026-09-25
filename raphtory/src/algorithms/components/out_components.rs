@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
-            view::{Filter, NodeViewOps, StaticGraphViewOps},
+            view::{internal::NodeList, Filter, NodeViewOps, StaticGraphViewOps},
         },
         graph::{
             node::NodeView,
@@ -50,7 +50,7 @@ impl OutState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.out_components),
+                NodeList::from(Index::from_iter(value.out_components)),
             ),
         }
     }
