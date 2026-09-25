@@ -56,6 +56,12 @@ impl<I> Clone for List<I> {
     }
 }
 
+impl<I> From<Index<I>> for List<I> {
+    fn from(elems: Index<I>) -> Self {
+        List::List { elems }
+    }
+}
+
 /// The nodes of the given types in ascending order.
 fn node_type_vids(g: &GraphStorage, types: &[usize]) -> Vec<VID> {
     g.node_type_index().entry(types).iter().collect()

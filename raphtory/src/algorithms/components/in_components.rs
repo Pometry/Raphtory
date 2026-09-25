@@ -53,9 +53,7 @@ impl InState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                NodeList::List {
-                    elems: Index::from_iter(value.in_components),
-                },
+                NodeList::from(Index::from_iter(value.in_components)),
             ),
         }
     }

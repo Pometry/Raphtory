@@ -735,9 +735,7 @@ impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
             self.base_graph.clone(),
             self.base_graph.clone(),
             Const(true),
-            NodeList::List {
-                elems: self.keys.clone(),
-            },
+            NodeList::from(self.keys.clone()),
         )
     }
 

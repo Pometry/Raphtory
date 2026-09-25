@@ -50,9 +50,7 @@ impl OutState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                NodeList::List {
-                    elems: Index::from_iter(value.out_components),
-                },
+                NodeList::from(Index::from_iter(value.out_components)),
             ),
         }
     }

@@ -45,9 +45,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    NodeList::List {
-                        elems: nodes.clone(),
-                    },
+                    NodeList::from(nodes.clone()),
                 ),
             )
         })
@@ -90,9 +88,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    NodeList::List {
-                        elems: nodes.clone(),
-                    },
+                    NodeList::from(nodes.clone()),
                 ),
             )
         })

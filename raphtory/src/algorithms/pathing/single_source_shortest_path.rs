@@ -44,9 +44,7 @@ impl PathState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                NodeList::List {
-                    elems: Index::from_iter(value.path),
-                },
+                NodeList::from(Index::from_iter(value.path)),
             ),
         }
     }

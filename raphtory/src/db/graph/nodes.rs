@@ -128,9 +128,7 @@ where
         Self {
             base_graph,
             graph,
-            nodes: NodeList::List {
-                elems: node_index.into(),
-            },
+            nodes: NodeList::from(Index::from(node_index)),
             predicate: NO_FILTER,
             _marker: PhantomData,
         }
@@ -143,17 +141,12 @@ where
     GH: GraphViewOps<'graph> + 'graph,
     F: NodeFilterOp + Clone + 'graph,
 {
-    pub fn new_filtered(
-        base_graph: G,
-        graph: GH,
-        predicate: F,
-        nodes: impl Into<NodeList>,
-    ) -> Self {
+    pub fn new_filtered(base_graph: G, graph: GH, predicate: F, nodes: NodeList) -> Self {
         Self {
             base_graph,
             graph,
             predicate,
-            nodes: nodes.into(),
+            nodes,
             _marker: PhantomData,
         }
     }
@@ -193,7 +186,7 @@ where
             })
             .map(|node_view| node_view.node)
             .collect();
-        self.indexed(NodeList::List { elems: index })
+        self.indexed(NodeList::from(index))
     }
 
     fn indexed(&self, nodes: NodeList) -> Nodes<'graph, G, GH, F> {
@@ -339,7 +332,7 @@ where
             .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
 
-        self.indexed(NodeList::List { elems: index })
+        self.indexed(NodeList::from(index))
     }
 
     /// Collect nodes into a vec
@@ -543,9 +536,7 @@ mod test {
                 .collect::<BTreeSet<_>>();
             assert!(picked.len() < all.len(), "index should be a strict subset");
 
-            let indexed = nodes.indexed(NodeList::List {
-                elems: Index::from_iter(picked),
-            });
+            let indexed = nodes.indexed(NodeList::from(Index::from_iter(picked)));
             assert_eq!(
                 indexed.iter().map(|n| n.id()).collect::<BTreeSet<_>>(),
                 expected
