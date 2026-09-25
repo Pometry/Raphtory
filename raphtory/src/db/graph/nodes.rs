@@ -31,7 +31,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use storage::api::nodes::NodeRefOps;
+use storage::api::nodes::{NodeEntryOps, NodeRefOps};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {

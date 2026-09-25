@@ -1,18 +1,18 @@
-use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
+use crate::{NodeEntryRef, segments::additions::MemTimeCell, utils::Iter3};
 use std::ops::Range;
 
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
 use raphtory_core::{
-    entities::{ELID, LayerIds, layers::Multiple},
+    entities::{ELID, LayerIds},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_itertools::FastMergeExt;
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum LayerIter<'a> {
     One(LayerId),
     LayerRef(&'a LayerIds),
-    Multiple(Multiple),
+    WithStatic(&'a LayerIds),
 }
 
 pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LayerRef(&LayerIds::All);
@@ -23,7 +23,11 @@ impl<'a> LayerIter<'a> {
         match self {
             LayerIter::One(id) => Iter3::I(std::iter::once(id)),
             LayerIter::LayerRef(layers) => Iter3::J(layers.iter(num_layers)),
-            LayerIter::Multiple(ids) => Iter3::K(ids.into_iter()),
+            LayerIter::WithStatic(ids) => {
+                let needs_static = !ids.contains(&STATIC_GRAPH_LAYER_ID);
+                let leading_static_layer = needs_static.then_some(STATIC_GRAPH_LAYER_ID);
+                Iter3::K(leading_static_layer.into_iter().chain(ids.iter(num_layers)))
+            }
         }
     }
 }
@@ -95,7 +99,7 @@ pub trait WithEdgeEvents<'a>: WithTimeCells<'a> {
 }
 
 impl<'a> WithEdgeEvents<'a> for NodeEntryRef<'a> {
-    type TimeCell = MemAdditions<'a>;
+    type TimeCell = MemTimeCell<'a>;
 }
 
 pub trait EdgeEventOps<'a>: TimeIndexOps<'a, IndexType = EventTime> {

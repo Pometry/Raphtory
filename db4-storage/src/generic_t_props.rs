@@ -1,6 +1,4 @@
-use std::{borrow::Borrow, ops::Range};
-
-use either::Either;
+use crate::{generic_time_ops::LayerIter, utils::Iter4};
 use itertools::Itertools;
 use raphtory_api::core::entities::{
     LayerId,
@@ -8,8 +6,7 @@ use raphtory_api::core::entities::{
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{entities::LayerIds, storage::timeindex::EventTime};
-
-use crate::utils::Iter4;
+use std::{borrow::Borrow, ops::Range};
 
 /// `WithTProps` defines behavior for types that store multiple temporal
 /// properties either in memory or on disk.
@@ -62,15 +59,15 @@ where
 #[derive(Clone, Copy)]
 pub struct GenericTProps<'a, Ref: WithTProps<'a>> {
     reference: Ref,
-    layer_id: Either<&'a LayerIds, LayerId>,
+    layer_id: LayerIter<'a>,
     prop_id: usize,
 }
 
 impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
-    pub fn new(reference: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
+    pub fn new(reference: Ref, layer_id: LayerIter<'a>, prop_id: usize) -> Self {
         Self {
             reference,
-            layer_id: Either::Left(layer_id),
+            layer_id,
             prop_id,
         }
     }
@@ -78,7 +75,7 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     pub fn new_with_layer(reference: Ref, layer_id: LayerId, prop_id: usize) -> Self {
         Self {
             reference,
-            layer_id: Either::Right(layer_id),
+            layer_id: layer_id.into(),
             prop_id,
         }
     }
@@ -87,18 +84,17 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
 impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
     #[inline]
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
-        match self.layer_id {
-            Either::Left(layer_ids) => {
-                Either::Left(self.reference.into_t_props_layers(layer_ids, prop_id))
-            }
-            Either::Right(layer_id) => {
-                Either::Right(self.reference.into_t_props(layer_id, prop_id))
-            }
-        }
+        self.layer_id
+            .into_iter(self.reference.num_layers())
+            .flat_map(move |layer_id| self.reference.into_t_props(layer_id, prop_id))
     }
 }
 
 impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
+    fn active(&self, w: Range<EventTime>) -> bool {
+        self.tprops(self.prop_id)
+            .any(|t_props| t_props.active(w.clone()))
+    }
     fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_before(t))

@@ -25,6 +25,7 @@ use raphtory_api::{core::entities::properties::meta::STATIC_GRAPH_LAYER_ID, iter
 use raphtory_core::entities::VID;
 use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::prelude::*;
+use storage::api::nodes::NodeEntryOps;
 
 pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
     g: &'a G,

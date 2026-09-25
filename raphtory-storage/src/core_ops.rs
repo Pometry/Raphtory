@@ -2,7 +2,7 @@ use crate::graph::{
     edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
     graph::GraphStorage,
     locked::LockedGraph,
-    nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
+    nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
 };
 use either::Either;
 use raphtory_api::{
@@ -21,7 +21,10 @@ use raphtory_api::{
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{iter, sync::Arc};
-use storage::resolver::GIDResolverOps;
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    resolver::GIDResolverOps,
+};
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -174,14 +177,14 @@ pub trait CoreGraphOps: Send + Sync {
     /// Returns the external ID for a node
     #[inline]
     fn node_id(&self, v: VID) -> GID {
-        self.core_graph().core_node(v).id().into()
+        self.core_graph().core_node(v).as_ref().gid().into()
     }
 
     /// Returns the string name for a node
     #[inline]
     fn node_name(&self, v: VID) -> String {
         let node = self.core_node(v);
-        node.name().as_ref().to_owned()
+        node.as_ref().name().to_string()
     }
 
     /// Returns the type of node
@@ -194,8 +197,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// Returns the type id of a node
     #[inline]
     fn node_type_id(&self, v: VID) -> usize {
-        let node = self.core_node(v);
-        node.node_type_id()
+        self.core_node(v).as_ref().node_type_id()
     }
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
@@ -220,8 +222,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// # Returns
     /// The property value if it exists.
     fn node_metadata(&self, v: VID, id: usize) -> Option<Prop> {
-        let core_node_entry = self.core_node(v);
-        core_node_entry.constant_prop_layer(STATIC_GRAPH_LAYER_ID, id)
+        self.core_node(v).as_ref().c_prop(STATIC_GRAPH_LAYER_ID, id)
     }
 
     /// Gets the keys of metadata of a given node
