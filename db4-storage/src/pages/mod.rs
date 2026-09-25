@@ -1,6 +1,7 @@
 use crate::{
     EID, LocalPOS, VID,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    dir::GraphDir,
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{
@@ -19,12 +20,10 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::properties::meta::Meta, storage::graph_folder::InnerGraphFolder,
-};
+use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
 use rayon::prelude::*;
 use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{
         Arc,
         atomic::{self, AtomicUsize},
@@ -69,6 +68,19 @@ impl<
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
+        self.save_config()?;
+
+        self.nodes.flush()?;
+        self.edges.flush()?;
+        self.graph_props.flush()?;
+
+        self.refresh_metadata()?;
+
+        Ok(())
+    }
+
+    /// Persist the current config (including node types) to the graph directory.
+    pub fn save_config(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         let config = self.ext.config().with_node_types(node_types);
 
@@ -76,18 +88,16 @@ impl<
             config.save_to_dir(graph_dir)?;
         }
 
-        self.nodes.flush()?;
-        self.edges.flush()?;
-        self.graph_props.flush()?;
+        Ok(())
+    }
 
-        // Refresh the graph metadata file (.meta) for disk-backed graphs
+    /// Refresh the graph metadata file (`.meta`) for disk-backed graphs.
+    pub fn refresh_metadata(&self) -> Result<(), StorageError> {
         if let Some(graph_dir) = self.graph_dir.as_ref()
-            && let (Some(data_folder), Some(graph_path)) = (
-                graph_dir.parent(),
-                graph_dir.file_name().and_then(|name| name.to_str()),
-            )
+            && let Some(data_folder) = graph_dir.parent()
+            && let Some(graph_path) = graph_dir.file_name().and_then(|name| name.to_str())
         {
-            InnerGraphFolder::new(data_folder).refresh_metadata(
+            DataFolder::new(data_folder).refresh_metadata(
                 graph_path,
                 self.nodes.num_nodes(),
                 self.edges.num_edges(),
@@ -117,7 +127,7 @@ impl<
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > GraphStore<NS, ES, GS, EXT>
 {
-    pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
+    pub fn new(graph_dir: Option<GraphDir>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         let graph_props_meta = Meta::new_for_graph_props();
@@ -126,66 +136,67 @@ impl<
     }
 
     pub fn new_with_meta(
-        graph_dir: Option<&Path>,
+        graph_dir: Option<GraphDir>,
         node_meta: Meta,
         edge_meta: Meta,
         graph_props_meta: Meta,
         ext: EXT,
-    ) -> Self {
-        let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
-        let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
-        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
+    ) -> Result<Self, StorageError> {
+        let dir = graph_dir.as_ref();
+        let nodes_path = dir.map(|dir| dir.nodes());
+        let edges_path = dir.map(|dir| dir.edges());
+        let graph_props_path = dir.map(|dir| dir.graph_props());
 
         let node_meta = Arc::new(node_meta);
         let edge_meta = Arc::new(edge_meta);
         let graph_props_meta = Arc::new(graph_props_meta);
 
-        let node_storage = Arc::new(NodeStorageInner::new_with_meta(
+        let node_storage = Arc::new(NodeStorageInner::new(
             nodes_path,
             node_meta,
             edge_meta.clone(),
             ext.clone(),
-        ));
-        let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
-            edges_path,
-            edge_meta,
-            ext.clone(),
-        ));
-        let graph_prop_storage = Arc::new(GraphPropStorageInner::new_with_meta(
+        )?);
+
+        let edge_storage = Arc::new(EdgeStorageInner::new(edges_path, edge_meta, ext.clone())?);
+
+        let graph_prop_storage = Arc::new(GraphPropStorageInner::new(
             graph_props_path.as_deref(),
             graph_props_meta,
             ext.clone(),
-        ));
+        )?);
 
-        Self {
+        Ok(Self {
             nodes: node_storage,
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(0),
-            graph_dir: graph_dir.map(|p| p.to_path_buf()),
+            graph_dir: graph_dir.map(|dir| dir.path().to_path_buf()),
             ext,
-        }
+        })
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let nodes_path = graph_dir.as_ref().join("nodes");
-        let edges_path = graph_dir.as_ref().join("edges");
-        let graph_props_path = graph_dir.as_ref().join("graph_props");
+    pub fn load(graph_dir: GraphDir, ext: EXT) -> Result<Self, StorageError> {
+        let nodes_path = graph_dir.nodes();
+        let edges_path = graph_dir.edges();
+        let graph_props_path = graph_dir.graph_props();
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
+
         let node_storage: Arc<NodeStorageInner<NS, EXT>> = Arc::new(NodeStorageInner::load(
             nodes_path,
             edge_meta.clone(),
             ext.clone(),
         )?);
-        let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata.
         let graph_prop_storage = Arc::new(GraphPropStorageInner::<GS, EXT>::load(
             graph_props_path,
             ext.clone(),
         )?);
+
+        let node_meta = node_storage.prop_meta();
 
         for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
@@ -200,7 +211,7 @@ impl<
             edges: edge_storage,
             graph_props: graph_prop_storage,
             event_id: AtomicUsize::new(t_len),
-            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
+            graph_dir: Some(graph_dir.path().to_path_buf()),
             ext,
         })
     }
@@ -222,6 +233,10 @@ impl<
 
     pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
         &self.nodes
+    }
+
+    pub fn node_type_index(&self) -> &Arc<EXT::NTI> {
+        self.nodes.node_type_index()
     }
 
     pub fn edges(&self) -> &Arc<EdgeStorageInner<ES, EXT>> {
@@ -399,10 +414,7 @@ impl<
                     }
                 };
 
-                // Flush up to the end of the WAL stream.
-                let flush_lsn = wal.position();
-
-                if let Err(err) = wal.flush(flush_lsn) {
+                if let Err(err) = wal.flush(checkpoint_lsn) {
                     drop_error!("Failed to flush checkpoint record in drop: {err}");
                     // this is unreachable with panic-on-drop
                     #[allow(unreachable_code)]

@@ -4,3 +4,4 @@ pub mod graph;
 pub mod layer_ops;
 pub mod mutation;
 pub mod recovery_ops;
+pub mod staging_ops;

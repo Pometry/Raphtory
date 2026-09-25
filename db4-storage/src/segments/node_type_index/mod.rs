@@ -1,14 +1,16 @@
-pub mod index;
+mod index;
 
 use crate::{
     api::node_type_index::NodeTypeIndexOps, error::StorageError,
-    persist::strategy::PersistenceStrategy, segments::node_type_index::index::MemNodeTypeIndex,
+    pages::locked::node_type_index::WriteLockedNodeTypeIndex,
+    persist::strategy::PersistenceStrategy,
 };
 use ahash::RandomState;
 use indexmap::IndexSet;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_core::entities::VID;
 use std::{
+    ops::DerefMut,
     path::Path,
     sync::{
         Arc,
@@ -16,25 +18,27 @@ use std::{
     },
 };
 
+pub use index::MemNodeTypeIndex;
+
 /// Fully in-memory node type index.
 #[derive(Debug)]
 pub struct NodeTypeIndexView<P: PersistenceStrategy> {
     head: Arc<RwLock<MemNodeTypeIndex>>,
     est_size: AtomicUsize,
     is_dirty: AtomicBool,
-    _persistent: P,
+    _persistence: P,
 }
 
 impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     type Extension = P;
 
-    fn new(_path: Option<&Path>, ext: Self::Extension) -> Self {
-        Self {
+    fn new(_path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError> {
+        Ok(Self {
             head: Arc::new(RwLock::new(MemNodeTypeIndex::new())),
             est_size: AtomicUsize::new(0),
             is_dirty: AtomicBool::new(false),
-            _persistent: ext,
-        }
+            _persistence: ext,
+        })
     }
 
     fn load(_path: impl AsRef<Path>, _ext: Self::Extension) -> Result<Self, StorageError> {
@@ -43,20 +47,23 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         ))
     }
 
-    fn head(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex> {
-        self.head.read()
+    fn head_shared(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex> {
+        self.head.read_recursive()
     }
 
-    fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex> {
+    fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex> {
         self.head.write()
     }
 
     fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState> {
-        self.head().nodes_of_type(type_ids).into_iter().collect()
+        self.head_shared()
+            .nodes_of_type(type_ids)
+            .into_iter()
+            .collect()
     }
 
     fn is_empty(&self) -> bool {
-        self.head().is_empty()
+        self.head_shared().is_empty()
     }
 
     fn est_size(&self) -> usize {
@@ -73,10 +80,24 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
 
     fn notify_write(&self) {
         self.est_size
-            .store(self.head().est_size(), Ordering::Relaxed);
+            .store(self.head_shared().est_size(), Ordering::Relaxed);
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
+        let head = self.head.write_arc();
+        let index = self.clone();
+
+        WriteLockedNodeTypeIndex::new(head, index)
+    }
+
+    fn flush_with_head(
+        &self,
+        _head: impl DerefMut<Target = MemNodeTypeIndex>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 }

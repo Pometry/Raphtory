@@ -392,13 +392,8 @@ pub fn materialize_impl(
     node_meta.set_layer_mapper(layer_meta.deep_clone());
 
     let ext = Extension::new(path, config)?;
-    let temporal_graph = TemporalGraph::new_with_meta(
-        path.map(|p| p.into()),
-        node_meta,
-        edge_meta,
-        graph_props_meta,
-        ext,
-    )?;
+    let temporal_graph =
+        TemporalGraph::new_with_meta(path, node_meta, edge_meta, graph_props_meta, ext)?;
 
     if let Some(earliest) = graph.earliest_time() {
         temporal_graph.update_time(earliest);
@@ -418,7 +413,6 @@ pub fn materialize_impl(
     let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
-    // let mut scope_result = Ok(());
     // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
     // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
     std::thread::scope(|scope| {

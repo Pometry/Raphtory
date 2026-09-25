@@ -1,8 +1,7 @@
-use crate::core::{
-    entities::properties::meta::STATIC_GRAPH_LAYER_NAME,
-    storage::{arc_str::ArcStr, ArcRwLockReadGuard},
+use crate::core::{entities::properties::meta::STATIC_GRAPH_LAYER_NAME, storage::arc_str::ArcStr};
+use parking_lot::{
+    lock_api::ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
 };
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -198,7 +197,7 @@ impl DictMapper {
         self.reverse_map.write()
     }
 
-    fn read_arc_lock_reverse_map(&self) -> ArcRwLockReadGuard<Vec<ArcStr>> {
+    fn read_arc_lock_reverse_map(&self) -> ArcRwLockReadGuard<RawRwLock, Vec<ArcStr>> {
         self.reverse_map.read_arc_recursive()
     }
 
@@ -343,7 +342,7 @@ impl DictMapper {
 
 #[derive(Debug)]
 pub struct AllKeys<T> {
-    pub(crate) guard: ArcRwLockReadGuard<Vec<T>>,
+    pub(crate) guard: ArcRwLockReadGuard<RawRwLock, Vec<T>>,
 }
 
 impl<T> Deref for AllKeys<T> {
@@ -368,7 +367,7 @@ impl<T: Clone> IntoIterator for AllKeys<T> {
 }
 
 pub struct PublicKeys<T> {
-    guard: ArcRwLockReadGuard<Vec<T>>,
+    guard: ArcRwLockReadGuard<RawRwLock, Vec<T>>,
     num_private_fields: usize,
 }
 
@@ -402,7 +401,7 @@ impl<T: Clone> IntoIterator for PublicKeys<T> {
 }
 
 pub struct LockedIter<T> {
-    guard: ArcRwLockReadGuard<Vec<T>>,
+    guard: ArcRwLockReadGuard<RawRwLock, Vec<T>>,
     pos: usize,
     len: usize,
 }
