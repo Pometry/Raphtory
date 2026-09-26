@@ -12,12 +12,12 @@ use crate::{
             InternalNodeFilterOps, Static,
         },
     },
-    prelude::{GraphViewOps, LayerOps},
+    prelude::{GraphViewOps, Layer, LayerOps},
     storage::core_ops::InheritCoreGraphOps,
 };
 use raphtory_api::{
     core::{
-        entities::{LayerId, ELID},
+        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, ELID},
         storage::timeindex::{AsTime, EventTime},
     },
     inherit::Base,
@@ -77,7 +77,16 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
-        let mut layered_masks = vec![];
+        // Seeding slot 0 here is necessary because `STATIC_GRAPH_LAYER` is not returned by `unique_layers`
+        let static_layer_nodes: RoaringTreemap = graph
+            .layers(Layer::None)
+            .map(|no_layers| no_layers.nodes().iter().map(|n| n.node.as_u64()).collect())
+            .unwrap_or_default();
+        let mut layered_masks = vec![(
+            static_layer_nodes,
+            RoaringTreemap::new(),
+            Some(RoaringTreemap::new()),
+        )];
         let global_nodes_mask = Arc::new(
             graph
                 .nodes()
@@ -291,7 +300,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
-            LayerIds::None => false,
+            // The unlayered nodes should still be returned when no layer is selected
+            LayerIds::None => self
+                .layered_mask
+                .get(STATIC_GRAPH_LAYER_ID.0)
+                .is_some_and(|(nodes, _, _)| nodes.contains(node.vid().as_u64())),
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
@@ -309,5 +322,159 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
 
     fn node_filter_includes_window_filter(&self) -> bool {
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    fn fixture() -> Graph {
+        let graph = Graph::new();
+        // Added without a layer, so it lives in the static layer and every view shows it.
+        graph
+            .add_node(0, "unlayered", NO_PROPS, None, None)
+            .unwrap();
+        graph
+            .add_edge(0, "a", "b", NO_PROPS, Some("layer_a"))
+            .unwrap();
+        graph
+            .add_edge(0, "c", "d", NO_PROPS, Some("layer_b"))
+            .unwrap();
+        // No layer name, so this one lands in the default layer — an ordinary layer, unlike the
+        // static layer nodes get.
+        graph.add_edge(0, "e", "f", NO_PROPS, None).unwrap();
+        graph
+    }
+
+    fn names<'a, G: GraphViewOps<'a>>(graph: &G) -> Vec<String> {
+        let mut names: Vec<String> = graph.nodes().name().into_iter().map(|(_, n)| n).collect();
+        names.sort();
+        names
+    }
+
+    /// Every edge as `src-dst@layer`, sorted — enough to catch an edge appearing in the wrong layer
+    /// as well as one appearing at all.
+    fn edges<'a, G: GraphViewOps<'a>>(graph: &G) -> Vec<String> {
+        let mut edges: Vec<String> = graph
+            .edges()
+            .iter()
+            .flat_map(|edge| {
+                let (src, dst) = (edge.src().name(), edge.dst().name());
+                edge.layer_names()
+                    .into_iter()
+                    .map(|layer| format!("{src}-{dst}@{layer}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        edges.sort();
+        edges
+    }
+
+    /// Caching a view must not change what it contains — nodes or edges.
+    fn assert_caching_changes_nothing<'a, G: GraphViewOps<'a> + Clone>(view: &G, what: &str) {
+        let cached = view.cache_view();
+        assert_eq!(names(&cached), names(view), "nodes disagree for {what}");
+        assert_eq!(edges(&cached), edges(view), "edges disagree for {what}");
+        assert_eq!(
+            cached.count_edges(),
+            view.count_edges(),
+            "edge count disagrees for {what}"
+        );
+    }
+
+    /// Caching a view must not change what it contains, and selecting no layers is the case that
+    /// separates "no nodes" from "the unlayered ones": layered nodes go, unlayered nodes stay.
+    #[test]
+    fn caching_a_no_layer_view_keeps_exactly_its_unlayered_nodes() {
+        let graph = fixture();
+        let no_layers = graph
+            .exclude_layers(["layer_a", "layer_b", "_default"])
+            .unwrap();
+
+        let direct = names(&no_layers);
+        assert_eq!(
+            direct,
+            vec!["unlayered".to_string()],
+            "the engine's own answer"
+        );
+        assert_eq!(names(&no_layers.cache_view()), direct);
+        assert_eq!(
+            no_layers.cache_view().edges().len(),
+            no_layers.edges().len()
+        );
+    }
+
+    /// The same, but with the layers excluded *after* caching rather than before. The masks are
+    /// then built over the whole graph, so an implementation that answered the no-layer case with
+    /// its global mask would leak every layered node here while looking correct above.
+    #[test]
+    fn excluding_every_layer_after_caching_also_keeps_only_unlayered_nodes() {
+        let graph = fixture();
+        let cached = graph.cache_view();
+
+        let excluded = ["layer_a", "layer_b", "_default"];
+        let direct = names(&graph.exclude_layers(excluded).unwrap());
+        let after = names(&cached.exclude_layers(excluded).unwrap());
+        assert_eq!(
+            after, direct,
+            "caching must not change what excluding layers shows"
+        );
+    }
+
+    /// And the ordinary cases still agree, so the no-layer fix did not come at their expense.
+    #[test]
+    fn caching_agrees_on_all_layers_and_on_one() {
+        let graph = fixture();
+        assert_eq!(names(&graph.cache_view()), names(&graph));
+
+        let one = graph.layers("layer_a").unwrap();
+        assert_eq!(names(&one.cache_view()), names(&one));
+        assert_eq!(one.cache_view().edges().len(), one.edges().len());
+    }
+
+    /// Edges across every shape of layer selection. Unlike nodes, edges have no "visible in every
+    /// view" layer — an edge added without a layer name goes to the default layer, which is an
+    /// ordinary one — so selecting no layers really does mean no edges.
+    #[test]
+    fn caching_agrees_on_edges_for_every_layer_selection() {
+        let graph = fixture();
+
+        assert_caching_changes_nothing(&graph, "the whole graph");
+        assert_caching_changes_nothing(&graph.layers("layer_a").unwrap(), "one named layer");
+        assert_caching_changes_nothing(&graph.layers("_default").unwrap(), "the default layer");
+        assert_caching_changes_nothing(
+            &graph.layers(vec!["layer_a", "layer_b"]).unwrap(),
+            "several named layers",
+        );
+        assert_caching_changes_nothing(
+            &graph.exclude_layers("layer_a").unwrap(),
+            "one layer excluded",
+        );
+
+        let none = graph
+            .exclude_layers(vec!["layer_a", "layer_b", "_default"])
+            .unwrap();
+        assert!(edges(&none).is_empty(), "no layer selected means no edges");
+        assert_caching_changes_nothing(&none, "every layer excluded");
+    }
+
+    /// The default layer is an ordinary layer, so excluding it hides its edges — the asymmetry with
+    /// nodes, whose static layer survives every exclusion.
+    #[test]
+    fn the_default_layer_is_not_exempt_the_way_the_static_node_layer_is() {
+        let graph = fixture();
+        let without_default = graph.exclude_layers("_default").unwrap();
+
+        assert!(
+            !edges(&without_default)
+                .iter()
+                .any(|e| e.contains("@_default")),
+            "excluding the default layer must hide its edges, got {:?}",
+            edges(&without_default)
+        );
+        // The unlayered node is still there, which is the rule edges do not share.
+        assert!(names(&without_default).contains(&"unlayered".to_string()));
+        assert_caching_changes_nothing(&without_default, "the default layer excluded");
     }
 }

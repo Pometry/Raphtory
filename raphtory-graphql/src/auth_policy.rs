@@ -1,5 +1,8 @@
-use crate::model::graph::filtering::GraphAccessFilter;
+use crate::{
+    data::GqlGraphType, model::graph::filtering::GraphAccessFilter, paths::UnlockedGraphFolder,
+};
 use futures_util::future::BoxFuture;
+use raphtory::db::api::view::DynamicGraph;
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -107,6 +110,42 @@ pub enum NamespacePermission {
     Write,
 }
 
+/// A graph that has been loaded, read with the right semantics, and filtered — everything a read
+/// needs, already done.
+///
+/// Deliberately opaque. A policy that keeps these only ever stores one and hands it back; it has no
+/// business reaching inside, and making it opaque means a policy crate needs no dependency on the
+/// graph engine to hold one. Built by [`crate::data::Data::load_prepared`].
+#[derive(Clone)]
+pub struct DynGraphWithFolder {
+    folder: UnlockedGraphFolder,
+    graph: DynamicGraph,
+}
+
+impl DynGraphWithFolder {
+    pub(crate) fn new(folder: UnlockedGraphFolder, graph: DynamicGraph) -> Self {
+        Self { folder, graph }
+    }
+
+    pub(crate) fn into_parts(self) -> (UnlockedGraphFolder, DynamicGraph) {
+        (self.folder, self.graph)
+    }
+}
+
+/// What a refined read resolves to: either a filter still to be applied, or a graph the policy has
+/// already prepared.
+///
+/// Both arms say the same thing — what this caller may see — at different stages of being
+/// materialised. A policy that caches prepared graphs returns `Cached` when it holds one and
+/// `Filtered` when it does not; a policy that caches nothing only ever returns `Filtered`, which is
+/// what the default refinement does.
+pub enum MaybeCachedFilteredRead {
+    /// Apply this filter to the graph, as an unrefined read would.
+    Filtered(Option<GraphAccessFilter>),
+    /// Nothing left to do: loaded and filtered already.
+    Cached(DynGraphWithFolder),
+}
+
 pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective permission level for a principal on a graph.
     ///
@@ -154,13 +193,24 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     ///
     /// The default returns `perm` unchanged: policies that need no refinement — and the no-policy
     /// case — are unaffected. Returning `Err` denies the request.
+    /// `graph_type` is passed because it is applied to the graph *before* the filter, so a policy
+    /// preparing a view has to prepare the right one — an event-semantics view and a
+    /// persistent-semantics view of one graph are different graphs to filter.
     fn refine_permission<'a>(
         &'a self,
         _ctx: &'a async_graphql::Context<'_>,
         _path: &'a str,
+        _graph_type: Option<GqlGraphType>,
         perm: GraphPermission,
-    ) -> BoxFuture<'a, Result<GraphPermission, AuthPolicyError>> {
-        Box::pin(std::future::ready(Ok(perm)))
+    ) -> BoxFuture<'a, Result<MaybeCachedFilteredRead, AuthPolicyError>> {
+        // Only a filtered read carries anything to refine; every other level reads unfiltered.
+        let filter = match perm {
+            GraphPermission::Read { filter } => filter,
+            _ => None,
+        };
+        Box::pin(std::future::ready(Ok(MaybeCachedFilteredRead::Filtered(
+            filter,
+        ))))
     }
 
     /// Whether the principal has unfiltered read (`Write`, or `Read` with no filter) on the graph.
@@ -176,6 +226,21 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             .graph_permissions(ctx, path)?
             .is_some_and(|p| p.level() >= PermissionLevel::Read))
     }
+
+    /// Called after a graph on this server is successfully mutated, so a policy can discard
+    /// anything it derived from graph contents.
+    ///
+    /// Deliberately carries no argument. A policy may derive a caller's scope from *any* graph — an
+    /// ABAC probe reads whichever graph its query names, which need not be the one being read or
+    /// the one being written — so knowing which graph changed would not narrow what has to be
+    /// discarded without tracking that dependency. This says only "some graph changed"; the policy
+    /// decides what that invalidates.
+    ///
+    /// Only called when the mutation actually succeeded. A refused or failed write changes nothing,
+    /// so it must not discard anything either.
+    ///
+    /// Default no-op — only meaningful to a policy that caches.
+    fn on_graph_mutated(&self) {}
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
