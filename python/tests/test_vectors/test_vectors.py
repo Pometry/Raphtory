@@ -283,3 +283,41 @@ def test_default_template():
     )
 
     running.stop()
+
+
+def test_vectorise_string_is_a_template_not_a_property_name():
+    # the docstring says a string is a Jinja template: prove the code renders it
+    rendered = []
+
+    @embedding_server
+    def recording_embeddings(text: str):
+        rendered.append(text)
+        return [1.0, 0.0, 0.0]
+
+    with recording_embeddings.start(7343):
+        g = Graph()
+        g.add_node(1, "node1", node_type="Person")
+        g.add_node(2, "node2", node_type="Person")
+        g.add_edge(3, "node1", "node2", {"description": "knows"})
+        v_cache = VectorCache(OpenAIEmbeddings(api_base="http://localhost:7343"))
+
+        vg = g.vectorise(
+            v_cache,
+            nodes="{{ name }} is a {{ node_type }}",
+            edges="{{ src.name }} -> {{ dst.name }}: {{ properties.description }}",
+        )
+        selection = vg.empty_selection()
+        selection.add_nodes(["node1", "node2"])
+        selection.add_edges([("node1", "node2")])
+        docs = sorted(doc.content for doc in selection.get_documents())
+        assert docs == [
+            "node1 -> node2: knows",
+            "node1 is a Person",
+            "node2 is a Person",
+        ]
+        assert all("{{" not in doc for doc in docs)
+
+        # a bare word is not a property lookup: it is the literal document
+        rendered.clear()
+        g.vectorise(v_cache, nodes=False, edges="description")
+        assert rendered == ["description"]

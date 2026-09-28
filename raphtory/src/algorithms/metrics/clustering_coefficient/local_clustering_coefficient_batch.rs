@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::{LayerIds, VID};
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,8 @@ pub struct LCCState {
     pub lcc: f64,
 }
 
+/// `v` must name nodes of `graph`: one that does not resolve is silently left out of the
+/// result, so callers must never synthesise node ids (VIDs are not the dense range `0..n`).
 fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
@@ -61,7 +63,7 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
 ///
 /// # Arguments
 /// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
-/// - `v`: vec of node ids, if empty, will return results for every node in the graph
+/// - `v`: vec of node ids, if empty, will return results for every node in the graph (the view's nodes, so a filter is respected)
 ///
 /// # Returns
 /// the local clustering coefficient of node v in g.
@@ -70,12 +72,10 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     v: Vec<V>,
 ) -> TypedNodeState<'static, LCCState, G> {
     if v.is_empty() {
-        calculate_lcc(
-            graph,
-            (0..graph.unfiltered_num_nodes(&LayerIds::All))
-                .map(VID)
-                .collect(),
-        )
+        // VIDs are handed out across storage segments and are not the dense range
+        // 0..count_nodes(), so enumerate the nodes the view actually has
+        let all: Vec<VID> = graph.nodes().iter().map(|n| n.node).collect();
+        calculate_lcc(graph, all)
     } else {
         calculate_lcc(graph, v)
     }

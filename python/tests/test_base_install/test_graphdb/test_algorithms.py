@@ -852,3 +852,35 @@ def test_fast_rp():
         assert (
             within_group < outside_group
         )  # nearest neighbour in the embedding space should be in the same component
+
+
+def test_local_clustering_coefficient_batch_without_v_matches_explicit_list():
+    g = Graph()
+    for name in ["a", "b", "c", "isolated"]:
+        g.add_node(1, name)
+    g.add_edge(1, "a", "b")
+    g.add_edge(2, "b", "c")
+    g.add_edge(3, "c", "a")
+
+    explicit = algorithms.local_clustering_coefficient_batch(
+        g, ["a", "b", "c", "isolated"]
+    )
+    for implicit in (
+        algorithms.local_clustering_coefficient_batch(g),
+        algorithms.local_clustering_coefficient_batch(g, []),
+        algorithms.local_clustering_coefficient_batch(g, None),
+    ):
+        assert len(implicit) == 4
+        # reading the result back used to panic on a fabricated node id
+        assert sorted(implicit.nodes().name) == ["a", "b", "c", "isolated"]
+        assert sorted((n.name, v["lcc"]) for n, v in implicit.items()) == sorted(
+            (n.name, v["lcc"]) for n, v in explicit.items()
+        )
+        assert implicit.top_k({"lcc": "desc"}, 3) is not None
+        assert implicit.sort_by({"lcc": "asc"}) is not None
+    assert dict((n.name, v["lcc"]) for n, v in explicit.items()) == {
+        "a": 1.0,
+        "b": 1.0,
+        "c": 1.0,
+        "isolated": 0.0,
+    }
