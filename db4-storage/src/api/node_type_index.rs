@@ -2,11 +2,9 @@ use crate::{
     error::StorageError, pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     segments::node_type_index::MemNodeTypeIndex,
 };
-use ahash::RandomState;
-use indexmap::IndexSet;
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory_core::entities::VID;
+use parking_lot::{RwLockWriteGuard, RawRwLock};
 use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
+use lock_api::ArcRwLockReadGuard;
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
 where
@@ -14,17 +12,17 @@ where
 {
     type Extension;
 
+    type Entry;
+
     fn new(path: Option<&Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
-    fn head_shared(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex>;
+    fn head_shared(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex>;
 
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
-    /// Returns the sorted `VID`s of nodes whose type is in `type_ids`.
-    // TODO: See if we can return an iterator here instead.
-    fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState>;
+    fn entry(&self, type_ids: &[usize]) -> Self::Entry;
 
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;

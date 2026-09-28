@@ -23,6 +23,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
+        node_type_index::{MemNodeTypeEntry},
     },
 };
 use parking_lot::RwLock;
@@ -73,6 +74,7 @@ pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
+pub type NodeTypeEntry = MemNodeTypeEntry;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
