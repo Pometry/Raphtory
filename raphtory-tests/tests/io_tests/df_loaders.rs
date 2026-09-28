@@ -11,7 +11,8 @@ mod io_tests {
         arrow_loader::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                edges::{load_edges_from_df_prefetch, ColumnNames},
+                edge_props::load_edges_metadata_from_df,
+                edges::{load_edges_from_df, load_edges_from_df_prefetch, ColumnNames},
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -20,10 +21,7 @@ mod io_tests {
         errors::GraphError,
         prelude::*,
     };
-    use raphtory_api::core::{
-        entities::{properties::prop::prop_col::PropCol, LayerIds},
-        storage::arc_str::ArcStr,
-    };
+    use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
     use raphtory_storage::{
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
@@ -247,16 +245,11 @@ mod io_tests {
         }
     }
 
-    #[test]
-    fn test_negative_i64_ids_error() {
-        let node_ids: ArrayRef = Arc::new(Int64Array::from(vec![1, -1]));
-        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
-        let chunk = DFChunk {
-            chunk: vec![node_ids, times],
-        };
+    fn check_invalid_node_ids(chunk: DFChunk) {
+        // nodes
         let df = DFView {
             names: vec!["node_id".to_owned(), "time".to_owned()],
-            chunks: vec![Ok(chunk)].into_iter(),
+            chunks: vec![Ok(chunk.clone())].into_iter(),
             num_rows: Some(2),
         };
         let g = Graph::new();
@@ -277,7 +270,98 @@ mod io_tests {
             None
         )
         .is_err());
-        assert!(g.is_empty())
+        assert!(g.is_empty());
+
+        // node_meta
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_node_props_from_df(
+            df,
+            "node_id",
+            None,
+            None,
+            None,
+            None,
+            &["time"],
+            None,
+            &g,
+            false,
+            None,
+            None,
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        // edges
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_edges_metadata_from_df(
+            df,
+            ColumnNames {
+                time: "time",
+                secondary_index: None,
+                src: "node_id",
+                dst: "node_id",
+                edge_id: None,
+                layer_col: None,
+                layer_id_col: None,
+            },
+            true,
+            &[],
+            None,
+            None,
+            &g,
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        //edge updates
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_edges_from_df(
+            df,
+            ColumnNames {
+                time: "time",
+                secondary_index: None,
+                src: "node_id",
+                dst: "node_id",
+                edge_id: None,
+                layer_col: None,
+                layer_id_col: None,
+            },
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .is_err());
+        assert!(g.is_empty());
+    }
+
+    #[test]
+    fn test_negative_i64_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int64Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+
+        check_invalid_node_ids(chunk);
     }
 
     #[test]
@@ -287,30 +371,8 @@ mod io_tests {
         let chunk = DFChunk {
             chunk: vec![node_ids, times],
         };
-        let df = DFView {
-            names: vec!["node_id".to_owned(), "time".to_owned()],
-            chunks: vec![Ok(chunk)].into_iter(),
-            num_rows: Some(2),
-        };
-        let g = Graph::new();
-        assert!(load_nodes_from_df(
-            df,
-            "time",
-            None,
-            "node_id",
-            &[],
-            &[],
-            None,
-            None,
-            None,
-            &g,
-            true,
-            None,
-            None,
-            None
-        )
-        .is_err());
-        assert!(g.is_empty())
+
+        check_invalid_node_ids(chunk);
     }
 
     #[test]
@@ -854,7 +916,7 @@ mod io_tests {
     }
     #[test]
     fn failed_edge_metadata_load_leaves_no_phantom_node() {
-        use raphtory::arrow_loader::df_loaders::edge_props::load_edges_from_df as load_edge_metadata_from_df;
+        use raphtory::arrow_loader::df_loaders::edge_props::load_edges_metadata_from_df as load_edge_metadata_from_df;
 
         let g = Graph::new();
         g.add_edge(1, 1u64, 2u64, NO_PROPS, None).unwrap();

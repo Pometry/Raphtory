@@ -42,7 +42,7 @@ use storage::{
 use tracing::error;
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
     column_names: ColumnNames,
     resolve_nodes: bool,
@@ -164,7 +164,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+pub fn load_edges_metadata_from_df_prefetch<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
     resolve_nodes: bool,
@@ -197,7 +199,7 @@ pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps +
             num_rows,
         };
 
-        load_edges_from_df(
+        load_edges_metadata_from_df(
             df_view_prefetch,
             column_names,
             resolve_nodes,
