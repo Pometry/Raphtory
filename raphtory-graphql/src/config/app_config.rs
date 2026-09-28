@@ -99,6 +99,9 @@ impl AppConfigBuilder {
         if let Some(cache_capacity) = server_args.cache_capacity {
             builder.with_cache_capacity(cache_capacity);
         }
+        if let Some(read_only_graphs) = server_args.read_only_graphs {
+            builder.with_cache_read_only_graphs(Some(read_only_graphs));
+        }
         if let Some(log_level) = server_args.log_level.clone() {
             builder.with_log_level(log_level);
         }
