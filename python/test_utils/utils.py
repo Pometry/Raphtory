@@ -164,7 +164,7 @@ def run_graphql_test(query, expected_output, graph, sort_output=False):
             response_dict = sort_by_gql_name_or_id(response_dict)
             expected_output = sort_by_gql_name_or_id(expected_output)
         assert (
-                response_dict == expected_output
+            response_dict == expected_output
         ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
 
 
@@ -180,7 +180,7 @@ def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=Fals
                 response_dict = sort_by_gql_name_or_id(response_dict)
                 expected_output = sort_by_gql_name_or_id(expected_output)
             assert (
-                    response_dict == expected_output
+                response_dict == expected_output
             ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
 
 
@@ -194,7 +194,7 @@ def run_graphql_error_test(query, expected_error_message, graph):
         error_message = match.group(1) if match else ""
 
         assert (
-                error_message == expected_error_message
+            error_message == expected_error_message
         ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
@@ -208,7 +208,7 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
             match = re.search(r'"message":"(.*?)"', full_error_message)
             error_message = match.group(1) if match else ""
             assert (
-                    error_message == expected_error_message
+                error_message == expected_error_message
             ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 

@@ -1,8 +1,8 @@
 use crate::core::{
     entities::{
         properties::prop::{
-            prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType,
-            PropTypeError, PropUnwrap,
+            prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType, PropTypeError,
+            PropUnwrap,
         },
         GidRef,
     },
@@ -906,8 +906,6 @@ impl Prop {
             vals.into_iter().map_into().collect::<Vec<_>>(),
         )?))
     }
-
-
 
     /// Consume a numeric prop into a `BigDecimal` — exact for integers and existing decimals, the
     /// nearest decimal for floats. `None` for non-numerics (and non-finite floats).

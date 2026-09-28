@@ -407,7 +407,6 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("tags").is_some(), 6),
         (filter.ExplodedEdge.property("tags").is_none(), 0),
         (filter.ExplodedEdge.property("tags").is_in([1, 2]), 0),
-
         (
             filter.ExplodedEdge.property("tags").is_not_in([3]),
             6,
@@ -446,7 +445,7 @@ def test_all_property_types(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-                len(result) == expected
+            len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     nonsense_filter_cases = [
@@ -913,7 +912,7 @@ def test_temporal_constant(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-                len(result) == expected
+            len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     g = GraphClass()
@@ -943,5 +942,5 @@ def test_temporal_constant(GraphClass):
         result = g.filter(expr).edges.explode()
         print(g.edges.explode().metadata.get("weight"))
         assert (
-                len(result) == expected
+            len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
