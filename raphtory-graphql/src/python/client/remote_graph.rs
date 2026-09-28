@@ -71,7 +71,7 @@ impl PyRemoteGraph {
     ///     ValueError: if the filter has no server-side form because it reads
     ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteGraph> {
-        let tree = filter.tree().clone();
+        let tree = filter.into_tree();
         Ok(PyRemoteGraph {
             graph: Arc::new(self.graph.filter(tree)?),
         })

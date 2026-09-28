@@ -60,7 +60,7 @@ impl PyRemoteNestedEdges {
     ///     ValueError: if the filter has no server-side form because it reads
     ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let tree = filter.tree().clone();
+        let tree = filter.into_tree();
         Ok(PyRemoteNestedEdges::new(self.edges.filter(tree)?))
     }
 
@@ -79,7 +79,7 @@ impl PyRemoteNestedEdges {
     ///     ValueError: if the filter has no server-side form because it reads
     ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNestedEdges> {
-        let tree = filter.tree().clone();
+        let tree = filter.into_tree();
         Ok(PyRemoteNestedEdges::new(self.edges.select(tree)?))
     }
 

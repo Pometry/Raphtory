@@ -28,8 +28,9 @@ use std::sync::Arc;
 pub struct PyFilterExpr(pub FilterExpr);
 
 impl PyFilterExpr {
-    pub fn tree(&self) -> &FilterExpr {
-        &self.0
+    /// The tree itself, for a caller that owns the wrapper and is done with it.
+    pub fn into_tree(self) -> FilterExpr {
+        self.0
     }
 }
 

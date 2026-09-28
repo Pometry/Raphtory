@@ -71,7 +71,7 @@ impl PyRemoteNodes {
     ///     ValueError: if the filter has no server-side form because it reads
     ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
-        let tree = filter.tree().clone();
+        let tree = filter.into_tree();
         Ok(PyRemoteNodes::new(self.nodes.filter(tree)?))
     }
 
@@ -94,7 +94,7 @@ impl PyRemoteNodes {
     ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemoteNodes> {
         Ok(PyRemoteNodes::new(
-            self.nodes.select(node_subscript(&filter)?)?,
+            self.nodes.select(node_subscript(filter)?)?,
         ))
     }
 

@@ -61,7 +61,7 @@ impl PyRemotePathFromGraph {
     ///     ValueError: if the filter has no server-side form because it reads
     ///         in-process state (`by_state_column`).
     pub fn filter(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
-        let tree = filter.tree().clone();
+        let tree = filter.into_tree();
         Ok(PyRemotePathFromGraph::new(self.path.filter(tree)?))
     }
 
@@ -84,7 +84,7 @@ impl PyRemotePathFromGraph {
     ///         in-process state (`by_state_column`).
     fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyRemotePathFromGraph> {
         Ok(PyRemotePathFromGraph::new(
-            self.path.select(node_subscript(&filter)?)?,
+            self.path.select(node_subscript(filter)?)?,
         ))
     }
 
