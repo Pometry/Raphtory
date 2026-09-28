@@ -8,4 +8,5 @@
 
 ### Are there any further changes required?
 
-
+### Security implications if any
+- [ ] I have considered the security impact of this change (secrets, dependencies, access, data handling)

@@ -175,6 +175,51 @@ mod tests {
     }
 
     #[test]
+    fn test_zero() {
+        let members = [
+            Prop::F64(0.0),
+            Prop::F32(0.0),
+            Prop::F64(-0.0),
+            Prop::F32(-0.0),
+            Prop::U8(0),
+            Prop::U16(0),
+            Prop::U32(0),
+            Prop::I32(0),
+            Prop::I64(0),
+            Prop::Decimal(0.into()),
+        ];
+
+        let set: HashSet<HashableProp> = members.iter().cloned().map(HashableProp::from).collect();
+
+        assert_eq!(set.len(), 1); // all zeros should be the same
+        for v in members {
+            assert!(set.contains(v.as_ref())); // all zeros should be in the set
+        }
+    }
+
+    #[test]
+    fn test_inf_and_nan() {
+        let members = [
+            Prop::F64(f64::INFINITY),
+            Prop::F64(f64::NEG_INFINITY),
+            Prop::F32(f32::INFINITY),
+            Prop::F32(f32::NEG_INFINITY),
+        ];
+        let set: HashSet<HashableProp> = members.iter().cloned().map(HashableProp::from).collect();
+        assert_eq!(set.len(), 2); // the float types should be equivalent
+        for v in members {
+            assert!(set.contains(v.as_ref()))
+        }
+
+        let nans = [Prop::F64(f64::NAN), Prop::F32(f32::NAN)];
+        let set: HashSet<HashableProp> = nans.iter().cloned().map(HashableProp::from).collect();
+        assert_eq!(set.len(), 2); // Nan are never equal
+        for n in nans {
+            assert!(!set.contains(n.as_ref())); // Nan is never in the set
+        }
+    }
+
+    #[test]
     fn test_prop_int_hashing() {
         let members = [
             Prop::U8(1),
