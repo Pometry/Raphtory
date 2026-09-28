@@ -226,6 +226,12 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            CacheConfigFieldName::ReadOnlyGraphs => {
+                                self.with_cache_read_only_graphs(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -512,6 +518,14 @@ impl AppConfigBuilder {
 
     pub fn with_cache_read_only(&mut self, read_only: bool) -> &mut Self {
         self.config.cache.read_only = read_only;
+        self
+    }
+
+    pub fn with_cache_read_only_graphs(
+        &mut self,
+        read_only_graphs: Option<Vec<String>>,
+    ) -> &mut Self {
+        self.config.cache.read_only_graphs = read_only_graphs;
         self
     }
 
