@@ -174,7 +174,8 @@ assert [n.degree() for n in narrowed] == [1, 1, 1]
 
 ## Seeing what a filter will do
 
-`repr()` prints the tree. It is the same tree a remote graph sends, so there is no separate
+`repr()` is the Python that builds the expression, module-qualified, so `eval` rebuilds it
+after `import raphtory`. A remote graph sends the same expression, so there is no separate
 server-side form to check.
 
 /// tab | :fontawesome-brands-python: Python
@@ -187,7 +188,7 @@ print(repr(filter.Node.window(0, 2).property("score") > 4))
 !!! output
 
     ```
-    FilterExpr(WINDOW[0..2](score) > 4)
+    raphtory.filter.Node.window(0, 2).property('score') > 4
     ```
 
 ## Cybersecurity scenario

@@ -10,7 +10,10 @@ use crate::{
     },
     errors::GraphError,
     python::{
-        filter::filter_expr::{no_view, ExprOrFilter, PyFilterExpr},
+        filter::{
+            filter_expr::{no_view, ExprOrFilter, PyFilterExpr},
+            repr,
+        },
         graph::node_state::PyOutputNodeState,
         types::iterable::FromIterable,
     },
@@ -576,9 +579,10 @@ impl PyExpr {
         PyExpr(map_typed!(self.0.clone(), |e| Expr::Not(Box::new(e))))
     }
 
-    /// Shows the expression tree: what runs locally and what a server receives.
-    fn __repr__(&self) -> String {
-        format!("Expr({})", self.0)
+    /// The Python expression that builds this one, module-qualified, so `eval`
+    /// rebuilds it after `import raphtory`.
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::typed(py, &self.0)
     }
 }
 
@@ -592,6 +596,10 @@ impl PyPropertyExpr {
     ///     filter.Expr:
     fn temporal(&self) -> PyExpr {
         PyExpr(self.history.clone())
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::typed(py, &self.latest)
     }
 }
 
@@ -645,6 +653,10 @@ impl PyNodeFilter {
 
 #[pymethods]
 impl PyNodeFilter {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::factory(py, "Node", &self.0)
+    }
+
     /// Selects the node ID field for filtering.
     ///
     /// Returns:

@@ -4,11 +4,14 @@ use crate::{
         expr::{EdgeLeaf, Expr, Field, Leaf, NodeExpr, NodeLeaf, ViewOp},
     },
     python::{
-        filter::node_expr::{PyExpr, PyPropertyExpr, Typed},
+        filter::{
+            node_expr::{PyExpr, PyPropertyExpr, Typed},
+            repr,
+        },
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyResult, Python};
 use raphtory_api::core::storage::timeindex::EventTime;
 
 /// Entry point for filtering an edge endpoint (source or destination).
@@ -61,6 +64,17 @@ impl PyEdgeEndpoint {
 
 #[pymethods]
 impl PyEdgeEndpoint {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let end = match self.endpoint {
+            Endpoint::Src => "src",
+            Endpoint::Dst => "dst",
+        };
+        Ok(format!(
+            "{}.{end}()",
+            repr::factory(py, "Edge", &self.views)?
+        ))
+    }
+
     /// Selects the endpoint node ID field for filtering.
     ///
     /// Returns:
@@ -144,6 +158,10 @@ pub struct PyEdgeFilter(pub(crate) Vec<ViewOp>);
 
 #[pymethods]
 impl PyEdgeFilter {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::factory(py, "Edge", &self.0)
+    }
+
     /// Selects the edge **source endpoint** for filtering.
     ///
     /// Returns:

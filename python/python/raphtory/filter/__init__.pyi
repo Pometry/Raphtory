@@ -399,6 +399,9 @@ class Expr(object):
 class PropertyExpr(Expr):
     """A property read, which can switch to the property's history with `temporal()`."""
 
+    def __repr__(self):
+        """Return repr(self)."""
+
     def temporal(self) -> filter.Expr:
         """
         Switches from the property's latest value to its full temporal history,
@@ -635,6 +638,9 @@ class NodeFilter(object):
     `Node.latest()`, ...); its field and property methods evaluate within that
     view, and its own view methods narrow it further.
     """
+
+    def __repr__(self):
+        """Return repr(self)."""
 
     def after(self, time: int) -> filter.NodeFilter:
         """
@@ -1025,6 +1031,9 @@ class EdgeFilter(object):
     evaluate within that view, and its own view methods narrow it further.
     """
 
+    def __repr__(self):
+        """Return repr(self)."""
+
     def after(self, time: int) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to times strictly after the given time.
@@ -1202,6 +1211,9 @@ class EdgeEndpoint(object):
         Edge.dst().name().starts_with("user:")
         Edge.src().property("country") == "UK"
     """
+
+    def __repr__(self):
+        """Return repr(self)."""
 
     def id(self) -> filter.Expr:
         """
@@ -1435,6 +1447,9 @@ class ExplodedEdgeFilter(object):
     methods on [`ExplodedEdge`]; its property and structural predicates evaluate
     within that view, and its own view methods narrow it further.
     """
+
+    def __repr__(self):
+        """Return repr(self)."""
 
     def after(self, time: int) -> filter.ExplodedEdgeFilter:
         """
@@ -1712,6 +1727,9 @@ class GraphFilter(FilterExpr):
     fixes the temporal and layer scope that node and edge predicates compose
     with, and its own view methods narrow it further.
     """
+
+    def __repr__(self):
+        """Return repr(self)."""
 
     def after(self, time: int) -> filter.GraphFilter:
         """

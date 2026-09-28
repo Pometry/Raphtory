@@ -1,8 +1,11 @@
 use crate::{
     db::graph::views::filter::model::expr::{FilterExpr, ViewOp},
-    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
+    python::{
+        filter::{filter_expr::PyFilterExpr, repr},
+        types::iterable::FromIterable,
+    },
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
 use raphtory_api::core::storage::timeindex::EventTime;
 
 /// A graph-level view scope.
@@ -33,6 +36,10 @@ impl PyGraphFilter {
 
 #[pymethods]
 impl PyGraphFilter {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::factory(py, "Graph", &self.0)
+    }
+
     /// Restricts evaluation to events within a time window.
     ///
     /// The window is inclusive of `start` and exclusive of `end`.

@@ -1,11 +1,14 @@
 use crate::{
     db::graph::views::filter::model::expr::{ExplodedEdgeLeaf, Expr, Leaf, ViewOp},
     python::{
-        filter::node_expr::{PyExpr, PyPropertyExpr, Typed},
+        filter::{
+            node_expr::{PyExpr, PyPropertyExpr, Typed},
+            repr,
+        },
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyResult, Python};
 use raphtory_api::core::storage::timeindex::EventTime;
 
 /// An exploded-edge filter scoped to a view.
@@ -45,6 +48,10 @@ impl PyExplodedEdgeFilter {
 
 #[pymethods]
 impl PyExplodedEdgeFilter {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::factory(py, "ExplodedEdge", &self.0)
+    }
+
     /// Filters an exploded edge property by name.
     ///
     /// The property may be static or temporal depending on the query context.
