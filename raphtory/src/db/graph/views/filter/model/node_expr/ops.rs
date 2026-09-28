@@ -547,7 +547,7 @@ pub fn broadcast_binary(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IdDomainNodeOp<'g> — id comparisons resolve their domain directly
+// DomainNodeOp — a filter whose domain was worked out when it was built
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// The GID to look up for an id comparison against `value`, or `None` when the
@@ -578,16 +578,16 @@ pub(crate) fn prop_as_gid(value: &Prop) -> Option<GID> {
     }
 }
 
-/// Wraps a compiled boolean filter whose only possible matches are `nodes`, the
-/// nodes it names by id, resolved when the filter was built: `domain` hands them
-/// over instead of scanning every node.
+/// Wraps a compiled boolean filter whose matches all lie in `nodes`, worked out
+/// when the filter was built from the ids it names or a property index: `domain`
+/// hands them over instead of scanning every node, and `apply` still decides.
 #[derive(Clone)]
-pub struct IdDomainNodeOp<'g> {
+pub struct DomainNodeOp<'g> {
     pub(crate) nodes: NodeList,
     pub(crate) inner: Arc<dyn NodeOp<Output = bool> + 'g>,
 }
 
-impl<'g> NodeOp for IdDomainNodeOp<'g> {
+impl<'g> NodeOp for DomainNodeOp<'g> {
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {

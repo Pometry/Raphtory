@@ -16,9 +16,9 @@ use crate::{
         api::{
             state::{
                 ops::{filter::NodeExistsOp, NodeFilterOp},
-                NodeOp,
+                Index, NodeOp,
             },
-            view::internal::{DynGraphArc, GraphView, NodeList},
+            view::internal::{DynGraphArc, GraphView, InnerFilterOps, NodeList},
         },
         graph::views::filter::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
@@ -43,7 +43,7 @@ use crate::{
                 node_expr::{
                     ops::{
                         broadcast_binary, broadcast_unary, gid_for_id_lookup, AllEdgeOp, AllNodeOp,
-                        AnyEdgeOp, AnyNodeOp, IdDomainNodeOp,
+                        AnyEdgeOp, AnyNodeOp, DomainNodeOp,
                     },
                     CreateOp, DynCreateOp, EntityExpr, Scoped,
                 },
@@ -63,14 +63,17 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{
-        properties::prop::{prop_hashable::HashableProp, Prop, PropType},
+        properties::{
+            meta::NODE_ID_PROP_ID,
+            prop::{prop_hashable::HashableProp, Prop, PropType},
+        },
         LayerId, GID, VID,
     },
     storage::timeindex::EventTime,
     Direction,
 };
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::graph::graph::{GraphStorage, NodePropPredicate, NodePropSemantics};
 use std::{collections::HashSet, fmt::Debug, sync::Arc};
 use storage::EdgeEntryRef;
 
@@ -1308,50 +1311,53 @@ impl CreateOp for BoolNotExpr {
 struct Predicate {
     entity: EntityMarker,
     inner: Arc<dyn DynCreateOp>,
-    /// Node ids the predicate names outright (`id == v`, `id in [..]`), so the
-    /// node filter can start from those nodes instead of scanning every one.
-    ids: Option<Vec<Prop>>,
+    /// Where the node filter can start instead of at every node: the nodes the
+    /// predicate names by id, or the candidates a property index hands over.
+    pushdown: Option<Pushdown>,
 }
 
 impl Predicate {
-    fn new<L: Leaf>(expr: &Expr<L>, ids: Option<Vec<Prop>>) -> Result<Self, GraphError> {
+    fn new<L: Leaf>(expr: &Expr<L>, pushdown: Option<Pushdown>) -> Result<Self, GraphError> {
         Ok(Predicate {
             entity: L::ENTITY,
             inner: expr.compile_value()?,
-            ids,
+            pushdown,
         })
     }
 
-    /// The nodes the predicate names outright, resolved once so the node filter
-    /// can start from them. `None` when it names none, or names an id the graph's
-    /// id type cannot match: the filter then scans every node.
-    fn named_nodes<G: GraphView>(&self, graph: &G) -> Option<NodeList> {
-        let id_type = graph.id_type();
-        let elems = self
-            .ids
-            .as_ref()?
-            .iter()
-            .map(|v| gid_for_id_lookup(id_type, v))
-            .collect::<Option<Vec<GID>>>()?
-            .into_iter()
-            .filter_map(|gid| graph.internalise_node(gid.as_node_ref()))
-            .collect();
-        Some(NodeList::List { elems })
+    /// The nodes the filter starts from, resolved once against `graph`. `None`
+    /// when nothing narrows it: the filter then scans every node. Whatever comes
+    /// back is a superset of the matches, and `apply` still runs on each node.
+    fn narrowed_domain<G: GraphView>(&self, graph: &G) -> Option<NodeList> {
+        match self.pushdown.as_ref()? {
+            Pushdown::Ids(ids) => {
+                let id_type = graph.id_type();
+                let elems = ids
+                    .iter()
+                    .map(|v| gid_for_id_lookup(id_type, v))
+                    .collect::<Option<Vec<GID>>>()?
+                    .into_iter()
+                    .filter_map(|gid| graph.internalise_node(gid.as_node_ref()))
+                    .collect();
+                Some(NodeList::List { elems })
+            }
+            Pushdown::Index(query) => query.candidates(graph),
+        }
     }
 
     fn node_filter<'graph, G: GraphView + 'graph>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        let nodes = self.named_nodes(&graph);
-        let op = self.inner.create_node_op(graph)?;
+        let op = self.inner.create_node_op(graph.clone())?;
+        let nodes = self.narrowed_domain(&graph);
         require_bool(
             &resolved_prop_type(self.inner.prop_type(), op.prop_type()),
             "a filter",
         )?;
         let filter: Arc<dyn NodeOp<Output = bool> + 'graph> = Arc::new(op.map(|v| truthy(&v)));
         Ok(match nodes {
-            Some(nodes) => Arc::new(IdDomainNodeOp {
+            Some(nodes) => Arc::new(DomainNodeOp {
                 nodes,
                 inner: filter,
             }),
@@ -1435,6 +1441,216 @@ impl CreateFilter for Predicate {
             ))),
             EntityMarker::Const => Err(invalid("a constant is not a filter")),
         }
+    }
+}
+
+/// What lets a node predicate start somewhere smaller than every node.
+#[derive(Clone)]
+enum Pushdown {
+    /// `id == v` or `id in [..]` on the bare id field: those nodes.
+    Ids(Vec<Prop>),
+    /// A test a property index can answer with a candidate set.
+    Index(IndexQuery),
+}
+
+/// A property test in the shape the storage's index answers: one read on one
+/// side, one constant on the other, no view on the read.
+#[derive(Clone)]
+struct IndexQuery {
+    read: IndexedRead,
+    test: IndexTest,
+    /// The read is the whole history under `any()`: any value ever held may match.
+    ever: bool,
+}
+
+#[derive(Clone)]
+enum IndexedRead {
+    Property {
+        name: String,
+        metadata: bool,
+    },
+    /// The node name is its external id, which the id index covers.
+    Name,
+}
+
+#[derive(Clone)]
+enum IndexTest {
+    Eq(Prop),
+    Lt(Prop),
+    Le(Prop),
+    Gt(Prop),
+    Ge(Prop),
+    In(HashSet<HashableProp>),
+    StartsWith(String),
+    EndsWith(String),
+    Contains(String),
+}
+
+impl IndexTest {
+    fn predicate(&self) -> NodePropPredicate<'_> {
+        match self {
+            IndexTest::Eq(v) => NodePropPredicate::Eq(v),
+            IndexTest::Lt(v) => NodePropPredicate::Lt(v),
+            IndexTest::Le(v) => NodePropPredicate::Le(v),
+            IndexTest::Gt(v) => NodePropPredicate::Gt(v),
+            IndexTest::Ge(v) => NodePropPredicate::Ge(v),
+            IndexTest::In(values) => NodePropPredicate::In(values),
+            IndexTest::StartsWith(s) => NodePropPredicate::StartsWith(s),
+            IndexTest::EndsWith(s) => NodePropPredicate::EndsWith(s),
+            IndexTest::Contains(s) => NodePropPredicate::Contains(s),
+        }
+    }
+
+    fn is_pattern(&self) -> bool {
+        matches!(
+            self,
+            IndexTest::StartsWith(_) | IndexTest::EndsWith(_) | IndexTest::Contains(_)
+        )
+    }
+}
+
+impl IndexQuery {
+    /// The candidates the graph's index has for this test, or `None` when no
+    /// index can serve it. A restricted view's latest value can differ from the
+    /// global one, so under a window or layer the query asks for every value
+    /// ever held, a superset, and drops the index's exactness claim.
+    fn candidates<G: GraphView>(&self, graph: &G) -> Option<NodeList> {
+        let plain_view = !graph.window_filtered() && !graph.is_layer_filtered();
+        let (prop_id, metadata, semantics, exact_allowed) = match &self.read {
+            IndexedRead::Property { name, metadata } => {
+                let prop_id = graph.node_meta().get_prop_id(name, *metadata)?;
+                let (semantics, exact) = match (self.ever, plain_view) {
+                    (true, plain) => (NodePropSemantics::Ever, plain),
+                    (false, true) => (NodePropSemantics::Latest, true),
+                    (false, false) => (NodePropSemantics::Ever, false),
+                };
+                (prop_id, *metadata, semantics, exact)
+            }
+            IndexedRead::Name => (NODE_ID_PROP_ID, true, NodePropSemantics::Latest, false),
+        };
+        let mut candidates = graph.core_graph().node_prop_candidates(
+            prop_id,
+            metadata,
+            &self.test.predicate(),
+            semantics,
+        )?;
+        candidates.exact &= exact_allowed;
+        // index candidates come ascending and deduplicated, as `from_sorted` needs
+        Some(NodeList::List {
+            elems: Index::from_sorted(candidates.vids, candidates.exact),
+        })
+    }
+}
+
+/// How a node predicate can be narrowed, if at all.
+fn pushdown(expr: &NodeExpr) -> Option<Pushdown> {
+    if let Some(ids) = named_ids(expr) {
+        return Some(Pushdown::Ids(ids));
+    }
+    let (inner, ever) = match expr {
+        Expr::Any(inner) => (&**inner, true),
+        other => (other, false),
+    };
+    let (read, test) = index_test(inner, ever)?;
+    // The id index answers patterns on the name; equality on it is a scan.
+    if matches!(read, IndexedRead::Name) && !test.is_pattern() {
+        return None;
+    }
+    Some(Pushdown::Index(IndexQuery { read, test, ever }))
+}
+
+/// A comparison, string test or membership with an indexable read on one side
+/// and a constant on the other.
+fn index_test(expr: &NodeExpr, ever: bool) -> Option<(IndexedRead, IndexTest)> {
+    match expr {
+        Expr::Cmp(op, l, r) => {
+            let (read, value, op) = match (&**l, &**r) {
+                (read, Expr::Const(v)) => (indexed_read(read, ever)?, v, *op),
+                (Expr::Const(v), read) => (indexed_read(read, ever)?, v, flipped(*op)),
+                _ => return None,
+            };
+            let test = match op {
+                CmpOp::Eq => IndexTest::Eq(value.clone()),
+                CmpOp::Lt => IndexTest::Lt(value.clone()),
+                CmpOp::Le => IndexTest::Le(value.clone()),
+                CmpOp::Gt => IndexTest::Gt(value.clone()),
+                CmpOp::Ge => IndexTest::Ge(value.clone()),
+                CmpOp::Ne => return None,
+            };
+            Some((read, test))
+        }
+        Expr::Str(op, l, r) => {
+            let read = indexed_read(l, ever)?;
+            let Expr::Const(Prop::Str(s)) = &**r else {
+                return None;
+            };
+            let test = match op {
+                StrOp::StartsWith => IndexTest::StartsWith(s.to_string()),
+                StrOp::EndsWith => IndexTest::EndsWith(s.to_string()),
+                StrOp::Contains => IndexTest::Contains(s.to_string()),
+                StrOp::NotContains | StrOp::FuzzySearch { .. } => return None,
+            };
+            Some((read, test))
+        }
+        Expr::In {
+            expr,
+            values,
+            negated: false,
+        } => {
+            let read = indexed_read(expr, ever)?;
+            let values = values.iter().cloned().map(HashableProp).collect();
+            Some((read, IndexTest::In(values)))
+        }
+        _ => None,
+    }
+}
+
+/// A read the index covers: a property, a metadata entry or the name, without
+/// a view. Under `any()` it is the property's history; otherwise its latest
+/// value, which is also what the latest update of the history is.
+fn indexed_read(expr: &NodeExpr, ever: bool) -> Option<IndexedRead> {
+    match expr {
+        Expr::Read(NodeLeaf::Property {
+            views,
+            name,
+            temporal,
+        }) if views.is_empty() && *temporal == ever => Some(IndexedRead::Property {
+            name: name.clone(),
+            metadata: false,
+        }),
+        Expr::Read(NodeLeaf::Metadata { views, name }) if views.is_empty() && !ever => {
+            Some(IndexedRead::Property {
+                name: name.clone(),
+                metadata: true,
+            })
+        }
+        Expr::Read(NodeLeaf::Field {
+            views,
+            field: Field::Name,
+        }) if views.is_empty() && !ever => Some(IndexedRead::Name),
+        Expr::Agg(Agg::Latest, inner) if !ever => match &**inner {
+            Expr::Read(NodeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            }) if views.is_empty() => Some(IndexedRead::Property {
+                name: name.clone(),
+                metadata: false,
+            }),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The comparison with its sides swapped.
+fn flipped(op: CmpOp) -> CmpOp {
+    match op {
+        CmpOp::Lt => CmpOp::Gt,
+        CmpOp::Le => CmpOp::Ge,
+        CmpOp::Gt => CmpOp::Lt,
+        CmpOp::Ge => CmpOp::Le,
+        same => same,
     }
 }
 
@@ -1522,7 +1738,7 @@ impl FilterExpr {
     /// A filter below the top level: every node but a view.
     fn compile_nested(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
         Ok(match self {
-            FilterExpr::Node(expr) => Arc::new(Predicate::new(expr, named_ids(expr))?),
+            FilterExpr::Node(expr) => Arc::new(Predicate::new(expr, pushdown(expr))?),
             FilterExpr::Edge(expr) => Arc::new(Predicate::new(expr, None)?),
             FilterExpr::ExplodedEdge(expr) => Arc::new(Predicate::new(expr, None)?),
             FilterExpr::View(_) => {
@@ -1686,5 +1902,131 @@ impl CreateFilter for FilterExpr {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         self.compile()?.create_edge_filter(graph)
+    }
+}
+
+#[cfg(test)]
+mod pushdown_tests {
+    use super::*;
+    use raphtory_api::core::entities::properties::prop::IntoProp;
+
+    fn prop(name: &str, temporal: bool) -> NodeExpr {
+        Expr::Read(NodeLeaf::property(Vec::new(), name.to_owned(), temporal))
+    }
+
+    fn c(v: impl IntoProp) -> NodeExpr {
+        Expr::Const(v.into_prop())
+    }
+
+    fn index_of(expr: &NodeExpr) -> Option<(String, bool, bool)> {
+        match pushdown(expr)? {
+            Pushdown::Index(q) => Some((
+                match q.read {
+                    IndexedRead::Property { name, metadata } => {
+                        if metadata {
+                            format!("metadata {name}")
+                        } else {
+                            name
+                        }
+                    }
+                    IndexedRead::Name => "name".to_owned(),
+                },
+                q.ever,
+                q.test.is_pattern(),
+            )),
+            Pushdown::Ids(_) => None,
+        }
+    }
+
+    #[test]
+    fn plain_property_tests_reach_the_index_from_either_side() {
+        let gt = Expr::Cmp(CmpOp::Gt, Box::new(prop("score", false)), Box::new(c(4i64)));
+        assert_eq!(index_of(&gt), Some(("score".to_owned(), false, false)));
+        let flipped = Expr::Cmp(CmpOp::Lt, Box::new(c(4i64)), Box::new(prop("score", false)));
+        assert!(matches!(
+            pushdown(&flipped),
+            Some(Pushdown::Index(IndexQuery {
+                test: IndexTest::Gt(_),
+                ..
+            }))
+        ));
+        let contains = Expr::Str(
+            StrOp::Contains,
+            Box::new(prop("name", false)),
+            Box::new(c("acme")),
+        );
+        assert_eq!(index_of(&contains), Some(("name".to_owned(), false, true)));
+        let members = Expr::In {
+            expr: Box::new(prop("tag", false)),
+            values: vec!["a".into_prop(), "b".into_prop()],
+            negated: false,
+        };
+        assert_eq!(index_of(&members), Some(("tag".to_owned(), false, false)));
+    }
+
+    #[test]
+    fn a_history_under_any_asks_for_every_value_ever_held() {
+        let any = Expr::Any(Box::new(Expr::Cmp(
+            CmpOp::Eq,
+            Box::new(prop("score", true)),
+            Box::new(c(4i64)),
+        )));
+        assert_eq!(index_of(&any), Some(("score".to_owned(), true, false)));
+        // The latest update of a history is the property's latest value.
+        let latest = Expr::Cmp(
+            CmpOp::Eq,
+            Box::new(Expr::Agg(Agg::Latest, Box::new(prop("score", true)))),
+            Box::new(c(4i64)),
+        );
+        assert_eq!(index_of(&latest), Some(("score".to_owned(), false, false)));
+    }
+
+    #[test]
+    fn what_the_index_cannot_answer_scans() {
+        let viewed = Expr::Cmp(
+            CmpOp::Eq,
+            Box::new(Expr::Read(NodeLeaf::property(
+                vec![ViewOp::Latest],
+                "score".to_owned(),
+                false,
+            ))),
+            Box::new(c(4i64)),
+        );
+        assert!(pushdown(&viewed).is_none());
+        let ne = Expr::Cmp(CmpOp::Ne, Box::new(prop("score", false)), Box::new(c(4i64)));
+        assert!(pushdown(&ne).is_none());
+        let not_in = Expr::In {
+            expr: Box::new(prop("tag", false)),
+            values: vec!["a".into_prop()],
+            negated: true,
+        };
+        assert!(pushdown(&not_in).is_none());
+        let name_eq = Expr::Cmp(
+            CmpOp::Eq,
+            Box::new(Expr::Read(NodeLeaf::Field {
+                views: Vec::new(),
+                field: Field::Name,
+            })),
+            Box::new(c("bob")),
+        );
+        assert!(pushdown(&name_eq).is_none());
+        let name_prefix = Expr::Str(
+            StrOp::StartsWith,
+            Box::new(Expr::Read(NodeLeaf::Field {
+                views: Vec::new(),
+                field: Field::Name,
+            })),
+            Box::new(c("bo")),
+        );
+        assert_eq!(
+            index_of(&name_prefix),
+            Some(("name".to_owned(), false, true))
+        );
+        let both_sides = Expr::Cmp(
+            CmpOp::Eq,
+            Box::new(prop("a", false)),
+            Box::new(prop("b", false)),
+        );
+        assert!(pushdown(&both_sides).is_none());
     }
 }
