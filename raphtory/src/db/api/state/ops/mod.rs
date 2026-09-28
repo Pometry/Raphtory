@@ -47,23 +47,6 @@ pub trait NodeOp: Send + Sync {
     }
 }
 
-// impl<T: NodeOp + Clone> EntityExpr for T {
-//     type Marker = NodeFilter;
-//
-//     fn entity(&self) -> Self::Marker {
-//         NodeFilter
-//     }
-// }
-//
-// impl<T: NodeOp + Clone> CreateOp for T {
-//     fn create_node_op<'g, G: GraphView + 'g>(
-//         &self,
-//         _graph: G,
-//     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-//         Ok(Arc::new(self.clone()))
-//     }
-// }
-
 pub trait IntoArrowNodeOp: NodeOp + Sized {
     fn into_arrow_node_op<A: InputNodeStateValue<Self::Output>>(self) -> ArrowMap<Self, A> {
         ArrowMap {

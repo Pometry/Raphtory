@@ -332,54 +332,10 @@ impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
 
 /// Aggregators apply to the latest value of a property when it is list-valued;
 /// scalar values are rejected at filter-build time (`require_aggregable`).
-impl<E: EntityExpr> EntityAggOps for PropertyExpr<E> {
-    fn sum(self) -> SumExpr<Self> {
-        SumExpr(self)
-    }
-    fn avg(self) -> AvgExpr<Self> {
-        AvgExpr(self)
-    }
-    fn min(self) -> MinExpr<Self> {
-        MinExpr(self)
-    }
-    fn max(self) -> MaxExpr<Self> {
-        MaxExpr(self)
-    }
-    fn first(self) -> FirstExpr<Self> {
-        FirstExpr(self)
-    }
-    fn last(self) -> LastExpr<Self> {
-        LastExpr(self)
-    }
-    fn len(self) -> LenExpr<Self> {
-        LenExpr(self)
-    }
-}
+impl<E: EntityExpr> EntityAggOps for PropertyExpr<E> {}
 
 /// As for [`PropertyExpr`]: aggregation over a list-valued metadata field.
-impl<E: EntityExpr> EntityAggOps for MetadataExpr<E> {
-    fn sum(self) -> SumExpr<Self> {
-        SumExpr(self)
-    }
-    fn avg(self) -> AvgExpr<Self> {
-        AvgExpr(self)
-    }
-    fn min(self) -> MinExpr<Self> {
-        MinExpr(self)
-    }
-    fn max(self) -> MaxExpr<Self> {
-        MaxExpr(self)
-    }
-    fn first(self) -> FirstExpr<Self> {
-        FirstExpr(self)
-    }
-    fn last(self) -> LastExpr<Self> {
-        LastExpr(self)
-    }
-    fn len(self) -> LenExpr<Self> {
-        LenExpr(self)
-    }
-}
+impl<E: EntityExpr> EntityAggOps for MetadataExpr<E> {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgeFilterFactory — marker for edge-side filter factory types

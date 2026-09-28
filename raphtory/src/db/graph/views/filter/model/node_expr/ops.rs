@@ -457,7 +457,7 @@ impl_agg_entity_op!(
     |vals| {
         // Pick the last temporal entry as-is (whether scalar or list).
         match vals? {
-            Prop::List(x) => x.iter_all().filter_map(|v| v).last(),
+            Prop::List(x) => x.iter_all().rev().find_map(|v| v),
             _ => None,
         }
     }

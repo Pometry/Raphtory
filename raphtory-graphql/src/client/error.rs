@@ -2,6 +2,7 @@
 //! GraphQL errors into it.
 
 use crate::data::{CODE_ACCESS_DENIED, CODE_GRAPH_NOT_FOUND};
+use itertools::Itertools;
 use raphtory_api::core::{storage::graph_folder::GraphFolderError, utils::time::ParseTimeError};
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -126,11 +127,7 @@ pub(crate) fn classify_graphql_errors(errors: &JsonValue, query: &str) -> Client
         None => e.to_string(),
     };
     let message = match errors {
-        JsonValue::Array(errors) => errors
-            .iter()
-            .map(error_text)
-            .collect::<Vec<_>>()
-            .join("\n\t"),
+        JsonValue::Array(errors) => errors.iter().map(error_text).join("\n\t"),
         _ => error_text(errors),
     };
 

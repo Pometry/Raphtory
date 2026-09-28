@@ -11,7 +11,7 @@
 //! ```rust,ignore
 //! NodeFilter.id()           // Id    — e.g. .eq(GID::Str("v1".into()))
 //! NodeFilter.name()         // Name  — e.g. .eq("Alice")
-//! NodeFilter.node_type()    // Type  — e.g. .is_some::<Prop>()
+//! NodeFilter.node_type()    // Type  — e.g. .is_some()
 //! ```
 //!
 //! # Degree expressions
@@ -26,7 +26,7 @@
 //!
 //! ```rust,ignore
 //! NodeFilter.property("age")                         // Property — e.g. .gt(30i64)
-//! NodeFilter.property("score").is_some::<Prop>()     // nodes where "score" is set
+//! NodeFilter.property("score").is_some()     // nodes where "score" is set
 //! NodeFilter.metadata("region")                      // Metadata — e.g. .eq(Prop::Str("EU".into()))
 //! ```
 //!
@@ -511,29 +511,7 @@ impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityExpr for TemporalPropE
 
 impl<E: EntityExpr + Clone + Send + Sync + 'static> PredicateLhs for TemporalPropExpr<E> {}
 
-impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityAggOps for TemporalPropExpr<E> {
-    fn sum(self) -> SumExpr<Self> {
-        SumExpr(self)
-    }
-    fn avg(self) -> AvgExpr<Self> {
-        AvgExpr(self)
-    }
-    fn min(self) -> MinExpr<Self> {
-        MinExpr(self)
-    }
-    fn max(self) -> MaxExpr<Self> {
-        MaxExpr(self)
-    }
-    fn first(self) -> FirstExpr<Self> {
-        FirstExpr(self)
-    }
-    fn last(self) -> LastExpr<Self> {
-        LastExpr(self)
-    }
-    fn len(self) -> LenExpr<Self> {
-        LenExpr(self)
-    }
-}
+impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityAggOps for TemporalPropExpr<E> {}
 
 impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for TemporalPropExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -587,13 +565,27 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Te
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub trait EntityAggOps: EntityExpr + Sized {
-    fn sum(self) -> SumExpr<Self>;
-    fn avg(self) -> AvgExpr<Self>;
-    fn min(self) -> MinExpr<Self>;
-    fn max(self) -> MaxExpr<Self>;
-    fn first(self) -> FirstExpr<Self>;
-    fn last(self) -> LastExpr<Self>;
-    fn len(self) -> LenExpr<Self>;
+    fn sum(self) -> SumExpr<Self> {
+        SumExpr(self)
+    }
+    fn avg(self) -> AvgExpr<Self> {
+        AvgExpr(self)
+    }
+    fn min(self) -> MinExpr<Self> {
+        MinExpr(self)
+    }
+    fn max(self) -> MaxExpr<Self> {
+        MaxExpr(self)
+    }
+    fn first(self) -> FirstExpr<Self> {
+        FirstExpr(self)
+    }
+    fn last(self) -> LastExpr<Self> {
+        LastExpr(self)
+    }
+    fn len(self) -> LenExpr<Self> {
+        LenExpr(self)
+    }
 }
 
 macro_rules! impl_agg_expr {
@@ -640,29 +632,7 @@ macro_rules! impl_agg_expr {
 
         impl<E: EntityExpr> PredicateLhs for $expr<E> {}
 
-        impl<E: EntityExpr> EntityAggOps for $expr<E> {
-            fn sum(self) -> SumExpr<Self> {
-                SumExpr(self)
-            }
-            fn avg(self) -> AvgExpr<Self> {
-                AvgExpr(self)
-            }
-            fn min(self) -> MinExpr<Self> {
-                MinExpr(self)
-            }
-            fn max(self) -> MaxExpr<Self> {
-                MaxExpr(self)
-            }
-            fn first(self) -> FirstExpr<Self> {
-                FirstExpr(self)
-            }
-            fn last(self) -> LastExpr<Self> {
-                LastExpr(self)
-            }
-            fn len(self) -> LenExpr<Self> {
-                LenExpr(self)
-            }
-        }
+        impl<E: EntityExpr> EntityAggOps for $expr<E> {}
     };
 }
 
