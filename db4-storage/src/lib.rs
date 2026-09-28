@@ -23,7 +23,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
-        node_type_index::{MemNodeTypeEntry},
+        node_type_index::MemNodeTypeEntry,
     },
 };
 use parking_lot::RwLock;

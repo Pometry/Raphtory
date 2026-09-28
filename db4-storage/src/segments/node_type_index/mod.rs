@@ -5,8 +5,8 @@ use crate::{
     pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     persist::strategy::PersistenceStrategy,
 };
-use parking_lot::{RwLock, RwLockWriteGuard, RawRwLock};
 use lock_api::ArcRwLockReadGuard;
+use parking_lot::{RawRwLock, RwLock, RwLockWriteGuard};
 use std::{
     ops::DerefMut,
     path::Path,
@@ -16,8 +16,7 @@ use std::{
     },
 };
 
-
-pub use index::{MemNodeTypeIndex, FrozenNodeTypeEntry, MemNodeTypeEntry};
+pub use index::{FrozenNodeTypeEntry, MemNodeTypeEntry, MemNodeTypeIndex};
 /// Fully in-memory node type index.
 #[derive(Debug)]
 pub struct NodeTypeIndexView<P: PersistenceStrategy> {

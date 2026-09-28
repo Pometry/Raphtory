@@ -2,9 +2,9 @@ use crate::{
     error::StorageError, pages::locked::node_type_index::WriteLockedNodeTypeIndex,
     segments::node_type_index::MemNodeTypeIndex,
 };
-use parking_lot::{RwLockWriteGuard, RawRwLock};
-use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 use lock_api::ArcRwLockReadGuard;
+use parking_lot::{RawRwLock, RwLockWriteGuard};
+use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
 where
