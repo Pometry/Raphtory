@@ -91,8 +91,8 @@ pub enum LoadError {
     InvalidSrcError(InvalidGIDError),
     #[error("Invalid dst id column: {0}")]
     InvalidDstError(InvalidGIDError),
-    #[error("Missing value for node id")]
-    MissingNodeError,
+    #[error("Invalid node id column: {0}")]
+    InvalidNodeError(InvalidGIDError),
     #[error("Missing value for timestamp")]
     MissingTimeError,
     #[error("Missing value for secondary index")]

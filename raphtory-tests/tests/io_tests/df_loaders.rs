@@ -1,6 +1,9 @@
 mod io_tests {
-    use arrow::array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+    use arrow::array::{
+        builder::{
+            ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+        },
+        ArrayRef, Int32Array, Int64Array,
     };
     use itertools::Itertools;
     use proptest::proptest;
@@ -17,7 +20,10 @@ mod io_tests {
         errors::GraphError,
         prelude::*,
     };
-    use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::{properties::prop::prop_col::PropCol, LayerIds},
+        storage::arc_str::ArcStr,
+    };
     use raphtory_storage::{
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
@@ -25,6 +31,7 @@ mod io_tests {
     use raphtory_tests::utils::{
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
+    use std::sync::Arc;
 
     fn build_df(
         chunk_size: usize,
@@ -238,6 +245,72 @@ mod io_tests {
             chunks: chunks.into_iter(),
             num_rows: Some(nodes.len()),
         }
+    }
+
+    #[test]
+    fn test_negative_i64_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int64Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk)].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_nodes_from_df(
+            df,
+            "time",
+            None,
+            "node_id",
+            &[],
+            &[],
+            None,
+            None,
+            None,
+            &g,
+            true,
+            None,
+            None,
+            None
+        )
+        .is_err());
+        assert!(g.is_empty())
+    }
+
+    #[test]
+    fn test_negative_i32_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int32Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk)].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_nodes_from_df(
+            df,
+            "time",
+            None,
+            "node_id",
+            &[],
+            &[],
+            None,
+            None,
+            None,
+            &g,
+            true,
+            None,
+            None,
+            None
+        )
+        .is_err());
+        assert!(g.is_empty())
     }
 
     #[test]

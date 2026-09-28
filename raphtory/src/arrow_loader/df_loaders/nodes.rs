@@ -225,6 +225,9 @@ pub fn load_nodes_from_df<
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
+            if resolve_nodes {
+                node_col.validate(graph, LoadError::InvalidNodeError)?;
+            }
 
             // Load the secondary index column if it exists, otherwise generate from start_id.
             let secondary_index_col =
@@ -401,6 +404,9 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
+        if resolve_nodes {
+            node_col.validate(graph, LoadError::InvalidNodeError)?;
+        }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
         let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
             let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
