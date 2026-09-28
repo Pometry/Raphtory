@@ -102,8 +102,10 @@ pub enum NodesViewCollection {
     TypeFilter(Vec<String>),
 }
 
+/// A view operation on a node, an edge or a collection of either; the
+/// same list for all of them now that one filter type serves every entity.
 #[derive(OneOfInput, Clone, Debug)]
-pub enum NodeViewCollection {
+pub enum ViewCollection {
     /// Contains only the default layer.
     DefaultLayer(bool),
     /// View at the latest time.
@@ -132,98 +134,6 @@ pub enum NodeViewCollection {
     ShrinkEnd(GqlTimeInput),
     /// A filter expression; the entity it tests is written in the expression.
     Filter(GqlFilter),
-}
-
-#[derive(OneOfInput, Clone, Debug)]
-pub enum EdgesViewCollection {
-    /// Contains only the default layer.
-    DefaultLayer(bool),
-    /// Latest time.
-    Latest(bool),
-    /// Snapshot at latest time.
-    SnapshotLatest(bool),
-    /// Snapshot at specified time.
-    SnapshotAt(GqlTimeInput),
-    /// List of included layers.
-    Layers(Vec<String>),
-    /// List of excluded layers.
-    ExcludeLayers(Vec<String>),
-    /// Single excluded layer.
-    ExcludeLayer(String),
-    /// Window between a start and end time.
-    Window(Window),
-    /// View at a specified time.
-    At(GqlTimeInput),
-    /// View before a specified time (end exclusive).
-    Before(GqlTimeInput),
-    /// View after a specified time (start exclusive).
-    After(GqlTimeInput),
-    /// Set the window start to a specified time.
-    ShrinkStart(GqlTimeInput),
-    /// Set the window end to a specified time.
-    ShrinkEnd(GqlTimeInput),
-    /// A filter expression; the entity it tests is written in the expression.
-    Filter(GqlFilter),
-}
-
-#[derive(OneOfInput, Clone, Debug)]
-pub enum EdgeViewCollection {
-    /// Contains only the default layer.
-    DefaultLayer(bool),
-    /// Latest time.
-    Latest(bool),
-    /// Snapshot at latest time.
-    SnapshotLatest(bool),
-    /// Snapshot at specified time.
-    SnapshotAt(GqlTimeInput),
-    /// List of included layers.
-    Layers(Vec<String>),
-    /// List of excluded layers.
-    ExcludeLayers(Vec<String>),
-    /// Single excluded layer.
-    ExcludeLayer(String),
-    /// Window between a start and end time.
-    Window(Window),
-    /// View at a specified time.
-    At(GqlTimeInput),
-    /// View before a specified time (end exclusive).
-    Before(GqlTimeInput),
-    /// View after a specified time (start exclusive).
-    After(GqlTimeInput),
-    /// Set the window start to a specified time.
-    ShrinkStart(GqlTimeInput),
-    /// Set the window end to a specified time.
-    ShrinkEnd(GqlTimeInput),
-    /// A filter expression; the entity it tests is written in the expression.
-    Filter(GqlFilter),
-}
-
-#[derive(OneOfInput, Clone, Debug)]
-pub enum PathFromNodeViewCollection {
-    /// Latest time.
-    Latest(bool),
-    /// Latest snapshot.
-    SnapshotLatest(bool),
-    /// Time.
-    SnapshotAt(GqlTimeInput),
-    /// List of layers.
-    Layers(Vec<String>),
-    /// List of excluded layers.
-    ExcludeLayers(Vec<String>),
-    /// Single layer to exclude.
-    ExcludeLayer(String),
-    /// Window between a start and end time.
-    Window(Window),
-    /// View at a specified time.
-    At(GqlTimeInput),
-    /// View before a specified time (end exclusive).
-    Before(GqlTimeInput),
-    /// View after a specified time (start exclusive).
-    After(GqlTimeInput),
-    /// Set the window start to a specified time.
-    ShrinkStart(GqlTimeInput),
-    /// Set the window end to a specified time.
-    ShrinkEnd(GqlTimeInput),
 }
 
 /// Boolean expression over a property value.

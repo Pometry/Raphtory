@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filter_expr_input::GqlFilter,
-        filtering::NodeViewCollection,
+        filtering::ViewCollection,
         history::GqlHistory,
         node_id::GqlNodeId,
         nodes::GqlNodes,
@@ -246,46 +246,44 @@ impl GqlNode {
         self.vv.shrink_end(end.into_time()).into()
     }
 
-    pub async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
+    pub async fn apply_views(&self, views: Vec<ViewCollection>) -> Result<GqlNode, GraphError> {
         let mut return_view: GqlNode = self.vv.clone().into();
         for view in views {
             return_view = match view {
-                NodeViewCollection::DefaultLayer(apply) => {
+                ViewCollection::DefaultLayer(apply) => {
                     if apply {
                         return_view.default_layer().await
                     } else {
                         return_view
                     }
                 }
-                NodeViewCollection::Latest(apply) => {
+                ViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
                     } else {
                         return_view
                     }
                 }
-                NodeViewCollection::SnapshotLatest(apply) => {
+                ViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
                     } else {
                         return_view
                     }
                 }
-                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                NodeViewCollection::Layers(layers) => return_view.layers(layers).await,
-                NodeViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                NodeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                NodeViewCollection::Window(window) => {
+                ViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                ViewCollection::Layers(layers) => return_view.layers(layers).await,
+                ViewCollection::ExcludeLayers(layers) => return_view.exclude_layers(layers).await,
+                ViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                ViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
                 }
-                NodeViewCollection::At(at) => return_view.at(at).await,
-                NodeViewCollection::Before(time) => return_view.before(time).await,
-                NodeViewCollection::After(time) => return_view.after(time).await,
-                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodeViewCollection::Filter(filter) => return_view.filter(filter).await?,
+                ViewCollection::At(at) => return_view.at(at).await,
+                ViewCollection::Before(time) => return_view.before(time).await,
+                ViewCollection::After(time) => return_view.after(time).await,
+                ViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                ViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                ViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
