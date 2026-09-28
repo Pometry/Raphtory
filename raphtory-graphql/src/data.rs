@@ -375,10 +375,9 @@ impl Data {
             .await
     }
 
-    /// Whether `filter` can be applied to the graph at `path`. `Ok(Err(_))` says the
-    /// filter itself does not fit that graph (a value of the wrong type for a property,
-    /// say); `Err(_)` says the graph could not be loaded. Policies use it to tell a
-    /// per-caller value that cannot be compared from a grant that is wrong.
+    /// Whether `filter` can be applied to the graph at `path`. Policies use it to
+    /// tell a per-caller value that cannot be compared from a grant that is wrong:
+    /// the error says which of the two it was.
     ///
     /// # ⚠ Does no permission check — the caller must already have authorised `path`.
     /// Loading and error reporting here would otherwise reveal whether a graph exists.
@@ -386,15 +385,18 @@ impl Data {
         &self,
         path: &str,
         filter: &GqlFilter,
-    ) -> Result<Result<(), GraphError>, GQLError> {
+    ) -> Result<(), AccessFilterError> {
         let graph = self
             .get_graph_unchecked(path)
-            .await?
+            .await
+            .map_err(AccessFilterError::Load)?
             .graph()
             .clone()
             .into_dynamic();
         let filter = filter.clone();
-        Ok(blocking_compute(move || compile_row_filter(graph, filter).map(|_| ())).await)
+        blocking_compute(move || compile_row_filter(graph, filter).map(|_| ()))
+            .await
+            .map_err(AccessFilterError::DoesNotApply)
     }
 
     /// Test-only: direct graph load without permission checks.
@@ -945,6 +947,17 @@ fn apply_row_filter_sync(
 ///
 /// The filter means what it means everywhere else: `and` is an intersection, and a
 /// predicate that should be evaluated inside a view carries that view on its read.
+/// Why a grant's row filter cannot be applied to a graph.
+#[derive(thiserror::Error, Debug)]
+pub enum AccessFilterError {
+    /// The filter does not fit the graph: a value of the wrong type for a property, say.
+    #[error("the filter does not fit the graph: {0}")]
+    DoesNotApply(#[source] GraphError),
+    /// The graph could not be loaded.
+    #[error(transparent)]
+    Load(GQLError),
+}
+
 fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
     Ok(graph.filter(filter)?.into_dynamic())
 }
