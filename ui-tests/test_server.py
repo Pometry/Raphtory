@@ -149,6 +149,8 @@ def __main__():
 
     build_from_spec("numerical").save_to_file(graph_path("vanilla", "numerical"))
 
+    build_from_spec("search_config").save_to_file(graph_path("vanilla", "search_config"))
+
     g = setup_playground_graph(Graph())
     g.save_to_file(graph_path("my_graph"))
     g.save_to_file(graph_path("my_namespace", "demo"))
