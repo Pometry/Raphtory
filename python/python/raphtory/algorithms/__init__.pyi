@@ -70,7 +70,6 @@ __all__ = [
     "hits",
     "balance",
     "label_propagation",
-    "label_propagation_fast",
     "k_core",
     "temporal_SEIR",
     "louvain",
@@ -87,6 +86,7 @@ def dijkstra_single_source_shortest_paths(
     targets: list[NodeInput],
     direction: Direction = "both",
     weight: str = "weight",
+    default_weight: Optional[int | float | Decimal] = None,
 ) -> NodeStateWeightedSP:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
@@ -97,6 +97,9 @@ def dijkstra_single_source_shortest_paths(
         targets (list[NodeInput]): A list of target nodes.
         direction (Direction): The direction of the edges to be considered for the shortest path. Defaults to "both".
         weight (str): The name of the weight property for the edges. Defaults to "weight".
+        default_weight (int|float|Decimal, optional): The default value for edges without weight (either
+            because `weight` was not specified or because the edge does not have a value for the property).
+            If not specified, defaults to 1.
 
     Returns:
         NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.
@@ -668,7 +671,7 @@ def label_propagation(
     graph: GraphView,
     iter_count: int = 20,
     seed: Optional[int] = None,
-    init_state: Optional[dict] = None,
+    init_state: Optional[dict[NodeInput, int]] = None,
     rel_tol: Optional[float] = None,
     patience: Optional[int] = None,
 ) -> OutputNodeState:
@@ -678,38 +681,7 @@ def label_propagation(
     Arguments:
         graph (GraphView): A reference to the graph
         iter_count (int): Number of iterations. Defaults to 20.
-        seed (int, optional): Seeds the tie-break draw. Pass it back to reproduce a run.
-        init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
-        rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
-        patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
-
-    Returns:
-        OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
-
-    Raises:
-        Exception: If a key of `init_state` is not a node in `graph`.
-
-    """
-
-def label_propagation_fast(
-    graph: GraphView,
-    iter_count: int = 20,
-    seed: Optional[int] = None,
-    init_state: Optional[dict] = None,
-    rel_tol: Optional[float] = None,
-    patience: Optional[int] = None,
-) -> OutputNodeState:
-    """
-    Computes components using a label propagation algorithm
-
-    A faster implementation of `label_propagation`, agreeing with it node for node: same
-    `community_id`, same `confidence`. It keeps labels in flat arrays and advances a frontier of
-    active nodes instead of re-evaluating every node each super-step.
-
-    Arguments:
-        graph (GraphView): A reference to the graph
-        iter_count (int): Number of iterations. Defaults to 20.
-        seed (int, optional): Seeds the tie-break draw. Pass it back to reproduce a run.
+        seed (int, optional): Seeds the tie-break draw. Pass the value back to reproduce a run.
         init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
         rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
         patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.

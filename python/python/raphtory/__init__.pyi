@@ -809,7 +809,9 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def build_property_index(self, props: Optional[list[str]] = None) -> None:
+    def build_property_index(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
@@ -827,6 +829,10 @@ class Graph(GraphView):
                 to change what the next build considers. Defaults to None,
                 which keeps the saved selection (or indexes every supported
                 property if none was ever set).
+            index_gid (bool, optional): also index each node's id. Defaults to False.
+                Filters over the id can then be served from the index instead
+                of a scan. The id has no property name, so it cannot be named
+                in `props`. Always takes effect and is saved with the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1088,6 +1094,14 @@ class Graph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
+        """
+
+    def indexed_gid(self) -> bool:
+        """
+        Whether index builds cover each node's id.
+
+        Returns:
+            bool: True when the node id is indexed.
         """
 
     def indexed_properties(self) -> list[str]:
@@ -1379,7 +1393,9 @@ class Graph(GraphView):
           bytes:
         """
 
-    def set_indexed_properties(self, props: Optional[list[str]] = None) -> None:
+    def set_indexed_properties(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Choose which node properties later index builds consider, without
         building now.
@@ -1389,6 +1405,7 @@ class Graph(GraphView):
                 list indexes nothing. Defaults to None, which restores
                 indexing every supported property — the way back after a
                 selection has been set.
+            index_gid (bool, optional): whether to index each node's id. Defaults to False.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1521,7 +1538,9 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def build_property_index(self, props: Optional[list[str]] = None) -> None:
+    def build_property_index(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Build secondary indexes over node property values to speed up
         property filters (equality, comparisons and string matching).
@@ -1539,6 +1558,10 @@ class PersistentGraph(GraphView):
                 to change what the next build considers. Defaults to None,
                 which keeps the saved selection (or indexes every supported
                 property if none was ever set).
+            index_gid (bool, optional): also index each node's id. Defaults to False.
+                Filters over the id can then be served from the index instead
+                of a scan. The id has no property name, so it cannot be named
+                in `props`. Always takes effect and is saved with the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1796,6 +1819,14 @@ class PersistentGraph(GraphView):
 
         Raises:
             GraphError: If the operation fails.
+        """
+
+    def indexed_gid(self) -> bool:
+        """
+        Whether index builds cover each node's id.
+
+        Returns:
+            bool: True when the node id is indexed.
         """
 
     def indexed_properties(self) -> list[str]:
@@ -2147,7 +2178,9 @@ class PersistentGraph(GraphView):
           bytes:
         """
 
-    def set_indexed_properties(self, props: Optional[list[str]] = None) -> None:
+    def set_indexed_properties(
+        self, props: Optional[list[str]] = None, index_gid: Optional[bool] = False
+    ) -> None:
         """
         Choose which node properties later index builds consider, without
         building now.
@@ -2157,6 +2190,7 @@ class PersistentGraph(GraphView):
                 list indexes nothing. Defaults to None, which restores
                 indexing every supported property — the way back after a
                 selection has been set.
+            index_gid (bool, optional): whether to index each node's id. Defaults to False.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
