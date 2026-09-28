@@ -58,7 +58,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
 #[cfg(feature = "datafusion")]
 use {
     arrow::row::{RowConverter, SortField},
@@ -839,21 +838,19 @@ impl<
             return Ok(vec![].into());
         }
 
-        let mut group_values = new_group_values(self.state.values().schema(), &GroupOrdering::None)
+        let schema = self.state.values().schema_ref();
+        let mut group_arrays = Vec::with_capacity(cols.len());
+        let mut fields = Vec::with_capacity(cols.len());
+
+        for name in cols.iter() {
+            let idx = schema.index_of(name)?;
+            group_arrays.push(self.state.values().column(idx).clone());
+            fields.push(schema.fields()[idx].clone());
+        }
+
+        let mut group_values = new_group_values(Schema::new(fields).into(), &GroupOrdering::None)
             .map_err(|e| ArrowError::ParseError(e.to_string()))
             .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
-        let group_arrays: Vec<ArrayRef> = cols
-            .iter()
-            .map(|name| {
-                let idx = self
-                    .state
-                    .values()
-                    .schema()
-                    .index_of(name)
-                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
-                Ok(self.state.values().column(idx).clone())
-            })
-            .collect::<Result<_, GraphError>>()?;
 
         // Intern groups: assigns group_idx to each row
         let mut group_indices = vec![0usize; num_rows];
