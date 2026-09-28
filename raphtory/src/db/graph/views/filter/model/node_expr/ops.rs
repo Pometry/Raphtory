@@ -440,28 +440,35 @@ impl_agg_entity_op!(
     FirstNodeOp,
     FirstEdgeOp,
     |pt| agg_out_type(pt, None),
-    |vals| {
-        // Pick the first temporal entry as-is (whether scalar or list).
-        // aggregate_values would recurse into list entries and pick the first
-        // *element* within each entry, which is wrong for list-typed properties.
-        match vals? {
-            Prop::List(x) => x.iter_all().find_map(|v| v),
-            _ => None,
-        }
-    }
+    |vals| { aggregate_list_values(vals, &|mut pi| pi.next()) }
 );
 impl_agg_entity_op!(
     LastNodeOp,
     LastEdgeOp,
     |pt| agg_out_type(pt, None),
-    |vals| {
-        // Pick the last temporal entry as-is (whether scalar or list).
-        match vals? {
-            Prop::List(x) => x.iter_all().rev().find_map(|v| v),
-            _ => None,
-        }
-    }
+    |vals| { aggregate_list_values(vals, &|mut pi| pi.next_back()) }
 );
+/// The type one update of a history has: the history's element type.
+fn update_type(pt: PropType) -> PropType {
+    match pt {
+        PropType::List(inner) => *inner,
+        other => other,
+    }
+}
+impl_agg_entity_op!(EarliestNodeOp, EarliestEdgeOp, update_type, |vals| {
+    // The earliest update as it is, scalar or list.
+    match vals? {
+        Prop::List(x) => x.iter_all().find_map(|v| v),
+        _ => None,
+    }
+});
+impl_agg_entity_op!(LatestNodeOp, LatestEdgeOp, update_type, |vals| {
+    // The latest update as it is, scalar or list.
+    match vals? {
+        Prop::List(x) => x.iter_all().rev().find_map(|v| v),
+        _ => None,
+    }
+});
 impl_agg_entity_op!(
     LenNodeOp,
     LenEdgeOp,

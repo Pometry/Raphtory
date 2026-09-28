@@ -515,7 +515,7 @@ def test_filter_edges_with_num_ids_error():
         filter_expr = filter.Edge.src().id() == "3"
         with pytest.raises(
             Exception,
-            match=r'value 3 of type Str cannot be compared with U64',
+            match=r"value 3 of type Str cannot be compared with U64",
         ):
             graph.filter(filter_expr).nodes.id
 

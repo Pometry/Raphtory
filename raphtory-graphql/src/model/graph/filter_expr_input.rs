@@ -203,6 +203,10 @@ macro_rules! entity_expr_input {
             First(Wrapped<$expr>),
             Last(Wrapped<$expr>),
             Len(Wrapped<$expr>),
+            /// The earliest update of a temporal history.
+            Earliest(Wrapped<$expr>),
+            /// The latest update of a temporal history.
+            Latest(Wrapped<$expr>),
             Eq($cmp),
             Ne($cmp),
             Lt($cmp),
@@ -286,6 +290,8 @@ macro_rules! entity_expr_input {
                     $expr::First(e) => Expr::Agg(Agg::First, inner(e)?),
                     $expr::Last(e) => Expr::Agg(Agg::Last, inner(e)?),
                     $expr::Len(e) => Expr::Agg(Agg::Len, inner(e)?),
+                    $expr::Earliest(e) => Expr::Agg(Agg::Earliest, inner(e)?),
+                    $expr::Latest(e) => Expr::Agg(Agg::Latest, inner(e)?),
                     $expr::Eq(c) => cmp(CmpOp::Eq, c)?,
                     $expr::Ne(c) => cmp(CmpOp::Ne, c)?,
                     $expr::Lt(c) => cmp(CmpOp::Lt, c)?,
@@ -360,6 +366,8 @@ macro_rules! entity_expr_input {
                     Expr::Agg(Agg::First, e) => $expr::First(inner(e)?),
                     Expr::Agg(Agg::Last, e) => $expr::Last(inner(e)?),
                     Expr::Agg(Agg::Len, e) => $expr::Len(inner(e)?),
+                    Expr::Agg(Agg::Earliest, e) => $expr::Earliest(inner(e)?),
+                    Expr::Agg(Agg::Latest, e) => $expr::Latest(inner(e)?),
                     Expr::Cmp(CmpOp::Eq, l, r) => $expr::Eq(cmp(l, r)?),
                     Expr::Cmp(CmpOp::Ne, l, r) => $expr::Ne(cmp(l, r)?),
                     Expr::Cmp(CmpOp::Lt, l, r) => $expr::Lt(cmp(l, r)?),

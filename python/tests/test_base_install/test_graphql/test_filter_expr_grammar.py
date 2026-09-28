@@ -109,10 +109,17 @@ def test_temporal_aggregates_and_qualifiers():
     # The qualifier follows the comparison: one answer per update, any must hold.
     any_high = node({"any": {"gt": {"lhs": history, "rhs": const({"f64": 4.0})}}})
     two_updates = node({"eq": {"lhs": {"len": history}, "rhs": const({"u64": 2})}})
+    # earliest / latest are updates of the history, not reductions of it.
+    started_low = node(
+        {"lt": {"lhs": {"earliest": history}, "rhs": const({"f64": 2.0})}}
+    )
+    ended_low = node({"lt": {"lhs": {"latest": history}, "rhs": const({"f64": 3.0})}})
     with graphql_client(g) as client:
         assert node_names(client, total) == ["alice"]
         assert node_names(client, any_high) == ["alice", "bob"]
         assert node_names(client, two_updates) == ["bob", "dave"]
+        assert node_names(client, started_low) == ["dave"]
+        assert node_names(client, ended_low) == ["bob", "dave"]
 
 
 def test_edge_reads_through_an_endpoint_keep_the_edge_views():

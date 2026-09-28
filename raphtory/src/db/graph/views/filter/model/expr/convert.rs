@@ -33,9 +33,9 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_expr::{
-                    AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, ConstExpr, DegreeExpr, EntityExpr,
-                    FirstExpr, LastExpr, LenExpr, Marker, MaxExpr, MinExpr, PropValueSetExpr,
-                    Scoped, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
+                    AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, ConstExpr, DegreeExpr, EarliestExpr,
+                    EntityExpr, FirstExpr, LastExpr, LatestExpr, LenExpr, Marker, MaxExpr, MinExpr,
+                    PropValueSetExpr, Scoped, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
                 },
                 node_filter::NodeFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
@@ -372,6 +372,8 @@ agg_to_expr!(
     FirstExpr => First,
     LastExpr => Last,
     LenExpr => Len,
+    EarliestExpr => Earliest,
+    LatestExpr => Latest,
 );
 
 impl<L: Leaf, E: ToExpr<L>> ToExpr<L> for AnyExpr<E> {

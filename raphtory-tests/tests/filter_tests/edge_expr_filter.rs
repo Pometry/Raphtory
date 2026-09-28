@@ -536,9 +536,9 @@ fn test_edge_quantified_all_is_not_in() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_edge_aggregated_last_then_sum() {
+fn test_edge_aggregated_latest_then_sum() {
     // Property is list-valued at each timestamp.
-    // .last() picks the last snapshot's list, .sum() reduces it to a scalar.
+    // .latest() picks the last snapshot's list, .sum() reduces it to a scalar.
     let g = Graph::new();
     // A->B: last snapshot = [3,4,5], sum = 12 (> 10)
     g.add_edge(
@@ -576,7 +576,7 @@ fn test_edge_aggregated_last_then_sum() {
     let filter = EdgeFilter
         .property("score")
         .temporal()
-        .last()
+        .latest()
         .sum()
         .gt(10i64);
     let result = g.filter(filter).unwrap();
@@ -724,9 +724,9 @@ fn test_edge_aggregated_last_then_any_is_in() {
 }
 
 #[test]
-fn test_edge_aggregated_last_then_all_contains() {
+fn test_edge_aggregated_latest_then_all_contains() {
     // Property is list-valued at each timestamp.
-    // .last() picks the last snapshot's list, .contains("rock").all() checks all elements contain "rock".
+    // .latest() picks the last snapshot's list, .contains("rock").all() checks all elements contain "rock".
     let g = Graph::new();
     // A->B: last snapshot = ["rock","rock-n-roll"] — all contain "rock"
     g.add_edge(
@@ -764,7 +764,7 @@ fn test_edge_aggregated_last_then_all_contains() {
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .last()
+        .latest()
         .contains("rock")
         .all();
     let result = g.filter(filter).unwrap();

@@ -106,7 +106,7 @@ impl PropArray {
     }
 
     // TODO: need something that returns PropRef instead to avoid allocations
-    pub fn iter(&self) -> impl Iterator<Item = Prop> + '_ {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = Prop> + '_ {
         self.iter_all().flatten()
     }
 

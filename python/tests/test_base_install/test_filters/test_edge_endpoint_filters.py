@@ -55,7 +55,7 @@ def test_edges_dst_property_gt():
 @with_variants(create_test_graph)
 def test_edges_src_property_temporal_sum():
     def check(graph):
-        expr = filter.Edge.src().property("prop6").temporal().last().sum() == 12
+        expr = filter.Edge.src().property("prop6").temporal().latest().sum() == 12
         result = sorted(graph.filter(expr).edges.id)
         expected = sorted([("a", "d")])
         assert result == expected

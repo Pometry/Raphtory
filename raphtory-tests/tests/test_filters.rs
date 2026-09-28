@@ -5520,11 +5520,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal last: SUM ------
     #[test]
-    fn test_node_property_temporal_last_sum_u8s() {
+    fn test_node_property_temporal_latest_sum_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::U64(10));
         let expected = vec!["n1"];
@@ -5532,11 +5532,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_u16s() {
+    fn test_node_property_temporal_latest_sum_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::U64(6));
         let expected = vec!["n3", "n10"];
@@ -5544,11 +5544,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_u32s() {
+    fn test_node_property_temporal_latest_sum_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::U64(10));
         let expected = vec!["n1"];
@@ -5556,11 +5556,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_u64s() {
+    fn test_node_property_temporal_latest_sum_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::U64(60));
         let expected = vec!["n4"];
@@ -5568,11 +5568,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_i32s() {
+    fn test_node_property_temporal_latest_sum_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::I64(60));
         let expected = vec!["n4"];
@@ -5580,11 +5580,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_i64s() {
+    fn test_node_property_temporal_latest_sum_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::I64(0));
         let expected = vec!["n3", "n10"];
@@ -5592,11 +5592,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_f32s() {
+    fn test_node_property_temporal_latest_sum_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::F64(6.5));
         let expected = vec!["n3", "n10"];
@@ -5604,11 +5604,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_sum_f64s() {
+    fn test_node_property_temporal_latest_sum_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .last()
+            .latest()
             .sum()
             .eq(Prop::F64(90.0));
         let expected = vec!["n3", "n10"];
@@ -5617,11 +5617,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal last: AVG ------
     #[test]
-    fn test_node_property_temporal_last_avg_u8s() {
+    fn test_node_property_temporal_latest_avg_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(2.5));
         let expected = vec!["n1"];
@@ -5629,11 +5629,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_u16s() {
+    fn test_node_property_temporal_latest_avg_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(2.0));
         let expected = vec!["n3", "n10"];
@@ -5641,11 +5641,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_u32s() {
+    fn test_node_property_temporal_latest_avg_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(2.5));
         let expected = vec!["n1"];
@@ -5653,11 +5653,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_u64s() {
+    fn test_node_property_temporal_latest_avg_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(20.0));
         let expected = vec!["n4"];
@@ -5665,11 +5665,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_i32s() {
+    fn test_node_property_temporal_latest_avg_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(0.6666666666666666));
         let expected = vec!["n6"];
@@ -5677,11 +5677,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_i64s() {
+    fn test_node_property_temporal_latest_avg_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(0.0));
         let expected = vec!["n3", "n10"];
@@ -5689,11 +5689,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_f32s() {
+    fn test_node_property_temporal_latest_avg_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(20.0));
         let expected = vec!["n4"];
@@ -5701,11 +5701,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_avg_f64s() {
+    fn test_node_property_temporal_latest_avg_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .last()
+            .latest()
             .avg()
             .eq(Prop::F64(45.0));
         let expected = vec!["n3", "n10"];
@@ -5714,11 +5714,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal last: MIN ------
     #[test]
-    fn test_node_property_temporal_last_min_u8s() {
+    fn test_node_property_temporal_latest_min_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::U8(1));
         let expected = vec!["n1", "n3", "n10"];
@@ -5726,11 +5726,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_min_u16s() {
+    fn test_node_property_temporal_latest_min_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::U16(1));
         let expected = vec!["n1", "n3", "n10"];
@@ -5738,11 +5738,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_min_u32s() {
+    fn test_node_property_temporal_latest_min_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::U32(1));
         let expected = vec!["n1", "n3", "n10"];
@@ -5750,11 +5750,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_min_u64s() {
+    fn test_node_property_temporal_latest_min_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::U64(10));
         let expected = vec!["n4"];
@@ -5762,11 +5762,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_min_i32s() {
+    fn test_node_property_temporal_latest_min_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::I32(-2));
         let expected = vec!["n6"];
@@ -5786,11 +5786,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_min_f32s() {
+    fn test_node_property_temporal_latest_min_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::F32(10.0));
         let expected = vec!["n4"];
@@ -5798,11 +5798,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_min_f64s() {
+    fn test_node_property_temporal_latest_min_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .last()
+            .latest()
             .min()
             .eq(Prop::F64(40.0));
         let expected = vec!["n3", "n10"];
@@ -5811,11 +5811,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal last: MAX ------
     #[test]
-    fn test_node_property_temporal_last_max_u8s() {
+    fn test_node_property_temporal_latest_max_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .last()
+            .latest()
             .max()
             .eq(Prop::U8(4));
         let expected = vec!["n1"];
@@ -5823,11 +5823,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_max_u16s() {
+    fn test_node_property_temporal_latest_max_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .last()
+            .latest()
             .max()
             .eq(Prop::U16(3));
         let expected = vec!["n3", "n10"];
@@ -5871,11 +5871,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_max_i64s() {
+    fn test_node_property_temporal_latest_max_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .last()
+            .latest()
             .max()
             .eq(Prop::I64(2));
         let expected = vec!["n3", "n10"];
@@ -5895,11 +5895,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_max_f64s() {
+    fn test_node_property_temporal_latest_max_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .last()
+            .latest()
             .max()
             .eq(Prop::F64(50.0));
         let expected = vec!["n1", "n2", "n3", "n10"];
@@ -5908,11 +5908,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal last: LEN ------
     #[test]
-    fn test_node_property_temporal_last_len_u8s() {
+    fn test_node_property_temporal_latest_len_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n10"];
@@ -5920,11 +5920,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_u16s() {
+    fn test_node_property_temporal_latest_len_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n10"];
@@ -5932,11 +5932,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_u32s() {
+    fn test_node_property_temporal_latest_len_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n10"];
@@ -5944,11 +5944,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_u64s() {
+    fn test_node_property_temporal_latest_len_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n4", "n10"];
@@ -5956,11 +5956,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_i32s() {
+    fn test_node_property_temporal_latest_len_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n4", "n6", "n10"];
@@ -5968,11 +5968,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_i64s() {
+    fn test_node_property_temporal_latest_len_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n10"];
@@ -5980,11 +5980,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_f32s() {
+    fn test_node_property_temporal_latest_len_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n3", "n4", "n10"];
@@ -5992,11 +5992,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_last_len_f64s() {
+    fn test_node_property_temporal_latest_len_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .last()
+            .latest()
             .len()
             .eq(Prop::U64(2));
         let expected = vec!["n3", "n10"];
@@ -6490,11 +6490,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal first: SUM ------
     #[test]
-    fn test_node_property_temporal_first_sum_u8s() {
+    fn test_node_property_temporal_earliest_sum_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::U64(6));
         let expected = vec!["n1", "n10", "n3"];
@@ -6502,11 +6502,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_u16s() {
+    fn test_node_property_temporal_earliest_sum_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::U64(6));
         let expected = vec!["n1", "n10", "n3"];
@@ -6514,11 +6514,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_u32s() {
+    fn test_node_property_temporal_earliest_sum_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::U64(6));
         let expected = vec!["n1", "n10", "n3"];
@@ -6526,11 +6526,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_u64s() {
+    fn test_node_property_temporal_earliest_sum_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::U64(6));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6538,11 +6538,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_i32s() {
+    fn test_node_property_temporal_earliest_sum_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::I64(6));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6550,11 +6550,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_i64s() {
+    fn test_node_property_temporal_earliest_sum_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::I64(0));
         let expected = vec!["n3", "n10"];
@@ -6562,11 +6562,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_f32s() {
+    fn test_node_property_temporal_earliest_sum_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::F64(6.5));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6574,11 +6574,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_sum_f64s() {
+    fn test_node_property_temporal_earliest_sum_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .first()
+            .earliest()
             .sum()
             .eq(Prop::F64(90.0));
         let expected = vec!["n1", "n10", "n3"];
@@ -6587,11 +6587,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal first: AVG ------
     #[test]
-    fn test_node_property_temporal_first_avg_u8s() {
+    fn test_node_property_temporal_earliest_avg_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(2.0));
         let expected = vec!["n1", "n10", "n3"];
@@ -6599,11 +6599,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_u16s() {
+    fn test_node_property_temporal_earliest_avg_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(2.0));
         let expected = vec!["n1", "n10", "n3"];
@@ -6611,11 +6611,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_u32s() {
+    fn test_node_property_temporal_earliest_avg_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(2.0));
         let expected = vec!["n1", "n10", "n3"];
@@ -6623,11 +6623,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_u64s() {
+    fn test_node_property_temporal_earliest_avg_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(2.0));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6635,11 +6635,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_i32s() {
+    fn test_node_property_temporal_earliest_avg_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(2.0));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6647,11 +6647,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_i64s() {
+    fn test_node_property_temporal_earliest_avg_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(0.0));
         let expected = vec!["n3", "n10"];
@@ -6659,11 +6659,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_f32s() {
+    fn test_node_property_temporal_earliest_avg_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(2.1666666666666665));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6671,11 +6671,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_avg_f64s() {
+    fn test_node_property_temporal_earliest_avg_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .first()
+            .earliest()
             .avg()
             .eq(Prop::F64(45.0));
         let expected = vec!["n1", "n10", "n3"];
@@ -6696,11 +6696,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_min_u16s() {
+    fn test_node_property_temporal_earliest_min_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .first()
+            .earliest()
             .min()
             .eq(Prop::U16(1));
         let expected = vec!["n1", "n10"];
@@ -6708,11 +6708,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_min_u32s() {
+    fn test_node_property_temporal_earliest_min_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .first()
+            .earliest()
             .min()
             .eq(Prop::U32(1));
         let expected = vec!["n1", "n10"];
@@ -6720,11 +6720,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_min_u64s() {
+    fn test_node_property_temporal_earliest_min_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .first()
+            .earliest()
             .min()
             .eq(Prop::U64(1));
         let expected = vec!["n1", "n10", "n2", "n4", "n5"];
@@ -6744,11 +6744,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_min_i64s() {
+    fn test_node_property_temporal_earliest_min_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .first()
+            .earliest()
             .min()
             .eq(Prop::I64(-3));
         let expected = vec!["n10", "n3"];
@@ -6768,11 +6768,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_min_f64s() {
+    fn test_node_property_temporal_earliest_min_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .first()
+            .earliest()
             .min()
             .eq(Prop::F64(30.0));
         let expected = vec!["n2", "n3"];
@@ -6781,11 +6781,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal first: MAX ------
     #[test]
-    fn test_node_property_temporal_first_max_u8s() {
+    fn test_node_property_temporal_earliest_max_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::U8(3));
         let expected = vec!["n1", "n10"];
@@ -6793,11 +6793,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_u16s() {
+    fn test_node_property_temporal_earliest_max_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::U16(3));
         let expected = vec!["n1", "n10"];
@@ -6805,11 +6805,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_u32s() {
+    fn test_node_property_temporal_earliest_max_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::U32(3));
         let expected = vec!["n1", "n10"];
@@ -6817,11 +6817,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_u64s() {
+    fn test_node_property_temporal_earliest_max_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::U64(4));
         let expected = vec!["n2"];
@@ -6829,11 +6829,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_i32s() {
+    fn test_node_property_temporal_earliest_max_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::I32(3));
         let expected = vec!["n1", "n10", "n4", "n6"];
@@ -6841,11 +6841,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_i64s() {
+    fn test_node_property_temporal_earliest_max_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::I64(2));
         let expected = vec!["n10"];
@@ -6853,11 +6853,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_f32s() {
+    fn test_node_property_temporal_earliest_max_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::F32(3.5));
         let expected = vec!["n1", "n10", "n4"];
@@ -6865,11 +6865,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_max_f64s() {
+    fn test_node_property_temporal_earliest_max_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .first()
+            .earliest()
             .max()
             .eq(Prop::F64(50.0));
         let expected = vec!["n1", "n10", "n2"];
@@ -6878,11 +6878,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal first: LEN ------
     #[test]
-    fn test_node_property_temporal_first_len_u8s() {
+    fn test_node_property_temporal_earliest_len_u8s() {
         let filter = NodeFilter
             .property("p_u8s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n1", "n10", "n3"];
@@ -6890,11 +6890,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_u16s() {
+    fn test_node_property_temporal_earliest_len_u16s() {
         let filter = NodeFilter
             .property("p_u16s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n1", "n10", "n3"];
@@ -6902,11 +6902,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_u32s() {
+    fn test_node_property_temporal_earliest_len_u32s() {
         let filter = NodeFilter
             .property("p_u32s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n1", "n10", "n3"];
@@ -6914,11 +6914,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_u64s() {
+    fn test_node_property_temporal_earliest_len_u64s() {
         let filter = NodeFilter
             .property("p_u64s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(4));
         let expected = vec!["n2"];
@@ -6926,11 +6926,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_i32s() {
+    fn test_node_property_temporal_earliest_len_i32s() {
         let filter = NodeFilter
             .property("p_i32s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n1", "n10", "n3", "n4", "n6"];
@@ -6938,11 +6938,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_i64s() {
+    fn test_node_property_temporal_earliest_len_i64s() {
         let filter = NodeFilter
             .property("p_i64s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(2));
         let expected = vec!["n5"];
@@ -6950,11 +6950,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_f32s() {
+    fn test_node_property_temporal_earliest_len_f32s() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(3));
         let expected = vec!["n1", "n10", "n3", "n4"];
@@ -6962,11 +6962,11 @@ mod test_node_property_filter_agg {
     }
 
     #[test]
-    fn test_node_property_temporal_first_len_f64s() {
+    fn test_node_property_temporal_earliest_len_f64s() {
         let filter = NodeFilter
             .property("p_f64s")
             .temporal()
-            .first()
+            .earliest()
             .len()
             .eq(Prop::U64(2));
         let expected = vec!["n1", "n10", "n3"];
@@ -7876,11 +7876,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal First: any ------
     #[test]
-    fn test_node_temporal_property_first_any() {
+    fn test_node_temporal_property_earliest_any() {
         let filter = NodeFilter
             .property("p_bools")
             .temporal()
-            .first()
+            .earliest()
             .eq(false)
             .any();
         let expected = vec!["n1", "n10", "n2", "n3", "n4"];
@@ -7902,11 +7902,11 @@ mod test_node_property_filter_agg {
 
     // ------ Temporal last: any ------
     #[test]
-    fn test_node_temporal_property_last_any() {
+    fn test_node_temporal_property_latest_any() {
         let filter = NodeFilter
             .property("p_f32s")
             .temporal()
-            .last()
+            .latest()
             .eq(Prop::F32(3.5))
             .any();
         let expected = vec!["n1", "n10", "n3"];

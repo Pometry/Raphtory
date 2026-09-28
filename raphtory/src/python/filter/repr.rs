@@ -136,6 +136,8 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
                 Agg::First => "first",
                 Agg::Last => "last",
                 Agg::Len => "len",
+                Agg::Earliest => "earliest",
+                Agg::Latest => "latest",
             };
             Rendered::chain(format!("{}.{name}()", render(py, e, entity)?.atom()))
         }

@@ -514,3 +514,97 @@ fn before_and_at_agree_with_the_graph_views() {
         ["eve->fay"]
     );
 }
+
+/// Aggregates reduce the innermost list, so on a list-valued history they
+/// answer per update; `earliest` and `latest` pick an update as it is.
+#[test]
+fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
+    let g = graph();
+    let scores = |agg: Agg| Expr::Agg(agg, Box::new(history("scores")));
+    // eve.scores is [1, 2] at 0 and [5, 5] at 1.
+    let eve = ["eve"];
+    let none: [&str; 0] = [];
+    assert_eq!(
+        nodes(
+            &g,
+            &node(Expr::Any(Box::new(cmp(
+                CmpOp::Eq,
+                scores(Agg::First),
+                c(1i64)
+            ))))
+        ),
+        eve
+    );
+    assert_eq!(
+        nodes(
+            &g,
+            &node(Expr::All(Box::new(cmp(
+                CmpOp::Eq,
+                scores(Agg::Last),
+                c(5i64)
+            ))))
+        ),
+        none
+    );
+    assert_eq!(
+        nodes(
+            &g,
+            &node(Expr::Any(Box::new(cmp(
+                CmpOp::Eq,
+                scores(Agg::Len),
+                c(2i64)
+            ))))
+        ),
+        eve
+    );
+    let list = |items: &[i64]| {
+        Prop::List(
+            items
+                .iter()
+                .map(|v| Prop::I64(*v))
+                .collect::<Vec<_>>()
+                .into(),
+        )
+    };
+    assert_eq!(
+        nodes(
+            &g,
+            &node(cmp(
+                CmpOp::Eq,
+                scores(Agg::Earliest),
+                Expr::Const(list(&[1, 2]))
+            ))
+        ),
+        eve
+    );
+    assert_eq!(
+        nodes(
+            &g,
+            &node(cmp(
+                CmpOp::Eq,
+                scores(Agg::Latest),
+                Expr::Const(list(&[5, 5]))
+            ))
+        ),
+        eve
+    );
+    // On a scalar history the two readings agree.
+    let score = |agg: Agg| Expr::Agg(agg, Box::new(history("score")));
+    assert_eq!(
+        nodes(&g, &node(cmp(CmpOp::Eq, score(Agg::Earliest), c(3.0)))),
+        nodes(&g, &node(cmp(CmpOp::Eq, score(Agg::First), c(3.0))))
+    );
+    // An update is only a thing on a temporal history.
+    let msg = error(
+        &g,
+        &node(cmp(
+            CmpOp::Eq,
+            Expr::Agg(Agg::Latest, Box::new(prop("scores"))),
+            c(1i64),
+        )),
+    );
+    assert!(
+        msg.contains("earliest() and latest() pick an update"),
+        "{msg}"
+    );
+}

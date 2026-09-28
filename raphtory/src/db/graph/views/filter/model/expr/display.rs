@@ -129,6 +129,8 @@ impl<L: Display> Display for Expr<L> {
                     Agg::First => "FIRST",
                     Agg::Last => "LAST",
                     Agg::Len => "LEN",
+                    Agg::Earliest => "EARLIEST",
+                    Agg::Latest => "LATEST",
                 };
                 write!(f, "{name}({e})")
             }

@@ -543,7 +543,9 @@ impl PyExpr {
         self.agg(Agg::Max)
     }
 
-    /// Selects the first element when the value is list-like.
+    /// Selects the first element of each innermost list. On the history of a
+    /// list-valued property that is one answer per update; `earliest()` picks
+    /// the first update instead.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -551,7 +553,9 @@ impl PyExpr {
         self.agg(Agg::First)
     }
 
-    /// Selects the last element when the value is list-like.
+    /// Selects the last element of each innermost list. On the history of a
+    /// list-valued property that is one answer per update; `latest()` picks
+    /// the last update instead.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -559,12 +563,30 @@ impl PyExpr {
         self.agg(Agg::Last)
     }
 
-    /// Selects the number of elements when the value is list-like.
+    /// Selects the number of elements of each innermost list.
     ///
     /// Returns:
     ///     filter.Expr:
     fn len(&self) -> PyExpr {
         self.agg(Agg::Len)
+    }
+
+    /// The earliest update of a temporal history, whatever its type: on a
+    /// list-valued property that is the whole first list.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn earliest(&self) -> PyExpr {
+        self.agg(Agg::Earliest)
+    }
+
+    /// The latest update of a temporal history, whatever its type: on a
+    /// list-valued property that is the whole last list.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn latest(&self) -> PyExpr {
+        self.agg(Agg::Latest)
     }
 
     fn __and__<'py>(&self, py: Python<'py>, other: ExprOrFilter) -> PyResult<Bound<'py, PyAny>> {

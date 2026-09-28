@@ -61,6 +61,10 @@ pub enum Field {
 }
 
 /// A reduction over a list-valued expression.
+///
+/// `Sum`, `Avg`, `Min`, `Max`, `First`, `Last` and `Len` reduce the innermost
+/// lists: on a history of list values they answer per update. `Earliest` and
+/// `Latest` pick one update of a temporal history, whatever its type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Agg {
@@ -71,6 +75,8 @@ pub enum Agg {
     First,
     Last,
     Len,
+    Earliest,
+    Latest,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

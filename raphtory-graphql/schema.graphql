@@ -1112,6 +1112,14 @@ input EdgeExpr @oneOf {
 	first: EdgeExpr
 	last: EdgeExpr
 	len: EdgeExpr
+	"""
+	The earliest update of a temporal history.
+	"""
+	earliest: EdgeExpr
+	"""
+	The latest update of a temporal history.
+	"""
+	latest: EdgeExpr
 	eq: EdgeCmp
 	ne: EdgeCmp
 	lt: EdgeCmp
@@ -1715,6 +1723,14 @@ input ExplodedEdgeExpr @oneOf {
 	first: ExplodedEdgeExpr
 	last: ExplodedEdgeExpr
 	len: ExplodedEdgeExpr
+	"""
+	The earliest update of a temporal history.
+	"""
+	earliest: ExplodedEdgeExpr
+	"""
+	The latest update of a temporal history.
+	"""
+	latest: ExplodedEdgeExpr
 	eq: ExplodedEdgeCmp
 	ne: ExplodedEdgeCmp
 	lt: ExplodedEdgeCmp
@@ -4484,6 +4500,14 @@ input NodeExpr @oneOf {
 	first: NodeExpr
 	last: NodeExpr
 	len: NodeExpr
+	"""
+	The earliest update of a temporal history.
+	"""
+	earliest: NodeExpr
+	"""
+	The latest update of a temporal history.
+	"""
+	latest: NodeExpr
 	eq: NodeCmp
 	ne: NodeCmp
 	lt: NodeCmp

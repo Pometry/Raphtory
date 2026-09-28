@@ -63,11 +63,11 @@
 
 use super::{
     ops::{
-        AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NodeIdOp, SumNodeOp,
-        TemporalNodePropOp,
+        AvgNodeOp, EarliestNodeOp, FirstNodeOp, LastNodeOp, LatestNodeOp, LenNodeOp, MaxNodeOp,
+        MinNodeOp, NodeIdOp, SumNodeOp, TemporalNodePropOp,
     },
-    AvgEdgeOp, CreateOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp,
-    PredicateLhs, SumEdgeOp,
+    AvgEdgeOp, CreateOp, EarliestEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LatestEdgeOp,
+    LenEdgeOp, MaxEdgeOp, MinEdgeOp, PredicateLhs, SumEdgeOp,
 };
 use crate::{
     db::{
@@ -586,6 +586,12 @@ pub trait EntityAggOps: EntityExpr + Sized {
     fn len(self) -> LenExpr<Self> {
         LenExpr(self)
     }
+    fn earliest(self) -> EarliestExpr<Self> {
+        EarliestExpr(self)
+    }
+    fn latest(self) -> LatestExpr<Self> {
+        LatestExpr(self)
+    }
 }
 
 macro_rules! impl_agg_expr {
@@ -643,6 +649,8 @@ impl_agg_expr!(MaxExpr, MaxNodeOp, MaxEdgeOp, "max()");
 impl_agg_expr!(FirstExpr, FirstNodeOp, FirstEdgeOp, "first()");
 impl_agg_expr!(LastExpr, LastNodeOp, LastEdgeOp, "last()");
 impl_agg_expr!(LenExpr, LenNodeOp, LenEdgeOp, "len()");
+impl_agg_expr!(EarliestExpr, EarliestNodeOp, EarliestEdgeOp, "earliest()");
+impl_agg_expr!(LatestExpr, LatestNodeOp, LatestEdgeOp, "latest()");
 // `any()` / `all()` after a comparison: they collapse an element-wise result.
 impl_agg_expr!(AnyExpr);
 impl_agg_expr!(AllExpr);

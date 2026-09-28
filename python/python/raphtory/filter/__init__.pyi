@@ -195,6 +195,15 @@ class Expr(object):
             filter.Expr:
         """
 
+    def earliest(self) -> filter.Expr:
+        """
+        The earliest update of a temporal history, whatever its type: on a
+        list-valued property that is the whole first list.
+
+        Returns:
+            filter.Expr:
+        """
+
     def ends_with(self, other: str | filter.Expr) -> filter.Expr:
         """
         Checks whether the string value ends with the given suffix.
@@ -220,7 +229,9 @@ class Expr(object):
 
     def first(self) -> filter.Expr:
         """
-        Selects the first element when the value is list-like.
+        Selects the first element of each innermost list. On the history of a
+        list-valued property that is one answer per update; `earliest()` picks
+        the first update instead.
 
         Returns:
             filter.Expr:
@@ -303,7 +314,18 @@ class Expr(object):
 
     def last(self) -> filter.Expr:
         """
-        Selects the last element when the value is list-like.
+        Selects the last element of each innermost list. On the history of a
+        list-valued property that is one answer per update; `latest()` picks
+        the last update instead.
+
+        Returns:
+            filter.Expr:
+        """
+
+    def latest(self) -> filter.Expr:
+        """
+        The latest update of a temporal history, whatever its type: on a
+        list-valued property that is the whole last list.
 
         Returns:
             filter.Expr:
@@ -322,7 +344,7 @@ class Expr(object):
 
     def len(self) -> filter.Expr:
         """
-        Selects the number of elements when the value is list-like.
+        Selects the number of elements of each innermost list.
 
         Returns:
             filter.Expr:

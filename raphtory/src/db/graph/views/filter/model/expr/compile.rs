@@ -91,6 +91,9 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// Whether the read is scoped by a view.
     fn has_view(&self) -> bool;
 
+    /// Whether the read is the history of a temporal property.
+    fn is_temporal(&self) -> bool;
+
     /// The latest value of a property, or its history when `temporal`, seen
     /// through `views`.
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self;
@@ -218,6 +221,10 @@ impl Leaf for NodeLeaf {
         !self.views().is_empty()
     }
 
+    fn is_temporal(&self) -> bool {
+        matches!(self, NodeLeaf::Property { temporal: true, .. })
+    }
+
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
         NodeLeaf::Property {
             views,
@@ -325,6 +332,14 @@ impl Leaf for EdgeLeaf {
         }
     }
 
+    fn is_temporal(&self) -> bool {
+        match self {
+            EdgeLeaf::Property { temporal, .. } => *temporal,
+            EdgeLeaf::Src(inner) | EdgeLeaf::Dst(inner) => inner.is_temporal_history(),
+            _ => false,
+        }
+    }
+
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
         EdgeLeaf::Property {
             views,
@@ -401,6 +416,10 @@ impl Leaf for ExplodedEdgeLeaf {
         !self.views().is_empty()
     }
 
+    fn is_temporal(&self) -> bool {
+        matches!(self, ExplodedEdgeLeaf::Property { temporal: true, .. })
+    }
+
     fn property(views: Vec<ViewOp>, name: String, temporal: bool) -> Self {
         ExplodedEdgeLeaf::Property {
             views,
@@ -453,6 +472,11 @@ impl ExplodedEdgeLeaf {
 // ── values ───────────────────────────────────────────────────────────────────
 
 impl<L: Leaf> Expr<L> {
+    /// Whether this is the history of a temporal property, read as is.
+    pub fn is_temporal_history(&self) -> bool {
+        matches!(self, Expr::Read(leaf) if leaf.is_temporal())
+    }
+
     /// The erased, compilable value this expression stands for.
     pub fn compile_value(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
         let entity = L::ENTITY;
@@ -460,6 +484,12 @@ impl<L: Leaf> Expr<L> {
             Expr::Const(value) => Arc::new(value.clone()),
             Expr::Read(leaf) => leaf.compile()?,
             Expr::Agg(agg, inner) => {
+                if matches!(agg, Agg::Earliest | Agg::Latest) && !inner.is_temporal_history() {
+                    return Err(invalid(
+                        "earliest() and latest() pick an update of a temporal history; use \
+                         first() or last() for the elements of a list",
+                    ));
+                }
                 let op = inner.compile_value()?;
                 match agg {
                     Agg::Sum => Arc::new(op.sum()),
@@ -469,6 +499,8 @@ impl<L: Leaf> Expr<L> {
                     Agg::First => Arc::new(op.first()),
                     Agg::Last => Arc::new(op.last()),
                     Agg::Len => Arc::new(op.len()),
+                    Agg::Earliest => Arc::new(op.earliest()),
+                    Agg::Latest => Arc::new(op.latest()),
                 }
             }
             Expr::Cmp(op, lhs, rhs) => Arc::new(CmpExpr {

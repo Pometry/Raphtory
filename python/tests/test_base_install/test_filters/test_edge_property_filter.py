@@ -766,9 +766,9 @@ def test_edge_property_max_f64s():
 
 # ------ last ------
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_last_sum_u64s():
+def test_edge_property_temporal_latest_sum_u64s():
     def check(graph):
-        expr = filter.Edge.property("p_u64s").temporal().last().sum() == Prop.u64(30)
+        expr = filter.Edge.property("p_u64s").temporal().latest().sum() == Prop.u64(30)
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("b", "c"), ("c", "d")}
 
@@ -776,9 +776,9 @@ def test_edge_property_temporal_last_sum_u64s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_last_avg_i32s():
+def test_edge_property_temporal_latest_avg_i32s():
     def check(graph):
-        expr = filter.Edge.property("p_i32s").temporal().last().avg() == Prop.f64(
+        expr = filter.Edge.property("p_i32s").temporal().latest().avg() == Prop.f64(
             0.6666666666666666
         )
         pairs = _pairs(graph.filter(expr).edges)
@@ -788,9 +788,9 @@ def test_edge_property_temporal_last_avg_i32s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_last_min_u8s():
+def test_edge_property_temporal_latest_min_u8s():
     def check(graph):
-        expr = filter.Edge.property("p_u8s").temporal().last().min() == Prop.u8(1)
+        expr = filter.Edge.property("p_u8s").temporal().latest().min() == Prop.u8(1)
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -798,9 +798,9 @@ def test_edge_property_temporal_last_min_u8s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_last_max_f64s():
+def test_edge_property_temporal_latest_max_f64s():
     def check(graph):
-        expr = filter.Edge.property("p_f64s").temporal().last().max() == Prop.f64(1.5)
+        expr = filter.Edge.property("p_f64s").temporal().latest().max() == Prop.f64(1.5)
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("d", "a")}
 
@@ -808,9 +808,9 @@ def test_edge_property_temporal_last_max_f64s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_last_len_u64s():
+def test_edge_property_temporal_latest_len_u64s():
     def check(graph):
-        expr = filter.Edge.property("p_u64s").temporal().last().len() == Prop.u64(2)
+        expr = filter.Edge.property("p_u64s").temporal().latest().len() == Prop.u64(2)
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b"), ("b", "c"), ("d", "a")}
 
@@ -872,9 +872,9 @@ def test_edge_property_temporal_all_len_u16s():
 
 # ------ first ------
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_first_sum_u8s():
+def test_edge_property_temporal_earliest_sum_u8s():
     def check(graph):
-        expr = filter.Edge.property("p_u8s").temporal().first().sum() == Prop.u64(6)
+        expr = filter.Edge.property("p_u8s").temporal().earliest().sum() == Prop.u64(6)
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -882,9 +882,11 @@ def test_edge_property_temporal_first_sum_u8s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_first_avg_u64s():
+def test_edge_property_temporal_earliest_avg_u64s():
     def check(graph):
-        expr = filter.Edge.property("p_u64s").temporal().first().avg() == Prop.f64(30.0)
+        expr = filter.Edge.property("p_u64s").temporal().earliest().avg() == Prop.f64(
+            30.0
+        )
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("c", "d")}
 
@@ -892,9 +894,11 @@ def test_edge_property_temporal_first_avg_u64s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_first_min_i32s():
+def test_edge_property_temporal_earliest_min_i32s():
     def check(graph):
-        expr = filter.Edge.property("p_i32s").temporal().first().min() == Prop.i32(-2)
+        expr = filter.Edge.property("p_i32s").temporal().earliest().min() == Prop.i32(
+            -2
+        )
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("a", "b")}
 
@@ -902,9 +906,11 @@ def test_edge_property_temporal_first_min_i32s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_first_max_f64s():
+def test_edge_property_temporal_earliest_max_f64s():
     def check(graph):
-        expr = filter.Edge.property("p_f64s").temporal().first().max() == Prop.f64(1.5)
+        expr = filter.Edge.property("p_f64s").temporal().earliest().max() == Prop.f64(
+            1.5
+        )
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("d", "a")}
 
@@ -912,9 +918,9 @@ def test_edge_property_temporal_first_max_f64s():
 
 
 @with_variants(create_test_graph2)
-def test_edge_property_temporal_first_len_u32s():
+def test_edge_property_temporal_earliest_len_u32s():
     def check(graph):
-        expr = filter.Edge.property("p_u32s").temporal().first().len() == Prop.u64(0)
+        expr = filter.Edge.property("p_u32s").temporal().earliest().len() == Prop.u64(0)
         pairs = _pairs(graph.filter(expr).edges)
         assert pairs == {("c", "d")}
 
@@ -1080,19 +1086,21 @@ def test_edge_property_all():
 
 
 @with_variants(create_test_graph2)
-def test_edge_temporal_property_first_any():
+def test_edge_temporal_property_earliest_any():
     def check(graph):
-        expr = (filter.Edge.property("p_u64s").temporal().first() == Prop.u64(2)).any()
+        expr = (
+            filter.Edge.property("p_u64s").temporal().earliest() == Prop.u64(2)
+        ).any()
         assert _pairs(graph.filter(expr).edges) == {("a", "b")}
 
     return check
 
 
 @with_variants(create_test_graph2)
-def test_edge_temporal_property_first_all():
+def test_edge_temporal_property_earliest_all():
     def check(graph):
         expr = (
-            filter.Edge.property("p_bools").temporal().first() == Prop.bool(True)
+            filter.Edge.property("p_bools").temporal().earliest() == Prop.bool(True)
         ).all()
         assert _pairs(graph.filter(expr).edges) == {("b", "c")}
 

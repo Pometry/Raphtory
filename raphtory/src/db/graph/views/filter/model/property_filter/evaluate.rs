@@ -409,7 +409,7 @@ pub fn scan_f64_sum_count<P: Borrow<Prop>>(
 /// properties and applies `op` per element list.
 pub fn aggregate_list_values(
     vals: Option<Prop>,
-    op: &dyn Fn(Box<dyn Iterator<Item = Prop> + '_>) -> Option<Prop>,
+    op: &dyn Fn(Box<dyn DoubleEndedIterator<Item = Prop> + '_>) -> Option<Prop>,
 ) -> Option<Prop> {
     match vals? {
         Prop::List(x) => match x.dtype() {

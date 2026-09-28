@@ -125,6 +125,11 @@ then turns the history back into one value: `.sum()`, `.avg()`, `.min()`, `.max(
 `.last()`, `.len()`. Comparing the history itself gives one answer per value; `.any()` and
 `.all()`, written after the comparison, ask whether any, or every, answer holds.
 
+Two aggregates pick an update rather than reduce one: `.earliest()` and `.latest()` return the
+first and last update of a history as they are. That only matters for a list-valued property,
+where the aggregates above work inside each list: `.temporal().first()` is the first element of
+every update, one answer per update, while `.temporal().earliest()` is the whole first list.
+
 /// tab | :fontawesome-brands-python: Python
 
 ```{.python continuation}
