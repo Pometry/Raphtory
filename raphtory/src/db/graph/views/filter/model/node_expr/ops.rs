@@ -37,7 +37,6 @@
 
 use super::EdgeOp;
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             properties::PropertiesOps,
@@ -572,12 +571,12 @@ pub(crate) fn prop_as_gid(value: &Prop) -> Option<GID> {
     }
 }
 
-/// Wraps a compiled boolean filter whose only possible matches are the nodes
-/// with the given ids: `domain` resolves them directly instead of scanning
-/// every node. An id that does not exist simply resolves to nothing.
+/// Wraps a compiled boolean filter whose only possible matches are `nodes`, the
+/// nodes it names by id, resolved when the filter was built: `domain` hands them
+/// over instead of scanning every node.
 #[derive(Clone)]
 pub struct IdDomainNodeOp<'g> {
-    pub(crate) gids: Arc<[GID]>,
+    pub(crate) nodes: NodeList,
     pub(crate) inner: Arc<dyn NodeOp<Output = bool> + 'g>,
 }
 
@@ -588,14 +587,8 @@ impl<'g> NodeOp for IdDomainNodeOp<'g> {
         self.inner.apply(storage, node)
     }
 
-    fn domain(&self, storage: &GraphStorage) -> NodeList {
-        NodeList::List {
-            elems: self
-                .gids
-                .iter()
-                .filter_map(|gid| storage.internalise_node(gid.as_node_ref()))
-                .collect(),
-        }
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.nodes.clone()
     }
 
     fn const_value(&self) -> Option<Self::Output> {

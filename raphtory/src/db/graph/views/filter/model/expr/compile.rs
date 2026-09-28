@@ -63,14 +63,15 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{
-        properties::prop::{Prop, PropType},
+        properties::prop::{prop_hashable::HashableProp, Prop, PropType},
         LayerId, GID, VID,
     },
     storage::timeindex::EventTime,
     Direction,
 };
+use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{fmt::Debug, sync::Arc};
+use std::{collections::HashSet, fmt::Debug, sync::Arc};
 use storage::EdgeEntryRef;
 
 fn invalid(msg: impl Into<String>) -> GraphError {
@@ -875,11 +876,11 @@ fn set_kernel(
     negated: bool,
     shape: Shape,
 ) -> impl Fn(Option<Prop>) -> Option<Prop> + Clone {
-    let values = Arc::new(values);
+    let values: Arc<HashSet<HashableProp>> =
+        Arc::new(values.into_iter().map(HashableProp).collect());
     move |v| {
         let member = |v: Option<Prop>| {
-            let v = v?;
-            let present = values.iter().any(|x| x.equals(&v));
+            let present = values.contains(&HashableProp(v?));
             Some(Prop::Bool(present != negated))
         };
         match shape {
@@ -1289,24 +1290,37 @@ impl Predicate {
         })
     }
 
+    /// The nodes the predicate names outright, resolved once so the node filter
+    /// can start from them. `None` when it names none, or names an id the graph's
+    /// id type cannot match: the filter then scans every node.
+    fn named_nodes<G: GraphView>(&self, graph: &G) -> Option<NodeList> {
+        let id_type = graph.id_type();
+        let elems = self
+            .ids
+            .as_ref()?
+            .iter()
+            .map(|v| gid_for_id_lookup(id_type, v))
+            .collect::<Option<Vec<GID>>>()?
+            .into_iter()
+            .filter_map(|gid| graph.internalise_node(gid.as_node_ref()))
+            .collect();
+        Some(NodeList::List { elems })
+    }
+
     fn node_filter<'graph, G: GraphView + 'graph>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        let id_type = graph.id_type();
+        let nodes = self.named_nodes(&graph);
         let op = self.inner.create_node_op(graph)?;
         require_bool(
             &resolved_prop_type(self.inner.prop_type(), op.prop_type()),
             "a filter",
         )?;
         let filter: Arc<dyn NodeOp<Output = bool> + 'graph> = Arc::new(op.map(|v| truthy(&v)));
-        let gids: Option<Vec<GID>> = self
-            .ids
-            .as_ref()
-            .and_then(|ids| ids.iter().map(|v| gid_for_id_lookup(id_type, v)).collect());
-        Ok(match gids {
-            Some(gids) => Arc::new(IdDomainNodeOp {
-                gids: Arc::from(gids),
+        Ok(match nodes {
+            Some(nodes) => Arc::new(IdDomainNodeOp {
+                nodes,
                 inner: filter,
             }),
             None => filter,
