@@ -1269,7 +1269,7 @@ input EdgeViewCollection @oneOf {
 	"""
 	shrinkEnd: TimeInput
 	"""
-	A filter tree; the entity it tests is written in the tree.
+	A filter expression; the entity it tests is written in the expression.
 	"""
 	filter: FilterExpr
 }
@@ -1694,7 +1694,7 @@ input EdgesViewCollection @oneOf {
 	"""
 	shrinkEnd: TimeInput
 	"""
-	A filter tree; the entity it tests is written in the tree.
+	A filter expression; the entity it tests is written in the expression.
 	"""
 	filter: FilterExpr
 }
@@ -2451,7 +2451,7 @@ input GraphViewCollection @oneOf {
 	"""
 	shrinkEnd: TimeInput
 	"""
-	A filter tree; the entity it tests is written in the tree.
+	A filter expression; the entity it tests is written in the expression.
 	"""
 	filter: FilterExpr
 }
@@ -5052,7 +5052,7 @@ input NodeViewCollection @oneOf {
 	"""
 	shrinkEnd: TimeInput
 	"""
-	A filter tree; the entity it tests is written in the tree.
+	A filter expression; the entity it tests is written in the expression.
 	"""
 	filter: FilterExpr
 }
@@ -5505,7 +5505,7 @@ input NodesViewCollection @oneOf {
 	"""
 	shrinkEnd: TimeInput
 	"""
-	A filter tree; the entity it tests is written in the tree.
+	A filter expression; the entity it tests is written in the expression.
 	"""
 	filter: FilterExpr
 	"""

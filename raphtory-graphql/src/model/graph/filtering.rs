@@ -64,7 +64,7 @@ pub enum GraphViewCollection {
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
     ShrinkEnd(GqlTimeInput),
-    /// A filter tree; the entity it tests is written in the tree.
+    /// A filter expression; the entity it tests is written in the expression.
     Filter(GqlFilter),
 }
 
@@ -96,7 +96,7 @@ pub enum NodesViewCollection {
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
     ShrinkEnd(GqlTimeInput),
-    /// A filter tree; the entity it tests is written in the tree.
+    /// A filter expression; the entity it tests is written in the expression.
     Filter(GqlFilter),
     /// List of types.
     TypeFilter(Vec<String>),
@@ -130,7 +130,7 @@ pub enum NodeViewCollection {
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
     ShrinkEnd(GqlTimeInput),
-    /// A filter tree; the entity it tests is written in the tree.
+    /// A filter expression; the entity it tests is written in the expression.
     Filter(GqlFilter),
 }
 
@@ -162,7 +162,7 @@ pub enum EdgesViewCollection {
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
     ShrinkEnd(GqlTimeInput),
-    /// A filter tree; the entity it tests is written in the tree.
+    /// A filter expression; the entity it tests is written in the expression.
     Filter(GqlFilter),
 }
 
@@ -194,7 +194,7 @@ pub enum EdgeViewCollection {
     ShrinkStart(GqlTimeInput),
     /// Set the window end to a specified time.
     ShrinkEnd(GqlTimeInput),
-    /// A filter tree; the entity it tests is written in the tree.
+    /// A filter expression; the entity it tests is written in the expression.
     Filter(GqlFilter),
 }
 

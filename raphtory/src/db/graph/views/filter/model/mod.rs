@@ -916,7 +916,7 @@ pub fn validate_const_comparable(
     match value {
         Some(v) if !lhs_pt.is_comparable_with(&v.dtype()) => {
             Err(GraphError::InvalidFilter(format!(
-                "value {:?} of type {} cannot be compared with {}",
+                "value {} of type {} cannot be compared with {}",
                 v,
                 v.dtype(),
                 lhs_pt

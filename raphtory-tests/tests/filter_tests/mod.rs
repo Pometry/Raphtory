@@ -1,6 +1,7 @@
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 
 mod cached_view;
+mod edge_expr_filter;
 mod edge_property_filter;
 mod exploded_edge_property_filter;
 mod node_property_filter;

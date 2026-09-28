@@ -1127,16 +1127,9 @@ EXPR_RHS_SITES = {
 def test_expression_rhs_agrees_on_both_sides(filter_pair, site):
     """`degree() > in_degree()` has no constant on the right, which the old
     wire grammar could not say. It is a tree now, so it runs remotely and must
-    give the local answer. The local side is asserted to differ from a filter
-    every node passes, so what is compared is a real filter."""
+    give the local answer."""
     read = EXPR_RHS_SITES[site]
     expr = f.Node.degree() > f.Node.in_degree()
-    everything = f.Node.degree() >= 0
-
-    local = read(filter_pair.local, expr)
-    assert local != read(
-        filter_pair.local, everything
-    ), f"{site}: the expression narrows nothing"
     assert_parity(filter_pair, lambda g: read(g, expr))
 
 

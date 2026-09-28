@@ -92,7 +92,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
     }
     """
     expected_error_message = (
-        "Invalid filter: value U64(1) of type U64 cannot be compared with Str"
+        "Invalid filter: value 1 of type U64 cannot be compared with Str"
     )
     run_graphql_error_test(query, expected_error_message, graph)
 
@@ -632,7 +632,7 @@ def test_filter_nodes_degree_string_constants_gql(graph):
     """
         run_graphql_error_test(
             query,
-            'Invalid filter: value Str(ArcStr("4")) of type Str cannot be compared with U64',
+            'Invalid filter: value 4 of type Str cannot be compared with U64',
             graph,
         )
 
