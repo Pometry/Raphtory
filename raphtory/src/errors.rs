@@ -87,10 +87,10 @@ pub enum LoadError {
         #[from]
         source: ParseTimeError,
     },
-    #[error("Missing value for src id")]
-    MissingSrcError,
-    #[error("Missing value for dst id")]
-    MissingDstError,
+    #[error("Invalid src id column: {0}")]
+    InvalidSrcError(InvalidGIDError),
+    #[error("Invalid dst id column: {0}")]
+    InvalidDstError(InvalidGIDError),
     #[error("Missing value for node id")]
     MissingNodeError,
     #[error("Missing value for timestamp")]
@@ -109,6 +109,14 @@ pub enum LoadError {
     },
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidGIDError {
+    #[error("value missing")]
+    Missing,
+    #[error("negative value")]
+    Negative,
 }
 
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {

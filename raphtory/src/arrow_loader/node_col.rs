@@ -1,6 +1,10 @@
 use std::any::Any;
 
-use crate::{arrow_loader::dataframe::DFChunk, errors::LoadError, prelude::AdditionOps};
+use crate::{
+    arrow_loader::dataframe::DFChunk,
+    errors::{InvalidGIDError, LoadError},
+    prelude::AdditionOps,
+};
 use arrow::{
     array::{
         Array, AsArray, Int32Array, Int64Array, LargeStringArray, StringArray, StringViewArray,
@@ -16,9 +20,6 @@ use rayon::prelude::{IndexedParallelIterator, *};
 use storage::utils::Iter4;
 
 trait NodeColOps: Send + Sync {
-    fn has_missing_values(&self) -> bool {
-        self.null_count() != 0
-    }
     fn get(&self, i: usize) -> Option<GidRef<'_>> {
         if i < self.len() {
             // safety: bounds checked
@@ -33,11 +34,12 @@ trait NodeColOps: Send + Sync {
 
     fn dtype(&self) -> GidType;
 
-    fn null_count(&self) -> usize;
-
     fn len(&self) -> usize;
 
     fn as_any(&self) -> &dyn Any;
+
+    /// column contains only valid values (i.e., no negative integers or nulls)
+    fn validate(&self) -> Result<(), InvalidGIDError>;
 }
 
 impl NodeColOps for Int32Array {
@@ -48,15 +50,23 @@ impl NodeColOps for Int32Array {
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
-    }
+
     fn len(&self) -> usize {
         Array::len(self)
     }
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        if self.values().iter().any(|v| *v < 0) {
+            return Err(InvalidGIDError::Negative);
+        }
+        Ok(())
     }
 }
 
@@ -68,15 +78,23 @@ impl NodeColOps for Int64Array {
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
-    }
+
     fn len(&self) -> usize {
         Array::len(self)
     }
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        if self.values().iter().any(|v| *v < 0) {
+            return Err(InvalidGIDError::Negative);
+        }
+        Ok(())
     }
 }
 
@@ -88,8 +106,11 @@ impl NodeColOps for StringArray {
     fn dtype(&self) -> GidType {
         GidType::Str
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -108,8 +129,11 @@ impl NodeColOps for LargeStringArray {
     fn dtype(&self) -> GidType {
         GidType::Str
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
 
     fn len(&self) -> usize {
@@ -129,8 +153,11 @@ impl NodeColOps for StringViewArray {
     fn dtype(&self) -> GidType {
         GidType::Str
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -149,8 +176,11 @@ impl NodeColOps for UInt32Array {
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -169,8 +199,11 @@ impl NodeColOps for UInt64Array {
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -268,7 +301,7 @@ impl NodeCol {
     pub fn validate(
         &self,
         graph: &impl AdditionOps,
-        node_missing_error: LoadError,
+        node_missing_error: impl Fn(InvalidGIDError) -> LoadError,
     ) -> Result<(), LoadError> {
         if let Some(existing) = graph.id_type().filter(|&id_type| id_type != self.0.dtype()) {
             return Err(LoadError::NodeIdTypeError {
@@ -276,9 +309,7 @@ impl NodeCol {
                 new: self.0.dtype(),
             });
         }
-        if self.0.has_missing_values() {
-            return Err(node_missing_error);
-        }
+        self.0.validate().map_err(node_missing_error)?;
         Ok(())
     }
 
