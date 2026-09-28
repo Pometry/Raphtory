@@ -41,8 +41,8 @@ impl EntityExpr for IsSelfLoopEdge {
 impl CreateOp for IsSelfLoopEdge {
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
-        graph: G,
+        _graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
-        Ok(Arc::new(IsSelfLoopEdgePropOp { graph }))
+        Ok(Arc::new(IsSelfLoopEdgePropOp))
     }
 }

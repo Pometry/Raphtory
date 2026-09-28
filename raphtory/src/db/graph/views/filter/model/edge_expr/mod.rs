@@ -19,22 +19,44 @@
 //! └──────────────────────────────────────────────────────────┘
 //! ```
 
-use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::PropType};
+use raphtory_api::core::{
+    entities::{properties::prop::PropType, LayerId},
+    storage::timeindex::EventTime,
+};
 use raphtory_storage::graph::graph::GraphStorage;
+use storage::EdgeEntryRef;
 
 pub mod ops;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EdgeOp — compiled evaluator: EdgeRef → typed value
+// EdgeOp — compiled evaluator: storage entry → typed value
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A compiled edge evaluator: given an [`EdgeRef`], returns a typed value.
+/// A compiled edge evaluator: given an edge's storage entry, returns a typed value.
 ///
 /// Parallel to [`NodeOp`] — same contract but the subject is an edge.
 pub trait EdgeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
-    fn apply(&self, _storage: &GraphStorage, edge: EdgeRef) -> Self::Output;
+    /// The value for the edge as a whole.
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Self::Output;
+
+    /// The value for the edge seen in one layer.
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Self::Output;
+
+    /// The value for one exploded instance of the edge.
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Self::Output;
 
     fn prop_type(&self) -> PropType {
         PropType::Empty
@@ -45,20 +67,10 @@ pub trait EdgeOp: Send + Sync {
         None
     }
 
-    /// Whether the answer depends on which layer or exploded instance of the edge is
-    /// asked about. A plain op answers for the edge as a whole, and a filtered graph
-    /// consults it once per edge.
+    /// Whether the answer differs between the edge as a whole and one of its
+    /// layers or exploded instances. A plain op answers for the edge as a whole,
+    /// and a filtered graph consults it once per edge.
     fn filters_exploded(&self) -> bool {
         false
-    }
-
-    /// The answer for one layer, or one exploded instance, of an edge: `edge` carries
-    /// the layer and, for an instance, the time. An op that answers per edge sees the
-    /// edge as a whole.
-    fn apply_exploded(&self, storage: &GraphStorage, edge: EdgeRef) -> Self::Output {
-        self.apply(
-            storage,
-            EdgeRef::new(edge.pid(), edge.src(), edge.dst(), edge.dir()),
-        )
     }
 }

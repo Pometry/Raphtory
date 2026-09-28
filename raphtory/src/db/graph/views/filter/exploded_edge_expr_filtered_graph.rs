@@ -18,21 +18,13 @@ use crate::{
 };
 use either::Either;
 use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, ELID},
-        storage::timeindex::EventTime,
-    },
+    core::{entities::ELID, storage::timeindex::EventTime},
     inherit::Base,
 };
-use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::edges::edge_storage_ops::EdgeStorageOps,
-};
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreGraphOps};
 
-/// Edge-filtered graph: hides edges that fail the predicate `filter`.
-///
-/// Parallel to `NodeFilteredGraph` but for edges: `internal_filter_edge` evaluates
-/// `filter.apply(storage, edge_ref)` in O(1) after a single compile step.
+/// Exploded-edge-filtered graph: hides the exploded instances that fail the
+/// predicate `filter`, which is asked about each instance through `apply_exploded`.
 #[derive(Clone)]
 pub struct ExplodedEdgeExprFilteredGraph<G, F> {
     pub(crate) graph: G,
@@ -125,11 +117,9 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
         if eid.is_deletion() {
             return true;
         }
-        let edge_ref: EdgeRef = self.core_edge(Either::Left(eid.eid())).out_ref();
-        self.filter.apply(
-            self.graph.core_graph(),
-            edge_ref.at_layer(eid.layer()).at(t),
-        )
+        let edge = self.core_edge(Either::Left(eid.eid()));
+        self.filter
+            .apply_exploded(self.graph.core_graph(), edge.as_ref(), eid.layer(), t)
     }
 }
 impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritEdgeLayerFilterOps

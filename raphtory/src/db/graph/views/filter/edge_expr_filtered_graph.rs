@@ -19,21 +19,18 @@ use crate::{
 use either::Either;
 use raphtory_api::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerId, ELID},
+        entities::{LayerId, ELID},
         storage::timeindex::EventTime,
     },
     inherit::Base,
 };
-use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::edges::edge_storage_ops::EdgeStorageOps,
-};
+use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreGraphOps};
 use storage::EdgeEntryRef;
 
 /// Edge-filtered graph: hides edges that fail the predicate `filter`.
 ///
-/// Parallel to `NodeFilteredGraph` but for edges: `internal_filter_edge` evaluates
-/// `filter.apply(storage, edge_ref)` in O(1) after a single compile step.
+/// Parallel to `NodeFilteredGraph` but for edges: `internal_filter_edge` hands the
+/// storage entry it is given straight to `filter.apply`.
 #[derive(Clone)]
 pub struct EdgeExprFilteredGraph<G, F> {
     pub(crate) graph: G,
@@ -128,11 +125,9 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
         if !self.filter.filters_exploded() || eid.is_deletion() {
             return true;
         }
-        let edge_ref: EdgeRef = self.core_edge(Either::Left(eid.eid())).out_ref();
-        self.filter.apply_exploded(
-            self.graph.core_graph(),
-            edge_ref.at_layer(eid.layer()).at(t),
-        )
+        let edge = self.core_edge(Either::Left(eid.eid()));
+        self.filter
+            .apply_exploded(self.graph.core_graph(), edge.as_ref(), eid.layer(), t)
     }
 
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
@@ -157,7 +152,7 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> Internal
         !self.filter.filters_exploded()
             || self
                 .filter
-                .apply_exploded(self.graph.core_graph(), edge.out_ref().at_layer(layer))
+                .apply_layer(self.graph.core_graph(), edge, layer)
     }
 
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
@@ -183,7 +178,6 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> Internal
         if !self.graph.internal_filter_edge(edge, layer_ids) {
             return false;
         }
-        let edge_ref: EdgeRef = edge.out_ref();
-        self.filter.apply(self.graph.core_graph(), edge_ref)
+        self.filter.apply(self.graph.core_graph(), edge)
     }
 }

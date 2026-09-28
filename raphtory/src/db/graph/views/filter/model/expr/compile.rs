@@ -63,14 +63,15 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{
-        edges::edge_ref::EdgeRef,
         properties::prop::{Prop, PropType},
-        GID, VID,
+        LayerId, GID, VID,
     },
+    storage::timeindex::EventTime,
     Direction,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{fmt::Debug, sync::Arc};
+use storage::EdgeEntryRef;
 
 fn invalid(msg: impl Into<String>) -> GraphError {
     GraphError::InvalidFilter(msg.into())
@@ -684,7 +685,7 @@ fn truthy(v: &Option<Prop>) -> bool {
 // ── runtime ops ──────────────────────────────────────────────────────────────
 
 macro_rules! value_ops {
-    ($op_trait:ident, $id:ty, $binary:ident, $unary:ident, $nary:ident $(, $domain:item)?) => {
+    ($op_trait:ident, $id:ty, $binary:ident, $unary:ident, $nary:ident $(, $extra:item)*) => {
         struct $binary<'g, K> {
             left: Arc<dyn $op_trait<Output = Option<Prop>> + 'g>,
             right: Arc<dyn $op_trait<Output = Option<Prop>> + 'g>,
@@ -692,17 +693,29 @@ macro_rules! value_ops {
             out: PropType,
         }
 
+        impl<'g, K> $binary<'g, K>
+        where
+            K: Fn(Option<Prop>, Option<Prop>) -> Option<Prop>,
+        {
+            fn eval(
+                &self,
+                read: impl Fn(&dyn $op_trait<Output = Option<Prop>>) -> Option<Prop>,
+            ) -> Option<Prop> {
+                (self.kernel)(read(self.left.as_ref()), read(self.right.as_ref()))
+            }
+        }
+
         impl<'g, K> $op_trait for $binary<'g, K>
         where
             K: Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Send + Sync,
         {
             type Output = Option<Prop>;
-            $($domain)?
+            $($extra)*
             fn prop_type(&self) -> PropType {
                 self.out.clone()
             }
             fn apply(&self, storage: &GraphStorage, id: $id) -> Option<Prop> {
-                (self.kernel)(self.left.apply(storage, id), self.right.apply(storage, id))
+                self.eval(|op| op.apply(storage, id))
             }
         }
 
@@ -712,17 +725,29 @@ macro_rules! value_ops {
             out: PropType,
         }
 
+        impl<'g, K> $unary<'g, K>
+        where
+            K: Fn(Option<Prop>) -> Option<Prop>,
+        {
+            fn eval(
+                &self,
+                read: impl Fn(&dyn $op_trait<Output = Option<Prop>>) -> Option<Prop>,
+            ) -> Option<Prop> {
+                (self.kernel)(read(self.inner.as_ref()))
+            }
+        }
+
         impl<'g, K> $op_trait for $unary<'g, K>
         where
             K: Fn(Option<Prop>) -> Option<Prop> + Send + Sync,
         {
             type Output = Option<Prop>;
-            $($domain)?
+            $($extra)*
             fn prop_type(&self) -> PropType {
                 self.out.clone()
             }
             fn apply(&self, storage: &GraphStorage, id: $id) -> Option<Prop> {
-                (self.kernel)(self.inner.apply(storage, id))
+                self.eval(|op| op.apply(storage, id))
             }
         }
 
@@ -732,19 +757,28 @@ macro_rules! value_ops {
             all: bool,
         }
 
+        impl<'g> $nary<'g> {
+            fn eval(
+                &self,
+                read: impl Fn(&dyn $op_trait<Output = Option<Prop>>) -> Option<Prop>,
+            ) -> Option<Prop> {
+                let hit = if self.all {
+                    self.items.iter().all(|item| truthy(&read(item.as_ref())))
+                } else {
+                    self.items.iter().any(|item| truthy(&read(item.as_ref())))
+                };
+                Some(Prop::Bool(hit))
+            }
+        }
+
         impl<'g> $op_trait for $nary<'g> {
             type Output = Option<Prop>;
-            $($domain)?
+            $($extra)*
             fn prop_type(&self) -> PropType {
                 PropType::Bool
             }
             fn apply(&self, storage: &GraphStorage, id: $id) -> Option<Prop> {
-                let hit = if self.all {
-                    self.items.iter().all(|item| truthy(&item.apply(storage, id)))
-                } else {
-                    self.items.iter().any(|item| truthy(&item.apply(storage, id)))
-                };
-                Some(Prop::Bool(hit))
+                self.eval(|op| op.apply(storage, id))
             }
         }
     };
@@ -762,10 +796,27 @@ value_ops!(
 );
 value_ops!(
     EdgeOp,
-    EdgeRef,
+    EdgeEntryRef,
     BinaryValueEdgeOp,
     UnaryValueEdgeOp,
-    NaryBoolEdgeOp
+    NaryBoolEdgeOp,
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Option<Prop> {
+        self.eval(|op| op.apply_layer(storage, edge, layer))
+    },
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Option<Prop> {
+        self.eval(|op| op.apply_exploded(storage, edge, layer, t))
+    }
 );
 
 /// Adapts a yes/no edge value to the plain boolean the filtered graphs consume.
@@ -776,8 +827,22 @@ struct TruthyEdgeOp<'g> {
 impl<'g> EdgeOp for TruthyEdgeOp<'g> {
     type Output = bool;
 
-    fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> bool {
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
         truthy(&self.inner.apply(storage, edge))
+    }
+
+    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
+        truthy(&self.inner.apply_layer(storage, edge, layer))
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> bool {
+        truthy(&self.inner.apply_exploded(storage, edge, layer, t))
     }
 }
 

@@ -54,13 +54,16 @@ use crate::{
     prelude::GraphViewOps,
 };
 use bigdecimal::BigDecimal;
-use raphtory_api::core::entities::{
-    edges::edge_ref::EdgeRef,
-    properties::prop::{IntoProp, Prop, PropArray, PropType},
-    GidType, GID, VID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{IntoProp, Prop, PropArray, PropType},
+        GidType, LayerId, GID, VID,
+    },
+    storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
+use storage::EdgeEntryRef;
 // ─────────────────────────────────────────────────────────────────────────────
 // NodePropOp<G> — latest property value by pre-resolved column ID
 // ─────────────────────────────────────────────────────────────────────────────
@@ -327,8 +330,27 @@ macro_rules! impl_agg_entity_op {
                 ($out_pt)(self.inner.prop_type())
             }
 
-            fn apply(&self, storage: &GraphStorage, edge: EdgeRef) -> Option<Prop> {
+            fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
                 ($body)(self.inner.apply(storage, edge))
+            }
+
+            fn apply_layer(
+                &self,
+                storage: &GraphStorage,
+                edge: EdgeEntryRef,
+                layer: LayerId,
+            ) -> Option<Prop> {
+                ($body)(self.inner.apply_layer(storage, edge, layer))
+            }
+
+            fn apply_exploded(
+                &self,
+                storage: &GraphStorage,
+                edge: EdgeEntryRef,
+                layer: LayerId,
+                t: EventTime,
+            ) -> Option<Prop> {
+                ($body)(self.inner.apply_exploded(storage, edge, layer, t))
             }
         }
     };
