@@ -41,7 +41,7 @@ use crate::{
     db::{
         api::{
             properties::PropertiesOps,
-            state::ops::NodeOp,
+            state::ops::{Id, NodeOp},
             view::{
                 internal::{GraphView, NodeList},
                 NodeViewOps,
@@ -86,7 +86,10 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        self.graph.node(node)?.properties().get_by_id(self.prop_id)
+        (&&self.graph)
+            .node(node)?
+            .properties()
+            .get_by_id(self.prop_id)
     }
 
     fn prop_type(&self) -> PropType {
@@ -120,7 +123,10 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        self.graph.node(node)?.metadata().get_by_id(self.prop_id)
+        (&&self.graph)
+            .node(node)?
+            .metadata()
+            .get_by_id(self.prop_id)
     }
 
     fn prop_type(&self) -> PropType {
@@ -133,36 +139,31 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WithPropType<T> — annotates an op with a type only known at compile time
+// NodeIdOp — the node id as a value, typed by the graph's id type
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
-pub(crate) struct WithPropType<T> {
-    pub(crate) inner: T,
-    pub(crate) pt: PropType,
+pub(crate) struct NodeIdOp {
+    pub(crate) id_type: Option<GidType>,
 }
 
-impl<T: NodeOp> NodeOp for WithPropType<T> {
-    type Output = T::Output;
+impl NodeOp for NodeIdOp {
+    type Output = Option<Prop>;
 
-    fn domain(&self, storage: &GraphStorage) -> NodeList {
-        self.inner.domain(storage)
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
     }
 
     fn prop_type(&self) -> PropType {
-        self.pt.clone()
+        match self.id_type {
+            Some(GidType::Str) => PropType::Str,
+            Some(GidType::U64) => PropType::U64,
+            None => PropType::Empty,
+        }
     }
 
-    fn const_value(&self) -> Option<Self::Output> {
-        self.inner.const_value()
-    }
-
-    fn const_value_in_domain(&self, storage: &GraphStorage) -> Option<Self::Output> {
-        self.inner.const_value_in_domain(storage)
-    }
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.inner.apply(storage, node)
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        Some(Id.apply(storage, node).into_prop())
     }
 }
 

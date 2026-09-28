@@ -63,8 +63,8 @@
 
 use super::{
     ops::{
-        AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, SumNodeOp,
-        TemporalNodePropOp, WithPropType,
+        AvgNodeOp, FirstNodeOp, LastNodeOp, LenNodeOp, MaxNodeOp, MinNodeOp, NodeIdOp, SumNodeOp,
+        TemporalNodePropOp,
     },
     AvgEdgeOp, CreateOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp,
     PredicateLhs, SumEdgeOp,
@@ -87,7 +87,7 @@ use crate::{
 use raphtory_api::core::{
     entities::{
         properties::prop::{IntoProp, Prop, PropType},
-        GidType, GID,
+        GID,
     },
     storage::arc_str::ArcStr,
     Direction,
@@ -132,14 +132,8 @@ impl CreateOp for Id {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let pt = match graph.id_type() {
-            Some(GidType::Str) => PropType::Str,
-            Some(GidType::U64) => PropType::U64,
-            None => PropType::Empty,
-        };
-        Ok(Arc::new(WithPropType {
-            inner: Id.map(|a| Some(a.into_prop())),
-            pt,
+        Ok(Arc::new(NodeIdOp {
+            id_type: graph.id_type(),
         }))
     }
 }
@@ -180,10 +174,7 @@ impl CreateOp for Name {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(WithPropType {
-            inner: Name.map(|a| Some(a.into_prop())),
-            pt: PropType::Str,
-        }))
+        Ok(Arc::new(Name.map(|a| Some(a.into_prop()))))
     }
 }
 
@@ -208,10 +199,9 @@ impl CreateOp for Type {
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         // Untyped nodes carry the storage's default type key, so a type test
         // sees the same key the node-type mask is built over.
-        Ok(Arc::new(WithPropType {
-            inner: Type.map(|a| Some(a.map_or_else(|| Prop::str("_default"), |b| b.into_prop()))),
-            pt: PropType::Str,
-        }))
+        Ok(Arc::new(Type.map(|a| {
+            Some(a.map_or_else(|| Prop::str("_default"), |b| b.into_prop()))
+        })))
     }
 }
 
@@ -482,14 +472,13 @@ impl<E: CreateView + Clone + Send + Sync + 'static> CreateOp for DegreeExpr<E> {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(WithPropType {
-            inner: Degree {
+        Ok(Arc::new(
+            Degree {
                 dir: self.dir,
                 view: self.view_expr.create_view(graph)?,
             }
             .map(|a| Some(Prop::U64(a as u64))),
-            pt: PropType::U64,
-        }))
+        ))
     }
 }
 
