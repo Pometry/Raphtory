@@ -196,12 +196,9 @@ impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> 
     type EdgeWindow = Windowed<SnapshotLatest<T>>;
 }
 
-// ── expr layer: temporal chains on endpoint properties ──
+// ── expr layer: temporal and aggregated reads on endpoint properties ──
 
-use crate::db::graph::views::filter::model::node_expr::{
-    AllExpr, AnyExpr, AvgExpr, EntityAggOps, FirstExpr, LastExpr, LenExpr, MaxExpr, MinExpr,
-    SumExpr, TemporalPropExpr,
-};
+use crate::db::graph::views::filter::model::node_expr::{EntityAggOps, TemporalPropExpr};
 
 impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<PropertyExpr<E>> {
     #[inline]
@@ -210,52 +207,6 @@ impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<Property
     }
 }
 
-impl<E: CreateView + EntityExpr + Clone + Send + Sync + 'static>
-    EdgeEndpointWrapper<TemporalPropExpr<E>>
-{
-    #[inline]
-    pub fn sum(self) -> EdgeEndpointWrapper<SumExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.sum(), endpoint)
-    }
-    #[inline]
-    pub fn avg(self) -> EdgeEndpointWrapper<AvgExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.avg(), endpoint)
-    }
-    #[inline]
-    pub fn min(self) -> EdgeEndpointWrapper<MinExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.min(), endpoint)
-    }
-    #[inline]
-    pub fn max(self) -> EdgeEndpointWrapper<MaxExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.max(), endpoint)
-    }
-    #[inline]
-    pub fn first(self) -> EdgeEndpointWrapper<FirstExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.first(), endpoint)
-    }
-    #[inline]
-    pub fn last(self) -> EdgeEndpointWrapper<LastExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.last(), endpoint)
-    }
-    #[inline]
-    pub fn len(self) -> EdgeEndpointWrapper<LenExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(self.inner.len(), endpoint)
-    }
-    #[inline]
-    pub fn any(self) -> EdgeEndpointWrapper<AnyExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(AnyExpr(self.inner), endpoint)
-    }
-    #[inline]
-    pub fn all(self) -> EdgeEndpointWrapper<AllExpr<TemporalPropExpr<E>>> {
-        let endpoint = self.endpoint;
-        EdgeEndpointWrapper::new(AllExpr(self.inner), endpoint)
-    }
-}
+/// Aggregations on an endpoint read come from the same trait as on a node read,
+/// so they apply to any list-valued property, temporal or not.
+impl<T: EntityExpr> EntityAggOps for EdgeEndpointWrapper<T> {}
