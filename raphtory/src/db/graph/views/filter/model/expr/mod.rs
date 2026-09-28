@@ -24,11 +24,13 @@
 mod compile;
 pub mod convert;
 mod display;
+mod stream;
 #[cfg(test)]
 mod tests;
 
 pub use compile::Leaf;
 pub use convert::{FactoryLeaf, MarkerLeaf, ToExpr, ToFilterExpr};
+pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory};
 
 use super::DynCreateFilter;
 use raphtory_api::core::{

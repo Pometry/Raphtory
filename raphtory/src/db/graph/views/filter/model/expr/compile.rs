@@ -8,8 +8,11 @@
 //! on the entity the expression belongs to.
 
 use super::{
-    Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeExpr, NodeLeaf, StrOp,
-    ViewOp,
+    stream::{
+        StreamedAggEdgeOp, StreamedAggNodeOp, StreamedQualEdgeOp, StreamedQualNodeOp, ValueTest,
+    },
+    Agg, CmpOp, DynCreateHistory, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeExpr,
+    NodeLeaf, StrOp, ViewOp,
 };
 use crate::{
     db::{
@@ -50,9 +53,9 @@ use crate::{
                 node_filter::NodeFilter,
                 not_filter::NotFilter,
                 or_filter::OrFilter,
-                resolved_prop_type, validate_binary_op, validate_const_comparable,
-                validate_string_op, validate_types_comparable, DynCreateFilter, DynView,
-                EntityMarker, ViewWrapOps,
+                require_aggregable, resolved_prop_type, validate_binary_op,
+                validate_const_comparable, validate_string_op, validate_types_comparable,
+                DynCreateFilter, DynView, EntityMarker, ViewWrapOps,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter, DynEdgeFilter,
@@ -90,6 +93,10 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
 
     /// The erased value this read produces.
     fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError>;
+
+    /// The history this read walks, when it is the history of a temporal
+    /// property; a consumer that streams it need not build the list.
+    fn compile_history(&self) -> Option<Arc<dyn DynCreateHistory>>;
 
     /// Whether the read is scoped by a view.
     fn has_view(&self) -> bool;
@@ -220,6 +227,17 @@ impl Leaf for NodeLeaf {
         })
     }
 
+    fn compile_history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        match self {
+            NodeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            } => Some(node_factory(views).dyn_property(name.clone()).history()),
+            _ => None,
+        }
+    }
+
     fn has_view(&self) -> bool {
         !self.views().is_empty()
     }
@@ -323,6 +341,29 @@ impl Leaf for EdgeLeaf {
         })
     }
 
+    fn compile_history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        match self {
+            EdgeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            } => Some(
+                edge_factory(false, views)
+                    .dyn_property(name.clone())
+                    .history(),
+            ),
+            EdgeLeaf::Src(inner) => Some(Arc::new(EdgeEndpointWrapper::new(
+                inner.history()?,
+                Endpoint::Src,
+            ))),
+            EdgeLeaf::Dst(inner) => Some(Arc::new(EdgeEndpointWrapper::new(
+                inner.history()?,
+                Endpoint::Dst,
+            ))),
+            _ => None,
+        }
+    }
+
     fn has_view(&self) -> bool {
         match self {
             EdgeLeaf::Property { views, .. }
@@ -415,6 +456,21 @@ impl Leaf for ExplodedEdgeLeaf {
         })
     }
 
+    fn compile_history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        match self {
+            ExplodedEdgeLeaf::Property {
+                views,
+                name,
+                temporal: true,
+            } => Some(
+                edge_factory(true, views)
+                    .dyn_property(name.clone())
+                    .history(),
+            ),
+            _ => None,
+        }
+    }
+
     fn has_view(&self) -> bool {
         !self.views().is_empty()
     }
@@ -480,6 +536,46 @@ impl<L: Leaf> Expr<L> {
         matches!(self, Expr::Read(leaf) if leaf.is_temporal())
     }
 
+    /// The history this expression reads as is, for a consumer that walks
+    /// it instead of taking the list.
+    fn history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        match self {
+            Expr::Read(leaf) => leaf.compile_history(),
+            _ => None,
+        }
+    }
+
+    /// `any()`/`all()` over a comparison of a history with a constant walks
+    /// the history: the test to apply to each value, and the history.
+    fn streamed_test(&self) -> Option<(Arc<dyn DynCreateHistory>, QualTest)> {
+        match self {
+            Expr::Cmp(op, lhs, rhs) => match (&**lhs, &**rhs) {
+                (read, Expr::Const(constant)) => Some((
+                    read.history()?,
+                    QualTest::Cmp(binary_op(*op), constant.clone()),
+                )),
+                (Expr::Const(constant), read) => Some((
+                    read.history()?,
+                    QualTest::Cmp(binary_op(flipped(*op)), constant.clone()),
+                )),
+                _ => None,
+            },
+            Expr::Str(op, lhs, rhs) => match &**rhs {
+                Expr::Const(constant) => Some((
+                    lhs.history()?,
+                    QualTest::Str(string_op(op), constant.clone()),
+                )),
+                _ => None,
+            },
+            Expr::In {
+                expr,
+                values,
+                negated,
+            } => Some((expr.history()?, QualTest::In(values.clone(), *negated))),
+            _ => None,
+        }
+    }
+
     /// The erased, compilable value this expression stands for.
     pub fn compile_value(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
         let entity = L::ENTITY;
@@ -492,6 +588,13 @@ impl<L: Leaf> Expr<L> {
                         "earliest() and latest() pick an update of a temporal history; use \
                          first() or last() for the elements of a list",
                     ));
+                }
+                if let Some(history) = inner.history() {
+                    return Ok(Arc::new(StreamedAggExpr {
+                        history,
+                        agg: *agg,
+                        entity,
+                    }));
                 }
                 let op = inner.compile_value()?;
                 match agg {
@@ -538,16 +641,24 @@ impl<L: Leaf> Expr<L> {
                 op: UnaryOp::IsNone,
                 entity,
             }),
-            Expr::Any(inner) => Arc::new(QualExpr {
-                inner: inner.compile_value()?,
-                all: false,
-                entity,
-            }),
-            Expr::All(inner) => Arc::new(QualExpr {
-                inner: inner.compile_value()?,
-                all: true,
-                entity,
-            }),
+            Expr::Any(inner) | Expr::All(inner) => {
+                let all = matches!(self, Expr::All(_));
+                let fallback = Arc::new(QualExpr {
+                    inner: inner.compile_value()?,
+                    all,
+                    entity,
+                });
+                match inner.streamed_test() {
+                    Some((history, test)) => Arc::new(StreamedQualExpr {
+                        history,
+                        test,
+                        all,
+                        fallback,
+                        entity,
+                    }),
+                    None => fallback,
+                }
+            }
             Expr::And(items) => Arc::new(BoolCombineExpr {
                 items: items
                     .iter()
@@ -1184,6 +1295,146 @@ impl CreateOp for QualExpr {
         } else {
             Arc::new(AnyEdgeOp { inner })
         })
+    }
+}
+
+/// An aggregation directly over a history: walks the history instead of
+/// taking it as a list.
+#[derive(Clone)]
+struct StreamedAggExpr {
+    history: Arc<dyn DynCreateHistory>,
+    agg: Agg,
+    entity: EntityMarker,
+}
+
+impl EntityExpr for StreamedAggExpr {
+    type Marker = EntityMarker;
+
+    fn entity(&self) -> EntityMarker {
+        self.entity
+    }
+}
+
+impl StreamedAggExpr {
+    fn check(&self, history_type: &PropType) -> Result<(), GraphError> {
+        let name = match self.agg {
+            Agg::Sum => "sum()",
+            Agg::Avg => "avg()",
+            Agg::Min => "min()",
+            Agg::Max => "max()",
+            Agg::First => "first()",
+            Agg::Last => "last()",
+            Agg::Len => "len()",
+            Agg::Earliest => "earliest()",
+            Agg::Latest => "latest()",
+        };
+        require_aggregable(history_type, name)
+    }
+}
+
+impl CreateOp for StreamedAggExpr {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let history = self.history.create_node_history(Arc::new(graph))?;
+        self.check(&history.history_type())?;
+        Ok(Arc::new(StreamedAggNodeOp::new(history, self.agg)))
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let history = self.history.create_edge_history(Arc::new(graph))?;
+        self.check(&history.history_type())?;
+        Ok(Arc::new(StreamedAggEdgeOp::new(history, self.agg)))
+    }
+}
+
+/// A test of each history value against a constant, before the property's
+/// type is known.
+#[derive(Clone)]
+enum QualTest {
+    Cmp(BinaryOp, Prop),
+    Str(StringOp, Prop),
+    In(Vec<Prop>, bool),
+}
+
+impl QualTest {
+    /// The test to run on each value of a history of `history_type`, when
+    /// the history's element-wise result is one yes/no answer per value.
+    /// Anything else (a nested list, a mismatch) is left to the list path,
+    /// which reports it the way it always has.
+    fn value_test(&self, history_type: &PropType) -> Option<ValueTest> {
+        let one_per_value = |(out, shape): (PropType, Shape)| {
+            shape == Shape::Elementwise && out == list(PropType::Bool)
+        };
+        match self {
+            QualTest::Cmp(op, constant) => {
+                let shape =
+                    comparison_shape(op, history_type, &constant.dtype(), Some(constant)).ok()?;
+                one_per_value(shape).then(|| ValueTest::Cmp(*op, constant.clone()))
+            }
+            QualTest::Str(op, constant) => {
+                let shape = string_shape(history_type, &constant.dtype(), Some(constant)).ok()?;
+                one_per_value(shape).then(|| ValueTest::Str(op.clone(), constant.clone()))
+            }
+            QualTest::In(values, negated) => {
+                let (out, shape, members) = set_shape(history_type, values);
+                one_per_value((out, shape)).then(|| {
+                    ValueTest::In(
+                        Arc::new(members.into_iter().map(HashableProp).collect()),
+                        *negated,
+                    )
+                })
+            }
+        }
+    }
+}
+
+/// `any()` / `all()` over a comparison of a history with a constant: walks
+/// the history and stops at the first value that decides the answer.
+#[derive(Clone)]
+struct StreamedQualExpr {
+    history: Arc<dyn DynCreateHistory>,
+    test: QualTest,
+    all: bool,
+    /// The list path, for a history this test cannot walk value by value.
+    fallback: Arc<QualExpr>,
+    entity: EntityMarker,
+}
+entity_expr!(StreamedQualExpr);
+
+impl CreateOp for StreamedQualExpr {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let history = self.history.create_node_history(Arc::new(graph.clone()))?;
+        match self.test.value_test(&history.history_type()) {
+            Some(test) => Ok(Arc::new(StreamedQualNodeOp {
+                history,
+                test,
+                all: self.all,
+            })),
+            None => self.fallback.create_node_op(graph),
+        }
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        let history = self.history.create_edge_history(Arc::new(graph.clone()))?;
+        match self.test.value_test(&history.history_type()) {
+            Some(test) => Ok(Arc::new(StreamedQualEdgeOp {
+                history,
+                test,
+                all: self.all,
+            })),
+            None => self.fallback.create_edge_op(graph),
+        }
     }
 }
 
@@ -1902,6 +2153,101 @@ impl CreateFilter for FilterExpr {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         self.compile()?.create_edge_filter(graph)
+    }
+}
+
+#[cfg(test)]
+mod streaming_tests {
+    use super::*;
+    use raphtory_api::core::entities::properties::prop::IntoProp;
+
+    fn prop(name: &str, temporal: bool) -> NodeExpr {
+        Expr::Read(NodeLeaf::property(Vec::new(), name.to_owned(), temporal))
+    }
+
+    fn c(v: impl IntoProp) -> NodeExpr {
+        Expr::Const(v.into_prop())
+    }
+
+    fn cmp(op: CmpOp, l: NodeExpr, r: NodeExpr) -> NodeExpr {
+        Expr::Cmp(op, Box::new(l), Box::new(r))
+    }
+
+    #[test]
+    fn a_history_read_walks_and_a_latest_value_does_not() {
+        assert!(prop("score", true).history().is_some());
+        assert!(prop("score", false).history().is_none());
+        assert!(Expr::Agg(Agg::Sum, Box::new(prop("score", true)))
+            .history()
+            .is_none());
+    }
+
+    #[test]
+    fn a_history_compared_with_a_constant_walks_from_either_side() {
+        let gt = cmp(CmpOp::Gt, prop("score", true), c(4i64));
+        assert!(matches!(
+            gt.streamed_test(),
+            Some((_, QualTest::Cmp(BinaryOp::Gt, Prop::I64(4))))
+        ));
+        let mirrored = cmp(CmpOp::Lt, c(4i64), prop("score", true));
+        assert!(matches!(
+            mirrored.streamed_test(),
+            Some((_, QualTest::Cmp(BinaryOp::Gt, Prop::I64(4))))
+        ));
+        let contains = Expr::Str(
+            StrOp::Contains,
+            Box::new(prop("name", true)),
+            Box::new(c("a")),
+        );
+        assert!(matches!(
+            contains.streamed_test(),
+            Some((_, QualTest::Str(StringOp::Contains, _)))
+        ));
+        let is_in = Expr::In {
+            expr: Box::new(prop("score", true)),
+            values: vec![1i64.into_prop()],
+            negated: true,
+        };
+        assert!(matches!(
+            is_in.streamed_test(),
+            Some((_, QualTest::In(_, true)))
+        ));
+    }
+
+    #[test]
+    fn anything_else_under_any_keeps_the_list() {
+        let latest = cmp(CmpOp::Gt, prop("score", false), c(4i64));
+        assert!(latest.streamed_test().is_none());
+        let two_reads = cmp(CmpOp::Gt, prop("score", true), prop("other", true));
+        assert!(two_reads.streamed_test().is_none());
+        let aggregated = cmp(
+            CmpOp::Gt,
+            Expr::Agg(Agg::Sum, Box::new(prop("score", true))),
+            c(4i64),
+        );
+        assert!(aggregated.streamed_test().is_none());
+    }
+
+    #[test]
+    fn only_a_one_answer_per_value_test_walks() {
+        let history = list(PropType::I64);
+        let gt = QualTest::Cmp(BinaryOp::Gt, 4i64.into_prop());
+        assert!(gt.value_test(&history).is_some());
+        // A constant list compares against the whole history, not each value.
+        let whole = QualTest::Cmp(BinaryOp::Eq, Prop::list([1i64, 2i64]));
+        assert!(whole.value_test(&history).is_none());
+        // A mismatch is left to the list path, which reports it.
+        assert!(gt.value_test(&list(PropType::Str)).is_none());
+        // A history of lists answers per element, not per value.
+        assert!(gt.value_test(&list(list(PropType::I64))).is_none());
+        // A set no value can be in still answers per value, as the list path does.
+        let none = QualTest::In(vec!["x".into_prop()], false);
+        assert!(
+            matches!(none.value_test(&history), Some(ValueTest::In(members, false)) if members.is_empty())
+        );
+        // An empty set is a whole-history test, which the list path refuses.
+        let empty = QualTest::In(Vec::new(), false);
+        assert!(empty.value_test(&history).is_none());
     }
 }
 

@@ -11,6 +11,7 @@ use crate::{
         graph::views::filter::model::{
             edge_expr::EdgeOp,
             edge_filter::EdgeEndpointWrapper,
+            expr::DynCreateHistory,
             node_expr::{
                 AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
                 MinExpr, SumExpr,
@@ -44,11 +45,19 @@ impl<E: EntityExpr<Marker: Into<EntityMarker>>> DynEntityExpr for E {
 }
 
 pub trait DynTemporal: DynCreateOp {
+    /// The history as one list value.
     fn temporal(&self) -> Arc<dyn DynCreateOp>;
+
+    /// The history as a stream, for a consumer that walks it.
+    fn history(&self) -> Arc<dyn DynCreateHistory>;
 }
 
 impl<E: EntityExpr + CreateView + Send + Sync + 'static> DynTemporal for PropertyExpr<E> {
     fn temporal(&self) -> Arc<dyn DynCreateOp> {
+        Arc::new(self.temporal())
+    }
+
+    fn history(&self) -> Arc<dyn DynCreateHistory> {
         Arc::new(self.temporal())
     }
 }
@@ -61,6 +70,13 @@ where
     fn temporal(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(self.temporal())
     }
+
+    fn history(&self) -> Arc<dyn DynCreateHistory> {
+        Arc::new(EdgeEndpointWrapper::new(
+            self.inner.temporal(),
+            self.endpoint(),
+        ))
+    }
 }
 
 /// An endpoint read built from an erased node value: switching to the history
@@ -69,6 +85,13 @@ impl DynTemporal for EdgeEndpointWrapper<Arc<dyn DynTemporal>> {
     fn temporal(&self) -> Arc<dyn DynCreateOp> {
         Arc::new(EdgeEndpointWrapper::new(
             self.inner.temporal(),
+            self.endpoint(),
+        ))
+    }
+
+    fn history(&self) -> Arc<dyn DynCreateHistory> {
+        Arc::new(EdgeEndpointWrapper::new(
+            self.inner.history(),
             self.endpoint(),
         ))
     }

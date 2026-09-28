@@ -46,8 +46,11 @@ use crate::{
                 NodeViewOps,
             },
         },
-        graph::views::filter::model::property_filter::evaluate::{
-            aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+        graph::views::filter::model::{
+            expr::Agg,
+            property_filter::evaluate::{
+                aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+            },
         },
     },
     prelude::GraphViewOps,
@@ -172,9 +175,12 @@ impl NodeOp for NodeIdOp {
 
 /// Internal op produced by [`TemporalPropertyExpr::create_node_op`] — not constructed directly.
 ///
-/// Collects all recorded values within the current view window into a `Some(Prop::List([...]))`.
-/// That list is then consumed by aggregator ops (`SumNodeOp`, `LenNodeOp`, …) or
-/// compared element-wise, one answer per element, for `.any()`/`.all()` to collapse.
+/// Collects all recorded values within the current view window into a `Some(Prop::List([...]))`
+/// for a consumer that needs the history as one value. An aggregation or an
+/// `any()`/`all()` test written directly over the history does not go through
+/// this list: the compiler pairs it with the op's [`NodeHistory`] stream instead.
+///
+/// [`NodeHistory`]: crate::db::graph::views::filter::model::expr::NodeHistory
 #[derive(Clone)]
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
@@ -356,11 +362,24 @@ macro_rules! impl_agg_entity_op {
     };
 }
 
-impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| sum_out_type(pt), |vals| {
-    aggregate_list_values(vals, &|pi| {
-        let mut vals = pi.peekable();
-        let inner = vals.peek()?.dtype();
-        match inner {
+/// One reduction over the elements of one list, `Last` from the back.
+pub(crate) fn reduce_list(
+    agg: Agg,
+    mut items: Box<dyn DoubleEndedIterator<Item = Prop> + '_>,
+) -> Option<Prop> {
+    match agg {
+        Agg::Last => items.next_back(),
+        _ => fold_values(agg, items),
+    }
+}
+
+/// One reduction over a stream of values, front to back. A caller that can
+/// read the values from the back answers `Last` and `Latest` itself instead
+/// of walking to the end.
+pub(crate) fn fold_values(agg: Agg, vals: impl Iterator<Item = Prop>) -> Option<Prop> {
+    let mut vals = vals.peekable();
+    match agg {
+        Agg::Sum => match vals.peek()?.dtype() {
             PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
                 let (promoted, s64, s128, _) = scan_u64_sum(vals)?;
                 Some(if promoted {
@@ -387,66 +406,84 @@ impl_agg_entity_op!(SumNodeOp, SumEdgeOp, |pt| sum_out_type(pt), |vals| {
             PropType::F32 => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F32(sum as f32)),
             PropType::F64 => scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum)),
             _ => None,
+        },
+        Agg::Avg => match vals.peek()?.dtype() {
+            PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
+                let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
+                let s = if promoted { s128 as f64 } else { s64 as f64 };
+                Some(Prop::F64(s / (count as f64)))
+            }
+            PropType::I32 | PropType::I64 => {
+                let (promoted, s64, s128, count) = scan_i64_sum(vals)?;
+                let s = if promoted { s128 as f64 } else { s64 as f64 };
+                Some(Prop::F64(s / (count as f64)))
+            }
+            PropType::F32 | PropType::F64 => {
+                let (sum, count) = scan_f64_sum_count(vals)?;
+                Some(Prop::F64(sum / (count as f64)))
+            }
+            _ => None,
+        },
+        Agg::Min => {
+            let first = vals.next()?;
+            vals.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
         }
-    })
-});
+        Agg::Max => {
+            let first = vals.next()?;
+            vals.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
+        }
+        Agg::First | Agg::Earliest => vals.next(),
+        Agg::Last | Agg::Latest => vals.last(),
+        Agg::Len => Some(vals.count().into_prop()),
+    }
+}
 
+/// The type `agg` produces from a value of type `pt`.
+pub(crate) fn agg_out_pt(agg: Agg, pt: PropType) -> PropType {
+    match agg {
+        Agg::Sum => sum_out_type(pt),
+        Agg::Avg => agg_out_type(pt, Some(PropType::F64)),
+        Agg::Min | Agg::Max | Agg::First | Agg::Last => agg_out_type(pt, None),
+        Agg::Len => agg_out_type(pt, Some(PropType::U64)),
+        Agg::Earliest | Agg::Latest => update_type(pt),
+    }
+}
+
+impl_agg_entity_op!(
+    SumNodeOp,
+    SumEdgeOp,
+    |pt| agg_out_pt(Agg::Sum, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::Sum, pi)) }
+);
 impl_agg_entity_op!(
     AvgNodeOp,
     AvgEdgeOp,
-    |pt| agg_out_type(pt, Some(PropType::F64)),
-    |vals| {
-        aggregate_list_values(vals, &|pi| {
-            let mut vals = pi.peekable();
-            let inner = vals.peek()?.dtype();
-            match inner {
-                PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => {
-                    let (promoted, s64, s128, count) = scan_u64_sum(vals)?;
-                    let s = if promoted { s128 as f64 } else { s64 as f64 };
-                    Some(Prop::F64(s / (count as f64)))
-                }
-
-                PropType::I32 | PropType::I64 => {
-                    let (promoted, s64, s128, count) = scan_i64_sum(vals)?;
-                    let s = if promoted { s128 as f64 } else { s64 as f64 };
-                    Some(Prop::F64(s / (count as f64)))
-                }
-
-                PropType::F32 | PropType::F64 => {
-                    let (sum, count) = scan_f64_sum_count(vals)?;
-                    Some(Prop::F64(sum / (count as f64)))
-                }
-
-                _ => None,
-            }
-        })
-    }
+    |pt| agg_out_pt(Agg::Avg, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::Avg, pi)) }
 );
-impl_agg_entity_op!(MinNodeOp, MinEdgeOp, |pt| agg_out_type(pt, None), |vals| {
-    aggregate_list_values(vals, &|pi| {
-        let mut it = pi;
-        let first = it.next()?;
-        it.fold(Some(first), |acc, v| acc.and_then(|a| a.min(v)))
-    })
-});
-impl_agg_entity_op!(MaxNodeOp, MaxEdgeOp, |pt| agg_out_type(pt, None), |vals| {
-    aggregate_list_values(vals, &|pi| {
-        let mut it = pi;
-        let first = it.next()?;
-        it.fold(Some(first), |acc, v| acc.and_then(|a| a.max(v)))
-    })
-});
+impl_agg_entity_op!(
+    MinNodeOp,
+    MinEdgeOp,
+    |pt| agg_out_pt(Agg::Min, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::Min, pi)) }
+);
+impl_agg_entity_op!(
+    MaxNodeOp,
+    MaxEdgeOp,
+    |pt| agg_out_pt(Agg::Max, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::Max, pi)) }
+);
 impl_agg_entity_op!(
     FirstNodeOp,
     FirstEdgeOp,
-    |pt| agg_out_type(pt, None),
-    |vals| { aggregate_list_values(vals, &|mut pi| pi.next()) }
+    |pt| agg_out_pt(Agg::First, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::First, pi)) }
 );
 impl_agg_entity_op!(
     LastNodeOp,
     LastEdgeOp,
-    |pt| agg_out_type(pt, None),
-    |vals| { aggregate_list_values(vals, &|mut pi| pi.next_back()) }
+    |pt| agg_out_pt(Agg::Last, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::Last, pi)) }
 );
 /// The type one update of a history has: the history's element type.
 fn update_type(pt: PropType) -> PropType {
@@ -455,25 +492,35 @@ fn update_type(pt: PropType) -> PropType {
         other => other,
     }
 }
-impl_agg_entity_op!(EarliestNodeOp, EarliestEdgeOp, update_type, |vals| {
-    // The earliest update as it is, scalar or list.
-    match vals? {
-        Prop::List(x) => x.iter_all().find_map(|v| v),
-        _ => None,
+impl_agg_entity_op!(
+    EarliestNodeOp,
+    EarliestEdgeOp,
+    |pt| agg_out_pt(Agg::Earliest, pt),
+    |vals| {
+        // The earliest update as it is, scalar or list.
+        match vals? {
+            Prop::List(x) => x.iter_all().find_map(|v| v),
+            _ => None,
+        }
     }
-});
-impl_agg_entity_op!(LatestNodeOp, LatestEdgeOp, update_type, |vals| {
-    // The latest update as it is, scalar or list.
-    match vals? {
-        Prop::List(x) => x.iter_all().rev().find_map(|v| v),
-        _ => None,
+);
+impl_agg_entity_op!(
+    LatestNodeOp,
+    LatestEdgeOp,
+    |pt| agg_out_pt(Agg::Latest, pt),
+    |vals| {
+        // The latest update as it is, scalar or list.
+        match vals? {
+            Prop::List(x) => x.iter_all().rev().find_map(|v| v),
+            _ => None,
+        }
     }
-});
+);
 impl_agg_entity_op!(
     LenNodeOp,
     LenEdgeOp,
-    |pt| agg_out_type(pt, Some(PropType::U64)),
-    |vals| { aggregate_list_values(vals, &|pi| Some(pi.count().into_prop())) }
+    |pt| agg_out_pt(Agg::Len, pt),
+    |vals| { aggregate_list_values(vals, &|pi| reduce_list(Agg::Len, pi)) }
 );
 impl_agg_entity_op!(
     AnyNodeOp,

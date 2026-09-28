@@ -22,7 +22,7 @@ use storage::EdgeEntryRef;
 
 /// Which part of an edge a read is about.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum EdgeAt {
+pub enum EdgeAt {
     Whole,
     Layer(LayerId),
     Exploded(LayerId, EventTime),
@@ -91,6 +91,39 @@ pub(crate) fn temporal_hist<'a, G: GraphView>(
             GenLockedIter::from((edge, LayerIds::One(layer)), move |(edge, layer_ids)| {
                 time_semantics
                     .temporal_edge_prop_hist(*edge, graph, layer_ids, id)
+                    .map(|(t, _, v)| (t, v))
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed()
+        }
+        EdgeAt::Exploded(layer, t) => time_semantics
+            .temporal_edge_prop_exploded(edge, graph, id, t, layer)
+            .map(|v| (t, v))
+            .into_iter()
+            .into_dyn_boxed(),
+    }
+}
+
+/// The history of temporal property `id`, newest first.
+pub(crate) fn temporal_hist_rev<'a, G: GraphView>(
+    graph: &'a G,
+    edge: EdgeEntryRef<'a>,
+    at: EdgeAt,
+    id: usize,
+) -> BoxedLIter<'a, (EventTime, Prop)> {
+    if !at.visible(graph) {
+        return iter::empty().into_dyn_boxed();
+    }
+    let time_semantics = graph.edge_time_semantics();
+    match at {
+        EdgeAt::Whole => time_semantics
+            .temporal_edge_prop_hist_rev(edge, graph, graph.layer_ids(), id)
+            .map(|(t, _, v)| (t, v))
+            .into_dyn_boxed(),
+        EdgeAt::Layer(layer) => {
+            GenLockedIter::from((edge, LayerIds::One(layer)), move |(edge, layer_ids)| {
+                time_semantics
+                    .temporal_edge_prop_hist_rev(*edge, graph, layer_ids, id)
                     .map(|(t, _, v)| (t, v))
                     .into_dyn_boxed()
             })

@@ -73,10 +73,11 @@ use crate::{
     db::{
         api::{
             state::ops::{Const, Degree, Id, Name, NodeOp, Type},
-            view::internal::GraphView,
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::model::{
             edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
+            expr::{DynCreateHistory, EdgeHistory, NodeHistory},
             filter_operator::Comparable,
             node_filter::NodeFilter,
             require_aggregable, resolved_prop_type, ComposableFilter, CreateView, EntityMarker,
@@ -512,6 +513,34 @@ impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityExpr for TemporalPropE
 impl<E: EntityExpr + Clone + Send + Sync + 'static> PredicateLhs for TemporalPropExpr<E> {}
 
 impl<E: EntityExpr + Clone + Send + Sync + 'static> EntityAggOps for TemporalPropExpr<E> {}
+
+impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> DynCreateHistory
+    for TemporalPropExpr<E>
+{
+    fn create_node_history<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<dyn NodeHistory + 'g>, GraphError> {
+        let prop_id = graph
+            .node_meta()
+            .get_prop_id(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(TemporalNodePropOp { graph, prop_id }))
+    }
+
+    fn create_edge_history<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<dyn EdgeHistory + 'g>, GraphError> {
+        let prop_id = graph
+            .edge_meta()
+            .get_prop_id(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(TemporalEdgePropOp { graph, prop_id }))
+    }
+}
 
 impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for TemporalPropExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
