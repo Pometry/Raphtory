@@ -71,14 +71,14 @@ pub trait IntoInitState {
     fn into_init_state<G: StaticGraphViewOps>(
         self,
         graph: &G,
-    ) -> Result<Option<HashMap<usize, usize>>, GraphError>;
+    ) -> Result<Option<HashMap<VID, usize>>, GraphError>;
 }
 
 impl IntoInitState for () {
     fn into_init_state<G: StaticGraphViewOps>(
         self,
         _graph: &G,
-    ) -> Result<Option<HashMap<usize, usize>>, GraphError> {
+    ) -> Result<Option<HashMap<VID, usize>>, GraphError> {
         Ok(None)
     }
 }
@@ -87,13 +87,13 @@ impl<V: AsNodeRef> IntoInitState for HashMap<V, usize> {
     fn into_init_state<G: StaticGraphViewOps>(
         self,
         graph: &G,
-    ) -> Result<Option<HashMap<usize, usize>>, GraphError> {
+    ) -> Result<Option<HashMap<VID, usize>>, GraphError> {
         let mut resolved = HashMap::with_capacity(self.len());
         for (node, label) in self {
             let node_ref = node.as_node_ref();
-            match graph.node(node_ref) {
+            match (&graph).node(node_ref) {
                 Some(n) => {
-                    resolved.insert(n.node.index(), label);
+                    resolved.insert(n.node, label);
                 }
                 None => {
                     let gid = match node_ref {
@@ -112,7 +112,7 @@ impl<T: IntoInitState> IntoInitState for Option<T> {
     fn into_init_state<G: StaticGraphViewOps>(
         self,
         graph: &G,
-    ) -> Result<Option<HashMap<usize, usize>>, GraphError> {
+    ) -> Result<Option<HashMap<VID, usize>>, GraphError> {
         match self {
             Some(seeds) => seeds.into_init_state(graph),
             None => Ok(None),
@@ -306,7 +306,7 @@ where
     // `total == 0` branch.
     if let Some(map) = &init_state {
         index.par_iter().for_each(|(pos, vid)| {
-            if let Some(slot) = map.get(&vid.index()).and_then(|l| slot_of.get(l)) {
+            if let Some(slot) = map.get(&vid).and_then(|l| slot_of.get(l)) {
                 prev[pos].store(*slot, Ordering::Relaxed);
                 // A seed's label is GIVEN, not inferred, so it starts fully confident.
                 votes[pos].store(1.0f64.to_bits(), Ordering::Relaxed);
