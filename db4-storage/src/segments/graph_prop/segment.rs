@@ -116,7 +116,7 @@ impl MemGraphPropSegment {
         let ts = EventTime::new(t.t(), t.i());
 
         layer.reserve_local_row(Self::DEFAULT_ROW.into());
-        layer.mark_and_append_t_props(Self::DEFAULT_ROW, Self::DEFAULT_LAYER, ts, props);
+        layer.append_t_props(Self::DEFAULT_ROW, ts, true, Self::DEFAULT_LAYER, props);
 
         let layer_est_size = layer.est_size();
         layer_est_size - est_size
@@ -141,7 +141,7 @@ impl MemGraphPropSegment {
             .reserve_local_row(Self::DEFAULT_ROW.into())
             .map(|a| a.row());
         let row = row.inner();
-        segment_container.mark_and_append_const_props(row, Self::DEFAULT_LAYER, props);
+        segment_container.append_const_props(row, Self::DEFAULT_LAYER, true, props);
 
         let layer_est_size = segment_container.est_size();
         // random estimate for constant properties

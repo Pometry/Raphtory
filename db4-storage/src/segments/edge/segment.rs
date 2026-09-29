@@ -225,13 +225,7 @@ impl MemEdgeSegment {
             .into_inner_with_status();
 
         let ts = EventTime::new(t.t(), t.i());
-        if mark {
-            self.layers[layer_id.0].mark_and_append_t_props(local_row, layer_id, ts, props);
-        } else {
-            // doesn't mark this prop's presence at this layer in the bitset, used in bulk ingestion
-            self.layers[layer_id.0].append_t_props(local_row, ts, props);
-        }
-
+        self.layers[layer_id.0].append_t_props(local_row, ts, mark, layer_id, props);
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
         is_new
@@ -378,12 +372,7 @@ impl MemEdgeSegment {
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id.0].est_size();
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id).inner();
-        if mark {
-            self.layers[layer_id.0].mark_and_append_const_props(local_row, layer_id, props);
-        } else {
-            // doesn't mark this const prop's presence at this layer in the bitset, used in bulk ingestion
-            self.layers[layer_id.0].append_const_props(local_row, props);
-        }
+        self.layers[layer_id.0].append_const_props(local_row, layer_id, mark, props);
 
         let layer_est_size = self.layers[layer_id.0].est_size() + 8;
         self.est_size += layer_est_size.saturating_sub(est_size);

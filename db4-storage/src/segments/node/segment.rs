@@ -379,12 +379,7 @@ impl MemNodeSegment {
         let is_new = row.is_new();
         let row = row.inner().row;
         let ts = EventTime::new(t.t(), t.i());
-        if mark {
-            layer.mark_and_append_t_props(row, layer_id, ts, props);
-        } else {
-            // doesn't mark these props' presence at these layers in the bitset, used in bulk ingestion
-            layer.append_t_props(row, ts, props);
-        }
+        layer.append_t_props(row, ts, mark, layer_id, props);
         let layer_est_size = layer.est_size();
         (is_new, layer_est_size - est_size)
     }
@@ -435,12 +430,7 @@ impl MemNodeSegment {
         let row = segment_container.reserve_local_row(node_pos).map(|a| a.row);
         let is_new = row.is_new();
         let row = row.inner();
-        if mark {
-            segment_container.mark_and_append_const_props(row, layer_id, props);
-        } else {
-            // doesn't mark these const props' presence at these layers in the bitset, used in bulk ingestion
-            segment_container.append_const_props(row, props);
-        }
+        segment_container.append_const_props(row, layer_id, mark, props);
 
         let layer_est_size = segment_container.est_size();
         let added_size = (layer_est_size - est_size) + 8; // random estimate for constant properties
