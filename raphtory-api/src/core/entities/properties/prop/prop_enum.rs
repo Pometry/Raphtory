@@ -972,7 +972,7 @@ impl Prop {
             (F64(a), F64(b)) => Some(F64(a + b)),
             (Str(a), Str(b)) => Some(Str((a.to_string() + b.as_ref()).into())),
             (Decimal(a), Decimal(b)) => Some(Decimal(a + b)),
-            (List(a), List(b)) if a.dtype() == b.dtype() => Some(List(a.join(&b).ok()?)),
+            (List(a), List(b)) => Some(List(a.join(&b).ok()?)),
             // Cross-type numeric pair: cast to a common compatible dtype, non-numeric fails
             (a, b) => {
                 let (left, right) = a.try_cast_compatible_numeric(b)?;
