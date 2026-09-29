@@ -1,29 +1,29 @@
 use crate::{
-    LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
-        HasRow, SegmentContainer,
         edge::entry::{MemEdgeEntry, MemEdgeRef},
+        HasRow, SegmentContainer,
     },
     utils::Iter4,
     wal::LSN,
+    LocalPOS,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
     entities::{
-        LayerId, VID,
         properties::{
             meta::{Meta, STATIC_GRAPH_LAYER_ID},
             prop::AsPropRef,
         },
+        LayerId, VID,
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::{LayerIds, edges::edge_ref::EdgeRef},
+    entities::{edges::edge_ref::EdgeRef, LayerIds},
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
@@ -31,8 +31,8 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
-        Arc,
         atomic::{AtomicU32, AtomicUsize, Ordering},
+        Arc,
     },
 };
 
@@ -306,32 +306,8 @@ impl MemEdgeSegment {
         Ok(())
     }
 
-    pub fn update_const_properties<P: AsPropRef>(
-        &mut self,
-        edge_pos: LocalPOS,
-        src: VID,
-        dst: VID,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) {
-        self.update_const_properties_impl(edge_pos, src, dst, layer_id, props, true)
-    }
-
-    /// As [`Self::update_const_properties`] but skips per-prop layer-presence
-    /// marking, for bulk loaders that mark the chunk's set up front.
-    pub fn update_const_properties_bulk<P: AsPropRef>(
-        &mut self,
-        edge_pos: LocalPOS,
-        src: VID,
-        dst: VID,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) {
-        self.update_const_properties_impl(edge_pos, src, dst, layer_id, props, false)
-    }
-
     #[inline]
-    fn update_const_properties_impl<P: AsPropRef>(
+    pub fn update_const_properties<P: AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,
         src: VID,
@@ -662,9 +638,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 mod test {
     use super::*;
     use crate::{
-        Config,
         pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats},
         persist::strategy::NoOpStrategy,
+        Config,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},

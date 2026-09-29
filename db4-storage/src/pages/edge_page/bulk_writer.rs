@@ -1,10 +1,10 @@
 use crate::{
-    LocalPOS, api::edges::EdgeSegmentOps, pages::edge_page::writer::EdgeWriter,
-    segments::edge::segment::MemEdgeSegment,
+    api::edges::EdgeSegmentOps, pages::edge_page::writer::EdgeWriter,
+    segments::edge::segment::MemEdgeSegment, LocalPOS,
 };
 use raphtory_api::core::entities::{
-    EID, LayerId, VID,
     properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+    LayerId, EID, VID,
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
 use std::ops::DerefMut;
@@ -71,7 +71,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
         self.ew
             .writer
-            .update_const_properties_bulk(edge_pos, src, dst, layer_id, c_props);
+            .update_const_properties(edge_pos, src, dst, layer_id, c_props, false);
     }
 
     pub fn bulk_delete_edge(
