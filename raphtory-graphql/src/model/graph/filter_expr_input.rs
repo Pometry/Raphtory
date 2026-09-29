@@ -611,8 +611,13 @@ pub enum GqlFilter {
     ExplodedEdge(GqlExplodedEdgeExpr),
     /// A graph-level view with no predicate: the result is the view.
     View(Vec<GqlViewOp>),
+    /// Every leg holds. A view leg applies first and the others run inside it.
     And(Vec<GqlFilter>),
+    /// Any leg holds. Node legs combine on nodes and edge legs on edges; a leg
+    /// of the other kind leaves that side unconstrained. No view legs.
     Or(Vec<GqlFilter>),
+    /// The filter that keeps what the inner one drops: a negated node filter
+    /// keeps the nodes that fail it and the edges between them. No views.
     Not(Wrapped<GqlFilter>),
 }
 

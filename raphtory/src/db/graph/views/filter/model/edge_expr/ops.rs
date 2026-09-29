@@ -182,6 +182,15 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
 // TemporalEdgePropOp<G> — all temporal values for a property in the view window
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Internal op produced by [`TemporalPropExpr::create_edge_op`] — not constructed directly.
+///
+/// Collects the property's history for the edge, one of its layers or one
+/// exploded instance into a `Some(Prop::List([...]))` for a consumer that
+/// needs it as one value. An aggregation or an `any()`/`all()` test written
+/// directly over the history streams it through [`EdgeHistory`] instead.
+///
+/// [`TemporalPropExpr::create_edge_op`]: crate::db::graph::views::filter::model::node_expr::TemporalPropExpr
+/// [`EdgeHistory`]: crate::db::graph::views::filter::model::expr::EdgeHistory
 #[derive(Clone)]
 pub(crate) struct TemporalEdgePropOp<G> {
     pub(crate) graph: G,
@@ -610,42 +619,5 @@ impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for OrEdgeOp<L, 
 
     fn filters_exploded(&self) -> bool {
         self.left.filters_exploded() || self.right.filters_exploded()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct NotEdgeOp<T>(pub(crate) T);
-
-impl<T: EdgeOp<Output = bool>> EdgeOp for NotEdgeOp<T> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
-        !self.0.apply(storage, edge)
-    }
-
-    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        !self.0.apply_layer(storage, edge, layer)
-    }
-
-    fn apply_exploded(
-        &self,
-        storage: &GraphStorage,
-        edge: EdgeEntryRef,
-        layer: LayerId,
-        t: EventTime,
-    ) -> bool {
-        !self.0.apply_exploded(storage, edge, layer, t)
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
-    }
-
-    fn const_value(&self) -> Option<bool> {
-        self.0.const_value().map(|v| !v)
-    }
-
-    fn filters_exploded(&self) -> bool {
-        self.0.filters_exploded()
     }
 }

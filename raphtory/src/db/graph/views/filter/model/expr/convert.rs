@@ -38,6 +38,7 @@ use crate::{
                     PropValueSetExpr, Scoped, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
                 },
                 node_filter::NodeFilter,
+                not_filter::NotFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 MetadataExpr, PropertyExpr,
@@ -604,7 +605,7 @@ macro_rules! compile_through_tree {
                 self,
                 graph: G,
             ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-                self.to_filter_expr().compile()?.create_node_filter(graph)
+                self.to_filter_expr().create_node_filter(graph)
             }
 
             fn create_edge_filter<'graph, G: GraphView + 'graph>(
@@ -626,6 +627,7 @@ compile_through_tree! {
     impl<E> for AllExpr<E>;
     impl<T> for EdgeEndpointWrapper<T>;
     impl<V, T> for Scoped<V, T>;
+    impl<T> for NotFilter<T>;
     impl<> for IsActiveNode;
     impl<> for IsActiveEdge;
     impl<> for IsValidEdge;

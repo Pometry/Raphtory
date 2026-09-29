@@ -21,7 +21,6 @@ pub mod exploded_edge_filtered_graph;
 pub mod exploded_edge_node_filtered_graph;
 pub mod model;
 pub mod node_filtered_graph;
-pub mod not_filtered_graph;
 pub mod or_filtered_graph;
 
 pub struct Exists;

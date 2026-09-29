@@ -278,6 +278,14 @@ pub type ExplodedEdgeExpr = Expr<ExplodedEdgeLeaf>;
 
 /// The filter itself: a yes/no on one kind of entity, a view, or a
 /// combination of filters.
+///
+/// A filtered graph answers two questions, which nodes stay and which edges
+/// stay. A node predicate answers the first directly and the second by "both
+/// ends stayed"; an edge predicate the reverse. `And`, `Or` and `Not` combine
+/// the direct answers question by question: `name == "b" | name == "c"` keeps
+/// the edge b→c, `Not` of a node predicate keeps the nodes that fail it and the
+/// edges between them, `Not(And(node, edge))` negates each answer, and an `Or`
+/// with a leg that leaves a question open leaves it open.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterExpr {
@@ -288,6 +296,7 @@ pub enum FilterExpr {
     View(Vec<ViewOp>),
     And(Vec<FilterExpr>),
     Or(Vec<FilterExpr>),
+    /// The filter that keeps what the inner one drops, one question at a time.
     Not(Box<FilterExpr>),
     /// A filter over in-process state (a node-state column) that has no wire
     /// form: it runs where it was built and cannot be sent anywhere.

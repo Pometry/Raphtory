@@ -6,7 +6,11 @@ use crate::{
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
-            model::{edge_expr::ops::AndEdgeOp, ComposableFilter},
+            model::{
+                edge_expr::ops::AndEdgeOp,
+                expr::{FilterExpr, ToFilterExpr},
+                ComposableFilter,
+            },
             CreateFilter,
         },
     },
@@ -18,6 +22,15 @@ use std::{fmt, fmt::Display};
 pub struct AndFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,
+}
+
+impl<L: ToFilterExpr, R: ToFilterExpr> ToFilterExpr for AndFilter<L, R> {
+    fn to_filter_expr(&self) -> FilterExpr {
+        FilterExpr::And(vec![
+            self.left.to_filter_expr(),
+            self.right.to_filter_expr(),
+        ])
+    }
 }
 
 impl<L: Display, R: Display> Display for AndFilter<L, R> {

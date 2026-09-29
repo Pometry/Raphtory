@@ -93,6 +93,11 @@ class FilterExpr(object):
 
     Anywhere a filter is expected, a yes/no [`Expr`] is accepted too: it is the
     filter on its own entity.
+
+    `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
+    node test keeps the nodes that fail it and the edges between them, and a
+    combination is negated test by test, node tests on nodes and edge tests on
+    edges. A view combines with `&` only.
     """
 
     def __and__(self, value):
@@ -118,6 +123,9 @@ class Expr(object):
     A value expression: a field, degree, property, metadata entry, an aggregate
     over one, or a yes/no built from them. Comparing it to a value or to another
     expression gives a yes/no [`Expr`], which is a filter on its entity.
+
+    `~` on a yes/no is the opposite yes/no: a node without the property fails
+    `property("score") > 4`, so it passes `~(property("score") > 4)`.
     """
 
     def __and__(self, value):

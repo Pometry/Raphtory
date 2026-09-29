@@ -127,6 +127,9 @@ impl std::fmt::Display for Typed {
 /// A value expression: a field, degree, property, metadata entry, an aggregate
 /// over one, or a yes/no built from them. Comparing it to a value or to another
 /// expression gives a yes/no [`Expr`], which is a filter on its entity.
+///
+/// `~` on a yes/no is the opposite yes/no: a node without the property fails
+/// `property("score") > 4`, so it passes `~(property("score") > 4)`.
 #[pyclass(
     frozen,
     subclass,

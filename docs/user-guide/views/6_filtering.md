@@ -88,7 +88,11 @@ Use the bitwise operators: `&` for *and*, `|` for *or*, `~` for *not*. Python's 
 `not` do not work on filter expressions.
 
 `~f` selects everything `f` did not select. A node without the property is not selected by
-`property("score") > 4`, so it *is* selected by `~(property("score") > 4)`.
+`property("score") > 4`, so it *is* selected by `~(property("score") > 4)`. A negated node
+predicate is still a node predicate: on edges it keeps the edges between the nodes that fail it.
+Negating a combination negates its node tests and its edge tests: `~(a & b)` of two node tests is
+`~a | ~b`, and `~(node_test & edge_test)` keeps the nodes that fail the node test and, between
+them, the edges that fail the edge test.
 
 /// tab | :fontawesome-brands-python: Python
 

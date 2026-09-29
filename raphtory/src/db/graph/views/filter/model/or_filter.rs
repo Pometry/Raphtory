@@ -5,7 +5,11 @@ use crate::{
             view::internal::GraphView,
         },
         graph::views::filter::{
-            model::{edge_expr::ops::OrEdgeOp, ComposableFilter},
+            model::{
+                edge_expr::ops::OrEdgeOp,
+                expr::{FilterExpr, ToFilterExpr},
+                ComposableFilter,
+            },
             or_filtered_graph::OrFilteredGraph,
             CreateFilter,
         },
@@ -18,6 +22,15 @@ use std::{fmt, fmt::Display};
 pub struct OrFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,
+}
+
+impl<L: ToFilterExpr, R: ToFilterExpr> ToFilterExpr for OrFilter<L, R> {
+    fn to_filter_expr(&self) -> FilterExpr {
+        FilterExpr::Or(vec![
+            self.left.to_filter_expr(),
+            self.right.to_filter_expr(),
+        ])
+    }
 }
 
 impl<L: Display, R: Display> Display for OrFilter<L, R> {

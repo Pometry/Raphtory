@@ -12,7 +12,7 @@ use super::{
         StreamedAggEdgeOp, StreamedAggNodeOp, StreamedQualEdgeOp, StreamedQualNodeOp, ValueTest,
     },
     Agg, CmpOp, DynCreateHistory, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeExpr,
-    NodeLeaf, StrOp, ViewOp,
+    NodeLeaf, OpaqueFilter, StrOp, ViewOp,
 };
 use crate::{
     db::{
@@ -1987,31 +1987,131 @@ impl FilterExpr {
     }
 
     /// A filter below the top level: every node but a view.
+    ///
+    /// A filtered graph answers two questions, which nodes stay and which
+    /// edges stay, and every filter answers both: a node predicate answers
+    /// the first directly and the second by "both ends stayed", an edge
+    /// predicate the reverse. `and`, `or` and `not` combine the direct
+    /// answers, question by question, so `name == "b" | name == "c"` keeps
+    /// the edge b→c, `not` never flips an answer the filter did not give, and
+    /// the per-node and per-edge forms of a filter agree with its graph.
     fn compile_nested(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
+        let nodes = self.answer(Question::Nodes)?;
+        let edges = self.answer(Question::Edges)?;
+        Ok(match (nodes, edges) {
+            (Some(nodes), Some(edges)) => Arc::new(AndFilter {
+                left: nodes.compile_answer()?,
+                right: edges.compile_answer()?,
+            }),
+            (Some(answer), None) | (None, Some(answer)) => answer.compile_answer()?,
+            (None, None) => Arc::new(GraphFilter),
+        })
+    }
+
+    /// This filter's direct answer to `question`, as a tree over that
+    /// question's entities only; `None` when the filter leaves it open. An
+    /// `or` with a leg that leaves the question open leaves it open. `not`
+    /// negates the answer, and a view has no answer the engine can give.
+    fn answer(&self, question: Question) -> Result<Option<FilterExpr>, GraphError> {
+        Ok(match self {
+            FilterExpr::Node(_) | FilterExpr::Opaque(_) => {
+                (question == Question::Nodes).then(|| self.clone())
+            }
+            FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => {
+                (question == Question::Edges).then(|| self.clone())
+            }
+            FilterExpr::View(_) => return Err(view_below_top_level()),
+            FilterExpr::And(items) => {
+                let mut answers: Vec<FilterExpr> = items
+                    .iter()
+                    .map(|item| item.answer(question))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+                match answers.len() {
+                    0 => None,
+                    1 => answers.pop(),
+                    _ => Some(FilterExpr::And(answers)),
+                }
+            }
+            FilterExpr::Or(items) => {
+                let answers = items
+                    .iter()
+                    .map(|item| item.answer(question))
+                    .collect::<Result<Option<Vec<_>>, _>>()?;
+                answers.map(|mut answers| {
+                    if answers.len() == 1 {
+                        answers.pop().unwrap()
+                    } else {
+                        FilterExpr::Or(answers)
+                    }
+                })
+            }
+            FilterExpr::Not(inner) => inner.answer(question)?.map(|a| a.negated()).transpose()?,
+        })
+    }
+
+    /// The negation of an answer, pushed down to its predicates: `not(and)`
+    /// is the `or` of the negations, `not(or)` the `and`, and a negated
+    /// predicate is a predicate on the same entity.
+    fn negated(&self) -> Result<FilterExpr, GraphError> {
+        fn not<L: Clone>(expr: &Expr<L>) -> Expr<L> {
+            Expr::Not(Box::new(expr.clone()))
+        }
+        Ok(match self {
+            FilterExpr::Node(expr) => FilterExpr::Node(not(expr)),
+            FilterExpr::Edge(expr) => FilterExpr::Edge(not(expr)),
+            FilterExpr::ExplodedEdge(expr) => FilterExpr::ExplodedEdge(not(expr)),
+            FilterExpr::View(_) => return Err(view_below_top_level()),
+            FilterExpr::And(items) => {
+                FilterExpr::Or(items.iter().map(Self::negated).collect::<Result<_, _>>()?)
+            }
+            FilterExpr::Or(items) => {
+                FilterExpr::And(items.iter().map(Self::negated).collect::<Result<_, _>>()?)
+            }
+            FilterExpr::Not(inner) => (**inner).clone(),
+            FilterExpr::Opaque(filter) => {
+                FilterExpr::Opaque(OpaqueFilter(Arc::new(NotFilter(filter.0.clone()))))
+            }
+        })
+    }
+
+    /// Compile one question's answer: a tree over one kind of entity.
+    fn compile_answer(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
         Ok(match self {
             FilterExpr::Node(expr) => Arc::new(Predicate::new(expr, pushdown(expr))?),
             FilterExpr::Edge(expr) => Arc::new(Predicate::new(expr, None)?),
             FilterExpr::ExplodedEdge(expr) => Arc::new(Predicate::new(expr, None)?),
-            FilterExpr::View(_) => {
-                return Err(invalid(
-                    "a view applies to the whole filter: use it alone or as a leg of the \
-                     top-level `and`, not under `or` or `not`",
-                ))
-            }
+            FilterExpr::View(_) => return Err(view_below_top_level()),
             FilterExpr::And(items) => combine(
-                items.iter().map(Self::compile_nested),
+                items.iter().map(Self::compile_answer),
                 "and",
                 |left, right| Arc::new(AndFilter { left, right }),
             )?,
             FilterExpr::Or(items) => combine(
-                items.iter().map(Self::compile_nested),
+                items.iter().map(Self::compile_answer),
                 "or",
                 |left, right| Arc::new(OrFilter { left, right }),
             )?,
-            FilterExpr::Not(inner) => Arc::new(NotFilter(inner.compile_nested()?)),
+            FilterExpr::Not(inner) => inner.negated()?.compile_answer()?,
             FilterExpr::Opaque(filter) => filter.0.clone(),
         })
     }
+}
+
+/// One of the two questions a filtered graph answers.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Question {
+    Nodes,
+    Edges,
+}
+
+fn view_below_top_level() -> GraphError {
+    invalid(
+        "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
+         not under `or` or `not`",
+    )
 }
 
 /// The graph-level view a chain of view ops describes, applied in order.
@@ -2141,10 +2241,16 @@ impl CreateFilter for FilterExpr {
         self.compile()?.create_graph_filter(graph)
     }
 
+    /// An edge test says nothing about which nodes belong in a node
+    /// collection, so a filter that tests edges anywhere is refused here,
+    /// whatever it compiles to.
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        if self.tests_edges() {
+            return Err(GraphError::NotNodeFilter);
+        }
         self.compile()?.create_node_filter(graph)
     }
 

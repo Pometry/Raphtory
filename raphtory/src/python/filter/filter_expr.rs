@@ -17,6 +17,11 @@ use std::sync::Arc;
 ///
 /// Anywhere a filter is expected, a yes/no [`Expr`] is accepted too: it is the
 /// filter on its own entity.
+///
+/// `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
+/// node test keeps the nodes that fail it and the edges between them, and a
+/// combination is negated test by test, node tests on nodes and edge tests on
+/// edges. A view combines with `&` only.
 #[pyclass(
     frozen,
     name = "FilterExpr",

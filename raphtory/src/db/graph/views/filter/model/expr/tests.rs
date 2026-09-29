@@ -7,6 +7,7 @@ use crate::{
             ViewWrapOps,
         },
     },
+    errors::GraphError,
     prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS},
 };
 use raphtory_api::core::{
@@ -607,4 +608,217 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         msg.contains("earliest() and latest() pick an update"),
         "{msg}"
     );
+}
+
+/// A filter answers two questions, which nodes stay and which edges stay;
+/// `and`, `or` and `not` combine the direct answers question by question. A
+/// negated node predicate keeps the nodes that fail it and the edges between
+/// them; an `or` with a leg that leaves a question open leaves it open; the
+/// per-edge form of every filter agrees with its graph; and a chain of
+/// filters gives the `and`'s answer.
+#[test]
+fn filters_answer_the_node_and_edge_questions_separately() {
+    use crate::db::api::view::{DynamicGraph, IntoDynamic, Select};
+    let g = graph();
+    let score_gt = |v: f64| node(cmp(CmpOp::Gt, prop("score"), c(v)));
+    let score_lt = |v: f64| node(cmp(CmpOp::Lt, prop("score"), c(v)));
+    let ec = |v: i64| -> EdgeExpr { Expr::Const(v.into()) };
+    let w_gt = |v: i64| FilterExpr::Edge(cmp(CmpOp::Gt, edge_prop("w"), ec(v)));
+    let not = |f: FilterExpr| FilterExpr::Not(Box::new(f));
+    let names = |v: &DynamicGraph| {
+        let mut n: Vec<String> = v.nodes().iter().map(|n| n.name()).collect();
+        n.sort();
+        n
+    };
+    let eids = |v: &DynamicGraph| {
+        let mut e: Vec<String> = v
+            .edges()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect();
+        e.sort();
+        e
+    };
+    let all_nodes = ["alice", "bob", "carol", "dave", "eve"];
+    let all_edges = ["alice->bob", "bob->carol", "carol->dave"];
+    // alice.score 9 · bob 2 · dave 1 · carol, eve none · alice→bob w=2 · bob→carol w=1 · carol→dave w=3
+    let cases: Vec<(&str, FilterExpr, &[&str], &[&str])> = vec![
+        (
+            "not(edge)",
+            not(w_gt(2)),
+            &all_nodes,
+            &["alice->bob", "bob->carol"],
+        ),
+        (
+            "not(node)",
+            not(score_gt(4.0)),
+            &["bob", "carol", "dave", "eve"],
+            &["bob->carol", "carol->dave"],
+        ),
+        ("not(not(node))", not(not(score_gt(4.0))), &["alice"], &[]),
+        (
+            "not(and(node, node)) = or(not, not)",
+            not(FilterExpr::And(vec![score_gt(1.5), score_lt(8.0)])),
+            &["alice", "carol", "dave", "eve"],
+            &["carol->dave"],
+        ),
+        (
+            "not(or(node, node)) = and(not, not)",
+            not(FilterExpr::Or(vec![score_gt(4.0), score_lt(1.5)])),
+            &["bob", "carol", "eve"],
+            &["bob->carol"],
+        ),
+        (
+            "not(and(node, edge)): each answer negated",
+            not(FilterExpr::And(vec![score_gt(4.0), w_gt(2)])),
+            &["bob", "carol", "dave", "eve"],
+            &["bob->carol"],
+        ),
+        (
+            "or(node, edge): both questions left open",
+            FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
+            &all_nodes,
+            &all_edges,
+        ),
+        (
+            "not(or(node, edge)): still open",
+            not(FilterExpr::Or(vec![score_gt(4.0), w_gt(2)])),
+            &all_nodes,
+            &all_edges,
+        ),
+        (
+            "and(node, or(node, edge)): the open or drops out",
+            FilterExpr::And(vec![
+                score_gt(1.5),
+                FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
+            ]),
+            &["alice", "bob"],
+            &["alice->bob"],
+        ),
+    ];
+    let base = g.filter(score_gt(1.5)).unwrap().into_dynamic();
+    assert_eq!(names(&base), ["alice", "bob"]);
+    assert_eq!(eids(&base), ["alice->bob"]);
+    for (label, f, want_nodes, want_edges) in cases {
+        let alone = g.filter(f.clone()).unwrap().into_dynamic();
+        assert_eq!(names(&alone), want_nodes, "{label}: nodes");
+        assert_eq!(eids(&alone), want_edges, "{label}: edges");
+        let mut selected: Vec<String> = g
+            .edges()
+            .select(f.clone())
+            .unwrap()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect();
+        selected.sort();
+        assert_eq!(selected, want_edges, "{label}: edges.select");
+        // Chained after the base, the answer is the `and`'s: the base's
+        // entities that the filter keeps.
+        let chained = base.filter(f.clone()).unwrap().into_dynamic();
+        let anded = g
+            .filter(FilterExpr::And(vec![score_gt(1.5), f.clone()]))
+            .unwrap()
+            .into_dynamic();
+        assert_eq!(names(&chained), names(&anded), "{label}: chained nodes");
+        assert_eq!(eids(&chained), eids(&anded), "{label}: chained edges");
+        let want_chained_nodes: Vec<&str> = want_nodes
+            .iter()
+            .copied()
+            .filter(|n| ["alice", "bob"].contains(n))
+            .collect();
+        assert_eq!(
+            names(&chained),
+            want_chained_nodes,
+            "{label}: chained nodes"
+        );
+        let want_chained_edges: Vec<&str> = want_edges
+            .iter()
+            .copied()
+            .filter(|e| *e == "alice->bob")
+            .collect();
+        assert_eq!(eids(&chained), want_chained_edges, "{label}: chained edges");
+    }
+}
+
+/// `not` over an exploded-edge predicate negates each instance.
+#[test]
+fn not_over_an_exploded_predicate_keeps_the_other_instances() {
+    let g = graph();
+    // alice→bob w=1@1 w=2@4 · bob→carol w=1@2 · carol→dave w=3@6
+    let w_gt_1 = FilterExpr::ExplodedEdge(cmp(
+        CmpOp::Gt,
+        Expr::Read(ExplodedEdgeLeaf::Property {
+            views: vec![],
+            name: "w".into(),
+            temporal: false,
+        }),
+        Expr::Const(1i64.into()),
+    ));
+    let not = FilterExpr::Not(Box::new(w_gt_1.clone()));
+    assert_eq!(edges(&g, &w_gt_1), ["alice->bob", "carol->dave"]);
+    assert_eq!(edges(&g, &not), ["alice->bob", "bob->carol"]);
+    let instances = |f: &FilterExpr| {
+        let mut i: Vec<(String, i64)> = g
+            .filter(f.clone())
+            .unwrap()
+            .edges()
+            .explode()
+            .iter()
+            .map(|e| (e.src().name(), e.time().unwrap().0))
+            .collect();
+        i.sort();
+        i
+    };
+    assert_eq!(
+        instances(&w_gt_1),
+        [("alice".to_string(), 4), ("carol".to_string(), 6)]
+    );
+    assert_eq!(
+        instances(&not),
+        [("alice".to_string(), 1), ("bob".to_string(), 2)]
+    );
+}
+
+/// A view under `not` is refused, before and after the push-down.
+#[test]
+fn a_view_under_not_is_refused_inside_a_composite_too() {
+    let g = graph();
+    let win = FilterExpr::View(vec![window(0, 5)]);
+    let pred = node(cmp(CmpOp::Gt, prop("score"), c(1.5)));
+    let f = FilterExpr::Not(Box::new(FilterExpr::And(vec![win, pred])));
+    assert!(error(&g, &f).contains("view"));
+}
+
+/// A node collection refuses a filter that tests edges anywhere in it, even
+/// one that compiles to "every node".
+#[test]
+fn a_node_collection_refuses_a_filter_that_tests_edges() {
+    use crate::db::api::view::Select;
+    let g = graph();
+    let score_gt = |v: f64| node(cmp(CmpOp::Gt, prop("score"), c(v)));
+    let w_gt_2 = FilterExpr::Edge(cmp(CmpOp::Gt, edge_prop("w"), Expr::Const(2i64.into())));
+    let refused = |f: FilterExpr| {
+        matches!(
+            g.nodes().select(f).map(|_| ()),
+            Err(GraphError::NotNodeFilter)
+        )
+    };
+    assert!(refused(FilterExpr::Or(vec![score_gt(4.0), w_gt_2.clone()])));
+    assert!(refused(FilterExpr::And(vec![
+        score_gt(4.0),
+        w_gt_2.clone()
+    ])));
+    assert!(refused(FilterExpr::Not(Box::new(FilterExpr::And(vec![
+        score_gt(4.0),
+        w_gt_2
+    ])))));
+    let mut both: Vec<String> = g
+        .nodes()
+        .select(FilterExpr::Or(vec![score_gt(4.0), score_gt(1.5)]))
+        .unwrap()
+        .iter()
+        .map(|n| n.name())
+        .collect();
+    both.sort();
+    assert_eq!(both, ["alice", "bob"]);
 }

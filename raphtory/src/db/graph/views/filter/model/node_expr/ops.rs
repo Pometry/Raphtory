@@ -24,6 +24,12 @@
 //!        apply: collect Prop::List temporal values, then aggregate_list_values(Sum)
 //! ```
 //!
+//! The tree compiler avoids that list where it can: an aggregation written
+//! directly over a history, or `any()`/`all()` over a comparison of one with a
+//! constant, becomes a streamed op (`model::expr::stream`) that walks the
+//! history's values and shares the reduction kernels below (`fold_values`,
+//! `reduce_list`).
+//!
 //! # Quantified evaluation
 //!
 //! A comparison against a list-valued side gives one answer per element;
