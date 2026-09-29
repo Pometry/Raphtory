@@ -303,28 +303,6 @@ pub enum FilterExpr {
     Opaque(OpaqueFilter),
 }
 
-impl<L> Expr<L> {
-    /// Whether a view appears in any read of this expression.
-    pub fn has_view(&self) -> bool
-    where
-        L: Leaf,
-    {
-        match self {
-            Expr::Const(_) => false,
-            Expr::Read(leaf) => leaf.has_view(),
-            Expr::Agg(_, e)
-            | Expr::IsSome(e)
-            | Expr::IsNone(e)
-            | Expr::Any(e)
-            | Expr::All(e)
-            | Expr::Not(e) => e.has_view(),
-            Expr::In { expr, .. } => expr.has_view(),
-            Expr::Cmp(_, l, r) | Expr::Str(_, l, r) => l.has_view() || r.has_view(),
-            Expr::And(items) | Expr::Or(items) => items.iter().any(Self::has_view),
-        }
-    }
-}
-
 impl FilterExpr {
     /// Whether a graph-level view appears anywhere in this filter.
     pub fn has_view(&self) -> bool {

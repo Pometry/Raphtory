@@ -98,9 +98,6 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// property; a consumer that streams it need not build the list.
     fn compile_history(&self) -> Option<Arc<dyn DynCreateHistory>>;
 
-    /// Whether the read is scoped by a view.
-    fn has_view(&self) -> bool;
-
     /// Whether the read is the history of a temporal property.
     fn is_temporal(&self) -> bool;
 
@@ -238,10 +235,6 @@ impl Leaf for NodeLeaf {
         }
     }
 
-    fn has_view(&self) -> bool {
-        !self.views().is_empty()
-    }
-
     fn is_temporal(&self) -> bool {
         matches!(self, NodeLeaf::Property { temporal: true, .. })
     }
@@ -272,16 +265,6 @@ impl Leaf for NodeLeaf {
 }
 
 impl NodeLeaf {
-    fn views(&self) -> &[ViewOp] {
-        match self {
-            NodeLeaf::Field { views, .. }
-            | NodeLeaf::Degree { views, .. }
-            | NodeLeaf::Property { views, .. }
-            | NodeLeaf::Metadata { views, .. }
-            | NodeLeaf::IsActive { views } => views,
-        }
-    }
-
     fn views_mut(&mut self) -> &mut Vec<ViewOp> {
         match self {
             NodeLeaf::Field { views, .. }
@@ -361,18 +344,6 @@ impl Leaf for EdgeLeaf {
                 Endpoint::Dst,
             ))),
             _ => None,
-        }
-    }
-
-    fn has_view(&self) -> bool {
-        match self {
-            EdgeLeaf::Property { views, .. }
-            | EdgeLeaf::Metadata { views, .. }
-            | EdgeLeaf::IsActive { views }
-            | EdgeLeaf::IsValid { views }
-            | EdgeLeaf::IsDeleted { views }
-            | EdgeLeaf::IsSelfLoop { views } => !views.is_empty(),
-            EdgeLeaf::Src(inner) | EdgeLeaf::Dst(inner) => inner.has_view(),
         }
     }
 
@@ -471,10 +442,6 @@ impl Leaf for ExplodedEdgeLeaf {
         }
     }
 
-    fn has_view(&self) -> bool {
-        !self.views().is_empty()
-    }
-
     fn is_temporal(&self) -> bool {
         matches!(self, ExplodedEdgeLeaf::Property { temporal: true, .. })
     }
@@ -505,17 +472,6 @@ impl Leaf for ExplodedEdgeLeaf {
 }
 
 impl ExplodedEdgeLeaf {
-    fn views(&self) -> &[ViewOp] {
-        match self {
-            ExplodedEdgeLeaf::Property { views, .. }
-            | ExplodedEdgeLeaf::Metadata { views, .. }
-            | ExplodedEdgeLeaf::IsActive { views }
-            | ExplodedEdgeLeaf::IsValid { views }
-            | ExplodedEdgeLeaf::IsDeleted { views }
-            | ExplodedEdgeLeaf::IsSelfLoop { views } => views,
-        }
-    }
-
     fn views_mut(&mut self) -> &mut Vec<ViewOp> {
         match self {
             ExplodedEdgeLeaf::Property { views, .. }

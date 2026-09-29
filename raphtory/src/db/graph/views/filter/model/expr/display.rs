@@ -28,12 +28,13 @@ fn views(f: &mut fmt::Formatter<'_>, views: &[ViewOp], inner: &dyn Display) -> f
     if views.is_empty() {
         return write!(f, "{inner}");
     }
-    let chain = views
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" . ");
-    write!(f, "{chain}({inner})")
+    for (i, view) in views.iter().enumerate() {
+        if i > 0 {
+            f.write_str(" . ")?;
+        }
+        write!(f, "{view}")?;
+    }
+    write!(f, "({inner})")
 }
 
 fn property(f: &mut fmt::Formatter<'_>, v: &[ViewOp], name: &str, temporal: bool) -> fmt::Result {
@@ -163,13 +164,15 @@ impl<L: Display> Display for Expr<L> {
                 values,
                 negated,
             } => {
-                let items = values
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", ");
                 let name = if *negated { "NOT IN" } else { "IN" };
-                write!(f, "{expr} {name} [{items}]")
+                write!(f, "{expr} {name} [")?;
+                for (i, value) in values.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "{value}")?;
+                }
+                f.write_str("]")
             }
             Expr::IsSome(e) => write!(f, "IS_SOME({e})"),
             Expr::IsNone(e) => write!(f, "IS_NONE({e})"),
@@ -183,12 +186,13 @@ impl<L: Display> Display for Expr<L> {
 }
 
 fn joined<T: Display>(f: &mut fmt::Formatter<'_>, items: &[T], sep: &str) -> fmt::Result {
-    let parts = items
-        .iter()
-        .map(|i| format!("({i})"))
-        .collect::<Vec<_>>()
-        .join(sep);
-    write!(f, "{parts}")
+    for (i, item) in items.iter().enumerate() {
+        if i > 0 {
+            f.write_str(sep)?;
+        }
+        write!(f, "({item})")?;
+    }
+    Ok(())
 }
 
 impl Display for FilterExpr {
@@ -198,12 +202,14 @@ impl Display for FilterExpr {
             FilterExpr::Edge(e) => write!(f, "EDGE({e})"),
             FilterExpr::ExplodedEdge(e) => write!(f, "EXPLODED_EDGE({e})"),
             FilterExpr::View(ops) => {
-                let chain = ops
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(" . ");
-                write!(f, "VIEW({chain})")
+                f.write_str("VIEW(")?;
+                for (i, op) in ops.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(" . ")?;
+                    }
+                    write!(f, "{op}")?;
+                }
+                f.write_str(")")
             }
             FilterExpr::And(items) => joined(f, items, " AND "),
             FilterExpr::Or(items) => joined(f, items, " OR "),

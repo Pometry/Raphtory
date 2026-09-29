@@ -34,7 +34,8 @@ impl EdgeAt {
         match (edge.layer(), edge.time()) {
             (Some(layer), Some(t)) => EdgeAt::Exploded(layer, t),
             (Some(layer), None) => EdgeAt::Layer(layer),
-            (None, _) => EdgeAt::Whole,
+            (None, None) => EdgeAt::Whole,
+            (None, Some(_)) => unreachable!("an exploded edge reference carries its layer"),
         }
     }
 

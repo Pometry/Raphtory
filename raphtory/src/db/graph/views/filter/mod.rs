@@ -15,10 +15,7 @@ use std::sync::Arc;
 
 pub mod and_filtered_graph;
 pub mod edge_expr_filtered_graph;
-pub mod edge_node_filtered_graph;
 mod exploded_edge_expr_filtered_graph;
-pub mod exploded_edge_filtered_graph;
-pub mod exploded_edge_node_filtered_graph;
 pub mod model;
 pub mod node_filtered_graph;
 pub mod or_filtered_graph;

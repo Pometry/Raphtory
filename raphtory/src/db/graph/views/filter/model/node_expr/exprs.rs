@@ -11,7 +11,7 @@
 //! ```rust,ignore
 //! NodeFilter.id()           // Id    — e.g. .eq(GID::Str("v1".into()))
 //! NodeFilter.name()         // Name  — e.g. .eq("Alice")
-//! NodeFilter.node_type()    // Type  — e.g. .is_some()
+//! NodeFilter.node_type()    // Type  — e.g. .eq("user")
 //! ```
 //!
 //! # Degree expressions
@@ -102,7 +102,7 @@ use std::sync::Arc;
 // All map their native types into Option<Prop> via into_prop():
 //   NodeFilter.id()        uses Id   — produces Option<Prop> (GID mapped to Prop)
 //   NodeFilter.name()      uses Name — produces Option<Prop> (String as Prop::Str)
-//   NodeFilter.node_type() uses Type — produces Option<Prop> (ArcStr as Prop::Str, None if unset)
+//   NodeFilter.node_type() uses Type — produces Option<Prop> (ArcStr as Prop::Str, "_default" if unset)
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -125,10 +125,6 @@ impl EntityExpr for Id {
 impl PredicateLhs for Id {}
 
 impl CreateOp for Id {
-    fn selects_node_id(&self) -> bool {
-        true
-    }
-
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -184,6 +180,11 @@ impl EntityExpr for Type {
 
     fn entity(&self) -> Self::Marker {
         NodeFilter
+    }
+
+    /// Every node has a type; an unset one reads as `"_default"`.
+    fn nullable(&self) -> bool {
+        false
     }
 
     fn prop_type(&self) -> PropType {

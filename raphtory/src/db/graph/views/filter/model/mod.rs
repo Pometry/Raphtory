@@ -868,8 +868,7 @@ pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), Gra
             other => other.to_string(),
         };
         return Err(GraphError::InvalidFilter(format!(
-            "operator {:?} is not valid for {} properties",
-            op, kind
+            "operator {op} is not valid for {kind} properties"
         )));
     }
     Ok(())

@@ -412,17 +412,18 @@ pub fn aggregate_list_values(
     op: &dyn Fn(Box<dyn DoubleEndedIterator<Item = Prop> + '_>) -> Option<Prop>,
 ) -> Option<Prop> {
     match vals? {
-        Prop::List(x) => match x.dtype() {
-            PropType::List(_) => {
+        Prop::List(x) => {
+            let nested = matches!(x.iter_all().next(), Some(Some(Prop::List(_))));
+            if nested {
                 let s = x
                     .iter_all()
-                    .map(|y| aggregate_list_values(y, op))
-                    .flatten()
+                    .filter_map(|y| aggregate_list_values(y, op))
                     .collect();
                 Some(Prop::List(s))
+            } else {
+                op(Box::new(x.iter()))
             }
-            _ => op(Box::new(x.iter())),
-        },
+        }
         _ => None,
     }
 }
