@@ -112,14 +112,14 @@ impl GraphStorage {
 
     pub fn flush(&self) -> Result<(), StorageError> {
         match self {
-            GraphStorage::Mem(graph) => graph.flush(),
+            GraphStorage::Mem(_) => Err(StorageError::ReadOnlyGraphError),
             GraphStorage::Unlocked(graph) => graph.flush(),
         }
     }
 
     pub fn vacuum(&self) -> Result<(), StorageError> {
         match self {
-            GraphStorage::Mem(graph) => graph.vacuum(),
+            GraphStorage::Mem(_) => Err(StorageError::ReadOnlyGraphError),
             GraphStorage::Unlocked(graph) => graph.vacuum(),
         }
     }
