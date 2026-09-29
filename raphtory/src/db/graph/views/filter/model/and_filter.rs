@@ -1,22 +1,25 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::AndOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::{
+                ops::{filter::AndOp, NodeFilterOp},
+                NodeOp,
+            },
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             model::{
                 edge_expr::ops::AndEdgeOp,
                 expr::{FilterExpr, ToFilterExpr},
-                ComposableFilter,
+                ComposableFilter, DynFilter,
             },
-            CreateFilter,
+            CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
@@ -41,21 +44,24 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
-impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
+/// The `and` of two erased filters, the join the tree compiler builds once it
+/// has split a filter into its node and edge answers. A typed `and` compiles
+/// through its tree instead (see `compile_through_tree!`), so it gets that split.
+impl CreateFilter for AndFilter<DynFilter, DynFilter> {
     type FilteredGraph<'graph, G>
-        = AndFilteredGraph<G, L::FilteredGraph<'graph, G>, R::FilteredGraph<'graph, G>>
+        = AndFilteredGraph<G, DynGraphArc<'graph>, DynGraphArc<'graph>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
     type NodeFilter<'graph, G>
-        = AndOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+        = AndOp<Arc<dyn NodeOp<Output = bool> + 'graph>, Arc<dyn NodeOp<Output = bool> + 'graph>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
     type EdgeFilter<'graph, G>
-        = AndEdgeOp<L::EdgeFilter<'graph, G>, R::EdgeFilter<'graph, G>>
+        = AndEdgeOp<DynEdgeFilter<'graph>, DynEdgeFilter<'graph>>
     where
         Self: 'graph,
         G: GraphView + 'graph;

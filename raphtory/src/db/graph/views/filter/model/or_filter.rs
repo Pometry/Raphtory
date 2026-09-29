@@ -1,22 +1,25 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::OrOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::{
+                ops::{filter::OrOp, NodeFilterOp},
+                NodeOp,
+            },
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
                 edge_expr::ops::OrEdgeOp,
                 expr::{FilterExpr, ToFilterExpr},
-                ComposableFilter,
+                ComposableFilter, DynFilter,
             },
             or_filtered_graph::OrFilteredGraph,
-            CreateFilter,
+            CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrFilter<L, R> {
@@ -41,21 +44,24 @@ impl<L: Display, R: Display> Display for OrFilter<L, R> {
 
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
-impl<L: CreateFilter, R: CreateFilter> CreateFilter for OrFilter<L, R> {
+/// The `or` of two erased filters, the join the tree compiler builds once it
+/// has split a filter into its node and edge answers. A typed `or` compiles
+/// through its tree instead (see `compile_through_tree!`), so it gets that split.
+impl CreateFilter for OrFilter<DynFilter, DynFilter> {
     type FilteredGraph<'graph, G>
-        = OrFilteredGraph<G, L::FilteredGraph<'graph, G>, R::FilteredGraph<'graph, G>>
+        = OrFilteredGraph<G, DynGraphArc<'graph>, DynGraphArc<'graph>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
     type NodeFilter<'graph, G>
-        = OrOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
+        = OrOp<Arc<dyn NodeOp<Output = bool> + 'graph>, Arc<dyn NodeOp<Output = bool> + 'graph>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
     type EdgeFilter<'graph, G>
-        = OrEdgeOp<L::EdgeFilter<'graph, G>, R::EdgeFilter<'graph, G>>
+        = OrEdgeOp<DynEdgeFilter<'graph>, DynEdgeFilter<'graph>>
     where
         Self: 'graph,
         G: GraphView + 'graph;

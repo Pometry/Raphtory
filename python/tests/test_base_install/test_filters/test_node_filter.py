@@ -828,6 +828,32 @@ def test_filter_nodes_windowed_is_active():
     return check
 
 
+def init_early_and_late(graph):
+    # early ●@1 · late ●@7 (type "kind")
+    graph.add_node(1, "early")
+    graph.add_node(7, "late", node_type="kind")
+    return graph
+
+
+@with_variants(init_early_and_late)
+def test_windowed_field_reads_are_none_outside_the_window():
+    def check(graph):
+        window = filter.Node.window(0, 5)
+        cases = [
+            (window.name() == "late", []),
+            (window.name() == "early", ["early"]),
+            (window.id() == "late", []),
+            (window.node_type() == "kind", []),
+            (window.node_type().is_none(), ["late"]),
+            (filter.Node.name() == "late", ["late"]),
+        ]
+        for filter_expr, expected_ids in cases:
+            assert sorted(graph.filter(filter_expr).nodes.id) == expected_ids
+            assert sorted(graph.nodes[filter_expr].id) == expected_ids
+
+    return check
+
+
 @with_variants(create_test_graph)
 def test_filter_nodes_windowed_is_active_not():
     def check(graph):

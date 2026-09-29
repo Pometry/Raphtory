@@ -1,10 +1,13 @@
 use super::*;
 use crate::{
     db::{
-        api::view::Filter,
-        graph::views::filter::model::{
-            edge_filter::EdgeFilter, windowed_filter::Windowed, DynCreateFilter, EdgeViewFilterOps,
-            ViewWrapOps,
+        api::view::{Filter, Select},
+        graph::views::filter::{
+            model::{
+                edge_filter::EdgeFilter, windowed_filter::Windowed, DynCreateFilter,
+                EdgeViewFilterOps, ViewWrapOps,
+            },
+            CreateFilter,
         },
     },
     errors::GraphError,
@@ -675,6 +678,12 @@ fn filters_answer_the_node_and_edge_questions_separately() {
             &["bob->carol"],
         ),
         (
+            "or(node, node): an edge whose ends pass different legs",
+            FilterExpr::Or(vec![score_gt(8.0), score_lt(3.0)]),
+            &["alice", "bob", "dave"],
+            &["alice->bob"],
+        ),
+        (
             "or(node, edge): both questions left open",
             FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
             &all_nodes,
@@ -821,4 +830,165 @@ fn a_node_collection_refuses_a_filter_that_tests_edges() {
         .collect();
     both.sort();
     assert_eq!(both, ["alice", "bob"]);
+}
+
+/// a→b w=1@1 · b→c w=2@2
+fn chain() -> Graph {
+    let g = Graph::new();
+    g.add_edge(1, "a", "b", [("w", 1i64.into_prop())], None)
+        .unwrap();
+    g.add_edge(2, "b", "c", [("w", 2i64.into_prop())], None)
+        .unwrap();
+    g
+}
+
+fn edge_ids<'graph, G: GraphViewOps<'graph>>(g: &G) -> Vec<String> {
+    let mut ids: Vec<String> = g
+        .edges()
+        .iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect();
+    ids.sort();
+    ids
+}
+
+fn selected_edges<F: CreateFilter + Clone>(g: &Graph, filter: &F) -> Vec<String> {
+    let mut ids: Vec<String> = g
+        .edges()
+        .select(filter.clone())
+        .unwrap()
+        .iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect();
+    ids.sort();
+    ids
+}
+
+/// A typed `and`, `or` and `not` answer the node and edge questions
+/// separately, like the tree they build: the edge b→c is kept by
+/// `name == "b" | name == "c"` because each end passes one leg.
+#[test]
+fn typed_combinators_answer_the_node_and_edge_questions_separately() {
+    use crate::db::graph::views::filter::model::{
+        node_filter::{NodeFilter, NodeFilterFactory},
+        ComposableFilter, EntityExprFilterOps, PropertyExprFactory,
+    };
+    let g = chain();
+    let name_is = |n: &'static str| NodeFilter.name().eq(n);
+    let w_gt_1 = || EdgeFilter.property("w").gt(1i64);
+
+    let or = name_is("b").or(name_is("c"));
+    assert_eq!(selected_edges(&g, &or), ["b->c"], "or: edges.select");
+    assert_eq!(
+        edge_ids(&g.filter(or.clone()).unwrap()),
+        ["b->c"],
+        "or: filter"
+    );
+
+    let or_node_edge = name_is("b").or(w_gt_1());
+    assert_eq!(
+        selected_edges(&g, &or_node_edge),
+        ["a->b", "b->c"],
+        "or(node, edge): edges.select"
+    );
+    assert_eq!(
+        edge_ids(&g.filter(or_node_edge.clone()).unwrap()),
+        ["a->b", "b->c"],
+        "or(node, edge): filter"
+    );
+
+    let and = name_is("a").not().and(w_gt_1());
+    assert_eq!(selected_edges(&g, &and), ["b->c"], "and: edges.select");
+    assert_eq!(
+        edge_ids(&g.filter(and.clone()).unwrap()),
+        ["b->c"],
+        "and: filter"
+    );
+
+    let not_or = name_is("b").or(name_is("c")).not();
+    assert!(
+        selected_edges(&g, &not_or).is_empty(),
+        "not(or): edges.select"
+    );
+    assert!(
+        edge_ids(&g.filter(not_or.clone()).unwrap()).is_empty(),
+        "not(or): filter"
+    );
+    let names: Vec<String> = g.nodes().select(not_or).unwrap().name().collect();
+    assert_eq!(names, ["a"], "not(or): nodes.select");
+}
+
+/// A field read under a view is a read of the node in that view: a node the
+/// view does not hold has no name, id or type there, as it has no properties.
+#[test]
+fn a_field_read_under_a_view_is_none_for_a_node_outside_it() {
+    use crate::db::graph::views::filter::model::{
+        node_filter::{NodeFilter, NodeFilterFactory},
+        EntityExprFilterOps,
+    };
+    // early@1 · late@7
+    let g = Graph::new();
+    g.add_node(1, "early", NO_PROPS, None, None).unwrap();
+    g.add_node(7, "late", NO_PROPS, Some("kind"), None).unwrap();
+    let filtered = |f: &dyn Fn() -> Arc<dyn DynCreateFilter>| {
+        let mut n: Vec<String> = g.filter(f()).unwrap().nodes().name().collect();
+        n.sort();
+        n
+    };
+    let selected = |f: &dyn Fn() -> Arc<dyn DynCreateFilter>| {
+        let mut n: Vec<String> = g.nodes().select(f()).unwrap().name().collect();
+        n.sort();
+        n
+    };
+    let win = || NodeFilter.window(0, 5);
+    let cases: Vec<(&str, Box<dyn Fn() -> Arc<dyn DynCreateFilter>>, &[&str])> = vec![
+        (
+            "window name == late",
+            Box::new(move || Arc::new(win().name().eq("late"))),
+            &[],
+        ),
+        (
+            "window name == early",
+            Box::new(move || Arc::new(win().name().eq("early"))),
+            &["early"],
+        ),
+        (
+            "window id == late",
+            Box::new(move || Arc::new(win().id().eq("late"))),
+            &[],
+        ),
+        (
+            "window node_type == kind",
+            Box::new(move || Arc::new(win().node_type().eq("kind"))),
+            &[],
+        ),
+        (
+            "window node_type is_none",
+            Box::new(move || Arc::new(win().node_type().is_none())),
+            &["late"],
+        ),
+        (
+            "name == late",
+            Box::new(|| Arc::new(NodeFilter.name().eq("late"))),
+            &["late"],
+        ),
+        (
+            "tree: window name == late",
+            Box::new(|| {
+                Arc::new(node(cmp(
+                    CmpOp::Eq,
+                    Expr::Read(NodeLeaf::Field {
+                        views: vec![window(0, 5)],
+                        field: Field::Name,
+                    }),
+                    c("late"),
+                )))
+            }),
+            &[],
+        ),
+    ];
+    for (label, f, want) in cases {
+        assert_eq!(filtered(&*f), want, "{label}: filter");
+        assert_eq!(selected(&*f), want, "{label}: nodes.select");
+    }
 }

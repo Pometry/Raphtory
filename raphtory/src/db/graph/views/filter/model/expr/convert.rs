@@ -22,6 +22,7 @@ use crate::{
         },
         graph::views::filter::{
             model::{
+                and_filter::AndFilter,
                 edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
                 exploded_edge_filter::ExplodedEdgeFilter,
                 filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
@@ -35,10 +36,12 @@ use crate::{
                 node_expr::{
                     AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, ConstExpr, DegreeExpr, EarliestExpr,
                     EntityExpr, FirstExpr, LastExpr, LatestExpr, LenExpr, Marker, MaxExpr, MinExpr,
-                    PropValueSetExpr, Scoped, StringExpr, SumExpr, TemporalPropExpr, UnaryExpr,
+                    NodeFieldExpr, PropValueSetExpr, Scoped, StringExpr, SumExpr, TemporalPropExpr,
+                    UnaryExpr,
                 },
                 node_filter::NodeFilter,
                 not_filter::NotFilter,
+                or_filter::OrFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 MetadataExpr, PropertyExpr,
@@ -278,6 +281,21 @@ macro_rules! field_to_expr {
 }
 
 field_to_expr!(Id => Id, Name => Name, Type => NodeType);
+
+macro_rules! viewed_field_to_expr {
+    ($($t:ident => $field:ident),* $(,)?) => {$(
+        impl<E: FactoryLeaf<Leaf = NodeLeaf>> ToExpr<NodeLeaf> for NodeFieldExpr<E, $t> {
+            fn to_expr(&self) -> Expr<NodeLeaf> {
+                Expr::Read(NodeLeaf::Field {
+                    views: self.view_expr.views(),
+                    field: Field::$field,
+                })
+            }
+        }
+    )*};
+}
+
+viewed_field_to_expr!(Id => Id, Name => Name, Type => NodeType);
 
 impl ToExpr<NodeLeaf> for IsActiveNode {
     fn to_expr(&self) -> Expr<NodeLeaf> {
@@ -628,6 +646,8 @@ compile_through_tree! {
     impl<T> for EdgeEndpointWrapper<T>;
     impl<V, T> for Scoped<V, T>;
     impl<T> for NotFilter<T>;
+    impl<L, R> for AndFilter<L, R>;
+    impl<L, R> for OrFilter<L, R>;
     impl<> for IsActiveNode;
     impl<> for IsActiveEdge;
     impl<> for IsValidEdge;

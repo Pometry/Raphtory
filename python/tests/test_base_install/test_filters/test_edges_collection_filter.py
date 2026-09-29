@@ -227,6 +227,7 @@ def test_combinations_follow_set_algebra():
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         negated = _negations(graph, single)
+        node_sets = _node_sets(graph)
         every = _ids(graph.edges)
         cases = []
         for a, b in combinations(atoms, 2):
@@ -234,7 +235,30 @@ def test_combinations_follow_set_algebra():
                 cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             if _or_is_refused(a, b):
                 continue
-            if _kind(a) == _kind(b):
+            if _kind(a) == _kind(b) == "node":
+                # Node predicates combine on nodes first: an edge stays when both
+                # ends pass `a or b`, which is more than the union of the two
+                # both-ends sets (b->c stays for `name == b | name == c`).
+                either = node_sets[a] | node_sets[b]
+                both = node_sets[a] & node_sets[b]
+                cases.append(
+                    (f"{a} | {b}", atoms[a] | atoms[b], _both_endpoints(graph, either))
+                )
+                cases.append(
+                    (
+                        f"~({a} & {b})",
+                        ~(atoms[a] & atoms[b]),
+                        _both_endpoints(graph, _all_names(graph) - both),
+                    )
+                )
+                cases.append(
+                    (
+                        f"~({a} | {b})",
+                        ~(atoms[a] | atoms[b]),
+                        negated[a] & negated[b],
+                    )
+                )
+            elif _kind(a) == _kind(b):
                 cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
                 cases.append(
                     (

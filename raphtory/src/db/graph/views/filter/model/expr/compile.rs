@@ -1960,15 +1960,33 @@ impl FilterExpr {
     /// the edge b→c, `not` never flips an answer the filter did not give, and
     /// the per-node and per-edge forms of a filter agree with its graph.
     fn compile_nested(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-        let nodes = self.answer(Question::Nodes)?;
-        let edges = self.answer(Question::Edges)?;
+        let nodes = self
+            .answer(Question::Nodes)?
+            .map(|nodes| nodes.compile_node_answer())
+            .transpose()?;
+        let edges = self
+            .answer(Question::Edges)?
+            .map(|edges| edges.compile_answer())
+            .transpose()?;
         Ok(match (nodes, edges) {
             (Some(nodes), Some(edges)) => Arc::new(AndFilter {
-                left: nodes.compile_answer()?,
-                right: edges.compile_answer()?,
+                left: nodes,
+                right: edges,
             }),
-            (Some(answer), None) | (None, Some(answer)) => answer.compile_answer()?,
+            (Some(answer), None) | (None, Some(answer)) => answer,
             (None, None) => Arc::new(GraphFilter),
+        })
+    }
+
+    /// Compile the answer to the node question. An edge stays when both its
+    /// ends pass the whole answer; the legs of a combined answer each keep
+    /// their own edges, and an `or` of those would drop an edge whose ends
+    /// pass different legs, so a combined answer's edges come from its node test.
+    fn compile_node_answer(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
+        let compiled = self.compile_answer()?;
+        Ok(match self {
+            FilterExpr::Node(_) => compiled,
+            _ => Arc::new(NodeAnswer(compiled)),
         })
     }
 
@@ -2161,6 +2179,57 @@ impl CreateFilter for Viewed {
             left: EdgeExistsOp::new(viewed),
             right: inside,
         }))
+    }
+}
+
+/// A combined answer to the node question: the nodes its node test keeps, and
+/// the edges whose ends it keeps both.
+#[derive(Clone)]
+struct NodeAnswer(Arc<dyn DynCreateFilter>);
+
+impl CreateFilter for NodeAnswer {
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        self.0.create_dyn_graph_filter(graph.into_dyn_graph_arc())
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.0.create_dyn_node_filter(graph.into_dyn_graph_arc())
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        let nodes = self
+            .0
+            .create_dyn_node_filter(graph.clone().into_dyn_graph_arc())?;
+        Ok(Arc::new(EdgeExistsOp::new(NodeFilteredGraph::new(
+            graph, nodes,
+        ))))
     }
 }
 

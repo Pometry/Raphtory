@@ -12,7 +12,10 @@ use crate::{
             dyn_factory::DynNodeFilterFactory,
             latest_filter::Latest,
             layered_filter::Layered,
-            node_expr::{exprs::DegreeExpr, EntityExpr},
+            node_expr::{
+                exprs::{DegreeExpr, NodeFieldExpr},
+                EntityExpr,
+            },
             node_state_filter::NodeStateBoolColOp,
             snapshot_filter::{SnapshotAt, SnapshotLatest},
             windowed_filter::Windowed,
@@ -48,26 +51,38 @@ pub trait NodeFilterFactory:
     InternalViewWrapOps<Window = Self::NodeWindow> + CreateView + EntityExpr
 {
     type NodeWindow: NodeFilterFactory + DynNodeFilterFactory;
+
+    /// Selects the node id field for filtering, read through this factory's views.
     #[inline]
-    fn id(&self) -> Id {
-        Id
+    fn id(&self) -> NodeFieldExpr<Self, Id> {
+        NodeFieldExpr {
+            view_expr: self.clone(),
+            field: Id,
+        }
     }
 
     /// Selects the node name field for filtering.
     ///
-    /// Returns `Name` which implements `NodeExprFilterOps` — use `.eq("Alice")`,
-    /// `.contains("ali")`, `.is_in([…])`, etc. directly on the returned value.
+    /// Read through this factory's views: a node a view does not hold has no
+    /// name there. Use `.eq("Alice")`, `.contains("ali")`, `.is_in([…])`, etc.
+    /// directly on the returned value.
     #[inline]
-    fn name(&self) -> Name {
-        Name
+    fn name(&self) -> NodeFieldExpr<Self, Name> {
+        NodeFieldExpr {
+            view_expr: self.clone(),
+            field: Name,
+        }
     }
 
     /// Selects the node type field for filtering.
     ///
-    /// Returns `Type` which implements `NodeExprFilterOps`.
+    /// Read through this factory's views, like [`Self::name`].
     #[inline]
-    fn node_type(&self) -> Type {
-        Type
+    fn node_type(&self) -> NodeFieldExpr<Self, Type> {
+        NodeFieldExpr {
+            view_expr: self.clone(),
+            field: Type,
+        }
     }
 
     /// Build a filter from a boolean column inside a TypedNodeState.

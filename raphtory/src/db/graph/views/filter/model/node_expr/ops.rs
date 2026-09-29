@@ -169,6 +169,36 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// InViewNodeOp<G, F> — a read that holds only for nodes the view holds
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A read through a view of the read's own that does not itself look at the
+/// view, such as a node's name: for a node the view does not hold it is `None`,
+/// as a property read through the same view would be (see [`view_node`]).
+#[derive(Clone)]
+pub(crate) struct InViewNodeOp<G, F> {
+    pub(crate) graph: G,
+    pub(crate) read: F,
+}
+
+impl<G: GraphView, F: NodeOp<Output = Option<Prop>>> NodeOp for InViewNodeOp<G, F> {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.graph.node_list()
+    }
+
+    type Output = Option<Prop>;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        view_node(&self.graph, true, node)?;
+        self.read.apply(storage, node)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.read.prop_type()
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // NodeIdOp — the node id as a value, typed by the graph's id type
 // ─────────────────────────────────────────────────────────────────────────────
 
