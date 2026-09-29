@@ -23,7 +23,7 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
 use rayon::prelude::*;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{self, AtomicUsize},
@@ -75,6 +75,18 @@ impl<
         self.graph_props.flush()?;
 
         self.refresh_metadata()?;
+
+        Ok(())
+    }
+
+    /// Copy flushed data into `dst`.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+        let dst = GraphDir::from(dst);
+
+        self.nodes.copy_to(&dst.nodes())?;
+        self.edges.copy_to(&dst.edges())?;
+        self.graph_props.copy_to(&dst.graph_props())?;
 
         Ok(())
     }

@@ -704,6 +704,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.par_iter_segments()
             .try_for_each(|segment| segment.flush())
     }
+
+    /// Copy flushed data into `dst`.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        self.par_iter_segments().try_for_each(|segment| {
+            let segment_dst = dst.join(segment.segment_id().to_string());
+            segment.copy_to(&segment_dst)
+        })
+    }
 }
 
 #[derive(Debug)]

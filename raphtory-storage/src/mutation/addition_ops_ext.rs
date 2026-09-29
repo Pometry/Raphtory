@@ -34,11 +34,11 @@ use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
-    wal::LSN,
+    wal::{GraphWalOps, WalOps, LSN},
     Config, ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
@@ -764,6 +764,16 @@ impl StagingOps for TemporalGraph {
         // is copied to the staged graph.
         live_graph.flush()?;
 
+        // Since the graph is fully flushed to disk, we can safely log a checkpoint.
+        let wal = self.extension().wal();
+        let redo_lsn = None; // Nothing to redo prior to this checkpoint.
+        let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
+        wal.flush(checkpoint_lsn)?;
+
+        let control_file = self.extension().control_file();
+        control_file.set_checkpoint(checkpoint_lsn);
+        control_file.save()?;
+
         let live_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
         let live_folder = GraphFolder::from_graph_path(live_path)?;
 
@@ -776,8 +786,8 @@ impl StagingOps for TemporalGraph {
             .graph_path()
             .map_err(StagingError::InitStagingDir)?;
 
-        // Copy existing data to the staged graph to create a fork.
-        live_graph.copy_to(&staged_path)?;
+        // Copy existing flushed data to the staged graph to create a fork.
+        live_graph.graph().copy_to(&staged_path)?;
 
         // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_path)?;

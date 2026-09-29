@@ -32,12 +32,10 @@ use storage::{
             edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
             node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
         },
-        node_store::type_index_path,
     },
-    persist::{control_file::ControlFileOps, strategy::PersistenceStrategy},
+    persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    wal::{GraphWalOps, WalOps},
     Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
@@ -421,6 +419,24 @@ where
     pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
+
+    /// Copy flushed data into `dst`.
+    ///
+    /// Creates `dst` if it does not exist. Callers must ensure all writes
+    /// to be copied are on disk before calling this method.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+        let dst = GraphDir::from(dst);
+
+        self.gid_resolver.copy_to(dst.gid_resolver())?;
+        self.storage.copy_to(dst.path())?;
+
+        if let Some(src) = self.graph_dir() {
+            self.extension().copy_to(src, dst.path())?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
@@ -492,36 +508,5 @@ where
         self.graph_props.flush()?;
 
         self.graph.storage.refresh_metadata()
-    }
-
-    /// Copy graph data to a new directory.
-    ///
-    /// Creates `dst` if it does not exist. Assumes the graph has been flushed
-    /// to disk.
-    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
-        std::fs::create_dir_all(dst)?;
-        let dst = GraphDir::from(dst);
-
-        // Since the graph is fully flushed to disk, we can safely log a checkpoint.
-        let wal = self.graph.extension().wal();
-        let redo_lsn = None; // Nothing to redo prior to this checkpoint.
-        let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
-        wal.flush(checkpoint_lsn)?;
-
-        // Point to the new checkpoint in the control file.
-        let control_file = self.graph.extension().control_file();
-        control_file.set_checkpoint(checkpoint_lsn);
-        control_file.save()?;
-
-        self.graph.gid_resolver.copy_to(dst.gid_resolver())?;
-        self.nodes.copy_to(&dst.nodes())?;
-        self.node_type_index
-            .copy_to(&type_index_path(dst.nodes()))?;
-        self.edges.copy_to(&dst.edges())?;
-        self.graph_props.copy_to(&dst.graph_props())?;
-
-        self.graph
-            .extension()
-            .copy_to(self.graph.graph_dir(), dst.path())
     }
 }

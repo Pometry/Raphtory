@@ -51,7 +51,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn control_file(&self) -> &Self::ControlFile;
 
-    fn copy_to(&self, src: Option<&Path>, dst: &Path) -> Result<(), StorageError>;
+    fn copy_to(&self, src: &Path, dst: &Path) -> Result<(), StorageError>;
 
     /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_node_segment(
@@ -202,7 +202,7 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.control_file
     }
 
-    fn copy_to(&self, _src: Option<&Path>, _dst: &Path) -> Result<(), StorageError> {
+    fn copy_to(&self, _src: &Path, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

@@ -75,4 +75,10 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     pub fn flush(&self) -> Result<(), StorageError> {
         self.segment.flush()
     }
+
+    /// Copy flushed data into `dst`.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+        self.segment.copy_to(dst)
+    }
 }

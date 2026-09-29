@@ -723,6 +723,18 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         self.type_index.flush()
     }
+
+    /// Copy flushed data into `dst`.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        self.segments_par_iter().try_for_each(|segment| {
+            let segment_dst = dst.join(segment.segment_id().to_string());
+            segment.copy_to(&segment_dst)
+        })?;
+
+        self.type_index.copy_to(&type_index_path(dst))
+    }
 }
 
 /// Atomically increments `counter` and returns the previous value, but only if the result stays
