@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -39,6 +39,14 @@ const EMPTY_SLOT: u16 = u16::MAX;
 
 /// Most distinct seed labels a run accepts: every `u16` except the sentinel.
 const MAX_LABELS: usize = EMPTY_SLOT as usize;
+
+/// Temporary diagnostic: appends a summary of each label's last 10 sweeps to its stats line.
+const BP_TRACE: bool = true;
+
+/// One sweep, as `BP_TRACE` records it: `(r, frontier, dS, touched, max)`. `dS` is the sweep's total
+/// increase in belief and `r = dS / previous dS`, the power-iteration estimate of the spectral
+/// radius of the update (`None` when there is no previous `dS`).
+type Sweep = (Option<f64>, usize, f64, usize, f64);
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct BeliefPropState {
@@ -195,6 +203,56 @@ fn insert_top(slots: &mut [u16], values: &mut [f64], slot: u16, value: f64) {
     values[k] = value;
 }
 
+/// Mean and population standard deviation.
+fn mean_std(xs: &[f64]) -> (f64, f64) {
+    let n = xs.len() as f64;
+    let mean = xs.iter().sum::<f64>() / n;
+    let var = xs.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n;
+    (mean, var.sqrt())
+}
+
+/// `↑` or `↓` when `last` differs from `first` by more than 5% of `|first|`, `~` otherwise.
+fn trend(first: f64, last: f64) -> char {
+    if first == 0.0 {
+        return if last > 0.0 { '↑' } else { '~' };
+    }
+    let change = (last - first) / first.abs();
+    if change > 0.05 {
+        '↑'
+    } else if change < -0.05 {
+        '↓'
+    } else {
+        '~'
+    }
+}
+
+/// The `BP_TRACE` suffix of a label's stats line: `r` and the frontier size as mean ± std, the last
+/// `dS`, and trend arrows comparing the first and last sweeps of the window.
+fn trace_summary(window: &VecDeque<Sweep>) -> String {
+    let (Some(first), Some(last)) = (window.front(), window.back()) else {
+        return String::new();
+    };
+    let rs: Vec<f64> = window.iter().filter_map(|sweep| sweep.0).collect();
+    let r = match (rs.first(), rs.last()) {
+        (Some(&r_first), Some(&r_last)) => {
+            let (mean, std) = mean_std(&rs);
+            format!("{mean:.3}±{std:.3}{}", trend(r_first, r_last))
+        }
+        _ => "-".to_string(),
+    };
+    let frontiers: Vec<f64> = window.iter().map(|sweep| sweep.1 as f64).collect();
+    let (f_mean, f_std) = mean_std(&frontiers);
+    format!(
+        " | last {}: r={r} f={f_mean:.3e}±{f_std:.2e}{} dS={:.3e}{} reached{} max{}",
+        window.len(),
+        trend(first.1 as f64, last.1 as f64),
+        last.2,
+        trend(first.2, last.2),
+        trend(first.3 as f64, last.3 as f64),
+        trend(first.4, last.4),
+    )
+}
+
 /// Belief propagation with certainty: the NetConf model (Dirichlet-multinomial belief propagation)
 /// with modulation matrix `M = cI` (homophily).
 ///
@@ -322,6 +380,10 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
             };
             let mut frontier: Vec<usize> = slot_seeds.iter().map(|&(pos, _)| pos).collect();
             let mut iterations = 0;
+            // `BP_TRACE` only: the last 10 sweeps, the previous sweep's `dS`, and the running max.
+            let mut window: VecDeque<Sweep> = VecDeque::with_capacity(10);
+            let mut prev_ds = 0.0f64;
+            let mut max_b = 0.0f64;
             while !frontier.is_empty() && iterations < max_iter {
                 iterations += 1;
 
@@ -360,11 +422,24 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
                     .collect();
 
                 // Write back. Values only grow, so a node joins `touched` exactly once.
+                let mut ds = 0.0f64;
                 for (&u, &new) in frontier.iter().zip(new_vals.iter()) {
                     if b[u] == 0.0 && new > 0.0 {
                         touched.push(u);
                     }
+                    if BP_TRACE {
+                        ds += new - b[u];
+                        max_b = max_b.max(new);
+                    }
                     b[u] = new;
+                }
+                if BP_TRACE {
+                    let r = (prev_ds > 0.0).then(|| ds / prev_ds);
+                    if window.len() == 10 {
+                        window.pop_front();
+                    }
+                    window.push_back((r, frontier.len(), ds, touched.len(), max_b));
+                    prev_ds = ds;
                 }
                 next_frontier
                     .par_iter()
@@ -389,15 +464,20 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
                     );
                     mass[u] += value;
                     sum_b_ln_b[u] += value * value.ln();
-                    sum_b1_ln_b1[u] += (value + 1.0) * value.ln_1p();  // ln(1+x)
+                    sum_b1_ln_b1[u] += (value + 1.0) * value.ln_1p(); // ln(1+x)
                 }
                 b[u] = 0.0;
             }
             touched.clear();
 
+            let trace = if BP_TRACE {
+                trace_summary(&window)
+            } else {
+                String::new()
+            };
             println!(
-                "belief_propagation: label={} iterations={iterations} converged={} reached={reached} \
-                 max_belief={max_belief}",
+                "label={} iterations={iterations} converged={} reached={reached} \
+                 max_belief={max_belief}{trace}",
                 labels[slot],
                 if converged { "yes" } else { "no" },
             );
