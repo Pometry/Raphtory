@@ -10,49 +10,7 @@ from __future__ import annotations
 ###############################################################################
 
 from typing import *
-from raphtory import (
-    GraphView,
-    PersistentGraph,
-    _GraphEncoder,
-    Nodes,
-    PathFromNode,
-    PathFromGraph,
-    MutableNode,
-    Edges,
-    NestedEdges,
-    MutableEdge,
-    SortByTime,
-    NodeSortBy,
-    EdgeSortBy,
-    Properties,
-    PyPropValueList,
-    PropType,
-    Metadata,
-    MetadataView,
-    TemporalProperties,
-    PropertiesView,
-    TemporalProperty,
-    EventTime,
-    OptionalEventTime,
-    History,
-    HistoryTimestamp,
-    HistoryDateTime,
-    HistoryEventId,
-    Intervals,
-    WindowSet,
-    Prop,
-    version,
-    graphql,
-    algorithms,
-    graph_loader,
-    graph_gen,
-    vectors,
-    node_state,
-    filter,
-    iterables,
-    nullmodels,
-    plottingutils,
-)
+from raphtory import Metadata, Prop, filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -71,27 +29,13 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "FilterExpr",
-    "Expr",
-    "PropertyExpr",
-    "Node",
-    "NodeFilter",
-    "Edge",
-    "EdgeFilter",
-    "EdgeEndpoint",
-    "ExplodedEdge",
-    "ExplodedEdgeFilter",
-    "Graph",
-    "GraphFilter",
-]
-
-class FilterExpr(object):
+__all__ = ['FilterExpr', 'Expr', 'PropertyExpr', 'Node', 'NodeFilter', 'Edge', 'EdgeFilter', 'EdgeEndpoint', 'ExplodedEdge', 'ExplodedEdgeFilter', 'Graph', 'GraphFilter']
+class FilterExpr(object): 
     """
     A filter as a tree. The same tree runs locally, is sent to a server, and is
     what `repr` prints, so there is nothing to keep in step.
 
-    Anywhere a filter is expected, a yes/no [`Expr`] is accepted too: it is the
+    Anywhere a filter is expected, a yes/no `Expr` is accepted too: it is the
     filter on its own entity.
 
     `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
@@ -118,11 +62,11 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class Expr(object):
+class Expr(object): 
     """
     A value expression: a field, degree, property, metadata entry, an aggregate
     over one, or a yes/no built from them. Comparing it to a value or to another
-    expression gives a yes/no [`Expr`], which is a filter on its entity.
+    expression gives a yes/no `Expr`, which is a filter on its entity.
 
     `~` on a yes/no is the opposite yes/no: a node without the property fails
     `property("score") > 4`, so it passes `~(property("score") > 4)`.
@@ -245,9 +189,7 @@ class Expr(object):
             filter.Expr:
         """
 
-    def fuzzy_search(
-        self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool
-    ) -> filter.Expr:
+    def fuzzy_search(self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool) -> filter.Expr:
         """
         Checks whether the string value is within a Levenshtein distance of the given text.
 
@@ -426,7 +368,7 @@ class Expr(object):
             filter.Expr:
         """
 
-class PropertyExpr(Expr):
+class PropertyExpr(Expr): 
     """A property read, which can switch to the property's history with `temporal()`."""
 
     def __repr__(self):
@@ -434,54 +376,54 @@ class PropertyExpr(Expr):
 
     def temporal(self) -> filter.Expr:
         """
-        Switches from the property's latest value to its full temporal history,
-        unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, ...) and the
-        element-wise comparisons `any()` / `all()` collapse.
+        Switches from the property's latest value to its full history, a list
+        that the aggregates (`sum`, `avg`, `min`, `max`, ...) reduce and that a
+        comparison tests element by element, for `any()` / `all()` to collapse.
 
         Returns:
             filter.Expr:
         """
 
-class Node(object):
+class Node(object): 
     """
     Entry point for constructing node filter expressions.
 
     Every method is static: `Node.property("age") > 30` selects nodes
     directly, and the view methods (`window`, `latest`, `layer`, ...) return a
-    [`NodeFilter`] scoped to that view for further chaining.
+    `NodeFilter` scoped to that view for further chaining.
     """
 
     @staticmethod
-    def after(time: int) -> filter.NodeFilter:
+    def after(time: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.NodeFilter:
         """
 
     @staticmethod
-    def at(time: int) -> filter.NodeFilter:
+    def at(time: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.NodeFilter:
         """
 
     @staticmethod
-    def before(time: int) -> filter.NodeFilter:
+    def before(time: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.NodeFilter:
@@ -548,7 +490,7 @@ class Node(object):
     @staticmethod
     def layer(layer: str) -> filter.NodeFilter:
         """
-        Restricts evaluation to nodes belonging to the given layer.
+        Reads through a view of the given layer.
 
         Arguments:
             layer (str): Layer name.
@@ -615,7 +557,7 @@ class Node(object):
         """
         Filters a node property by name.
 
-        The property may be static or temporal depending on the query context.
+        Reads the property's latest value; `temporal()` switches to its history.
 
         Arguments:
             name (str): Property key.
@@ -625,12 +567,12 @@ class Node(object):
         """
 
     @staticmethod
-    def snapshot_at(time: int) -> filter.NodeFilter:
+    def snapshot_at(time: TimeInput) -> filter.NodeFilter:
         """
         Evaluates filters against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.NodeFilter:
@@ -646,25 +588,25 @@ class Node(object):
         """
 
     @staticmethod
-    def window(start: int, end: int) -> filter.NodeFilter:
+    def window(start: TimeInput, end: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to the given time window.
 
         The window is inclusive of `start` and exclusive of `end`.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.NodeFilter:
         """
 
-class NodeFilter(object):
+class NodeFilter(object): 
     """
     A node filter scoped to a view.
 
-    Obtained from the view methods on [`Node`] (`Node.window(...)`,
+    Obtained from the view methods on `Node` (`Node.window(...)`,
     `Node.latest()`, ...); its field and property methods evaluate within that
     view, and its own view methods narrow it further.
     """
@@ -672,34 +614,34 @@ class NodeFilter(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, time: int) -> filter.NodeFilter:
+    def after(self, time: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.NodeFilter:
         """
 
-    def at(self, time: int) -> filter.NodeFilter:
+    def at(self, time: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.NodeFilter:
         """
 
-    def before(self, time: int) -> filter.NodeFilter:
+    def before(self, time: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.NodeFilter:
@@ -759,7 +701,7 @@ class NodeFilter(object):
 
     def layer(self, layer: str) -> filter.NodeFilter:
         """
-        Restricts evaluation to nodes belonging to the given layer.
+        Reads through a view of the given layer.
 
         Arguments:
             layer (str): Layer name.
@@ -820,7 +762,7 @@ class NodeFilter(object):
         """
         Filters a node property by name.
 
-        The property may be static or temporal depending on the query context.
+        Reads the property's latest value; `temporal()` switches to its history.
 
         Arguments:
             name (str): Property key.
@@ -829,12 +771,12 @@ class NodeFilter(object):
             filter.PropertyExpr:
         """
 
-    def snapshot_at(self, time: int) -> filter.NodeFilter:
+    def snapshot_at(self, time: TimeInput) -> filter.NodeFilter:
         """
         Evaluates filters against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.NodeFilter:
@@ -848,60 +790,60 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
-    def window(self, start: int, end: int) -> filter.NodeFilter:
+    def window(self, start: TimeInput, end: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to the given time window.
 
         The window is inclusive of `start` and exclusive of `end`.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.NodeFilter:
         """
 
-class Edge(object):
+class Edge(object): 
     """
     Entry point for constructing edge filter expressions.
 
     Every method is static: `Edge.src().name() == "alice"` selects edges
-    directly, and the view methods return an [`EdgeFilter`] scoped to that
+    directly, and the view methods return an `EdgeFilter` scoped to that
     view for further chaining.
     """
 
     @staticmethod
-    def after(time: int) -> filter.EdgeFilter:
+    def after(time: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.EdgeFilter:
         """
 
     @staticmethod
-    def at(time: int) -> filter.EdgeFilter:
+    def at(time: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.EdgeFilter:
         """
 
     @staticmethod
-    def before(time: int) -> filter.EdgeFilter:
+    def before(time: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.EdgeFilter:
@@ -1010,12 +952,12 @@ class Edge(object):
         """
 
     @staticmethod
-    def snapshot_at(time: int) -> filter.EdgeFilter:
+    def snapshot_at(time: TimeInput) -> filter.EdgeFilter:
         """
         Evaluates edge predicates against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.EdgeFilter:
@@ -1040,23 +982,23 @@ class Edge(object):
         """
 
     @staticmethod
-    def window(start: int, end: int) -> filter.EdgeFilter:
+    def window(start: TimeInput, end: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to the given time window.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.EdgeFilter:
         """
 
-class EdgeFilter(object):
+class EdgeFilter(object): 
     """
     An edge filter scoped to a view.
 
-    Obtained from the view methods on [`Edge`] (`Edge.window(...)`,
+    Obtained from the view methods on `Edge` (`Edge.window(...)`,
     `Edge.layer(...)`, ...); its endpoint, property and structural predicates
     evaluate within that view, and its own view methods narrow it further.
     """
@@ -1064,34 +1006,34 @@ class EdgeFilter(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, time: int) -> filter.EdgeFilter:
+    def after(self, time: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.EdgeFilter:
         """
 
-    def at(self, time: int) -> filter.EdgeFilter:
+    def at(self, time: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.EdgeFilter:
         """
 
-    def before(self, time: int) -> filter.EdgeFilter:
+    def before(self, time: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.EdgeFilter:
@@ -1189,12 +1131,12 @@ class EdgeFilter(object):
             filter.PropertyExpr:
         """
 
-    def snapshot_at(self, time: int) -> filter.EdgeFilter:
+    def snapshot_at(self, time: TimeInput) -> filter.EdgeFilter:
         """
         Evaluates edge predicates against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.EdgeFilter:
@@ -1216,19 +1158,19 @@ class EdgeFilter(object):
             filter.EdgeEndpoint:
         """
 
-    def window(self, start: int, end: int) -> filter.EdgeFilter:
+    def window(self, start: TimeInput, end: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to the given time window.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.EdgeFilter:
         """
 
-class EdgeEndpoint(object):
+class EdgeEndpoint(object): 
     """
     Entry point for filtering an edge endpoint (source or destination).
 
@@ -1291,45 +1233,45 @@ class EdgeEndpoint(object):
             filter.PropertyExpr:
         """
 
-class ExplodedEdge(object):
+class ExplodedEdge(object): 
     """
     Entry point for constructing exploded-edge filter expressions.
 
     Every method is static; the view methods return an
-    [`ExplodedEdgeFilter`] scoped to that view for further chaining.
+    `ExplodedEdgeFilter` scoped to that view for further chaining.
     """
 
     @staticmethod
-    def after(time: int) -> filter.ExplodedEdgeFilter:
+    def after(time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.ExplodedEdgeFilter:
         """
 
     @staticmethod
-    def at(time: int) -> filter.ExplodedEdgeFilter:
+    def at(time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.ExplodedEdgeFilter:
         """
 
     @staticmethod
-    def before(time: int) -> filter.ExplodedEdgeFilter:
+    def before(time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1423,7 +1365,7 @@ class ExplodedEdge(object):
         """
         Filters an exploded edge property by name.
 
-        The property may be static or temporal depending on the query context.
+        Reads the property's latest value; `temporal()` switches to its history.
 
         Arguments:
             name (str): Property key.
@@ -1433,12 +1375,12 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
-    def snapshot_at(time: int) -> filter.ExplodedEdgeFilter:
+    def snapshot_at(time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Evaluates exploded edge predicates against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1454,61 +1396,61 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
-    def window(start: int, end: int) -> filter.ExplodedEdgeFilter:
+    def window(start: TimeInput, end: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to the given time window.
 
         The window is inclusive of `start` and exclusive of `end`.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.ExplodedEdgeFilter:
         """
 
-class ExplodedEdgeFilter(object):
+class ExplodedEdgeFilter(object): 
     """
     An exploded-edge filter scoped to a view.
 
     An exploded edge is one temporal event of an edge, addressed individually
     rather than as the edge aggregated across time. Obtained from the view
-    methods on [`ExplodedEdge`]; its property and structural predicates evaluate
+    methods on `ExplodedEdge`; its property and structural predicates evaluate
     within that view, and its own view methods narrow it further.
     """
 
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, time: int) -> filter.ExplodedEdgeFilter:
+    def after(self, time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.ExplodedEdgeFilter:
         """
 
-    def at(self, time: int) -> filter.ExplodedEdgeFilter:
+    def at(self, time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.ExplodedEdgeFilter:
         """
 
-    def before(self, time: int) -> filter.ExplodedEdgeFilter:
+    def before(self, time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1593,7 +1535,7 @@ class ExplodedEdgeFilter(object):
         """
         Filters an exploded edge property by name.
 
-        The property may be static or temporal depending on the query context.
+        Reads the property's latest value; `temporal()` switches to its history.
 
         Arguments:
             name (str): Property key.
@@ -1602,12 +1544,12 @@ class ExplodedEdgeFilter(object):
             filter.PropertyExpr:
         """
 
-    def snapshot_at(self, time: int) -> filter.ExplodedEdgeFilter:
+    def snapshot_at(self, time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Evaluates exploded edge predicates against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1621,59 +1563,59 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
-    def window(self, start: int, end: int) -> filter.ExplodedEdgeFilter:
+    def window(self, start: TimeInput, end: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to the given time window.
 
         The window is inclusive of `start` and exclusive of `end`.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.ExplodedEdgeFilter:
         """
 
-class Graph(object):
+class Graph(object): 
     """
     Entry point for graph-level view filters.
 
-    Every method is static and returns a [`GraphFilter`] carrying the view,
+    Every method is static and returns a `GraphFilter` carrying the view,
     which composes with node and edge predicates.
     """
 
     @staticmethod
-    def after(time: int) -> filter.GraphFilter:
+    def after(time: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.GraphFilter:
         """
 
     @staticmethod
-    def at(time: int) -> filter.GraphFilter:
+    def at(time: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.GraphFilter:
         """
 
     @staticmethod
-    def before(time: int) -> filter.GraphFilter:
+    def before(time: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.GraphFilter:
@@ -1713,12 +1655,12 @@ class Graph(object):
         """
 
     @staticmethod
-    def snapshot_at(time: int) -> filter.GraphFilter:
+    def snapshot_at(time: TimeInput) -> filter.GraphFilter:
         """
         Evaluates filters against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.GraphFilter:
@@ -1734,25 +1676,25 @@ class Graph(object):
         """
 
     @staticmethod
-    def window(start: int, end: int) -> filter.GraphFilter:
+    def window(start: TimeInput, end: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to events within a time window.
 
         The window is inclusive of `start` and exclusive of `end`.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.GraphFilter:
         """
 
-class GraphFilter(FilterExpr):
+class GraphFilter(FilterExpr): 
     """
     A graph-level view scope.
 
-    Obtained from the view methods on [`Graph`] (`Graph.window(...)`,
+    Obtained from the view methods on `Graph` (`Graph.window(...)`,
     `Graph.latest()`, ...). It carries no node or edge predicate of its own: it
     fixes the temporal and layer scope that node and edge predicates compose
     with, and its own view methods narrow it further.
@@ -1761,34 +1703,34 @@ class GraphFilter(FilterExpr):
     def __repr__(self):
         """Return repr(self)."""
 
-    def after(self, time: int) -> filter.GraphFilter:
+    def after(self, time: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to times strictly after the given time.
 
         Arguments:
-            time (int): Lower time bound.
+            time (TimeInput): Lower time bound.
 
         Returns:
             filter.GraphFilter:
         """
 
-    def at(self, time: int) -> filter.GraphFilter:
+    def at(self, time: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to a single point in time.
 
         Arguments:
-            time (int): Event time.
+            time (TimeInput): Event time.
 
         Returns:
             filter.GraphFilter:
         """
 
-    def before(self, time: int) -> filter.GraphFilter:
+    def before(self, time: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to times strictly before the given time.
 
         Arguments:
-            time (int): Upper time bound.
+            time (TimeInput): Upper time bound.
 
         Returns:
             filter.GraphFilter:
@@ -1824,12 +1766,12 @@ class GraphFilter(FilterExpr):
             filter.GraphFilter:
         """
 
-    def snapshot_at(self, time: int) -> filter.GraphFilter:
+    def snapshot_at(self, time: TimeInput) -> filter.GraphFilter:
         """
         Evaluates filters against a snapshot of the graph at a given time.
 
         Arguments:
-            time (int): Snapshot time.
+            time (TimeInput): Snapshot time.
 
         Returns:
             filter.GraphFilter:
@@ -1843,15 +1785,15 @@ class GraphFilter(FilterExpr):
             filter.GraphFilter:
         """
 
-    def window(self, start: int, end: int) -> filter.GraphFilter:
+    def window(self, start: TimeInput, end: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to events within a time window.
 
         The window is inclusive of `start` and exclusive of `end`.
 
         Arguments:
-            start (int): Start time.
-            end (int): End time.
+            start (TimeInput): Start time.
+            end (TimeInput): End time.
 
         Returns:
             filter.GraphFilter:

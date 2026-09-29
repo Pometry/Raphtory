@@ -430,12 +430,15 @@ def not_this_module_import(line: str, full_name: str) -> bool:
     )
 
 
-def shadow_free_import(line: str, module: ModuleType, defined: list[str]) -> str:
+def shadow_free_import(
+    line: str, module: ModuleType, defined: list[str], body: str
+) -> str:
     """A `from X import *` that carries a name this module binds to a different
     object is a redefinition to the type checker, which keeps the imported one
     and types every use of the local class as the foreign one. Such an import
-    is spelled out without the clashing names. A name both modules bind to the
-    same object (a class re-exported from two places) is not a clash.
+    is spelled out as the names the stub actually uses, minus the clashing
+    ones. A name both modules bind to the same object (a class re-exported
+    from two places) is not a clash.
     """
     star = re.fullmatch(r"from ([\w.]+) import \*", line)
     if star is None:
@@ -451,8 +454,14 @@ def shadow_free_import(line: str, module: ModuleType, defined: list[str]) -> str
     }
     if not clashing:
         return line
-    kept = ", ".join(n for n in exported if n not in clashing)
-    return f"from {star[1]} import {kept}"
+    used = [
+        n
+        for n in exported
+        if n not in clashing and re.search(rf"\b{re.escape(n)}\b", body)
+    ]
+    if not used:
+        return ""
+    return f"from {star[1]} import {', '.join(used)}"
 
 
 def gen_module(
@@ -484,8 +493,9 @@ def gen_module(
                 loader = getattr(obj, "__loader__", None)
                 if loader is None or isinstance(loader, ExtensionFileLoader):
                     modules.append((obj, obj_name))
+    body = "\n".join(stubs)
     valid_imports = (
-        shadow_free_import(line, module, all_names)
+        shadow_free_import(line, module, all_names, body)
         for line in imports
         if not_this_module_import(line, full_name)
     )

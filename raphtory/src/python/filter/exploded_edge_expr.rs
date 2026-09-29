@@ -15,7 +15,7 @@ use raphtory_api::core::storage::timeindex::EventTime;
 ///
 /// An exploded edge is one temporal event of an edge, addressed individually
 /// rather than as the edge aggregated across time. Obtained from the view
-/// methods on [`ExplodedEdge`]; its property and structural predicates evaluate
+/// methods on `ExplodedEdge`; its property and structural predicates evaluate
 /// within that view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "ExplodedEdgeFilter", module = "raphtory.filter")]
 pub struct PyExplodedEdgeFilter(pub(crate) Vec<ViewOp>);
@@ -54,7 +54,7 @@ impl PyExplodedEdgeFilter {
 
     /// Filters an exploded edge property by name.
     ///
-    /// The property may be static or temporal depending on the query context.
+    /// Reads the property's latest value; `temporal()` switches to its history.
     ///
     /// Arguments:
     ///     name (str): Property key.
@@ -83,8 +83,8 @@ impl PyExplodedEdgeFilter {
     /// The window is inclusive of `start` and exclusive of `end`.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -95,7 +95,7 @@ impl PyExplodedEdgeFilter {
     /// Restricts exploded edge evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -106,7 +106,7 @@ impl PyExplodedEdgeFilter {
     /// Restricts exploded edge evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -117,7 +117,7 @@ impl PyExplodedEdgeFilter {
     /// Restricts exploded edge evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -136,7 +136,7 @@ impl PyExplodedEdgeFilter {
     /// Evaluates exploded edge predicates against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -218,7 +218,7 @@ impl PyExplodedEdgeFilter {
 /// Entry point for constructing exploded-edge filter expressions.
 ///
 /// Every method is static; the view methods return an
-/// [`ExplodedEdgeFilter`] scoped to that view for further chaining.
+/// `ExplodedEdgeFilter` scoped to that view for further chaining.
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
 pub struct PyExplodedEdge;
 
@@ -226,7 +226,7 @@ pub struct PyExplodedEdge;
 impl PyExplodedEdge {
     /// Filters an exploded edge property by name.
     ///
-    /// The property may be static or temporal depending on the query context.
+    /// Reads the property's latest value; `temporal()` switches to its history.
     ///
     /// Arguments:
     ///     name (str): Property key.
@@ -257,8 +257,8 @@ impl PyExplodedEdge {
     /// The window is inclusive of `start` and exclusive of `end`.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -270,7 +270,7 @@ impl PyExplodedEdge {
     /// Restricts exploded edge evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -282,7 +282,7 @@ impl PyExplodedEdge {
     /// Restricts exploded edge evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -294,7 +294,7 @@ impl PyExplodedEdge {
     /// Restricts exploded edge evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
@@ -315,7 +315,7 @@ impl PyExplodedEdge {
     /// Evaluates exploded edge predicates against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.ExplodedEdgeFilter:

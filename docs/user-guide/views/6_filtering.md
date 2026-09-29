@@ -55,7 +55,7 @@ their own: `.is_valid()`, `.is_deleted()`, `.is_active()`, `.is_self_loop()`.
 
 ## How you compare
 
-A read is an [Expr][raphtory.filter.Expr]. Comparing it gives a `FilterExpr`.
+A read is an [Expr][raphtory.filter.Expr]. Comparing it gives a yes/no `Expr`, which is accepted anywhere a filter is.
 
 | compare with | meaning |
 |---|---|
@@ -77,8 +77,8 @@ assert sorted(n.name for n in g.filter(high).nodes) == ["alice", "bob"]
 missing = filter.Node.property("score").is_none()
 assert [n.name for n in g.filter(missing).nodes] == ["carol"]
 
-more_out_than_in = filter.Node.degree() > filter.Node.in_degree()
-assert sorted(n.name for n in g.filter(more_out_than_in).nodes) == ["alice", "bob"]
+has_an_out_neighbour = filter.Node.degree() > filter.Node.in_degree()
+assert sorted(n.name for n in g.filter(has_an_out_neighbour).nodes) == ["alice", "bob"]
 ```
 ///
 

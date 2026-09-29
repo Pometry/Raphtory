@@ -22,8 +22,13 @@ const MODULE: &str = "raphtory.filter";
 /// is; a comparison or an `&`/`|` combination needs parentheses.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Shape {
+    /// A dotted chain: safe as an operand and as a receiver.
     Chain,
+    /// An operator expression: bracketed as an operand and as a receiver.
     Compound,
+    /// A `~` expression: safe as an operand, bracketed as a receiver, since
+    /// `~a.b()` is `~(a.b())` in Python.
+    Unary,
 }
 
 struct Rendered {
@@ -46,11 +51,28 @@ impl Rendered {
         }
     }
 
-    /// The text as an operand or a receiver: parenthesised unless it is a chain.
+    fn unary(text: String) -> Self {
+        Rendered {
+            text,
+            shape: Shape::Unary,
+        }
+    }
+
+    /// The text as an operand of `&`, `|` or a comparison: parenthesised
+    /// unless it is a chain or a `~`.
     fn atom(&self) -> String {
         match self.shape {
-            Shape::Chain => self.text.clone(),
+            Shape::Chain | Shape::Unary => self.text.clone(),
             Shape::Compound => format!("({})", self.text),
+        }
+    }
+
+    /// The text as the receiver of a method call: parenthesised unless it is
+    /// a chain.
+    fn receiver(&self) -> String {
+        match self.shape {
+            Shape::Chain => self.text.clone(),
+            Shape::Compound | Shape::Unary => format!("({})", self.text),
         }
     }
 }
@@ -118,7 +140,7 @@ fn render_filter(py: Python<'_>, filter: &FilterExpr) -> PyResult<Rendered> {
             .map(|i| render_filter(py, i)),
             " | ",
         )?,
-        FilterExpr::Not(e) => Rendered::chain(format!("~{}", render_filter(py, e)?.atom())),
+        FilterExpr::Not(e) => Rendered::unary(format!("~{}", render_filter(py, e)?.atom())),
         FilterExpr::Opaque(_) => Rendered::chain("<a filter with no Python form>".to_owned()),
     })
 }
@@ -139,7 +161,7 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
                 Agg::Earliest => "earliest",
                 Agg::Latest => "latest",
             };
-            Rendered::chain(format!("{}.{name}()", render(py, e, entity)?.atom()))
+            Rendered::chain(format!("{}.{name}()", render(py, e, entity)?.receiver()))
         }
         Expr::Cmp(op, l, r) => {
             let sym = match op {
@@ -184,13 +206,17 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
             let name = if *negated { "is_not_in" } else { "is_in" };
             Rendered::chain(format!(
                 "{}.{name}([{items}])",
-                render(py, expr, entity)?.atom()
+                render(py, expr, entity)?.receiver()
             ))
         }
-        Expr::IsSome(e) => Rendered::chain(format!("{}.is_some()", render(py, e, entity)?.atom())),
-        Expr::IsNone(e) => Rendered::chain(format!("{}.is_none()", render(py, e, entity)?.atom())),
-        Expr::Any(e) => Rendered::chain(format!("{}.any()", render(py, e, entity)?.atom())),
-        Expr::All(e) => Rendered::chain(format!("{}.all()", render(py, e, entity)?.atom())),
+        Expr::IsSome(e) => {
+            Rendered::chain(format!("{}.is_some()", render(py, e, entity)?.receiver()))
+        }
+        Expr::IsNone(e) => {
+            Rendered::chain(format!("{}.is_none()", render(py, e, entity)?.receiver()))
+        }
+        Expr::Any(e) => Rendered::chain(format!("{}.any()", render(py, e, entity)?.receiver())),
+        Expr::All(e) => Rendered::chain(format!("{}.all()", render(py, e, entity)?.receiver())),
         Expr::And(items) => combined(
             flat(items, |i| match i {
                 Expr::And(inner) => Some(inner),
@@ -209,7 +235,7 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
             .map(|i| render(py, i, entity)),
             " | ",
         )?,
-        Expr::Not(e) => Rendered::chain(format!("~{}", render(py, e, entity)?.atom())),
+        Expr::Not(e) => Rendered::unary(format!("~{}", render(py, e, entity)?.atom())),
     })
 }
 
@@ -398,8 +424,20 @@ fn time(t: &EventTime) -> String {
     }
 }
 
+/// A constant as Python source. A list is written as a list literal, since
+/// the Python value it becomes is an array whose `repr` needs numpy.
 fn literal(py: Python<'_>, value: &Prop) -> PyResult<String> {
-    Ok(value.clone().into_pyobject(py)?.repr()?.to_string())
+    match value {
+        Prop::List(items) => {
+            let items = items
+                .iter()
+                .map(|item| literal(py, &item))
+                .collect::<PyResult<Vec<_>>>()?
+                .join(", ");
+            Ok(format!("[{items}]"))
+        }
+        other => Ok(other.into_pyobject(py)?.repr()?.to_string()),
+    }
 }
 
 fn py_str(py: Python<'_>, s: &str) -> PyResult<String> {

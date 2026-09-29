@@ -150,7 +150,7 @@ impl PyEdgeFilter {
 
 /// An edge filter scoped to a view.
 ///
-/// Obtained from the view methods on [`Edge`] (`Edge.window(...)`,
+/// Obtained from the view methods on `Edge` (`Edge.window(...)`,
 /// `Edge.layer(...)`, ...); its endpoint, property and structural predicates
 /// evaluate within that view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "EdgeFilter", module = "raphtory.filter")]
@@ -209,8 +209,8 @@ impl PyEdgeFilter {
     /// Restricts edge evaluation to the given time window.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -221,7 +221,7 @@ impl PyEdgeFilter {
     /// Restricts edge evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -232,7 +232,7 @@ impl PyEdgeFilter {
     /// Restricts edge evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -243,7 +243,7 @@ impl PyEdgeFilter {
     /// Restricts edge evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -262,7 +262,7 @@ impl PyEdgeFilter {
     /// Evaluates edge predicates against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -344,7 +344,7 @@ impl PyEdgeFilter {
 /// Entry point for constructing edge filter expressions.
 ///
 /// Every method is static: `Edge.src().name() == "alice"` selects edges
-/// directly, and the view methods return an [`EdgeFilter`] scoped to that
+/// directly, and the view methods return an `EdgeFilter` scoped to that
 /// view for further chaining.
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
 pub struct PyEdge;
@@ -396,8 +396,8 @@ impl PyEdge {
     /// Restricts edge evaluation to the given time window.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -409,7 +409,7 @@ impl PyEdge {
     /// Restricts edge evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -421,7 +421,7 @@ impl PyEdge {
     /// Restricts edge evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -433,7 +433,7 @@ impl PyEdge {
     /// Restricts edge evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.EdgeFilter:
@@ -454,7 +454,7 @@ impl PyEdge {
     /// Evaluates edge predicates against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.EdgeFilter:

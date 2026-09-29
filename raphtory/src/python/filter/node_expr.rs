@@ -1,8 +1,8 @@
 use crate::{
     db::graph::views::filter::model::{
         expr::{
-            Agg, CmpOp, EdgeExpr, ExplodedEdgeExpr, Expr, Field, FilterExpr, Leaf, NodeExpr,
-            NodeLeaf, OpaqueFilter, StrOp, ViewOp,
+            Agg, CmpOp, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field,
+            FilterExpr, Leaf, NodeExpr, NodeLeaf, OpaqueFilter, StrOp, ViewOp,
         },
         node_expr::DynCreateOp,
         node_state_filter::NodeStateBoolColOp,
@@ -102,31 +102,15 @@ impl Typed {
     pub(crate) fn into_filter(self) -> FilterExpr {
         match self {
             Typed::Node(e) => NodeLeaf::filter(e),
-            Typed::Edge(e) => <Expr<_> as Into<FilterExpr>>::into(e),
-            Typed::ExplodedEdge(e) => FilterExpr::ExplodedEdge(e),
-        }
-    }
-}
-
-impl From<EdgeExpr> for FilterExpr {
-    fn from(e: EdgeExpr) -> Self {
-        FilterExpr::Edge(e)
-    }
-}
-
-impl std::fmt::Display for Typed {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Typed::Node(e) => e.fmt(f),
-            Typed::Edge(e) => e.fmt(f),
-            Typed::ExplodedEdge(e) => e.fmt(f),
+            Typed::Edge(e) => EdgeLeaf::filter(e),
+            Typed::ExplodedEdge(e) => ExplodedEdgeLeaf::filter(e),
         }
     }
 }
 
 /// A value expression: a field, degree, property, metadata entry, an aggregate
 /// over one, or a yes/no built from them. Comparing it to a value or to another
-/// expression gives a yes/no [`Expr`], which is a filter on its entity.
+/// expression gives a yes/no `Expr`, which is a filter on its entity.
 ///
 /// `~` on a yes/no is the opposite yes/no: a node without the property fails
 /// `property("score") > 4`, so it passes `~(property("score") > 4)`.
@@ -613,9 +597,9 @@ impl PyExpr {
 
 #[pymethods]
 impl PyPropertyExpr {
-    /// Switches from the property's latest value to its full temporal history,
-    /// unlocking the aggregate chain (`sum`, `avg`, `min`, `max`, ...) and the
-    /// element-wise comparisons `any()` / `all()` collapse.
+    /// Switches from the property's latest value to its full history, a list
+    /// that the aggregates (`sum`, `avg`, `min`, `max`, ...) reduce and that a
+    /// comparison tests element by element, for `any()` / `all()` to collapse.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -630,7 +614,7 @@ impl PyPropertyExpr {
 
 /// A node filter scoped to a view.
 ///
-/// Obtained from the view methods on [`Node`] (`Node.window(...)`,
+/// Obtained from the view methods on `Node` (`Node.window(...)`,
 /// `Node.latest()`, ...); its field and property methods evaluate within that
 /// view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "NodeFilter", module = "raphtory.filter")]
@@ -732,7 +716,7 @@ impl PyNodeFilter {
 
     /// Filters a node property by name.
     ///
-    /// The property may be static or temporal depending on the query context.
+    /// Reads the property's latest value; `temporal()` switches to its history.
     ///
     /// Arguments:
     ///     name (str): Property key.
@@ -761,8 +745,8 @@ impl PyNodeFilter {
     /// The window is inclusive of `start` and exclusive of `end`.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -773,7 +757,7 @@ impl PyNodeFilter {
     /// Restricts node evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -784,7 +768,7 @@ impl PyNodeFilter {
     /// Restricts node evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -795,7 +779,7 @@ impl PyNodeFilter {
     /// Restricts node evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -814,7 +798,7 @@ impl PyNodeFilter {
     /// Evaluates filters against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -830,7 +814,7 @@ impl PyNodeFilter {
         self.with_view(ViewOp::SnapshotLatest)
     }
 
-    /// Restricts evaluation to nodes belonging to the given layer.
+    /// Reads through a view of the given layer.
     ///
     /// Arguments:
     ///     layer (str): Layer name.
@@ -879,7 +863,7 @@ impl PyNodeFilter {
 ///
 /// Every method is static: `Node.property("age") > 30` selects nodes
 /// directly, and the view methods (`window`, `latest`, `layer`, ...) return a
-/// [`NodeFilter`] scoped to that view for further chaining.
+/// `NodeFilter` scoped to that view for further chaining.
 #[pyclass(frozen, name = "Node", module = "raphtory.filter")]
 pub struct PyNode;
 
@@ -941,7 +925,7 @@ impl PyNode {
 
     /// Filters a node property by name.
     ///
-    /// The property may be static or temporal depending on the query context.
+    /// Reads the property's latest value; `temporal()` switches to its history.
     ///
     /// Arguments:
     ///     name (str): Property key.
@@ -972,8 +956,8 @@ impl PyNode {
     /// The window is inclusive of `start` and exclusive of `end`.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -985,7 +969,7 @@ impl PyNode {
     /// Restricts node evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -997,7 +981,7 @@ impl PyNode {
     /// Restricts node evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -1009,7 +993,7 @@ impl PyNode {
     /// Restricts node evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -1030,7 +1014,7 @@ impl PyNode {
     /// Evaluates filters against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.NodeFilter:
@@ -1048,7 +1032,7 @@ impl PyNode {
         PyNodeFilter::root().snapshot_latest()
     }
 
-    /// Restricts evaluation to nodes belonging to the given layer.
+    /// Reads through a view of the given layer.
     ///
     /// Arguments:
     ///     layer (str): Layer name.

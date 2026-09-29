@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// A filter as a tree. The same tree runs locally, is sent to a server, and is
 /// what `repr` prints, so there is nothing to keep in step.
 ///
-/// Anywhere a filter is expected, a yes/no [`Expr`] is accepted too: it is the
+/// Anywhere a filter is expected, a yes/no `Expr` is accepted too: it is the
 /// filter on its own entity.
 ///
 /// `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
@@ -78,22 +78,11 @@ impl PyFilterExpr {
         PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.into_filter()]))
     }
 
-    pub fn __rand__(&self, other: ExprOrFilter) -> Self {
-        PyFilterExpr(FilterExpr::And(vec![other.into_filter(), self.0.clone()]))
-    }
-
     pub fn __or__(&self, other: ExprOrFilter) -> PyResult<Self> {
         let other = other.into_filter();
         no_view(&self.0)?;
         no_view(&other)?;
         Ok(PyFilterExpr(FilterExpr::Or(vec![self.0.clone(), other])))
-    }
-
-    pub fn __ror__(&self, other: ExprOrFilter) -> PyResult<Self> {
-        let other = other.into_filter();
-        no_view(&self.0)?;
-        no_view(&other)?;
-        Ok(PyFilterExpr(FilterExpr::Or(vec![other, self.0.clone()])))
     }
 
     fn __invert__(&self) -> PyResult<Self> {

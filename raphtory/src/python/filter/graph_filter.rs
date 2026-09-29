@@ -10,7 +10,7 @@ use raphtory_api::core::storage::timeindex::EventTime;
 
 /// A graph-level view scope.
 ///
-/// Obtained from the view methods on [`Graph`] (`Graph.window(...)`,
+/// Obtained from the view methods on `Graph` (`Graph.window(...)`,
 /// `Graph.latest()`, ...). It carries no node or edge predicate of its own: it
 /// fixes the temporal and layer scope that node and edge predicates compose
 /// with, and its own view methods narrow it further.
@@ -45,8 +45,8 @@ impl PyGraphFilter {
     /// The window is inclusive of `start` and exclusive of `end`.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -57,7 +57,7 @@ impl PyGraphFilter {
     /// Restricts evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -68,7 +68,7 @@ impl PyGraphFilter {
     /// Restricts evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -79,7 +79,7 @@ impl PyGraphFilter {
     /// Restricts evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -98,7 +98,7 @@ impl PyGraphFilter {
     /// Evaluates filters against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -139,7 +139,7 @@ impl PyGraphFilter {
 
 /// Entry point for graph-level view filters.
 ///
-/// Every method is static and returns a [`GraphFilter`] carrying the view,
+/// Every method is static and returns a `GraphFilter` carrying the view,
 /// which composes with node and edge predicates.
 #[pyclass(frozen, name = "Graph", module = "raphtory.filter")]
 pub struct PyGraph;
@@ -151,8 +151,8 @@ impl PyGraph {
     /// The window is inclusive of `start` and exclusive of `end`.
     ///
     /// Arguments:
-    ///     start (int): Start time.
-    ///     end (int): End time.
+    ///     start (TimeInput): Start time.
+    ///     end (TimeInput): End time.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -164,7 +164,7 @@ impl PyGraph {
     /// Restricts evaluation to a single point in time.
     ///
     /// Arguments:
-    ///     time (int): Event time.
+    ///     time (TimeInput): Event time.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -176,7 +176,7 @@ impl PyGraph {
     /// Restricts evaluation to times strictly after the given time.
     ///
     /// Arguments:
-    ///     time (int): Lower time bound.
+    ///     time (TimeInput): Lower time bound.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -188,7 +188,7 @@ impl PyGraph {
     /// Restricts evaluation to times strictly before the given time.
     ///
     /// Arguments:
-    ///     time (int): Upper time bound.
+    ///     time (TimeInput): Upper time bound.
     ///
     /// Returns:
     ///     filter.GraphFilter:
@@ -209,7 +209,7 @@ impl PyGraph {
     /// Evaluates filters against a snapshot of the graph at a given time.
     ///
     /// Arguments:
-    ///     time (int): Snapshot time.
+    ///     time (TimeInput): Snapshot time.
     ///
     /// Returns:
     ///     filter.GraphFilter:

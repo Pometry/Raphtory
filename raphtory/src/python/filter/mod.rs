@@ -12,7 +12,6 @@ use pyo3::{
     prelude::{PyModule, PyModuleMethods},
     Bound, PyErr, Python,
 };
-use raphtory_api::core::entities::Layer;
 
 pub mod edge_expr;
 pub mod exploded_edge_expr;
@@ -20,12 +19,6 @@ pub mod filter_expr;
 pub mod graph_filter;
 pub mod node_expr;
 pub(crate) mod repr;
-
-impl From<FromIterable<String>> for Layer {
-    fn from(iter: FromIterable<String>) -> Self {
-        iter.into_iter().collect::<Vec<_>>().into()
-    }
-}
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;
