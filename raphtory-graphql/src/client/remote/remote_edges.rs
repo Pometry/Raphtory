@@ -1,7 +1,7 @@
 use super::view_ops::remote_view_ops;
 use crate::{
     client::{
-        op::{EdgePin, EdgeSortBy, Fanout, HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
+        op::{EdgePin, EdgeSortBy, Fanout, HandleCtx, HandleOp, InputTime, Op, PageArgs, ReadExpr, ViewOp, list_or_page_key},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
         remote_path_from_node::RemotePathFromNode,
@@ -227,6 +227,7 @@ impl RemoteEdges {
     pub async fn id(&self) -> Result<Vec<(GID, GID)>, ClientError> {
         let op = Op::Read(ReadExpr::EdgesList {
             input: self.expr.clone(),
+            page: None,
         });
         expect_edge_list(self.transport.execute(&op).await?, "id")
     }
@@ -379,12 +380,47 @@ impl RemoteEdges {
     /// via the server's `eventLayer` field, so `.layer_name()` resolves (and
     /// `.time()` is unavailable, matching local).
     pub async fn collect(&self) -> Result<Vec<RemoteEdge>, ClientError> {
+        self.collect_page(None).await
+    }
+
+    /// One page of this collection as a `Vec<RemoteEdge>` — the bounded
+    /// counterpart of `collect()`, materialized identically. At most `limit`
+    /// members, starting `page_index * limit + offset` in; both `offset` and
+    /// `page_index` default to 0 server-side. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Paging is not a snapshot: each page is its own traversal, so concurrent
+    /// writes can shift members between pages.
+    pub async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<RemoteEdge>, ClientError> {
+        self.collect_page(Some(PageArgs {
+            limit,
+            offset,
+            page_index,
+        }))
+        .await
+    }
+
+    /// Shared worker for `collect()` and `page()`: identical materialization,
+    /// differing only in whether the server's `list` or `page(...)` field is read.
+    async fn collect_page(
+        &self,
+        page: Option<PageArgs>,
+    ) -> Result<Vec<RemoteEdge>, ClientError> {
         match self.ctx.fanout() {
             None => {
                 let op = Op::Read(ReadExpr::EdgesList {
                     input: self.expr.clone(),
+                    page: page.clone(),
                 });
-                let pairs = expect_edge_list(self.transport.execute(&op).await?, "list")?;
+                let pairs = expect_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
                 Ok(pairs
                     .into_iter()
                     .map(|(src, dst)| {
@@ -402,9 +438,10 @@ impl RemoteEdges {
             Some(Fanout::Events) => {
                 let op = Op::Read(ReadExpr::ExplodedEdgesList {
                     input: self.expr.clone(),
+                    page: page.clone(),
                 });
                 let records =
-                    expect_exploded_edge_list(self.transport.execute(&op).await?, "list")?;
+                    expect_exploded_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
                 Ok(records
                     .into_iter()
                     .map(|(src, dst, time, event_id, layer)| {
@@ -430,9 +467,10 @@ impl RemoteEdges {
             Some(Fanout::Layers) => {
                 let op = Op::Read(ReadExpr::ExplodedLayersEdgesList {
                     input: self.expr.clone(),
+                    page: page.clone(),
                 });
                 let records =
-                    expect_exploded_layers_edge_list(self.transport.execute(&op).await?, "list")?;
+                    expect_exploded_layers_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
                 Ok(records
                     .into_iter()
                     .map(|(src, dst, layer)| {
