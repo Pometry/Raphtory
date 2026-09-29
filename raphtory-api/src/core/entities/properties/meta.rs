@@ -346,11 +346,11 @@ impl PropMapper {
     /// the entire set, and not at all if every bit is already set. Used in bulk loading.
     pub fn mark_prop_layer_pairs(&self, pairs: impl IntoIterator<Item = (LayerId, usize)>) {
         // filter first so the common "already marked" case takes no write lock
-        let missing: Vec<_> = pairs
+        let mut missing = pairs
             .into_iter()
             .filter(|&(layer, prop_id)| !self.layer_has(layer, prop_id))
-            .collect();
-        if missing.is_empty() {
+            .peekable();
+        if missing.peek().is_none() {
             return;
         }
         let mut guard = self.layer_prop_presence.write();

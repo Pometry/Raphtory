@@ -1,19 +1,19 @@
 use super::properties::{PropEntry, Properties};
-use crate::{LocalPOS, error::StorageError};
+use crate::{error::StorageError, LocalPOS};
 use raphtory_api::core::{
     entities::{
-        LayerId,
         properties::{
             meta::Meta,
             prop::{AsPropRef, Prop},
         },
+        LayerId,
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
-        ELID,
         properties::{tcell::TCell, tprop::TPropCell},
+        ELID,
     },
     storage::timeindex::EventTime,
 };
@@ -342,7 +342,7 @@ impl<T: HasRow> SegmentContainer<T> {
         }
     }
 
-    /// Append const (metadata) props **without** touching the presence bitset.
+    /// Append const (metadata) props, touching the presence bitset only if `mark == true`.
     pub(crate) fn append_const_props<P: AsPropRef>(
         &mut self,
         local_row: usize,
@@ -372,59 +372,6 @@ impl<T: HasRow> SegmentContainer<T> {
                 .append_const_props(props);
         }
     }
-
-    /// Append temporal props to `local_row`, marking each `(layer_id, prop_id)`
-    /// in this segment's `Meta` per-layer property presence bitset as the
-    /// iterator is consumed.
-    // pub(crate) fn mark_and_append_t_props<P: AsPropRef>(
-    //     &mut self,
-    //     local_row: usize,
-    //     layer_id: LayerId,
-    //     t: EventTime,
-    //     props: impl IntoIterator<Item = (usize, P)>,
-    // ) {
-    //     let Self {
-    //         properties,
-    //         meta,
-    //         t_props_seen,
-    //         ..
-    //     } = self;
-    //     let mapper = meta.temporal_prop_mapper();
-    //     let props = props.into_iter().inspect(|(prop_id, _)| {
-    //         // Only mark props the first time they're seen in this container. Greatly speeds up the
-    //         // hot path by avoiding acquiring many read_recursive locks which can starve the writers from marking.
-    //         if first_sight(t_props_seen, *prop_id) {
-    //             mapper.mark_prop_in_layer(layer_id, *prop_id);
-    //         }
-    //     });
-    //     properties.get_mut_entry(local_row).append_t_props(t, props);
-    // }
-
-    /// Append const (metadata) props to `local_row`, marking each
-    /// `(layer_id, prop_id)` in the metadata presence bitset as the iterator is
-    /// consumed. See [`Self::mark_and_append_t_props`].
-    // pub(crate) fn mark_and_append_const_props<P: AsPropRef>(
-    //     &mut self,
-    //     local_row: usize,
-    //     layer_id: LayerId,
-    //     props: impl IntoIterator<Item = (usize, P)>,
-    // ) {
-    //     let Self {
-    //         properties,
-    //         meta,
-    //         c_props_seen,
-    //         ..
-    //     } = self;
-    //     let mapper = meta.metadata_mapper();
-    //     let props = props.into_iter().inspect(|(prop_id, _)| {
-    //         if first_sight(c_props_seen, *prop_id) {
-    //             mapper.mark_prop_in_layer(layer_id, *prop_id);
-    //         }
-    //     });
-    //     properties
-    //         .get_mut_entry(local_row)
-    //         .append_const_props(props);
-    // }
 
     pub fn check_metadata<P: AsPropRef>(
         &self,
