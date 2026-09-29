@@ -1,6 +1,9 @@
-pub mod filter_tests;
-
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory_api::core::entities::properties::prop::IntoProp;
+use raphtory_storage::mutation::{
+    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+};
+use raphtory_tests::assertions::GraphTransformer;
 
 mod test_composite_filters {
     use raphtory::{
@@ -116,12 +119,6 @@ mod test_composite_filters {
     }
 }
 
-use raphtory_api::core::entities::properties::prop::IntoProp;
-use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
-};
-use raphtory_tests::assertions::GraphTransformer;
-
 struct IdentityGraphTransformer;
 
 impl GraphTransformer for IdentityGraphTransformer {
@@ -133,7 +130,7 @@ impl GraphTransformer for IdentityGraphTransformer {
 
 mod test_property_semantics {
     mod test_node_property_filter_semantics {
-        use crate::IdentityGraphTransformer;
+        use crate::filter_tests::test_filters::IdentityGraphTransformer;
         use raphtory::{
             db::{
                 api::view::{filter_ops::Filter, StaticGraphViewOps},
@@ -415,7 +412,7 @@ mod test_property_semantics {
     }
 
     mod test_edge_property_filter_semantics {
-        use crate::IdentityGraphTransformer;
+        use crate::filter_tests::test_filters::IdentityGraphTransformer;
         use raphtory::{
             db::{
                 api::view::{filter_ops::Filter, EdgeViewOps, StaticGraphViewOps},
@@ -1637,7 +1634,7 @@ fn init_edges_graph_with_str_ids_del<
 
 mod test_node_filter {
 
-    use crate::{
+    use crate::filter_tests::test_filters::{
         init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
         IdentityGraphTransformer,
     };
@@ -2915,7 +2912,9 @@ mod test_node_filter {
 }
 
 mod test_node_property_filter {
-    use crate::{init_nodes_graph, init_nodes_layers_graph, IdentityGraphTransformer};
+    use crate::filter_tests::test_filters::{
+        init_nodes_graph, init_nodes_layers_graph, IdentityGraphTransformer,
+    };
     use raphtory::{
         db::graph::views::filter::model::{
             graph_filter::GraphFilter, node_filter::NodeFilter, windowed_filter::Windowed,
@@ -4452,7 +4451,9 @@ mod test_node_property_filter {
 mod composite_node_filter_tests {
     use raphtory_api::core::Direction;
 
-    use crate::{init_edges_graph, init_nodes_graph, IdentityGraphTransformer};
+    use crate::filter_tests::test_filters::{
+        init_edges_graph, init_nodes_graph, IdentityGraphTransformer,
+    };
     use raphtory::{
         db::graph::views::filter::model::{
             not_filter::NotFilter, ComposableFilter, NodeFilterFactory, PropertyExprFactory,
@@ -4713,7 +4714,7 @@ mod composite_node_filter_tests {
 // temporal() semantics: iterates only timestamps where the property IS defined.
 // A node with the property absent at some timestamps is unaffected by those gaps.
 mod test_node_property_filter_agg {
-    use crate::IdentityGraphTransformer;
+    use crate::filter_tests::test_filters::IdentityGraphTransformer;
     use raphtory::{
         db::{
             api::view::StaticGraphViewOps,
@@ -8225,7 +8226,7 @@ mod test_node_property_filter_agg {
 }
 
 mod test_edge_filter {
-    use crate::{
+    use crate::filter_tests::test_filters::{
         init_edges_graph, init_edges_graph_with_num_ids, init_edges_graph_with_str_ids,
         init_edges_graph_with_str_ids_del, init_nodes_graph, IdentityGraphTransformer,
     };
@@ -9244,7 +9245,9 @@ mod test_edge_filter {
 }
 
 mod test_edge_property_filter {
-    use crate::{init_edges_graph, init_edges_graph2, IdentityGraphTransformer};
+    use crate::filter_tests::test_filters::{
+        init_edges_graph, init_edges_graph2, IdentityGraphTransformer,
+    };
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, ComposableFilter, PropertyExprFactory, ViewWrapOps,
     };
@@ -10544,7 +10547,7 @@ mod composite_edge_filter_tests {
         assert_filter_edges_results, TestGraphVariants, TestVariants,
     };
 
-    use crate::{init_edges_graph, IdentityGraphTransformer};
+    use crate::filter_tests::test_filters::{init_edges_graph, IdentityGraphTransformer};
 
     #[test]
     fn test_filter_edge_for_src_dst() {
