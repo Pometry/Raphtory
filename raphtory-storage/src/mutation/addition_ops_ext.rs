@@ -783,7 +783,7 @@ impl StagingOps for TemporalGraph {
         let config = Config::load_from_dir(&staged_path)?;
         let extension = Extension::load(&staged_path, config)?;
 
-        let temporal_graph = TemporalGraph::<Extension>::load(staged_path, extension)?;
+        let temporal_graph = TemporalGraph::load(staged_path, extension)?;
         let staged_graph = GraphStorage::from(temporal_graph);
 
         Ok(StagedGraph::new(

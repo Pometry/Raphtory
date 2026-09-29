@@ -110,6 +110,20 @@ impl GraphStorage {
         }
     }
 
+    pub fn flush(&self) -> Result<(), StorageError> {
+        match self {
+            GraphStorage::Mem(_) => Err(StorageError::ReadOnlyGraphError),
+            GraphStorage::Unlocked(graph) => graph.flush(),
+        }
+    }
+
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        match self {
+            GraphStorage::Mem(_) => Err(StorageError::ReadOnlyGraphError),
+            GraphStorage::Unlocked(graph) => graph.vacuum(),
+        }
+    }
+
     pub fn disk_storage_path(&self) -> Option<&Path> {
         match self {
             GraphStorage::Mem(graph) => graph.graph.disk_storage_path(),

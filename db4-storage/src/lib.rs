@@ -134,6 +134,9 @@ pub mod error {
         #[error("Failed to vacuum storage")]
         VacuumError,
 
+        #[error("Read only graph")]
+        ReadOnlyGraphError,
+
         #[error("Disk storage not supported")]
         DiskStorageNotSupported,
 

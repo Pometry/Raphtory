@@ -57,6 +57,14 @@ pub struct ConfigArgs {
     #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", help = help_with_default!("Cache capacity.", DEFAULT_CACHE_CAPACITY))]
     pub(crate) cache_capacity: Option<u64>,
 
+    #[arg(
+        long,
+        env = "RAPHTORY_READ_ONLY_GRAPHS",
+        value_delimiter = ',',
+        help = "Comma-separated graph paths (e.g. 'g1,ns/g2') to serve read-only; all other graphs stay writable. Supersedes cache.read_only."
+    )]
+    pub(crate) read_only_graphs: Option<Vec<String>>,
+
     #[arg(long, env = "RAPHTORY_LOG_LEVEL", help = help_with_default!("Log level.", DEFAULT_LOG_LEVEL))]
     pub(crate) log_level: Option<String>,
 
@@ -365,6 +373,20 @@ mod tests {
         std::env::set_var("RAPHTORY_CACHE_CAPACITY", "456");
         let app_config = generate_config(args);
         assert_eq!(app_config.cache.capacity, 789);
+    }
+
+    #[test]
+    fn test_cli_parsing_read_only_graphs() {
+        let app_config = generate_config(vec![
+            "raphtory-server",
+            "server",
+            "--read-only-graphs",
+            "g1,ns/g2",
+        ]);
+        assert_eq!(
+            app_config.cache.read_only_graphs,
+            Some(vec!["g1".to_string(), "ns/g2".to_string()])
+        );
     }
 
     #[tokio::test]
