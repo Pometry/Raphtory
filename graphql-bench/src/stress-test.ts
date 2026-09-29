@@ -4,7 +4,7 @@ import {
   GraphGenqlSelection,
   EdgeGenqlSelection,
   NodeGenqlSelection,
-  PathFromNodeViewCollection,
+  ViewCollection,
 } from "./__generated";
 import {
   defineOp,
@@ -523,7 +523,7 @@ function randomLayer() {
 
 function randomView(rate: ViewRate) {
   const [start, end] = [randomTime(), randomTime()].sort((a, b) => a - b);
-  const views: PathFromNodeViewCollection[] = [
+  const views: ViewCollection[] = [
     ...randomAppend(rate.latest, { latest: true }),
     ...randomAppend(rate.layer, { layers: [randomLayer()] }),
     ...randomAppend(rate.window, { window: { start, end } }),
