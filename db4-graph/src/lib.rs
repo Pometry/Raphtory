@@ -520,7 +520,6 @@ where
         self.edges.copy_to(&dst.edges())?;
         self.graph_props.copy_to(&dst.graph_props())?;
 
-        // Because of the checkpoint above, the WAL is pruned during this copy.
         self.graph
             .extension()
             .copy_to(self.graph.graph_dir(), dst.path())
