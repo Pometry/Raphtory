@@ -326,8 +326,8 @@ pub fn load_nodes_from_df<
                             );
 
                             // `*_bulk` doesn't mark props in layers: presence already marked per chunk above
-                            writer.add_props_bulk(t, mut_node, layer_id, t_props);
-                            writer.update_c_props_bulk(mut_node, layer_id, c_props);
+                            writer.add_props(t, mut_node, layer_id, false, t_props);
+                            writer.update_c_props(mut_node, layer_id, false, c_props);
                         };
                     }
 
@@ -478,7 +478,7 @@ pub fn load_node_props_from_df<
                         c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
-                            writer.update_c_props(pos, row_layer, c_props.drain(..));
+                            writer.update_c_props(pos, row_layer, false, c_props.drain(..));
                         }
                     };
                 }

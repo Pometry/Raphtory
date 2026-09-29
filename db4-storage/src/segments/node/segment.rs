@@ -342,36 +342,14 @@ impl MemNodeSegment {
         layer_est_size - est_size
     }
 
+    #[inline]
     pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         node_pos: LocalPOS,
         layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) -> (bool, usize) {
-        self.add_props_inner(t, node_pos, layer_id, props, true)
-    }
-
-    /// As [`Self::add_props`] but skips per-append presence marking, for bulk
-    /// loaders that mark the whole chunk's `(layer, prop)` set up front.
-    pub fn add_props_bulk<T: AsTime, P: AsPropRef>(
-        &mut self,
-        t: T,
-        node_pos: LocalPOS,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) -> (bool, usize) {
-        self.add_props_inner(t, node_pos, layer_id, props, false)
-    }
-
-    #[inline]
-    fn add_props_inner<T: AsTime, P: AsPropRef>(
-        &mut self,
-        t: T,
-        node_pos: LocalPOS,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
         mark: bool,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
@@ -396,28 +374,8 @@ impl MemNodeSegment {
         Ok(())
     }
 
-    pub fn update_metadata<P: AsPropRef>(
-        &mut self,
-        node_pos: LocalPOS,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) -> (bool, usize) {
-        self.update_metadata_inner(node_pos, layer_id, props, true)
-    }
-
-    /// As [`Self::update_metadata`] but skips per-append presence marking, for
-    /// bulk loaders that mark the chunk's `(layer, prop)` set up front.
-    pub fn update_metadata_bulk<P: AsPropRef>(
-        &mut self,
-        node_pos: LocalPOS,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) -> (bool, usize) {
-        self.update_metadata_inner(node_pos, layer_id, props, false)
-    }
-
     #[inline]
-    fn update_metadata_inner<P: AsPropRef>(
+    pub fn update_metadata<P: AsPropRef>(
         &mut self,
         node_pos: LocalPOS,
         layer_id: LayerId,
@@ -774,6 +732,7 @@ mod test {
         writer.update_c_props(
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
+            true,
             [(prop_id, Prop::U64(73))],
         );
 
@@ -802,6 +761,7 @@ mod test {
             42,
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
+            true,
             [(prop_id, Prop::F64(4.13))],
         );
 
@@ -815,6 +775,7 @@ mod test {
             72,
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
+            true,
             [(prop_id, Prop::F64(5.41))],
         );
 

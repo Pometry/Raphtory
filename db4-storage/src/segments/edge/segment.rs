@@ -176,37 +176,9 @@ impl MemEdgeSegment {
             .map(|entry| (entry.src, entry.dst))
     }
 
-    /// insert an edge
-    ///
-    /// returns a boolean flag indicating if the edge is new
-    pub fn insert_edge_internal<T: AsTime, P: AsPropRef>(
-        &mut self,
-        t: T,
-        edge_pos: LocalPOS,
-        src: VID,
-        dst: VID,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) -> bool {
-        self.insert_edge_internal_impl(t, edge_pos, src, dst, layer_id, props, true)
-    }
-
-    /// As [`Self::insert_edge_internal`] but skips per-append presence marking,
-    /// for bulk loaders that mark the chunk's `(layer, prop)` set up front.
-    pub fn insert_edge_internal_bulk<T: AsTime, P: AsPropRef>(
-        &mut self,
-        t: T,
-        edge_pos: LocalPOS,
-        src: VID,
-        dst: VID,
-        layer_id: LayerId,
-        props: impl IntoIterator<Item = (usize, P)>,
-    ) -> bool {
-        self.insert_edge_internal_impl(t, edge_pos, src, dst, layer_id, props, false)
-    }
-
     #[inline]
-    fn insert_edge_internal_impl<T: AsTime, P: AsPropRef>(
+    #[allow(clippy::too_many_arguments)]
+    pub fn insert_edge_internal<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         edge_pos: LocalPOS,
@@ -717,6 +689,7 @@ mod test {
             VID(2),
             LayerId(0),
             vec![(0, Prop::from("test1"))],
+            true,
         );
 
         segment.insert_edge_internal(
@@ -726,6 +699,7 @@ mod test {
             VID(4),
             LayerId(0),
             vec![(0, Prop::from("test2"))],
+            true,
         );
 
         segment.insert_edge_internal(
@@ -735,6 +709,7 @@ mod test {
             VID(6),
             LayerId(0),
             vec![(0, Prop::from("test3"))],
+            true,
         );
 
         // Verify edges exist

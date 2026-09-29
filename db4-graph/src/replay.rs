@@ -530,6 +530,7 @@ where
                 t,
                 pos,
                 layer_id,
+                true,
                 props
                     .into_iter()
                     .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
@@ -574,7 +575,7 @@ where
             let props = props.into_iter().map(|(_, id, p)| (id, p));
 
             // No need to check metadata since the operation was logged after validation.
-            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
+            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, true, props);
             node_writer.set_lsn(lsn);
         }
 
