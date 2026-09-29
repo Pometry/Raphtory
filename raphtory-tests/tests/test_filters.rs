@@ -300,7 +300,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_property_semantics() {
-            // TODO: Const properties not supported for disk_graph.
             let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
@@ -612,8 +611,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_metadata_semantics() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            // TODO: Const properties not supported for disk_graph.
             let filter = EdgeFilter.metadata("p1").eq(1u64);
             let expected_results = vec![
                 "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15", "N15->N1",
@@ -680,7 +677,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_temporal_any_semantics() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").temporal().eq(1u64).any();
             let expected_results = vec![
                 "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
@@ -696,7 +692,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_temporal_any_semantics_for_event_ids() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").temporal().lt(2u64).any();
             let expected_results = vec![
                 "N1->N2", "N16->N15", "N17->N16", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7",
@@ -713,7 +708,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_temporal_latest_semantics() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").temporal().last().eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
@@ -727,7 +721,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_temporal_latest_semantics_for_event_ids() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").temporal().last().eq(1u64);
             let expected_results =
                 vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
@@ -742,7 +735,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_property_semantics() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter.property("p1").ge(2u64);
             let expected_results = vec![
                 "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
@@ -759,8 +751,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_property_semantics_for_event_ids() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            // TODO: Const properties not supported for disk_graph.
             let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results =
                 vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
@@ -824,7 +814,6 @@ mod test_property_semantics {
 
         #[test]
         fn test_property_semantics_only_temporal() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             // For this graph there won't be any metadata index for property name "p1".
             fn init_graph<
                 G: StaticGraphViewOps
@@ -978,6 +967,154 @@ fn init_nodes_graph<
 
     for (time, id, props, node_type) in nodes {
         graph.add_node(time, id, props, node_type, None).unwrap();
+    }
+
+    let metadata = [
+        (
+            "1",
+            vec![
+                ("m1", "pometry".into_prop()),
+                ("m2", "raphtory".into_prop()),
+            ],
+        ),
+        ("2", vec![("m1", "raphtory".into_prop())]),
+        (
+            "3",
+            vec![
+                ("m2", "pometry".into_prop()),
+                ("m3", "raphtory".into_prop()),
+            ],
+        ),
+        (
+            "4",
+            vec![
+                ("m3", "pometry".into_prop()),
+                ("m4", "raphtory".into_prop()),
+            ],
+        ),
+    ];
+
+    for (node_id, md) in metadata {
+        graph.node(node_id).unwrap().add_metadata(md).unwrap();
+    }
+
+    graph
+}
+
+fn init_nodes_layers_graph<
+    G: StaticGraphViewOps
+        + AdditionOps
+        + InternalAdditionOps
+        + InternalPropertyAdditionOps
+        + PropertyAdditionOps,
+>(
+    graph: G,
+) -> G {
+    let nodes = [
+        (
+            1,
+            "1",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p9", 5u64.into_prop()),
+                ("p10", "Paper_airplane".into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 5u64.into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            2,
+            "2",
+            vec![
+                ("p1", "prop12".into_prop()),
+                ("p2", 2u64.into_prop()),
+                ("p10", "Paper_ship".into_prop()),
+                ("p20", "Gold_boat".into_prop()),
+                ("p30", "Old_boat".into_prop()),
+                ("p40", 10u64.into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "2",
+            vec![
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 15u64.into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            4,
+            "2",
+            vec![
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 20u64.into_prop()),
+            ],
+            Some("air_nomads"),
+        ),
+        (
+            3,
+            "1",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p9", 5u64.into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 10u64.into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            3,
+            "3",
+            vec![
+                ("p2", 6u64.into_prop()),
+                ("p3", 1u64.into_prop()),
+                ("p10", "Paper_airplane".into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            4,
+            "1",
+            vec![
+                ("p1", "shivam_kapoor".into_prop()),
+                ("p9", 5u64.into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+                ("p40", 15u64.into_prop()),
+            ],
+            Some("fire_nation"),
+        ),
+        (
+            3,
+            "4",
+            vec![
+                ("p4", "pometry".into_prop()),
+                ("p20", "Gold_ship".into_prop()),
+                ("p30", "Gold_ship".into_prop()),
+            ],
+            None,
+        ),
+        (
+            4,
+            "4",
+            vec![
+                ("p5", 12u64.into_prop()),
+                ("p20", "Gold_boat".into_prop()),
+                ("p30", "Old_ship".into_prop()),
+            ],
+            None,
+        ),
+    ];
+
+    for (time, id, props, node_type) in nodes {
+        graph.add_node(time, id, props, None, node_type).unwrap();
     }
 
     let metadata = [
@@ -2778,7 +2915,7 @@ mod test_node_filter {
 }
 
 mod test_node_property_filter {
-    use crate::{init_nodes_graph, IdentityGraphTransformer};
+    use crate::{init_nodes_graph, init_nodes_layers_graph, IdentityGraphTransformer};
     use raphtory::{
         db::graph::views::filter::model::{
             graph_filter::GraphFilter, node_filter::NodeFilter, windowed_filter::Windowed,
@@ -4083,12 +4220,12 @@ mod test_node_property_filter {
     }
 
     #[test]
-    #[ignore] // TODO: Enable this when node layer is supported
     fn test_graph_filter_layer() {
+        // Note: Default layer is currently always included for nodes!
         let filter = GraphFilter.layer("fire_nation");
-        let expected_results = vec!["1", "3"];
+        let expected_results = vec!["1", "3", "4"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4096,9 +4233,9 @@ mod test_node_property_filter {
         );
 
         let filter = GraphFilter.layer("air_nomads");
-        let expected_results = vec!["2"];
+        let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4107,22 +4244,21 @@ mod test_node_property_filter {
     }
 
     #[test]
-    #[ignore] // TODO: Enable this when node layer is supported
     fn test_graph_filter_window_then_layer() {
         let filter = GraphFilter.window(1, 3).layer("fire_nation");
-        let expected_results = vec!["1", "3"];
+        let expected_results = vec!["1"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
             TestVariants::All,
         );
 
-        let filter = GraphFilter.window(4, 4).layer("air_nomads");
+        let filter = GraphFilter.window(2, 3).layer("air_nomads");
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4131,12 +4267,21 @@ mod test_node_property_filter {
     }
 
     #[test]
-    #[ignore] // TODO: Enable this when node layer is supported
     fn test_graph_filter_layer_then_window() {
         let filter = GraphFilter.layer("fire_nation").window(1, 3);
-        let expected_results = vec!["1", "3"];
+        let expected_results = vec!["1"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::All,
+        );
+
+        let filter = GraphFilter.layer("air_nomads").window(2, 3);
+        let expected_results = vec!["2"];
+        assert_filter_nodes_results(
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4303,7 +4448,7 @@ mod test_node_property_filter {
     }
 }
 
-// TODO: delete when search is dropped and graphql composite path is gone
+/// Typed `and`/`or`/`not` composition over node filters.
 mod composite_node_filter_tests {
     use raphtory_api::core::Direction;
 
@@ -4564,10 +4709,6 @@ mod composite_node_filter_tests {
 //   .temporal().gt(x).any().all().all()
 //                      ↑     ↑     ↑
 //                   ∃ leaf  ∀ d2  ∀ d1/timestamp
-//
-// This is the OPPOSITE of the old broken convention (.all().eq(x).any())
-// where quantifiers before the comparison received raw typed values and
-// checked `elem == Bool(true)`, always returning false for non-Bool types.
 //
 // temporal() semantics: iterates only timestamps where the property IS defined.
 // A node with the property absent at some timestamps is unaffected by those gaps.
@@ -9116,7 +9257,6 @@ mod test_edge_property_filter {
 
     #[test]
     fn test_filter_edges_for_property_eq() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").eq(2u64);
         let expected_results = vec!["2->3"];
         assert_filter_edges_results(
@@ -9124,7 +9264,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p30").temporal().first().eq("Old_boat");
@@ -9134,7 +9274,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p20").temporal().eq("Gold_ship").all();
@@ -9144,13 +9284,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_ne() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").ne(2u64);
         let expected_results = vec![
             "1->2",
@@ -9164,7 +9303,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p30").temporal().first().ne("Old_boat");
@@ -9174,7 +9313,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p30").temporal().ne("Classic").all();
@@ -9184,13 +9323,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_lt() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").lt(10u64);
         let expected_results = vec![
             "1->2",
@@ -9205,7 +9343,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().first().lt(5u64);
@@ -9215,7 +9353,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().lt(10u64).all();
@@ -9232,13 +9370,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_le() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").le(6u64);
         let expected_results = vec![
             "1->2",
@@ -9253,7 +9390,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().first().le(3u64);
@@ -9263,7 +9400,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().le(5u64).all();
@@ -9273,13 +9410,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_gt() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").gt(2u64);
         let expected_results = vec![
             "1->2",
@@ -9293,7 +9429,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().first().gt(5u64);
@@ -9308,7 +9444,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().gt(5u64).all();
@@ -9323,13 +9459,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_ge() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").ge(2u64);
         let expected_results = vec![
             "1->2",
@@ -9344,7 +9479,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().first().ge(6u64);
@@ -9359,7 +9494,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().ge(6u64).all();
@@ -9374,13 +9509,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_in() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").is_in(vec![Prop::U64(6)]);
         let expected_results = vec![
             "2->1",
@@ -9393,7 +9527,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9411,7 +9545,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9430,7 +9564,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9449,13 +9583,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_not_in() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").is_not_in(vec![Prop::U64(6)]);
         let expected_results = vec!["1->2", "2->3"];
         assert_filter_edges_results(
@@ -9463,7 +9596,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9477,7 +9610,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9491,13 +9624,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_is_some() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p2").is_some();
         let expected_results = vec![
             "1->2",
@@ -9512,7 +9644,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().first().is_some();
@@ -9529,13 +9661,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_is_none() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
         let filter = EdgeFilter.property("p2").is_none();
         let expected_results = Vec::<&str>::new();
         assert_filter_edges_results(
@@ -9543,7 +9674,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p2").temporal().first().is_none();
@@ -9553,13 +9684,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_starts_with() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p10").starts_with("Pa");
         let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
         assert_filter_edges_results(
@@ -9567,7 +9697,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9581,7 +9711,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9595,7 +9725,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9609,7 +9739,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9623,7 +9753,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9637,13 +9767,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_ends_with() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p10").ends_with("lane");
         let expected_results: Vec<&str> = vec!["1->2", "2->1"];
         assert_filter_edges_results(
@@ -9651,7 +9780,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9665,7 +9794,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9679,7 +9808,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9693,7 +9822,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9707,7 +9836,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9721,13 +9850,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_contains() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p10").contains("Paper");
         let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
         assert_filter_edges_results(
@@ -9735,7 +9863,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9749,7 +9877,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9763,7 +9891,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9777,7 +9905,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p20").temporal().contains("ship").all();
@@ -9787,13 +9915,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_property_contains_not() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter.property("p10").not_contains("ship");
         let expected_results: Vec<&str> = vec!["1->2", "2->1"];
         assert_filter_edges_results(
@@ -9801,7 +9928,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9815,7 +9942,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9829,7 +9956,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9843,7 +9970,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -9857,13 +9984,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_by_fuzzy_search() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges.
         // TODO: Enable these test for event_disk_graph, persistent_disk_graph once string property is fixed.
         let filter = EdgeFilter.property("p1").fuzzy_search("shiv", 2, true);
         let expected_results: Vec<&str> = vec!["1->2"];
@@ -9872,7 +9998,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p1").fuzzy_search("ShiV", 2, true);
@@ -9882,7 +10008,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p1").fuzzy_search("shiv", 2, false);
@@ -9892,13 +10018,12 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_filter_edges_for_not_property() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
         let filter = EdgeFilter.property("p2").ne(2u64).not();
         let expected_results = vec!["2->3"];
         assert_filter_edges_results(
@@ -9906,7 +10031,7 @@ mod test_edge_property_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
@@ -10406,7 +10531,7 @@ mod test_edge_property_filter {
     }
 }
 
-// TODO: delete when search is dropped and graphql composite path is gone
+/// Typed `and`/`or`/`not` composition over edge filters.
 mod composite_edge_filter_tests {
     use raphtory::{
         db::graph::views::filter::model::{
@@ -10423,7 +10548,6 @@ mod composite_edge_filter_tests {
 
     #[test]
     fn test_filter_edge_for_src_dst() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter::src()
             .name()
             .eq("3")
@@ -10434,13 +10558,12 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_unique_results_from_composite_filters() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
         let filter = EdgeFilter
             .property("p2")
             .ge(2u64)
@@ -10484,7 +10607,6 @@ mod composite_edge_filter_tests {
 
     #[test]
     fn test_composite_filter_edges() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges.
         // TODO: Enable these test for event_disk_graph, persistent_disk_graph once string property is fixed.
         let filter = EdgeFilter
             .property("p2")
@@ -10496,7 +10618,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -10509,7 +10631,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p1").eq("pometry").or(EdgeFilter
@@ -10527,7 +10649,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -10540,7 +10662,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -10553,7 +10675,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -10566,7 +10688,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::dst()
@@ -10579,7 +10701,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -10593,13 +10715,12 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            vec![TestGraphVariants::Graph],
+            TestVariants::All,
         );
     }
 
     #[test]
     fn test_not_composite_filter_edges() {
-        // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
         let filter = NotFilter(
             EdgeFilter::src()
                 .name()
@@ -10619,7 +10740,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
 
         let filter = NotFilter(
@@ -10641,7 +10762,7 @@ mod composite_edge_filter_tests {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::EventOnly,
+            TestVariants::All,
         );
     }
 }

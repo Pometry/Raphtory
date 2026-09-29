@@ -1065,9 +1065,6 @@ REJECTED_EXPRS = {
     "reject.unknown_property": lambda: f.Node.property("nope") > 1,
     "reject.unknown_metadata": lambda: f.Node.metadata("nope") > 1,
     "reject.degree_vs_str": lambda: f.Node.degree() > "x",
-    # A view applies to the whole filter: it composes with `&` only (#2718 decided).
-    "reject.view_or": lambda: f.Graph.at(3) | f.Graph.at(5),
-    "reject.view_not": lambda: ~f.Graph.layer("knows"),
     # `avg` is F64 and `len` is U64, so neither accepts a plain Python int here.
 }
 

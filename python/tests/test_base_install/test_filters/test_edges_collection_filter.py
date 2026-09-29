@@ -65,7 +65,7 @@ def _kind(name):
     return "view" if name in VIEWS else ("node" if name in NODE_KIND else "edge")
 
 
-def _and_is_broken(a, b):
+def _view_applies_first_under_and(a, b):
     # `view & X` is not set algebra: the view applies first and `X` runs inside it
     # (`test_a_view_applies_first_under_and`), so it has no set-derived expectation here.
     return a in VIEWS or b in VIEWS
@@ -223,14 +223,14 @@ def test_edge_collection_time_view_actually_narrows():
 
 
 @with_variants(_init)
-def test_working_combinations_follow_set_algebra():
+def test_combinations_follow_set_algebra():
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         negated = _negations(graph, single)
         every = _ids(graph.edges)
         cases = []
         for a, b in combinations(atoms, 2):
-            if not _and_is_broken(a, b):
+            if not _view_applies_first_under_and(a, b):
                 cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             if _or_is_refused(a, b):
                 continue

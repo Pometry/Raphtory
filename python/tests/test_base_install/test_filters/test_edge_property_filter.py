@@ -1038,12 +1038,12 @@ def test_edge_unsupported_ops_agg():
     def check(graph):
         # STARTS_WITH on SUM
         expr = filter.Edge.property("p_u64s").sum().starts_with("abc")
-        with pytest.raises(Exception) as _:
+        with pytest.raises(Exception, match="string operator requires a Str property"):
             graph.filter(expr)
 
         # ENDS_WITH on AVG
         expr = filter.Edge.property("p_u64s").avg().ends_with("abc")
-        with pytest.raises(Exception) as _:
+        with pytest.raises(Exception, match="string operator requires a Str property"):
             graph.filter(expr)
 
         # is_none/is_some after an aggregation are meaningful: the aggregate
@@ -1056,12 +1056,12 @@ def test_edge_unsupported_ops_agg():
 
         # CONTAINS on LEN
         expr = filter.Edge.property("p_u64s").len().contains("abc")
-        with pytest.raises(Exception) as _:
+        with pytest.raises(Exception, match="string operator requires a Str property"):
             graph.filter(expr)
 
         # NOT_CONTAINS on SUM
         expr = filter.Edge.property("p_u64s").sum().not_contains("abc")
-        with pytest.raises(Exception) as _:
+        with pytest.raises(Exception, match="string operator requires a Str property"):
             graph.filter(expr)
 
     return check

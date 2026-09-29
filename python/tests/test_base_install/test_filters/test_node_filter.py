@@ -947,8 +947,8 @@ def test_filter_nodes_for_node_name_all_is_invalid():
     def check(graph):
         # The expression builds (the python surface is one Expr type); applying
         # it rejects the qualifier on a scalar field.
-        with pytest.raises(Exception, match=r"cannot be compared with Str"):
-            filter_expr = (filter.Node.name() == True).all()
+        filter_expr = (filter.Node.name() == "N1").all()
+        with pytest.raises(Exception, match=r"any\(\)/all\(\) collapse"):
             graph.filter(filter_expr).nodes.id
 
     return check

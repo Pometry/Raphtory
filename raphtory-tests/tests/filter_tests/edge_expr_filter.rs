@@ -158,7 +158,7 @@ fn test_edge_temporal_len_combined_with_and() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// String ops via EdgeExprFilterOps (generic) and EdgeAggregated convenience
+// String ops on aggregated reads
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn band_graph() -> Graph {
@@ -277,12 +277,12 @@ fn test_edge_aggregated_first_starts_with_str_convenience() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Set ops — PropValueSetExpr (linear scan, Option<Prop>) and
-//           SetEdgeFilter (HashSet, Option<I: Hash>)
+//           set membership
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_edge_property_is_in_prop_values() {
-    // Path A: EdgePropertyExprOps::is_in — PropValueSetExpr
+    // is_in on the property read
     let g = band_graph();
     let filter = EdgeFilter
         .property("band")
@@ -303,7 +303,7 @@ fn test_edge_property_is_not_in_prop_values() {
 
 #[test]
 fn test_edge_aggregated_last_is_in_prop_values() {
-    // Path A via EdgeAggregated convenience
+    // is_in on the aggregated read
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None)
         .unwrap();
@@ -342,7 +342,7 @@ fn test_edge_aggregated_last_is_not_in_prop_values() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 4: EdgeQuantified string ops (any/all + contains/starts_with/ends_with)
+// Quantified string ops (any/all after contains/starts_with/ends_with)
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn genre_graph() -> Graph {
@@ -453,7 +453,7 @@ fn test_edge_quantified_all_starts_with() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 4: EdgeQuantified set ops (any/all + is_in/is_not_in)
+// Quantified set ops (any/all after is_in/is_not_in)
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -532,7 +532,7 @@ fn test_edge_quantified_all_is_not_in() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 5: Re-aggregation chains on EdgeAggregated
+// Re-aggregation chains on aggregated reads
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -627,9 +627,11 @@ fn test_edge_aggregated_first_then_ends_with() {
 #[test]
 fn test_edge_aggregated_last_then_len() {
     // Property is list-valued at each timestamp.
-    // .last() picks the last snapshot's list, .len() returns its length.
+    // .latest() picks the latest update's list, .len() returns its length.
+    // A->B has three updates, so counting updates (what .last().len()
+    // would do) gives 3, not 2.
     let g = Graph::new();
-    // A->B: last snapshot = [20, 30], len = 2
+    // A->B: latest update = [20, 30], len = 2
     g.add_edge(
         1,
         "A",
@@ -642,6 +644,14 @@ fn test_edge_aggregated_last_then_len() {
         2,
         "A",
         "B",
+        [("score", Prop::List(vec![Prop::I64(15)].into()))],
+        None,
+    )
+    .unwrap();
+    g.add_edge(
+        3,
+        "A",
+        "B",
         [(
             "score",
             Prop::List(vec![Prop::I64(20), Prop::I64(30)].into()),
@@ -649,7 +659,7 @@ fn test_edge_aggregated_last_then_len() {
         None,
     )
     .unwrap();
-    // C->D: last snapshot = [5, 10, 15], len = 3
+    // C->D: latest (and only) update = [5, 10, 15], len = 3
     g.add_edge(
         1,
         "C",
@@ -665,7 +675,7 @@ fn test_edge_aggregated_last_then_len() {
     let filter = EdgeFilter
         .property("score")
         .temporal()
-        .last()
+        .latest()
         .len()
         .eq(2usize);
     let result = g.filter(filter).unwrap();
@@ -675,9 +685,11 @@ fn test_edge_aggregated_last_then_len() {
 #[test]
 fn test_edge_aggregated_last_then_any_is_in() {
     // Property is list-valued at each timestamp.
-    // .last() picks the last snapshot's list, .is_in([...]).any() checks if any element is in the set.
+    // .latest() picks the latest update's list, .is_in([...]).any() checks if any element is in the set.
+    // "metal" is not the last element of its list, so the last element of
+    // each update (what .last() would give) never matches.
     let g = Graph::new();
-    // A->B: last snapshot = ["folk","metal"] — "metal" ∈ {"metal","blues"}
+    // A->B: latest update = ["metal","folk"] — "metal" ∈ {"metal","blues"}
     g.add_edge(
         1,
         "A",
@@ -695,12 +707,12 @@ fn test_edge_aggregated_last_then_any_is_in() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("folk"), Prop::str("metal")].into()),
+            Prop::List(vec![Prop::str("metal"), Prop::str("folk")].into()),
         )],
         None,
     )
     .unwrap();
-    // C->D: last (and only) snapshot = ["jazz","pop"] — neither in {"metal","blues"}
+    // C->D: latest (and only) update = ["jazz","pop"] — neither in {"metal","blues"}
     g.add_edge(
         1,
         "C",
@@ -716,7 +728,7 @@ fn test_edge_aggregated_last_then_any_is_in() {
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .last()
+        .latest()
         .is_in([Prop::str("metal"), Prop::str("blues")])
         .any();
     let result = g.filter(filter).unwrap();
@@ -791,7 +803,7 @@ fn test_edge_aggregated_last_then_is_in() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gap 1: EdgePropertyExprOps &str convenience methods (no Prop:: wrapper)
+// &str constants without a Prop:: wrapper
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -827,7 +839,7 @@ fn test_edge_property_not_contains_str_literal() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gap 2: is_true / is_false on EdgePropertyExprOps
+// Bool comparisons
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn active_graph() -> Graph {
@@ -858,7 +870,7 @@ fn test_edge_property_is_false() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gap 3: EdgeQuantified re-aggregation chains (.any().sum(), .all().min(), etc.)
+// Re-aggregation chains under any()/all()
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -1013,7 +1025,9 @@ fn test_edge_quantified_any_any_contains() {
 #[test]
 fn test_edge_quantified_any_last_is_in() {
     let g = Graph::new();
-    // A->B: last snapshot (t=2) has "metal" as an element
+    // A->B: the latest update (t=2) has "metal" as an element, not as its
+    // last element, so the last element of each update (what .last() would
+    // give) never matches.
     g.add_edge(
         1,
         "A",
@@ -1031,12 +1045,12 @@ fn test_edge_quantified_any_last_is_in() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("pop"), Prop::str("metal")].into()),
+            Prop::List(vec![Prop::str("metal"), Prop::str("pop")].into()),
         )],
         None,
     )
     .unwrap();
-    // C->D: last (and only) snapshot has no element in {"metal"}
+    // C->D: the latest (and only) update has no element in {"metal"}
     g.add_edge(
         1,
         "C",
@@ -1049,11 +1063,11 @@ fn test_edge_quantified_any_last_is_in() {
     )
     .unwrap();
 
-    // last temporal snapshot's list — any element is in {"metal"}
+    // the latest update's list — any element is in {"metal"}
     let filter = EdgeFilter
         .property("tag")
         .temporal()
-        .last()
+        .latest()
         .is_in([Prop::str("metal")])
         .any();
     let result = g.filter(filter).unwrap();

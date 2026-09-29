@@ -1,6 +1,8 @@
 from raphtory import Graph, PersistentGraph
 from raphtory import EventTime
 from raphtory import filter
+import re
+
 import pytest
 from datetime import datetime
 
@@ -577,11 +579,9 @@ def test_all_property_types(GraphClass):
         ),
     ]
 
-    for i, (make_expr, message) in enumerate(nonsense_filter_cases):
-        with pytest.raises(Exception) as e:
-            print(len(g.filter(make_expr()).edges.explode()))
-        print(e.value)
-        assert message in str(e.value)
+    for make_expr, message in nonsense_filter_cases:
+        with pytest.raises(Exception, match=re.escape(message)):
+            g.filter(make_expr())
 
     # A string constant never compares against a numeric property, whether or
     # not it happens to parse as a number.
@@ -671,11 +671,11 @@ def test_all_property_types(GraphClass):
         (
             lambda: filter.ExplodedEdge.property("active").contains(2),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         (
             lambda: filter.ExplodedEdge.property("active").not_contains(3),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         # # Datetimes (created)
         (
             lambda: filter.ExplodedEdge.property("created") == 2,
@@ -704,11 +704,11 @@ def test_all_property_types(GraphClass):
         (
             lambda: filter.ExplodedEdge.property("created").contains(2),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         (
             lambda: filter.ExplodedEdge.property("created").not_contains(3),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         # # Lists (tags)
         (
             lambda: filter.ExplodedEdge.property("tags") == 2,
@@ -737,11 +737,11 @@ def test_all_property_types(GraphClass):
         (
             lambda: filter.ExplodedEdge.property("tags").contains(2),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         (
             lambda: filter.ExplodedEdge.property("tags").not_contains(3),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         # # Dicts (meta)
         (
             lambda: filter.ExplodedEdge.property("meta") == 2,
@@ -770,11 +770,11 @@ def test_all_property_types(GraphClass):
         (
             lambda: filter.ExplodedEdge.property("meta").contains(2),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
         (
             lambda: filter.ExplodedEdge.property("meta").not_contains(3),
             "cannot be compared with Str",
-        ),  # should fail on contains not type
+        ),  # a string constant never compares with a non-string property
     ]
 
     for i, (make_expr, message) in enumerate(wrong_types):
