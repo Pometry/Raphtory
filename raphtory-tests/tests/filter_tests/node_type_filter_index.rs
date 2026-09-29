@@ -118,7 +118,10 @@ fn typed_graphs() -> (Graph, Graph) {
             for node in g.nodes() {
                 let type_id = storage.node_type_id(node.node);
                 if type_id != 0 {
-                    storage.node_type_index().head_shared().insert(type_id, node.node);
+                    storage
+                        .node_type_index()
+                        .head_shared()
+                        .insert(type_id, node.node);
                 }
             }
         }
