@@ -13,9 +13,9 @@ pub struct StagedGraph<'a> {
 
     folder: WriteableGraphFolder,
 
-    live_graph: WriteLockedGraph<'a, Extension>,
+    src_graph: WriteLockedGraph<'a, Extension>,
 
-    live_folder: GraphFolder,
+    src_folder: GraphFolder,
 }
 
 pub trait StagingOps {
@@ -26,14 +26,14 @@ impl<'a> StagedGraph<'a> {
     pub fn new(
         graph: GraphStorage,
         folder: WriteableGraphFolder,
-        live_graph: WriteLockedGraph<'a, Extension>,
-        live_folder: GraphFolder,
+        src_graph: WriteLockedGraph<'a, Extension>,
+        src_folder: GraphFolder,
     ) -> Self {
         Self {
             graph,
             folder,
-            live_graph,
-            live_folder,
+            src_graph,
+            src_folder,
         }
     }
 

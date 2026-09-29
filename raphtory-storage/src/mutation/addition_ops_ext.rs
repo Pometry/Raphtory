@@ -758,11 +758,11 @@ impl RecoveryOps for TemporalGraph {}
 impl StagingOps for TemporalGraph {
     fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
         // Acquire full write locks to flush and prevent writes during staging.
-        let mut live_graph = self.write_locked_graph();
+        let mut src_graph = self.write_locked_graph();
 
-        // The live graph needs to be fully on disk before its data
+        // The source graph needs to be fully on disk before its data
         // is copied to the staged graph.
-        live_graph.flush()?;
+        src_graph.flush()?;
 
         // Since the graph is fully flushed to disk, we can safely log a checkpoint.
         let wal = self.extension().wal();
@@ -774,10 +774,10 @@ impl StagingOps for TemporalGraph {
         control_file.set_checkpoint(checkpoint_lsn);
         control_file.save()?;
 
-        let live_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
-        let live_folder = GraphFolder::from_graph_path(live_path)?;
+        let src_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
+        let src_folder = GraphFolder::from_graph_path(src_path)?;
 
-        let staged_folder = live_folder
+        let staged_folder = src_folder
             .clone()
             .init_swap()
             .map_err(StagingError::InitStagingDir)?;
@@ -787,7 +787,7 @@ impl StagingOps for TemporalGraph {
             .map_err(StagingError::InitStagingDir)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
-        live_graph.graph().copy_to(&staged_path)?;
+        src_graph.graph().copy_to(&staged_path)?;
 
         // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_path)?;
@@ -799,8 +799,8 @@ impl StagingOps for TemporalGraph {
         Ok(StagedGraph::new(
             staged_graph,
             staged_folder,
-            live_graph,
-            live_folder,
+            src_graph,
+            src_folder,
         ))
     }
 }
