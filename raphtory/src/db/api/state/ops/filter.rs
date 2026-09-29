@@ -8,7 +8,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::meta::DEFAULT_NODE_TYPE_ID, VID};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::sync::Arc;
 use storage::api::node_type_index::NodeTypeIndexOps;
@@ -92,7 +92,9 @@ where
         if matches!(self.const_value_in_domain(storage), Some(false)) {
             NodeList::empty()
         } else {
-            self.left.domain(storage).union(&self.right.domain(storage))
+            self.left
+                .domain(storage)
+                .union(&self.right.domain(storage), storage)
         }
     }
 
@@ -119,7 +121,7 @@ where
             && self
                 .right
                 .domain(storage)
-                .is_subset(&self.left.domain(storage))
+                .is_subset(&self.left.domain(storage), storage)
         {
             return Some(true);
         }
@@ -127,7 +129,7 @@ where
             && self
                 .left
                 .domain(storage)
-                .is_subset(&self.right.domain(storage))
+                .is_subset(&self.right.domain(storage), storage)
         {
             return Some(true);
         }
@@ -164,7 +166,7 @@ where
         } else {
             self.left
                 .domain(storage)
-                .intersection(&self.right.domain(storage))
+                .intersection(&self.right.domain(storage), storage)
         }
     }
 
@@ -230,34 +232,31 @@ impl NodeTypeFilterOp {
     }
 
     pub fn from_mask(mask: Arc<[bool]>, view: impl GraphView) -> Self {
-        Self {
-            mask,
-            index_backed: !view.core_graph().node_type_index().is_empty(),
-        }
+        // Nodes of the default type are not indexed, so a mask selecting it
+        // cannot be served from the index.
+        let selects_default = mask.get(DEFAULT_NODE_TYPE_ID).copied().unwrap_or(false);
+        let index_backed = !selects_default && !view.core_graph().node_type_index().is_empty();
+        Self { mask, index_backed }
     }
 }
 
 impl NodeOp for NodeTypeFilterOp {
     type Output = bool;
 
-    fn domain(&self, storage: &GraphStorage) -> NodeList {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
         if !self.index_backed {
             // No index, switch to full scan.
             return NodeList::All;
         }
 
-        let type_ids: Vec<usize> = self
+        let types = self
             .mask
             .iter()
             .enumerate()
             .filter_map(|(type_id, keep)| keep.then_some(type_id))
             .collect();
 
-        let nodes = storage.node_type_index().nodes_of_type(&type_ids);
-
-        NodeList::List {
-            elems: nodes.into(),
-        }
+        NodeList::NodeTypeIdx { types }
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
