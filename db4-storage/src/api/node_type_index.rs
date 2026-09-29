@@ -1,8 +1,6 @@
 use crate::{error::StorageError, segments::node_type_index::index::MemNodeTypeIndex};
-use ahash::RandomState;
-use indexmap::IndexSet;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use raphtory_core::entities::VID;
+use raphtory_api::core::storage::ArcRwLockReadGuard;
 use std::{fmt::Debug, path::Path};
 
 pub trait NodeTypeIndexOps: Send + Sync + Debug + 'static
@@ -11,17 +9,19 @@ where
 {
     type Extension;
 
+    type Entry;
+
     fn new(path: Option<&Path>, ext: Self::Extension) -> Self;
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
     fn head(&self) -> RwLockReadGuard<'_, MemNodeTypeIndex>;
 
+    fn head_arc(&self) -> ArcRwLockReadGuard<MemNodeTypeIndex>;
+
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 
-    /// Returns the sorted, unique `VID`s of nodes whose type is in `type_ids`.
-    // TODO: See if we can return an iterator here instead.
-    fn nodes_of_type(&self, type_ids: &[usize]) -> IndexSet<VID, RandomState>;
+    fn entry(&self, type_ids: &[usize]) -> Self::Entry;
 
     /// Returns `true` if the index has no `(type_id, VID)` entries.
     fn is_empty(&self) -> bool;

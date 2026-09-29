@@ -370,7 +370,7 @@ def test_weighted_page_rank():
         ("4", 0.07837),
     ]:
         assert (
-            abs(actual[node]["pagerank_score"] - expected) < 1e-5
+                abs(actual[node]["pagerank_score"] - expected) < 1e-5
         ), f"node {node}: {actual[node]} != {expected}"
 
 
@@ -386,8 +386,8 @@ def test_weighted_page_rank_none_matches_unweighted():
     weighted = algorithms.pagerank(g, iter_count=1000, weight="weight")
     for node in ["1", "2", "3", "4"]:
         assert (
-            abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
-            < 1e-5
+                abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
+                < 1e-5
         ), f"node {node} differs"
 
 
@@ -610,7 +610,7 @@ def test_balance_uses_decimal_weights_by_value():
 
     out = algorithms.balance(g, "w", "out")
     assert (
-        out["a"]["balance"] == -6.5
+            out["a"]["balance"] == -6.5
     )  # -(2.5 + 4.0), not the -2.0 of a 1.0-per-edge fallback
 
     inn = algorithms.balance(g, "w", "in")
@@ -850,8 +850,40 @@ def test_fast_rp():
         )
 
         assert (
-            within_group < outside_group
+                within_group < outside_group
         )  # nearest neighbour in the embedding space should be in the same component
+
+
+def test_local_clustering_coefficient_batch_without_v_matches_explicit_list():
+    g = Graph()
+    for name in ["a", "b", "c", "isolated"]:
+        g.add_node(1, name)
+    g.add_edge(1, "a", "b")
+    g.add_edge(2, "b", "c")
+    g.add_edge(3, "c", "a")
+
+    explicit = algorithms.local_clustering_coefficient_batch(
+        g, ["a", "b", "c", "isolated"]
+    )
+    for implicit in (
+        algorithms.local_clustering_coefficient_batch(g),
+        algorithms.local_clustering_coefficient_batch(g, []),
+        algorithms.local_clustering_coefficient_batch(g, None),
+    ):
+        assert len(implicit) == 4
+        # reading the result back used to panic on a fabricated node id
+        assert sorted(implicit.nodes().name) == ["a", "b", "c", "isolated"]
+        assert sorted((n.name, v["lcc"]) for n, v in implicit.items()) == sorted(
+            (n.name, v["lcc"]) for n, v in explicit.items()
+        )
+        assert implicit.top_k({"lcc": "desc"}, 3) is not None
+        assert implicit.sort_by({"lcc": "asc"}) is not None
+    assert dict((n.name, v["lcc"]) for n, v in explicit.items()) == {
+        "a": 1.0,
+        "b": 1.0,
+        "c": 1.0,
+        "isolated": 0.0,
+    }
 
 
 def test_temporal_bipartite_graph_projection():
