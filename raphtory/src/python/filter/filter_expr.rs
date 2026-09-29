@@ -74,11 +74,11 @@ impl ExprOrFilter {
 
 #[pymethods]
 impl PyFilterExpr {
-    pub fn __and__(&self, other: ExprOrFilter) -> Self {
+    fn __and__(&self, other: ExprOrFilter) -> Self {
         PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.into_filter()]))
     }
 
-    pub fn __or__(&self, other: ExprOrFilter) -> PyResult<Self> {
+    fn __or__(&self, other: ExprOrFilter) -> PyResult<Self> {
         let other = other.into_filter();
         no_view(&self.0)?;
         no_view(&other)?;

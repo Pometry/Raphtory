@@ -238,7 +238,7 @@ def test_combinations_follow_set_algebra():
             if _kind(a) == _kind(b) == "node":
                 # Node predicates combine on nodes first: an edge stays when both
                 # ends pass `a or b`, which is more than the union of the two
-                # both-ends sets (b->c stays for `name == b | name == c`).
+                # both-ends sets (an edge whose ends pass different legs stays).
                 either = node_sets[a] | node_sets[b]
                 both = node_sets[a] & node_sets[b]
                 cases.append(

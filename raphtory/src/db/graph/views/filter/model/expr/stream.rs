@@ -78,7 +78,7 @@ impl<G: GraphView> NodeHistory for TemporalNodePropOp<G> {
     }
 
     fn values<'a>(&'a self, node: VID) -> BoxedLIter<'a, Prop> {
-        match view_node(&self.graph, self.in_view, node)
+        match view_node(&self.graph, self.narrows, node)
             .and_then(|n| n.properties().temporal().get_by_id(self.prop_id))
         {
             Some(history) => GenLockedIter::from(history, |h| h.values()).into_dyn_boxed(),
@@ -87,7 +87,7 @@ impl<G: GraphView> NodeHistory for TemporalNodePropOp<G> {
     }
 
     fn values_rev<'a>(&'a self, node: VID) -> BoxedLIter<'a, Prop> {
-        match view_node(&self.graph, self.in_view, node)
+        match view_node(&self.graph, self.narrows, node)
             .and_then(|n| n.properties().temporal().get_by_id(self.prop_id))
         {
             Some(history) => GenLockedIter::from(history, |h| h.values_rev()).into_dyn_boxed(),

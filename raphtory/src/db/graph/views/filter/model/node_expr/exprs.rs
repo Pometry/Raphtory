@@ -585,7 +585,7 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> DynCreateHistor
         Ok(Arc::new(TemporalNodePropOp {
             graph,
             prop_id,
-            in_view: self.view_expr.narrows(),
+            narrows: self.view_expr.narrows(),
         }))
     }
 
@@ -616,7 +616,7 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Te
             TemporalNodePropOp {
                 graph,
                 prop_id,
-                in_view: self.view_expr.narrows(),
+                narrows: self.view_expr.narrows(),
             }
             .map(|a| Some(a)),
         ))

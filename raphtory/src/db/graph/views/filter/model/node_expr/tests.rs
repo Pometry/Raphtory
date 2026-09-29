@@ -743,12 +743,13 @@ fn numeric_constants_beyond_the_property_width_compare_by_value() {
 
 // ── Reads through a view on a node the view does not show ─────────────────
 
-/// early: p=1 @1, m=1 · late: p=1 @6, m=1 · layered: p=1 @1
+/// early: p=1 @1, m=1 · late: p=1 @6, m=1 · no_meta: p=1 @1
 ///
 /// ```text
 /// time      0    1    2    3    4    5    6
 /// early     ├────●───────────────────┤
 /// late      ├────────────────────────┤    ●
+/// no_meta   ├────●───────────────────┤
 ///           └─ window [0, 5) ────────┘
 /// ```
 fn build_view_membership_graph() -> Graph {
@@ -758,7 +759,7 @@ fn build_view_membership_graph() -> Graph {
     for name in ["early", "late"] {
         g.node(name).unwrap().add_metadata([("m", 1i64)]).unwrap();
     }
-    g.add_node(1, "layered", [("p", 1i64)], None, None).unwrap();
+    g.add_node(1, "no_meta", [("p", 1i64)], None, None).unwrap();
     g
 }
 
@@ -766,7 +767,7 @@ fn build_view_membership_graph() -> Graph {
 fn windowed_property_read_skips_node_absent_from_window() {
     let g = build_view_membership_graph();
     let filter = NodeFilter.window(0, 5).property("p").eq(1i64);
-    assert_eq!(filtered_names(filter, g), vec!["early", "layered"]);
+    assert_eq!(filtered_names(filter, g), vec!["early", "no_meta"]);
 }
 
 #[test]

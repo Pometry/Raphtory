@@ -8232,7 +8232,7 @@ mod test_edge_filter {
     };
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, ComposableFilter, EdgeViewFilterOps, EntityAggOps,
-        EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
+        EntityExprFilterOps, ViewWrapOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_edges_results, assert_select_edges_results, TestGraphVariants, TestVariants,
@@ -9254,9 +9254,7 @@ mod test_edge_property_filter {
 
     use raphtory::prelude::{EntityAggOps, EntityExprFilterOps};
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, TestGraphVariants, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     #[test]
     fn test_filter_edges_for_property_eq() {
@@ -10538,14 +10536,11 @@ mod test_edge_property_filter {
 mod composite_edge_filter_tests {
     use raphtory::{
         db::graph::views::filter::model::{
-            edge_filter::EdgeFilter, not_filter::NotFilter, ComposableFilter, NodeFilterFactory,
-            PropertyExprFactory,
+            edge_filter::EdgeFilter, not_filter::NotFilter, ComposableFilter, PropertyExprFactory,
         },
         prelude::EntityExprFilterOps,
     };
-    use raphtory_tests::assertions::{
-        assert_filter_edges_results, TestGraphVariants, TestVariants,
-    };
+    use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
     use crate::filter_tests::test_filters::{init_edges_graph, IdentityGraphTransformer};
 

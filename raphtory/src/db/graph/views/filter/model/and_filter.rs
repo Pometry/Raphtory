@@ -44,9 +44,10 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
-/// The `and` of two erased filters, the join the tree compiler builds once it
-/// has split a filter into its node and edge answers. A typed `and` compiles
-/// through its tree instead (see `compile_through_tree!`), so it gets that split.
+/// The `and` of two compiled filters, as the tree compiler builds it (the
+/// node and edge answers, the legs of one answer, or the predicates beside a
+/// view). A typed `and` compiles through its tree instead (see
+/// `compile_through_tree!`).
 impl CreateFilter for AndFilter<DynFilter, DynFilter> {
     type FilteredGraph<'graph, G>
         = AndFilteredGraph<G, DynGraphArc<'graph>, DynGraphArc<'graph>>

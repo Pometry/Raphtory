@@ -87,21 +87,23 @@ use storage::EdgeEntryRef;
 pub(crate) struct NodePropOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
-    /// Whether `graph` is a view of the read's own, see [`view_node`].
-    pub(crate) in_view: bool,
+    /// Whether the read's own view (e.g. `NodeFilter.window(..)`) can hide
+    /// nodes the enclosing filter keeps; see [`view_node`].
+    pub(crate) narrows: bool,
 }
 
 /// The node as `graph` sees it. When `graph` is the graph the enclosing filter
 /// runs on, that filter has already decided the node belongs to it, so the node
-/// is read as it is. When it is a view of the read's own (`in_view`), the node
-/// may be missing from it, and a read of a missing node is `None`.
+/// is read as it is. When the read carries its own view that can hide nodes
+/// (`narrows`, e.g. `NodeFilter.window(..)`), the node may be missing from it,
+/// and a read of a missing node is `None`.
 #[inline]
 pub(crate) fn view_node<G: GraphView>(
     graph: &G,
-    in_view: bool,
+    narrows: bool,
     node: VID,
 ) -> Option<NodeView<'_, &G>> {
-    if in_view {
+    if narrows {
         (&graph).node(node)
     } else {
         Some(NodeView::new_internal(graph, node))
@@ -116,7 +118,7 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        view_node(&self.graph, self.in_view, node)?
+        view_node(&self.graph, self.narrows, node)?
             .properties()
             .get_by_id(self.prop_id)
     }
@@ -142,8 +144,9 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
 pub(crate) struct NodeMetaOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
-    /// Whether `graph` is a view of the read's own, see [`view_node`].
-    pub(crate) in_view: bool,
+    /// Whether the read's own view (e.g. `NodeFilter.window(..)`) can hide
+    /// nodes the enclosing filter keeps; see [`view_node`].
+    pub(crate) narrows: bool,
 }
 
 impl<G: GraphView> NodeOp for NodeMetaOp<G> {
@@ -154,7 +157,7 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        view_node(&self.graph, self.in_view, node)?
+        view_node(&self.graph, self.narrows, node)?
             .metadata()
             .get_by_id(self.prop_id)
     }
@@ -172,9 +175,9 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 // InViewNodeOp<G, F> — a read that holds only for nodes the view holds
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A read through a view of the read's own that does not itself look at the
-/// view, such as a node's name: for a node the view does not hold it is `None`,
-/// as a property read through the same view would be (see [`view_node`]).
+/// A read that does not consult the view itself (e.g. a node's name), taken
+/// through a view that can hide nodes: `None` for a node the view does not
+/// hold, as a property read through the same view would be.
 #[derive(Clone)]
 pub(crate) struct InViewNodeOp<G, F> {
     pub(crate) graph: G,
@@ -189,7 +192,7 @@ impl<G: GraphView, F: NodeOp<Output = Option<Prop>>> NodeOp for InViewNodeOp<G, 
     type Output = Option<Prop>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        view_node(&self.graph, true, node)?;
+        (&self.graph).node(node)?;
         self.read.apply(storage, node)
     }
 
@@ -243,8 +246,9 @@ impl NodeOp for NodeIdOp {
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
-    /// Whether `graph` is a view of the read's own, see [`view_node`].
-    pub(crate) in_view: bool,
+    /// Whether the read's own view (e.g. `NodeFilter.window(..)`) can hide
+    /// nodes the enclosing filter keeps; see [`view_node`].
+    pub(crate) narrows: bool,
 }
 
 impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
@@ -263,7 +267,7 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
     type Output = Prop;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Prop {
-        let vals: Vec<Prop> = view_node(&self.graph, self.in_view, node)
+        let vals: Vec<Prop> = view_node(&self.graph, self.narrows, node)
             .and_then(|n| {
                 n.properties()
                     .temporal()

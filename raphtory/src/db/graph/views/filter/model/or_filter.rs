@@ -44,9 +44,9 @@ impl<L: Display, R: Display> Display for OrFilter<L, R> {
 
 impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
-/// The `or` of two erased filters, the join the tree compiler builds once it
-/// has split a filter into its node and edge answers. A typed `or` compiles
-/// through its tree instead (see `compile_through_tree!`), so it gets that split.
+/// The `or` of two compiled legs of one question's answer, as the tree
+/// compiler builds it. A typed `or` compiles through its tree instead (see
+/// `compile_through_tree!`).
 impl CreateFilter for OrFilter<DynFilter, DynFilter> {
     type FilteredGraph<'graph, G>
         = OrFilteredGraph<G, DynGraphArc<'graph>, DynGraphArc<'graph>>

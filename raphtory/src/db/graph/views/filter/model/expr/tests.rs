@@ -4,8 +4,11 @@ use crate::{
         api::view::{Filter, Select},
         graph::views::filter::{
             model::{
-                edge_filter::EdgeFilter, windowed_filter::Windowed, DynCreateFilter,
-                EdgeViewFilterOps, ViewWrapOps,
+                edge_filter::EdgeFilter,
+                node_filter::{NodeFilter, NodeFilterFactory},
+                windowed_filter::Windowed,
+                ComposableFilter, DynCreateFilter, EdgeViewFilterOps, EntityExprFilterOps,
+                PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -621,7 +624,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
 /// filters gives the `and`'s answer.
 #[test]
 fn filters_answer_the_node_and_edge_questions_separately() {
-    use crate::db::api::view::{DynamicGraph, IntoDynamic, Select};
+    use crate::db::api::view::{DynamicGraph, IntoDynamic};
     let g = graph();
     let score_gt = |v: f64| node(cmp(CmpOp::Gt, prop("score"), c(v)));
     let score_lt = |v: f64| node(cmp(CmpOp::Lt, prop("score"), c(v)));
@@ -802,7 +805,6 @@ fn a_view_under_not_is_refused_inside_a_composite_too() {
 /// one that compiles to "every node".
 #[test]
 fn a_node_collection_refuses_a_filter_that_tests_edges() {
-    use crate::db::api::view::Select;
     let g = graph();
     let score_gt = |v: f64| node(cmp(CmpOp::Gt, prop("score"), c(v)));
     let w_gt_2 = FilterExpr::Edge(cmp(CmpOp::Gt, edge_prop("w"), Expr::Const(2i64.into())));
@@ -869,10 +871,6 @@ fn selected_edges<F: CreateFilter + Clone>(g: &Graph, filter: &F) -> Vec<String>
 /// `name == "b" | name == "c"` because each end passes one leg.
 #[test]
 fn typed_combinators_answer_the_node_and_edge_questions_separately() {
-    use crate::db::graph::views::filter::model::{
-        node_filter::{NodeFilter, NodeFilterFactory},
-        ComposableFilter, EntityExprFilterOps, PropertyExprFactory,
-    };
     let g = chain();
     let name_is = |n: &'static str| NodeFilter.name().eq(n);
     let w_gt_1 = || EdgeFilter.property("w").gt(1i64);
@@ -922,10 +920,6 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
 /// view does not hold has no name, id or type there, as it has no properties.
 #[test]
 fn a_field_read_under_a_view_is_none_for_a_node_outside_it() {
-    use crate::db::graph::views::filter::model::{
-        node_filter::{NodeFilter, NodeFilterFactory},
-        EntityExprFilterOps,
-    };
     // early@1 · late@7
     let g = Graph::new();
     g.add_node(1, "early", NO_PROPS, None, None).unwrap();

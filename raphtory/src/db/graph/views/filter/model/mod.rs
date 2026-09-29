@@ -258,7 +258,7 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Pr
         Ok(Arc::new(NodePropOp {
             graph,
             prop_id,
-            in_view: self.view_expr.narrows(),
+            narrows: self.view_expr.narrows(),
         }))
     }
 
@@ -288,7 +288,7 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Me
         Ok(Arc::new(NodeMetaOp {
             graph,
             prop_id,
-            in_view: self.view_expr.narrows(),
+            narrows: self.view_expr.narrows(),
         }))
     }
 

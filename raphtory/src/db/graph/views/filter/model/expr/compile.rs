@@ -1979,9 +1979,10 @@ impl FilterExpr {
     }
 
     /// Compile the answer to the node question. An edge stays when both its
-    /// ends pass the whole answer; the legs of a combined answer each keep
-    /// their own edges, and an `or` of those would drop an edge whose ends
-    /// pass different legs, so a combined answer's edges come from its node test.
+    /// ends pass the whole answer; the legs of any node answer but a single
+    /// node predicate (a combination, or an opaque filter) each keep their
+    /// own edges, and an `or` of those would drop an edge whose ends pass
+    /// different legs, so such an answer's edges come from its node test.
     fn compile_node_answer(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
         let compiled = self.compile_answer()?;
         Ok(match self {
@@ -2182,8 +2183,9 @@ impl CreateFilter for Viewed {
     }
 }
 
-/// A combined answer to the node question: the nodes its node test keeps, and
-/// the edges whose ends it keeps both.
+/// Any node answer but a single node predicate (a combination, or an opaque
+/// filter): the nodes its node test keeps, and the edges whose ends it keeps
+/// both.
 #[derive(Clone)]
 struct NodeAnswer(Arc<dyn DynCreateFilter>);
 
@@ -2528,12 +2530,8 @@ mod tests {
     /// A leaf that records the address of the erased graph it is compiled against.
     #[derive(Clone, Default)]
     struct GraphProbe {
-        seen: Arc<Mutex<Vec<*const ()>>>,
+        seen: Arc<Mutex<Vec<usize>>>,
     }
-
-    // Only addresses are stored, never dereferenced.
-    unsafe impl Send for GraphProbe {}
-    unsafe impl Sync for GraphProbe {}
 
     impl EntityExpr for GraphProbe {
         type Marker = EntityMarker;
@@ -2552,7 +2550,7 @@ mod tests {
             self.seen
                 .lock()
                 .unwrap()
-                .push(Arc::as_ptr(&erased) as *const ());
+                .push(Arc::as_ptr(&erased) as *const () as usize);
             Prop::I64(2).create_node_op(graph)
         }
     }
@@ -2584,7 +2582,7 @@ mod tests {
 
         assert_eq!(
             *probe.seen.lock().unwrap(),
-            vec![Arc::as_ptr(&base) as *const ()]
+            vec![Arc::as_ptr(&base) as *const () as usize]
         );
     }
 }
