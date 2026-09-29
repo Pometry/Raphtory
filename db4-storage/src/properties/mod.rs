@@ -285,17 +285,15 @@ impl Properties {
         }
     }
 
-    /// Physical number of temporal rows, one per write accepted, including a replayed update
-    /// that overwrote an existing `(timestamp, event_id)`. This is the size estimators' number.
+    /// Physical number of temporal rows, one per write accepted, excluding a replayed update
+    /// that overwrote an existing `(timestamp, event_id)`.
     pub fn t_len(&self) -> usize {
-        self.t_properties.len()
+        self.t_additions_count
     }
 
-    /// Number of distinct `(timestamp, event_id)` temporal updates across the entities of this
-    /// layer, i.e. what exploding them yields. Unlike `t_len()` it does not count a replayed
-    /// update twice.
+    /// Actual number of temporal updates, including a replayed update (used for size estimate)
     pub fn t_additions_count(&self) -> usize {
-        self.t_additions_count
+        self.t_properties.len()
     }
 
     pub fn deletions_count(&self) -> usize {

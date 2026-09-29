@@ -246,11 +246,6 @@ impl<T: HasRow> SegmentContainer<T> {
         self.properties.t_len()
     }
 
-    /// Distinct temporal updates in this layer; `t_len()` is the physical row count.
-    pub fn t_additions_count(&self) -> usize {
-        self.properties.t_additions_count()
-    }
-
     pub fn deletions_len(&self) -> usize {
         self.properties.deletions_count()
     }
@@ -266,7 +261,7 @@ impl<T: HasRow> SegmentContainer<T> {
     #[inline]
     pub fn t_prop_est_size(&self) -> usize {
         let row_size = self.meta.temporal_est_row_size();
-        let row_count = self.properties.t_len();
+        let row_count = self.properties.t_additions_count();
 
         row_size * row_count
     }
