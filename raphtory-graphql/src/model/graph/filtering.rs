@@ -28,6 +28,8 @@ pub struct Window {
     pub end: GqlTimeInput,
 }
 
+/// A view operation on a graph, applied in list order; graph-level ops such as
+/// `subgraph` and `valid` live here only.
 #[derive(OneOfInput, Clone, Debug)]
 pub enum GraphViewCollection {
     /// Contains only the default layer.
@@ -68,6 +70,8 @@ pub enum GraphViewCollection {
     Filter(GqlFilter),
 }
 
+/// A view operation on a node collection, applied in list order; `typeFilter`
+/// keeps the nodes of the given types.
 #[derive(OneOfInput, Clone, Debug)]
 pub enum NodesViewCollection {
     /// Contains only the default layer.
@@ -102,8 +106,7 @@ pub enum NodesViewCollection {
     TypeFilter(Vec<String>),
 }
 
-/// A view operation on a node, an edge or a collection of either; the
-/// same list for all of them now that one filter type serves every entity.
+/// A view operation on a node, an edge or a collection of either.
 #[derive(OneOfInput, Clone, Debug)]
 pub enum ViewCollection {
     /// Contains only the default layer.
@@ -271,6 +274,12 @@ pub struct Wrapped<T>(Box<T>);
 impl<T> From<T> for Wrapped<T> {
     fn from(inner: T) -> Self {
         Wrapped(Box::new(inner))
+    }
+}
+
+impl<T> Wrapped<T> {
+    pub fn into_inner(self) -> T {
+        *self.0
     }
 }
 

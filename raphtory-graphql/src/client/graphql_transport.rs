@@ -4741,7 +4741,7 @@ mod tests {
     #[test]
     fn property_key_rides_json_variable_intact() {
         // A quote-bearing property KEY is carried as JSON data too.
-        let filter = node_prop("wei\"rd".into(), GqlNodeExpr::Eq, GqlValue::Str("v".into()));
+        let filter = node_prop("wei\"rd", GqlNodeExpr::Eq, GqlValue::Str("v".into()));
         let mut vars = VarCollector::default();
         vars.add_filter(&filter).unwrap();
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
@@ -4811,7 +4811,7 @@ mod tests {
             GqlValue::F64(f64::INFINITY),
             GqlValue::F32(f32::NEG_INFINITY),
         ] {
-            let filter = node_prop("x".into(), GqlNodeExpr::Eq, bad);
+            let filter = node_prop("x", GqlNodeExpr::Eq, bad);
             let mut vars = VarCollector::default();
             assert!(matches!(
                 vars.add_filter(&filter),
@@ -4820,7 +4820,7 @@ mod tests {
         }
 
         // A finite float serializes fine.
-        let filter = node_prop("x".into(), GqlNodeExpr::Eq, GqlValue::F64(1.5));
+        let filter = node_prop("x", GqlNodeExpr::Eq, GqlValue::F64(1.5));
         let mut vars = VarCollector::default();
         assert!(vars.add_filter(&filter).is_ok());
     }
@@ -4953,13 +4953,6 @@ mod tests {
     #[tokio::test]
     async fn test_filtered_collect_matches_columnar_reads() {
         use crate::{client::remote_client::RemoteClient, server::GraphServer};
-        use raphtory::{
-            db::{
-                api::storage::storage::Config,
-                graph::views::filter::model::expr::{CmpOp, Expr, FilterExpr, NodeLeaf},
-            },
-            prelude::Prop,
-        };
         use reqwest::Url;
         use std::collections::HashMap as Map;
         use tempfile::tempdir;
@@ -4988,7 +4981,7 @@ mod tests {
         rg.add_edge(2i64, "b", "c", NO_PROPS, None).await.unwrap();
         rg.add_edge(3i64, "c", "a", NO_PROPS, None).await.unwrap();
 
-        let score_gt_15 = node_prop("score".into(), GqlNodeExpr::Gt, GqlValue::I64(15));
+        let score_gt_15 = node_prop("score", GqlNodeExpr::Gt, GqlValue::I64(15));
 
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
@@ -5049,18 +5042,7 @@ mod tests {
         );
 
         // select() narrows membership only — handles see the unfiltered graph.
-        // Passed as a tree to pin that tree-typed callers satisfy the widened
-        // `TryInto<GqlFilter>` bound.
-        let score_gt_15_tree = FilterExpr::Node(Expr::Cmp(
-            CmpOp::Gt,
-            Box::new(Expr::Read(NodeLeaf::Property {
-                views: Vec::new(),
-                name: "score".into(),
-                temporal: false,
-            })),
-            Box::new(Expr::Const(Prop::I64(15))),
-        ));
-        let selected = rg.nodes().select(score_gt_15_tree).unwrap();
+        let selected = rg.nodes().select(tree(score_gt_15.clone())).unwrap();
         let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();
         assert_eq!(

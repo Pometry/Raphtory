@@ -20,7 +20,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, Filter, Select},
-        graph::{edges::Edges, views::filter::model::DynFilter},
+        graph::edges::Edges,
     },
     errors::GraphError,
     prelude::*,
@@ -469,7 +469,7 @@ impl GqlEdges {
     /// E.g. restricting everything to a specific week:
     ///
     /// ```text
-    /// edges { filter(expr: {window: {start: 1234, end: 5678}}) {
+    /// edges { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
     ///   list { src { neighbours { list { name } } } }   # neighbours still windowed
     /// } }
     /// ```
@@ -485,8 +485,7 @@ impl GqlEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.ee.filter(filter)?;
+            let filtered = self_clone.ee.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -500,9 +499,9 @@ impl GqlEdges {
     /// neighbours on Wednesday:
     ///
     /// ```text
-    /// edges { select(expr: {window: {...monday...}}) {
-    ///   list { src { select(expr: {window: {...tuesday...}}) {
-    ///     neighbours { select(expr: {window: {...wednesday...}}) {
+    /// edges { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { src { select(expr: {view: [{window: {...tuesday...}}]}) {
+    ///     neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
     ///       neighbours { list { name } }
     ///     } }
     ///   } } }

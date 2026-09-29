@@ -25,7 +25,7 @@ use raphtory::{
             properties::dyn_props::DynProperties,
             view::{filter_ops::Select, Filter, *},
         },
-        graph::{node::NodeView, views::filter::model::DynFilter},
+        graph::node::NodeView,
     },
     errors::GraphError,
     prelude::NodeStateOps,
@@ -400,17 +400,16 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.in_degree()).await
     }
 
-    /// Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
-    /// filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+    /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
+    /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full graph so their other-layer neighbours stay
     /// queryable.
     pub async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
         let self_clone = self.clone();
         match select {
             Some(select) => {
-                let filter: DynFilter = select.try_into()?;
                 blocking_compute(move || {
-                    in_component_filtered(self_clone.vv.clone(), filter)
+                    in_component_filtered(self_clone.vv.clone(), select)
                         .map(|state| GqlNodes::new(state.nodes()))
                 })
                 .await
@@ -422,17 +421,16 @@ impl GqlNode {
         }
     }
 
-    /// Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
-    /// filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+    /// Nodes reachable from this one via out-edges. `select` is a filter expression — node and edge
+    /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
     /// neighbours remain queryable.
     pub async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
         let self_clone = self.clone();
         match select {
             Some(select) => {
-                let filter: DynFilter = select.try_into()?;
                 blocking_compute(move || {
-                    out_component_filtered(self_clone.vv.clone(), filter)
+                    out_component_filtered(self_clone.vv.clone(), select)
                         .map(|state| GqlNodes::new(state.nodes()))
                 })
                 .await
@@ -522,8 +520,7 @@ impl GqlNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.vv.filter(filter)?;
+            let filtered = self_clone.vv.filter(expr)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })
         .await

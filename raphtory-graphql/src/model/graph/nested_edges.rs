@@ -14,7 +14,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{edges::NestedEdges, views::filter::model::DynFilter},
+        graph::edges::NestedEdges,
     },
     errors::GraphError,
     prelude::*,
@@ -402,8 +402,7 @@ impl GqlNestedEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.edges.filter(filter)?;
+            let filtered = self_clone.edges.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

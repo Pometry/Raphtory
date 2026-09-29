@@ -2531,7 +2531,7 @@ Takes a specified selection of views and applies them in given order.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#edgeviewcollection">EdgeViewCollection</a>!]!</td>
+<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
 <td>
 
 Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
@@ -3350,7 +3350,7 @@ Takes a specified selection of views and applies them in order given.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#edgesviewcollection">EdgesViewCollection</a>!]!</td>
+<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
 <td>
 
 Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
@@ -7151,7 +7151,7 @@ Takes a specified selection of views and applies them in order given.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#edgesviewcollection">EdgesViewCollection</a>!]!</td>
+<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
 <td>
 
 Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
@@ -7731,7 +7731,7 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#nodeviewcollection">NodeViewCollection</a>!]!</td>
+<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
 <td></td>
 </tr>
 <tr>
@@ -9992,7 +9992,7 @@ Takes a specified selection of views and applies them in given order.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
+<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
 <td>
 
 Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
@@ -10652,7 +10652,7 @@ Takes a specified selection of views and applies them in given order.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
+<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
 <td>
 
 Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
@@ -11804,32 +11804,6 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 
 ## Inputs
 
-### Cmp
-
-Two expressions to compare.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="cmp.lhs">lhs</strong></td>
-<td valign="top"><a href="#expr">Expr</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="cmp.rhs">rhs</strong></td>
-<td valign="top"><a href="#expr">Expr</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### EdgeAddition
 
 <table>
@@ -11880,6 +11854,370 @@ Metadata.
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.updates">updates</strong></td>
 <td valign="top">[<a href="#temporalpropertyinput">TemporalPropertyInput</a>!]</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeCmp
+
+Two expressions to compare.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgecmp.lhs">lhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgecmp.rhs">rhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.const">const</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td>
+
+A literal.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.property">property</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.metadata">metadata</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the entity is active; written `isActive: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isvalid">isValid</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the edge is valid; written `isValid: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isdeleted">isDeleted</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the edge is deleted; written `isDeleted: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isselfloop">isSelfLoop</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the edge is a self loop; written `isSelfLoop: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.src">src</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+A node expression evaluated on the edge's source node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.dst">dst</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+A node expression evaluated on the edge's destination node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.viewed">viewed</strong></td>
+<td valign="top"><a href="#edgeviewed">EdgeViewed</a></td>
+<td>
+
+Views applied to every read inside.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.sum">sum</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.avg">avg</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.min">min</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.max">max</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.first">first</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.last">last</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.len">len</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.earliest">earliest</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td>
+
+The earliest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.latest">latest</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td>
+
+The latest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.eq">eq</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.ne">ne</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.lt">lt</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.le">le</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.gt">gt</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.ge">ge</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.startswith">startsWith</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.endswith">endsWith</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.contains">contains</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.notcontains">notContains</strong></td>
+<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#edgefuzzycmp">EdgeFuzzyCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isin">isIn</strong></td>
+<td valign="top"><a href="#edgemembership">EdgeMembership</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#edgemembership">EdgeMembership</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.issome">isSome</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isnone">isNone</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.any">any</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td>
+
+Holds when the element-wise result inside holds for any element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.all">all</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td>
+
+Holds when the element-wise result inside holds for every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.and">and</strong></td>
+<td valign="top">[<a href="#edgeexpr">EdgeExpr</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.or">or</strong></td>
+<td valign="top">[<a href="#edgeexpr">EdgeExpr</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.not">not</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeFuzzyCmp
+
+A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+`rhs`, optionally matching by prefix.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefuzzycmp.lhs">lhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefuzzycmp.rhs">rhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefuzzycmp.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeMembership
+
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgemembership.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgemembership.values">values</strong></td>
+<td valign="top"><a href="#value">Value</a>!</td>
 <td></td>
 </tr>
 </tbody>
@@ -11957,7 +12295,9 @@ Property
 </tbody>
 </table>
 
-### EdgeViewCollection
+### EdgeViewed
+
+Views applied to every read inside `expr`, in list order.
 
 <table>
 <thead>
@@ -11969,270 +12309,14 @@ Property
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
+<td colspan="2" valign="top"><strong id="edgeviewed.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]!</td>
+<td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.filter">filter</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td>
-
-A filter tree; the entity it tests is written in the tree.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### EdgesViewCollection
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.filter">filter</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td>
-
-A filter tree; the entity it tests is written in the tree.
-
-</td>
+<td colspan="2" valign="top"><strong id="edgeviewed.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -12260,9 +12344,9 @@ OpenAI embedding models or compatible providers
 </tbody>
 </table>
 
-### Expr
+### ExplodedEdgeCmp
 
-A value: what stands on either side of a comparison.
+Two expressions to compare.
 
 <table>
 <thead>
@@ -12274,7 +12358,31 @@ A value: what stands on either side of a comparison.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="expr.const">const</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgecmp.lhs">lhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgecmp.rhs">rhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.const">const</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
 <td>
 
@@ -12283,215 +12391,242 @@ A literal.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="expr.read">read</strong></td>
-<td valign="top"><a href="#read">Read</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.property">property</strong></td>
+<td valign="top"><a href="#string">String</a></td>
 <td>
 
-A field, degree, property or metadata read from an entity.
+The latest value of a property.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="expr.temporal">temporal</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#string">String</a></td>
 <td>
 
-The full history of a property instead of its latest value.
+The history of a property, as a list.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="expr.sum">sum</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.avg">avg</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.min">min</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.max">max</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.first">first</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.last">last</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.len">len</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="expr.any">any</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.metadata">metadata</strong></td>
+<td valign="top"><a href="#string">String</a></td>
 <td>
 
-The predicate holds if it holds for any element.
+A metadata entry.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="expr.all">all</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-The predicate holds if it holds for every element.
+Whether the entity is active; written `isActive: true`.
 
 </td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isvalid">isValid</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the edge update is valid; written `isValid: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isdeleted">isDeleted</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the edge update is deleted; written `isDeleted: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isselfloop">isSelfLoop</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the edge update is a self loop; written `isSelfLoop: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.viewed">viewed</strong></td>
+<td valign="top"><a href="#explodededgeviewed">ExplodedEdgeViewed</a></td>
+<td>
+
+Views applied to every read inside.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.sum">sum</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.avg">avg</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.min">min</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.max">max</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.first">first</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.last">last</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.len">len</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.earliest">earliest</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td>
+
+The earliest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.latest">latest</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td>
+
+The latest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.eq">eq</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.ne">ne</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.lt">lt</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.le">le</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.gt">gt</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.ge">ge</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.startswith">startsWith</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.endswith">endsWith</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.contains">contains</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.notcontains">notContains</strong></td>
+<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#explodededgefuzzycmp">ExplodedEdgeFuzzyCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isin">isIn</strong></td>
+<td valign="top"><a href="#explodededgemembership">ExplodedEdgeMembership</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#explodededgemembership">ExplodedEdgeMembership</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.issome">isSome</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isnone">isNone</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.any">any</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td>
+
+Holds when the element-wise result inside holds for any element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.all">all</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td>
+
+Holds when the element-wise result inside holds for every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.and">and</strong></td>
+<td valign="top">[<a href="#explodededgeexpr">ExplodedEdgeExpr</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.or">or</strong></td>
+<td valign="top">[<a href="#explodededgeexpr">ExplodedEdgeExpr</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.not">not</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
 </tr>
 </tbody>
 </table>
 
-### FilterExpr
-
-The filter itself: a yes/no over an entity.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.eq">eq</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.ne">ne</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.lt">lt</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.le">le</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.gt">gt</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.ge">ge</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.startswith">startsWith</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.endswith">endsWith</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.contains">contains</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.notcontains">notContains</strong></td>
-<td valign="top"><a href="#cmp">Cmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.fuzzysearch">fuzzySearch</strong></td>
-<td valign="top"><a href="#fuzzycmp">FuzzyCmp</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.issome">isSome</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isnone">isNone</strong></td>
-<td valign="top"><a href="#expr">Expr</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isin">isIn</strong></td>
-<td valign="top"><a href="#membership">Membership</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isnotin">isNotIn</strong></td>
-<td valign="top"><a href="#membership">Membership</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isactive">isActive</strong></td>
-<td valign="top"><a href="#scope">Scope</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isvalid">isValid</strong></td>
-<td valign="top"><a href="#scope">Scope</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isdeleted">isDeleted</strong></td>
-<td valign="top"><a href="#scope">Scope</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.isselfloop">isSelfLoop</strong></td>
-<td valign="top"><a href="#scope">Scope</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.view">view</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td>
-
-A graph-level view with no predicate: the result is the view.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.and">and</strong></td>
-<td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.or">or</strong></td>
-<td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="filterexpr.not">not</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### FuzzyCmp
+### ExplodedEdgeFuzzyCmp
 
 A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
 `rhs`, optionally matching by prefix.
@@ -12506,24 +12641,146 @@ A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="fuzzycmp.lhs">lhs</strong></td>
-<td valign="top"><a href="#expr">Expr</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.lhs">lhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="fuzzycmp.rhs">rhs</strong></td>
-<td valign="top"><a href="#expr">Expr</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.rhs">rhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="fuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
 <td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="fuzzycmp.prefixmatch">prefixMatch</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.prefixmatch">prefixMatch</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeMembership
+
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgemembership.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgemembership.values">values</strong></td>
+<td valign="top"><a href="#value">Value</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeViewed
+
+Views applied to every read inside `expr`, in list order.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeviewed.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeviewed.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### FilterExpr
+
+The filter itself: a yes/no over one kind of entity, a view, or a combination.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.node">node</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.edge">edge</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.explodededge">explodedEdge</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.view">view</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+A graph-level view with no predicate: the result is the view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.and">and</strong></td>
+<td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
+<td>
+
+Every leg holds. A view leg applies first and the others run inside it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.or">or</strong></td>
+<td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
+<td>
+
+Any leg holds. Node legs combine on nodes and edge legs on edges; a leg
+of the other kind leaves that side unconstrained. No view legs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.not">not</strong></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
+<td>
+
+The filter that keeps what the inner one drops: a negated node filter
+keeps the nodes that fail it and the edges between them. No views.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -12742,7 +12999,7 @@ Set the window end to a specified time.
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-A filter tree; the entity it tests is written in the tree.
+A filter expression; the entity it tests is written in the expression.
 
 </td>
 </tr>
@@ -12777,33 +13034,6 @@ Source node id (string or non-negative integer).
 Destination node id (string or non-negative integer).
 
 </td>
-</tr>
-</tbody>
-</table>
-
-### Membership
-
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="membership.expr">expr</strong></td>
-<td valign="top"><a href="#expr">Expr</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="membership.values">values</strong></td>
-<td valign="top"><a href="#value">Value</a>!</td>
-<td></td>
 </tr>
 </tbody>
 </table>
@@ -13149,6 +13379,343 @@ Layer.
 </tbody>
 </table>
 
+### NodeCmp
+
+Two expressions to compare.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodecmp.lhs">lhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodecmp.rhs">rhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### NodeExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.const">const</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td>
+
+A literal.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.property">property</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.metadata">metadata</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Whether the entity is active; written `isActive: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.field">field</strong></td>
+<td valign="top"><a href="#nodefieldname">NodeFieldName</a></td>
+<td>
+
+A built-in node field.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.degree">degree</strong></td>
+<td valign="top"><a href="#degreedirection">DegreeDirection</a></td>
+<td>
+
+The node's degree in a direction.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.viewed">viewed</strong></td>
+<td valign="top"><a href="#nodeviewed">NodeViewed</a></td>
+<td>
+
+Views applied to every read inside.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.sum">sum</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.avg">avg</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.min">min</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.max">max</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.first">first</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.last">last</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.len">len</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.earliest">earliest</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+The earliest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.latest">latest</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+The latest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.eq">eq</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.ne">ne</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.lt">lt</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.le">le</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.gt">gt</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.ge">ge</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.startswith">startsWith</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.endswith">endsWith</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.contains">contains</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.notcontains">notContains</strong></td>
+<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.fuzzysearch">fuzzySearch</strong></td>
+<td valign="top"><a href="#nodefuzzycmp">NodeFuzzyCmp</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.isin">isIn</strong></td>
+<td valign="top"><a href="#nodemembership">NodeMembership</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#nodemembership">NodeMembership</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.issome">isSome</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.isnone">isNone</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.any">any</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+Holds when the element-wise result inside holds for any element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.all">all</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+Holds when the element-wise result inside holds for every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.and">and</strong></td>
+<td valign="top">[<a href="#nodeexpr">NodeExpr</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.or">or</strong></td>
+<td valign="top">[<a href="#nodeexpr">NodeExpr</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeexpr.not">not</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### NodeFuzzyCmp
+
+A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
+`rhs`, optionally matching by prefix.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefuzzycmp.lhs">lhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefuzzycmp.rhs">rhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefuzzycmp.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### NodeMembership
+
+A membership test. `values` is a list; a policy may also leave a single
+placeholder here (`{"var": …}`) that resolves to the list per caller.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodemembership.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodemembership.values">values</strong></td>
+<td valign="top"><a href="#value">Value</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### NodeSortBy
 
 <table>
@@ -13217,7 +13784,9 @@ Property
 </tbody>
 </table>
 
-### NodeViewCollection
+### NodeViewed
+
+Views applied to every read inside `expr`, in list order.
 
 <table>
 <thead>
@@ -13229,130 +13798,14 @@ Property
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
+<td colspan="2" valign="top"><strong id="nodeviewed.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]!</td>
+<td></td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.filter">filter</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td>
-
-A filter tree; the entity it tests is written in the tree.
-
-</td>
+<td colspan="2" valign="top"><strong id="nodeviewed.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -13490,7 +13943,7 @@ Set the window end to a specified time.
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-A filter tree; the entity it tests is written in the tree.
+A filter expression; the entity it tests is written in the expression.
 
 </td>
 </tr>
@@ -13573,128 +14026,6 @@ Value.
 <td colspan="2" valign="top"><strong id="openaiconfig.projectid">projectId</strong></td>
 <td valign="top"><a href="#string">String</a></td>
 <td></td>
-</tr>
-</tbody>
-</table>
-
-### PathFromNodeViewCollection
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest snapshot.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single layer to exclude.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
 </tr>
 </tbody>
 </table>
@@ -14010,74 +14341,6 @@ Value.
 </tbody>
 </table>
 
-### Read
-
-A value read from an entity.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="read.entity">entity</strong></td>
-<td valign="top"><a href="#entity">Entity</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="read.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="read.endpoint">endpoint</strong></td>
-<td valign="top"><a href="#endpoint">Endpoint</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="read.target">target</strong></td>
-<td valign="top"><a href="#target">Target</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### Scope
-
-Where a value is read: the entity, the views to read it through, and for an
-edge optionally one of its endpoint nodes.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="scope.entity">entity</strong></td>
-<td valign="top"><a href="#entity">Entity</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="scope.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="scope.endpoint">endpoint</strong></td>
-<td valign="top"><a href="#endpoint">Endpoint</a></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### Seeds
 
 How the initially infected nodes are chosen.
@@ -14115,58 +14378,6 @@ Infect this many randomly chosen nodes.
 <td>
 
 Infect this fraction of the nodes, chosen at random.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### Target
-
-What a read selects on its entity.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="target.field">field</strong></td>
-<td valign="top"><a href="#nodefieldname">NodeFieldName</a></td>
-<td>
-
-A built-in node field.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="target.degree">degree</strong></td>
-<td valign="top"><a href="#degreedirection">DegreeDirection</a></td>
-<td>
-
-A node degree in a direction.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="target.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A property, by name.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="target.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-A metadata entry, by name.
 
 </td>
 </tr>
@@ -14463,6 +14674,149 @@ Exclusive upper bound of the search window.
 </tbody>
 </table>
 
+### ViewCollection
+
+A view operation on a node, an edge or a collection of either; the
+same list for all of them now that one filter type serves every entity.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Contains only the default layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.latest">latest</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+View at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Snapshot at latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+Snapshot at specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.layers">layers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of included layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.excludelayers">excludeLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+List of excluded layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Single excluded layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.window">window</strong></td>
+<td valign="top"><a href="#window">Window</a></td>
+<td>
+
+Window between a start and end time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.at">at</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+View at a specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.before">before</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+View before a specified time (end exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.after">after</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+View after a specified time (start exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+Set the window start to a specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+Set the window end to a specified time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewcollection.filter">filter</strong></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
+<td>
+
+A filter expression; the entity it tests is written in the expression.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### ViewOp
 
 One view restriction, applied in list order.
@@ -14687,56 +15041,6 @@ Edge direction to follow during traversal.
 </tr>
 <tr>
 <td valign="top"><strong>BOTH</strong></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### Endpoint
-
-Which end of an edge a read looks at.
-
-<table>
-<thead>
-<tr>
-<th align="left">Value</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top"><strong>SRC</strong></td>
-<td></td>
-</tr>
-<tr>
-<td valign="top"><strong>DST</strong></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
-### Entity
-
-The kind of thing a filter tests: a node, an edge, or one edge update.
-
-<table>
-<thead>
-<tr>
-<th align="left">Value</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td valign="top"><strong>NODE</strong></td>
-<td></td>
-</tr>
-<tr>
-<td valign="top"><strong>EDGE</strong></td>
-<td></td>
-</tr>
-<tr>
-<td valign="top"><strong>EXPLODED_EDGE</strong></td>
 <td></td>
 </tr>
 </tbody>

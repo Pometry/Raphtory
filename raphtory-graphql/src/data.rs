@@ -943,10 +943,6 @@ fn apply_row_filter_sync(
     })
 }
 
-/// The graph under a row filter, or the reason the filter cannot be applied to it.
-///
-/// The filter means what it means everywhere else: `and` is an intersection, and a
-/// predicate that should be evaluated inside a view carries that view on its read.
 /// Why a grant's row filter cannot be applied to a graph.
 #[derive(thiserror::Error, Debug)]
 pub enum AccessFilterError {
@@ -958,6 +954,9 @@ pub enum AccessFilterError {
     Load(GQLError),
 }
 
+/// The graph under a row filter. The filter means what it means everywhere
+/// else: `and` is an intersection, and a predicate that should be evaluated
+/// inside a view carries that view on its read.
 fn compile_row_filter(graph: DynamicGraph, filter: GqlFilter) -> Result<DynamicGraph, GraphError> {
     Ok(graph.filter(filter)?.into_dynamic())
 }

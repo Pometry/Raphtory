@@ -15,7 +15,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue}
 use raphtory::{
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{path::PathFromGraph, views::filter::model::DynFilter},
+        graph::path::PathFromGraph,
     },
     errors::GraphError,
     prelude::*,
@@ -510,8 +510,7 @@ impl GqlPathFromGraph {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

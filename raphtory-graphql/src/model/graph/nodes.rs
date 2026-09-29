@@ -24,10 +24,7 @@ use raphtory::{
             state::ops::DynNodeFilter,
             view::{filter_ops::Select, DynamicGraph, Filter},
         },
-        graph::{
-            nodes::{IntoDynNodes, Nodes},
-            views::filter::model::DynFilter,
-        },
+        graph::nodes::{IntoDynNodes, Nodes},
     },
     errors::GraphError,
     prelude::*,
@@ -307,7 +304,7 @@ impl GqlNodes {
                 NodesViewCollection::After(time) => return_view.after(time).await,
                 NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodesViewCollection::Filter(node_filter) => return_view.filter(node_filter).await?,
+                NodesViewCollection::Filter(filter) => return_view.filter(filter).await?,
                 NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
         }
@@ -506,7 +503,7 @@ impl GqlNodes {
     /// E.g. restricting everything to a specific week:
     ///
     /// ```text
-    /// nodes { filter(expr: {window: {start: 1234, end: 5678}}) {
+    /// nodes { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
     ///   list { neighbours { list { name } } }   # neighbours still windowed
     /// } }
     /// ```
@@ -522,8 +519,7 @@ impl GqlNodes {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -537,9 +533,9 @@ impl GqlNodes {
     /// neighbours active on Wednesday:
     ///
     /// ```text
-    /// nodes { select(expr: {window: {...monday...}}) {
-    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
-    ///     list { neighbours { select(expr: {window: {...wednesday...}}) {
+    /// nodes { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
+    ///     list { neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
     ///       list { name }
     ///     } } }
     ///   } } }

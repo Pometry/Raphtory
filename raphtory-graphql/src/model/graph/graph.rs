@@ -34,17 +34,14 @@ use raphtory::{
             filter_ops::Select, DynamicGraph, Filter, IntoDynamic, NodeViewOps, StaticGraphViewOps,
             TimeOps,
         },
-        graph::{node::NodeView, views::filter::model::DynFilter},
+        graph::node::NodeView,
     },
     errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{
-    collections::HashSet,
-    convert::{Into, TryInto},
-};
+use std::{collections::HashSet, convert::Into};
 
 /// A view of a Raphtory graph. Every field here returns either data from the
 /// view or a derived view (`window`, `layer`, `at`, `filter`, ...) that you can
@@ -543,12 +540,7 @@ impl GqlGraph {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let nf = sel;
-            let narrowed = blocking_compute({
-                let nn_clone = nn.clone();
-                move || nn_clone.select(nf)
-            })
-            .await?;
+            let narrowed = blocking_compute(move || nn.select(sel)).await?;
             return Ok(GqlNodes::new(narrowed));
         }
 
@@ -726,8 +718,7 @@ impl GqlGraph {
             let Some(expr) = expr else {
                 return Ok(self_clone.clone());
             };
-            let filter: DynFilter = expr.try_into()?;
-            let filtered_graph = self_clone.graph.filter(filter)?;
+            let filtered_graph = self_clone.graph.filter(expr)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),

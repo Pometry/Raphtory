@@ -27,12 +27,9 @@ use raphtory::{
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
-            model::{
-                expr::{
-                    self, Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, Leaf, NodeLeaf,
-                    StrOp, ViewOp, OPAQUE_FILTER_ERROR,
-                },
-                DynFilter,
+            model::expr::{
+                self, Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, Leaf, NodeLeaf, StrOp,
+                ViewOp, OPAQUE_FILTER_ERROR,
             },
             CreateFilter, DynEdgeFilter,
         },
@@ -53,8 +50,11 @@ use std::{ops::Deref, sync::Arc};
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[graphql(name = "NodeFieldName")]
 pub enum GqlNodeField {
+    /// The node's id.
     Id,
+    /// The node's name.
     Name,
+    /// The node's type.
     NodeType,
 }
 
@@ -63,13 +63,21 @@ pub enum GqlNodeField {
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "ViewOp")]
 pub enum GqlViewOp {
+    /// Between `start` (inclusive) and `end` (exclusive).
     Window(Window),
+    /// At one time.
     At(GqlTimeInput),
+    /// Strictly after a time.
     After(GqlTimeInput),
+    /// Strictly before a time.
     Before(GqlTimeInput),
+    /// At the latest time; written `latest: true`.
     Latest(bool),
+    /// Everything up to and including a time; written `snapshotAt: t`.
     SnapshotAt(GqlTimeInput),
+    /// Everything up to the latest time; written `snapshotLatest: true`.
     SnapshotLatest(bool),
+    /// Only the named layers.
     Layers(Vec<String>),
 }
 
@@ -141,7 +149,9 @@ macro_rules! entity_expr_input {
         #[serde(rename_all = "camelCase")]
         #[graphql(name = $cmp_name)]
         pub struct $cmp {
+            /// The left side.
             pub lhs: Wrapped<$expr>,
+            /// The right side.
             pub rhs: Wrapped<$expr>,
         }
 
@@ -152,9 +162,13 @@ macro_rules! entity_expr_input {
         #[serde(rename_all = "camelCase")]
         #[graphql(name = $fuzzy_name)]
         pub struct $fuzzy {
+            /// The string to test.
             pub lhs: Wrapped<$expr>,
+            /// The string to match.
             pub rhs: Wrapped<$expr>,
+            /// The largest edit distance that still matches.
             pub levenshtein_distance: usize,
+            /// Whether a match on a prefix counts.
             pub prefix_match: bool,
         }
 
@@ -165,7 +179,9 @@ macro_rules! entity_expr_input {
         #[serde(rename_all = "camelCase")]
         #[graphql(name = $membership_name)]
         pub struct $membership {
+            /// The value to look for.
             pub expr: Wrapped<$expr>,
+            /// The values it may be one of.
             pub values: Value,
         }
 
@@ -175,10 +191,14 @@ macro_rules! entity_expr_input {
         #[serde(rename_all = "camelCase")]
         #[graphql(name = $viewed_name)]
         pub struct $viewed {
+            /// The views, applied in list order.
             pub views: Vec<GqlViewOp>,
+            /// The expression read inside them.
             pub expr: Wrapped<$expr>,
         }
 
+        /// A value or yes/no on one entity: a read, an aggregate over one, a
+        /// comparison or test, or a combination of yes/nos.
         #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
         #[serde(rename_all = "camelCase")]
         #[graphql(name = $expr_name)]
@@ -196,38 +216,63 @@ macro_rules! entity_expr_input {
             $( $(#[$own_meta])* $own($own_ty), )*
             /// Views applied to every read inside.
             Viewed(Wrapped<$viewed>),
+            /// The sum of the innermost list.
             Sum(Wrapped<$expr>),
+            /// The mean of the innermost list.
             Avg(Wrapped<$expr>),
+            /// The smallest element of the innermost list.
             Min(Wrapped<$expr>),
+            /// The largest element of the innermost list.
             Max(Wrapped<$expr>),
+            /// The first element of the innermost list.
             First(Wrapped<$expr>),
+            /// The last element of the innermost list.
             Last(Wrapped<$expr>),
+            /// The number of elements of the innermost list.
             Len(Wrapped<$expr>),
             /// The earliest update of a temporal history.
             Earliest(Wrapped<$expr>),
             /// The latest update of a temporal history.
             Latest(Wrapped<$expr>),
+            /// `lhs == rhs`.
             Eq($cmp),
+            /// `lhs != rhs`.
             Ne($cmp),
+            /// `lhs < rhs`.
             Lt($cmp),
+            /// `lhs <= rhs`.
             Le($cmp),
+            /// `lhs > rhs`.
             Gt($cmp),
+            /// `lhs >= rhs`.
             Ge($cmp),
+            /// The string `lhs` starts with the string `rhs`.
             StartsWith($cmp),
+            /// The string `lhs` ends with the string `rhs`.
             EndsWith($cmp),
+            /// The string `lhs` contains the string `rhs`.
             Contains($cmp),
+            /// The string `lhs` does not contain the string `rhs`.
             NotContains($cmp),
+            /// The string `lhs` is within an edit distance of `rhs`.
             FuzzySearch($fuzzy),
+            /// `expr` is one of `values`.
             IsIn($membership),
+            /// `expr` is none of `values`.
             IsNotIn($membership),
+            /// The value is present.
             IsSome(Wrapped<$expr>),
+            /// The value is absent.
             IsNone(Wrapped<$expr>),
             /// Holds when the element-wise result inside holds for any element.
             Any(Wrapped<$expr>),
             /// Holds when the element-wise result inside holds for every element.
             All(Wrapped<$expr>),
+            /// Every yes/no inside holds.
             And(Vec<$expr>),
+            /// Any yes/no inside holds.
             Or(Vec<$expr>),
+            /// The yes/no inside does not hold.
             Not(Wrapped<$expr>),
         }
 
@@ -236,25 +281,25 @@ macro_rules! entity_expr_input {
 
             fn try_from(e: $expr) -> Result<Self, Self::Error> {
                 let inner = |w: Wrapped<$expr>| -> Result<Box<Expr<$leaf>>, GraphError> {
-                    Ok(Box::new(Expr::try_from(w.deref().clone())?))
+                    Ok(Box::new(Expr::try_from(w.into_inner())?))
                 };
                 let cmp = |op: CmpOp, c: $cmp| -> Result<Expr<$leaf>, GraphError> {
                     Ok(Expr::Cmp(
                         op,
-                        Box::new(Expr::try_from(c.lhs.deref().clone())?),
-                        Box::new(Expr::try_from(c.rhs.deref().clone())?),
+                        Box::new(Expr::try_from(c.lhs.into_inner())?),
+                        Box::new(Expr::try_from(c.rhs.into_inner())?),
                     ))
                 };
                 let str_op = |op: StrOp, c: $cmp| -> Result<Expr<$leaf>, GraphError> {
                     Ok(Expr::Str(
                         op,
-                        Box::new(Expr::try_from(c.lhs.deref().clone())?),
-                        Box::new(Expr::try_from(c.rhs.deref().clone())?),
+                        Box::new(Expr::try_from(c.lhs.into_inner())?),
+                        Box::new(Expr::try_from(c.rhs.into_inner())?),
                     ))
                 };
                 let members = |m: $membership, negated: bool| -> Result<Expr<$leaf>, GraphError> {
                     Ok(Expr::In {
-                        expr: Box::new(Expr::try_from(m.expr.deref().clone())?),
+                        expr: Box::new(Expr::try_from(m.expr.into_inner())?),
                         values: member_values(m.values, negated)?,
                         negated,
                     })
@@ -276,8 +321,8 @@ macro_rules! entity_expr_input {
                         convert(v)?
                     } )*
                     $expr::Viewed(v) => {
-                        let v = v.deref().clone();
-                        let mut expr = Expr::try_from(v.expr.deref().clone())?;
+                        let v = v.into_inner();
+                        let mut expr = Expr::try_from(v.expr.into_inner())?;
                         for op in view_ops(Some(v.views))? {
                             expr.push_view(op);
                         }
@@ -307,8 +352,8 @@ macro_rules! entity_expr_input {
                             levenshtein_distance: f.levenshtein_distance,
                             prefix_match: f.prefix_match,
                         },
-                        Box::new(Expr::try_from(f.lhs.deref().clone())?),
-                        Box::new(Expr::try_from(f.rhs.deref().clone())?),
+                        Box::new(Expr::try_from(f.lhs.into_inner())?),
+                        Box::new(Expr::try_from(f.rhs.into_inner())?),
                     ),
                     $expr::IsIn(m) => members(m, false)?,
                     $expr::IsNotIn(m) => members(m, true)?,
@@ -481,11 +526,11 @@ entity_expr_input! {
         },
         /// A node expression evaluated on the edge's source node.
         Src(Wrapped<GqlNodeExpr>) => |e: Wrapped<GqlNodeExpr>| {
-            Ok(Expr::Read(EdgeLeaf::Src(Box::new(Expr::try_from(e.deref().clone())?))))
+            Ok(Expr::Read(EdgeLeaf::Src(Box::new(Expr::try_from(e.into_inner())?))))
         },
         /// A node expression evaluated on the edge's destination node.
         Dst(Wrapped<GqlNodeExpr>) => |e: Wrapped<GqlNodeExpr>| {
-            Ok(Expr::Read(EdgeLeaf::Dst(Box::new(Expr::try_from(e.deref().clone())?))))
+            Ok(Expr::Read(EdgeLeaf::Dst(Box::new(Expr::try_from(e.into_inner())?))))
         },
     }
 }
@@ -606,8 +651,11 @@ impl GqlExplodedEdgeExpr {
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "FilterExpr")]
 pub enum GqlFilter {
+    /// A yes/no over nodes.
     Node(GqlNodeExpr),
+    /// A yes/no over edges.
     Edge(GqlEdgeExpr),
+    /// A yes/no over exploded edges, one per update of an edge.
     ExplodedEdge(GqlExplodedEdgeExpr),
     /// A graph-level view with no predicate: the result is the view.
     View(Vec<GqlViewOp>),
@@ -733,7 +781,7 @@ impl TryFrom<GqlFilter> for expr::FilterExpr {
                     .map(F::try_from)
                     .collect::<Result<Vec<_>, _>>()?,
             ),
-            GqlFilter::Not(inner) => F::Not(Box::new(inner.deref().clone().try_into()?)),
+            GqlFilter::Not(inner) => F::Not(Box::new(inner.into_inner().try_into()?)),
         })
     }
 }
@@ -772,15 +820,6 @@ impl TryFrom<expr::FilterExpr> for GqlFilter {
 
     fn try_from(filter: expr::FilterExpr) -> Result<Self, Self::Error> {
         GqlFilter::try_from(&filter)
-    }
-}
-
-/// The compiled filter, for callers that apply one filter to several handles.
-impl TryFrom<GqlFilter> for DynFilter {
-    type Error = GraphError;
-
-    fn try_from(value: GqlFilter) -> Result<Self, Self::Error> {
-        expr::FilterExpr::try_from(value)?.compile()
     }
 }
 

@@ -18,7 +18,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{path::PathFromNode, views::filter::model::DynFilter},
+        graph::path::PathFromNode,
     },
     errors::GraphError,
     prelude::*,
@@ -469,7 +469,7 @@ impl GqlPathFromNode {
     /// E.g. restricting the whole traversal to a specific week:
     ///
     /// ```text
-    /// node(name: "A") { neighbours { filter(expr: {window: {...week...}}) {
+    /// node(name: "A") { neighbours { filter(expr: {view: [{window: {...week...}}]}) {
     ///   list { neighbours { list { name } } }   # further hops still windowed
     /// } } }
     /// ```
@@ -485,8 +485,7 @@ impl GqlPathFromNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -499,8 +498,8 @@ impl GqlPathFromNode {
     /// Monday, then *their* neighbours active on Tuesday:
     ///
     /// ```text
-    /// node(name: "A") { neighbours { select(expr: {window: {...monday...}}) {
-    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
+    /// node(name: "A") { neighbours { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
     ///     list { name }
     ///   } } }
     /// } } }
