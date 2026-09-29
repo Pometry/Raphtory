@@ -146,14 +146,14 @@ impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.deref().dyn_create_node_op(Arc::new(graph))
+        self.deref().dyn_create_node_op(graph.into_dyn_graph_arc())
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.deref().dyn_create_edge_op(Arc::new(graph))
+        self.deref().dyn_create_edge_op(graph.into_dyn_graph_arc())
     }
 }
 

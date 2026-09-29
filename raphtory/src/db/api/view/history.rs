@@ -12,8 +12,8 @@ use crate::{
                 LazyNodeState,
             },
             view::{
-                internal::{EdgeTimeSemanticsOps, NodeTimeSemanticsOps},
-                BaseNodeViewOps, BoxableGraphView, BoxedLIter, IntoDynBoxed,
+                internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps},
+                BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
             },
         },
         graph::{
@@ -521,7 +521,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
 
 impl<G: GraphViewOps<'static> + Send + Sync> IntoArcDynHistoryOps for NodeView<'static, G> {}
 
-impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
+impl<G: GraphView> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
         let g = &self.graph;
         let e = self.edge;
@@ -622,7 +622,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     }
 }
 
-impl<G: BoxableGraphView + Clone + 'static> IntoArcDynHistoryOps for EdgeView<G> {}
+impl<G: GraphView + 'static> IntoArcDynHistoryOps for EdgeView<G> {}
 
 impl<
         'graph,
@@ -1114,7 +1114,7 @@ impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
 
 impl<T: InternalDeletionOps + 'static> IntoArcDynHistoryOps for DeletionHistory<T> {}
 
-impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
+impl<G: GraphView> InternalDeletionOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
         let g = &self.graph;
         let e = self.edge;

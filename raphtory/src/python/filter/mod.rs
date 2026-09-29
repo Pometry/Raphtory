@@ -1,12 +1,9 @@
-use crate::python::{
-    filter::{
-        edge_expr::{PyEdge, PyEdgeEndpoint, PyEdgeFilter},
-        exploded_edge_expr::{PyExplodedEdge, PyExplodedEdgeFilter},
-        filter_expr::PyFilterExpr,
-        graph_filter::{PyGraph, PyGraphFilter},
-        node_expr::{PyExpr, PyNode, PyNodeFilter, PyPropertyExpr},
-    },
-    types::iterable::FromIterable,
+use crate::python::filter::{
+    edge_expr::{PyEdge, PyEdgeEndpoint, PyEdgeFilter},
+    exploded_edge_expr::{PyExplodedEdge, PyExplodedEdgeFilter},
+    filter_expr::PyFilterExpr,
+    graph_filter::{PyGraph, PyGraphFilter},
+    node_expr::{PyExpr, PyNode, PyNodeFilter, PyPropertyExpr},
 };
 use pyo3::{
     prelude::{PyModule, PyModuleMethods},

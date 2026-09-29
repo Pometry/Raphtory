@@ -5,7 +5,7 @@
 use crate::db::{
     api::{
         state::ops::Const,
-        view::internal::{FilterOps, GraphView},
+        view::internal::{FilterOps, GraphView, InnerFilterOps},
     },
     graph::edge_reads::{self, EdgeAt},
 };
@@ -527,8 +527,14 @@ impl<G: GraphView> EdgeOp for EdgeExistsOp<G> {
         PropType::Bool
     }
 
+    /// Layers and exploded instances of an edge can only fall out of `graph` on
+    /// their own when it restricts layers, filters layers or exploded instances,
+    /// or has a window; otherwise the per-edge answer holds for all of them.
     fn filters_exploded(&self) -> bool {
-        true
+        self.graph.is_layer_filtered()
+            || self.graph.internal_edge_layer_filtered()
+            || self.graph.internal_exploded_edge_filtered()
+            || self.graph.window_filtered()
     }
 }
 
@@ -619,5 +625,110 @@ impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for OrEdgeOp<L, 
 
     fn filters_exploded(&self) -> bool {
         self.left.filters_exploded() || self.right.filters_exploded()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::{
+            api::view::{
+                filter_ops::Select,
+                internal::{InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps},
+            },
+            graph::views::filter::{
+                edge_expr_filtered_graph::EdgeExprFilteredGraph,
+                model::{
+                    graph_filter::GraphFilter,
+                    node_filter::{NodeFilter, NodeFilterFactory},
+                    ViewWrapOps,
+                },
+                CreateFilter,
+            },
+        },
+        prelude::{
+            AdditionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps, LayerOps,
+            NodeViewOps, NO_PROPS,
+        },
+    };
+    use raphtory_api::core::storage::timeindex::AsTime;
+
+    /// a→b @1 [x] · a→b @7 [y] · b→c @2 [x]
+    fn graph() -> Graph {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, Some("x")).unwrap();
+        g.add_edge(7, "a", "b", NO_PROPS, Some("y")).unwrap();
+        g.add_edge(2, "b", "c", NO_PROPS, Some("x")).unwrap();
+        g
+    }
+
+    #[test]
+    fn plain_node_predicate_is_decided_per_edge() {
+        let g = graph();
+        let op = NodeFilter
+            .name()
+            .ne("c")
+            .create_edge_filter(g.clone())
+            .unwrap();
+        assert!(!op.filters_exploded());
+
+        let view = EdgeExprFilteredGraph::new(g.clone(), op);
+        assert!(!view.internal_exploded_edge_filtered());
+        assert!(!view.internal_edge_layer_filtered());
+        assert!(view.internal_exploded_filter_edge_list_trusted());
+        assert!(view.internal_layer_filter_edge_list_trusted());
+
+        let selected = g
+            .edges()
+            .select(NodeFilter.name().ne("c"))
+            .unwrap()
+            .explode()
+            .iter()
+            .map(|e| (e.src().name(), e.dst().name(), e.time().unwrap().t()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            selected,
+            vec![
+                ("a".to_string(), "b".to_string(), 1),
+                ("a".to_string(), "b".to_string(), 7)
+            ]
+        );
+    }
+
+    #[test]
+    fn windowed_or_layered_view_is_asked_per_instance() {
+        let g = graph();
+        let windowed = GraphFilter
+            .window(0, 5)
+            .create_edge_filter(g.clone())
+            .unwrap();
+        assert!(windowed.filters_exploded());
+        let view = EdgeExprFilteredGraph::new(g.clone(), windowed);
+        assert!(view.internal_exploded_edge_filtered());
+        assert!(!view.internal_exploded_filter_edge_list_trusted());
+
+        let layered = NodeFilter
+            .name()
+            .eq("a")
+            .create_edge_filter(g.layers("x").unwrap())
+            .unwrap();
+        assert!(layered.filters_exploded());
+
+        let selected = g
+            .edges()
+            .select(GraphFilter.window(0, 5))
+            .unwrap()
+            .explode()
+            .iter()
+            .map(|e| (e.src().name(), e.dst().name(), e.time().unwrap().t()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            selected,
+            vec![
+                ("a".to_string(), "b".to_string(), 1),
+                ("b".to_string(), "c".to_string(), 2)
+            ]
+        );
     }
 }

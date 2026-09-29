@@ -24,13 +24,14 @@ use crate::{
                 edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
                 edge_filter::{EdgeEndpointWrapper, Endpoint},
                 filter_operator::{BinaryOp, Comparable, StringComparable, StringOp},
-                node_expr::ops::{agg_out_pt, fold_values, reduce_list, TemporalNodePropOp},
+                node_expr::ops::{
+                    agg_out_pt, fold_values, reduce_list, view_node, TemporalNodePropOp,
+                },
                 property_filter::evaluate::aggregate_list_values,
             },
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{
@@ -77,8 +78,7 @@ impl<G: GraphView> NodeHistory for TemporalNodePropOp<G> {
     }
 
     fn values<'a>(&'a self, node: VID) -> BoxedLIter<'a, Prop> {
-        match (&&self.graph)
-            .node(node)
+        match view_node(&self.graph, self.in_view, node)
             .and_then(|n| n.properties().temporal().get_by_id(self.prop_id))
         {
             Some(history) => GenLockedIter::from(history, |h| h.values()).into_dyn_boxed(),
@@ -87,8 +87,7 @@ impl<G: GraphView> NodeHistory for TemporalNodePropOp<G> {
     }
 
     fn values_rev<'a>(&'a self, node: VID) -> BoxedLIter<'a, Prop> {
-        match (&&self.graph)
-            .node(node)
+        match view_node(&self.graph, self.in_view, node)
             .and_then(|n| n.properties().temporal().get_by_id(self.prop_id))
         {
             Some(history) => GenLockedIter::from(history, |h| h.values_rev()).into_dyn_boxed(),

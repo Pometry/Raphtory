@@ -11,8 +11,8 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                filter_operator::BinaryOp, node_filter::NodeFilter, PropertyExprFactory,
-                ViewWrapOps,
+                dyn_factory::DynNodeFilterFactory, filter_operator::BinaryOp,
+                node_filter::NodeFilter, CreateView, PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -26,6 +26,8 @@ use raphtory_api::core::{
     },
     Direction,
 };
+
+use std::sync::Arc;
 
 // Test graph: a→b, a→c, b→c
 // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
@@ -737,4 +739,59 @@ fn numeric_constants_beyond_the_property_width_compare_by_value() {
         filtered_names(NodeFilter.property("risk").le(Prop::U64(3)), g),
         all
     );
+}
+
+// ── Reads through a view on a node the view does not show ─────────────────
+
+/// early: p=1 @1, m=1 · late: p=1 @6, m=1 · layered: p=1 @1
+///
+/// ```text
+/// time      0    1    2    3    4    5    6
+/// early     ├────●───────────────────┤
+/// late      ├────────────────────────┤    ●
+///           └─ window [0, 5) ────────┘
+/// ```
+fn build_view_membership_graph() -> Graph {
+    let g = Graph::new();
+    g.add_node(1, "early", [("p", 1i64)], None, None).unwrap();
+    g.add_node(6, "late", [("p", 1i64)], None, None).unwrap();
+    for name in ["early", "late"] {
+        g.node(name).unwrap().add_metadata([("m", 1i64)]).unwrap();
+    }
+    g.add_node(1, "layered", [("p", 1i64)], None, None).unwrap();
+    g
+}
+
+#[test]
+fn windowed_property_read_skips_node_absent_from_window() {
+    let g = build_view_membership_graph();
+    let filter = NodeFilter.window(0, 5).property("p").eq(1i64);
+    assert_eq!(filtered_names(filter, g), vec!["early", "layered"]);
+}
+
+#[test]
+fn windowed_metadata_read_skips_node_absent_from_window() {
+    let g = build_view_membership_graph();
+    let filter = NodeFilter.window(0, 5).metadata("m").eq(1i64);
+    assert_eq!(filtered_names(filter, g), vec!["early"]);
+}
+
+#[test]
+fn windowed_temporal_read_skips_node_absent_from_window() {
+    let g = build_view_membership_graph();
+    let filter = NodeFilter
+        .window(0, 5)
+        .property("p")
+        .temporal()
+        .len()
+        .eq(Prop::U64(0));
+    assert_eq!(filtered_names(filter, g), vec!["late"]);
+}
+
+#[test]
+fn only_a_real_view_checks_membership() {
+    assert!(!NodeFilter.narrows());
+    assert!(NodeFilter.window(0, 5).narrows());
+    let erased: Arc<dyn DynNodeFilterFactory> = Arc::new(NodeFilter);
+    assert!(!erased.narrows());
 }

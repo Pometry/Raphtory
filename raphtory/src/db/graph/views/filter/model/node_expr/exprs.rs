@@ -527,7 +527,11 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> DynCreateHistor
             .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(TemporalNodePropOp { graph, prop_id }))
+        Ok(Arc::new(TemporalNodePropOp {
+            graph,
+            prop_id,
+            in_view: self.view_expr.narrows(),
+        }))
     }
 
     fn create_edge_history<'g>(
@@ -554,7 +558,12 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Te
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(
-            TemporalNodePropOp { graph, prop_id }.map(|a| Some(a)),
+            TemporalNodePropOp {
+                graph,
+                prop_id,
+                in_view: self.view_expr.narrows(),
+            }
+            .map(|a| Some(a)),
         ))
     }
 

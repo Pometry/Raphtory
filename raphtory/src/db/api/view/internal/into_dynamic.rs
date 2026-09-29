@@ -1,5 +1,5 @@
 use crate::db::api::view::{
-    internal::{DynamicGraph, InternalFilter, Static},
+    internal::{DynGraphArc, DynamicGraph, InternalFilter, Static},
     BoxableGraphView, StaticGraphViewOps,
 };
 use std::sync::Arc;
@@ -23,6 +23,54 @@ impl IntoDynamic for DynamicGraph {
 impl IntoDynamic for Arc<dyn BoxableGraphView> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph(self)
+    }
+}
+
+/// Erase a graph view into a `DynGraphArc`. A view that is already an erased
+/// `Arc` is handed back as it is instead of being boxed a second time.
+pub trait IntoDynGraphArc {
+    fn into_dyn_graph_arc<'graph>(self) -> DynGraphArc<'graph>
+    where
+        Self: 'graph;
+}
+
+impl<G: BoxableGraphView + Static> IntoDynGraphArc for G {
+    #[inline]
+    fn into_dyn_graph_arc<'graph>(self) -> DynGraphArc<'graph>
+    where
+        Self: 'graph,
+    {
+        Arc::new(self)
+    }
+}
+
+impl<'a> IntoDynGraphArc for Arc<dyn BoxableGraphView + 'a> {
+    #[inline]
+    fn into_dyn_graph_arc<'graph>(self) -> DynGraphArc<'graph>
+    where
+        Self: 'graph,
+    {
+        self
+    }
+}
+
+impl<G: BoxableGraphView + Static> IntoDynGraphArc for Arc<G> {
+    #[inline]
+    fn into_dyn_graph_arc<'graph>(self) -> DynGraphArc<'graph>
+    where
+        Self: 'graph,
+    {
+        self
+    }
+}
+
+impl IntoDynGraphArc for DynamicGraph {
+    #[inline]
+    fn into_dyn_graph_arc<'graph>(self) -> DynGraphArc<'graph>
+    where
+        Self: 'graph,
+    {
+        self.0
     }
 }
 

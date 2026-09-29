@@ -1,8 +1,5 @@
 use crate::{db::graph::views::filter::model::property_filter::Op, prelude::PropertyFilter};
-use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType},
-    utils::generalised_reduce,
-};
+use raphtory_api::core::{entities::properties::prop::Prop, utils::generalised_reduce};
 use std::borrow::Borrow;
 
 enum ValueType {

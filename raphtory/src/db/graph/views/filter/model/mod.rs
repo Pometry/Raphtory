@@ -32,7 +32,10 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            view::{internal::DynGraphArc, BoxableGraphView},
+            view::{
+                internal::{DynGraphArc, IntoDynGraphArc},
+                BoxableGraphView,
+            },
         },
         graph::views::{
             filter::{
@@ -142,7 +145,10 @@ where
         &self,
         graph: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_graph_filter(graph)?))
+        Ok(self
+            .clone()
+            .create_graph_filter(graph)?
+            .into_dyn_graph_arc())
     }
 
     fn create_dyn_node_filter<'graph>(
@@ -183,21 +189,24 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.deref().create_dyn_graph_filter(Arc::new(graph))
+        self.deref()
+            .create_dyn_graph_filter(graph.into_dyn_graph_arc())
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        self.deref().create_dyn_node_filter(Arc::new(graph))
+        self.deref()
+            .create_dyn_node_filter(graph.into_dyn_graph_arc())
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        self.deref().create_dyn_edge_filter(Arc::new(graph))
+        self.deref()
+            .create_dyn_edge_filter(graph.into_dyn_graph_arc())
     }
 }
 
@@ -246,7 +255,11 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Pr
             .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(NodePropOp { graph, prop_id }))
+        Ok(Arc::new(NodePropOp {
+            graph,
+            prop_id,
+            in_view: self.view_expr.narrows(),
+        }))
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(
@@ -272,7 +285,11 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Me
             .get_prop_id(&self.name, true)
             .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(NodeMetaOp { graph, prop_id }))
+        Ok(Arc::new(NodeMetaOp {
+            graph,
+            prop_id,
+            in_view: self.view_expr.narrows(),
+        }))
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(
@@ -487,6 +504,14 @@ pub trait CreateView: Clone + Send + Sync + 'static {
         &self,
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError>;
+
+    /// Whether the view can hide an entity the incoming graph shows. A read
+    /// through a view that cannot is only ever asked about entities the
+    /// enclosing filter has already found in that graph, so it need not check
+    /// them again.
+    fn narrows(&self) -> bool {
+        true
+    }
 }
 
 pub trait DynCreateView: Send + Sync + 'static {
@@ -494,6 +519,8 @@ pub trait DynCreateView: Send + Sync + 'static {
         &self,
         view: Arc<dyn BoxableGraphView + 'graph>,
     ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+
+    fn dyn_narrows(&self) -> bool;
 }
 
 impl<T: CreateView> DynCreateView for T {
@@ -501,7 +528,11 @@ impl<T: CreateView> DynCreateView for T {
         &self,
         view: Arc<dyn BoxableGraphView + 'graph>,
     ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
-        Ok(Arc::new(self.create_view(view)?))
+        Ok(self.create_view(view)?.into_dyn_graph_arc())
+    }
+
+    fn dyn_narrows(&self) -> bool {
+        self.narrows()
     }
 }
 
@@ -512,7 +543,11 @@ impl<T: DynCreateView + ?Sized> CreateView for Arc<T> {
         &self,
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.deref().dyn_create_view(Arc::new(view))
+        self.deref().dyn_create_view(view.into_dyn_graph_arc())
+    }
+
+    fn narrows(&self) -> bool {
+        self.deref().dyn_narrows()
     }
 }
 
@@ -524,6 +559,9 @@ impl CreateView for NodeFilter {
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
         Ok(view)
+    }
+    fn narrows(&self) -> bool {
+        false
     }
 }
 
@@ -543,6 +581,9 @@ impl CreateView for EdgeFilter {
     ) -> Result<Self::View<'graph, G>, GraphError> {
         Ok(view)
     }
+    fn narrows(&self) -> bool {
+        false
+    }
 }
 
 impl EntityExpr for EdgeFilter {
@@ -560,6 +601,9 @@ impl CreateView for ExplodedEdgeFilter {
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError> {
         Ok(view)
+    }
+    fn narrows(&self) -> bool {
+        false
     }
 }
 

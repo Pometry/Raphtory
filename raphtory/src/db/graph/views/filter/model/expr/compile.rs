@@ -1293,7 +1293,9 @@ impl CreateOp for StreamedAggExpr {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let history = self.history.create_node_history(Arc::new(graph))?;
+        let history = self
+            .history
+            .create_node_history(graph.into_dyn_graph_arc())?;
         self.check(&history.history_type())?;
         Ok(Arc::new(StreamedAggNodeOp::new(history, self.agg)))
     }
@@ -1302,7 +1304,9 @@ impl CreateOp for StreamedAggExpr {
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let history = self.history.create_edge_history(Arc::new(graph))?;
+        let history = self
+            .history
+            .create_edge_history(graph.into_dyn_graph_arc())?;
         self.check(&history.history_type())?;
         Ok(Arc::new(StreamedAggEdgeOp::new(history, self.agg)))
     }
@@ -1367,7 +1371,9 @@ impl CreateOp for StreamedQualExpr {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let history = self.history.create_node_history(Arc::new(graph.clone()))?;
+        let history = self
+            .history
+            .create_node_history(graph.clone().into_dyn_graph_arc())?;
         match self.test.value_test(&history.history_type()) {
             Some(test) => Ok(Arc::new(StreamedQualNodeOp {
                 history,
@@ -1382,7 +1388,9 @@ impl CreateOp for StreamedQualExpr {
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let history = self.history.create_edge_history(Arc::new(graph.clone()))?;
+        let history = self
+            .history
+            .create_edge_history(graph.clone().into_dyn_graph_arc())?;
         match self.test.value_test(&history.history_type()) {
             Some(test) => Ok(Arc::new(StreamedQualEdgeOp {
                 history,
@@ -2103,7 +2111,7 @@ impl Viewed {
         &self,
         graph: G,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
-        compile_view(&self.views).create_dyn_graph_filter(Arc::new(graph))
+        compile_view(&self.views).create_dyn_graph_filter(graph.into_dyn_graph_arc())
     }
 }
 
@@ -2436,5 +2444,78 @@ mod pushdown_tests {
             Box::new(prop("b", false)),
         );
         assert!(pushdown(&both_sides).is_none());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        db::api::view::internal::CoreGraphOps,
+        prelude::{AdditionOps, Graph},
+    };
+    use std::sync::Mutex;
+
+    /// A leaf that records the address of the erased graph it is compiled against.
+    #[derive(Clone, Default)]
+    struct GraphProbe {
+        seen: Arc<Mutex<Vec<*const ()>>>,
+    }
+
+    // Only addresses are stored, never dereferenced.
+    unsafe impl Send for GraphProbe {}
+    unsafe impl Sync for GraphProbe {}
+
+    impl EntityExpr for GraphProbe {
+        type Marker = EntityMarker;
+
+        fn entity(&self) -> EntityMarker {
+            EntityMarker::Node
+        }
+    }
+
+    impl CreateOp for GraphProbe {
+        fn create_node_op<'g, G: GraphView + 'g>(
+            &self,
+            graph: G,
+        ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+            let erased = graph.clone().into_dyn_graph_arc();
+            self.seen
+                .lock()
+                .unwrap()
+                .push(Arc::as_ptr(&erased) as *const ());
+            Prop::I64(2).create_node_op(graph)
+        }
+    }
+
+    /// `leaf > 1` as a node predicate: the erased predicate, the erased comparison
+    /// and the erased leaf each hand the graph on; the leaf must receive the very
+    /// `Arc` the caller passed in, not a fresh box around it per level.
+    #[test]
+    fn erased_levels_share_one_graph_arc() {
+        let g = Graph::new();
+        g.add_node(0, "n", [("a", Prop::I64(2))], None, None)
+            .unwrap();
+        let probe = GraphProbe::default();
+        let cmp: Arc<dyn DynCreateOp> = Arc::new(CmpExpr {
+            op: BinaryOp::Gt,
+            lhs: Arc::new(probe.clone()),
+            rhs: Arc::new(Prop::I64(1)),
+            entity: EntityMarker::Node,
+        });
+        let predicate: Arc<dyn DynCreateFilter> = Arc::new(Predicate {
+            entity: EntityMarker::Node,
+            inner: cmp,
+            pushdown: None,
+        });
+
+        let base: DynGraphArc<'static> = Arc::new(g.clone());
+        let op = predicate.create_node_filter(base.clone()).unwrap();
+        assert!(op.apply(g.core_graph(), VID(0)));
+
+        assert_eq!(
+            *probe.seen.lock().unwrap(),
+            vec![Arc::as_ptr(&base) as *const ()]
+        );
     }
 }

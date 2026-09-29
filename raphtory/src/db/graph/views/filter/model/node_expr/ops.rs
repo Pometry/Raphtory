@@ -52,10 +52,13 @@ use crate::{
                 NodeViewOps,
             },
         },
-        graph::views::filter::model::{
-            expr::Agg,
-            property_filter::evaluate::{
-                aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+        graph::{
+            node::NodeView,
+            views::filter::model::{
+                expr::Agg,
+                property_filter::evaluate::{
+                    aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
+                },
             },
         },
     },
@@ -84,6 +87,25 @@ use storage::EdgeEntryRef;
 pub(crate) struct NodePropOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
+    /// Whether `graph` is a view of the read's own, see [`view_node`].
+    pub(crate) in_view: bool,
+}
+
+/// The node as `graph` sees it. When `graph` is the graph the enclosing filter
+/// runs on, that filter has already decided the node belongs to it, so the node
+/// is read as it is. When it is a view of the read's own (`in_view`), the node
+/// may be missing from it, and a read of a missing node is `None`.
+#[inline]
+pub(crate) fn view_node<G: GraphView>(
+    graph: &G,
+    in_view: bool,
+    node: VID,
+) -> Option<NodeView<'_, &G>> {
+    if in_view {
+        (&graph).node(node)
+    } else {
+        Some(NodeView::new_internal(graph, node))
+    }
 }
 
 impl<G: GraphView> NodeOp for NodePropOp<G> {
@@ -94,8 +116,7 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        (&&self.graph)
-            .node(node)?
+        view_node(&self.graph, self.in_view, node)?
             .properties()
             .get_by_id(self.prop_id)
     }
@@ -121,6 +142,8 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
 pub(crate) struct NodeMetaOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
+    /// Whether `graph` is a view of the read's own, see [`view_node`].
+    pub(crate) in_view: bool,
 }
 
 impl<G: GraphView> NodeOp for NodeMetaOp<G> {
@@ -131,8 +154,7 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        (&&self.graph)
-            .node(node)?
+        view_node(&self.graph, self.in_view, node)?
             .metadata()
             .get_by_id(self.prop_id)
     }
@@ -191,6 +213,8 @@ impl NodeOp for NodeIdOp {
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
+    /// Whether `graph` is a view of the read's own, see [`view_node`].
+    pub(crate) in_view: bool,
 }
 
 impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
@@ -209,8 +233,7 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
     type Output = Prop;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Prop {
-        let vals: Vec<Prop> = (&&self.graph)
-            .node(node)
+        let vals: Vec<Prop> = view_node(&self.graph, self.in_view, node)
             .and_then(|n| {
                 n.properties()
                     .temporal()

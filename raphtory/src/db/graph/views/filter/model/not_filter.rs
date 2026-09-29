@@ -74,7 +74,9 @@ impl CreateFilter for NotFilter<Arc<dyn DynCreateFilter>> {
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(Arc::new(
-            self.0.create_dyn_node_filter(Arc::new(graph))?.not(),
+            self.0
+                .create_dyn_node_filter(graph.into_dyn_graph_arc())?
+                .not(),
         ))
     }
 
