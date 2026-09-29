@@ -1,7 +1,4 @@
-use crate::{
-    config::app_config::AppConfig,
-    data::{gql_error_with_code, CODE_ACCESS_DENIED},
-};
+use crate::config::app_config::AppConfig;
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
