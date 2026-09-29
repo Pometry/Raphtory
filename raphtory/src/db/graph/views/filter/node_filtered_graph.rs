@@ -120,7 +120,7 @@ impl<G: GraphView, F: NodeFilterOp> ListOps for NodeFilteredGraph<G, F> {
         let inner = self.graph.node_list();
         let combined = match self.filter.domain(self.graph.core_graph()) {
             NodeList::All if self.filter.is_filtered() => inner.clone().into_inexact(),
-            domain => domain.intersection(&inner),
+            domain => domain.intersection(&inner, self.graph.core_graph()),
         };
         if self.graph.internal_node_list_trusted() {
             combined

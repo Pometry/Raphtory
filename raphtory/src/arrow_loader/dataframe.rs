@@ -6,7 +6,9 @@ use crate::{
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type},
+    datatypes::{
+        DataType, Date64Type, Int32Type, Int64Type, TimeUnit, TimestampMillisecondType, UInt64Type,
+    },
 };
 use either::Either;
 use itertools::Itertools;
@@ -185,14 +187,52 @@ pub enum SecondaryIndexCol {
 
 impl SecondaryIndexCol {
     /// Load a secondary index column from a dataframe.
+    ///
+    /// The column is stored as `uint64`. Other integer widths are cast, the same way the time
+    /// column accepts them; a signed column must hold no negative value and any other type is
+    /// rejected with `LoadError::InvalidSecondaryIndexType` rather than a panic.
     pub fn new_from_df(arr: &dyn Array) -> Result<Self, LoadError> {
         if arr.null_count() > 0 {
             return Err(LoadError::MissingSecondaryIndexError);
         }
 
-        Ok(SecondaryIndexCol::DataFrame(
-            arr.as_primitive::<UInt64Type>().clone(),
-        ))
+        let arr = match arr.data_type() {
+            DataType::UInt64 => arr.as_primitive::<UInt64Type>().clone(),
+            DataType::UInt32 => cast(arr, &DataType::UInt64)?
+                .as_primitive::<UInt64Type>()
+                .clone(),
+            DataType::Int64 => {
+                // arrow's default cast is "safe": a negative value would become a null, not an
+                // error, so look for one first and name it
+                if let Some(negative) = arr
+                    .as_primitive::<Int64Type>()
+                    .values()
+                    .iter()
+                    .find(|v| **v < 0)
+                {
+                    return Err(LoadError::NegativeSecondaryIndex(*negative));
+                }
+                cast(arr, &DataType::UInt64)?
+                    .as_primitive::<UInt64Type>()
+                    .clone()
+            }
+            DataType::Int32 => {
+                if let Some(negative) = arr
+                    .as_primitive::<Int32Type>()
+                    .values()
+                    .iter()
+                    .find(|v| **v < 0)
+                {
+                    return Err(LoadError::NegativeSecondaryIndex(*negative as i64));
+                }
+                cast(arr, &DataType::UInt64)?
+                    .as_primitive::<UInt64Type>()
+                    .clone()
+            }
+            other => return Err(LoadError::InvalidSecondaryIndexType(other.clone())),
+        };
+
+        Ok(SecondaryIndexCol::DataFrame(arr))
     }
 
     /// Generate a secondary index column with values from `start` to `end` (not inclusive).
@@ -269,5 +309,82 @@ impl DFChunk {
             .iter()
             .map(|arr| arr.get_array_memory_size())
             .sum()
+    }
+}
+
+#[cfg(test)]
+mod secondary_index_col_tests {
+    use super::SecondaryIndexCol;
+    use crate::errors::LoadError;
+    use arrow::{
+        array::{Float64Array, Int32Array, Int64Array, StringArray, UInt32Array, UInt64Array},
+        datatypes::DataType,
+    };
+
+    fn values(col: SecondaryIndexCol) -> Vec<usize> {
+        col.iter().collect()
+    }
+
+    #[test]
+    fn uint64_is_taken_as_is() {
+        let col = SecondaryIndexCol::new_from_df(&UInt64Array::from(vec![10, 20])).unwrap();
+        assert_eq!(values(col), vec![10, 20]);
+    }
+
+    #[test]
+    fn other_integer_widths_are_cast() {
+        let col = SecondaryIndexCol::new_from_df(&Int64Array::from(vec![10, 20])).unwrap();
+        assert_eq!(values(col), vec![10, 20]);
+        let col = SecondaryIndexCol::new_from_df(&Int32Array::from(vec![10, 20])).unwrap();
+        assert_eq!(values(col), vec![10, 20]);
+        let col = SecondaryIndexCol::new_from_df(&UInt32Array::from(vec![10, 20])).unwrap();
+        assert_eq!(values(col), vec![10, 20]);
+    }
+
+    #[test]
+    fn a_negative_value_is_an_error_not_a_wrap_or_a_null() {
+        let err = SecondaryIndexCol::new_from_df(&Int64Array::from(vec![10, -3]))
+            .err()
+            .unwrap();
+        assert!(
+            matches!(err, LoadError::NegativeSecondaryIndex(-3)),
+            "{err:?}"
+        );
+        let err = SecondaryIndexCol::new_from_df(&Int32Array::from(vec![-1]))
+            .err()
+            .unwrap();
+        assert!(
+            matches!(err, LoadError::NegativeSecondaryIndex(-1)),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn a_non_integer_column_is_an_error_not_a_panic() {
+        let err = SecondaryIndexCol::new_from_df(&Float64Array::from(vec![1.0]))
+            .err()
+            .unwrap();
+        assert!(
+            matches!(err, LoadError::InvalidSecondaryIndexType(DataType::Float64)),
+            "{err:?}"
+        );
+        let err = SecondaryIndexCol::new_from_df(&StringArray::from(vec!["1"]))
+            .err()
+            .unwrap();
+        assert!(
+            matches!(err, LoadError::InvalidSecondaryIndexType(DataType::Utf8)),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn a_null_is_still_a_missing_value() {
+        let err = SecondaryIndexCol::new_from_df(&Int64Array::from(vec![Some(1), None]))
+            .err()
+            .unwrap();
+        assert!(
+            matches!(err, LoadError::MissingSecondaryIndexError),
+            "{err:?}"
+        );
     }
 }

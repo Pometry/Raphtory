@@ -22,7 +22,9 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps,
 };
 use std::{
     future::poll_fn,
@@ -169,15 +171,21 @@ impl GraphWithVectors {
     /// and the first error is returned; callers decide whether a failure
     /// should re-mark the graph dirty for a later retry.
     pub fn persist(&self) -> Result<(), GraphError> {
-        self.set_flushing(true);
-        self.set_dirty(false);
-        let flushed = self.graph().flush();
-        let written = self
-            .folder()
-            .replace_graph_data(self.graph().clone())
-            .map_err(|e| GraphError::ExternalError(Arc::new(e)));
-        self.set_flushing(false);
-        flushed.and(written)
+        let graph = self.graph();
+        let is_immutable = graph.core_graph().is_immutable();
+        if !is_immutable {
+            self.set_flushing(true);
+            self.set_dirty(false);
+            let flushed = graph.flush();
+            let written = self
+                .folder()
+                .replace_graph_data(self.graph().clone())
+                .map_err(|e| GraphError::ExternalError(Arc::new(e)));
+            self.set_flushing(false);
+            flushed.and(written)
+        } else {
+            Ok(())
+        }
     }
 
     /// Generates and stores embeddings for a batch of nodes.
