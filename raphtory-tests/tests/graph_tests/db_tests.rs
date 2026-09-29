@@ -3907,14 +3907,14 @@ fn test_group_by() {
 
 #[test]
 fn hashing_proptest() {
-    proptest!(|(a in prop_type(3).prop_flat_map(|dt| prop(&dt)), b in prop_type(3).prop_flat_map(|dt| prop(&dt)))| {
+    proptest!(|(a in prop_type(3).prop_flat_map(|dt| prop(&dt).prop_map(HashableProp)), b in prop_type(3).prop_flat_map(|dt| prop(&dt).prop_map(HashableProp)))| {
             let mut set = HashSet::new();
-            set.insert(HashableProp(a.clone()));
-            assert!(set.contains(a.as_ref()));
+            set.insert(a.clone());
+            assert!(set.contains(&a));
             if a == b {
-                assert!(set.contains(b.as_ref()));
+                assert!(set.contains(&b));
             } else {
-                assert!(!set.contains(b.as_ref()));
+                assert!(!set.contains(&b));
             }
         } )
 }

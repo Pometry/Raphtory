@@ -370,7 +370,7 @@ def test_weighted_page_rank():
         ("4", 0.07837),
     ]:
         assert (
-            abs(actual[node]["pagerank_score"] - expected) < 1e-5
+                abs(actual[node]["pagerank_score"] - expected) < 1e-5
         ), f"node {node}: {actual[node]} != {expected}"
 
 
@@ -386,8 +386,8 @@ def test_weighted_page_rank_none_matches_unweighted():
     weighted = algorithms.pagerank(g, iter_count=1000, weight="weight")
     for node in ["1", "2", "3", "4"]:
         assert (
-            abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
-            < 1e-5
+                abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
+                < 1e-5
         ), f"node {node} differs"
 
 
@@ -610,7 +610,7 @@ def test_balance_uses_decimal_weights_by_value():
 
     out = algorithms.balance(g, "w", "out")
     assert (
-        out["a"]["balance"] == -6.5
+            out["a"]["balance"] == -6.5
     )  # -(2.5 + 4.0), not the -2.0 of a 1.0-per-edge fallback
 
     inn = algorithms.balance(g, "w", "in")
@@ -850,5 +850,80 @@ def test_fast_rp():
         )
 
         assert (
-            within_group < outside_group
+                within_group < outside_group
         )  # nearest neighbour in the embedding space should be in the same component
+
+
+def test_local_clustering_coefficient_batch_without_v_matches_explicit_list():
+    g = Graph()
+    for name in ["a", "b", "c", "isolated"]:
+        g.add_node(1, name)
+    g.add_edge(1, "a", "b")
+    g.add_edge(2, "b", "c")
+    g.add_edge(3, "c", "a")
+
+    explicit = algorithms.local_clustering_coefficient_batch(
+        g, ["a", "b", "c", "isolated"]
+    )
+    for implicit in (
+        algorithms.local_clustering_coefficient_batch(g),
+        algorithms.local_clustering_coefficient_batch(g, []),
+        algorithms.local_clustering_coefficient_batch(g, None),
+    ):
+        assert len(implicit) == 4
+        # reading the result back used to panic on a fabricated node id
+        assert sorted(implicit.nodes().name) == ["a", "b", "c", "isolated"]
+        assert sorted((n.name, v["lcc"]) for n, v in implicit.items()) == sorted(
+            (n.name, v["lcc"]) for n, v in explicit.items()
+        )
+        assert implicit.top_k({"lcc": "desc"}, 3) is not None
+        assert implicit.sort_by({"lcc": "asc"}) is not None
+    assert dict((n.name, v["lcc"]) for n, v in explicit.items()) == {
+        "a": 1.0,
+        "b": 1.0,
+        "c": 1.0,
+        "isolated": 0.0,
+    }
+
+
+def test_temporal_bipartite_graph_projection():
+    g = Graph()
+    for t, src, dst in [
+        (1, "A", "1"),
+        (3, "A", "2"),
+        (3, "B", "2"),
+        (4, "C", "3"),
+        (6, "B", "3"),
+    ]:
+        g.add_node(t, src, node_type="Left")
+        g.add_node(t, dst, node_type="Right")
+        g.add_edge(t, src, dst)
+
+    projected = algorithms.temporal_bipartite_graph_projection(g, 1, "Right")
+    assert projected.has_edge("A", "B")
+    assert not projected.has_edge("A", "C")
+
+    # a pivot type no node carries gives an empty graph, not an error
+    empty = algorithms.temporal_bipartite_graph_projection(g, 1, "Item")
+    assert empty.count_nodes() == 0
+
+
+def test_temporal_bipartite_graph_projection_untyped_node_raises():
+    # add_edge creates its endpoints without a node type
+    g = Graph()
+    g.add_edge(1, "alice", "laptop")
+    g.add_edge(2, "bob", "laptop")
+
+    # must be a regular exception (not a PanicException) and must name the node
+    with pytest.raises(Exception, match="has no node type") as info:
+        algorithms.temporal_bipartite_graph_projection(g, 5, "Item")
+    assert any(name in str(info.value) for name in ("alice", "bob", "laptop"))
+
+    # one untyped node among typed ones is still an error
+    g = Graph()
+    g.add_node(1, "A", node_type="Left")
+    g.add_node(1, "1", node_type="Right")
+    g.add_edge(1, "A", "1")
+    g.add_edge(2, "B", "1")
+    with pytest.raises(Exception, match="node B has no node type"):
+        algorithms.temporal_bipartite_graph_projection(g, 5, "Right")
