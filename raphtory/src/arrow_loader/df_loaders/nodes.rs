@@ -481,7 +481,7 @@ pub fn load_node_props_from_df<
                         c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
-                            writer.update_c_props(pos, row_layer, false, c_props.drain(..));
+                            writer.update_c_props(pos, row_layer, true, c_props.drain(..));
                         }
                     };
                 }
