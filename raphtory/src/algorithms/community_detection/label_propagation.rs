@@ -182,17 +182,6 @@ impl Counts {
 
 /// Computes communities using a label propagation algorithm.
 ///
-/// Labels live in flat arrays held alongside the graph rather than in per-node task state, which is
-/// where the speed comes from:
-///
-/// - votes are counted in a buffer indexed by a compacted label, so resetting it between nodes is
-///   proportional to the node's degree rather than to the high-water capacity of a hash map;
-/// - the adjacency is read through a [`GraphStorage::lock`]ed view of the storage, taken once,
-///   so traversing a node's neighbours does not re-acquire a segment lock per node;
-/// - a node that changes its label activates its neighbours directly, so no separate full pass over
-///   the graph is needed to build the next frontier.
-///
-/// The label space decides how the votes are counted; see [`Counts`].
 ///
 /// # Arguments
 ///
@@ -215,7 +204,7 @@ impl Counts {
 ///
 /// A `TypedNodeState` mapping each node to its `LabelPropState`: its `community_id`, plus
 /// `alternate_id` (the previous label it swaps with while oscillating; `None` once converged, and
-/// also `None` until the node has been labeled a whole iteration, and `confidence`, the share of
+/// also `None` until the node has been labelled a whole iteration, and `confidence`, the share of
 /// its votes that went to `community_id`.
 pub fn label_propagation<G>(
     g: &G,
@@ -291,6 +280,13 @@ where
         // Every node starts in its own community, whose slot is the node's own position.
         false => (0..n).map(AtomicUsize::new).collect(),
     };
+
+    // The frontier for the first sweep. Seeded: the neighbours of the seeded nodes, which costs a
+    // pass to collect. Unseeded: every node starts active, so there is nothing to collect and the
+    // pass is skipped.
+    let mut active_cur: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(!seeded)).collect();
+    let mut active_next: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(false)).collect();
+
     // The share of votes that each node's standing label won, held as `f64::to_bits` so that
     // an atomic can carry it. Zero bits are `0.0`, which is the "never voted" sentinel, so the
     // initial value needs no special case.
@@ -305,6 +301,18 @@ where
     // overwritten, because a labelled node always casts a self-vote and so never takes the
     // `total == 0` branch.
     if let Some(map) = &init_state {
+        map.par_iter()
+            .for_each_init(Vec::new, |nbors, (vid, label)| {
+                let slot = slot_of.get(label).expect("all labels should have a slot");
+                let pos = index.index(vid).expect("all nodes should be in index");
+                prev[pos].store(*slot, Ordering::Relaxed);
+                // A seed's label is GIVEN, not inferred, so it starts fully confident.
+                votes[pos].store(1.0f64.to_bits(), Ordering::Relaxed);
+                collect_nbors(*vid, nbors); // collects into nbors
+                for &nbor in nbors.iter() {
+                    active_cur[nbor].store(true, Ordering::Relaxed);
+                }
+            });
         index.par_iter().for_each(|(pos, vid)| {
             if let Some(slot) = map.get(&vid).and_then(|l| slot_of.get(l)) {
                 prev[pos].store(*slot, Ordering::Relaxed);
@@ -317,24 +325,6 @@ where
         .iter()
         .map(|slot| AtomicUsize::new(slot.load(Ordering::Relaxed)))
         .collect();
-
-    // The frontier for the first sweep. Seeded: the neighbours of the seeded nodes, which costs a
-    // pass to collect. Unseeded: every node starts active, so there is nothing to collect and the
-    // pass is skipped.
-    let mut active_cur: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(!seeded)).collect();
-    let mut active_next: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(false)).collect();
-    if seeded {
-        index
-            .par_iter()
-            .for_each_init(Vec::new, |nbors, (pos, vid)| {
-                if prev[pos].load(Ordering::Relaxed) != NO_LABEL {
-                    collect_nbors(vid, nbors); // collects into nbors
-                    for &nbor in nbors.iter() {
-                        active_cur[nbor].store(true, Ordering::Relaxed);
-                    }
-                }
-            });
-    }
 
     // Synchronous LPA never reaches global_diff == 0 on graphs with locally-bipartite pockets
     // (results in ~period-2 oscillations), so the stopping criterion we use is to wait for
