@@ -49,9 +49,12 @@ minijinja = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 indexmap = { workspace = true, features = ["serde"] }
 ordered-float = { workspace = true, features = ["serde"] }
+num-bigint = { workspace = true }
+num-rational = { workspace = true, features = ["num-bigint"] }
 
 [dev-dependencies]
 proptest.workspace = true
+proptest-derive.workspace = true
 serde_json.workspace = true
 
 [features]

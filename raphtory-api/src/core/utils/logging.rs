@@ -5,7 +5,8 @@ use tracing_subscriber::{
 
 pub fn get_log_env(log_level: String) -> EnvFilter {
     EnvFilter::new(format!(
-        // opentelemetry_otlp and tonic are added so we can get debug logs when there are problems with the tracing collector
+        // opentelemetry_otlp and tonic are added so we can get debug logs when there are problems
+        // with the tracing collector.
         "pometry-storage={},pometry-storage-private={},raphtory={},raphtory-api={},raphtory-benchmark={},raphtory-cypher={},raphtory-graphql={},opentelemetry_otlp={},tonic={}",
         log_level, log_level, log_level, log_level, log_level, log_level, log_level, log_level, log_level
     ))
@@ -26,6 +27,7 @@ pub fn init_global_logger(log_level: String) {
 pub fn global_error_logger() {
     init_global_logger("ERROR".to_string())
 }
+
 pub fn global_warn_logger() {
     init_global_logger("WARN".to_string())
 }
@@ -37,6 +39,7 @@ pub fn global_info_logger() {
 pub fn global_debug_logger() {
     init_global_logger("DEBUG".to_string())
 }
+
 pub fn global_trace_logger() {
     init_global_logger("TRACE".to_string())
 }

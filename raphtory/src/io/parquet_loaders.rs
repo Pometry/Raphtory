@@ -29,6 +29,7 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(feature = "python")]
 pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
         Ok(fs::read_dir(path)?.any(|entry| {

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use proptest::proptest;
 use raphtory::{
-    db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    db::graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
 };
 use raphtory_api::core::entities::GID;

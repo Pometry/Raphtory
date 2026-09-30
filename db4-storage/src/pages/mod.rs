@@ -157,12 +157,6 @@ impl<
             ext.clone(),
         ));
 
-        if let Some(graph_dir) = graph_dir {
-            ext.config()
-                .save_to_dir(graph_dir)
-                .expect("Failed to write config to disk");
-        }
-
         Self {
             nodes: node_storage,
             edges: edge_storage,

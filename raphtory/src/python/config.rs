@@ -1,14 +1,14 @@
 use pyo3::{Borrowed, BoundObject, FromPyObject, PyAny};
 use pythonize::{depythonize, PythonizeError};
-use storage::Config;
+use storage::Args;
 
-pub struct PyConfig(pub Config);
+pub struct PyArgs(pub Args);
 
-impl<'a, 'py> FromPyObject<'a, 'py> for PyConfig {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyArgs {
     type Error = PythonizeError;
 
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
-        let config: Config = depythonize(&obj.into_bound())?;
-        Ok(PyConfig(config))
+        let args: Args = depythonize(&obj.into_bound())?;
+        Ok(PyArgs(args))
     }
 }

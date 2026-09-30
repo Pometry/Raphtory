@@ -9,7 +9,7 @@ use pyo3::{
     types::{PyDict, PyList, PyNone},
     IntoPyObjectExt,
 };
-use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
+use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
 use raphtory_api::python::error::adapt_err_value;
 use serde_json::{Map, Number, Value as JsonValue};
 
@@ -121,7 +121,7 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
 ///     Union[Graph, PersistentGraph]: the decoded graph
 #[pyfunction]
 pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
-    let result = url_decode_graph(graph, Config::default());
+    let result = url_decode_graph(graph, Args::default());
     match result {
         Ok(g) => Ok(g),
         Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),

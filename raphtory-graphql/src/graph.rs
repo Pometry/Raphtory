@@ -6,7 +6,7 @@ use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{
                 internal::{
                     InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
@@ -21,7 +21,9 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps,
 };
 use std::{
     future::poll_fn,
@@ -153,15 +155,21 @@ impl GraphWithVectors {
     /// and the first error is returned; callers decide whether a failure
     /// should re-mark the graph dirty for a later retry.
     pub fn persist(&self) -> Result<(), GraphError> {
-        self.set_flushing(true);
-        self.set_dirty(false);
-        let flushed = self.graph().flush();
-        let written = self
-            .folder()
-            .replace_graph_data(self.graph().clone())
-            .map_err(|e| GraphError::ExternalError(Arc::new(e)));
-        self.set_flushing(false);
-        flushed.and(written)
+        let graph = self.graph();
+        let is_immutable = graph.core_graph().is_immutable();
+        if !is_immutable {
+            self.set_flushing(true);
+            self.set_dirty(false);
+            let flushed = graph.flush();
+            let written = self
+                .folder()
+                .replace_graph_data(self.graph().clone())
+                .map_err(|e| GraphError::ExternalError(Arc::new(e)));
+            self.set_flushing(false);
+            flushed.and(written)
+        } else {
+            Ok(())
+        }
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -197,21 +205,22 @@ impl GraphWithVectors {
     pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
         #[cfg(feature = "vectors")] cache: &LazyDiskVectorCache,
-        config: Config,
+        args: Args,
     ) -> Result<Self, GraphError> {
         let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
             blocking_load(move || {
-                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         } else {
             blocking_load(move || {
-                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), args)
             })
             .await?
         };
+
         #[cfg(feature = "vectors")]
         let vectors = {
             let vectors_path = folder.vectors_path()?;
@@ -229,6 +238,7 @@ impl GraphWithVectors {
                 }
             }
         };
+
         #[cfg(not(feature = "vectors"))]
         let vectors = None;
 

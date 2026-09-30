@@ -718,7 +718,7 @@ mod test {
     #[test]
     fn est_size_changes() {
         let meta = Arc::new(Meta::default());
-        let ext = NoOpStrategy::new(Config::default(), None).unwrap();
+        let ext = NoOpStrategy::new(None, Config::default()).unwrap();
         let stats = GraphStats::new();
         let segment = EdgeSegmentView::new(1, meta.clone(), None, ext.clone());
         let head = segment.head_mut();

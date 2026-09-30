@@ -2,7 +2,7 @@ use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
     cache::GraphCache,
-    config::app_config::AppConfig,
+    config::{app_config::AppConfig, cache_config::CacheConfig},
     graph::GraphWithVectors,
     model::{
         blocking_io,
@@ -24,7 +24,7 @@ use dynamic_graphql::Enum;
 use raphtory::{
     db::{
         api::{
-            storage::storage::Config,
+            storage::storage::Args,
             view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
         },
         graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
@@ -35,6 +35,7 @@ use raphtory::{
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     fs, io,
     io::{Read, Seek},
     ops::Deref,
@@ -158,14 +159,45 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
+/// Which graphs are served read-only.
+#[derive(Debug, Clone)]
+pub(crate) enum ReadOnlyGraphs {
+    None,
+    All,
+    Only(HashSet<String>),
+}
+
+impl ReadOnlyGraphs {
+    fn from_config(cache_configs: &CacheConfig) -> Self {
+        match &cache_configs.read_only_graphs {
+            Some(graphs) => Self::Only(
+                graphs
+                    .iter()
+                    .map(|path| path.trim_matches('/').to_string())
+                    .collect(),
+            ),
+            None if cache_configs.read_only => Self::All,
+            None => Self::None,
+        }
+    }
+
+    pub(crate) fn is_read_only(&self, path: &str) -> bool {
+        match self {
+            Self::None => false,
+            Self::All => true,
+            Self::Only(graphs) => graphs.contains(path),
+        }
+    }
+}
+
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
     work_dir: Arc<RwLock<PathBuf>>,
     pub(crate) cache: GraphCache,
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
-    pub(crate) graph_conf: Config,
-    pub(crate) read_only: bool,
+    pub(crate) graph_args: Args,
+    pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -295,9 +327,8 @@ async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_args: Args) -> Self {
         let cache_configs = &configs.cache;
-
         let cache = GraphCache::new(cache_configs.capacity as usize);
 
         Self {
@@ -306,8 +337,8 @@ impl Data {
                 cache,
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
-                graph_conf,
-                read_only: cache_configs.read_only,
+                graph_args,
+                read_only: ReadOnlyGraphs::from_config(cache_configs),
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
@@ -394,13 +425,14 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
-        let config = self.graph_conf.clone();
-        let read_only = self.read_only;
+        let args = self.graph_args.clone();
+        let read_only = self.read_only.is_read_only(&key);
+
         self.cache
             .insert_or_replace_with(&key, |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, args)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
@@ -413,6 +445,7 @@ impl Data {
                 .await
             })
             .await?;
+
         Ok(())
     }
 
@@ -422,12 +455,13 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        let conf = self.graph_conf.clone();
+        let args = self.graph_args.clone();
+
         self.cache
             .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
                 invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.write_graph_bytes(bytes, args)?;
                     folder.finish()
                 })
                 .await
@@ -622,17 +656,17 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let config = self.graph_conf.clone();
+        let args = self.graph_args.clone();
         #[cfg(feature = "vectors")]
         let cache = self.vector_cache.clone();
         let graph = GraphWithVectors::read_from_folder(
             &folder,
             #[cfg(feature = "vectors")]
             &cache,
-            config,
+            args,
         )
         .await?;
-        Ok(if self.read_only {
+        Ok(if self.read_only.is_read_only(folder.local_path()) {
             graph.into_read_only()
         } else {
             graph
@@ -1155,6 +1189,34 @@ pub(crate) mod data_tests {
         let served = data.get_graph_for_test("g").await.unwrap();
         let served = served.graph().clone().into_events().unwrap();
         assert!(served.add_node(1, 3, NO_PROPS, None, None).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_read_only_graphs_list_supersedes_read_only() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        for name in ["locked", "ns/locked", "open"] {
+            let graph = Graph::new();
+            graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+            let path = tmp_work_dir.path().join(name);
+            fs::create_dir_all(&path).unwrap();
+            graph.encode(&path).unwrap();
+        }
+
+        let config = AppConfigBuilder::new()
+            .with_cache_read_only(true)
+            .with_cache_read_only_graphs(Some(vec!["locked".into(), "/ns/locked/".into()]))
+            .build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        for (name, read_only) in [("locked", true), ("ns/locked", true), ("open", false)] {
+            let served = data.get_graph_for_test(name).await.unwrap();
+            let served = served.graph().clone().into_events().unwrap();
+            assert_eq!(served.count_nodes(), 2);
+            assert_eq!(
+                served.add_node(1, 3, NO_PROPS, None, None).is_err(),
+                read_only,
+                "graph {name}"
+            );
+        }
     }
 
     #[tokio::test]

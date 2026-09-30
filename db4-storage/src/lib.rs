@@ -8,7 +8,10 @@ use crate::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
-    persist::strategy::{NoOpStrategy, PersistenceStrategy},
+    persist::{
+        config::ConfigOps,
+        strategy::{NoOpStrategy, PersistenceStrategy},
+    },
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::{
@@ -20,7 +23,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
-        node_type_index::NodeTypeIndexView,
+        node_type_index::{MemNodeTypeEntry, NodeTypeIndexView},
     },
 };
 use parking_lot::RwLock;
@@ -58,6 +61,7 @@ pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
 pub type ControlFile = <Extension as PersistenceStrategy>::ControlFile;
 pub type Config = <Extension as PersistenceStrategy>::Config;
+pub type Args = <Config as ConfigOps>::Args;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
@@ -70,6 +74,7 @@ pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
+pub type NodeTypeEntry = MemNodeTypeEntry;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
@@ -128,6 +133,9 @@ pub mod error {
 
         #[error("Failed to vacuum storage")]
         VacuumError,
+
+        #[error("Read only graph")]
+        ReadOnlyGraphError,
 
         #[error("Disk storage not supported")]
         DiskStorageNotSupported,

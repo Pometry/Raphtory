@@ -41,7 +41,10 @@ use raphtory::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, Layer, GID},
+    entities::{
+        properties::prop::{prop_hashable::HashableProp, Prop},
+        Layer, GID,
+    },
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
     Direction,
@@ -1518,7 +1521,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
             .map(Prop::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PropertyFilterValue::Set(Arc::new(
-            props.into_iter().collect(),
+            props.into_iter().map(HashableProp::from).collect(),
         )))
     } else {
         Err(GraphError::InvalidGqlFilter(format!(
@@ -2569,7 +2572,10 @@ fn prop_filter_value_to_value(v: &PropertyFilterValue) -> Result<Value, GraphErr
         PropertyFilterValue::Single(p) => Value::try_from(p),
         PropertyFilterValue::Set(ps) => {
             // Set semantics — element order is irrelevant on the wire.
-            let items: Vec<Value> = ps.iter().map(Value::try_from).collect::<Result<_, _>>()?;
+            let items: Vec<Value> = ps
+                .iter()
+                .map(|v| Value::try_from(&v.0))
+                .collect::<Result<_, _>>()?;
             Ok(Value::List(items))
         }
         PropertyFilterValue::None => Err(GraphError::InvalidGqlFilter(

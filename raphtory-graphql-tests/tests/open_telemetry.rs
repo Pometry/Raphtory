@@ -1,6 +1,8 @@
-// OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests since the span and log exporters are set globally.
+//! OpenTelemetry Tests must be separated into their own binary to prevent polluting other tests
+//! since the span and log exporters are set globally.
+
 use raphtory::{
-    db::api::storage::storage::Config,
+    db::api::storage::storage::Args,
     prelude::{Graph, StableEncode},
 };
 use raphtory_graphql::{
@@ -19,11 +21,23 @@ use opentelemetry_sdk::{logs::InMemoryLogExporter, trace::InMemorySpanExporter};
 
 const OPEN_TELEMETRY_QUERY: &str = "query {
 	updateGraph(path: \"g\") {
-		addNode(time: 1, name: 1, properties: [{ key: \"seed\", value: { str: \"yes\" } }], nodeType: \"seed\", layer: \"main\") {
+		addNode(
+			time: 1,
+			name: 1,
+			properties: [{ key: \"seed\", value: { str: \"yes\" } }],
+			nodeType: \"seed\",
+			layer: \"main\"
+		) {
 			success
 			node { id }
 		}
-		addEdge(time: 5, src: 1, dst: 2, properties: [{ key: \"weight\", value: { f64: 1.5 } }], layer: \"main\") {
+		addEdge(
+			time: 5,
+			src: 1,
+			dst: 2,
+			properties: [{ key: \"weight\", value: { f64: 1.5 } }],
+			layer: \"main\"
+		) {
 			success
 		}
 		graph {
@@ -45,9 +59,11 @@ async fn setup_for_span_tests(
 ) {
     let span_exporter = GLOBAL_EXPORTERS.span.clone();
     let log_exporter = GLOBAL_EXPORTERS.log.clone();
-    // reset logs and spans for next test
+
+    // Reset logs and spans for next test.
     span_exporter.reset();
     log_exporter.reset();
+
     let tmp_dir = tempdir().unwrap();
     let graph = Graph::new();
     graph.encode(tmp_dir.path().join("g")).unwrap();
@@ -61,24 +77,27 @@ async fn setup_for_span_tests(
     let server = GraphServer::new(
         tmp_dir.path().to_path_buf(),
         Some(app_config.clone()),
-        Config::default(),
+        Args::default(),
     )
     .await
     .unwrap();
-    let handler = server.start_with_port(0).await.unwrap();
 
+    let handler = server.start_with_port(0).await.unwrap();
     let endpoint = Url::parse(&format!("http://localhost:{}/", handler.port())).unwrap();
     let client = RemoteClient::new(endpoint, None);
+
     (client, handler, span_exporter, log_exporter, tmp_dir)
 }
 
 async fn test_open_telemetry_spans_complete() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::COMPLETE).await;
+
     let _ = client
         .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
+
     handler.stop().await;
 
     let finished_spans = span_exporter.get_finished_spans().unwrap();
@@ -86,6 +105,7 @@ async fn test_open_telemetry_spans_complete() {
         .iter()
         .map(|span| span.name.to_string())
         .collect();
+
     assert_eq!(
         all_spans,
         HashSet::from([
@@ -114,10 +134,12 @@ async fn test_open_telemetry_spans_complete() {
 async fn test_open_telemetry_spans_essential() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::ESSENTIAL).await;
+
     let _ = client
         .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
+
     handler.stop().await;
 
     let finished_spans = span_exporter.get_finished_spans().unwrap();
@@ -125,6 +147,7 @@ async fn test_open_telemetry_spans_essential() {
         .iter()
         .map(|span| span.name.to_string())
         .collect();
+
     assert_eq!(
         all_spans,
         HashSet::from([
@@ -148,10 +171,12 @@ async fn test_open_telemetry_spans_essential() {
 async fn test_open_telemetry_spans_minimal() {
     let (client, handler, span_exporter, log_exporter, _tmp_dir) =
         setup_for_span_tests(TracingLevel::MINIMAL).await;
+
     let _ = client
         .query(OPEN_TELEMETRY_QUERY, Default::default())
         .await
         .unwrap();
+
     handler.stop().await;
 
     let finished_spans = span_exporter.get_finished_spans().unwrap();
@@ -159,6 +184,7 @@ async fn test_open_telemetry_spans_minimal() {
         .iter()
         .map(|span| span.name.to_string())
         .collect();
+
     assert_eq!(
         all_spans,
         HashSet::from([
@@ -175,7 +201,13 @@ async fn test_open_telemetry_spans_minimal() {
 
 #[tokio::test]
 async fn test_open_telemetry_spans() {
-    // The following tests share the same global in-memory exporters and hence need to be run sequentially to prevent spans and logs from getting mangled.
+    // The following tests share the same global in-memory exporters and are run
+    // sequentially to prevent spans and logs from getting mangled.
+    //
+    // NOTE: The server emits warnings mentioning
+    // 'global default trace dispatcher has already been set' after the first test.
+    // These are harmless since subsequent tests reuse the same global exporters
+    // that are already set.
     test_open_telemetry_spans_complete().await;
     test_open_telemetry_spans_essential().await;
     test_open_telemetry_spans_minimal().await;

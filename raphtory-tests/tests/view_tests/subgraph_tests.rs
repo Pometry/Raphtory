@@ -3,7 +3,10 @@ use itertools::Itertools;
 use proptest::{proptest, sample::subsequence};
 use raphtory::{
     algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
-    db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    db::{
+        api::state::Index,
+        graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    },
     prelude::*,
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
@@ -11,6 +14,7 @@ use raphtory_tests::{
     test_storage,
     utils::{build_graph, build_graph_strat},
 };
+use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::collections::BTreeSet;
 

@@ -1,7 +1,7 @@
 use parquet::arrow::arrow_reader::ArrowReaderMetadata;
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
-    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+    db::graph::assertions::{assert_graph_equal, assert_graph_equal_timestamps},
     io::parquet_loaders::{
         get_parquet_file_paths, load_edge_metadata_from_parquet, load_edges_from_parquet,
         load_graph_props_from_parquet, load_node_metadata_from_parquet, load_nodes_from_parquet,

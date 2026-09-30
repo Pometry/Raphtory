@@ -185,7 +185,6 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events at a specified time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -200,7 +199,6 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,

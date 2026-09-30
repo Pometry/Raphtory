@@ -10,7 +10,7 @@ use crate::{
 };
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
-use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
+use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
 use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
 use std::{path::Path, sync::Arc};
 
@@ -23,7 +23,7 @@ pub(crate) async fn setup_with_graphs(
     graphs: &[(&str, MaterializedGraph)],
     work_dir: &Path,
 ) -> TestSetup {
-    let data = Data::new(work_dir, &AppConfig::default(), Config::default());
+    let data = Data::new(work_dir, &AppConfig::default(), Args::default());
     for (path, graph) in graphs {
         let folder = data
             .work_dir_write()
@@ -41,7 +41,7 @@ pub(crate) async fn setup_with_policy(
     work_dir: &Path,
     policy: Arc<dyn AuthorizationPolicy>,
 ) -> TestSetup {
-    let mut data = Data::new(work_dir, &AppConfig::default(), Config::default());
+    let mut data = Data::new(work_dir, &AppConfig::default(), Args::default());
     for (path, graph) in graphs {
         let folder = data
             .work_dir_write()

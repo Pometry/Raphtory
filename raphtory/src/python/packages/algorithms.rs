@@ -59,7 +59,7 @@ use crate::{
     db::{
         api::{
             state::{ops::filter::NO_FILTER, Index, OutputTypedNodeState},
-            view::internal::DynamicGraph,
+            view::internal::{DynamicGraph, NodeList},
         },
         graph::nodes::Nodes,
     },
@@ -353,11 +353,12 @@ pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
     v: Option<&Bound<PyAny>>,
 ) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
-    if v.is_some() {
-        let v = process_node_param(v.unwrap())?;
-        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate());
-    }
-    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]).to_output_nodestate())
+    // an omitted `v` (and an empty list) means every node of the graph
+    let v = match v {
+        Some(v) => process_node_param(v)?,
+        None => Vec::new(),
+    };
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -557,23 +558,30 @@ pub fn global_temporal_three_node_motif(
     global_temporal_three_node_motif_rs(&graph.graph, delta, threads)
 }
 
-/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
-/// will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type.
+/// Let `G` be a graph with some nodes of type `A`. Given `delta > 0`, the projection graph `G'` pivoting over type `A` nodes,
+/// will make a connection between nodes `n1` and `n2` (not of type `A`) at time `(t1 + t2)/2`
+/// if they respectively have an edge at time `t1`, `t2` with the same node of type `A` in `G`, and `|t2-t1| < delta`.
+/// Note that the projection does not contain any existing edges between pairs of nodes that are not of type `A`.
+///
+/// Raises an error if the pivot type is not a valid node type. However, it is possible for the pivot
+/// set to be empty without an error if all nodes of the pivot type have been filtered out via view filtering.
 ///
 /// Arguments:
-///     graph (GraphView): A directed raphtory graph
+///     graph (GraphView): A directed raphtory graph. Every node must have a node type.
 ///     delta (int): Time period
 ///     pivot_type (str): node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 ///
 /// Returns:
 ///     Graph: Projected (unipartite) temporal graph.
+///
 #[pyfunction]
 #[pyo3(signature = (graph, delta, pivot_type))]
 pub fn temporal_bipartite_graph_projection(
     graph: &PyGraphView,
     delta: i64,
-    pivot_type: String,
-) -> Graph {
+    pivot_type: &str,
+) -> Result<Graph, GraphError> {
     temporal_bipartite_rs(&graph.graph, delta, pivot_type)
 }
 
@@ -849,7 +857,12 @@ pub fn k_core(
     } else {
         Index::from_iter(v_set)
     };
-    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), NO_FILTER, index)
+    Nodes::new_filtered(
+        graph.graph.clone(),
+        graph.graph.clone(),
+        NO_FILTER,
+        NodeList::from(index),
+    )
 }
 
 /// Simulate an SEIR dynamic on the network

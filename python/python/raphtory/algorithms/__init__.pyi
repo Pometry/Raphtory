@@ -396,12 +396,15 @@ def temporal_bipartite_graph_projection(
     will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
 
     Arguments:
-        graph (GraphView): A directed raphtory graph
+        graph (GraphView): A directed raphtory graph. Every node must have a node type.
         delta (int): Time period
         pivot_type (str): node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 
     Returns:
         Graph: Projected (unipartite) temporal graph.
+
+    Raises:
+        GraphError: If a node of `graph` has no node type. The error names the node.
     """
 
 def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
