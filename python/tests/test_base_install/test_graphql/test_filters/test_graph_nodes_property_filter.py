@@ -181,7 +181,9 @@ def test_graph_node_property_filter_greater_than_or_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = 'Invalid filter: value shivam of type Str cannot be compared with I64'
+    expected_error_message = (
+        "Invalid filter: value shivam of type Str cannot be compared with I64"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -243,7 +245,9 @@ def test_graph_node_property_filter_less_than_or_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = 'Invalid filter: value shivam of type Str cannot be compared with I64'
+    expected_error_message = (
+        "Invalid filter: value shivam of type Str cannot be compared with I64"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -299,7 +303,9 @@ def test_graph_node_property_filter_greater_than_type_error(graph):
       }
     }
     """
-    expected_error_message = 'Invalid filter: value shivam of type Str cannot be compared with I64'
+    expected_error_message = (
+        "Invalid filter: value shivam of type Str cannot be compared with I64"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -357,7 +363,9 @@ def test_graph_node_property_filter_less_than_type_error(graph):
       }
     }
     """
-    expected_error_message = 'Invalid filter: value shivam of type Str cannot be compared with I64'
+    expected_error_message = (
+        "Invalid filter: value shivam of type Str cannot be compared with I64"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 

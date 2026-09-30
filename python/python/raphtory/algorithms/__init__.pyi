@@ -392,8 +392,14 @@ def temporal_bipartite_graph_projection(
     graph: GraphView, delta: int, pivot_type: str
 ) -> Graph:
     """
-    Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
-    will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
+    Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type.
+    Let `G` be a graph with some nodes of type `A`. Given `delta > 0`, the projection graph `G'` pivoting over type `A` nodes,
+    will make a connection between nodes `n1` and `n2` (not of type `A`) at time `(t1 + t2)/2`
+    if they respectively have an edge at time `t1`, `t2` with the same node of type `A` in `G`, and `|t2-t1| < delta`.
+    Note that the projection does not contain any existing edges between pairs of nodes that are not of type `A`.
+
+    Raises an error if the pivot type is not a valid node type. However, it is possible for the pivot
+    set to be empty without an error if all nodes of the pivot type have been filtered out via view filtering.
 
     Arguments:
         graph (GraphView): A directed raphtory graph. Every node must have a node type.
@@ -403,8 +409,6 @@ def temporal_bipartite_graph_projection(
     Returns:
         Graph: Projected (unipartite) temporal graph.
 
-    Raises:
-        GraphError: If a node of `graph` has no node type. The error names the node.
     """
 
 def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:

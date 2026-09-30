@@ -58,8 +58,7 @@ def test_sort_key_with_no_or_several_fields_is_rejected(graph):
                 nodes { sorted(sortBys: %s) { list { name } } }
               }
             }
-            """
-            % keys,
+            """ % keys,
             "exactly one",
             graph,
         )
@@ -632,7 +631,7 @@ def test_filter_nodes_degree_string_constants_gql(graph):
     """
         run_graphql_error_test(
             query,
-            'Invalid filter: value 4 of type Str cannot be compared with U64',
+            "Invalid filter: value 4 of type Str cannot be compared with U64",
             graph,
         )
 
