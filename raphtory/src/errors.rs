@@ -208,7 +208,7 @@ pub enum GraphError {
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),
 
-    #[error("Node Type {0} does not exist")]
+    #[error("Node type '{0}' does not exist")]
     NodeTypeMissingError(String),
 
     #[error("No Edge between {src} and {dst}")]
