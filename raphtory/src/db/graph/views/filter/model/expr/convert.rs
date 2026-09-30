@@ -68,7 +68,7 @@ pub trait FactoryLeaf: Clone {
     fn views(&self) -> Vec<ViewOp>;
 }
 
-/// The leaf types whose reads describe an edge: the plain edge and the exploded edge.
+/// The leaf types whose terms describe an edge: the plain edge and the exploded edge.
 pub trait EdgeLeafKind: Leaf {}
 impl EdgeLeafKind for EdgeLeaf {}
 impl EdgeLeafKind for ExplodedEdgeLeaf {}
@@ -234,7 +234,7 @@ impl<L: Leaf, T: Into<Prop> + Clone> ToExpr<L> for ConstExpr<T> {
 
 impl<E: FactoryLeaf> ToExpr<E::Leaf> for PropertyExpr<E> {
     fn to_expr(&self) -> Expr<E::Leaf> {
-        Expr::Read(E::Leaf::property(
+        Expr::Term(E::Leaf::property(
             self.view_expr.views(),
             self.name.clone(),
             false,
@@ -244,7 +244,7 @@ impl<E: FactoryLeaf> ToExpr<E::Leaf> for PropertyExpr<E> {
 
 impl<E: FactoryLeaf> ToExpr<E::Leaf> for TemporalPropExpr<E> {
     fn to_expr(&self) -> Expr<E::Leaf> {
-        Expr::Read(E::Leaf::property(
+        Expr::Term(E::Leaf::property(
             self.view_expr.views(),
             self.name.clone(),
             true,
@@ -254,13 +254,13 @@ impl<E: FactoryLeaf> ToExpr<E::Leaf> for TemporalPropExpr<E> {
 
 impl<E: FactoryLeaf> ToExpr<E::Leaf> for MetadataExpr<E> {
     fn to_expr(&self) -> Expr<E::Leaf> {
-        Expr::Read(E::Leaf::metadata(self.view_expr.views(), self.name.clone()))
+        Expr::Term(E::Leaf::metadata(self.view_expr.views(), self.name.clone()))
     }
 }
 
 impl<E: FactoryLeaf<Leaf = NodeLeaf>> ToExpr<NodeLeaf> for DegreeExpr<E> {
     fn to_expr(&self) -> Expr<NodeLeaf> {
-        Expr::Read(NodeLeaf::Degree {
+        Expr::Term(NodeLeaf::Degree {
             views: self.view_expr.views(),
             direction: self.dir,
         })
@@ -271,7 +271,7 @@ macro_rules! field_to_expr {
     ($($t:ident => $field:ident),* $(,)?) => {$(
         impl ToExpr<NodeLeaf> for $t {
             fn to_expr(&self) -> Expr<NodeLeaf> {
-                Expr::Read(NodeLeaf::Field {
+                Expr::Term(NodeLeaf::Field {
                     views: Vec::new(),
                     field: Field::$field,
                 })
@@ -286,7 +286,7 @@ macro_rules! viewed_field_to_expr {
     ($($t:ident => $field:ident),* $(,)?) => {$(
         impl<E: FactoryLeaf<Leaf = NodeLeaf>> ToExpr<NodeLeaf> for NodeFieldExpr<E, $t> {
             fn to_expr(&self) -> Expr<NodeLeaf> {
-                Expr::Read(NodeLeaf::Field {
+                Expr::Term(NodeLeaf::Field {
                     views: self.view_expr.views(),
                     field: Field::$field,
                 })
@@ -299,7 +299,7 @@ viewed_field_to_expr!(Id => Id, Name => Name, Type => NodeType);
 
 impl ToExpr<NodeLeaf> for IsActiveNode {
     fn to_expr(&self) -> Expr<NodeLeaf> {
-        Expr::Read(NodeLeaf::is_active(Vec::new()))
+        Expr::Term(NodeLeaf::is_active(Vec::new()))
     }
 }
 
@@ -307,13 +307,13 @@ macro_rules! edge_structural_to_expr {
     ($($t:ident => $variant:ident),* $(,)?) => {$(
         impl ToExpr<EdgeLeaf> for $t {
             fn to_expr(&self) -> Expr<EdgeLeaf> {
-                Expr::Read(EdgeLeaf::$variant { views: Vec::new() })
+                Expr::Term(EdgeLeaf::$variant { views: Vec::new() })
             }
         }
 
         impl ToExpr<ExplodedEdgeLeaf> for $t {
             fn to_expr(&self) -> Expr<ExplodedEdgeLeaf> {
-                Expr::Read(ExplodedEdgeLeaf::$variant { views: Vec::new() })
+                Expr::Term(ExplodedEdgeLeaf::$variant { views: Vec::new() })
             }
         }
     )*};
@@ -326,7 +326,7 @@ edge_structural_to_expr!(
     IsSelfLoopEdge => IsSelfLoop,
 );
 
-// A view wrapped around an expression scopes every read inside it.
+// A view wrapped around an expression scopes every term inside it.
 
 impl<L: Leaf, T: ToExpr<L>> ToExpr<L> for Windowed<T> {
     fn to_expr(&self) -> Expr<L> {
@@ -468,11 +468,11 @@ impl<L: Leaf, E: ToExpr<L>, M> ToExpr<L> for PropValueSetExpr<E, M> {
     }
 }
 
-/// A node expression read at one end of the edge.
+/// A node expression evaluated at one end of the edge.
 impl<T: ToExpr<NodeLeaf>> ToExpr<EdgeLeaf> for EdgeEndpointWrapper<T> {
     fn to_expr(&self) -> Expr<EdgeLeaf> {
         let inner = Box::new(self.inner.to_expr());
-        Expr::Read(match self.endpoint() {
+        Expr::Term(match self.endpoint() {
             Endpoint::Src => EdgeLeaf::Src(inner),
             Endpoint::Dst => EdgeLeaf::Dst(inner),
         })
@@ -551,7 +551,7 @@ where
     }
 }
 
-/// A unit predicate scoped to a factory's view chain: the read carries the views.
+/// A unit predicate scoped to a factory's view chain: the term carries the views.
 impl<V: FactoryLeaf, T: ToExpr<V::Leaf>> ToFilterExpr for Scoped<V, T> {
     fn to_filter_expr(&self) -> FilterExpr {
         let mut expr = self.inner.to_expr();

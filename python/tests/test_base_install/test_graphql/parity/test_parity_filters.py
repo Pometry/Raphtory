@@ -55,7 +55,7 @@ def _build_filters(g):
       sources gives a visibly different answer;
     * **`score` is written twice** for `hub` and `spoke1`, so the temporal
       aggregations (`any`/`all`/`first`/`last`/`min`/`max`/`sum`) disagree with
-      each other and with the aggregated `property()` read;
+      each other and with the aggregated `property()` term;
     * **three layers** (`knows`, `works`, `likes`) with events at t=2..12, so
       layer and window scopes each select a different slice, and a chain of the
       two is narrower than either;
@@ -130,7 +130,7 @@ def _build_filters(g):
     # A tombstone, so the validity predicates have something to separate.
     g.delete_edge(9, "hub", "spoke1", layer="knows", event_id=None)
 
-    # A second event on one edge, so exploded and aggregated reads differ.
+    # A second event on one edge, so exploded and aggregated terms differ.
     g.add_edge(
         10, "hub", "spoke2", properties={"weight": 9.5, "note": "zz"}, layer="knows"
     )
@@ -512,12 +512,12 @@ PREDICATE_EXPRS = {
     "pred.exploded.is_self_loop": lambda: f.ExplodedEdge.is_self_loop(),
 }
 
-# Exploded-edge property reads: evaluated per event rather than per aggregated
+# Exploded-edge property terms: evaluated per event rather than per aggregated
 # edge, so an edge survives when *some* event matches and is scoped to the
 # matching events (`hub -> spoke2` carries weights 2.5 and 9.5, so `> 2.0`
 # keeps it while `!= "zz"` on the note drops the 9.5 event). Unlike the plain
-# edge metadata read — which is layer-keyed and matches nothing unqualified —
-# the exploded metadata read resolves per event, so the equality bites.
+# edge metadata term — which is layer-keyed and matches nothing unqualified —
+# the exploded metadata term resolves per event, so the equality bites.
 EXPLODED_EXPRS = {
     "exploded.prop.gt": lambda: f.ExplodedEdge.property("weight") > 2.0,
     "exploded.prop.eq": lambda: f.ExplodedEdge.property("weight") == 3.5,
@@ -778,13 +778,13 @@ def _names(h):
 
 
 def test_property_sources_are_distinct(filter_pair):
-    """Metadata, aggregated property and temporal property are separate reads.
+    """Metadata, aggregated property and temporal property are separate terms.
 
     `level` is metadata (`gold`/`silver`) *and* a temporal property (`bronze`)
     on overlapping but different nodes. Three filters over the same key must
     therefore give three different answers, and each must agree across the
     wire. In particular `property("level") == "gold"` selects *nothing*: the
-    metadata value must not be visible to a property read. That is the check a
+    metadata value must not be visible to a property term. That is the check a
     lowering which collapses the two sources cannot pass.
     """
     metadata = lambda g: _names(g.filter(f.Node.metadata("level") == "gold"))
@@ -802,16 +802,16 @@ def test_property_sources_are_distinct(filter_pair):
         ("remote", filter_pair.remote),
     ):
         assert metadata(side) != aggregated(side), (
-            f"{side_name}: the metadata and property reads of `level` returned "
+            f"{side_name}: the metadata and property terms of `level` returned "
             f"the same nodes — the two sources are not being distinguished"
         )
         assert crossed(side) == [], (
             f"{side_name}: property('level') == 'gold' matched "
             f"{crossed(side)}, but 'gold' is only a *metadata* value — the "
-            f"property read is leaking metadata"
+            f"property term is leaking metadata"
         )
         assert temporal(side) == aggregated(side), (
-            f"{side_name}: the temporal and aggregated reads of `level` "
+            f"{side_name}: the temporal and aggregated terms of `level` "
             f"disagree ({temporal(side)} vs {aggregated(side)})"
         )
 
@@ -1281,8 +1281,8 @@ def test_by_state_column_needs_a_boolean_state_column():
         f.Node.by_state_column(state, "pagerank_score")
 
 
-def test_edge_views_scope_endpoint_reads_on_both_sides():
-    """A view applied before `src()`/`dst()` scopes the endpoint read, locally and
+def test_edge_views_scope_endpoint_terms_on_both_sides():
+    """A view applied before `src()`/`dst()` scopes the endpoint term, locally and
     remotely.
 
     `alice.score` is 3 until t=5 and 9 after; the edge alice→bob has events at

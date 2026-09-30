@@ -836,7 +836,7 @@ def init_early_and_late(graph):
 
 
 @with_variants(init_early_and_late)
-def test_windowed_field_reads_are_none_outside_the_window():
+def test_windowed_field_terms_are_none_outside_the_window():
     def check(graph):
         window = filter.Node.window(0, 5)
         cases = [

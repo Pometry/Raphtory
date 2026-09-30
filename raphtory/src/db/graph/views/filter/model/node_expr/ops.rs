@@ -87,16 +87,16 @@ use storage::EdgeEntryRef;
 pub(crate) struct NodePropOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
-    /// Whether the read's own view (e.g. `NodeFilter.window(..)`) can hide
+    /// Whether the term's own view (e.g. `NodeFilter.window(..)`) can hide
     /// nodes the enclosing filter keeps; see [`view_node`].
     pub(crate) narrows: bool,
 }
 
 /// The node as `graph` sees it. When `graph` is the graph the enclosing filter
 /// runs on, that filter has already decided the node belongs to it, so the node
-/// is read as it is. When the read carries its own view that can hide nodes
+/// is read as it is. When the term carries its own view that can hide nodes
 /// (`narrows`, e.g. `NodeFilter.window(..)`), the node may be missing from it,
-/// and a read of a missing node is `None`.
+/// and a term on a missing node is `None`.
 #[inline]
 pub(crate) fn view_node<G: GraphView>(
     graph: &G,
@@ -144,7 +144,7 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
 pub(crate) struct NodeMetaOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
-    /// Whether the read's own view (e.g. `NodeFilter.window(..)`) can hide
+    /// Whether the term's own view (e.g. `NodeFilter.window(..)`) can hide
     /// nodes the enclosing filter keeps; see [`view_node`].
     pub(crate) narrows: bool,
 }
@@ -172,16 +172,16 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// InViewNodeOp<G, F> — a read that holds only for nodes the view holds
+// InViewNodeOp<G, F> — a term that holds only for nodes the view holds
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A read that does not consult the view itself (e.g. a node's name), taken
+/// A term that does not consult the view itself (e.g. a node's name), taken
 /// through a view that can hide nodes: `None` for a node the view does not
-/// hold, as a property read through the same view would be.
+/// hold, as a property term through the same view would be.
 #[derive(Clone)]
 pub(crate) struct InViewNodeOp<G, F> {
     pub(crate) graph: G,
-    pub(crate) read: F,
+    pub(crate) term: F,
 }
 
 impl<G: GraphView, F: NodeOp<Output = Option<Prop>>> NodeOp for InViewNodeOp<G, F> {
@@ -193,11 +193,11 @@ impl<G: GraphView, F: NodeOp<Output = Option<Prop>>> NodeOp for InViewNodeOp<G, 
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
         (&self.graph).node(node)?;
-        self.read.apply(storage, node)
+        self.term.apply(storage, node)
     }
 
     fn prop_type(&self) -> PropType {
-        self.read.prop_type()
+        self.term.prop_type()
     }
 }
 
@@ -246,7 +246,7 @@ impl NodeOp for NodeIdOp {
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
     pub(crate) prop_id: usize,
-    /// Whether the read's own view (e.g. `NodeFilter.window(..)`) can hide
+    /// Whether the term's own view (e.g. `NodeFilter.window(..)`) can hide
     /// nodes the enclosing filter keeps; see [`view_node`].
     pub(crate) narrows: bool,
 }

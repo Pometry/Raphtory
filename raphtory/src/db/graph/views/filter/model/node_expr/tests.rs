@@ -741,7 +741,7 @@ fn numeric_constants_beyond_the_property_width_compare_by_value() {
     );
 }
 
-// ── Reads through a view on a node the view does not show ─────────────────
+// ── Terms through a view on a node the view does not show ─────────────────
 
 /// early: p=1 @1, m=1 · late: p=1 @6, m=1 · no_meta: p=1 @1
 ///
@@ -764,21 +764,21 @@ fn build_view_membership_graph() -> Graph {
 }
 
 #[test]
-fn windowed_property_read_skips_node_absent_from_window() {
+fn windowed_property_term_skips_node_absent_from_window() {
     let g = build_view_membership_graph();
     let filter = NodeFilter.window(0, 5).property("p").eq(1i64);
     assert_eq!(filtered_names(filter, g), vec!["early", "no_meta"]);
 }
 
 #[test]
-fn windowed_metadata_read_skips_node_absent_from_window() {
+fn windowed_metadata_term_skips_node_absent_from_window() {
     let g = build_view_membership_graph();
     let filter = NodeFilter.window(0, 5).metadata("m").eq(1i64);
     assert_eq!(filtered_names(filter, g), vec!["early"]);
 }
 
 #[test]
-fn windowed_temporal_read_skips_node_absent_from_window() {
+fn windowed_temporal_term_skips_node_absent_from_window() {
     let g = build_view_membership_graph();
     let filter = NodeFilter
         .window(0, 5)

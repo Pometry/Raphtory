@@ -158,7 +158,7 @@ fn test_edge_temporal_len_combined_with_and() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// String ops on aggregated reads
+// String ops on aggregates
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn band_graph() -> Graph {
@@ -282,7 +282,7 @@ fn test_edge_aggregated_first_starts_with_str_convenience() {
 
 #[test]
 fn test_edge_property_is_in_prop_values() {
-    // is_in on the property read
+    // is_in on the property term
     let g = band_graph();
     let filter = EdgeFilter
         .property("band")
@@ -303,7 +303,7 @@ fn test_edge_property_is_not_in_prop_values() {
 
 #[test]
 fn test_edge_aggregated_last_is_in_prop_values() {
-    // is_in on the aggregated read
+    // is_in on the aggregate
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None)
         .unwrap();
@@ -532,7 +532,7 @@ fn test_edge_quantified_all_is_not_in() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Re-aggregation chains on aggregated reads
+// Re-aggregation chains on aggregates
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]

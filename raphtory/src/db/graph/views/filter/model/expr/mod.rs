@@ -7,9 +7,9 @@
 //!
 //! [`Expr`] holds what every entity can do: constants, aggregates,
 //! comparisons, string and set tests, presence tests, `any`/`all` over an
-//! element-wise result, and `and`/`or`/`not`. What an entity can *read* is
-//! its leaf type: [`NodeLeaf`] mirrors `NodeFilter`, [`EdgeLeaf`] mirrors
-//! `EdgeFilter` (with `src`/`dst` holding a node expression), and
+//! element-wise result, and `and`/`or`/`not`. The *terms* an entity offers
+//! make up its leaf type: [`NodeLeaf`] mirrors `NodeFilter`, [`EdgeLeaf`]
+//! mirrors `EdgeFilter` (with `src`/`dst` holding a node expression), and
 //! [`ExplodedEdgeLeaf`] mirrors `ExplodedEdgeFilter`. A combination the API
 //! does not have cannot be written down, so it need not be rejected.
 //!
@@ -138,7 +138,7 @@ impl<'de> Deserialize<'de> for OpaqueFilter {
     }
 }
 
-/// What every entity can do with a value, whatever the entity reads.
+/// What every entity can do with a value, whatever terms the entity offers.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Expr<L> {
@@ -160,10 +160,10 @@ pub enum Expr<L> {
     And(Vec<Expr<L>>),
     Or(Vec<Expr<L>>),
     Not(Box<Expr<L>>),
-    /// A read the entity offers; see [`NodeLeaf`], [`EdgeLeaf`], [`ExplodedEdgeLeaf`].
-    /// Serialised as the leaf itself, so the read's name is the key.
+    /// A term the entity offers; see [`NodeLeaf`], [`EdgeLeaf`], [`ExplodedEdgeLeaf`].
+    /// Serialised as the leaf itself, so the term's name is the key.
     #[serde(untagged)]
-    Read(L),
+    Term(L),
 }
 
 /// What a node offers: the surface of `NodeFilter`.

@@ -31,13 +31,13 @@ impl PyExplodedEdgeFilter {
         PyExplodedEdgeFilter(views)
     }
 
-    fn read(&self, leaf: ExplodedEdgeLeaf) -> PyExpr {
-        PyExpr(Typed::ExplodedEdge(Expr::Read(leaf)))
+    fn term(&self, leaf: ExplodedEdgeLeaf) -> PyExpr {
+        PyExpr(Typed::ExplodedEdge(Expr::Term(leaf)))
     }
 
-    fn property_read(&self, name: String) -> PyPropertyExpr {
+    fn property_term(&self, name: String) -> PyPropertyExpr {
         PyPropertyExpr::new(|temporal| {
-            Typed::ExplodedEdge(Expr::Read(ExplodedEdgeLeaf::property(
+            Typed::ExplodedEdge(Expr::Term(ExplodedEdgeLeaf::property(
                 self.0.clone(),
                 name.clone(),
                 temporal,
@@ -62,7 +62,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_read(name)
+        self.property_term(name)
     }
 
     /// Filters an exploded edge metadata field by name.
@@ -75,7 +75,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.read(ExplodedEdgeLeaf::metadata(self.0.clone(), name))
+        self.term(ExplodedEdgeLeaf::metadata(self.0.clone(), name))
     }
 
     /// Restricts exploded edge evaluation to the given time window.
@@ -179,7 +179,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        self.read(ExplodedEdgeLeaf::IsActive {
+        self.term(ExplodedEdgeLeaf::IsActive {
             views: self.0.clone(),
         })
     }
@@ -189,7 +189,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_valid(&self) -> PyExpr {
-        self.read(ExplodedEdgeLeaf::IsValid {
+        self.term(ExplodedEdgeLeaf::IsValid {
             views: self.0.clone(),
         })
     }
@@ -199,7 +199,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_deleted(&self) -> PyExpr {
-        self.read(ExplodedEdgeLeaf::IsDeleted {
+        self.term(ExplodedEdgeLeaf::IsDeleted {
             views: self.0.clone(),
         })
     }
@@ -209,7 +209,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_self_loop(&self) -> PyExpr {
-        self.read(ExplodedEdgeLeaf::IsSelfLoop {
+        self.term(ExplodedEdgeLeaf::IsSelfLoop {
             views: self.0.clone(),
         })
     }

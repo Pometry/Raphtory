@@ -3,7 +3,7 @@
 //! One input type per entity, mirroring [`expr::NodeExpr`], [`expr::EdgeExpr`]
 //! and [`expr::ExplodedEdgeExpr`] field for field, so a filter written in
 //! python, rust or a GraphQL document is the same tree spelled three ways. The
-//! entity is the key; what the entity reads is a plain field of it.
+//! entity is the key; each term on the entity is a plain field of it.
 //!
 //! ```graphql
 //! filter(expr: { node: { gt: { lhs: { degree: BOTH }, rhs: { degree: IN } } } })
@@ -11,8 +11,8 @@
 //! filter(expr: { node: { any: { gt: { lhs: { temporalProperty: "score" }, rhs: { const: { f64: 4 } } } } } })
 //! ```
 //!
-//! Views scope reads: `{ node: { viewed: { views: [...], expr: { property: "score" } } } }`
-//! applies the views to every read inside `expr`.
+//! Views scope terms: `{ node: { viewed: { views: [...], expr: { property: "score" } } } }`
+//! applies the views to every term inside `expr`.
 
 use crate::model::graph::{
     filtering::{Window, Wrapped},
@@ -132,7 +132,7 @@ impl From<Field> for GqlNodeField {
 
 /// Stamps out the input types of one entity: the expression itself, its two-sided
 /// tests, its membership test and its view wrapper. The variants every entity has
-/// are written once here; the entity's own reads are passed in.
+/// are written once here; the entity's own terms are passed in.
 macro_rules! entity_expr_input {
     (
         $expr:ident = $expr_name:literal,
@@ -141,7 +141,7 @@ macro_rules! entity_expr_input {
         $membership:ident = $membership_name:literal,
         $viewed:ident = $viewed_name:literal,
         leaf = $leaf:ident,
-        own reads { $( $(#[$own_meta:meta])* $own:ident($own_ty:ty) => $own_conv:expr ),* $(,)? }
+        own terms { $( $(#[$own_meta:meta])* $own:ident($own_ty:ty) => $own_conv:expr ),* $(,)? }
     ) => {
         /// Two expressions to compare.
         #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
@@ -185,7 +185,7 @@ macro_rules! entity_expr_input {
             pub values: Value,
         }
 
-        /// Views applied to every read inside `expr`, in list order.
+        /// Views applied to every term inside `expr`, in list order.
         #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
         #[serde(deny_unknown_fields)]
         #[serde(rename_all = "camelCase")]
@@ -193,11 +193,11 @@ macro_rules! entity_expr_input {
         pub struct $viewed {
             /// The views, applied in list order.
             pub views: Vec<GqlViewOp>,
-            /// The expression read inside them.
+            /// The expression evaluated inside them.
             pub expr: Wrapped<$expr>,
         }
 
-        /// A value or yes/no on one entity: a read, an aggregate over one, a
+        /// A value or yes/no on one entity: a term, an aggregate over one, a
         /// comparison or test, or a combination of yes/nos.
         #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
         #[serde(rename_all = "camelCase")]
@@ -214,7 +214,7 @@ macro_rules! entity_expr_input {
             /// Whether the entity is active; written `isActive: true`.
             IsActive(bool),
             $( $(#[$own_meta])* $own($own_ty), )*
-            /// Views applied to every read inside.
+            /// Views applied to every term inside.
             Viewed(Wrapped<$viewed>),
             /// The sum of the innermost list.
             Sum(Wrapped<$expr>),
@@ -306,14 +306,14 @@ macro_rules! entity_expr_input {
                 };
                 Ok(match e {
                     $expr::Const(v) => Expr::Const(prop(v)?),
-                    $expr::Property(name) => Expr::Read($leaf::property(Vec::new(), name, false)),
+                    $expr::Property(name) => Expr::Term($leaf::property(Vec::new(), name, false)),
                     $expr::TemporalProperty(name) => {
-                        Expr::Read($leaf::property(Vec::new(), name, true))
+                        Expr::Term($leaf::property(Vec::new(), name, true))
                     }
-                    $expr::Metadata(name) => Expr::Read($leaf::metadata(Vec::new(), name)),
+                    $expr::Metadata(name) => Expr::Term($leaf::metadata(Vec::new(), name)),
                     $expr::IsActive(applied) => {
                         applied_test(applied, "isActive")?;
-                        Expr::Read($leaf::is_active(Vec::new()))
+                        Expr::Term($leaf::is_active(Vec::new()))
                     }
                     $( $expr::$own(v) => {
                         let convert: &dyn Fn($own_ty) -> Result<Expr<$leaf>, GraphError> =
@@ -393,14 +393,14 @@ macro_rules! entity_expr_input {
                 };
                 Ok(match e {
                     Expr::Const(p) => $expr::Const(value(p)?),
-                    Expr::Read(leaf) => {
-                        let (views, read) = $expr::leaf_read(leaf)?;
+                    Expr::Term(leaf) => {
+                        let (views, term) = $expr::leaf_term(leaf)?;
                         if views.is_empty() {
-                            read
+                            term
                         } else {
                             $expr::Viewed(Wrapped::from($viewed {
                                 views: views.iter().map(GqlViewOp::from).collect(),
-                                expr: Wrapped::from(read),
+                                expr: Wrapped::from(term),
                             }))
                         }
                     }
@@ -483,17 +483,17 @@ entity_expr_input! {
     GqlNodeMembership = "NodeMembership",
     GqlNodeViewed = "NodeViewed",
     leaf = NodeLeaf,
-    own reads {
+    own terms {
         /// A built-in node field.
         Field(GqlNodeField) => |f: GqlNodeField| {
-            Ok(Expr::Read(NodeLeaf::Field {
+            Ok(Expr::Term(NodeLeaf::Field {
                 views: Vec::new(),
                 field: f.into(),
             }))
         },
         /// The node's degree in a direction.
         Degree(DegreeDirection) => |d: DegreeDirection| {
-            Ok(Expr::Read(NodeLeaf::Degree {
+            Ok(Expr::Term(NodeLeaf::Degree {
                 views: Vec::new(),
                 direction: d.into(),
             }))
@@ -508,29 +508,29 @@ entity_expr_input! {
     GqlEdgeMembership = "EdgeMembership",
     GqlEdgeViewed = "EdgeViewed",
     leaf = EdgeLeaf,
-    own reads {
+    own terms {
         /// Whether the edge is valid; written `isValid: true`.
         IsValid(bool) => |applied: bool| {
             applied_test(applied, "isValid")?;
-            Ok(Expr::Read(EdgeLeaf::IsValid { views: Vec::new() }))
+            Ok(Expr::Term(EdgeLeaf::IsValid { views: Vec::new() }))
         },
         /// Whether the edge is deleted; written `isDeleted: true`.
         IsDeleted(bool) => |applied: bool| {
             applied_test(applied, "isDeleted")?;
-            Ok(Expr::Read(EdgeLeaf::IsDeleted { views: Vec::new() }))
+            Ok(Expr::Term(EdgeLeaf::IsDeleted { views: Vec::new() }))
         },
         /// Whether the edge is a self loop; written `isSelfLoop: true`.
         IsSelfLoop(bool) => |applied: bool| {
             applied_test(applied, "isSelfLoop")?;
-            Ok(Expr::Read(EdgeLeaf::IsSelfLoop { views: Vec::new() }))
+            Ok(Expr::Term(EdgeLeaf::IsSelfLoop { views: Vec::new() }))
         },
         /// A node expression evaluated on the edge's source node.
         Src(Wrapped<GqlNodeExpr>) => |e: Wrapped<GqlNodeExpr>| {
-            Ok(Expr::Read(EdgeLeaf::Src(Box::new(Expr::try_from(e.into_inner())?))))
+            Ok(Expr::Term(EdgeLeaf::Src(Box::new(Expr::try_from(e.into_inner())?))))
         },
         /// A node expression evaluated on the edge's destination node.
         Dst(Wrapped<GqlNodeExpr>) => |e: Wrapped<GqlNodeExpr>| {
-            Ok(Expr::Read(EdgeLeaf::Dst(Box::new(Expr::try_from(e.into_inner())?))))
+            Ok(Expr::Term(EdgeLeaf::Dst(Box::new(Expr::try_from(e.into_inner())?))))
         },
     }
 }
@@ -542,30 +542,30 @@ entity_expr_input! {
     GqlExplodedEdgeMembership = "ExplodedEdgeMembership",
     GqlExplodedEdgeViewed = "ExplodedEdgeViewed",
     leaf = ExplodedEdgeLeaf,
-    own reads {
+    own terms {
         /// Whether the edge update is valid; written `isValid: true`.
         IsValid(bool) => |applied: bool| {
             applied_test(applied, "isValid")?;
-            Ok(Expr::Read(ExplodedEdgeLeaf::IsValid { views: Vec::new() }))
+            Ok(Expr::Term(ExplodedEdgeLeaf::IsValid { views: Vec::new() }))
         },
         /// Whether the edge update is deleted; written `isDeleted: true`.
         IsDeleted(bool) => |applied: bool| {
             applied_test(applied, "isDeleted")?;
-            Ok(Expr::Read(ExplodedEdgeLeaf::IsDeleted { views: Vec::new() }))
+            Ok(Expr::Term(ExplodedEdgeLeaf::IsDeleted { views: Vec::new() }))
         },
         /// Whether the edge update is a self loop; written `isSelfLoop: true`.
         IsSelfLoop(bool) => |applied: bool| {
             applied_test(applied, "isSelfLoop")?;
-            Ok(Expr::Read(ExplodedEdgeLeaf::IsSelfLoop { views: Vec::new() }))
+            Ok(Expr::Term(ExplodedEdgeLeaf::IsSelfLoop { views: Vec::new() }))
         },
     }
 }
 
-// ── the entity-specific reads, tree → GraphQL ────────────────────────────────
+// ── the entity-specific terms, tree → GraphQL ────────────────────────────────
 
 impl GqlNodeExpr {
-    /// A leaf as the read it is, and the views it carries.
-    fn leaf_read(leaf: &NodeLeaf) -> Result<(&[ViewOp], GqlNodeExpr), GraphError> {
+    /// A leaf as the term it is, and the views it carries.
+    fn leaf_term(leaf: &NodeLeaf) -> Result<(&[ViewOp], GqlNodeExpr), GraphError> {
         Ok(match leaf {
             NodeLeaf::Field { views, field } => (views, GqlNodeExpr::Field((*field).into())),
             NodeLeaf::Degree { views, direction } => {
@@ -588,7 +588,7 @@ impl GqlNodeExpr {
 }
 
 impl GqlEdgeExpr {
-    fn leaf_read(leaf: &EdgeLeaf) -> Result<(&[ViewOp], GqlEdgeExpr), GraphError> {
+    fn leaf_term(leaf: &EdgeLeaf) -> Result<(&[ViewOp], GqlEdgeExpr), GraphError> {
         Ok(match leaf {
             EdgeLeaf::Property {
                 views,
@@ -605,7 +605,7 @@ impl GqlEdgeExpr {
             EdgeLeaf::IsValid { views } => (views, GqlEdgeExpr::IsValid(true)),
             EdgeLeaf::IsDeleted { views } => (views, GqlEdgeExpr::IsDeleted(true)),
             EdgeLeaf::IsSelfLoop { views } => (views, GqlEdgeExpr::IsSelfLoop(true)),
-            // The endpoint's own reads carry their views; there are none here.
+            // The endpoint's own terms carry their views; there are none here.
             EdgeLeaf::Src(inner) => (
                 &[],
                 GqlEdgeExpr::Src(Wrapped::from(GqlNodeExpr::try_from(inner.deref())?)),
@@ -619,7 +619,7 @@ impl GqlEdgeExpr {
 }
 
 impl GqlExplodedEdgeExpr {
-    fn leaf_read(leaf: &ExplodedEdgeLeaf) -> Result<(&[ViewOp], GqlExplodedEdgeExpr), GraphError> {
+    fn leaf_term(leaf: &ExplodedEdgeLeaf) -> Result<(&[ViewOp], GqlExplodedEdgeExpr), GraphError> {
         Ok(match leaf {
             ExplodedEdgeLeaf::Property {
                 views,
@@ -870,7 +870,7 @@ mod tests {
     use expr::FilterExpr as F;
 
     fn degree(direction: Direction) -> Expr<NodeLeaf> {
-        Expr::Read(NodeLeaf::Degree {
+        Expr::Term(NodeLeaf::Degree {
             views: Vec::new(),
             direction,
         })
@@ -883,7 +883,7 @@ mod tests {
                 CmpOp::Gt,
                 Box::new(Expr::Agg(
                     Agg::Sum,
-                    Box::new(Expr::Read(NodeLeaf::Property {
+                    Box::new(Expr::Term(NodeLeaf::Property {
                         views: vec![ViewOp::Window {
                             start: EventTime::from(0),
                             end: EventTime::from(5),
@@ -899,11 +899,11 @@ mod tests {
                 Box::new(degree(Direction::BOTH)),
                 Box::new(degree(Direction::IN)),
             )),
-            F::Edge(Expr::Read(EdgeLeaf::IsActive {
+            F::Edge(Expr::Term(EdgeLeaf::IsActive {
                 views: vec![ViewOp::Layers(vec!["works".into()])],
             })),
             F::Not(Box::new(F::Edge(Expr::In {
-                expr: Box::new(Expr::Read(EdgeLeaf::Src(Box::new(Expr::Read(
+                expr: Box::new(Expr::Term(EdgeLeaf::Src(Box::new(Expr::Term(
                     NodeLeaf::Field {
                         views: Vec::new(),
                         field: Field::Name,
@@ -917,7 +917,7 @@ mod tests {
                     levenshtein_distance: 2,
                     prefix_match: false,
                 },
-                Box::new(Expr::Read(ExplodedEdgeLeaf::Property {
+                Box::new(Expr::Term(ExplodedEdgeLeaf::Property {
                     views: Vec::new(),
                     name: "tag".into(),
                     temporal: false,
@@ -934,10 +934,10 @@ mod tests {
     }
 
     #[test]
-    fn the_json_spelling_keys_on_the_entity_and_the_read() {
+    fn the_json_spelling_keys_on_the_entity_and_the_term() {
         let tree = F::Edge(Expr::Cmp(
             CmpOp::Eq,
-            Box::new(Expr::Read(EdgeLeaf::Src(Box::new(Expr::Read(
+            Box::new(Expr::Term(EdgeLeaf::Src(Box::new(Expr::Term(
                 NodeLeaf::Property {
                     views: vec![ViewOp::Latest],
                     name: "score".into(),

@@ -32,7 +32,7 @@ pub struct PyEdgeEndpoint {
 
 impl PyEdgeEndpoint {
     /// A node expression evaluated on the node at this end of the edge. The
-    /// edge's views scope that node read.
+    /// edge's views scope that node term.
     fn through(&self, inner: NodeExpr) -> EdgeLeaf {
         match self.endpoint {
             Endpoint::Src => EdgeLeaf::Src(Box::new(inner)),
@@ -40,20 +40,20 @@ impl PyEdgeEndpoint {
         }
     }
 
-    fn read(&self, leaf: NodeLeaf) -> PyExpr {
-        PyExpr(Typed::Edge(Expr::Read(self.through(Expr::Read(leaf)))))
+    fn term(&self, leaf: NodeLeaf) -> PyExpr {
+        PyExpr(Typed::Edge(Expr::Term(self.through(Expr::Term(leaf)))))
     }
 
     fn field(&self, field: Field) -> PyExpr {
-        self.read(NodeLeaf::Field {
+        self.term(NodeLeaf::Field {
             views: self.views.clone(),
             field,
         })
     }
 
-    fn property_read(&self, name: String) -> PyPropertyExpr {
+    fn property_term(&self, name: String) -> PyPropertyExpr {
         PyPropertyExpr::new(|temporal| {
-            Typed::Edge(Expr::Read(self.through(Expr::Read(NodeLeaf::property(
+            Typed::Edge(Expr::Term(self.through(Expr::Term(NodeLeaf::property(
                 self.views.clone(),
                 name.clone(),
                 temporal,
@@ -107,7 +107,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_read(name)
+        self.property_term(name)
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -118,7 +118,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.read(NodeLeaf::metadata(self.views.clone(), name))
+        self.term(NodeLeaf::metadata(self.views.clone(), name))
     }
 }
 
@@ -133,13 +133,13 @@ impl PyEdgeFilter {
         PyEdgeFilter(views)
     }
 
-    fn read(&self, leaf: EdgeLeaf) -> PyExpr {
-        PyExpr(Typed::Edge(Expr::Read(leaf)))
+    fn term(&self, leaf: EdgeLeaf) -> PyExpr {
+        PyExpr(Typed::Edge(Expr::Term(leaf)))
     }
 
-    fn property_read(&self, name: String) -> PyPropertyExpr {
+    fn property_term(&self, name: String) -> PyPropertyExpr {
         PyPropertyExpr::new(|temporal| {
-            Typed::Edge(Expr::Read(EdgeLeaf::property(
+            Typed::Edge(Expr::Term(EdgeLeaf::property(
                 self.0.clone(),
                 name.clone(),
                 temporal,
@@ -192,7 +192,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_read(name)
+        self.property_term(name)
     }
 
     /// Filters an edge metadata field by name.
@@ -203,7 +203,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.read(EdgeLeaf::metadata(self.0.clone(), name))
+        self.term(EdgeLeaf::metadata(self.0.clone(), name))
     }
 
     /// Restricts edge evaluation to the given time window.
@@ -305,7 +305,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        self.read(EdgeLeaf::IsActive {
+        self.term(EdgeLeaf::IsActive {
             views: self.0.clone(),
         })
     }
@@ -315,7 +315,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_valid(&self) -> PyExpr {
-        self.read(EdgeLeaf::IsValid {
+        self.term(EdgeLeaf::IsValid {
             views: self.0.clone(),
         })
     }
@@ -325,7 +325,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_deleted(&self) -> PyExpr {
-        self.read(EdgeLeaf::IsDeleted {
+        self.term(EdgeLeaf::IsDeleted {
             views: self.0.clone(),
         })
     }
@@ -335,7 +335,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_self_loop(&self) -> PyExpr {
-        self.read(EdgeLeaf::IsSelfLoop {
+        self.term(EdgeLeaf::IsSelfLoop {
             views: self.0.clone(),
         })
     }

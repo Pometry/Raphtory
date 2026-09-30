@@ -1,7 +1,7 @@
 //! Aggregations and `any()`/`all()` tests that walk a temporal history
 //! instead of collecting it into a list first.
 //!
-//! A history read on its own still produces a list, because a list is the
+//! A history term on its own still produces a list, because a list is the
 //! only value the engine can hand to an arbitrary consumer. When the compiler
 //! sees an aggregation directly over a history, or `any()`/`all()` over a
 //! comparison of a history with a constant, it builds one of the ops here
@@ -114,7 +114,7 @@ impl<G: GraphView> EdgeHistory for TemporalEdgePropOp<G> {
     }
 }
 
-/// A node history read at an edge's source or destination.
+/// A node history taken at an edge's source or destination.
 struct EndpointHistory<'g> {
     node: Arc<dyn NodeHistory + 'g>,
     endpoint: Endpoint,
@@ -143,7 +143,7 @@ impl<'g> EdgeHistory for EndpointHistory<'g> {
     }
 }
 
-/// Builds a history against a graph: the erased form of a temporal read.
+/// Builds a history against a graph: the erased form of a temporal term.
 pub trait DynCreateHistory: Send + Sync + 'static {
     fn create_node_history<'g>(
         &self,
@@ -172,7 +172,7 @@ impl<T: DynCreateHistory + ?Sized> DynCreateHistory for Arc<T> {
     }
 }
 
-/// A node history read through an endpoint is an edge history; it has no
+/// A node history taken through an endpoint is an edge history; it has no
 /// node form.
 impl<T: DynCreateHistory> DynCreateHistory for EdgeEndpointWrapper<T> {
     fn create_node_history<'g>(
@@ -180,7 +180,7 @@ impl<T: DynCreateHistory> DynCreateHistory for EdgeEndpointWrapper<T> {
         _graph: DynGraphArc<'g>,
     ) -> Result<Arc<dyn NodeHistory + 'g>, GraphError> {
         Err(GraphError::InvalidFilter(
-            "an endpoint read is an edge expression".to_string(),
+            "an endpoint term is an edge expression".to_string(),
         ))
     }
 

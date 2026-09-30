@@ -5,10 +5,10 @@ node, the updates inside a time window. You describe the part you want as a
 [filter expression][raphtory.filter.FilterExpr] and hand it to `filter()` on a graph, a node
 collection or a node. The result is a view, so nothing is copied.
 
-A filter expression is a small tree: *read something* (a name, a degree, a property), *compare it*
-to a value or to another read, and *combine* comparisons with `&`, `|` and `~`. The same tree runs
-locally and is what a remote graph sends to a server, and `repr()` prints it, so what you see is
-what runs.
+A filter expression is a small tree: a *term* (a name, a degree, a property), *compared* to a
+literal or to another term, and *combined* with `&`, `|` and `~`. A term is a value taken from the
+node or edge under test; a literal is a constant you write. The same tree runs locally and is what
+a remote graph sends to a server, and `repr()` prints it, so what you see is what runs.
 
 The examples below use this graph:
 
@@ -39,23 +39,23 @@ being tested, and the rest of the expression is checked against it as you build 
 | [filter.ExplodedEdge][raphtory.filter.ExplodedEdge] | one edge update at a time | `filter.ExplodedEdge.property("weight") > 1` |
 | [filter.Graph][raphtory.filter.Graph] | nothing; it is a view (window, layer, snapshot) | `filter.Graph.window(0, 2)` |
 
-## What you can read
+## Terms
 
 From a node, or from the end of an edge (`filter.Edge.src()` and `filter.Edge.dst()`):
 
-| read | gives |
+| term | gives |
 |---|---|
 | `.name()`, `.id()`, `.node_type()` | the built-in fields |
 | `.degree()`, `.in_degree()`, `.out_degree()` | how many neighbours the node has (nodes only, not edge ends) |
 | `.property("score")` | the latest value of a temporal property |
 | `.metadata("owner")` | a metadata (constant) value |
 
-Edges and exploded edges read `.property(...)` and `.metadata(...)` too, and have yes/no tests of
+Edges and exploded edges offer `.property(...)` and `.metadata(...)` too, and have yes/no tests of
 their own: `.is_valid()`, `.is_deleted()`, `.is_active()`, `.is_self_loop()`.
 
 ## How you compare
 
-A read is an [Expr][raphtory.filter.Expr]. Comparing it gives a yes/no `Expr`, which is accepted anywhere a filter is.
+A term is an [Expr][raphtory.filter.Expr]. Comparing it gives a yes/no `Expr`, which is accepted anywhere a filter is.
 
 | compare with | meaning |
 |---|---|
@@ -65,7 +65,7 @@ A read is an [Expr][raphtory.filter.Expr]. Comparing it gives a yes/no `Expr`, w
 | `.fuzzy_search(s, levenshtein_distance, prefix_match)` | approximate string match |
 | `.is_some()`, `.is_none()` | whether the property has a value at all |
 
-The right-hand side can be another read. `filter.Node.degree() > filter.Node.in_degree()` selects
+The right-hand side can be another term. `filter.Node.degree() > filter.Node.in_degree()` selects
 nodes with a neighbour that does not point back at them.
 
 /// tab | :fontawesome-brands-python: Python
@@ -109,7 +109,7 @@ assert sorted(n.name for n in g.filter(either).nodes) == ["alice", "carol"]
 
 ## Reading through a view
 
-A view can sit in front of a read. `filter.Node.window(0, 2).property("score")` reads the score
+A view can sit in front of a term. `filter.Node.window(0, 2).property("score")` reads the score
 *as it was inside the window*, so alice's latest score there is 3, not 7. The same works for
 `.layer(...)`, `.layers(...)`, `.latest()`, `.at(t)`, `.before(t)`, `.after(t)`, `.snapshot_at(t)`
 and `.snapshot_latest()`, on nodes, edges and exploded edges, and they can be chained.
@@ -124,7 +124,7 @@ assert [n.name for n in g.filter(early_high).nodes] == ["bob"]
 
 ## Using a property's history
 
-`.temporal()` switches a property read from its latest value to its whole history. An aggregate
+`.temporal()` switches a property term from its latest value to its whole history. An aggregate
 then turns the history back into one value: `.sum()`, `.avg()`, `.min()`, `.max()`, `.first()`,
 `.last()`, `.len()`. Comparing the history itself gives one answer per value; `.any()` and
 `.all()`, written after the comparison, ask whether any, or every, answer holds.

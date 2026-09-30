@@ -1,6 +1,6 @@
 //! From expression data to a filter the engine can apply.
 //!
-//! Reads and views replay onto the erased factories exactly as the typed API
+//! Terms and views replay onto the erased factories exactly as the typed API
 //! would build them. Comparisons, tests and combinators become value
 //! expressions ([`CmpExpr`], [`QualExpr`], …) whose result type is decided
 //! when they are built against a graph, because only then are property types
@@ -86,19 +86,19 @@ fn invalid(msg: impl Into<String>) -> GraphError {
 
 // ── leaves ───────────────────────────────────────────────────────────────────
 
-/// What an entity can read. Implemented by the leaf enum of each entity.
+/// The terms an entity offers. Implemented by the leaf enum of each entity.
 pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// The entity every expression over this leaf type belongs to.
     const ENTITY: EntityMarker;
 
-    /// The erased value this read produces.
+    /// The erased value this term produces.
     fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError>;
 
-    /// The history this read walks, when it is the history of a temporal
+    /// The history this term walks, when it is the history of a temporal
     /// property; a consumer that streams it need not build the list.
     fn compile_history(&self) -> Option<Arc<dyn DynCreateHistory>>;
 
-    /// Whether the read is the history of a temporal property.
+    /// Whether the term is the history of a temporal property.
     fn is_temporal(&self) -> bool;
 
     /// The latest value of a property, or its history when `temporal`, seen
@@ -111,7 +111,7 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// Whether the entity is active inside `views`.
     fn is_active(views: Vec<ViewOp>) -> Self;
 
-    /// A view applied around the read: it scopes the read.
+    /// A view applied around the term: it scopes the term.
     fn push_view(&mut self, op: ViewOp);
 
     /// The filter a yes/no expression over this leaf type is.
@@ -119,12 +119,12 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
 }
 
 impl<L: Leaf> Expr<L> {
-    /// Scope every read in this expression by one more view, applied after
-    /// the views the reads already carry.
+    /// Scope every term in this expression by one more view, applied after
+    /// the views the terms already carry.
     pub fn push_view(&mut self, op: ViewOp) {
         match self {
             Expr::Const(_) => {}
-            Expr::Read(leaf) => leaf.push_view(op),
+            Expr::Term(leaf) => leaf.push_view(op),
             Expr::Agg(_, e)
             | Expr::IsSome(e)
             | Expr::IsNone(e)
@@ -311,8 +311,8 @@ impl Leaf for EdgeLeaf {
                 view: f(views),
                 inner: IsSelfLoopEdge,
             }),
-            // An endpoint read is a node expression the edge evaluates on the
-            // node at that end; its views scope that node read.
+            // An endpoint term is a node expression the edge evaluates on the
+            // node at that end; its views scope that node term.
             EdgeLeaf::Src(inner) => Arc::new(EdgeEndpointWrapper::new(
                 inner.compile_value()?,
                 Endpoint::Src,
@@ -371,7 +371,7 @@ impl Leaf for EdgeLeaf {
         EdgeLeaf::IsActive { views }
     }
 
-    /// A view around an endpoint read scopes the node read at that end.
+    /// A view around an endpoint term scopes the node term at that end.
     fn push_view(&mut self, op: ViewOp) {
         match self {
             EdgeLeaf::Property { views, .. }
@@ -489,14 +489,14 @@ impl ExplodedEdgeLeaf {
 impl<L: Leaf> Expr<L> {
     /// Whether this is the history of a temporal property, read as is.
     pub fn is_temporal_history(&self) -> bool {
-        matches!(self, Expr::Read(leaf) if leaf.is_temporal())
+        matches!(self, Expr::Term(leaf) if leaf.is_temporal())
     }
 
     /// The history this expression reads as is, for a consumer that walks
     /// it instead of taking the list.
     fn history(&self) -> Option<Arc<dyn DynCreateHistory>> {
         match self {
-            Expr::Read(leaf) => leaf.compile_history(),
+            Expr::Term(leaf) => leaf.compile_history(),
             _ => None,
         }
     }
@@ -506,12 +506,12 @@ impl<L: Leaf> Expr<L> {
     fn streamed_test(&self) -> Option<(Arc<dyn DynCreateHistory>, QualTest)> {
         match self {
             Expr::Cmp(op, lhs, rhs) => match (&**lhs, &**rhs) {
-                (read, Expr::Const(constant)) => Some((
-                    read.history()?,
+                (term, Expr::Const(constant)) => Some((
+                    term.history()?,
                     QualTest::Cmp(binary_op(*op), constant.clone()),
                 )),
-                (Expr::Const(constant), read) => Some((
-                    read.history()?,
+                (Expr::Const(constant), term) => Some((
+                    term.history()?,
                     QualTest::Cmp(binary_op(flipped(*op)), constant.clone()),
                 )),
                 _ => None,
@@ -537,7 +537,7 @@ impl<L: Leaf> Expr<L> {
         let entity = L::ENTITY;
         Ok(match self {
             Expr::Const(value) => Arc::new(value.clone()),
-            Expr::Read(leaf) => leaf.compile()?,
+            Expr::Term(leaf) => leaf.compile()?,
             Expr::Agg(agg, inner) => {
                 if matches!(agg, Agg::Earliest | Agg::Latest) && !inner.is_temporal_history() {
                     return Err(invalid(
@@ -1668,18 +1668,18 @@ enum Pushdown {
     Index(IndexQuery),
 }
 
-/// A property test in the shape the storage's index answers: one read on one
-/// side, one constant on the other, no view on the read.
+/// A property test in the shape the storage's index answers: one term on one
+/// side, one constant on the other, no view on the term.
 #[derive(Clone)]
 struct IndexQuery {
-    read: IndexedRead,
+    term: IndexedTerm,
     test: IndexTest,
-    /// The read is the whole history under `any()`: any value ever held may match.
+    /// The term is the whole history under `any()`: any value ever held may match.
     ever: bool,
 }
 
 #[derive(Clone)]
-enum IndexedRead {
+enum IndexedTerm {
     Property {
         name: String,
         metadata: bool,
@@ -1731,8 +1731,8 @@ impl IndexQuery {
     /// ever held, a superset, and drops the index's exactness claim.
     fn candidates<G: GraphView>(&self, graph: &G) -> Option<NodeList> {
         let plain_view = !graph.window_filtered() && !graph.is_layer_filtered();
-        let (prop_id, metadata, semantics, exact_allowed) = match &self.read {
-            IndexedRead::Property { name, metadata } => {
+        let (prop_id, metadata, semantics, exact_allowed) = match &self.term {
+            IndexedTerm::Property { name, metadata } => {
                 let prop_id = graph.node_meta().get_prop_id(name, *metadata)?;
                 let (semantics, exact) = match (self.ever, plain_view) {
                     (true, plain) => (NodePropSemantics::Ever, plain),
@@ -1741,7 +1741,7 @@ impl IndexQuery {
                 };
                 (prop_id, *metadata, semantics, exact)
             }
-            IndexedRead::Name => (NODE_ID_PROP_ID, true, NodePropSemantics::Latest, false),
+            IndexedTerm::Name => (NODE_ID_PROP_ID, true, NodePropSemantics::Latest, false),
         };
         let mut candidates = graph.core_graph().node_prop_candidates(
             prop_id,
@@ -1766,22 +1766,22 @@ fn pushdown(expr: &NodeExpr) -> Option<Pushdown> {
         Expr::Any(inner) => (&**inner, true),
         other => (other, false),
     };
-    let (read, test) = index_test(inner, ever)?;
+    let (term, test) = index_test(inner, ever)?;
     // The id index answers patterns on the name; equality on it is a scan.
-    if matches!(read, IndexedRead::Name) && !test.is_pattern() {
+    if matches!(term, IndexedTerm::Name) && !test.is_pattern() {
         return None;
     }
-    Some(Pushdown::Index(IndexQuery { read, test, ever }))
+    Some(Pushdown::Index(IndexQuery { term, test, ever }))
 }
 
-/// A comparison, string test or membership with an indexable read on one side
+/// A comparison, string test or membership with an indexable term on one side
 /// and a constant on the other.
-fn index_test(expr: &NodeExpr, ever: bool) -> Option<(IndexedRead, IndexTest)> {
+fn index_test(expr: &NodeExpr, ever: bool) -> Option<(IndexedTerm, IndexTest)> {
     match expr {
         Expr::Cmp(op, l, r) => {
-            let (read, value, op) = match (&**l, &**r) {
-                (read, Expr::Const(v)) => (indexed_read(read, ever)?, v, *op),
-                (Expr::Const(v), read) => (indexed_read(read, ever)?, v, flipped(*op)),
+            let (term, value, op) = match (&**l, &**r) {
+                (term, Expr::Const(v)) => (indexed_term(term, ever)?, v, *op),
+                (Expr::Const(v), term) => (indexed_term(term, ever)?, v, flipped(*op)),
                 _ => return None,
             };
             let test = match op {
@@ -1792,10 +1792,10 @@ fn index_test(expr: &NodeExpr, ever: bool) -> Option<(IndexedRead, IndexTest)> {
                 CmpOp::Ge => IndexTest::Ge(value.clone()),
                 CmpOp::Ne => return None,
             };
-            Some((read, test))
+            Some((term, test))
         }
         Expr::Str(op, l, r) => {
-            let read = indexed_read(l, ever)?;
+            let term = indexed_term(l, ever)?;
             let Expr::Const(Prop::Str(s)) = &**r else {
                 return None;
             };
@@ -1805,50 +1805,50 @@ fn index_test(expr: &NodeExpr, ever: bool) -> Option<(IndexedRead, IndexTest)> {
                 StrOp::Contains => IndexTest::Contains(s.to_string()),
                 StrOp::NotContains | StrOp::FuzzySearch { .. } => return None,
             };
-            Some((read, test))
+            Some((term, test))
         }
         Expr::In {
             expr,
             values,
             negated: false,
         } => {
-            let read = indexed_read(expr, ever)?;
+            let term = indexed_term(expr, ever)?;
             let values = values.iter().cloned().map(HashableProp).collect();
-            Some((read, IndexTest::In(values)))
+            Some((term, IndexTest::In(values)))
         }
         _ => None,
     }
 }
 
-/// A read the index covers: a property, a metadata entry or the name, without
+/// A term the index covers: a property, a metadata entry or the name, without
 /// a view. Under `any()` it is the property's history; otherwise its latest
 /// value, which is also what the latest update of the history is.
-fn indexed_read(expr: &NodeExpr, ever: bool) -> Option<IndexedRead> {
+fn indexed_term(expr: &NodeExpr, ever: bool) -> Option<IndexedTerm> {
     match expr {
-        Expr::Read(NodeLeaf::Property {
+        Expr::Term(NodeLeaf::Property {
             views,
             name,
             temporal,
-        }) if views.is_empty() && *temporal == ever => Some(IndexedRead::Property {
+        }) if views.is_empty() && *temporal == ever => Some(IndexedTerm::Property {
             name: name.clone(),
             metadata: false,
         }),
-        Expr::Read(NodeLeaf::Metadata { views, name }) if views.is_empty() && !ever => {
-            Some(IndexedRead::Property {
+        Expr::Term(NodeLeaf::Metadata { views, name }) if views.is_empty() && !ever => {
+            Some(IndexedTerm::Property {
                 name: name.clone(),
                 metadata: true,
             })
         }
-        Expr::Read(NodeLeaf::Field {
+        Expr::Term(NodeLeaf::Field {
             views,
             field: Field::Name,
-        }) if views.is_empty() && !ever => Some(IndexedRead::Name),
+        }) if views.is_empty() && !ever => Some(IndexedTerm::Name),
         Expr::Agg(Agg::Latest, inner) if !ever => match &**inner {
-            Expr::Read(NodeLeaf::Property {
+            Expr::Term(NodeLeaf::Property {
                 views,
                 name,
                 temporal: true,
-            }) if views.is_empty() => Some(IndexedRead::Property {
+            }) if views.is_empty() => Some(IndexedTerm::Property {
                 name: name.clone(),
                 metadata: false,
             }),
@@ -1875,7 +1875,7 @@ fn named_ids(expr: &NodeExpr) -> Option<Vec<Prop>> {
     fn is_bare_id(e: &NodeExpr) -> bool {
         matches!(
             e,
-            Expr::Read(NodeLeaf::Field { views, field: Field::Id }) if views.is_empty()
+            Expr::Term(NodeLeaf::Field { views, field: Field::Id }) if views.is_empty()
         )
     }
     match expr {
@@ -1898,7 +1898,7 @@ impl FilterExpr {
     /// The erased, applicable form of this filter.
     ///
     /// A view (`View`) applies first: the graph is seen through it and the other
-    /// legs run inside it, reads included, the way `graph.window(..).filter(expr)`
+    /// legs run inside it, terms included, the way `graph.window(..).filter(expr)`
     /// does. A view therefore stands alone or is a leg of the top-level `and`
     /// (nested `and`s count as top level); under `or` or `not` it has no meaning the
     /// engine can give it and is refused.
@@ -2116,7 +2116,7 @@ fn compile_view(views: &[ViewOp]) -> DynView {
 }
 
 /// A filter applied inside a view: the graph is seen through `views` first and
-/// `inner` runs on that graph, reads included, so `and: [view, pred]` is
+/// `inner` runs on that graph, terms included, so `and: [view, pred]` is
 /// `graph.view(..).filter(pred)`. As a per-node or per-edge predicate it also asks
 /// that the entity exist in the view, the way the filtered graph would.
 #[derive(Clone)]
@@ -2303,7 +2303,7 @@ mod streaming_tests {
     use raphtory_api::core::entities::properties::prop::IntoProp;
 
     fn prop(name: &str, temporal: bool) -> NodeExpr {
-        Expr::Read(NodeLeaf::property(Vec::new(), name.to_owned(), temporal))
+        Expr::Term(NodeLeaf::property(Vec::new(), name.to_owned(), temporal))
     }
 
     fn c(v: impl IntoProp) -> NodeExpr {
@@ -2315,7 +2315,7 @@ mod streaming_tests {
     }
 
     #[test]
-    fn a_history_read_walks_and_a_latest_value_does_not() {
+    fn a_history_term_walks_and_a_latest_value_does_not() {
         assert!(prop("score", true).history().is_some());
         assert!(prop("score", false).history().is_none());
         assert!(Expr::Agg(Agg::Sum, Box::new(prop("score", true)))
@@ -2398,7 +2398,7 @@ mod pushdown_tests {
     use raphtory_api::core::entities::properties::prop::IntoProp;
 
     fn prop(name: &str, temporal: bool) -> NodeExpr {
-        Expr::Read(NodeLeaf::property(Vec::new(), name.to_owned(), temporal))
+        Expr::Term(NodeLeaf::property(Vec::new(), name.to_owned(), temporal))
     }
 
     fn c(v: impl IntoProp) -> NodeExpr {
@@ -2408,15 +2408,15 @@ mod pushdown_tests {
     fn index_of(expr: &NodeExpr) -> Option<(String, bool, bool)> {
         match pushdown(expr)? {
             Pushdown::Index(q) => Some((
-                match q.read {
-                    IndexedRead::Property { name, metadata } => {
+                match q.term {
+                    IndexedTerm::Property { name, metadata } => {
                         if metadata {
                             format!("metadata {name}")
                         } else {
                             name
                         }
                     }
-                    IndexedRead::Name => "name".to_owned(),
+                    IndexedTerm::Name => "name".to_owned(),
                 },
                 q.ever,
                 q.test.is_pattern(),
@@ -2472,7 +2472,7 @@ mod pushdown_tests {
     fn what_the_index_cannot_answer_scans() {
         let viewed = Expr::Cmp(
             CmpOp::Eq,
-            Box::new(Expr::Read(NodeLeaf::property(
+            Box::new(Expr::Term(NodeLeaf::property(
                 vec![ViewOp::Latest],
                 "score".to_owned(),
                 false,
@@ -2490,7 +2490,7 @@ mod pushdown_tests {
         assert!(pushdown(&not_in).is_none());
         let name_eq = Expr::Cmp(
             CmpOp::Eq,
-            Box::new(Expr::Read(NodeLeaf::Field {
+            Box::new(Expr::Term(NodeLeaf::Field {
                 views: Vec::new(),
                 field: Field::Name,
             })),
@@ -2499,7 +2499,7 @@ mod pushdown_tests {
         assert!(pushdown(&name_eq).is_none());
         let name_prefix = Expr::Str(
             StrOp::StartsWith,
-            Box::new(Expr::Read(NodeLeaf::Field {
+            Box::new(Expr::Term(NodeLeaf::Field {
                 views: Vec::new(),
                 field: Field::Name,
             })),

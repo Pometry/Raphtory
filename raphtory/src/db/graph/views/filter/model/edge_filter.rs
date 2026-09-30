@@ -196,7 +196,7 @@ impl<T: EdgeFilterFactory + CreateView> EdgeFilterFactory for SnapshotLatest<T> 
     type EdgeWindow = Windowed<SnapshotLatest<T>>;
 }
 
-// ── expr layer: temporal and aggregated reads on endpoint properties ──
+// ── expr layer: temporal and aggregated terms on endpoint properties ──
 
 use crate::db::graph::views::filter::model::node_expr::{EntityAggOps, TemporalPropExpr};
 
@@ -207,6 +207,6 @@ impl<E: CreateView + Clone + Send + Sync + 'static> EdgeEndpointWrapper<Property
     }
 }
 
-/// Aggregations on an endpoint read come from the same trait as on a node read,
+/// Aggregations on an endpoint term come from the same trait as on a node term,
 /// so they apply to any list-valued property, temporal or not.
 impl<T: EntityExpr> EntityAggOps for EdgeEndpointWrapper<T> {}

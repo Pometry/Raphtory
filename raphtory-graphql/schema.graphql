@@ -1067,7 +1067,7 @@ input EdgeCmp {
 }
 
 """
-A value or yes/no on one entity: a read, an aggregate over one, a
+A value or yes/no on one entity: a term, an aggregate over one, a
 comparison or test, or a combination of yes/nos.
 """
 input EdgeExpr @oneOf {
@@ -1112,7 +1112,7 @@ input EdgeExpr @oneOf {
 	"""
 	dst: NodeExpr
 	"""
-	Views applied to every read inside.
+	Views applied to every term inside.
 	"""
 	viewed: EdgeViewed
 	"""
@@ -1327,7 +1327,7 @@ input EdgeSortBy {
 }
 
 """
-Views applied to every read inside `expr`, in list order.
+Views applied to every term inside `expr`, in list order.
 """
 input EdgeViewed {
 	"""
@@ -1335,7 +1335,7 @@ input EdgeViewed {
 	"""
 	views: [ViewOp!]!
 	"""
-	The expression read inside them.
+	The expression evaluated inside them.
 	"""
 	expr: EdgeExpr!
 }
@@ -1795,7 +1795,7 @@ input ExplodedEdgeCmp {
 }
 
 """
-A value or yes/no on one entity: a read, an aggregate over one, a
+A value or yes/no on one entity: a term, an aggregate over one, a
 comparison or test, or a combination of yes/nos.
 """
 input ExplodedEdgeExpr @oneOf {
@@ -1832,7 +1832,7 @@ input ExplodedEdgeExpr @oneOf {
 	"""
 	isSelfLoop: Boolean
 	"""
-	Views applied to every read inside.
+	Views applied to every term inside.
 	"""
 	viewed: ExplodedEdgeViewed
 	"""
@@ -1992,7 +1992,7 @@ input ExplodedEdgeMembership {
 }
 
 """
-Views applied to every read inside `expr`, in list order.
+Views applied to every term inside `expr`, in list order.
 """
 input ExplodedEdgeViewed {
 	"""
@@ -2000,7 +2000,7 @@ input ExplodedEdgeViewed {
 	"""
 	views: [ViewOp!]!
 	"""
-	The expression read inside them.
+	The expression evaluated inside them.
 	"""
 	expr: ExplodedEdgeExpr!
 }
@@ -2420,7 +2420,7 @@ type Graph {
 	"""
 	edges(
 		"""
-		Optional filter expression made of edge predicates (including src/dst reads), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned.
+		Optional filter expression made of edge predicates (including src/dst terms), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned.
 		"""
 		select: FilterExpr
 	): Edges!
@@ -4708,7 +4708,7 @@ input NodeCmp {
 }
 
 """
-A value or yes/no on one entity: a read, an aggregate over one, a
+A value or yes/no on one entity: a term, an aggregate over one, a
 comparison or test, or a combination of yes/nos.
 """
 input NodeExpr @oneOf {
@@ -4741,7 +4741,7 @@ input NodeExpr @oneOf {
 	"""
 	degree: DegreeDirection
 	"""
-	Views applied to every read inside.
+	Views applied to every term inside.
 	"""
 	viewed: NodeViewed
 	"""
@@ -5258,7 +5258,7 @@ node, or a collection of nodes.
 union NodeStateValue = NodeStateProp | Node | Nodes
 
 """
-Views applied to every read inside `expr`, in list order.
+Views applied to every term inside `expr`, in list order.
 """
 input NodeViewed {
 	"""
@@ -5266,7 +5266,7 @@ input NodeViewed {
 	"""
 	views: [ViewOp!]!
 	"""
-	The expression read inside them.
+	The expression evaluated inside them.
 	"""
 	expr: NodeExpr!
 }
@@ -7513,3 +7513,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -1,7 +1,7 @@
 """The filter tree as a GraphQL input.
 
 `FilterExpr` is the same tree the local engine compiles: the entity is the key
-(`node`, `edge`, `explodedEdge`), what it reads is a plain field, and an
+(`node`, `edge`, `explodedEdge`), each term on it is a plain field, and an
 expression stands on *both* sides of a comparison. These tests send trees as
 JSON variables and check the answers against the same graph read locally, so
 the wire grammar is pinned by results, not by shape.
@@ -91,7 +91,7 @@ def test_both_sides_of_a_comparison_are_expressions():
     assert local == ["alice", "bob", "carol"]
 
 
-def test_views_belong_to_the_read():
+def test_views_belong_to_the_term():
     """Inside [0, 5) alice's latest score is 7 and bob's is 5."""
     g = build()
     windowed = viewed([{"window": {"start": 0, "end": 5}}], {"property": "score"})

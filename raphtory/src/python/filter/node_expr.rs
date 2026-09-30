@@ -124,7 +124,7 @@ impl Typed {
 #[derive(Clone)]
 pub struct PyExpr(pub(crate) Typed);
 
-/// A property read, which can switch to the property's history with `temporal()`.
+/// A property term, which can switch to the property's history with `temporal()`.
 #[pyclass(
     frozen,
     extends = PyExpr,
@@ -139,11 +139,11 @@ pub struct PyPropertyExpr {
 }
 
 impl PyPropertyExpr {
-    /// Both readings of the property, built by `read(temporal)`.
-    pub(crate) fn new(read: impl Fn(bool) -> Typed) -> Self {
+    /// Both forms of the property term, built by `term(temporal)`.
+    pub(crate) fn new(term: impl Fn(bool) -> Typed) -> Self {
         PyPropertyExpr {
-            latest: read(false),
-            history: read(true),
+            latest: term(false),
+            history: term(true),
         }
     }
 }
@@ -631,27 +631,27 @@ impl PyNodeFilter {
         PyNodeFilter(views)
     }
 
-    fn read(&self, leaf: NodeLeaf) -> PyExpr {
-        PyExpr(Typed::Node(Expr::Read(leaf)))
+    fn term(&self, leaf: NodeLeaf) -> PyExpr {
+        PyExpr(Typed::Node(Expr::Term(leaf)))
     }
 
     fn field(&self, field: Field) -> PyExpr {
-        self.read(NodeLeaf::Field {
+        self.term(NodeLeaf::Field {
             views: self.0.clone(),
             field,
         })
     }
 
-    fn degree_read(&self, direction: Direction) -> PyExpr {
-        self.read(NodeLeaf::Degree {
+    fn degree_term(&self, direction: Direction) -> PyExpr {
+        self.term(NodeLeaf::Degree {
             views: self.0.clone(),
             direction,
         })
     }
 
-    fn property_read(&self, name: String) -> PyPropertyExpr {
+    fn property_term(&self, name: String) -> PyPropertyExpr {
         PyPropertyExpr::new(|temporal| {
-            Typed::Node(Expr::Read(NodeLeaf::property(
+            Typed::Node(Expr::Term(NodeLeaf::property(
                 self.0.clone(),
                 name.clone(),
                 temporal,
@@ -695,7 +695,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn in_degree(&self) -> PyExpr {
-        self.degree_read(Direction::IN)
+        self.degree_term(Direction::IN)
     }
 
     /// Selects total node degree for filtering.
@@ -703,7 +703,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn degree(&self) -> PyExpr {
-        self.degree_read(Direction::BOTH)
+        self.degree_term(Direction::BOTH)
     }
 
     /// Selects outgoing node degree for filtering.
@@ -711,7 +711,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn out_degree(&self) -> PyExpr {
-        self.degree_read(Direction::OUT)
+        self.degree_term(Direction::OUT)
     }
 
     /// Filters a node property by name.
@@ -724,7 +724,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_read(name)
+        self.property_term(name)
     }
 
     /// Filters a node metadata field by name.
@@ -737,7 +737,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.read(NodeLeaf::metadata(self.0.clone(), name))
+        self.term(NodeLeaf::metadata(self.0.clone(), name))
     }
 
     /// Restricts node evaluation to the given time window.
@@ -841,7 +841,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        self.read(NodeLeaf::is_active(self.0.clone()))
+        self.term(NodeLeaf::is_active(self.0.clone()))
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.

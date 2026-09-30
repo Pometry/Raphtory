@@ -369,7 +369,7 @@ class Expr(object):
         """
 
 class PropertyExpr(Expr): 
-    """A property read, which can switch to the property's history with `temporal()`."""
+    """A property term, which can switch to the property's history with `temporal()`."""
 
     def __repr__(self):
         """Return repr(self)."""

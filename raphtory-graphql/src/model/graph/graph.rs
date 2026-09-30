@@ -562,7 +562,7 @@ impl GqlGraph {
     pub async fn edges<'a>(
         &self,
         #[graphql(
-            desc = "Optional filter expression made of edge predicates (including src/dst reads), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned."
+            desc = "Optional filter expression made of edge predicates (including src/dst terms), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned."
         )]
         select: Option<GqlFilter>,
     ) -> Result<GqlEdges> {

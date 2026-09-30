@@ -120,7 +120,7 @@ impl<L: Display> Display for Expr<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expr::Const(v) => write!(f, "{v}"),
-            Expr::Read(leaf) => write!(f, "{leaf}"),
+            Expr::Term(leaf) => write!(f, "{leaf}"),
             Expr::Agg(agg, e) => {
                 let name = match agg {
                     Agg::Sum => "SUM",

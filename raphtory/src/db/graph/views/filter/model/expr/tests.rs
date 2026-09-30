@@ -93,7 +93,7 @@ fn c(v: impl Into<Prop>) -> NodeExpr {
 }
 
 fn prop(name: &str) -> NodeExpr {
-    Expr::Read(NodeLeaf::Property {
+    Expr::Term(NodeLeaf::Property {
         views: vec![],
         name: name.into(),
         temporal: false,
@@ -101,7 +101,7 @@ fn prop(name: &str) -> NodeExpr {
 }
 
 fn history(name: &str) -> NodeExpr {
-    Expr::Read(NodeLeaf::Property {
+    Expr::Term(NodeLeaf::Property {
         views: vec![],
         name: name.into(),
         temporal: true,
@@ -109,14 +109,14 @@ fn history(name: &str) -> NodeExpr {
 }
 
 fn field(field: Field) -> NodeExpr {
-    Expr::Read(NodeLeaf::Field {
+    Expr::Term(NodeLeaf::Field {
         views: vec![],
         field,
     })
 }
 
 fn degree(direction: Direction) -> NodeExpr {
-    Expr::Read(NodeLeaf::Degree {
+    Expr::Term(NodeLeaf::Degree {
         views: vec![],
         direction,
     })
@@ -131,7 +131,7 @@ fn node(e: NodeExpr) -> FilterExpr {
 }
 
 fn edge_prop(name: &str) -> EdgeExpr {
-    Expr::Read(EdgeLeaf::Property {
+    Expr::Term(EdgeLeaf::Property {
         views: vec![],
         name: name.into(),
         temporal: false,
@@ -139,11 +139,11 @@ fn edge_prop(name: &str) -> EdgeExpr {
 }
 
 fn src(e: NodeExpr) -> EdgeExpr {
-    Expr::Read(EdgeLeaf::Src(Box::new(e)))
+    Expr::Term(EdgeLeaf::Src(Box::new(e)))
 }
 
 fn dst(e: NodeExpr) -> EdgeExpr {
-    Expr::Read(EdgeLeaf::Dst(Box::new(e)))
+    Expr::Term(EdgeLeaf::Dst(Box::new(e)))
 }
 
 fn window(start: i64, end: i64) -> ViewOp {
@@ -165,9 +165,9 @@ fn a_constant_comparison_reads_the_latest_value() {
 }
 
 #[test]
-fn views_scope_the_read_not_the_result() {
+fn views_scope_the_term_not_the_result() {
     let g = graph();
-    let windowed = Expr::Read(NodeLeaf::Property {
+    let windowed = Expr::Term(NodeLeaf::Property {
         views: vec![window(0, 5)],
         name: "score".into(),
         temporal: false,
@@ -324,14 +324,14 @@ fn edges_endpoints_and_structure() {
     // A node predicate through an endpoint is an edge predicate.
     let into_scored = FilterExpr::Edge(dst(Expr::IsSome(Box::new(prop("score")))));
     assert_eq!(edges(&g, &into_scored), ["alice->bob", "carol->dave"]);
-    let works = FilterExpr::Edge(Expr::Read(EdgeLeaf::IsActive {
+    let works = FilterExpr::Edge(Expr::Term(EdgeLeaf::IsActive {
         views: vec![ViewOp::Layers(vec!["works".into()])],
     }));
     assert_eq!(edges(&g, &works), ["bob->carol"]);
     assert_eq!(works.to_string(), "EDGE(LAYER[works](IS_ACTIVE))");
     let exploded = FilterExpr::ExplodedEdge(cmp(
         CmpOp::Eq,
-        Expr::Read(ExplodedEdgeLeaf::Property {
+        Expr::Term(ExplodedEdgeLeaf::Property {
             views: vec![],
             name: "w".into(),
             temporal: false,
@@ -406,11 +406,11 @@ fn a_view_leg_restricts_the_whole_filter() {
 }
 
 #[test]
-fn trees_round_trip_through_json_with_the_read_as_the_key() {
+fn trees_round_trip_through_json_with_the_term_as_the_key() {
     let f = FilterExpr::And(vec![
         node(Expr::Any(Box::new(cmp(
             CmpOp::Gt,
-            Expr::Read(NodeLeaf::Property {
+            Expr::Term(NodeLeaf::Property {
                 views: vec![window(0, 5)],
                 name: "score".into(),
                 temporal: true,
@@ -432,7 +432,7 @@ fn trees_round_trip_through_json_with_the_read_as_the_key() {
         json.contains(r#""src":{"field":{"field":"name"}}"#),
         "{json}"
     );
-    assert!(!json.contains("read"), "{json}");
+    assert!(!json.contains("term"), "{json}");
     let back: FilterExpr = serde_json::from_str(&json).unwrap();
     assert_eq!(back, f);
 }
@@ -759,7 +759,7 @@ fn not_over_an_exploded_predicate_keeps_the_other_instances() {
     // alice→bob w=1@1 w=2@4 · bob→carol w=1@2 · carol→dave w=3@6
     let w_gt_1 = FilterExpr::ExplodedEdge(cmp(
         CmpOp::Gt,
-        Expr::Read(ExplodedEdgeLeaf::Property {
+        Expr::Term(ExplodedEdgeLeaf::Property {
             views: vec![],
             name: "w".into(),
             temporal: false,
@@ -916,10 +916,10 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
     assert_eq!(names, ["a"], "not(or): nodes.select");
 }
 
-/// A field read under a view is a read of the node in that view: a node the
+/// A field term under a view reads the node in that view: a node the
 /// view does not hold has no name, id or type there, as it has no properties.
 #[test]
-fn a_field_read_under_a_view_is_none_for_a_node_outside_it() {
+fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
     // early@1 · late@7
     let g = Graph::new();
     g.add_node(1, "early", NO_PROPS, None, None).unwrap();
@@ -971,7 +971,7 @@ fn a_field_read_under_a_view_is_none_for_a_node_outside_it() {
             Box::new(|| {
                 Arc::new(node(cmp(
                     CmpOp::Eq,
-                    Expr::Read(NodeLeaf::Field {
+                    Expr::Term(NodeLeaf::Field {
                         views: vec![window(0, 5)],
                         field: Field::Name,
                     }),

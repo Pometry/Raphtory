@@ -111,9 +111,9 @@ impl Entity {
     }
 }
 
-/// Every read renders the same way: the entity root, its views, then the read.
+/// Every term renders the same way: the entity root, its views, then the term itself.
 trait Leaf {
-    fn read(&self, py: Python<'_>, entity: Entity) -> PyResult<String>;
+    fn term(&self, py: Python<'_>, entity: Entity) -> PyResult<String>;
 }
 
 fn render_filter(py: Python<'_>, filter: &FilterExpr) -> PyResult<Rendered> {
@@ -148,7 +148,7 @@ fn render_filter(py: Python<'_>, filter: &FilterExpr) -> PyResult<Rendered> {
 fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<Rendered> {
     Ok(match expr {
         Expr::Const(v) => Rendered::chain(literal(py, v)?),
-        Expr::Read(leaf) => Rendered::chain(leaf.read(py, entity)?),
+        Expr::Term(leaf) => Rendered::chain(leaf.term(py, entity)?),
         Expr::Agg(agg, e) => {
             let name = match agg {
                 Agg::Sum => "sum",
@@ -259,14 +259,14 @@ fn combined(items: impl Iterator<Item = PyResult<Rendered>>, sep: &str) -> PyRes
 }
 
 impl Leaf for NodeLeaf {
-    fn read(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
+    fn term(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
         let (views, tail) = node_tail(py, self)?;
         Ok(format!("{}{tail}", factory(py, entity.root(), views)?))
     }
 }
 
-/// The views a node read carries and the call that reads it, apart, because an
-/// endpoint read puts `.src()` between them.
+/// The views a node term carries and the call that reads it, apart, because an
+/// endpoint term puts `.src()` between them.
 fn node_tail<'a>(py: Python<'_>, leaf: &'a NodeLeaf) -> PyResult<(&'a [ViewOp], String)> {
     Ok(match leaf {
         NodeLeaf::Field { views, field } => {
@@ -296,7 +296,7 @@ fn node_tail<'a>(py: Python<'_>, leaf: &'a NodeLeaf) -> PyResult<(&'a [ViewOp], 
 }
 
 impl Leaf for EdgeLeaf {
-    fn read(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
+    fn term(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
         let root = entity.root();
         Ok(match self {
             EdgeLeaf::Property {
@@ -327,11 +327,11 @@ impl Leaf for EdgeLeaf {
     }
 }
 
-/// `Edge.src()` reads a node field or property; the views on that read are the
+/// `Edge.src()` reads a node field or property; the views on that term are the
 /// edge factory's, so they sit before `.src()`.
 fn endpoint(py: Python<'_>, root: &str, end: &str, inner: &Expr<NodeLeaf>) -> PyResult<String> {
     Ok(match inner {
-        Expr::Read(leaf) => {
+        Expr::Term(leaf) => {
             let (views, tail) = node_tail(py, leaf)?;
             format!("{}.{end}(){tail}", factory(py, root, views)?)
         }
@@ -344,7 +344,7 @@ fn endpoint(py: Python<'_>, root: &str, end: &str, inner: &Expr<NodeLeaf>) -> Py
 }
 
 impl Leaf for ExplodedEdgeLeaf {
-    fn read(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
+    fn term(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
         let root = entity.root();
         Ok(match self {
             ExplodedEdgeLeaf::Property {

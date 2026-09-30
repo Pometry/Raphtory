@@ -210,7 +210,7 @@ impl CreateOp for Type {
 /// A built-in node field (`Id`, `Name` or `Type`) read through a factory's
 /// view chain: `NodeFilter.window(1, 5).name()`. The field's value does not
 /// change with the view, but a node the view does not hold has no field there,
-/// so under a view that can hide nodes the read is `None` for such a node.
+/// so under a view that can hide nodes the term is `None` for such a node.
 #[derive(Clone)]
 pub struct NodeFieldExpr<E, F> {
     pub(crate) view_expr: E,
@@ -257,8 +257,8 @@ where
             return self.field.create_node_op(graph);
         }
         let graph = self.view_expr.create_view(graph)?;
-        let read = self.field.create_node_op(graph.clone())?;
-        Ok(Arc::new(InViewNodeOp { graph, read }))
+        let term = self.field.create_node_op(graph.clone())?;
+        Ok(Arc::new(InViewNodeOp { graph, term }))
     }
 }
 

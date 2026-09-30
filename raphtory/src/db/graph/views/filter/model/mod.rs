@@ -505,7 +505,7 @@ pub trait CreateView: Clone + Send + Sync + 'static {
         view: G,
     ) -> Result<Self::View<'graph, G>, GraphError>;
 
-    /// Whether the view can hide an entity the incoming graph shows. A read
+    /// Whether the view can hide an entity the incoming graph shows. A term
     /// through a view that cannot is only ever asked about entities the
     /// enclosing filter has already found in that graph, so it need not check
     /// them again.
