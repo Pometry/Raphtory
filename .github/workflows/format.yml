@@ -22,9 +22,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-          cache-all-crates: true
-          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
-          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }}  # TODO: remove head_ref clause before merge (cache test)
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: python-build-fast
+          # Restore only: this job finishes first and would save a thin cache before the heavier job sharing the key
+          save-if: false
       - name: Setup nightly rust
         run: |
           rustup toolchain install nightly --allow-downgrade -c rustfmt

@@ -47,7 +47,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-          cache-all-crates: true
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: python-build-fast
           # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
           save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }}  # TODO: remove head_ref clause before merge (cache test)
       - name: Setup Python ${{ matrix.python }}
