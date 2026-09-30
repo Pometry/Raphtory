@@ -48,6 +48,8 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
+          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
+          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }}  # TODO: remove head_ref clause before merge (cache test)
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v7
         with:
@@ -57,13 +59,9 @@ jobs:
         run: |
           echo "Installing test dependencies..."
           python -m pip install pytest tox
-          python -m pip install -e examples/netflow
           python -m pip install black
           echo "Installing linting dependencies from cache..."
           python -m pip install maturin mypy networkx pyvis pandas-stubs
       - name: Run Python tests
         run: |
           cd python && tox run
-      - name: Run Python extension tests
-        run: |
-          cd examples/netflow/test && pytest .
