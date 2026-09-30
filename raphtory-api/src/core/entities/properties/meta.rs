@@ -340,15 +340,6 @@ impl PropMapper {
         ensure_and_set(&mut guard, layer_id.0, prop_id);
     }
 
-    /// Mark a whole set of `(layer, prop)` pairs at once, taking the write lock once for
-    /// the entire set, and not at all if every bit is already set. Used in bulk loading.
-    pub fn mark_prop_layer_pairs(&self, pairs: impl IntoIterator<Item = (LayerId, usize)>) {
-        let mut guard = self.layer_prop_presence.write();
-        for (layer, prop_id) in pairs {
-            ensure_and_set(&mut guard, layer.0, prop_id);
-        }
-    }
-
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
         self.dtypes.read_recursive()
     }
@@ -495,7 +486,7 @@ impl PropMapper {
 }
 
 #[inline]
-fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usize) {
+fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usize) -> bool {
     if presence.len() <= layer_idx {
         presence.resize_with(layer_idx + 1, Vec::new);
     }
@@ -503,7 +494,9 @@ fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usiz
     if row.len() <= prop_id {
         row.resize(prop_id + 1, false);
     }
+    let before = row[prop_id];
     row[prop_id] = true;
+    before
 }
 
 /// Write-locked view of a [`PropMapper`]'s name/id and dtype mappers.
@@ -528,8 +521,22 @@ pub struct WriteLockedLayerPresence<'a> {
 
 impl WriteLockedLayerPresence<'_> {
     /// Mark `prop_id` as present in `layer_id`.
-    pub fn mark(&mut self, layer_id: LayerId, prop_id: usize) {
-        ensure_and_set(&mut self.presence, layer_id.0, prop_id);
+    pub fn mark(&mut self, layer_id: LayerId, prop_id: usize) -> bool {
+        ensure_and_set(&mut self.presence, layer_id.0, prop_id)
+    }
+
+    /// Mark a whole set of `(layer, prop)` pairs at once, taking the write lock once for
+    /// the entire set. Used in bulk loading.
+    pub fn mark_prop_layer_pairs(&mut self, pairs: impl IntoIterator<Item = (LayerId, usize)>) {
+        for (layer, prop_id) in pairs {
+            ensure_and_set(&mut self.presence, layer.0, prop_id);
+        }
+    }
+
+    pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.presence
+            .get(layer_id.0)
+            .is_some_and(|layer| layer.get(prop_id).copied().unwrap_or(false))
     }
 }
 

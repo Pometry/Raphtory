@@ -3,7 +3,7 @@ use arrow::array::{Array, ArrayRef};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::Meta,
+            meta::{Meta, WriteLockedLayerPresence},
             prop::{
                 data_type_as_prop_type,
                 prop_col::{lift_property_col, PropCol},
@@ -61,22 +61,26 @@ impl PropCols {
 
     /// The exact `(layer, prop_id)` pairs this chunk populates. May scan the entire chunk,
     /// but short-circuits when a property is seen in all `distinct_layers`.
-    pub fn populated_layer_prop_pairs(
+    pub fn mark_layer_prop_pairs(
         &self,
         layer_per_row: Option<&[usize]>,
         distinct_layers: &[LayerId],
-    ) -> Vec<(LayerId, usize)> {
+        mapper: &mut WriteLockedLayerPresence,
+    ) {
         // A single layer needs no per-row attribution: every value in a populated
         // column necessarily belongs to that one layer.
         if distinct_layers.len() <= 1 {
             let Some(&layer) = distinct_layers.first() else {
-                return Vec::new();
+                return;
             };
-            return self.populated_prop_ids().map(|id| (layer, id)).collect();
+            for id in self.populated_prop_ids() {
+                mapper.mark(layer, id);
+            }
+            return;
         }
         let Some(layer_ids) = layer_per_row else {
             // `distinct` can only exceed one layer when a layer column exists
-            return Vec::new();
+            return;
         };
 
         // Both come from the same chunk, so this holds structurally. It matters:
@@ -88,31 +92,25 @@ impl PropCols {
             "layer column must cover every row in the chunk"
         );
 
-        let layer_width = distinct_layers
-            .iter()
-            .map(|l| l.0)
-            .max()
-            .map_or(0, |m| m + 1);
-        let mut out = Vec::new();
-        let mut seen = vec![false; layer_width];
         // check to see which layers each prop belongs to; i.e. collect unique (layer, prop) pairs
         for (&prop_id, col) in self.prop_ids.iter().zip(self.cols.iter()) {
-            if !col.is_all_null() {
-                seen.iter_mut().for_each(|s| *s = false);
-                let mut found = 0;
+            let mut found = 0;
+            for layer in distinct_layers {
+                if mapper.layer_has(*layer, prop_id) {
+                    found += 1;
+                }
+            }
+            if found < distinct_layers.len() && !col.is_all_null() {
                 for (row, &layer) in layer_ids.iter().enumerate() {
+                    if col.get_ref(row).is_some() && mapper.mark(LayerId(layer), prop_id) {
+                        found += 1;
+                    }
                     if found == distinct_layers.len() {
                         break; // present in every layer it could be; no point scanning on
-                    }
-                    if !seen[layer] && col.get_ref(row).is_some() {
-                        seen[layer] = true;
-                        found += 1;
-                        out.push((LayerId(layer), prop_id));
                     }
                 }
             }
         }
-        out
     }
 }
 
@@ -133,18 +131,24 @@ pub fn mark_chunk_prop_presence(
         return;
     }
 
-    node_or_edge_meta
-        .temporal_prop_mapper()
-        .mark_prop_layer_pairs(t_props.populated_layer_prop_pairs(layer_per_row, distinct_layers));
+    t_props.mark_layer_prop_pairs(
+        layer_per_row,
+        distinct_layers,
+        &mut node_or_edge_meta
+            .temporal_prop_mapper()
+            .write_locked_layer_presence(),
+    );
 
-    let mut metadata_pairs = metadata.populated_layer_prop_pairs(layer_per_row, distinct_layers);
+    let mut meta_presence = node_or_edge_meta
+        .metadata_mapper()
+        .write_locked_layer_presence();
     // shared metadata is on every row, so it is present in every layer here
     for &layer in distinct_layers {
-        metadata_pairs.extend(shared_metadata_ids.iter().map(|&id| (layer, id)));
+        for &id in shared_metadata_ids.iter() {
+            meta_presence.mark(layer, id);
+        }
     }
-    node_or_edge_meta
-        .metadata_mapper()
-        .mark_prop_layer_pairs(metadata_pairs);
+    metadata.mark_layer_prop_pairs(layer_per_row, distinct_layers, &mut meta_presence);
 }
 
 pub fn combine_properties_arrow<E>(
