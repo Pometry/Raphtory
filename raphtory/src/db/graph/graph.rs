@@ -29,8 +29,11 @@ use crate::{
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::graph::GraphStorage,
+    layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
+    staging_ops::{StagedGraph, StagingError},
 };
 use rayon::prelude::*;
 use std::{
@@ -262,6 +265,10 @@ impl Graph {
         Self {
             inner: Arc::new(self.inner.read_only()),
         }
+    }
+
+    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
+        self.core_graph().stage()
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {

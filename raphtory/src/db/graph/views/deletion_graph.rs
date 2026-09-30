@@ -20,7 +20,11 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{
+    graph::graph::GraphStorage,
+    mutation::InheritMutationOps,
+    staging_ops::{StagedGraph, StagingError},
+};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
@@ -243,6 +247,10 @@ impl PersistentGraph {
     /// original.
     pub fn read_only(&self) -> Self {
         Self(Arc::new(self.0.read_only()))
+    }
+
+    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
+        self.core_graph().stage()
     }
 
     pub fn event_graph(&self) -> Graph {

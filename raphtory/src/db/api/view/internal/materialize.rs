@@ -7,7 +7,11 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{
+    graph::graph::GraphStorage,
+    mutation::InheritMutationOps,
+    staging_ops::{StagedGraph, StagingError},
+};
 use std::ops::Range;
 
 #[cfg(feature = "io")]
@@ -94,6 +98,10 @@ impl MaterializedGraph {
                 MaterializedGraph::PersistentGraph(g.read_only())
             }
         }
+    }
+
+    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
+        self.core_graph().stage()
     }
 
     pub fn into_events(self) -> Option<Graph> {

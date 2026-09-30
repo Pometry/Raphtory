@@ -25,10 +25,6 @@ pub struct StagedGraph {
     src_folder: GraphFolder,
 }
 
-pub trait StagingOps {
-    fn stage(&self) -> Result<StagedGraph, StagingError>;
-}
-
 impl StagedGraph {
     pub fn new(
         graph: GraphStorage,
@@ -61,8 +57,8 @@ impl StagedGraph {
     }
 }
 
-impl StagingOps for GraphStorage {
-    fn stage(&self) -> Result<StagedGraph, StagingError> {
+impl GraphStorage {
+    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
         let src_graph = match self {
             GraphStorage::Unlocked(graph) => {
                 // Unlocked graphs may have pending writes that need to be flushed to disk.
