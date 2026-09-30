@@ -167,6 +167,10 @@ where
         })
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.storage.is_dirty()
+    }
+
     pub fn flush(&self) -> Result<(), StorageError> {
         self.gid_resolver.flush()?;
         self.storage.flush()

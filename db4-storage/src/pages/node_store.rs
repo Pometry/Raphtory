@@ -346,6 +346,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         )
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.segments.iter().any(|(_, segment)| segment.is_dirty())
+    }
+
     pub fn reserve_vid(&self, row: usize) -> VID {
         let (seg, pos) = self.reserve_free_pos(row);
         pos.as_vid(seg, self.max_segment_len())

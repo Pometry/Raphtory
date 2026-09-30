@@ -93,6 +93,10 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         self.is_dirty.store(dirty, Ordering::Release);
     }
 
+    fn is_dirty(&self) -> bool {
+        self.is_dirty.load(Ordering::Relaxed)
+    }
+
     fn immut_lsn(&self) -> LSN {
         0
     }

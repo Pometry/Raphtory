@@ -474,6 +474,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         )
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.segments.iter().any(|(_, segment)| segment.is_dirty())
+    }
+
     /// Retrieve the segment for an edge given its EID
     pub fn get_edge_segment(&self, eid: EID) -> Option<&Arc<ES>> {
         let (segment_id, _) = resolve_pos(eid, self.max_page_len());

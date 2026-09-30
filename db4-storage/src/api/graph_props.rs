@@ -37,6 +37,8 @@ where
 
     fn set_dirty(&self, dirty: bool);
 
+    fn is_dirty(&self) -> bool;
+
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 

@@ -118,6 +118,10 @@ impl<
 
         Ok(())
     }
+
+    pub fn is_dirty(&self) -> bool {
+        self.nodes.is_dirty() || self.edges.is_dirty() || self.graph_props.is_dirty()
+    }
 }
 
 #[derive(Debug)]

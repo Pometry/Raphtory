@@ -86,7 +86,14 @@ impl StagingOps for GraphStorage {
                 drop(write_locked_graph);
                 ReadLockedGraph::new(graph.clone())
             }
-            GraphStorage::Mem(locked_graph) => locked_graph.clone(),
+            GraphStorage::Mem(locked_graph) => {
+                // Callers need to call flush themselves before staging locked graphs.
+                if locked_graph.graph.is_dirty() {
+                    return Err(StagingError::DirtyGraph);
+                }
+
+                locked_graph.clone()
+            }
         };
 
         let src_path = src_graph
@@ -143,4 +150,7 @@ pub enum StagingError {
 
     #[error(transparent)]
     Immutable(#[from] Immutable),
+
+    #[error("graph is dirty, call flush() before staging")]
+    DirtyGraph,
 }

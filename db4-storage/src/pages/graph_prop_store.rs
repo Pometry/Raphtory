@@ -72,6 +72,10 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
         WriteLockedGraphPropSegment::new(self.segment.as_ref(), self.segment.head_mut())
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.segment.is_dirty()
+    }
+
     pub fn flush(&self) -> Result<(), StorageError> {
         self.segment.flush()
     }
