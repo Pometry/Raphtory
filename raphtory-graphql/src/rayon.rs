@@ -1,7 +1,7 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
 #[cfg(test)]
 use std::sync::Mutex;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 use tokio::sync::{oneshot, Semaphore};
 use tracing::warn;
 
@@ -84,6 +84,44 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
     tokio::task::spawn_blocking(closure)
         .await
         .expect("graph load panicked")
+}
+
+/// Background graph view caching.
+///
+/// Its own pool rather than the compute pool: caching a view is one long `par_iter`, and rayon
+/// workers take stolen work before injected jobs, so caching on the compute pool would hold back every
+/// query spawned while it runs. Half the cores, so queries keep the other half.
+static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .num_threads((cores() / 2).max(1))
+        .thread_name(|t| format!("RAP-cache-{t}"))
+        .build()
+        .unwrap()
+});
+
+/// One caching operation at a time. One already spreads across the whole caching pool, so a second would
+/// halve the speed of both and double the memory in flight. The semaphore is fair, which makes it
+/// the queue: caching operations start in the order they were requested.
+static CACHING_PERMITS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| Arc::new(Semaphore::new(1)));
+
+/// Queue `closure` behind any other caching and run it on the caching pool.
+///
+/// Cancelling the waiting future while it is still queued means the caching never starts. Once
+/// started it runs to completion regardless, and keeps its permit until it does, so an abandoned
+/// caching operation still counts against the limit.
+pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
+    let permit = CACHING_PERMITS
+        .clone()
+        .acquire_owned()
+        .await
+        .expect("caching semaphore is never closed");
+    let (send, recv) = oneshot::channel();
+    CACHING_POOL.spawn(move || {
+        let _permit = permit;
+        let _ = send.send(closure());
+    });
+    recv.await.expect("graph view caching panicked")
 }
 
 /// Use a separate rayon threadpool to execute write tasks to avoid potential deadlocks

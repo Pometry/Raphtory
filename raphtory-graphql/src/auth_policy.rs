@@ -1,8 +1,12 @@
 use crate::{
     data::GqlGraphType, model::graph::filtering::GraphAccessFilter, paths::UnlockedGraphFolder,
+    rayon::blocking_cache,
 };
 use futures_util::future::BoxFuture;
-use raphtory::db::api::view::DynamicGraph;
+use raphtory::{
+    db::api::view::{DynamicGraph, IntoDynamic},
+    prelude::GraphViewOps,
+};
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -126,6 +130,17 @@ impl DynGraphWithFolder {
     pub(crate) fn into_parts(self) -> (UnlockedGraphFolder, DynamicGraph) {
         (self.folder, self.graph)
     }
+
+    /// The same read with its node and edge membership materialised, so each later read tests a
+    /// bitmap rather than re-evaluating the filter per entity.
+    ///
+    /// A pass over the whole graph — seconds to minutes on a large one — so it is queued behind any
+    /// other caching and run off the query pools. See [`crate::rayon::blocking_cache`].
+    pub async fn into_cached_view(self) -> Self {
+        let Self { folder, graph } = self;
+        let graph = blocking_cache(move || graph.cache_view().into_dynamic()).await;
+        Self { folder, graph }
+    }
 }
 
 /// What a refined read resolves to: either a filter still to be applied, or a graph the policy had
@@ -133,7 +148,8 @@ impl DynGraphWithFolder {
 pub enum MaybeCachedFilteredRead {
     /// Apply this filter to the graph, as an unrefined read would.
     Filter(Option<GraphAccessFilter>),
-    /// The loaded and filtered graph was already cached.
+    /// The loaded and filtered graph, held by the policy. Its cached view may still be in progress in
+    /// the background, in which case it is read through the filter as usual until it is ready.
     Cached(DynGraphWithFolder),
 }
 

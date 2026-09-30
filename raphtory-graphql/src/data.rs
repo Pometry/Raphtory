@@ -1013,18 +1013,18 @@ async fn apply_access_filter(
 // ---------------------------------------------------------------------------
 
 impl Data {
-    /// Loads and filters the graph using an already-verified permission. Private shared core.
     /// Load the graph at `path`, read it with `graph_type`'s semantics, and apply `filter`.
     ///
-    /// The whole read path from a path and a filter to the graph a caller sees. Public because an
-    /// authorization policy that prepares views needs to produce exactly what an unprepared read
-    /// would, and the only way to guarantee that is for both to run this.
+    /// The whole read path from a path and a filter to the graph a caller sees. The filter is
+    /// applied lazily, so this is cheap; [`DynGraphWithFolder::into_cached_view`] is the expensive
+    /// part, and is the policy's call to make. Public so that a policy holding reads produces
+    /// exactly what an unrefined read would.
     pub async fn load_filtered(
         &self,
         path: &str,
         graph_type: Option<GqlGraphType>,
         filter: Option<&GraphAccessFilter>,
-    ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
+    ) -> async_graphql::Result<DynGraphWithFolder> {
         let gwv = self.get_graph_unchecked(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph() {
@@ -1048,29 +1048,11 @@ impl Data {
             Some(f) => apply_access_filter(raw, f).await?,
             None => raw,
         };
-        Ok((gwv.folder().clone(), graph))
+        Ok(DynGraphWithFolder::new(gwv.folder().clone(), graph))
     }
 
-    /// As [`Self::load_filtered`], but with the filtered graph's node and edge membership
-    /// cached up front, so reading it costs a bitmap test per entity rather than re-checking
-    /// the filter's predicates on every visit.
-    ///
-    /// Worth it only for a graph that will be read more than once — the masks cost a pass over it
-    /// to build — which is why this is the policy's call to make and not the read path's.
-    pub async fn load_prepared(
-        &self,
-        path: &str,
-        graph_type: Option<GqlGraphType>,
-        filter: Option<&GraphAccessFilter>,
-    ) -> async_graphql::Result<DynGraphWithFolder> {
-        let (folder, graph) = self.load_filtered(path, graph_type, filter).await?;
-        // A pass over the whole graph; it belongs on the compute pool, not the runtime.
-        let cached = blocking_compute(move || graph.cache_view().into_dynamic()).await;
-        Ok(DynGraphWithFolder::new(folder, cached))
-    }
-
-    /// The read a refinement resolved to. A prepared graph is already the answer; a filter still
-    /// has to be applied, which is [`Self::load_filtered`]'s job either way.
+    /// The read a refinement resolved to. A held graph is already the answer; a filter still has to
+    /// be applied.
     async fn load_refined(
         &self,
         path: &str,
@@ -1079,9 +1061,10 @@ impl Data {
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         match refined {
             MaybeCachedFilteredRead::Cached(prepared) => Ok(prepared.into_parts()),
-            MaybeCachedFilteredRead::Filter(filter) => {
-                self.load_filtered(path, graph_type, filter.as_ref()).await
-            }
+            MaybeCachedFilteredRead::Filter(filter) => Ok(self
+                .load_filtered(path, graph_type, filter.as_ref())
+                .await?
+                .into_parts()),
         }
     }
 
