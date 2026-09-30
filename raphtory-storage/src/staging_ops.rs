@@ -83,7 +83,7 @@ impl GraphStorage {
                 ReadLockedGraph::new(graph.clone())
             }
             GraphStorage::Mem(locked_graph) => {
-                // Callers need to call flush themselves before staging locked graphs.
+                // Callers need to call flush themselves before staging a ReadLockedGraph.
                 if locked_graph.graph.is_dirty() {
                     return Err(StagingError::DirtyGraph);
                 }
@@ -92,7 +92,13 @@ impl GraphStorage {
             }
         };
 
-        let src_path = src_graph
+        src_graph.stage()
+    }
+}
+
+impl ReadLockedGraph {
+    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
+        let src_path = self
             .graph
             .graph_dir()
             .ok_or(StagingError::MissingGraphDir)?;
@@ -109,9 +115,10 @@ impl GraphStorage {
             .map_err(StagingError::InitStagingDir)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
-        src_graph.graph.copy_to(&staged_path)?;
+        self.graph.copy_to(&staged_path)?;
 
-        // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
+        // Load a fresh extension so that the staged graph has
+        // its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_path)?;
         let extension = Extension::load(&staged_path, config)?;
 
@@ -121,7 +128,7 @@ impl GraphStorage {
         Ok(StagedGraph::new(
             staged_graph,
             staged_folder,
-            src_graph,
+            self.clone(),
             src_folder,
         ))
     }
