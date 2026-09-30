@@ -40,6 +40,7 @@ pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(

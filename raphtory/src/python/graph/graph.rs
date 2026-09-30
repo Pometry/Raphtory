@@ -214,6 +214,14 @@ impl PyGraph {
         self.graph.flush()
     }
 
+    /// Trigger a compaction of the underlying storage segments if disk storage is enabled
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn vacuum(&self) -> Result<(), GraphError> {
+        self.graph.vacuum()
+    }
+
     /// Build secondary indexes over node property values to speed up
     /// property filters (equality, comparisons and string matching).
     ///
@@ -816,8 +824,9 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None, batch_size = None)
     )]
+    #[allow(clippy::too_many_arguments)]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
@@ -833,6 +842,7 @@ impl PyGraph {
         event_id: Option<&str>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        batch_size: Option<usize>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -885,7 +895,7 @@ impl PyGraph {
                     layer,
                     layer_col,
                     None,
-                    None,
+                    batch_size,
                     true,
                     arced_schema.clone(),
                 )?;
@@ -942,7 +952,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None, batch_size = None)
     )]
     fn load_edges(
         &self,
@@ -958,6 +968,7 @@ impl PyGraph {
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
         event_id: Option<&str>,
+        batch_size: Option<usize>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -1004,7 +1015,7 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     layer,
-                    None,
+                    batch_size,
                     arced_schema.clone(),
                 )?;
             }
