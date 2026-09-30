@@ -182,7 +182,7 @@ arrow-select = { version = "58.4.0" }
 serde_arrow = { version = "0.14.2", features = ["arrow-58"] }
 datafusion = { version = "54.1.0" }
 datafusion-physical-expr-common = "54.1.0"
-datafusion-physical-expr = "54.1.0"
+datafusion-physical-expr = "55.1.0"
 datafusion-physical-plan = "54.1.0"
 datafusion-expr-common = "54.1.0"
 moka = { version = "0.12.15", features = ["future"] }
