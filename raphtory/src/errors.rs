@@ -17,7 +17,7 @@ use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
 };
-use raphtory_storage::mutation::MutationError;
+use raphtory_storage::{mutation::MutationError, staging_ops::StagingError};
 use std::{
     fmt::Debug,
     io,
@@ -140,6 +140,9 @@ pub enum GraphError {
     MutationError(#[from] MutationError),
 
     #[error(transparent)]
+    StagingError(#[from] StagingError),
+
+    #[error(transparent)]
     PropError(#[from] PropError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
@@ -259,7 +262,7 @@ pub enum GraphError {
     HeedError(#[from] heed::Error),
 
     #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
+    #[error("LanceDB error: {0}")]
     LanceDbError(#[from] lancedb::Error),
 
     #[cfg(feature = "vectors")]

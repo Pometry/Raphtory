@@ -97,7 +97,7 @@ impl GraphStorage {
 }
 
 impl ReadLockedGraph {
-    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
+    fn stage(&self) -> Result<StagedGraph, StagingError> {
         let src_path = self
             .graph
             .graph_dir()

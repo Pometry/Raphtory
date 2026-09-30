@@ -4,20 +4,17 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{
-    graph::graph::GraphStorage,
-    mutation::InheritMutationOps,
-    staging_ops::{StagedGraph, StagingError},
+    graph::graph::GraphStorage, mutation::InheritMutationOps, staging_ops::StagedGraph,
 };
 use std::ops::Range;
 
 #[cfg(feature = "io")]
-use {
-    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args,
-};
+use {raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args};
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -100,8 +97,8 @@ impl MaterializedGraph {
         }
     }
 
-    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
-        self.core_graph().stage()
+    pub fn stage(&self) -> Result<StagedGraph, GraphError> {
+        Ok(self.core_graph().stage()?)
     }
 
     pub fn into_events(self) -> Option<Graph> {

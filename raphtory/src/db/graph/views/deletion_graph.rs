@@ -21,9 +21,7 @@ use raphtory_api::{
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
-    graph::graph::GraphStorage,
-    mutation::InheritMutationOps,
-    staging_ops::{StagedGraph, StagingError},
+    graph::graph::GraphStorage, mutation::InheritMutationOps, staging_ops::StagedGraph,
 };
 use std::{
     fmt::{Display, Formatter},
@@ -249,8 +247,8 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
-    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
-        self.core_graph().stage()
+    pub fn stage(&self) -> Result<StagedGraph, GraphError> {
+        Ok(self.core_graph().stage()?)
     }
 
     pub fn event_graph(&self) -> Graph {

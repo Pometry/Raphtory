@@ -33,7 +33,7 @@ use raphtory_storage::{
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
-    staging_ops::{StagedGraph, StagingError},
+    staging_ops::StagedGraph,
 };
 use rayon::prelude::*;
 use std::{
@@ -267,8 +267,8 @@ impl Graph {
         }
     }
 
-    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
-        self.core_graph().stage()
+    pub fn stage(&self) -> Result<StagedGraph, GraphError> {
+        Ok(self.core_graph().stage()?)
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
