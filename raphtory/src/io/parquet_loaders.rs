@@ -205,6 +205,7 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_node_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
@@ -259,6 +260,7 @@ pub fn load_node_metadata_from_parquet<
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_edge_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
