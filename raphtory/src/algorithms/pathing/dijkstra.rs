@@ -1,11 +1,14 @@
 /// Dijkstra's algorithm
-use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
+use crate::db::api::view::internal::NodeList;
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
-        api::state::{
-            ops::Const, GenericNodeState, Index, NodeStateOutputType, NodeStateValue,
-            TypedNodeState,
+        api::{
+            state::{
+                ops::Const, GenericNodeState, Index, NodeStateOutputType, NodeStateValue,
+                TypedNodeState,
+            },
+            view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes},
     },
@@ -79,7 +82,7 @@ impl DistanceState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Index::from_iter(value.path),
+                NodeList::from(Index::from_iter(value.path)),
             ),
         }
     }
