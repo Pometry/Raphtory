@@ -1,12 +1,10 @@
 use crate::{
     durability_ops::DurabilityOps,
-    graph::graph::GraphStorage,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
         MutationError, NodeWriterT,
     },
     recovery_ops::RecoveryOps,
-    staging_ops::{StagedGraph, StagingError, StagingOps},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -17,10 +15,7 @@ use raphtory_api::core::{
         },
         LayerId,
     },
-    storage::{
-        dict_mapper::MaybeNew,
-        graph_folder::{GraphFolder, GraphPaths},
-    },
+    storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
@@ -34,12 +29,12 @@ use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{node_page::writer::NodeWriters, resolve_pos, session::EdgeWriteSession},
-    persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
-    wal::{GraphWalOps, WalOps, LSN},
-    Config, ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
+    wal::LSN,
+    ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -754,53 +749,3 @@ impl DurabilityOps for TemporalGraph {
 }
 
 impl RecoveryOps for TemporalGraph {}
-
-impl StagingOps for TemporalGraph {
-    fn stage(&self) -> Result<StagedGraph<'_>, StagingError> {
-        // Acquire full write locks to flush and prevent writes during staging.
-        let mut src_graph = self.write_locked_graph();
-
-        // The source graph needs to be fully on disk before its data
-        // is copied to the staged graph.
-        src_graph.flush()?;
-
-        // Since the graph is fully flushed to disk, we can safely log a checkpoint.
-        let wal = self.extension().wal();
-        let redo_lsn = None; // Nothing to redo prior to this checkpoint.
-        let checkpoint_lsn = wal.log_checkpoint(redo_lsn)?;
-        wal.flush(checkpoint_lsn)?;
-
-        let control_file = self.extension().control_file();
-        control_file.set_checkpoint(checkpoint_lsn);
-        control_file.save()?;
-
-        let src_path = self.graph_dir().ok_or(StagingError::MissingGraphDir)?;
-        let src_folder = GraphFolder::from_graph_path(src_path)?;
-
-        let staged_folder = src_folder
-            .clone()
-            .init_swap()
-            .map_err(StagingError::InitStagingDir)?;
-
-        let staged_path = staged_folder
-            .graph_path()
-            .map_err(StagingError::InitStagingDir)?;
-
-        // Copy existing flushed data to the staged graph to create a fork.
-        src_graph.graph().copy_to(&staged_path)?;
-
-        // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
-        let config = Config::load_from_dir(&staged_path)?;
-        let extension = Extension::load(&staged_path, config)?;
-
-        let temporal_graph = TemporalGraph::load(staged_path, extension)?;
-        let staged_graph = GraphStorage::from(temporal_graph);
-
-        Ok(StagedGraph::new(
-            staged_graph,
-            staged_folder,
-            src_graph,
-            src_folder,
-        ))
-    }
-}

@@ -99,7 +99,7 @@ impl Storage {
 #[cfg(feature = "io")]
 mod io {
     use super::*;
-    use raphtory_storage::{graph::locked::LockedGraph, recovery_ops::RecoveryOps};
+    use raphtory_storage::{graph::locked::ReadLockedGraph, recovery_ops::RecoveryOps};
 
     impl Storage {
         pub fn new_at_path_with_config(
@@ -136,10 +136,10 @@ mod io {
             // when other handles are attached to the same directory.
             let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
 
-            // `LockedGraph` holds read locks on the underlying segments, so
+            // `ReadLockedGraph` holds read locks on the underlying segments, so
             // every mutation entry point that goes through
             // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
-            let locked = LockedGraph::new(Arc::new(temporal_graph));
+            let locked = ReadLockedGraph::new(Arc::new(temporal_graph));
 
             Ok(Self {
                 graph: GraphStorage::Mem(locked),

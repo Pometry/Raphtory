@@ -1,6 +1,6 @@
 use crate::{
     core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, locked::LockedGraph},
+    graph::{graph::GraphStorage, locked::ReadLockedGraph},
 };
 use raphtory_api::{
     core::entities::{Layer, LayerIds},
@@ -16,7 +16,7 @@ pub trait InternalLayerOps: CoreGraphOps {
     /// Get the layer id for the given layer name
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, InvalidLayer> {
         let layer_ids = match self.core_graph() {
-            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+            GraphStorage::Mem(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.layer_ids(key)
             }
         }?;
@@ -26,7 +26,7 @@ pub trait InternalLayerOps: CoreGraphOps {
     /// Get the valid layer ids for given layer names
     fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
         let layer_ids = match self.core_graph() {
-            GraphStorage::Unlocked(graph) | GraphStorage::Mem(LockedGraph { graph, .. }) => {
+            GraphStorage::Unlocked(graph) | GraphStorage::Mem(ReadLockedGraph { graph, .. }) => {
                 graph.valid_layer_ids(key)
             }
         };

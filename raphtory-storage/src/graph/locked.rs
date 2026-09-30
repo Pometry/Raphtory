@@ -4,13 +4,13 @@ use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
 
 /// A fully locked, read-only graph.
 #[derive(Debug)]
-pub struct LockedGraph {
+pub struct ReadLockedGraph {
     pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
     pub(crate) edges: Arc<ReadLockedEdges<Extension>>,
     pub graph: Arc<TemporalGraph>,
 }
 
-impl LockedGraph {
+impl ReadLockedGraph {
     pub fn new(graph: Arc<TemporalGraph>) -> Self {
         let nodes = Arc::new(graph.storage().nodes().locked());
         let edges = Arc::new(graph.storage().edges().locked());
@@ -22,9 +22,9 @@ impl LockedGraph {
     }
 }
 
-impl Clone for LockedGraph {
+impl Clone for ReadLockedGraph {
     fn clone(&self) -> Self {
-        LockedGraph {
+        ReadLockedGraph {
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
             graph: self.graph.clone(),

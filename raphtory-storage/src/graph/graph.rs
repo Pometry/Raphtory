@@ -5,7 +5,7 @@ use super::{
 use crate::{
     graph::{
         edges::edges::{EdgesStorage, EdgesStorageRef},
-        locked::LockedGraph,
+        locked::ReadLockedGraph,
         nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
     },
     mutation::MutationError,
@@ -35,7 +35,7 @@ pub use storage::api::nodes::{
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
-    Mem(LockedGraph),
+    Mem(ReadLockedGraph),
     Unlocked(Arc<TemporalGraph>),
 }
 
@@ -72,11 +72,11 @@ impl GraphStorage {
     /// Check if two storage instances point at the same underlying storage
     pub fn ptr_eq(&self, other: &Self) -> bool {
         match self {
-            GraphStorage::Mem(LockedGraph {
+            GraphStorage::Mem(ReadLockedGraph {
                 graph: this_graph, ..
             })
             | GraphStorage::Unlocked(this_graph) => match other {
-                GraphStorage::Mem(LockedGraph {
+                GraphStorage::Mem(ReadLockedGraph {
                     graph: other_graph, ..
                 })
                 | GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
@@ -103,7 +103,7 @@ impl GraphStorage {
     pub fn lock(&self) -> Self {
         match self {
             GraphStorage::Unlocked(storage) => {
-                let locked = LockedGraph::new(storage.clone());
+                let locked = ReadLockedGraph::new(storage.clone());
                 GraphStorage::Mem(locked)
             }
             _ => self.clone(),
