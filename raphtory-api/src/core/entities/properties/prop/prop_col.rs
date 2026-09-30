@@ -42,6 +42,11 @@ pub trait PropCol: Send + Sync + std::fmt::Debug {
             .map(move |i| self.get_ref(i))
             .into_dyn_boxed()
     }
+
+    fn is_all_null(&self) -> bool {
+        let array = self.as_array();
+        array.is_empty() || array.logical_null_count() == array.len()
+    }
 }
 
 #[derive(Debug)]

@@ -26,10 +26,7 @@ use itertools::{izip, Itertools};
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{
-            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
-            LayerId, EID,
-        },
+        entities::{properties::prop::AsPropRef, LayerId, EID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
@@ -261,13 +258,13 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     .map(|array| array.values().as_ref())
             })
             .transpose()?;
-        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
+        let (layer_col_resolved, distinct) = layer.resolve_layer(layer_id_values, graph, false)?;
 
         // mark this chunk's per-layer property presence once
         mark_chunk_prop_presence(
             graph.edge_meta(),
             Some(&layer_col_resolved),
-            STATIC_GRAPH_LAYER_ID,
+            &distinct,
             &prop_cols,
             &metadata_cols,
             &shared_metadata_ids,
