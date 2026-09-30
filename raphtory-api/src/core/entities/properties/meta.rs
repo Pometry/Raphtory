@@ -312,9 +312,7 @@ impl PropMapper {
         self.layer_prop_presence
             .read_recursive()
             .get(layer_id.0)
-            .and_then(|row| row.get(prop_id))
-            .copied()
-            .unwrap_or(false)
+            .is_some_and(|row| row.get(prop_id).copied().unwrap_or(false))
     }
 
     /// Which prop ids are present in at least one layer, indexed by prop id.
