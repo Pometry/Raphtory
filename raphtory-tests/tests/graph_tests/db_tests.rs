@@ -3918,3 +3918,43 @@ fn hashing_proptest() {
             }
         } )
 }
+
+#[test]
+fn count_temporal_edges_counts_distinct_updates_not_replays() {
+    let g = Graph::new();
+    let rows = [(1, "a", "b", 10usize), (2, "b", "c", 11), (3, "c", "d", 12)];
+    for (t, src, dst, event_id) in rows {
+        g.add_edge(EventTime::new(t, event_id), src, dst, NO_PROPS, None)
+            .unwrap();
+    }
+    let exploded = |g: &Graph| g.edges().explode().iter().count();
+    assert_eq!(g.count_temporal_edges(), 3);
+    assert_eq!(exploded(&g), 3);
+
+    // replay the same (timestamp, event_id) updates: the graph deduplicates them, so the
+    // count must not grow, on the plain graph and on every view of it
+    for (t, src, dst, event_id) in rows {
+        g.add_edge(EventTime::new(t, event_id), src, dst, NO_PROPS, None)
+            .unwrap();
+    }
+    assert_eq!(exploded(&g), 3);
+    assert_eq!(g.count_temporal_edges(), 3);
+    assert_eq!(g.window(0, 10).count_temporal_edges(), 3);
+    assert_eq!(g.subgraph(["a", "b", "c", "d"]).count_temporal_edges(), 3);
+    assert_eq!(g.materialize().unwrap().count_temporal_edges(), 3);
+
+    // five writes of one update to one edge are one temporal edge
+    let h = Graph::new();
+    for _ in 0..5 {
+        h.add_edge(EventTime::new(1, 7), "a", "b", NO_PROPS, None)
+            .unwrap();
+    }
+    assert_eq!(h.count_temporal_edges(), 1);
+    assert_eq!(h.edge("a", "b").unwrap().history().len(), 1);
+
+    // a distinct event id at the same timestamp is a distinct update
+    h.add_edge(EventTime::new(1, 8), "a", "b", NO_PROPS, None)
+        .unwrap();
+    assert_eq!(h.count_temporal_edges(), 2);
+    assert_eq!(exploded(&h), 2);
+}

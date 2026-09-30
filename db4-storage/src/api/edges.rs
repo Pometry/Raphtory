@@ -33,6 +33,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
 
+    /// Physical number of temporal rows in `layer_id`, one per write accepted.
     fn t_len(&self, layer_id: usize) -> usize;
     fn num_layers(&self) -> usize;
     // Persistent layer count, not used for up-to-date counts

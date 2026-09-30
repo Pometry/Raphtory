@@ -516,6 +516,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .unwrap_or(0)
     }
 
+    /// Distinct temporal edge updates in `layer_id`, the number `explode()` yields; a replayed
+    /// update is counted once.
     pub fn num_temporal_edges_layer(&self, layer_id: LayerId) -> usize {
         self.segments
             .iter()
