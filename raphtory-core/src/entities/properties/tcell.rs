@@ -31,10 +31,15 @@ impl<A: PartialEq> TCell<A> {
     }
 
     #[inline]
-    pub fn set(&mut self, t: EventTime, value: A) {
+    /// Sets the value at `t`, overwriting any value already there.
+    ///
+    /// Returns `true` if `t` was not present before, i.e. the cell gained a distinct entry,
+    /// and `false` if an existing entry was overwritten.
+    pub fn set(&mut self, t: EventTime, value: A) -> bool {
         match self {
             TCell::Empty => {
                 *self = TCell::TCell1(t, value);
+                true
             }
             TCell::TCell1(t0, v) => {
                 if &t != t0 {
@@ -44,26 +49,27 @@ impl<A: PartialEq> TCell<A> {
                         svm.insert(t0, value0);
                         *self = TCell::TCellCap(svm)
                     }
+                    true
                 } else {
-                    *v = value
+                    *v = value;
+                    false
                 }
             }
             TCell::TCellCap(svm) => {
                 if svm.len() < BTREE_CUTOFF {
-                    svm.insert(t, value);
+                    svm.insert(t, value).is_none()
                 } else {
                     let svm = std::mem::take(svm);
                     let mut btm: BTreeMap<EventTime, A> = BTreeMap::new();
                     for (k, v) in svm.into_iter() {
                         btm.insert(k, v);
                     }
-                    btm.insert(t, value);
-                    *self = TCell::TCellN(btm)
+                    let is_new = btm.insert(t, value).is_none();
+                    *self = TCell::TCellN(btm);
+                    is_new
                 }
             }
-            TCell::TCellN(btm) => {
-                btm.insert(t, value);
-            }
+            TCell::TCellN(btm) => btm.insert(t, value).is_none(),
         }
     }
 
@@ -355,7 +361,7 @@ mod tcell_tests {
 
         let mut tcell: TCell<i64> = TCell::default();
         for n in 1..130 {
-            tcell.set(EventTime::start(n), n)
+            tcell.set(EventTime::start(n), n);
         }
 
         assert_eq!(tcell.iter_t().count(), 129);
@@ -467,7 +473,7 @@ mod tcell_tests {
 
         let mut tcell: TCell<i64> = TCell::default();
         for n in 1..130 {
-            tcell.set(EventTime::start(n), n)
+            tcell.set(EventTime::start(n), n);
         }
 
         assert_eq!(tcell.iter_window_t(i64::MIN..i64::MAX).count(), 129);
@@ -478,5 +484,25 @@ mod tcell_tests {
                 .count(),
             129
         )
+    }
+
+    #[test]
+    fn set_reports_whether_the_key_was_new_in_every_representation() {
+        let mut cell: TCell<u32> = TCell::Empty;
+        assert!(cell.set(EventTime::new(1, 0), 1)); // Empty -> TCell1
+        assert!(!cell.set(EventTime::new(1, 0), 2)); // overwrite in TCell1
+        assert!(cell.set(EventTime::new(2, 0), 3)); // TCell1 -> TCellCap
+        assert!(!cell.set(EventTime::new(2, 0), 4)); // overwrite in TCellCap
+                                                     // grow past the cutoff into a BTreeMap
+        let mut next = 3;
+        while matches!(cell, TCell::TCellCap(_)) {
+            assert!(cell.set(EventTime::new(next, 0), 0));
+            next += 1;
+        }
+        assert!(matches!(cell, TCell::TCellN(_)));
+        assert!(!cell.set(EventTime::new(1, 0), 5)); // overwrite in TCellN
+        assert!(cell.set(EventTime::new(next, 0), 6)); // new key in TCellN
+                                                       // the number of distinct keys is what set() said it was
+        assert_eq!(cell.len(), next as usize);
     }
 }
