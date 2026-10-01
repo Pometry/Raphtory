@@ -148,9 +148,9 @@ impl DynGraphWithFolder {
 pub enum MaybeCachedFilteredRead {
     /// Apply this filter to the graph, as an unrefined read would.
     Filter(Option<GraphAccessFilter>),
-    /// The loaded and filtered graph, held by the policy. Its cached view may still be in progress in
+    /// The loaded and filtered graph, held by the policy. The caching of the view may still be in progress in
     /// the background, in which case it is read through the filter as usual until it is ready.
-    Cached(DynGraphWithFolder),
+    FromCache(DynGraphWithFolder),
 }
 
 pub trait AuthorizationPolicy: Send + Sync + 'static {

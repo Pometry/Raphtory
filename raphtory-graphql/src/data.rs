@@ -1087,7 +1087,7 @@ impl Data {
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         match refined {
-            MaybeCachedFilteredRead::Cached(prepared) => Ok(prepared.into_parts()),
+            MaybeCachedFilteredRead::FromCache(prepared) => Ok(prepared.into_parts()),
             MaybeCachedFilteredRead::Filter(filter) => Ok(self
                 .load_filtered(path, graph_type, filter.as_ref())
                 .await?
