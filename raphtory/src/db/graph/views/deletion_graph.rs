@@ -309,6 +309,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+
     #[inline]
     fn window_filtered(&self) -> bool {
         false

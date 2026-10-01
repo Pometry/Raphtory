@@ -57,12 +57,20 @@ pub struct GraphMetadata {
 }
 
 impl Metadata {
-    /// Atomically write this metadata into the data folder at `data_path`
-    pub fn write(&self, data_path: &Path, meta_path: &Path) -> std::io::Result<()> {
-        let mut tmp_file = NamedTempFile::new_in(data_path)?;
+    /// Atomically write this metadata into the file at `meta_path`.
+    pub fn write(&self, meta_path: &Path) -> std::io::Result<()> {
+        let parent_path = meta_path.parent().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "meta_path has no parent directory",
+            )
+        })?;
+
+        let mut tmp_file = NamedTempFile::new_in(parent_path)?;
         serde_json::to_writer(&mut tmp_file, self).map_err(std::io::Error::other)?;
         tmp_file.as_file().sync_all()?;
         tmp_file.persist(meta_path).map_err(io::Error::from)?;
+
         Ok(())
     }
 }
@@ -299,7 +307,7 @@ pub trait GraphPaths {
     }
 
     fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write(self.data_path()?.as_ref(), self.meta_path()?.as_ref())?;
+        meta.write(self.meta_path()?.as_ref())?;
         Ok(())
     }
 
@@ -634,7 +642,7 @@ impl DataFolder {
     }
 
     pub fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write(self.as_ref(), &self.meta_path())?;
+        meta.write(&self.meta_path())?;
         Ok(())
     }
 

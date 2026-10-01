@@ -45,7 +45,7 @@ impl StagedGraph {
     }
 
     pub fn commit(self) -> Result<(), StagingError> {
-        // FIXME: Update metadata here.
+        let graph_path = self.folder.relative_graph_path()?;
 
         self.folder.finish().map_err(StagingError::Commit)?;
 
