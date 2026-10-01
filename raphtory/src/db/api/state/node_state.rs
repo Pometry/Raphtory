@@ -24,7 +24,13 @@ use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use itertools::Itertools;
 use raphtory_api::core::storage::timeindex::EventTime;
-use rayon::{iter::Either, prelude::*};
+use rayon::{
+    iter::{
+        plumbing::{bridge, Consumer, Producer, ProducerCallback, UnindexedConsumer},
+        Either,
+    },
+    prelude::*,
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -106,6 +112,165 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
     }
 }
 
+/// Parallel iterator over the keys of an [`Index`].
+///
+/// This is a single concrete type for every `Index` variant (the variant is matched per
+/// item in [`IndexIter`]) so that each rayon pipeline built on top of it is compiled once,
+/// instead of once per variant as with an `Either` of per-variant iterators. It splits
+/// evenly by position and never materialises the keys.
+pub struct IndexParIter<K> {
+    index: Index<K>,
+}
+
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> ParallelIterator
+    for IndexParIter<K>
+{
+    type Item = K;
+
+    fn drive_unindexed<C: UnindexedConsumer<K>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(self.index.len())
+    }
+}
+
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IndexedParallelIterator
+    for IndexParIter<K>
+{
+    fn len(&self) -> usize {
+        self.index.len()
+    }
+
+    fn drive<C: Consumer<K>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn with_producer<CB: ProducerCallback<K>>(self, callback: CB) -> CB::Output {
+        let len = self.index.len();
+        callback.callback(IndexIter::new(&self.index, 0, len))
+    }
+}
+
+/// Iterator (and rayon producer) over the positions `start..end` of an [`Index`]
+pub struct IndexIter<'a, K> {
+    index: &'a Index<K>,
+    start: usize,
+    end: usize,
+    /// For `Index::Full`, the chunks containing `start` and `end - 1`
+    front_chunk: usize,
+    back_chunk: usize,
+}
+
+/// The chunk containing flat position `pos` (`offsets[0] == 0`, so this never underflows)
+#[inline]
+fn chunk_of(offsets: &[usize], pos: usize) -> usize {
+    offsets.partition_point(|&offset| offset <= pos) - 1
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> IndexIter<'a, K> {
+    fn new(index: &'a Index<K>, start: usize, end: usize) -> Self {
+        let (front_chunk, back_chunk) = match index {
+            Index::Full(state) if start < end => {
+                let offsets = state.offsets();
+                (chunk_of(offsets, start), chunk_of(offsets, end - 1))
+            }
+            _ => (0, 0),
+        };
+        Self {
+            index,
+            start,
+            end,
+            front_chunk,
+            back_chunk,
+        }
+    }
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> Iterator for IndexIter<'a, K> {
+    type Item = K;
+
+    #[inline]
+    fn next(&mut self) -> Option<K> {
+        if self.start >= self.end {
+            return None;
+        }
+        let pos = self.start;
+        self.start += 1;
+        Some(match self.index {
+            Index::Full(state) => {
+                let offsets = state.offsets();
+                // skip past the end of the current chunk (and any empty chunks)
+                while offsets[self.front_chunk + 1] <= pos {
+                    self.front_chunk += 1;
+                }
+                K::from(
+                    self.front_chunk * state.max_page_len() as usize
+                        + (pos - offsets[self.front_chunk]),
+                )
+            }
+            Index::Partial(set) => *set.get_index(pos).unwrap(),
+            Index::Sorted { keys, .. } => keys[pos],
+        })
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.end.saturating_sub(self.start);
+        (len, Some(len))
+    }
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> DoubleEndedIterator
+    for IndexIter<'a, K>
+{
+    #[inline]
+    fn next_back(&mut self) -> Option<K> {
+        if self.start >= self.end {
+            return None;
+        }
+        self.end -= 1;
+        let pos = self.end;
+        Some(match self.index {
+            Index::Full(state) => {
+                let offsets = state.offsets();
+                // step back before the start of the current chunk (and any empty chunks)
+                while offsets[self.back_chunk] > pos {
+                    self.back_chunk -= 1;
+                }
+                K::from(
+                    self.back_chunk * state.max_page_len() as usize
+                        + (pos - offsets[self.back_chunk]),
+                )
+            }
+            Index::Partial(set) => *set.get_index(pos).unwrap(),
+            Index::Sorted { keys, .. } => keys[pos],
+        })
+    }
+}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> ExactSizeIterator for IndexIter<'a, K> {}
+
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Producer
+    for IndexIter<'a, K>
+{
+    type Item = K;
+    type IntoIter = Self;
+
+    fn into_iter(self) -> Self {
+        self
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let mid = self.start + index;
+        (
+            IndexIter::new(self.index, self.start, mid),
+            IndexIter::new(self.index, mid, self.end),
+        )
+    }
+}
+
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let (node_list, trusted) = graph.trusted_node_list();
@@ -167,18 +332,8 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         }
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = K> {
-        match self {
-            Index::Full(index) => Either::Left(index.into_par_iter().map(|(_, k)| k)),
-            Index::Partial(index) => Either::Right(Either::Left(
-                (0..index.len())
-                    .into_par_iter()
-                    .map(move |i| *index.get_index(i).unwrap()),
-            )),
-            Index::Sorted { keys, .. } => Either::Right(Either::Right(
-                (0..keys.len()).into_par_iter().map(move |i| keys[i]),
-            )),
-        }
+    pub fn into_par_iter(self) -> IndexParIter<K> {
+        IndexParIter { index: self }
     }
 
     #[inline]
@@ -221,16 +376,8 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         }
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = (usize, K)> + '_ {
-        match self {
-            Index::Full(index) => Either::Left(index.par_iter()),
-            Index::Partial(index) => Either::Right(Either::Left(
-                index.par_iter().enumerate().map(|(i, v)| (i, *v)),
-            )),
-            Index::Sorted { keys, .. } => Either::Right(Either::Right(
-                keys.par_iter().enumerate().map(|(i, v)| (i, *v)),
-            )),
-        }
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = (usize, K)> + '_ {
+        self.clone().into_par_iter().enumerate()
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
@@ -925,5 +1072,51 @@ mod index_subset_test {
         // and `Full` contains everything
         assert!(sorted(&[0, 1]).is_subset(&full(4)));
         assert!(partial(&[0, 1]).is_subset(&full(4)));
+    }
+}
+
+#[cfg(test)]
+mod index_par_iter_test {
+    use super::*;
+    use proptest::prelude::*;
+
+    fn indexes(chunk_sizes: &[usize], max_page_len: u32) -> Vec<Index<usize>> {
+        let full = Index::Full(Arc::new(StateIndex::new(
+            chunk_sizes.iter().copied(),
+            max_page_len,
+        )));
+        let keys: Vec<usize> = full.iter().collect();
+        vec![
+            full,
+            Index::from_iter(keys.iter().rev().copied()),
+            Index::from_sorted(keys, false),
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn matches_sequential_iter(
+            chunk_sizes in prop::collection::vec(0usize..8, 0..10),
+            split in any::<prop::sample::Index>(),
+        ) {
+            for index in indexes(&chunk_sizes, 8) {
+                let expected: Vec<usize> = index.iter().collect();
+
+                let par: Vec<usize> = index.clone().into_par_iter().collect();
+                prop_assert_eq!(&par, &expected);
+
+                let rev: Vec<usize> = index.clone().into_par_iter().rev().collect();
+                prop_assert_eq!(rev, expected.iter().rev().copied().collect::<Vec<_>>());
+
+                let enumerated: Vec<(usize, usize)> = index.par_iter().collect();
+                prop_assert_eq!(enumerated, expected.iter().copied().enumerate().collect::<Vec<_>>());
+
+                // explicit split, then drain one half from each end
+                let mid = split.index(expected.len() + 1);
+                let (left, right) = IndexIter::new(&index, 0, expected.len()).split_at(mid);
+                prop_assert_eq!(left.collect::<Vec<_>>(), &expected[..mid]);
+                prop_assert_eq!(right.rev().collect::<Vec<_>>(), expected[mid..].iter().rev().copied().collect::<Vec<_>>());
+            }
+        }
     }
 }
