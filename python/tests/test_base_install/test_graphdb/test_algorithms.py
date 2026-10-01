@@ -852,3 +852,72 @@ def test_fast_rp():
         assert (
             within_group < outside_group
         )  # nearest neighbour in the embedding space should be in the same component
+
+
+def test_local_clustering_coefficient_batch_without_v_matches_explicit_list():
+    g = Graph()
+    for name in ["a", "b", "c", "isolated"]:
+        g.add_node(1, name)
+    g.add_edge(1, "a", "b")
+    g.add_edge(2, "b", "c")
+    g.add_edge(3, "c", "a")
+
+    explicit = algorithms.local_clustering_coefficient_batch(
+        g, ["a", "b", "c", "isolated"]
+    )
+    for implicit in (
+        algorithms.local_clustering_coefficient_batch(g),
+        algorithms.local_clustering_coefficient_batch(g, []),
+        algorithms.local_clustering_coefficient_batch(g, None),
+    ):
+        assert len(implicit) == 4
+        # reading the result back used to panic on a fabricated node id
+        assert sorted(implicit.nodes().name) == ["a", "b", "c", "isolated"]
+        assert sorted((n.name, v["lcc"]) for n, v in implicit.items()) == sorted(
+            (n.name, v["lcc"]) for n, v in explicit.items()
+        )
+        assert implicit.top_k({"lcc": "desc"}, 3) is not None
+        assert implicit.sort_by({"lcc": "asc"}) is not None
+    assert dict((n.name, v["lcc"]) for n, v in explicit.items()) == {
+        "a": 1.0,
+        "b": 1.0,
+        "c": 1.0,
+        "isolated": 0.0,
+    }
+
+
+def test_temporal_bipartite_graph_projection():
+    g = Graph()
+    for t, src, dst in [
+        (1, "A", "1"),
+        (3, "A", "2"),
+        (3, "B", "2"),
+        (4, "C", "3"),
+        (6, "B", "3"),
+    ]:
+        g.add_node(t, src, node_type="Left")
+        g.add_node(t, dst, node_type="Right")
+        g.add_edge(t, src, dst)
+
+    projected = algorithms.temporal_bipartite_graph_projection(g, 1, "Right")
+    assert projected.has_edge("A", "B")
+    assert not projected.has_edge("A", "C")
+
+    # an invalid pivot type is an error
+    with pytest.raises(Exception) as e:
+        algorithms.temporal_bipartite_graph_projection(g, 1, "Item")
+    assert "Node type 'Item' does not exist" in str(e.value)
+
+
+def test_temporal_bipartite_graph_projection_untyped_node_works():
+    # one untyped node among typed ones is still an error
+    g = Graph()
+    g.add_node(1, "A", node_type="Left")
+    g.add_node(1, "1", node_type="Right")
+    g.add_edge(1, "A", "1")
+    g.add_edge(2, "B", "1")
+    projected = algorithms.temporal_bipartite_graph_projection(g, 5, "Right")
+    assert projected.has_edge("A", "B")
+    assert not projected.has_edge("A", "1")
+    assert not projected.has_edge("B", "1")
+    assert not projected.has_node("1")

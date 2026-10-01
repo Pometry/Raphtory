@@ -5,7 +5,7 @@ use crate::{
         PermissionLevel,
     },
     cache::GraphCache,
-    config::app_config::AppConfig,
+    config::{app_config::AppConfig, cache_config::CacheConfig},
     graph::{GraphWithVectors, MutationListener},
     model::{
         blocking_io,
@@ -38,6 +38,7 @@ use raphtory::{
 use raphtory_api::core::storage::graph_folder::GraphPaths;
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     fs, io,
     io::{Read, Seek},
     ops::Deref,
@@ -161,6 +162,37 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
+/// Which graphs are served read-only.
+#[derive(Debug, Clone)]
+pub(crate) enum ReadOnlyGraphs {
+    None,
+    All,
+    Only(HashSet<String>),
+}
+
+impl ReadOnlyGraphs {
+    fn from_config(cache_configs: &CacheConfig) -> Self {
+        match &cache_configs.read_only_graphs {
+            Some(graphs) => Self::Only(
+                graphs
+                    .iter()
+                    .map(|path| path.trim_matches('/').to_string())
+                    .collect(),
+            ),
+            None if cache_configs.read_only => Self::All,
+            None => Self::None,
+        }
+    }
+
+    pub(crate) fn is_read_only(&self, path: &str) -> bool {
+        match self {
+            Self::None => false,
+            Self::All => true,
+            Self::Only(graphs) => graphs.contains(path),
+        }
+    }
+}
+
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
     work_dir: Arc<RwLock<PathBuf>>,
@@ -168,7 +200,7 @@ pub struct DataInner {
     #[cfg(feature = "vectors")]
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_args: Args,
-    pub(crate) read_only: bool,
+    pub(crate) read_only: ReadOnlyGraphs,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
@@ -309,7 +341,7 @@ impl Data {
                 #[cfg(feature = "vectors")]
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_args,
-                read_only: cache_configs.read_only,
+                read_only: ReadOnlyGraphs::from_config(cache_configs),
                 auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
@@ -412,7 +444,7 @@ impl Data {
     ) -> Result<(), InsertionError> {
         let key = writeable_folder.local_path().to_owned();
         let args = self.graph_args.clone();
-        let read_only = self.read_only;
+        let read_only = self.read_only.is_read_only(&key);
         let listener = self.mutation_listener();
 
         self.cache
@@ -663,7 +695,7 @@ impl Data {
             self.mutation_listener(),
         )
         .await?;
-        Ok(if self.read_only {
+        Ok(if self.read_only.is_read_only(folder.local_path()) {
             graph.into_read_only()
         } else {
             graph
@@ -1013,13 +1045,8 @@ async fn apply_access_filter(
 // ---------------------------------------------------------------------------
 
 impl Data {
-    /// Load the graph at `path`, read it with `graph_type`'s semantics, and apply `filter`.
-    ///
-    /// The whole read path from a path and a filter to the graph a caller sees. The filter is
-    /// applied lazily, so this is cheap; [`DynGraphWithFolder::into_cached_view`] is the expensive
-    /// part, and is the policy's call to make. Public so that a policy holding reads produces
-    /// exactly what an unrefined read would.
-    pub async fn load_filtered(
+    /// Loads and filters the graph using an already-verified permission. Private shared core.
+    async fn load_and_filter(
         &self,
         path: &str,
         graph_type: Option<GqlGraphType>,
@@ -1209,6 +1236,34 @@ pub(crate) mod data_tests {
         let served = data.get_graph_for_test("g").await.unwrap();
         let served = served.graph().clone().into_events().unwrap();
         assert!(served.add_node(1, 3, NO_PROPS, None, None).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_read_only_graphs_list_supersedes_read_only() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+        for name in ["locked", "ns/locked", "open"] {
+            let graph = Graph::new();
+            graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+            let path = tmp_work_dir.path().join(name);
+            fs::create_dir_all(&path).unwrap();
+            graph.encode(&path).unwrap();
+        }
+
+        let config = AppConfigBuilder::new()
+            .with_cache_read_only(true)
+            .with_cache_read_only_graphs(Some(vec!["locked".into(), "/ns/locked/".into()]))
+            .build();
+        let data = Data::new(tmp_work_dir.path(), &config, Default::default());
+        for (name, read_only) in [("locked", true), ("ns/locked", true), ("open", false)] {
+            let served = data.get_graph_for_test(name).await.unwrap();
+            let served = served.graph().clone().into_events().unwrap();
+            assert_eq!(served.count_nodes(), 2);
+            assert_eq!(
+                served.add_node(1, 3, NO_PROPS, None, None).is_err(),
+                read_only,
+                "graph {name}"
+            );
+        }
     }
 
     #[tokio::test]

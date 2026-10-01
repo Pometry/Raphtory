@@ -99,6 +99,9 @@ impl AppConfigBuilder {
         if let Some(cache_capacity) = server_args.cache_capacity {
             builder.with_cache_capacity(cache_capacity);
         }
+        if let Some(read_only_graphs) = server_args.read_only_graphs {
+            builder.with_cache_read_only_graphs(Some(read_only_graphs));
+        }
         if let Some(log_level) = server_args.log_level.clone() {
             builder.with_log_level(log_level);
         }
@@ -222,6 +225,12 @@ impl AppConfigBuilder {
                             }
                             CacheConfigFieldName::ReadOnly => {
                                 self.with_cache_read_only(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            CacheConfigFieldName::ReadOnlyGraphs => {
+                                self.with_cache_read_only_graphs(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -512,6 +521,14 @@ impl AppConfigBuilder {
 
     pub fn with_cache_read_only(&mut self, read_only: bool) -> &mut Self {
         self.config.cache.read_only = read_only;
+        self
+    }
+
+    pub fn with_cache_read_only_graphs(
+        &mut self,
+        read_only_graphs: Option<Vec<String>>,
+    ) -> &mut Self {
+        self.config.cache.read_only_graphs = read_only_graphs;
         self
     }
 
