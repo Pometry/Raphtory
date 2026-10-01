@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod random_graph_test {
-    use raphtory::prelude::*;
-    use tracing::error;
-    use raphtory::graphgen::random_attachment::*;
-    use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
+    use raphtory::{
+        graphgen::{preferential_attachment::ba_preferential_attachment, random_attachment::*},
+        prelude::*,
+    };
     use raphtory_api::core::utils::logging::global_info_logger;
+    use tracing::error;
     #[test]
     fn blank_graph() {
         let graph = Graph::new();

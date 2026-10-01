@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use raphtory::{algorithms::bipartite::max_weight_matching::max_weight_matching, prelude::*};
     use itertools::Itertools;
+    use raphtory::{algorithms::bipartite::max_weight_matching::max_weight_matching, prelude::*};
 
     #[test]
     fn test() {

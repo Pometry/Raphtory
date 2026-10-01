@@ -3,8 +3,8 @@ mod test {
     use raphtory::{
         db::api::{
             state::{
-                LazyNodeState,
                 ops::{node::Degree, NodeOp},
+                LazyNodeState,
             },
             view::IntoDynamic,
         },

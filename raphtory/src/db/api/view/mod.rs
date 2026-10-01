@@ -34,9 +34,9 @@ pub use raphtory_api::{
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
 pub use sort::{EdgeSortBy, EdgeSortKey, NodeSortBy, NodeSortKey, SortByTime};
-pub use time::*;
 #[doc(hidden)] // pub for raphtory-tests
 pub use time::internal::InternalTimeOps;
+pub use time::*;
 
 #[self_referencing]
 pub struct EdgesIter<'graph, G: GraphViewOps<'graph>> {

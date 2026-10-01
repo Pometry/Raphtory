@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod largest_connected_component_test {
-    use raphtory::algorithms::components::*;
     use raphtory::{
+        algorithms::components::*,
         db::api::view::GraphViewOps,
         prelude::{AdditionOps, Graph, NodeViewOps, NO_PROPS},
     };

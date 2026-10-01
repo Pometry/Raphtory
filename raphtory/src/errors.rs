@@ -493,7 +493,6 @@ impl From<StripPrefixError> for GraphError {
     }
 }
 
-
 impl From<InvalidPropertyTypeErr> for LoadError {
     fn from(value: InvalidPropertyTypeErr) -> Self {
         LoadError::InvalidPropertyType(value.0)

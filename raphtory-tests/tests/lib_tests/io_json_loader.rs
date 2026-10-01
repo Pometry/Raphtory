@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use raphtory::io::json_loader::*;
-    use raphtory::prelude::*;
     use bzip2::{write::BzEncoder, Compression as BzCompression};
     use flate2::{write::GzEncoder, Compression};
+    use raphtory::{io::json_loader::*, prelude::*};
     use serde::Deserialize;
     use std::{fs::File, io::Write};
     use tempfile::tempdir;

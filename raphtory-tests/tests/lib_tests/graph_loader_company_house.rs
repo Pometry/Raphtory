@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod company_house_graph_test {
-    use raphtory::prelude::*;
-    use raphtory::db::api::view::{NodeViewOps, TimeOps};
+    use raphtory::{
+        db::api::view::{NodeViewOps, TimeOps},
+        prelude::*,
+    };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tracing::info;
 

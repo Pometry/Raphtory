@@ -222,9 +222,7 @@ impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> Iterator for IndexIter
     }
 }
 
-impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> DoubleEndedIterator
-    for IndexIter<'a, K>
-{
+impl<'a, K: Copy + Eq + Hash + Into<usize> + From<usize>> DoubleEndedIterator for IndexIter<'a, K> {
     #[inline]
     fn next_back(&mut self) -> Option<K> {
         if self.start >= self.end {

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod graph_loader_test {
-    use raphtory::{graph_loader::fetch_file, prelude::*};
     use csv::StringRecord;
+    use raphtory::{graph_loader::fetch_file, prelude::*};
     use raphtory_api::core::utils::logging::global_info_logger;
 
     #[test]

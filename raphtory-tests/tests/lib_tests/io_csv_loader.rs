@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod csv_loader_test {
-    use raphtory::{io::csv_loader::CsvLoader, prelude::*};
     use csv::StringRecord;
+    use raphtory::{io::csv_loader::CsvLoader, prelude::*};
     use raphtory_api::core::utils::logging::global_info_logger;
     use regex::Regex;
     use serde::Deserialize;

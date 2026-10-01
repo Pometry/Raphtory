@@ -1,9 +1,11 @@
 #[cfg(test)]
 mod test {
-    use raphtory::db::api::state::ops::filter::{AndOp, OrOp};
     use raphtory::{
         db::api::{
-            state::ops::{Const, NodeFilterOp, NodeOp},
+            state::ops::{
+                filter::{AndOp, OrOp},
+                Const, NodeFilterOp, NodeOp,
+            },
             view::internal::NodeList,
         },
         prelude::Graph,

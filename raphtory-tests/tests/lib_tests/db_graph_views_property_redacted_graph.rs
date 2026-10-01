@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use raphtory::db::graph::views::property_redacted_graph::*;
-    use raphtory::{db::graph::graph::Graph, prelude::*};
+    use raphtory::{
+        db::graph::{graph::Graph, views::property_redacted_graph::*},
+        prelude::*,
+    };
 
     fn make_graph() -> Graph {
         let g = Graph::new();

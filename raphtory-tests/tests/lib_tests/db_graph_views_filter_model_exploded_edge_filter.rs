@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod filter_tree_export_tests {
-    use raphtory::db::graph::views::filter::model::exploded_edge_filter::*;
     use raphtory::db::graph::views::filter::model::{
-        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps, ComposableFilter, EdgeViewFilterOps, TryAsCompositeFilter,
-        FilterTree, PropertyFilterFactory, ViewWrapOps,
+        exploded_edge_filter::*, node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
+        ComposableFilter, EdgeViewFilterOps, FilterTree, PropertyFilterFactory,
+        TryAsCompositeFilter, ViewWrapOps,
     };
 
     // An exploded-edge property filter exports as the exploded-edge kind — the

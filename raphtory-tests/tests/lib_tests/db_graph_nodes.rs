@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod test {
+    use itertools::Itertools;
     use raphtory::{
         db::api::{state::Index, view::internal::NodeList},
         prelude::*,
     };
-    use itertools::Itertools;
     use rayon::prelude::*;
     use std::collections::BTreeSet;
 

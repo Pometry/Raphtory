@@ -1,15 +1,14 @@
 #[cfg(test)]
 mod test {
-    use raphtory::{arrow_loader::dataframe::DFChunk, errors::GraphError};
-    use raphtory::io::parquet_loaders::*;
     use arrow::array::{ArrayRef, Float64Array, Int64Array, StringArray};
     use itertools::Itertools;
+    use raphtory::{arrow_loader::dataframe::DFChunk, errors::GraphError, io::parquet_loaders::*};
     use std::{path::PathBuf, sync::Arc};
 
     #[test]
     fn test_process_parquet_file_to_df() {
-        let parquet_file_path =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../raphtory/resources/test/test_data.parquet");
+        let parquet_file_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../raphtory/resources/test/test_data.parquet");
 
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
         let df =

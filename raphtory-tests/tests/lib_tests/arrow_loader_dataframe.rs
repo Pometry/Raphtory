@@ -1,11 +1,10 @@
 #[cfg(test)]
 mod secondary_index_col_tests {
-    use raphtory::arrow_loader::dataframe::SecondaryIndexCol;
-    use raphtory::errors::LoadError;
     use arrow::{
         array::{Float64Array, Int32Array, Int64Array, StringArray, UInt32Array, UInt64Array},
         datatypes::DataType,
     };
+    use raphtory::{arrow_loader::dataframe::SecondaryIndexCol, errors::LoadError};
 
     fn values(col: SecondaryIndexCol) -> Vec<usize> {
         col.iter().collect()

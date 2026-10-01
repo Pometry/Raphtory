@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use itertools::Itertools;
     use raphtory::{
         db::{
             api::{
@@ -10,7 +11,6 @@ mod test {
         },
         prelude::{NodeStateOps, NO_PROPS},
     };
-    use itertools::Itertools;
     use std::sync::Arc;
 
     #[test]

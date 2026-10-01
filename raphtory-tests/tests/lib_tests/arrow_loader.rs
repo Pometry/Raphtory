@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test {
+    use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
+    use itertools::Itertools;
     use raphtory::{
         arrow_loader::{
             dataframe::{DFChunk, DFView},
@@ -11,8 +13,6 @@ mod test {
         errors::{GraphError, LoadError},
         prelude::*,
     };
-    use arrow::array::{Float64Array, Int64Array, StringArray, UInt64Array};
-    use itertools::Itertools;
     use raphtory_api::core::{
         entities::{
             properties::meta::{DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID},

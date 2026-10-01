@@ -144,10 +144,7 @@ impl DocumentTemplate {
 
     /// A function that translate an edge into an iterator of documents
     #[doc(hidden)] // pub for raphtory-tests
-    pub fn edge<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        edge: EdgeView<G>,
-    ) -> Option<String> {
+    pub fn edge<'graph, G: GraphViewOps<'graph>>(&self, edge: EdgeView<G>) -> Option<String> {
         let template = self.edge_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);

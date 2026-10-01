@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod bipartite_graph_tests {
-    use raphtory::algorithms::projections::temporal_bipartite_projection::temporal_bipartite_projection;
     use raphtory::{
+        algorithms::projections::temporal_bipartite_projection::temporal_bipartite_projection,
         db::{
             api::{mutation::AdditionOps, view::*},
             graph::{assertions::assert_graph_equal, graph::Graph},

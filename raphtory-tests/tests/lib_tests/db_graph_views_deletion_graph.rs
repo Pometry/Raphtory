@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod test {
-    use raphtory::prelude::*;
+    use raphtory::{
+        db::api::view::{internal::GraphTimeSemanticsOps, InternalTimeOps},
+        prelude::*,
+    };
     use raphtory_api::core::storage::timeindex::AsTime;
-    use raphtory::db::api::view::{internal::GraphTimeSemanticsOps, InternalTimeOps};
-
 
     #[test]
     fn test_view_start_end() {

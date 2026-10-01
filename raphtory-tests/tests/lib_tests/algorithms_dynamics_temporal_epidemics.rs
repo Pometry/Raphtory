@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod test {
+    use rand::{distr::Distribution, rngs::SmallRng, Rng, SeedableRng};
+    use rand_distr::Exp;
     use raphtory::{
         algorithms::dynamics::temporal::epidemics::{temporal_SEIR, Number},
         prelude::*,
     };
-    use rand::{distr::Distribution, rngs::SmallRng, Rng, SeedableRng};
-    use rand_distr::Exp;
     use raphtory_api::core::utils::logging::global_info_logger;
     use rayon::prelude::*;
     use stats::{mean, stddev};

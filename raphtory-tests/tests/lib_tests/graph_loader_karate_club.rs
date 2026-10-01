@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod karate_test {
-    use raphtory::prelude::*;
-    use raphtory::graph_loader::karate_club::*;
+    use raphtory::{graph_loader::karate_club::*, prelude::*};
 
     #[test]
     fn test_graph_sizes() {
