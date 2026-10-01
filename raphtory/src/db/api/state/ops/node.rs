@@ -141,8 +141,10 @@ impl IntoDynNodeOp for TypeId {}
 
 #[derive(Debug, Clone)]
 pub struct Degree<G> {
-    pub(crate) dir: Direction,
-    pub(crate) view: G,
+    #[doc(hidden)] // pub for raphtory-tests
+    pub dir: Direction,
+    #[doc(hidden)] // pub for raphtory-tests
+    pub view: G,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

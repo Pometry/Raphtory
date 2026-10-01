@@ -493,22 +493,6 @@ impl From<StripPrefixError> for GraphError {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::errors::GraphError;
-    use std::io;
-
-    #[test]
-    fn test_location_capture() {
-        fn inner() -> Result<(), GraphError> {
-            Err(io::Error::other(GraphError::IllegalSet("hi".to_string())))?;
-            Ok(())
-        }
-
-        let res = inner().err().unwrap();
-        println!("{}", res);
-    }
-}
 
 impl From<InvalidPropertyTypeErr> for LoadError {
     fn from(value: InvalidPropertyTypeErr) -> Self {

@@ -1,6 +1,7 @@
 use std::{future::Future, path::Path, sync::Arc};
 
-pub(crate) mod lancedb;
+#[doc(hidden)] // pub for raphtory-tests
+pub mod lancedb;
 
 pub(super) use lancedb::LanceDbCollection;
 
@@ -8,7 +9,9 @@ use crate::{errors::GraphResult, vectors::Embedding};
 
 pub(super) type CollectionPath = Arc<dyn AsRef<Path> + Send + Sync>;
 
-pub(super) trait VectorCollectionFactory {
+#[doc(hidden)] // pub for raphtory-tests
+#[allow(async_fn_in_trait)]
+pub trait VectorCollectionFactory {
     type DbType: VectorCollection;
     async fn new_collection(
         &self,
@@ -24,7 +27,9 @@ pub(super) trait VectorCollectionFactory {
     ) -> GraphResult<Self::DbType>;
 }
 
-pub(super) trait VectorCollection: Sized + Clone + Send + Sync {
+#[doc(hidden)] // pub for raphtory-tests
+#[allow(async_fn_in_trait)]
+pub trait VectorCollection: Sized + Clone + Send + Sync {
     async fn insert_vectors(
         &self,
         ids: Vec<u64>,

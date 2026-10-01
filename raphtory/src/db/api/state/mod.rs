@@ -18,4 +18,6 @@ pub use lazy_node_state::{
 pub use node_state::{Index, IndexIntoIter, IndexParIter, NodeState};
 pub use node_state_ops::NodeStateOps;
 pub use node_state_ord_ops::{AsOrderedNodeStateOps, OrderedNodeStateOps};
+#[doc(hidden)] // pub for raphtory-tests
+pub use node_state_ord_ops::{par_top_k, top_k};
 pub use ops::NodeOp;
