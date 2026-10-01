@@ -4,8 +4,9 @@ use crate::graph::{
 };
 use db4_graph::TemporalGraph;
 use raphtory_api::core::storage::graph_folder::{
-    GraphFolder, GraphFolderError, GraphPaths, WriteableGraphFolder,
+    GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, WriteableGraphFolder,
 };
+use raphtory_core::entities::LayerIds;
 use storage::{
     error::StorageError,
     persist::{config::ConfigOps, control_file::ControlFileOps, strategy::PersistenceStrategy},
@@ -14,14 +15,12 @@ use storage::{
 };
 use thiserror::Error;
 
-/// Isolated fork of a graph used for batching writes before an atomic commit.
+/// Isolated fork of a graph used for staging writes before atomically
+/// applying them to the source graph.
 pub struct StagedGraph {
     graph: GraphStorage,
-
     folder: WriteableGraphFolder,
-
     src_graph: ReadLockedGraph,
-
     src_folder: GraphFolder,
 }
 
@@ -44,16 +43,29 @@ impl StagedGraph {
         &self.graph
     }
 
-    pub fn commit(self) -> Result<(), StagingError> {
-        let graph_path = self.folder.relative_graph_path()?;
+    pub fn finish(self) -> Result<(), StagingError> {
+        self.graph.flush()?;
 
-        self.folder.finish().map_err(StagingError::Commit)?;
+        let src_meta = self.src_folder.read_metadata()?;
+
+        let new_meta = Metadata {
+            path: self.folder.relative_graph_path()?,
+            meta: GraphMetadata {
+                node_count: self.graph.unfiltered_num_nodes(&LayerIds::All),
+                edge_count: self.graph.unfiltered_num_edges(&LayerIds::All),
+                graph_type: src_meta.graph_type,
+                is_diskgraph: src_meta.is_diskgraph,
+            },
+        };
+
+        self.folder.write_metadata(new_meta)?;
+        self.folder.finish().map_err(StagingError::Finish)?;
 
         Ok(())
     }
 
-    pub fn rollback(self) -> Result<(), StagingError> {
-        todo!()
+    pub fn discard(self) -> Result<(), StagingError> {
+        self.folder.discard().map_err(StagingError::Discard)
     }
 }
 
@@ -104,25 +116,17 @@ impl ReadLockedGraph {
             .ok_or(StagingError::MissingGraphDir)?;
 
         let src_folder = GraphFolder::from_graph_path(src_path)?;
-
-        let staged_folder = src_folder
-            .clone()
-            .init_swap()
-            .map_err(StagingError::InitStagingDir)?;
-
-        let staged_path = staged_folder
-            .graph_path()
-            .map_err(StagingError::InitStagingDir)?;
+        let staged_folder = src_folder.clone().init_swap().map_err(StagingError::Init)?;
+        let staged_graph_path = staged_folder.graph_path().map_err(StagingError::Init)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
-        self.graph.copy_to(&staged_path)?;
+        self.graph.copy_to(&staged_graph_path)?;
 
-        // Load a fresh extension so that the staged graph has
-        // its own WAL, control file, etc.
-        let config = Config::load_from_dir(&staged_path)?;
-        let extension = Extension::load(&staged_path, config)?;
+        // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
+        let config = Config::load_from_dir(&staged_graph_path)?;
+        let extension = Extension::load(&staged_graph_path, config)?;
 
-        let temporal_graph = TemporalGraph::load(staged_path, extension)?;
+        let temporal_graph = TemporalGraph::load(staged_graph_path, extension)?;
         let staged_graph = GraphStorage::from(temporal_graph);
 
         Ok(StagedGraph::new(
@@ -136,15 +140,6 @@ impl ReadLockedGraph {
 
 #[derive(Debug, Error)]
 pub enum StagingError {
-    #[error("graph directory is missing")]
-    MissingGraphDir,
-
-    #[error("failed to initialise staging directory")]
-    InitStagingDir(#[source] GraphFolderError),
-
-    #[error("failed to commit staged graph")]
-    Commit(#[source] GraphFolderError),
-
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),
 
@@ -154,6 +149,18 @@ pub enum StagingError {
     #[error(transparent)]
     Immutable(#[from] Immutable),
 
+    #[error("graph directory is missing")]
+    MissingGraphDir,
+
     #[error("graph is dirty, call flush() before staging")]
     DirtyGraph,
+
+    #[error("failed to initialise staging")]
+    Init(#[source] GraphFolderError),
+
+    #[error("failed to finish staging")]
+    Finish(#[source] GraphFolderError),
+
+    #[error("failed to discard staging")]
+    Discard(#[source] GraphFolderError),
 }

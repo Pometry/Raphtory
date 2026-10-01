@@ -435,27 +435,23 @@ impl ValidWriteableGraphFolder {
         valid_path: NewPath,
         graph_name: &str,
     ) -> Result<Self, PathValidationError> {
-        Self::new_inner(work_dir_write_guard, valid_path, graph_name).map_err(|error| {
-            PathValidationError::InternalError {
-                graph: graph_name.to_string(),
-                error,
-            }
-        })
-    }
-
-    fn new_inner(
-        work_dir_write_guard: WorkDirWriteGuard,
-        valid_path: NewPath,
-        graph_name: &str,
-    ) -> Result<Self, InternalPathValidationError> {
         let is_new = valid_path.is_new();
         let graph_folder = GraphFolder::from(valid_path.path);
         if !is_new {
             if !graph_folder.is_reserved() {
-                return Err(InternalPathValidationError::GraphIsNamespace);
+                return Err(PathValidationError::InternalError {
+                    graph: graph_name.to_string(),
+                    error: InternalPathValidationError::GraphIsNamespace,
+                });
             }
         }
-        let data_path = graph_folder.init_swap()?;
+        let data_path =
+            graph_folder
+                .init_swap()
+                .map_err(|error| PathValidationError::InternalError {
+                    graph: graph_name.to_string(),
+                    error: error.into(),
+                })?;
         Ok(Self {
             work_dir_write_guard,
             global_path: data_path,
