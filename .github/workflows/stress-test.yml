@@ -36,6 +36,7 @@ jobs:
       - name: Run stress test
         env:
           RUST_BACKTRACE: 1
+          CARGO_BUILD_JOBS: 3
         run: |
           cargo build --package raphtory-server --bin raphtory-server --profile=build-fast
           ./target/build-fast/raphtory-server server --work-dir graphs &

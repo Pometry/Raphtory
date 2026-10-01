@@ -13,6 +13,9 @@ jobs:
         run: |
           echo "python-versions=[\"3.11\",\"3.14.0\"]" >> $GITHUB_OUTPUT
   build-wheel:
+    env:
+      RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 3
     name: Build UI wheel (${{ matrix.python }})
     needs: select-strategy
     strategy:
@@ -33,8 +36,6 @@ jobs:
         with:
           # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
           shared-key: python-release-minimal
-          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
-          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }}  # TODO: remove head_ref clause before merge (cache test)
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v7
         with:
@@ -55,13 +56,13 @@ jobs:
           retention-days: 1
   ui-test:
     name: UI Tests
-    needs: [ select-strategy, build-wheel ]
+    needs: [select-strategy, build-wheel]
     strategy:
       fail-fast: false
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        browser: [ chromium, firefox ]
-        shard: [ 1, 2, 3 ]
+        browser: [chromium, firefox]
+        shard: [1, 2, 3]
     runs-on: windows-latest
     env:
       NUM_SHARDS: 3
@@ -121,7 +122,7 @@ jobs:
         # http://localhost:1736 cannot self-mask: any test needing GraphQL
         # data would fail immediately when the GraphQL POST hits a dead origin.
         env:
-          RAPHTORY_PORT: '1737'
+          RAPHTORY_PORT: "1737"
         run: |
           # On Windows the venv activate script lives under Scripts/ rather than bin/.
           source .venv/Scripts/activate

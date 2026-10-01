@@ -15,6 +15,7 @@ jobs:
     runs-on: "${{ matrix.os }}"
     env:
       RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 3
     strategy:
       matrix:
         include:
@@ -43,8 +44,6 @@ jobs:
         with:
           # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
           shared-key: rust-tests
-          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
-          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }} # TODO: remove head_ref clause before merge (cache test)
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - uses: actions/setup-python@v7
@@ -79,8 +78,6 @@ jobs:
         with:
           # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
           shared-key: rust-check
-          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
-          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }} # TODO: remove head_ref clause before merge (cache test)
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       - name: Check all features
