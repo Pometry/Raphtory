@@ -3,6 +3,10 @@ use crate::graph::{
     locked::ReadLockedGraph,
 };
 use db4_graph::TemporalGraph;
+use parking_lot::{
+    lock_api::ArcMutexGuard,
+    RawMutex,
+};
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, WriteableGraphFolder,
 };
@@ -20,8 +24,9 @@ use thiserror::Error;
 pub struct StagedGraph {
     graph: GraphStorage,
     folder: WriteableGraphFolder,
-    src_graph: ReadLockedGraph,
+    _src_graph: ReadLockedGraph,
     src_folder: GraphFolder,
+    _guard: ArcMutexGuard<RawMutex, ()>,
 }
 
 impl StagedGraph {
@@ -30,12 +35,14 @@ impl StagedGraph {
         folder: WriteableGraphFolder,
         src_graph: ReadLockedGraph,
         src_folder: GraphFolder,
+        guard: ArcMutexGuard<RawMutex, ()>,
     ) -> Self {
         Self {
             graph,
             folder,
-            src_graph,
+            _src_graph: src_graph,
             src_folder,
+            _guard: guard,
         }
     }
 
@@ -44,35 +51,48 @@ impl StagedGraph {
     }
 
     pub fn finish(self) -> Result<(), StagingError> {
-        self.graph.flush()?;
+        let Self {
+            graph,
+            folder,
+            src_folder,
+            ..
+        } = self;
 
-        let src_meta = self.src_folder.read_metadata()?;
+        graph.flush()?;
+
+        let src_meta = src_folder.read_metadata()?;
 
         let new_meta = Metadata {
-            path: self.folder.relative_graph_path()?,
+            path: folder.relative_graph_path()?,
             meta: GraphMetadata {
-                node_count: self.graph.unfiltered_num_nodes(&LayerIds::All),
-                edge_count: self.graph.unfiltered_num_edges(&LayerIds::All),
+                node_count: graph.unfiltered_num_nodes(&LayerIds::All),
+                edge_count: graph.unfiltered_num_edges(&LayerIds::All),
                 graph_type: src_meta.graph_type,
                 is_diskgraph: src_meta.is_diskgraph,
             },
         };
 
-        self.folder.write_metadata(new_meta)?;
-        self.folder.finish().map_err(StagingError::Finish)?;
+        folder.write_metadata(new_meta)?;
+        folder.finish().map_err(StagingError::Finish)?;
 
         Ok(())
     }
 
     pub fn discard(self) -> Result<(), StagingError> {
-        self.folder.discard().map_err(StagingError::Discard)
+        let Self { folder, .. } = self;
+
+        folder.discard().map_err(StagingError::Discard)
     }
 }
 
 impl GraphStorage {
     pub fn stage(&self) -> Result<StagedGraph, StagingError> {
-        let src_graph = match self {
+        let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
+                let guard = graph
+                    .try_staging_guard()
+                    .ok_or(StagingError::InProgress)?;
+
                 // Unlocked graphs may have pending writes that need to be flushed to disk.
                 let mut write_locked_graph = graph.write_locked_graph();
                 write_locked_graph.flush()?;
@@ -92,24 +112,32 @@ impl GraphStorage {
                 // another write could mutate the graph. Implement and use atomic lock
                 // downgrading to prevent this.
                 drop(write_locked_graph);
-                ReadLockedGraph::new(graph.clone())
+                (ReadLockedGraph::new(graph.clone()), guard)
             }
             GraphStorage::Locked(locked_graph) => {
+                let guard = locked_graph
+                    .graph
+                    .try_staging_guard()
+                    .ok_or(StagingError::InProgress)?;
+
                 // Callers need to call flush themselves before staging a ReadLockedGraph.
                 if locked_graph.graph.is_dirty() {
                     return Err(StagingError::DirtyGraph);
                 }
 
-                locked_graph.clone()
+                (locked_graph.clone(), guard)
             }
         };
 
-        src_graph.stage()
+        src_graph.stage(guard)
     }
 }
 
 impl ReadLockedGraph {
-    fn stage(&self) -> Result<StagedGraph, StagingError> {
+    fn stage(
+        self,
+        guard: ArcMutexGuard<RawMutex, ()>,
+    ) -> Result<StagedGraph, StagingError> {
         let src_path = self
             .graph
             .graph_dir()
@@ -132,8 +160,9 @@ impl ReadLockedGraph {
         Ok(StagedGraph::new(
             staged_graph,
             staged_folder,
-            self.clone(),
+            self,
             src_folder,
+            guard,
         ))
     }
 }
@@ -154,6 +183,9 @@ pub enum StagingError {
 
     #[error("graph is dirty, call flush() before staging")]
     DirtyGraph,
+
+    #[error("staging already in progress")]
+    InProgress,
 
     #[error("failed to initialise staging")]
     Init(#[source] GraphFolderError),

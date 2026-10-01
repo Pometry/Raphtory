@@ -17,7 +17,7 @@ use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
 };
-use raphtory_storage::{mutation::MutationError, staging_ops::StagingError};
+use raphtory_storage::{mutation::MutationError, stage::StagingError};
 use std::{
     fmt::Debug,
     io,

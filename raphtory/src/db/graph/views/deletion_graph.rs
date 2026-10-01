@@ -21,7 +21,7 @@ use raphtory_api::{
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
-    graph::graph::GraphStorage, mutation::InheritMutationOps, staging_ops::StagedGraph,
+    graph::graph::GraphStorage, mutation::InheritMutationOps, stage::StagedGraph,
 };
 use std::{
     fmt::{Display, Formatter},

@@ -60,7 +60,7 @@ where
     EXT: PersistenceStrategy<NS = NS>,
 {
     storage: Arc<NodeStorageInner<NS, EXT>>,
-    locked_segments: Box<[NS::ArcLockedSegment]>,
+    segments: Box<[NS::ArcLockedSegment]>,
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
@@ -71,8 +71,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         node: impl Into<VID>,
     ) -> <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
-        let locked_segment = &self.locked_segments[segment_id];
-        locked_segment.entry_ref(pos)
+        let segment = &self.segments[segment_id];
+        segment.entry_ref(pos)
     }
 
     pub fn try_node_ref(
@@ -80,9 +80,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         node: VID,
     ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
-        let locked_segment = &self.locked_segments.get(segment_id)?;
-        if pos.0 < locked_segment.num_nodes() {
-            Some(locked_segment.entry_ref(pos))
+        let segment = &self.segments.get(segment_id)?;
+        if pos.0 < segment.num_nodes() {
+            Some(segment.entry_ref(pos))
         } else {
             None
         }
@@ -101,7 +101,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> impl Iterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        self.locked_segments
+        self.segments
             .iter()
             .flat_map(move |segment| segment.iter_entries())
     }
@@ -109,7 +109,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn segment_counts(&self) -> SegmentCounts<VID> {
         SegmentCounts::new(
             self.storage.max_segment_len(),
-            self.locked_segments.iter().map(|seg| seg.num_nodes()),
+            self.segments.iter().map(|seg| seg.num_nodes()),
         )
     }
 
@@ -118,7 +118,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> impl ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        self.locked_segments
+        self.segments
             .par_iter()
             .flat_map(move |segment| segment.par_iter_entries())
     }
@@ -127,7 +127,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self,
     ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = VID> + '_)> {
         let max_actual_seg_len = self
-            .locked_segments
+            .segments
             .iter()
             .map(|seg| seg.num_nodes())
             .max()
@@ -135,7 +135,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
         row_group_par_iter(
             self.storage.max_segment_len() as usize,
-            self.locked_segments.len(),
+            self.segments.len(),
             self.storage.max_segment_len(),
             max_actual_seg_len,
         )
@@ -144,8 +144,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     fn has_vid(&self, vid: VID) -> bool {
         let (segment_id, pos) = self.storage.resolve_pos(vid);
-        segment_id < self.locked_segments.len()
-            && pos.0 < self.locked_segments[segment_id].num_nodes()
+        segment_id < self.segments.len()
+            && pos.0 < self.segments[segment_id].num_nodes()
     }
 }
 
@@ -318,14 +318,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
-        let locked_segments = self
+        let segments = self
             .segments_iter()
             .map(|segment| segment.locked())
             .collect::<Box<_>>();
 
         ReadLockedNodeStorage {
             storage: self.clone(),
-            locked_segments,
+            segments,
         }
     }
 

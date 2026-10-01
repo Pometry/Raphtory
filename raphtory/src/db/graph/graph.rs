@@ -33,7 +33,7 @@ use raphtory_storage::{
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
-    staging_ops::StagedGraph,
+    stage::StagedGraph,
 };
 use rayon::prelude::*;
 use std::{

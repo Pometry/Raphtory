@@ -12,11 +12,15 @@ use raphtory_core::{
     storage::timeindex::EventTime,
 };
 use rayon::prelude::*;
+use parking_lot::{
+    lock_api::ArcMutexGuard,
+    Mutex, RawMutex,
+};
 use std::{
     ops::Deref,
     path::Path,
     sync::{
-        atomic::{AtomicBool, AtomicUsize},
+        atomic::AtomicUsize,
         Arc,
     },
 };
@@ -59,6 +63,8 @@ where
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
+    /// Exclusive lock held while this graph is being staged for writes.
+    staging_lock: Arc<Mutex<()>>,
 }
 
 impl<EXT> TemporalGraph<EXT>
@@ -132,6 +138,7 @@ where
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
             round_robin_counter: AtomicUsize::new(0),
+            staging_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -167,6 +174,7 @@ where
             gid_resolver: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
+            staging_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -425,6 +433,11 @@ where
 
     pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
+    }
+
+    /// Returns `None` if another thread is already staging this graph.
+    pub fn try_staging_guard(&self) -> Option<ArcMutexGuard<RawMutex, ()>> {
+        self.staging_lock.try_lock_arc()
     }
 
     /// Copy flushed data into `dst`.
