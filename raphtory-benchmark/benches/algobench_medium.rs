@@ -151,7 +151,7 @@ pub fn graphgen_label_propagation(c: &mut Criterion) {
         5,
         10,
         medium_random_attachment_graph,
-        |graph, _| label_propagation(graph, 20, Some([1; 32]), None),
+        |graph, _| label_propagation(graph, 20, Some(1), None, (), None, None).unwrap(),
     );
 }
 
