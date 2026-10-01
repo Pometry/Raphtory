@@ -1,3 +1,4 @@
+use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex};
 use raphtory_api::core::{
     entities::{
         self,
@@ -12,17 +13,10 @@ use raphtory_core::{
     storage::timeindex::EventTime,
 };
 use rayon::prelude::*;
-use parking_lot::{
-    lock_api::ArcMutexGuard,
-    Mutex, RawMutex,
-};
 use std::{
     ops::Deref,
     path::Path,
-    sync::{
-        atomic::AtomicUsize,
-        Arc,
-    },
+    sync::{atomic::AtomicUsize, Arc},
 };
 use storage::{
     api::{

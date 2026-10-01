@@ -222,12 +222,20 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn earliest(&self) -> Option<EventTime> {
-        Iterator::min(self.segments.iter().filter_map(|(_, segment)| segment.earliest()))
+        Iterator::min(
+            self.segments
+                .iter()
+                .filter_map(|(_, segment)| segment.earliest()),
+        )
         // see : https://github.com/rust-lang/rust-analyzer/issues/10653
     }
 
     pub fn latest(&self) -> Option<EventTime> {
-        Iterator::max(self.segments.iter().filter_map(|(_, segment)| segment.latest()))
+        Iterator::max(
+            self.segments
+                .iter()
+                .filter_map(|(_, segment)| segment.latest()),
+        )
     }
 
     pub fn t_len(&self, layer_id: usize) -> usize {

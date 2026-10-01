@@ -3,10 +3,7 @@ use crate::graph::{
     locked::ReadLockedGraph,
 };
 use db4_graph::TemporalGraph;
-use parking_lot::{
-    lock_api::ArcMutexGuard,
-    RawMutex,
-};
+use parking_lot::{lock_api::ArcMutexGuard, RawMutex};
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, WriteableGraphFolder,
 };
@@ -22,10 +19,17 @@ use thiserror::Error;
 /// Isolated fork of a graph used for staging writes before atomically
 /// applying them to the source graph.
 pub struct StagedGraph {
+    /// The underlying storage of the staged graph.
     graph: GraphStorage,
     folder: WriteableGraphFolder,
+
+    /// The graph being staged from.
+    /// Read locks need to be held to prevent concurrent writes during staging.
     _src_graph: ReadLockedGraph,
+
     src_folder: GraphFolder,
+
+    /// Allows only one thread to stage `_src_graph` at a time.
     _guard: ArcMutexGuard<RawMutex, ()>,
 }
 
@@ -51,37 +55,28 @@ impl StagedGraph {
     }
 
     pub fn finish(self) -> Result<(), StagingError> {
-        let Self {
-            graph,
-            folder,
-            src_folder,
-            ..
-        } = self;
+        self.graph.flush()?;
 
-        graph.flush()?;
-
-        let src_meta = src_folder.read_metadata()?;
+        let src_meta = self.src_folder.read_metadata()?;
 
         let new_meta = Metadata {
-            path: folder.relative_graph_path()?,
+            path: self.folder.relative_graph_path()?,
             meta: GraphMetadata {
-                node_count: graph.unfiltered_num_nodes(&LayerIds::All),
-                edge_count: graph.unfiltered_num_edges(&LayerIds::All),
+                node_count: self.graph.unfiltered_num_nodes(&LayerIds::All),
+                edge_count: self.graph.unfiltered_num_edges(&LayerIds::All),
                 graph_type: src_meta.graph_type,
                 is_diskgraph: src_meta.is_diskgraph,
             },
         };
 
-        folder.write_metadata(new_meta)?;
-        folder.finish().map_err(StagingError::Finish)?;
+        self.folder.write_metadata(new_meta)?;
+        self.folder.finish().map_err(StagingError::Finish)?;
 
         Ok(())
     }
 
     pub fn discard(self) -> Result<(), StagingError> {
-        let Self { folder, .. } = self;
-
-        folder.discard().map_err(StagingError::Discard)
+        self.folder.discard().map_err(StagingError::Discard)
     }
 }
 
@@ -89,9 +84,7 @@ impl GraphStorage {
     pub fn stage(&self) -> Result<StagedGraph, StagingError> {
         let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
-                let guard = graph
-                    .try_staging_guard()
-                    .ok_or(StagingError::InProgress)?;
+                let guard = graph.try_staging_guard().ok_or(StagingError::InProgress)?;
 
                 // Unlocked graphs may have pending writes that need to be flushed to disk.
                 let mut write_locked_graph = graph.write_locked_graph();
@@ -134,10 +127,7 @@ impl GraphStorage {
 }
 
 impl ReadLockedGraph {
-    fn stage(
-        self,
-        guard: ArcMutexGuard<RawMutex, ()>,
-    ) -> Result<StagedGraph, StagingError> {
+    fn stage(self, guard: ArcMutexGuard<RawMutex, ()>) -> Result<StagedGraph, StagingError> {
         let src_path = self
             .graph
             .graph_dir()

@@ -144,8 +144,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     fn has_vid(&self, vid: VID) -> bool {
         let (segment_id, pos) = self.storage.resolve_pos(vid);
-        segment_id < self.segments.len()
-            && pos.0 < self.segments[segment_id].num_nodes()
+        segment_id < self.segments.len() && pos.0 < self.segments[segment_id].num_nodes()
     }
 }
 
