@@ -1046,7 +1046,7 @@ async fn apply_access_filter(
 
 impl Data {
     /// Loads and filters the graph using an already-verified permission. Private shared core.
-    async fn load_and_filter(
+    pub async fn load_filtered(
         &self,
         path: &str,
         graph_type: Option<GqlGraphType>,
