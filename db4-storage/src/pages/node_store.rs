@@ -93,6 +93,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.len() == 0
     }
 
+    pub fn segments(&self) -> &[NS::ArcLockedSegment] {
+        &self.locked_segments
+    }
+
     pub fn iter(
         &self,
     ) -> impl Iterator<

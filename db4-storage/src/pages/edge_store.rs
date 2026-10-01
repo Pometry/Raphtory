@@ -51,6 +51,10 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     ReadLockedEdgeStorage<ES, EXT>
 {
+    pub fn segments(&self) -> &[ES::ArcLockedSegment] {
+        &self.locked_pages
+    }
+
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
