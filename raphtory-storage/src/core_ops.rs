@@ -32,7 +32,7 @@ pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> boo
 pub trait CoreGraphOps: Send + Sync {
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
-            GraphStorage::Mem(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.gid_resolver.dtype()
             }
         }
@@ -41,7 +41,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {
         match self.core_graph() {
-            GraphStorage::Mem(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.storage().read_event_id()
             }
         }

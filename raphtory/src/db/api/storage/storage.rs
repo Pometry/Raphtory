@@ -142,7 +142,7 @@ mod io {
             let locked = ReadLockedGraph::new(Arc::new(temporal_graph));
 
             Ok(Self {
-                graph: GraphStorage::Mem(locked),
+                graph: GraphStorage::Locked(locked),
             })
         }
 

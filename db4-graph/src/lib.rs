@@ -15,7 +15,10 @@ use rayon::prelude::*;
 use std::{
     ops::Deref,
     path::Path,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{
+        atomic::{AtomicBool, AtomicUsize},
+        Arc,
+    },
 };
 use storage::{
     api::{

@@ -45,7 +45,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.graph_earliest_time()
             }
         }
@@ -54,7 +54,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.graph_latest_time()
             }
         }

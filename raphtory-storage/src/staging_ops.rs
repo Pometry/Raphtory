@@ -94,7 +94,7 @@ impl GraphStorage {
                 drop(write_locked_graph);
                 ReadLockedGraph::new(graph.clone())
             }
-            GraphStorage::Mem(locked_graph) => {
+            GraphStorage::Locked(locked_graph) => {
                 // Callers need to call flush themselves before staging a ReadLockedGraph.
                 if locked_graph.graph.is_dirty() {
                     return Err(StagingError::DirtyGraph);
