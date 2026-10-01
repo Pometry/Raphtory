@@ -1,6 +1,8 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use either::Either;
-use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerIds, EID};
+use raphtory_api::core::entities::{
+    properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, LayerIds, EID,
+};
 use raphtory_core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
@@ -144,5 +146,31 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => storage.storage().num_edges(),
             EdgesStorageRef::Unlocked(storage) => storage.storage().num_edges(),
         }
+    }
+
+    /// O(1) check: has property `prop_id` ever been observed in `layer_id`?
+    /// `false` is authoritative i.e. callers can skip column reads for `(layer_id, prop_id)`.
+    pub fn layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            EdgesStorageRef::Mem(storage) => storage.storage(),
+            EdgesStorageRef::Unlocked(storage) => storage.storage(),
+        };
+        inner
+            .edge_meta()
+            .temporal_prop_mapper()
+            .layer_has(layer_id, prop_id)
+    }
+
+    /// O(1) check: has metadata `prop_id` ever been observed in `layer_id`?
+    /// `false` is authoritative i.e. callers can skip column reads for `(layer_id, prop_id)`.
+    pub fn layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            EdgesStorageRef::Mem(storage) => storage.storage(),
+            EdgesStorageRef::Unlocked(storage) => storage.storage(),
+        };
+        inner
+            .edge_meta()
+            .metadata_mapper()
+            .layer_has(layer_id, prop_id)
     }
 }

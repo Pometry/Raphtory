@@ -113,7 +113,7 @@ impl InternalPropertyAdditionOps for TemporalGraph<Extension> {
         let mut writer = self.storage().nodes().writer(segment_id);
 
         writer.check_metadata(node_pos, STATIC_GRAPH_LAYER_ID, &props)?;
-        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, true, props);
 
         Ok(writer)
     }
@@ -126,7 +126,7 @@ impl InternalPropertyAdditionOps for TemporalGraph<Extension> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
 
-        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, true, props);
 
         Ok(writer)
     }

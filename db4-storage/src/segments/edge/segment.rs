@@ -1,30 +1,29 @@
 use crate::{
-    LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    properties::PropMutEntry,
     segments::{
-        HasRow, SegmentContainer,
         edge::entry::{MemEdgeEntry, MemEdgeRef},
+        HasRow, SegmentContainer,
     },
     utils::Iter4,
     wal::LSN,
+    LocalPOS,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
     entities::{
-        LayerId, VID,
         properties::{
             meta::{Meta, STATIC_GRAPH_LAYER_ID},
             prop::AsPropRef,
         },
+        LayerId, VID,
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::{LayerIds, edges::edge_ref::EdgeRef},
+    entities::{edges::edge_ref::EdgeRef, LayerIds},
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
@@ -32,8 +31,8 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
-        Arc,
         atomic::{AtomicU32, AtomicUsize, Ordering},
+        Arc,
     },
 };
 
@@ -177,9 +176,8 @@ impl MemEdgeSegment {
             .map(|entry| (entry.src, entry.dst))
     }
 
-    /// insert an edge
-    ///
-    /// returns a boolean flag indicating if the edge is new
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub fn insert_edge_internal<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
@@ -188,6 +186,7 @@ impl MemEdgeSegment {
         dst: VID,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
     ) -> bool {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
@@ -197,13 +196,8 @@ impl MemEdgeSegment {
             .reserve_local_row(edge_pos, src, dst, layer_id)
             .into_inner_with_status();
 
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
-            .properties_mut()
-            .get_mut_entry(local_row);
-
         let ts = EventTime::new(t.t(), t.i());
-        prop_entry.append_t_props(ts, props);
-
+        self.layers[layer_id.0].append_t_props(local_row, ts, mark, layer_id, props);
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
         is_new
@@ -312,6 +306,7 @@ impl MemEdgeSegment {
         Ok(())
     }
 
+    #[inline]
     pub fn update_const_properties<P: AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,
@@ -319,15 +314,13 @@ impl MemEdgeSegment {
         dst: VID,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
     ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id.0].est_size();
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id).inner();
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
-            .properties_mut()
-            .get_mut_entry(local_row);
-        prop_entry.append_const_props(props);
+        self.layers[layer_id.0].append_const_props(local_row, layer_id, mark, props);
 
         let layer_est_size = self.layers[layer_id.0].est_size() + 8;
         self.est_size += layer_est_size.saturating_sub(est_size);
@@ -645,9 +638,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 mod test {
     use super::*;
     use crate::{
-        Config,
         pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats},
         persist::strategy::NoOpStrategy,
+        Config,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
@@ -672,6 +665,7 @@ mod test {
             VID(2),
             LayerId(0),
             vec![(0, Prop::from("test1"))],
+            true,
         );
 
         segment.insert_edge_internal(
@@ -681,6 +675,7 @@ mod test {
             VID(4),
             LayerId(0),
             vec![(0, Prop::from("test2"))],
+            true,
         );
 
         segment.insert_edge_internal(
@@ -690,6 +685,7 @@ mod test {
             VID(6),
             LayerId(0),
             vec![(0, Prop::from("test3"))],
+            true,
         );
 
         // Verify edges exist

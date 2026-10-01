@@ -50,6 +50,7 @@ reqwest = { workspace = true }
 rustc-hash = { workspace = true }
 rayon = { workspace = true }
 ahash = { workspace = true }
+parking_lot = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 bigdecimal = { workspace = true, features = ["serde"] }

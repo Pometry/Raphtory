@@ -530,6 +530,7 @@ where
                 t,
                 pos,
                 layer_id,
+                true,
                 props
                     .into_iter()
                     .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
@@ -574,7 +575,7 @@ where
             let props = props.into_iter().map(|(_, id, p)| (id, p));
 
             // No need to check metadata since the operation was logged after validation.
-            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
+            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, true, props);
             node_writer.set_lsn(lsn);
         }
 
@@ -681,7 +682,7 @@ fn unify_types(
     } else {
         meta.temporal_prop_mapper()
     };
-    let mut write_locked_mapper = prop_mapper.write_locked();
+    let mut write_locked_mapper = prop_mapper.write_locked_mappers();
     for (prop_name, prop_id, prop_value) in props {
         write_locked_mapper.set_or_unify_id_and_dtype(
             prop_name.as_ref(),
