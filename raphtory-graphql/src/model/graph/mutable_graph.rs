@@ -622,9 +622,10 @@ impl GqlMutableGraph {
             })
     }
 
-    /// Post mutation operations.
+    /// Post mutation operations. Only reached once the mutation itself has succeeded.
     async fn post_mutation_ops(&self) {
         self.graph.set_dirty(true);
+        self.graph.notify_mutated();
     }
 }
 
@@ -753,9 +754,10 @@ impl GqlMutableNode {
 }
 
 impl GqlMutableNode {
-    /// Post mutation operations.
+    /// Post mutation operations. Only reached once the mutation itself has succeeded.
     async fn post_mutation_ops(&self) {
         self.node.graph.set_dirty(true);
+        self.node.graph.notify_mutated();
     }
 }
 
@@ -934,9 +936,10 @@ impl GqlMutableEdge {
 }
 
 impl GqlMutableEdge {
-    /// Post mutation operations.
+    /// Post mutation operations. Only reached once the mutation itself has succeeded.
     async fn post_mutation_ops(&self) {
         self.edge.graph.set_dirty(true);
+        self.edge.graph.notify_mutated();
     }
 }
 
