@@ -533,7 +533,7 @@ mod components_test {
             graph::views::filter::{
                 model::{
                     graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
-                    PropertyFilterFactory, ViewWrapOps,
+                    PropertyFilterFactory,
                 },
                 CreateFilter,
             },

@@ -9,6 +9,8 @@ lands, that test fails and the class moves into the working set by deleting its 
 
 from itertools import combinations
 
+import pytest
+
 from raphtory import filter
 from utils import with_variants
 
@@ -60,31 +62,96 @@ def _kind(name):
     return "view" if name in VIEWS else ("node" if name in NODE_KIND else "edge")
 
 
-def _and_is_broken(a, b):
-    # A time view combined with anything via `and` is silently ignored.
-    return a in TIME_VIEWS or b in TIME_VIEWS
+LAYER_VIEWS = VIEWS - TIME_VIEWS
 
 
-def _or_is_broken(a, b):
-    # An `or` involving any graph view, or mixing edge- and node-kind operands, returns every edge.
-    return a in VIEWS or b in VIEWS or _kind(a) != _kind(b)
+def _is_refused(a, b):
+    """A union or negation restricting time on one side and layers on the other.
+
+    There is no single (time, layers) pair that means it, and the widened hull
+    would admit events under neither operand, so it is rejected outright.
+    """
+    return (a in TIME_VIEWS and b in LAYER_VIEWS) or (
+        a in LAYER_VIEWS and b in TIME_VIEWS
+    )
 
 
-def _not_is_broken(a):
-    # `~view` returns every edge; `~node-filter` distributes the negation into the endpoints
-    # instead of complementing the matching edge set.
-    return a in VIEWS or a in NODE_KIND
-
-
-def _not_composite_is_broken(a, b):
-    # `~(A & B)` and `~(A | B)`: negating a *composite* reaches the same wrappers
-    # through the negation, so `~(A & view)` degenerates to `~A` and loses the
-    # view entirely. Only a composite of two edge predicates survives.
-    return _kind(a) != "edge" or _kind(b) != "edge"
+def _node_axis_is_broken(*names):
+    # Lifting a node filter onto edges under `or` or `not` still fails open:
+    # the node axis of the combinators is the open half of
+    # Pometry/pometry-storage#371 and is pinned, not endorsed.
+    return any(name in NODE_KIND for name in names)
 
 
 def _ids(collection):
     return frozenset(e.id for e in collection)
+
+
+def _view_builders():
+    """Each view atom as the chained view it is equivalent to."""
+    return {
+        "layer": lambda g: g.layers(["work"]),
+        "layers2": lambda g: g.layers(["work", "friends"]),
+        "before": lambda g: g.before(10),
+        "after": lambda g: g.after(8),
+        "window": lambda g: g.window(3, 12),
+        "at": lambda g: g.at(10),
+        "latest": lambda g: g.latest(),
+        "snap_at": lambda g: g.snapshot_at(10),
+        "snap_latest": lambda g: g.snapshot_latest(),
+    }
+
+
+def _predicate_builders():
+    """Each non-view atom as a direct scan of whatever graph it is read against.
+
+    Node filters keep the edges whose *both* endpoints pass, which is how a
+    node filter reduces onto an edge.
+    """
+
+    def endpoints(g, names):
+        return {e.id for e in g.edges if e.src.name in names and e.dst.name in names}
+
+    def scored(g, threshold):
+        return {n.name for n in g.nodes if (n.properties.get("score") or 0) > threshold}
+
+    return {
+        "edge_prop": lambda g: {
+            e.id for e in g.edges if (e.properties.get("weight") or 0) > 5
+        },
+        "src": lambda g: {e.id for e in g.edges if e.src.name == "a"},
+        "dst": lambda g: {e.id for e in g.edges if e.dst.name == "c"},
+        "node_prop": lambda g: endpoints(g, scored(g, 15)),
+        "node_name": lambda g: endpoints(g, {"b", "c"}),
+        "is_valid": lambda g: {e.id for e in g.edges if e.is_valid()},
+        "is_deleted": lambda g: {e.id for e in g.edges if e.is_deleted()},
+        "is_active": lambda g: {e.id for e in g.edges if e.is_active()},
+        "self_loop": lambda g: {e.id for e in g.edges if e.src.name == e.dst.name},
+    }
+
+
+def _complements(graph, views, preds):
+    """What each atom's negation selects, from the same independent references.
+
+    A time view is negated over the time axis and a layer view over the layer
+    axis. The time bounds come from the view itself rather than from the call
+    that built it, so a view whose meaning depends on the graph model — a
+    snapshot, or `latest` — is complemented as that model resolved it.
+    """
+    every = _ids(graph.edges)
+    out = {}
+    for name in views:
+        if name in LAYER_VIEWS:
+            excluded = ["work"] if name == "layer" else ["work", "friends"]
+            out[name] = _ids(graph.exclude_layers(excluded).edges)
+            continue
+        view = views[name](graph)
+        before = _ids(graph.before(view.start.t).edges) if view.start else frozenset()
+        after = _ids(graph.after(view.end.t - 1).edges) if view.end else frozenset()
+        out[name] = before | after
+    for name in preds:
+        out[name] = every - preds[name](graph)
+    return out
 
 
 def _view_references(graph):
@@ -221,38 +288,85 @@ def test_edge_collection_time_view_actually_narrows():
 
 @with_variants(_init)
 def test_working_combinations_follow_set_algebra():
+    """Combinations of the working shapes, against references built without the subscript.
+
+    Two of these are not plain set algebra over independently evaluated
+    operands, deliberately:
+
+    * `&` applies its operands in sequence, so a predicate beside a view is
+      read *inside* that view. `window & is_deleted` asks which edges are
+      deleted within the window, not which are deleted at any time and also
+      appear in the window.
+    * `~view` keeps the events outside the view rather than the entities with
+      no event inside it, so the complement of a time view is the ranges
+      either side of it and the complement of a layer view is the other
+      layers. Each complement is read off the view's own bounds, so it follows
+      the graph model rather than assuming one.
+    """
+
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
+        _assert_discriminating(
+            graph, single, ["window", "layer", "edge_prop", "node_prop", "node_name"]
+        )
+        views, preds = _view_builders(), _predicate_builders()
+        assert set(atoms) == set(views) | set(preds), "every atom needs a reference"
         every = _ids(graph.edges)
-        cases = []
+
+        def selects(name, g):
+            """What one atom selects on `g`: a view's members, or a predicate's passes."""
+            return _ids(views[name](g).edges) if name in views else preds[name](g)
+
+        def scope(name, g):
+            """The graph the *next* operand of a conjunction is read against."""
+            return views[name](g) if name in views else g
+
+        complement = _complements(graph, views, preds)
+        cases, refused = [], []
         for a, b in combinations(atoms, 2):
-            if not _and_is_broken(a, b):
-                cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
-            if not _or_is_broken(a, b):
-                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
-            if not _not_composite_is_broken(a, b):
+            composed = scope(b, scope(a, graph))
+            conjunction = (
+                _ids(composed.edges) & selects(a, composed) & selects(b, composed)
+            )
+            disjunction = selects(a, graph) | selects(b, graph)
+            cases.append((f"{a} & {b}", atoms[a] & atoms[b], conjunction))
+            if _is_refused(a, b):
+                refused.append((f"{a} | {b}", lambda a=a, b=b: atoms[a] | atoms[b]))
+                refused.append(
+                    (f"~({a} & {b})", lambda a=a, b=b: ~(atoms[a] & atoms[b]))
+                )
+                continue
+            if not _node_axis_is_broken(a, b):
+                cases.append((f"{a} | {b}", atoms[a] | atoms[b], disjunction))
+                # Negating a composite that contains a predicate keeps whatever
+                # the composite does not select: the view inside it decides
+                # membership rather than trimming events, so the complement of
+                # the selection is the answer. Composites of views *alone* are
+                # event level instead — an entity with events on both sides of
+                # a window belongs to the window and to its complement at once,
+                # which no expectation over entity sets can express — so those
+                # pairs are left to the single-atom cases and to the Rust
+                # tests, which can build the ranges directly.
+                if a in VIEWS and b in VIEWS:
+                    continue
                 cases.append(
-                    (
-                        f"~({a} & {b})",
-                        ~(atoms[a] & atoms[b]),
-                        every - (single[a] & single[b]),
-                    )
+                    (f"~({a} & {b})", ~(atoms[a] & atoms[b]), every - conjunction)
                 )
                 cases.append(
-                    (
-                        f"~({a} | {b})",
-                        ~(atoms[a] | atoms[b]),
-                        every - (single[a] | single[b]),
-                    )
+                    (f"~({a} | {b})", ~(atoms[a] | atoms[b]), every - disjunction)
                 )
         for a in atoms:
-            if not _not_is_broken(a):
-                cases.append((f"~{a}", ~atoms[a], every - single[a]))
+            if not _node_axis_is_broken(a):
+                cases.append((f"~{a}", ~atoms[a], complement[a]))
         cases.append(
             (
                 "layer & (edge_prop | src)",
                 atoms["layer"] & (atoms["edge_prop"] | atoms["src"]),
-                single["layer"] & (single["edge_prop"] | single["src"]),
+                _ids(graph.layers(["work"]).edges)
+                & (
+                    preds["edge_prop"](graph.layers(["work"]))
+                    | preds["src"](graph.layers(["work"]))
+                ),
             )
         )
         mismatches = []
@@ -266,6 +380,12 @@ def test_working_combinations_follow_set_algebra():
                         f"[{path}] {label}: got {sorted(got)} want {sorted(want)}"
                     )
         assert not mismatches, "\n".join(mismatches)
+
+        for label, build in refused:
+            with pytest.raises(Exception, match="both time and layers"):
+                graph.edges[build()]
+            with pytest.raises(Exception, match="both time and layers"):
+                graph.filter(build())
 
     return check
 
@@ -364,49 +484,28 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 @with_variants(_init)
 def test_broken_combination_classes_are_still_broken():
-    """One discriminating representative per known-broken class. When a class is fixed this fails:
-    delete its `_*_is_broken` rule above so the combinations join the set-algebra test.
+    """One discriminating representative per known-broken class.
+
+    What remains is the node axis of the combinators: lifting a node filter
+    onto edges under `or` or `not`, and node filters on the per-node and
+    nested paths. That is the open half of
+    Pometry/pometry-storage#371 — pinned here, not endorsed. When a class is
+    fixed this test fails: delete its representative and let
+    `_node_axis_is_broken` stop excluding it above.
     """
 
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         every = _ids(graph.edges)
-        _assert_discriminating(
-            graph,
-            single,
-            ["window", "layer", "edge_prop", "node_prop", "node_name"],
-        )
+        _assert_discriminating(graph, single, ["edge_prop", "node_prop", "node_name"])
         representatives = {
-            "and drops a time view": (
-                atoms["window"] & atoms["edge_prop"],
-                single["window"] & single["edge_prop"],
-            ),
-            "or with a view returns every edge": (
-                atoms["edge_prop"] | atoms["layer"],
-                single["edge_prop"] | single["layer"],
-            ),
             "or of mixed kinds returns every edge": (
                 atoms["edge_prop"] | atoms["node_prop"],
                 single["edge_prop"] | single["node_prop"],
             ),
-            "not of a view returns every edge": (
-                ~atoms["layer"],
-                every - single["layer"],
-            ),
             "not of a node filter is not the complement": (
                 ~atoms["node_name"],
                 every - single["node_name"],
-            ),
-            # Negating a composite that contains a view: the pairwise rules
-            # above only ever negate a single atom, so these shapes need their
-            # own representatives.
-            "not of an and containing a view loses the view": (
-                ~(atoms["edge_prop"] & atoms["layer"]),
-                every - (single["edge_prop"] & single["layer"]),
-            ),
-            "not of an or containing a view returns every edge": (
-                ~(atoms["edge_prop"] | atoms["layer"]),
-                every - (single["edge_prop"] | single["layer"]),
             ),
         }
         fixed = []

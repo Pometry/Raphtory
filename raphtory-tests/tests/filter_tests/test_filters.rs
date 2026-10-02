@@ -2986,7 +2986,6 @@ mod test_node_property_filter {
         node_filter::NodeFilter,
         not_filter::NotFilter,
         property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
-        windowed_filter::Windowed,
         ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
     };
     use raphtory_api::core::entities::properties::prop::Prop;
@@ -4181,7 +4180,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_graph_filter_window() {
-        let filter: Windowed<GraphFilter> = GraphFilter.window(1, 2);
+        let filter = GraphFilter.window(1, 2);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -10893,5 +10892,609 @@ mod test_edge_composite_filter {
             &expected_results,
             TestVariants::All,
         );
+    }
+}
+
+/// How `&`, `|` and `~` of graph-level views compose. Every expectation is
+/// computed by chaining the views directly, never through the filter path
+/// under test.
+///
+/// ```text
+/// time:  0    1    2    3    4    5    6    7    8    9   10
+/// a→b         ●                             ●               events 1 and 7
+/// c→d                        ●                              event 4
+/// e→f                                  ●                    event 6
+///
+/// Graph.window(0,5)  [==================)
+/// Graph.window(3,8)            [==================)
+/// Graph.window(6,10)                          [==========)
+/// ```
+mod test_view_composition {
+    use raphtory::{
+        db::{
+            api::view::filter_ops::{Filter, Select},
+            graph::views::filter::model::{
+                edge_filter::EdgeFilter,
+                graph_filter::{GraphFilter, ViewFilter},
+                property_filter::ops::PropertyFilterOps,
+                ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory,
+            },
+        },
+        errors::GraphError,
+        prelude::*,
+    };
+    use raphtory_api::core::storage::timeindex::AsTime;
+    use std::collections::BTreeSet;
+
+    fn graph() -> Graph {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+        g.add_edge(7, "a", "b", NO_PROPS, None).unwrap();
+        g.add_edge(4, "c", "d", NO_PROPS, None).unwrap();
+        g.add_edge(6, "e", "f", NO_PROPS, None).unwrap();
+        g
+    }
+
+    fn edges<'a, G: GraphViewOps<'a>>(g: &G) -> BTreeSet<String> {
+        g.edges()
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect()
+    }
+
+    fn history<'a, G: GraphViewOps<'a>>(g: &G, src: &str, dst: &str) -> Vec<i64> {
+        g.edge(src, dst)
+            .map(|e| e.history().iter().map(|t| t.t()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Each time op, then each layer op: applying the filter must equal the
+    /// chained view, and negating it must equal the views either side of what
+    /// the chain resolved to — read off the applied view's own bounds, so an
+    /// op whose meaning depends on the graph model is checked as that model
+    /// resolved it.
+    ///
+    /// A macro rather than a function because each chained view has its own
+    /// type, and the graph models differ.
+    macro_rules! check_every_view_op {
+        ($g:expr) => {{
+            let g = $g;
+            let time_ops: Vec<(&str, ViewFilter, BTreeSet<String>)> = vec![
+                ("window", GraphFilter.window(3, 12), edges(&g.window(3, 12))),
+                ("at", GraphFilter.at(10), edges(&g.at(10))),
+                ("before", GraphFilter.before(10), edges(&g.before(10))),
+                ("after", GraphFilter.after(8), edges(&g.after(8))),
+                ("latest", GraphFilter.latest(), edges(&g.latest())),
+                (
+                    "snapshot_at",
+                    GraphFilter.snapshot_at(10),
+                    edges(&g.snapshot_at(10)),
+                ),
+                (
+                    "snapshot_latest",
+                    GraphFilter.snapshot_latest(),
+                    edges(&g.snapshot_latest()),
+                ),
+            ];
+            for (label, filter, chained) in time_ops {
+                let applied = g.filter(filter.clone()).unwrap();
+                assert_eq!(edges(&applied), chained, "{}: applied", label);
+
+                // The views either side of the applied window.
+                let mut want = BTreeSet::new();
+                if let Some(start) = applied.start() {
+                    want.extend(edges(&g.before(start.t())));
+                }
+                if let Some(end) = applied.end() {
+                    want.extend(edges(&g.after(end.t().saturating_sub(1))));
+                }
+                let negated = g.filter(filter.not()).unwrap();
+                assert_eq!(edges(&negated), want, "{}: negated", label);
+            }
+
+            let layer_ops: Vec<(&str, ViewFilter, BTreeSet<String>, BTreeSet<String>)> = vec![
+                (
+                    "layer",
+                    GraphFilter.layer("work"),
+                    edges(&g.layers(["work"]).unwrap()),
+                    edges(&g.exclude_layers(["work"]).unwrap()),
+                ),
+                (
+                    "layers",
+                    GraphFilter.layer(vec!["work", "friends"]),
+                    edges(&g.layers(["work", "friends"]).unwrap()),
+                    edges(&g.exclude_layers(["work", "friends"]).unwrap()),
+                ),
+            ];
+            for (label, filter, chained, complement) in layer_ops {
+                let applied = g.filter(filter.clone()).unwrap();
+                assert_eq!(edges(&applied), chained, "{}: applied", label);
+                let negated = g.filter(filter.not()).unwrap();
+                assert_eq!(edges(&negated), complement, "{}: negated", label);
+            }
+        }};
+    }
+
+    #[test]
+    fn a_conjunction_of_windows_is_their_overlap() {
+        let g = graph();
+        let expected = g.window(0, 5).window(3, 8);
+        let got = g
+            .filter(GraphFilter.window(0, 5).and(GraphFilter.window(3, 8)))
+            .unwrap();
+        assert_eq!(edges(&got), edges(&expected));
+        assert_eq!(edges(&got), BTreeSet::from(["c->d".to_string()]));
+        assert_eq!(got.earliest_time(), expected.earliest_time());
+        assert_eq!(got.latest_time(), expected.latest_time());
+    }
+
+    #[test]
+    fn a_disjunction_of_windows_is_their_union_with_the_gap_left_out() {
+        let g = graph();
+        let left = g.window(0, 5);
+        let right = g.window(6, 10);
+        let got = g
+            .filter(GraphFilter.window(0, 5).or(GraphFilter.window(6, 10)))
+            .unwrap();
+
+        let expected: BTreeSet<_> = edges(&left).union(&edges(&right)).cloned().collect();
+        assert_eq!(edges(&got), expected);
+        // e->f at 6 is in the right window, so the union holds it; nothing
+        // sits in the gap [5, 6) to be wrongly admitted.
+        assert!(edges(&got).contains("e->f"));
+
+        // An edge with an event in each window keeps both, and only those.
+        let mut want = history(&left, "a", "b");
+        want.extend(history(&right, "a", "b"));
+        assert_eq!(history(&got, "a", "b"), want);
+        assert_eq!(history(&got, "a", "b"), vec![1, 7]);
+    }
+
+    #[test]
+    fn a_negated_window_is_the_ranges_either_side_of_it() {
+        let g = graph();
+        let got = g.filter(GraphFilter.window(3, 8).not()).unwrap();
+
+        // Everything before 3 or from 8 on: a->b keeps its event at 1 and
+        // drops the one at 7, which is what chaining the two sides gives.
+        let mut want = history(&g.window(i64::MIN, 3), "a", "b");
+        want.extend(history(&g.window(8, i64::MAX), "a", "b"));
+        assert_eq!(history(&got, "a", "b"), want);
+        assert_eq!(history(&got, "a", "b"), vec![1]);
+        assert_eq!(edges(&got), BTreeSet::from(["a->b".to_string()]));
+    }
+
+    #[test]
+    fn a_predicate_beside_a_window_is_evaluated_inside_it() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", [("score", 1i64)], None).unwrap();
+        g.add_edge(9, "a", "b", [("score", 9i64)], None).unwrap();
+
+        let inside = GraphFilter
+            .window(0, 5)
+            .and(EdgeFilter.property("score").temporal().last().eq(9i64));
+        // The edge's last value inside [0, 5) is 1, so the predicate fails
+        // there even though the edge does reach 9 later.
+        assert!(edges(&g.filter(inside).unwrap()).is_empty());
+
+        let matching = GraphFilter
+            .window(0, 5)
+            .and(EdgeFilter.property("score").temporal().last().eq(1i64));
+        assert_eq!(
+            edges(&g.filter(matching).unwrap()),
+            BTreeSet::from(["a->b".to_string()])
+        );
+    }
+
+    #[test]
+    fn a_conjunction_carries_the_composed_view_not_the_base_graph() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", [("score", 1i64)], None).unwrap();
+        g.add_edge(7, "a", "b", [("score", 7i64)], None).unwrap();
+        let expected = g.window(0, 5);
+        let got = g
+            .filter(
+                GraphFilter
+                    .window(0, 5)
+                    .and(EdgeFilter.property("score").temporal().last().ne(404i64)),
+            )
+            .unwrap();
+        assert_eq!(history(&got, "a", "b"), history(&expected, "a", "b"));
+        assert_eq!(history(&got, "a", "b"), vec![1]);
+        assert_eq!(got.latest_time(), expected.latest_time());
+    }
+
+    // The edge-collection path lowers through `select`, which is where a
+    // window used to reach the result but not the graph the predicate beside
+    // it was read from.
+    #[test]
+    fn an_edge_collection_reads_a_predicate_inside_the_window_beside_it() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", [("score", 1i64)], None).unwrap();
+        g.add_edge(9, "a", "b", [("score", 9i64)], None).unwrap();
+
+        let inside = GraphFilter
+            .window(0, 5)
+            .and(EdgeFilter.property("score").temporal().last().eq(9i64));
+        assert!(g.edges().select(inside).unwrap().iter().next().is_none());
+
+        let matching = GraphFilter
+            .window(0, 5)
+            .and(EdgeFilter.property("score").temporal().last().eq(1i64));
+        let selected = g.edges().select(matching).unwrap();
+        assert_eq!(
+            selected
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            vec!["a->b".to_string()]
+        );
+        // Membership is what the window decides here; each edge in the
+        // collection still reports the base graph's history, which is how
+        // collections have always behaved and is not what this filter changes.
+    }
+
+    // Layer ids are not a contiguous range from zero, so a complement built by
+    // counting layers picks ids the graph never issued and misses real ones.
+    #[test]
+    fn a_negated_layer_view_is_the_other_layers() {
+        let g = Graph::new();
+        g.add_edge(5, "a", "b", NO_PROPS, Some("work")).unwrap();
+        g.add_edge(15, "c", "a", NO_PROPS, Some("friends")).unwrap();
+        g.add_edge(12, "d", "d", NO_PROPS, None).unwrap();
+
+        let expected = g.layers(["_default", "friends"]).unwrap();
+        let got = g.filter(GraphFilter.layer("work").not()).unwrap();
+        assert_eq!(edges(&got), edges(&expected));
+        assert_eq!(
+            edges(&got),
+            BTreeSet::from(["c->a".to_string(), "d->d".to_string()])
+        );
+    }
+
+    // `after` and `before` are open-ended, so their complements are single
+    // ranges. Encoding them as windows bounded by the largest timestamp left a
+    // sliver of time beyond the bound, which a negation picked up — and on a
+    // persistent graph that sliver admits every edge still alive at the end of
+    // time, so the complement returned the whole graph.
+    #[test]
+    fn a_negated_open_ended_view_has_no_sliver_at_the_end_of_time() {
+        for persistent in [false, true] {
+            let g = Graph::new();
+            g.add_edge(5, "a", "b", NO_PROPS, None).unwrap();
+            g.add_edge(10, "b", "c", NO_PROPS, None).unwrap();
+            g.add_edge(15, "c", "d", NO_PROPS, None).unwrap();
+
+            let after = GraphFilter.after(8);
+            let before = GraphFilter.before(9);
+            if persistent {
+                let g = g.persistent_graph();
+                assert_eq!(
+                    edges(&g.filter(after.clone().not()).unwrap()),
+                    edges(&g.before(9))
+                );
+                assert_eq!(
+                    edges(&g.filter(before.clone().not()).unwrap()),
+                    edges(&g.after(8))
+                );
+            } else {
+                assert_eq!(edges(&g.filter(after.not()).unwrap()), edges(&g.before(9)));
+                assert_eq!(edges(&g.filter(before.not()).unwrap()), edges(&g.after(8)));
+            }
+        }
+    }
+
+    // Every view op, applied and negated, against the chained view it is
+    // meant to equal. The two bugs this covers were both op-specific — a
+    // layer complement that assumed contiguous layer ids, and `after`
+    // encoded as a window ending at the largest timestamp — so each op is
+    // checked rather than a representative few.
+    #[test]
+    fn every_view_op_applies_and_negates_like_its_chained_view() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, Some("work")).unwrap();
+        g.add_edge(11, "a", "b", NO_PROPS, Some("work")).unwrap();
+        g.add_edge(4, "c", "d", NO_PROPS, Some("work")).unwrap();
+        g.add_edge(10, "e", "f", NO_PROPS, Some("friends")).unwrap();
+        g.add_edge(15, "g", "h", NO_PROPS, None).unwrap();
+        g.delete_edge(20, "c", "d", Some("work")).unwrap();
+
+        check_every_view_op!(g.clone());
+        check_every_view_op!(g.persistent_graph());
+    }
+
+    #[test]
+    fn mixing_time_and_layers_under_a_union_or_a_negation_is_refused() {
+        let g = Graph::new();
+        g.add_edge(1, "a", "b", NO_PROPS, Some("x")).unwrap();
+        g.add_edge(2, "c", "d", NO_PROPS, Some("y")).unwrap();
+
+        let mixed = GraphFilter.window(0, 5).or(GraphFilter.layer("x"));
+        assert!(matches!(
+            g.filter(mixed),
+            Err(GraphError::InvalidGqlFilter(_))
+        ));
+        let both = GraphFilter.window(0, 5).layer("x");
+        assert!(matches!(
+            g.filter(both.not()),
+            Err(GraphError::InvalidGqlFilter(_))
+        ));
+        // Agreeing on the layer dimension is fine.
+        let same_layer = GraphFilter
+            .window(0, 5)
+            .layer("x")
+            .or(GraphFilter.window(6, 9).layer("x"));
+        assert!(g.filter(same_layer).is_ok());
+    }
+}
+
+/// Algebraic laws of graph-level view composition, checked against references
+/// built by chaining the graph's own view methods — never through the filter
+/// path under test.
+///
+/// The two bugs these cover were both op-specific and only showed on one
+/// graph model or one op, which a handful of hand-picked cases missed: a layer
+/// complement that assumed contiguous layer ids, and `after` encoded as a
+/// window ending at the largest timestamp.
+mod test_view_composition_properties {
+    use proptest::prelude::*;
+    use raphtory::{
+        db::{
+            api::view::{filter_ops::Filter, DynamicGraph, IntoDynamic},
+            graph::views::filter::model::{
+                graph_filter::{GraphFilter, ViewFilter},
+                ComposableFilter,
+            },
+        },
+        prelude::*,
+    };
+    use raphtory_api::core::storage::timeindex::AsTime;
+    use std::collections::BTreeSet;
+
+    /// The view ops, each one a restriction of the time axis alone. Layer ops
+    /// are covered separately: mixing the two axes under `|` or `~` has no
+    /// single answer and is refused, so a generator over both would spend its
+    /// time on the refusal rather than on the algebra.
+    #[derive(Clone, Debug)]
+    enum TimeOp {
+        Window(i64, i64),
+        At(i64),
+        Before(i64),
+        After(i64),
+        Latest,
+        SnapshotAt(i64),
+        SnapshotLatest,
+    }
+
+    impl TimeOp {
+        /// The op as a filter — the thing under test.
+        fn filter(&self) -> ViewFilter {
+            match *self {
+                TimeOp::Window(start, end) => GraphFilter.window(start, end),
+                TimeOp::At(t) => GraphFilter.at(t),
+                TimeOp::Before(t) => GraphFilter.before(t),
+                TimeOp::After(t) => GraphFilter.after(t),
+                TimeOp::Latest => GraphFilter.latest(),
+                TimeOp::SnapshotAt(t) => GraphFilter.snapshot_at(t),
+                TimeOp::SnapshotLatest => GraphFilter.snapshot_latest(),
+            }
+        }
+
+        /// The op as the graph's own view — the reference.
+        fn chain(&self, graph: &DynamicGraph) -> DynamicGraph {
+            match *self {
+                TimeOp::Window(start, end) => graph.window(start, end).into_dynamic(),
+                TimeOp::At(t) => graph.at(t).into_dynamic(),
+                TimeOp::Before(t) => graph.before(t).into_dynamic(),
+                TimeOp::After(t) => graph.after(t).into_dynamic(),
+                TimeOp::Latest => graph.latest().into_dynamic(),
+                TimeOp::SnapshotAt(t) => graph.snapshot_at(t).into_dynamic(),
+                TimeOp::SnapshotLatest => graph.snapshot_latest().into_dynamic(),
+            }
+        }
+    }
+
+    fn op() -> impl Strategy<Value = TimeOp> {
+        prop_oneof![
+            (0i64..14, 0i64..14).prop_map(|(a, b)| TimeOp::Window(a.min(b), a.max(b))),
+            (0i64..14).prop_map(TimeOp::At),
+            (0i64..14).prop_map(TimeOp::Before),
+            (0i64..14).prop_map(TimeOp::After),
+            Just(TimeOp::Latest),
+            (0i64..14).prop_map(TimeOp::SnapshotAt),
+            Just(TimeOp::SnapshotLatest),
+        ]
+    }
+
+    /// Edge additions, so an event graph's membership is unambiguous.
+    fn graph() -> impl Strategy<Value = Graph> {
+        proptest::collection::vec((0i64..12, 0u64..4, 0u64..4), 1..8).prop_map(|events| {
+            let g = Graph::new();
+            for (time, src, dst) in events {
+                g.add_edge(time, src, dst, NO_PROPS, None).unwrap();
+            }
+            g
+        })
+    }
+
+    const LAYERS: [&str; 3] = ["work", "friends", "family"];
+
+    /// The same, spread over named layers and the default one, so a layer
+    /// complement has real ids to enumerate — they are not a contiguous range
+    /// from zero, which is what a counted complement got wrong.
+    fn layered_graph() -> impl Strategy<Value = Graph> {
+        proptest::collection::vec((0i64..12, 0u64..4, 0u64..4, 0usize..4), 1..8).prop_map(
+            |events| {
+                // Two layers are always present, so a proper subset exists.
+                let g = Graph::new();
+                g.add_edge(0, 90, 91, NO_PROPS, Some(LAYERS[0])).unwrap();
+                g.add_edge(0, 92, 93, NO_PROPS, Some(LAYERS[1])).unwrap();
+                for (time, src, dst, layer) in events {
+                    let layer = LAYERS.get(layer).copied();
+                    g.add_edge(time, src, dst, NO_PROPS, layer).unwrap();
+                }
+                g
+            },
+        )
+    }
+
+    /// A layered graph paired with a proper, non-empty subset of the layers it
+    /// actually has.
+    ///
+    /// Drawn from the graph because `GraphFilter.layer` rejects a name the
+    /// graph never issued, and *proper* because naming every layer restricts
+    /// nothing — the view's layer set is then all of them, which composes with
+    /// a time view rather than being refused.
+    fn graph_and_layers() -> impl Strategy<Value = (Graph, Vec<String>)> {
+        layered_graph().prop_flat_map(|g| {
+            let all: Vec<String> = g.unique_layers().map(|l| l.to_string()).collect();
+            let count = all.len();
+            (Just(g), proptest::collection::vec(0..count, 1..count)).prop_map(move |(g, picks)| {
+                let names: BTreeSet<String> = picks.into_iter().map(|i| all[i].clone()).collect();
+                (g, names.into_iter().collect())
+            })
+        })
+    }
+
+    fn ids<'a, G: GraphViewOps<'a>>(graph: &G) -> BTreeSet<(u64, u64)> {
+        graph
+            .edges()
+            .iter()
+            .map(|e| {
+                (
+                    e.src().id().as_u64().unwrap(),
+                    e.dst().id().as_u64().unwrap(),
+                )
+            })
+            .collect()
+    }
+
+    fn history<'a, G: GraphViewOps<'a>>(graph: &G, edge: (u64, u64)) -> BTreeSet<i64> {
+        graph
+            .edge(edge.0, edge.1)
+            .map(|e| e.history().iter().map(|t| t.t()).collect())
+            .unwrap_or_default()
+    }
+
+    /// The views either side of what `applied` resolved to.
+    fn outside(base: &DynamicGraph, applied: &DynamicGraph) -> BTreeSet<(u64, u64)> {
+        let mut out = BTreeSet::new();
+        if let Some(start) = applied.start() {
+            out.extend(ids(&base.before(start.t())));
+        }
+        if let Some(end) = applied.end() {
+            out.extend(ids(&base.after(end.t().saturating_sub(1))));
+        }
+        out
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        /// One op: the filter is the graph's own view, events and all.
+        #[test]
+        fn a_single_view_is_its_chained_view(g in graph(), a in op()) {
+            let base = g.clone().into_dynamic();
+            let got = g.filter(a.filter())?.into_dynamic();
+            let want = a.chain(&base);
+            prop_assert_eq!(ids(&got), ids(&want));
+            for edge in ids(&want) {
+                prop_assert_eq!(history(&got, edge), history(&want, edge));
+            }
+        }
+
+        /// `&` applies its operands in sequence, so it is the two views chained
+        /// — which is what `latest` and `snapshot_at` need, since they resolve
+        /// against the graph they are applied to.
+        #[test]
+        fn a_conjunction_is_the_two_views_chained(g in graph(), a in op(), b in op()) {
+            let base = g.clone().into_dynamic();
+            let got = g.filter(a.filter().and(b.filter()))?.into_dynamic();
+            let want = b.chain(&a.chain(&base));
+            prop_assert_eq!(ids(&got), ids(&want));
+            for edge in ids(&want) {
+                prop_assert_eq!(history(&got, edge), history(&want, edge));
+            }
+        }
+
+        /// `|` is the union: an entity belongs if either view holds it, and it
+        /// keeps the events of both — the multi-window semantics.
+        #[test]
+        fn a_disjunction_is_the_union_of_both_views(g in graph(), a in op(), b in op()) {
+            let base = g.clone().into_dynamic();
+            let got = g.filter(a.filter().or(b.filter()))?.into_dynamic();
+            let (left, right) = (a.chain(&base), b.chain(&base));
+
+            let want: BTreeSet<_> = ids(&left).union(&ids(&right)).cloned().collect();
+            prop_assert_eq!(ids(&got), want.clone());
+            for edge in want {
+                let events: BTreeSet<i64> = history(&left, edge)
+                    .union(&history(&right, edge))
+                    .cloned()
+                    .collect();
+                prop_assert_eq!(history(&got, edge), events);
+            }
+        }
+
+        /// `~` keeps what lies outside the view, so an entity with events on
+        /// both sides survives with the outside ones.
+        #[test]
+        fn a_negation_is_what_lies_outside_the_view(g in graph(), a in op()) {
+            let base = g.clone().into_dynamic();
+            let applied = a.chain(&base);
+            let got = g.filter(a.filter().not())?.into_dynamic();
+            prop_assert_eq!(ids(&got), outside(&base, &applied));
+        }
+
+        /// Negating twice comes back, and a view meets itself unchanged.
+        #[test]
+        fn negation_is_an_involution_and_a_view_is_idempotent(g in graph(), a in op()) {
+            let base = g.clone().into_dynamic();
+            let once = ids(&g.filter(a.filter())?.into_dynamic());
+            prop_assert_eq!(
+                ids(&g.filter(a.filter().not().not())?.into_dynamic()),
+                once.clone()
+            );
+            prop_assert_eq!(ids(&g.filter(a.filter().and(a.filter()))?.into_dynamic()), once.clone());
+            prop_assert_eq!(ids(&g.filter(a.filter().or(a.filter()))?.into_dynamic()), once);
+            let _ = base;
+        }
+
+        /// A union does not depend on the order of its operands, where a
+        /// conjunction may: `latest` resolves against what precedes it.
+        #[test]
+        fn a_disjunction_is_commutative(g in graph(), a in op(), b in op()) {
+            let left = ids(&g.filter(a.filter().or(b.filter()))?.into_dynamic());
+            let right = ids(&g.filter(b.filter().or(a.filter()))?.into_dynamic());
+            prop_assert_eq!(left, right);
+        }
+
+        /// A layer view is the graph's own layer view, and its negation is the
+        /// graph's own exclusion of those layers — over any subset, since the
+        /// ids a graph issues are not a contiguous range.
+        #[test]
+        fn a_layer_view_and_its_negation_match_the_graph((g, names) in graph_and_layers()) {
+            let filter = GraphFilter.layer(names.clone());
+            let kept = g.filter(filter.clone())?.into_dynamic();
+            prop_assert_eq!(ids(&kept), ids(&g.layers(names.clone())?));
+
+            let dropped = g.filter(filter.not())?.into_dynamic();
+            prop_assert_eq!(ids(&dropped), ids(&g.exclude_layers(names)?));
+        }
+
+        /// Restricting time on one side and layers on the other has no single
+        /// (time, layers) answer, so a union or negation of the two is
+        /// refused rather than widened into a hull that admits what neither
+        /// side does. The conjunction of the same pair is always fine.
+        #[test]
+        fn mixing_the_axes_is_refused_under_a_union_but_not_a_conjunction(
+            (g, names) in graph_and_layers(),
+            a in op(),
+        ) {
+            let layer = GraphFilter.layer(names);
+            prop_assert!(g.filter(a.filter().or(layer.clone())).is_err());
+            prop_assert!(g.filter(a.filter().and(layer.clone()).not()).is_err());
+            prop_assert!(g.filter(a.filter().and(layer)).is_ok());
+        }
     }
 }

@@ -7,20 +7,23 @@ use crate::db::{
         },
         view::internal::DynGraphArc,
     },
-    graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
-        is_active_edge_filter::IsActiveEdge,
-        is_active_node_filter::IsActiveNode,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        latest_filter::Latest,
-        layered_filter::Layered,
-        property_filter::{
-            builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+    graph::views::filter::{
+        model::{
+            edge_filter::CompositeEdgeFilter,
+            is_active_edge_filter::IsActiveEdge,
+            is_active_node_filter::IsActiveNode,
+            is_deleted_filter::IsDeletedEdge,
+            is_self_loop_filter::IsSelfLoopEdge,
+            is_valid_filter::IsValidEdge,
+            latest_filter::Latest,
+            layered_filter::Layered,
+            property_filter::{
+                builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+            },
+            snapshot_filter::{SnapshotAt, SnapshotLatest},
+            windowed_filter::Windowed,
         },
-        snapshot_filter::{SnapshotAt, SnapshotLatest},
-        windowed_filter::Windowed,
+        resolved_view::{read_view, ViewBounds},
     },
 };
 pub use crate::{
@@ -121,6 +124,13 @@ impl CreateFilter for Unfiltered {
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(graph)
     }
+
+    fn view_bounds<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<ViewBounds, GraphError> {
+        Ok(ViewBounds::ViewOnly(read_view(&graph)))
+    }
 }
 
 impl TryAsCompositeFilter for Unfiltered {
@@ -205,6 +215,9 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
         &self,
         graph: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError>;
+
+    fn dyn_view_bounds<'graph>(&self, graph: DynGraphArc<'graph>)
+        -> Result<ViewBounds, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
@@ -232,6 +245,13 @@ where
         graph: DynGraphArc<'graph>,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
         Ok(Arc::new(self.clone().filter_graph_view(graph)?))
+    }
+
+    fn dyn_view_bounds<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+    ) -> Result<ViewBounds, GraphError> {
+        self.view_bounds(graph)
     }
 }
 
@@ -273,6 +293,13 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         self.deref().dyn_filter_graph_view(Arc::new(graph))
+    }
+
+    fn view_bounds<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<ViewBounds, GraphError> {
+        self.deref().dyn_view_bounds(Arc::new(graph))
     }
 }
 
@@ -493,6 +520,9 @@ impl TemporalPropertyFilterFactory for Arc<dyn DynTemporalPropertyFilterBuilder>
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphViewOp {
     Window { start: EventTime, end: EventTime },
+    At(EventTime),
+    Before(EventTime),
+    After(EventTime),
     Latest,
     SnapshotAt(EventTime),
     SnapshotLatest,
@@ -722,28 +752,9 @@ impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapPropOps> {
     }
 }
 
-pub trait DynViewFilter: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static {}
-impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static
-{}
-
-pub type DynView = Arc<dyn DynViewFilter>;
-
 pub type DynFilter = Arc<dyn DynCreateFilter>;
 
 impl ComposableFilter for DynFilter {}
-impl ComposableFilter for DynView {}
-
-impl InternalViewWrapOps for DynView {
-    type Window = DynView;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.deref().dyn_bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Arc::new(Windowed::new(start, end, self))
-    }
-}
 
 pub trait NodeViewFilterOps: ViewWrapOps {
     type Output<T: CombinedFilter>: CombinedFilter;
