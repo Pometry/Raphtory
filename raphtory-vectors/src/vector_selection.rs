@@ -5,15 +5,17 @@ use super::{
     vectorised_graph::VectorisedGraph,
     Document, DocumentEntity, Embedding,
 };
-use crate::errors::VectorResult;
-use crate::{vector_collection::VectorCollection, VectorsQuery};
+use crate::{errors::VectorResult, vector_collection::VectorCollection, VectorsQuery};
 use either::Either;
 use futures_util::future::join_all;
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph,
-    db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView,
-    prelude::EdgeViewOps, prelude::NodeViewOps, prelude::*,
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::{
+        api::view::{DynamicGraph, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::{EdgeViewOps, NodeViewOps, *},
 };
 use std::{collections::HashSet, future::Future};
 

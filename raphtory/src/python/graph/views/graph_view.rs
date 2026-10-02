@@ -34,8 +34,7 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use pyo3::exceptions::PyException;
-use pyo3::{prelude::*, Borrowed};
+use pyo3::{exceptions::PyException, prelude::*, Borrowed};
 use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use std::{path::PathBuf, sync::OnceLock};
 

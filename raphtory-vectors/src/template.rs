@@ -4,9 +4,10 @@ use minijinja::{
     Environment, Template, Value,
 };
 use raphtory::{
-    db::api::properties::{internal::InternalPropertiesOps, TemporalPropertyView},
-    db::graph::edge::EdgeView,
-    db::graph::node::NodeView,
+    db::{
+        api::properties::{internal::InternalPropertiesOps, TemporalPropertyView},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::*,
 };
 use raphtory_api::core::storage::{

@@ -4,10 +4,10 @@ use super::{
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
 };
-use crate::errors::{VectorError, VectorResult};
 use crate::{
-    embeddings::ModelConfig, vector_collection::lancedb::LanceDb,
-    vector_collection::VectorCollectionFactory,
+    embeddings::ModelConfig,
+    errors::{VectorError, VectorResult},
+    vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
 };
 use async_openai::config::{OpenAIConfig, OPENAI_API_BASE};
 use raphtory::db::api::view::StaticGraphViewOps;

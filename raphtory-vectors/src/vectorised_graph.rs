@@ -3,15 +3,18 @@ use super::{
     utils::apply_window,
     vector_selection::VectorSelection,
 };
-use crate::errors::VectorResult;
 use crate::{
-    cache::CachedEmbeddingModel, template::DocumentTemplate, utils::find_top_k,
-    vector_collection::lancedb::LanceDbCollection, vector_collection::VectorCollection, Embedding,
-    VectorsQuery,
+    cache::CachedEmbeddingModel,
+    errors::VectorResult,
+    template::DocumentTemplate,
+    utils::find_top_k,
+    vector_collection::{lancedb::LanceDbCollection, VectorCollection},
+    Embedding, VectorsQuery,
 };
 use raphtory::{
-    core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph,
-    db::api::view::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps,
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
+    prelude::GraphViewOps,
 };
 
 #[derive(Clone)]

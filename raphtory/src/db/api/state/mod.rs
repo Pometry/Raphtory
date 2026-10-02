@@ -17,6 +17,5 @@ pub use lazy_node_state::{
 };
 pub use node_state::{Index, IndexIntoIter, IndexParIter, NodeState};
 pub use node_state_ops::NodeStateOps;
-pub use node_state_ord_ops::{par_top_k, top_k};
-pub use node_state_ord_ops::{AsOrderedNodeStateOps, OrderedNodeStateOps};
+pub use node_state_ord_ops::{par_top_k, top_k, AsOrderedNodeStateOps, OrderedNodeStateOps};
 pub use ops::NodeOp;

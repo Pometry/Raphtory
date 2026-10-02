@@ -1,20 +1,24 @@
 pub mod document;
 
-use crate::errors::VectorError;
 use crate::{
-    cache::CachedEmbeddingModel, cache::VectorCache, custom::serve_custom_embedding,
-    custom::EmbeddingFunction, custom::EmbeddingServer, python::document::PyDocument,
-    storage::OpenAIEmbeddings, template::DocumentTemplate, template::DEFAULT_EDGE_TEMPLATE,
-    template::DEFAULT_NODE_TEMPLATE, vector_selection::noop_executor,
-    vector_selection::DynamicVectorSelection, vectorisable::Vectorisable,
-    vectorised_graph::VectorisedGraph, Document, DocumentEntity, Embedding,
+    cache::{CachedEmbeddingModel, VectorCache},
+    custom::{serve_custom_embedding, EmbeddingFunction, EmbeddingServer},
+    errors::VectorError,
+    python::document::PyDocument,
+    storage::OpenAIEmbeddings,
+    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    vector_selection::{noop_executor, DynamicVectorSelection},
+    vectorisable::Vectorisable,
+    vectorised_graph::VectorisedGraph,
+    Document, DocumentEntity, Embedding,
 };
-use raphtory::python::graph::views::graph_view::register_vectorise;
 pub use raphtory::python::graph::views::graph_view::TemplateConfig;
 use raphtory::{
-    db::api::view::DynamicGraph, db::api::view::IntoDynamic, db::api::view::MaterializedGraph,
-    db::api::view::StaticGraphViewOps, python::graph::edge::PyEdge, python::graph::node::PyNode,
-    python::utils::block_on, python::utils::execute_async_task, python::utils::PyNodeRef,
+    db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
+    python::{
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::register_vectorise},
+        utils::{block_on, execute_async_task, PyNodeRef},
+    },
 };
 
 use itertools::Itertools;

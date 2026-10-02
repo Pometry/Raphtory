@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use raphtory::{
-    db::api::view::StaticGraphViewOps, db::graph::views::window_graph::WindowedGraph,
+    db::{api::view::StaticGraphViewOps, graph::views::window_graph::WindowedGraph},
     prelude::TimeOps,
 };
 

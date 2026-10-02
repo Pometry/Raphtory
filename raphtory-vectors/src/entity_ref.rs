@@ -1,6 +1,9 @@
 use either::Either;
 use raphtory::{
-    db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView,
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::GID;

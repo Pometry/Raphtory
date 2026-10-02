@@ -1,5 +1,8 @@
-use crate::errors::VectorResult;
-use crate::{embeddings::EmbeddingError, embeddings::ModelConfig, Embedding};
+use crate::{
+    embeddings::{EmbeddingError, ModelConfig},
+    errors::VectorResult,
+    Embedding,
+};
 use ahash::RandomState;
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};

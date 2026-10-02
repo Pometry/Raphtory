@@ -1,7 +1,7 @@
-use crate::errors::{VectorError, VectorResult};
 use crate::{
-    vector_collection::CollectionPath, vector_collection::VectorCollection,
-    vector_collection::VectorCollectionFactory, Embedding,
+    errors::{VectorError, VectorResult},
+    vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
+    Embedding,
 };
 use arrow_array::{
     builder::{FixedSizeListBuilder, Float32Builder},
