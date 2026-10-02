@@ -61,6 +61,7 @@ use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{
     api::node_type_index::NodeTypeIndexOps, persist::strategy::PersistenceStrategy, Extension,
+    Config,
 };
 
 /// This trait GraphViewOps defines operations for accessing
