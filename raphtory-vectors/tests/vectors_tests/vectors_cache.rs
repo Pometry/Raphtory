@@ -36,11 +36,11 @@ mod cache_tests {
 
     #[tokio::test]
     async fn test_empty_request() {
-        let model = CachedEmbeddingModel {
-            cache: VectorCache::in_memory(),
-            // this model will definetely error out if called, as the api base is invalid
-            model: ModelConfig::OpenAI(OpenAIEmbeddings::new("whatever", "invalid-api-base")),
-        };
+        // this model will definetely error out if called, as the api base is invalid
+        let model = CachedEmbeddingModel::new(
+            VectorCache::in_memory(),
+            ModelConfig::OpenAI(OpenAIEmbeddings::new("whatever", "invalid-api-base")),
+        );
         let result: Vec<_> = model.get_embeddings(vec![]).await.unwrap().collect();
         assert_eq!(result, vec![]);
     }

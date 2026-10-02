@@ -1,5 +1,8 @@
-use raphtory::{db::api::view::StaticGraphViewOps, db::graph::views::window_graph::WindowedGraph, prelude::TimeOps};
 use itertools::Itertools;
+use raphtory::{
+    db::api::view::StaticGraphViewOps, db::graph::views::window_graph::WindowedGraph,
+    prelude::TimeOps,
+};
 
 /// Returns the top k docs in descending order
 pub(crate) fn find_top_k<'a, I, T>(elements: I, k: usize) -> impl Iterator<Item = (T, f32)> + 'a

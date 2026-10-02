@@ -1,5 +1,8 @@
-use raphtory::{db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView, prelude::GraphViewOps};
 use either::Either;
+use raphtory::{
+    db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView,
+    prelude::GraphViewOps,
+};
 use raphtory_api::core::entities::GID;
 use raphtory_core::entities::EID;
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;

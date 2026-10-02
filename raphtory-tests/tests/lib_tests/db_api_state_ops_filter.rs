@@ -88,40 +88,22 @@ mod test {
         let s = g.core_graph();
 
         // Both branches constant-true over their domains: the union is covered.
-        let both = OrOp {
-            left: member([0, 1]),
-            right: member([2, 3]),
-        };
+        let both = OrOp::new(member([0, 1]), member([2, 3]));
         assert_eq!(both.const_value_in_domain(s), Some(true));
 
         // A non-constant branch with domain `All` can match anywhere, so it is never covered.
-        let widened = OrOp {
-            left: wide(),
-            right: member([0, 1]),
-        };
+        let widened = OrOp::new(wide(), member([0, 1]));
         assert_eq!(widened.const_value_in_domain(s), None);
 
-        let nested = OrOp {
-            left: wide(),
-            right: OrOp {
-                left: member([0, 1]),
-                right: member([2, 3]),
-            },
-        };
+        let nested = OrOp::new(wide(), OrOp::new(member([0, 1]), member([2, 3])));
         assert_eq!(nested.const_value_in_domain(s), None);
 
         // A constant-true branch whose domain covers the other branch's is trusted even when that
         // other branch is not constant (`true || false == true`)...
-        let covered = OrOp {
-            left: member([0, 1, 2]),
-            right: bounded_wide([0, 1]),
-        };
+        let covered = OrOp::new(member([0, 1, 2]), bounded_wide([0, 1]));
         assert_eq!(covered.const_value_in_domain(s), Some(true));
         // ...but not once the non-constant branch reaches past that domain.
-        let uncovered = OrOp {
-            left: member([0, 1, 2]),
-            right: bounded_wide([0, 3]),
-        };
+        let uncovered = OrOp::new(member([0, 1, 2]), bounded_wide([0, 3]));
         assert_eq!(uncovered.const_value_in_domain(s), None);
 
         // A globally-true branch has domain `All`, so it covers anything OR'd with it.
@@ -130,10 +112,7 @@ mod test {
             cvid: Some(true),
             domain: NodeList::All,
         };
-        let global_or = OrOp {
-            left: global,
-            right: wide(),
-        };
+        let global_or = OrOp::new(global, wide());
         assert_eq!(global_or.const_value(), Some(true));
         assert_eq!(global_or.const_value_in_domain(s), Some(true));
     }
@@ -142,15 +121,9 @@ mod test {
     fn and_const_value_in_domain_is_the_conjunction() {
         let g = Graph::new();
         let s = g.core_graph();
-        let both = AndOp {
-            left: member([0, 1]),
-            right: member([0, 1]),
-        };
+        let both = AndOp::new(member([0, 1]), member([0, 1]));
         assert_eq!(both.const_value_in_domain(s), Some(true));
-        let mixed = AndOp {
-            left: member([0, 1]),
-            right: wide(),
-        };
+        let mixed = AndOp::new(member([0, 1]), wide());
         assert_eq!(mixed.const_value_in_domain(s), None);
     }
 }

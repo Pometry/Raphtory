@@ -16,8 +16,8 @@ pub struct TwoNodeEvent {
     pub time: i64,
 }
 pub struct TwoNodeCounter {
-    pub count1d: [usize; 2],
-    pub count2d: [usize; 4],
+    count1d: [usize; 2],
+    count2d: [usize; 4],
     pub count3d: [usize; 8],
 }
 
@@ -216,7 +216,7 @@ pub struct TriangleCounter {
     pre_sum: [usize; 8],
     mid_sum: [usize; 8],
     post_sum: [usize; 8],
-    pub final_counts: [usize; 8],
+    final_counts: [usize; 8],
 }
 impl TriangleCounter {
     pub fn execute(&mut self, edges: &Vec<TriangleEdge>, delta: i64) {

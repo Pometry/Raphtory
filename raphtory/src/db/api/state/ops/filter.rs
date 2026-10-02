@@ -395,10 +395,14 @@ impl<G: GraphView> NodeOp for NodeDegreeFilterOp<G> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrOp<L, R> {
-    #[doc(hidden)] // pub for raphtory-tests
-    pub left: L,
-    #[doc(hidden)] // pub for raphtory-tests
-    pub right: R,
+    pub(crate) left: L,
+    pub(crate) right: R,
+}
+
+impl<L, R> OrOp<L, R> {
+    pub fn new(left: L, right: R) -> Self {
+        Self { left, right }
+    }
 }
 
 impl<L, R> NodeOp for OrOp<L, R>
@@ -469,10 +473,14 @@ impl<L, R> IntoDynNodeOp for OrOp<L, R> where Self: NodeOp + 'static {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndOp<L, R> {
-    #[doc(hidden)] // pub for raphtory-tests
-    pub left: L,
-    #[doc(hidden)] // pub for raphtory-tests
-    pub right: R,
+    pub(crate) left: L,
+    pub(crate) right: R,
+}
+
+impl<L, R> AndOp<L, R> {
+    pub fn new(left: L, right: R) -> Self {
+        Self { left, right }
+    }
 }
 
 impl<L, R> NodeOp for AndOp<L, R>

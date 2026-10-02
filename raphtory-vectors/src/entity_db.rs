@@ -1,4 +1,4 @@
-use crate::errors::{VectorResult};
+use crate::errors::VectorResult;
 use std::{collections::HashSet, ops::Deref};
 
 use futures_util::StreamExt;
@@ -7,8 +7,8 @@ use super::{
     entity_ref::{EntityRef, IntoDbId},
     Embedding,
 };
-use raphtory::{db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
 use crate::{vector_collection::VectorCollection, VectorsQuery};
+use raphtory::{db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
 
 #[derive(Clone)]
 pub(super) struct NodeDb<D: VectorCollection>(pub(super) D);

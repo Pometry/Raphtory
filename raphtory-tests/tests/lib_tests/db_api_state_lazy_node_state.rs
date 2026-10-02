@@ -26,16 +26,10 @@ mod test {
 
         let g_dyn = g.clone().into_dynamic();
 
-        let deg = Degree {
-            view: g_dyn,
-            dir: Direction::BOTH,
-        };
+        let deg = Degree::new(g_dyn, Direction::BOTH);
         let arc_deg: Arc<dyn NodeOp<Output = usize>> = Arc::new(deg);
 
-        let node_state_dyn = LazyNodeState {
-            nodes: g.nodes(),
-            op: arc_deg.clone(),
-        };
+        let node_state_dyn = LazyNodeState::new(arc_deg.clone(), g.nodes());
 
         let dyn_deg: Vec<_> = node_state_dyn.iter_values().collect();
         assert_eq!(dyn_deg, [1, 1]);

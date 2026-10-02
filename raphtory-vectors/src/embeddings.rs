@@ -1,4 +1,4 @@
-use crate::errors::{VectorResult};
+use crate::errors::VectorResult;
 use std::{hash::Hash, pin::Pin, sync::Arc};
 
 use async_openai::{

@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
-use raphtory::{db::api::view::DynamicGraph, python::types::repr::Repr, python::types::repr::StructReprBuilder};
 use crate::{Document, DocumentEntity, Embedding};
 use pyo3::{prelude::*, IntoPyObjectExt};
 use pyo3_arrow::PyArray;
+use raphtory::{
+    db::api::view::DynamicGraph, python::types::repr::Repr, python::types::repr::StructReprBuilder,
+};
 
 /// A document corresponding to a graph entity. Used to generate embeddings.
 #[pyclass(name = "Document", module = "raphtory.vectors", frozen, from_py_object)]

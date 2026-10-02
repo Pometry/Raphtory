@@ -1,4 +1,3 @@
-use crate::errors::{VectorResult};
 use super::{
     entity_db::EntityDb,
     entity_ref::EntityRef,
@@ -6,11 +5,16 @@ use super::{
     vectorised_graph::VectorisedGraph,
     Document, DocumentEntity, Embedding,
 };
-use raphtory::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph, db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView, prelude::EdgeViewOps, prelude::NodeViewOps, prelude::*};
+use crate::errors::VectorResult;
 use crate::{vector_collection::VectorCollection, VectorsQuery};
 use either::Either;
 use futures_util::future::join_all;
 use itertools::Itertools;
+use raphtory::{
+    core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph,
+    db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView,
+    prelude::EdgeViewOps, prelude::NodeViewOps, prelude::*,
+};
 use std::{collections::HashSet, future::Future};
 
 #[derive(Clone, Copy)]

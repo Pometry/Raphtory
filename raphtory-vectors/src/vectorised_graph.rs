@@ -1,11 +1,18 @@
-use crate::errors::{VectorResult};
 use super::{
     entity_db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
 };
-use raphtory::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph, db::api::view::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
-use crate::{cache::CachedEmbeddingModel, template::DocumentTemplate, utils::find_top_k, vector_collection::lancedb::LanceDbCollection, vector_collection::VectorCollection, Embedding, VectorsQuery};
+use crate::errors::VectorResult;
+use crate::{
+    cache::CachedEmbeddingModel, template::DocumentTemplate, utils::find_top_k,
+    vector_collection::lancedb::LanceDbCollection, vector_collection::VectorCollection, Embedding,
+    VectorsQuery,
+};
+use raphtory::{
+    core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph,
+    db::api::view::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps,
+};
 
 #[derive(Clone)]
 pub struct VectorisedGraph<G: StaticGraphViewOps> {

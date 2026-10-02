@@ -40,8 +40,14 @@ use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G, F = Const<bool>> {
-    pub nodes: Nodes<'graph, G, GH, F>,
-    pub op: Op,
+    nodes: Nodes<'graph, G, GH, F>,
+    pub(crate) op: Op,
+}
+
+impl<'graph, Op, G, GH, F> LazyNodeState<'graph, Op, G, GH, F> {
+    pub fn new(op: Op, nodes: Nodes<'graph, G, GH, F>) -> Self {
+        Self { nodes, op }
+    }
 }
 
 impl<
@@ -213,10 +219,6 @@ impl<
         F: NodeFilterOp + Clone + 'graph,
     > LazyNodeState<'graph, O, G, GH, F>
 {
-    pub(crate) fn new(op: O, nodes: Nodes<'graph, G, GH, F>) -> Self {
-        Self { nodes, op }
-    }
-
     pub fn collect<C: FromParallelIterator<O::Output>>(&self) -> C {
         self.par_iter_values().collect()
     }

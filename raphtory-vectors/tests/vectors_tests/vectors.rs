@@ -1,16 +1,16 @@
 #[cfg(test)]
 mod vector_tests {
     use raphtory::prelude::*;
+    use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_vectors::{
-            cache::{CachedEmbeddingModel, VectorCache},
-            custom::serve_custom_embedding,
-            embeddings::ModelConfig,
-            storage::OpenAIEmbeddings,
-            template::DocumentTemplate,
-            vector_selection::noop_executor,
+        cache::{CachedEmbeddingModel, VectorCache},
+        custom::serve_custom_embedding,
+        embeddings::ModelConfig,
+        storage::OpenAIEmbeddings,
+        template::DocumentTemplate,
+        vector_selection::noop_executor,
         vectorisable::Vectorisable,
     };
-    use raphtory_api::core::entities::properties::prop::Prop;
     use std::time::Duration;
     use tokio;
 

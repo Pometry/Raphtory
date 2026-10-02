@@ -264,21 +264,9 @@ where
                                     e.time().unwrap().t(),
                                 )
                             } else if src_id == uid {
-                                TriangleEdge::new(
-                                    true,
-                                    1,
-                                    0,
-                                    1,
-                                    e.time().unwrap().t(),
-                                )
+                                TriangleEdge::new(true, 1, 0, 1, e.time().unwrap().t())
                             } else {
-                                TriangleEdge::new(
-                                    true,
-                                    0,
-                                    0,
-                                    0,
-                                    e.time().unwrap().t(),
-                                )
+                                TriangleEdge::new(true, 0, 0, 0, e.time().unwrap().t())
                             }
                         })
                         .collect::<Vec<TriangleEdge>>();

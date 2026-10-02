@@ -1,13 +1,16 @@
-use crate::errors::{VectorError, VectorResult};
 use super::{
     cache::VectorCache,
     entity_db::{EdgeDb, NodeDb},
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
 };
-use raphtory::{db::api::view::StaticGraphViewOps,};
-use crate::{embeddings::ModelConfig, vector_collection::lancedb::LanceDb, vector_collection::VectorCollectionFactory};
+use crate::errors::{VectorError, VectorResult};
+use crate::{
+    embeddings::ModelConfig, vector_collection::lancedb::LanceDb,
+    vector_collection::VectorCollectionFactory,
+};
 use async_openai::config::{OpenAIConfig, OPENAI_API_BASE};
+use raphtory::db::api::view::StaticGraphViewOps;
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},

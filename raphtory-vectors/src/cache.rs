@@ -213,13 +213,15 @@ fn build_model_cache() -> Arc<Cache<ModelConfig, ModelConfig>> {
 
 #[derive(Clone)]
 pub struct CachedEmbeddingModel {
-    #[doc(hidden)] // pub for raphtory-tests
-    pub cache: VectorCache,
-    #[doc(hidden)] // pub for raphtory-tests
-    pub model: ModelConfig,
+    cache: VectorCache,
+    pub(super) model: ModelConfig,
 }
 
 impl CachedEmbeddingModel {
+    pub fn new(cache: VectorCache, model: ModelConfig) -> Self {
+        Self { cache, model }
+    }
+
     pub fn dim(&self) -> Option<usize> {
         self.model.dim()
     }

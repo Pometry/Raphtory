@@ -1,11 +1,19 @@
-use crate::errors::{VectorError, VectorResult};
 use super::{
     entity_db::{EdgeDb, NodeDb},
     storage::{collection_names, db_path, meta_path, VectorMeta},
 };
-use raphtory::{db::api::view::internal::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
-use crate::{cache::CachedEmbeddingModel, embeddings::compute_embeddings, entity_db::EntityDb, template::DocumentTemplate, vector_collection::lancedb::LanceDb, vector_collection::CollectionPath, vector_collection::LanceDbCollection, vector_collection::VectorCollection, vector_collection::VectorCollectionFactory, vectorised_graph::VectorisedGraph};
+use crate::errors::{VectorError, VectorResult};
+use crate::{
+    cache::CachedEmbeddingModel, embeddings::compute_embeddings, entity_db::EntityDb,
+    template::DocumentTemplate, vector_collection::lancedb::LanceDb,
+    vector_collection::CollectionPath, vector_collection::LanceDbCollection,
+    vector_collection::VectorCollection, vector_collection::VectorCollectionFactory,
+    vectorised_graph::VectorisedGraph,
+};
 use async_trait::async_trait;
+use raphtory::{
+    db::api::view::internal::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps,
+};
 use roaring::RoaringTreemap;
 use std::{path::Path, sync::Arc};
 use tracing::info;
