@@ -3,13 +3,14 @@ use crate::{
         api::view::internal::{GraphView, Static},
         graph::views::filter::model::{
             edge_expr::{ops::EdgeEndpointNodeOp, EdgeOp},
+            expr::DynCreateHistory,
             latest_filter::Latest,
             layered_filter::Layered,
             node_expr::{CreateOp, EntityExpr, PredicateLhs},
             node_filter::NodeFilter,
             snapshot_filter::{SnapshotAt, SnapshotLatest},
             windowed_filter::Windowed,
-            ComposableFilter, EntityMarker, InternalViewWrapOps, Wrap,
+            EntityMarker, InternalViewWrapOps, Wrap,
         },
     },
     errors::GraphError,
@@ -138,8 +139,6 @@ impl<M> Wrap for EdgeEndpointWrapper<M> {
     }
 }
 
-impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: Clone + Send + Sync {}
-
 // ── expr layer: endpoint expressions bridge node ops into edge ops ──
 
 impl<T: PredicateLhs> PredicateLhs for EdgeEndpointWrapper<T> {}
@@ -161,6 +160,12 @@ impl<T: CreateOp> CreateOp for EdgeEndpointWrapper<T> {
             node_op,
             endpoint: self.endpoint,
         }))
+    }
+
+    /// A history read on the node at this end of the edge.
+    fn history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        let inner = self.inner.history()?;
+        Some(Arc::new(EdgeEndpointWrapper::new(inner, self.endpoint)))
     }
 }
 

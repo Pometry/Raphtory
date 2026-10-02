@@ -19,20 +19,26 @@
 //! which `Any` or `All` turn into a `Bool`. A [`FilterExpr`] accepts an
 //! expression only when it is a `Bool`. Property types are known only once a
 //! graph is at hand, so that check runs when the filter is built against a
-//! graph, in [`compile`].
+//! graph.
+//!
+//! The tree is data, not a second compiler: compiling it builds the typed
+//! expressions of the rust API (`BinaryCmpExpr`, `AnyExpr`, …) over erased
+//! terms, and those compile themselves. See [`compile`].
 
 mod compile;
-pub mod convert;
 mod display;
-mod stream;
+pub(crate) mod stream;
 #[cfg(test)]
 mod tests;
 
 pub use compile::Leaf;
-pub use convert::{FactoryLeaf, MarkerLeaf, ToExpr, ToFilterExpr};
-pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory};
+pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory, ValueTest};
 
-use super::DynCreateFilter;
+use super::{
+    filter_operator::{BinaryOp, StringOp},
+    node_expr::{CreateOp, DynCreateOp},
+    EntityMarker,
+};
 use raphtory_api::core::{
     entities::properties::prop::Prop, storage::timeindex::EventTime, Direction,
 };
@@ -81,38 +87,25 @@ pub enum Agg {
     Latest,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CmpOp {
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StrOp {
-    StartsWith,
-    EndsWith,
-    Contains,
-    NotContains,
-    FuzzySearch {
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    },
-}
-
-/// An already compiled filter carried inside a tree. It exists for filters
-/// built from data that lives only in this process, so it runs but does not
+/// A yes/no expression already built in this process, carried inside a tree:
+/// a filter over in-process state (a node-state column). It runs but does not
 /// serialise: asking for its wire form is an error, not a guess.
 #[derive(Clone)]
-pub struct OpaqueFilter(pub Arc<dyn DynCreateFilter>);
+pub struct OpaqueFilter(pub Arc<dyn DynCreateOp>);
 
 pub const OPAQUE_FILTER_ERROR: &str =
     "this filter has no server-side form; it was built from in-process state";
+
+impl OpaqueFilter {
+    pub fn new<E: CreateOp>(expr: E) -> Self {
+        OpaqueFilter(Arc::new(expr))
+    }
+
+    /// The entity the expression answers for.
+    pub fn entity(&self) -> EntityMarker {
+        self.0.dyn_entity()
+    }
+}
 
 impl fmt::Debug for OpaqueFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -144,8 +137,8 @@ impl<'de> Deserialize<'de> for OpaqueFilter {
 pub enum Expr<L> {
     Const(Prop),
     Agg(Agg, Box<Expr<L>>),
-    Cmp(CmpOp, Box<Expr<L>>, Box<Expr<L>>),
-    Str(StrOp, Box<Expr<L>>, Box<Expr<L>>),
+    Cmp(BinaryOp, Box<Expr<L>>, Box<Expr<L>>),
+    Str(StringOp, Box<Expr<L>>, Box<Expr<L>>),
     In {
         expr: Box<Expr<L>>,
         values: Vec<Prop>,
@@ -298,8 +291,8 @@ pub enum FilterExpr {
     Or(Vec<FilterExpr>),
     /// The filter that keeps what the inner one drops, one question at a time.
     Not(Box<FilterExpr>),
-    /// A filter over in-process state (a node-state column) that has no wire
-    /// form: it runs where it was built and cannot be sent anywhere.
+    /// A yes/no expression built in this process (a node-state column) that
+    /// has no wire form: it runs where it was built and cannot be sent anywhere.
     Opaque(OpaqueFilter),
 }
 
@@ -320,7 +313,11 @@ impl FilterExpr {
     pub fn tests_edges(&self) -> bool {
         match self {
             FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => true,
-            FilterExpr::Node(_) | FilterExpr::View(_) | FilterExpr::Opaque(_) => false,
+            FilterExpr::Opaque(filter) => matches!(
+                filter.entity(),
+                EntityMarker::Edge | EntityMarker::ExplodedEdge
+            ),
+            FilterExpr::Node(_) | FilterExpr::View(_) => false,
             FilterExpr::And(items) | FilterExpr::Or(items) => items.iter().any(Self::tests_edges),
             FilterExpr::Not(inner) => inner.tests_edges(),
         }

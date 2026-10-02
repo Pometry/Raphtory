@@ -1,9 +1,13 @@
 //! A readable rendering of an expression, for logs, errors and tests.
 
-use super::{
-    Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, StrOp, ViewOp,
+use super::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp};
+use crate::{
+    db::graph::views::filter::model::{
+        filter_operator::{BinaryOp, StringOp},
+        layered_filter::layer_label,
+    },
+    prelude::Layer,
 };
-use crate::{db::graph::views::filter::model::layered_filter::layer_label, prelude::Layer};
 use raphtory_api::core::{storage::timeindex::AsTime, Direction};
 use std::fmt::{self, Display};
 
@@ -137,22 +141,22 @@ impl<L: Display> Display for Expr<L> {
             }
             Expr::Cmp(op, l, r) => {
                 let sym = match op {
-                    CmpOp::Eq => "==",
-                    CmpOp::Ne => "!=",
-                    CmpOp::Lt => "<",
-                    CmpOp::Le => "<=",
-                    CmpOp::Gt => ">",
-                    CmpOp::Ge => ">=",
+                    BinaryOp::Eq => "==",
+                    BinaryOp::Ne => "!=",
+                    BinaryOp::Lt => "<",
+                    BinaryOp::Le => "<=",
+                    BinaryOp::Gt => ">",
+                    BinaryOp::Ge => ">=",
                 };
                 write!(f, "{l} {sym} {r}")
             }
             Expr::Str(op, l, r) => {
                 let name = match op {
-                    StrOp::StartsWith => "STARTS_WITH".to_string(),
-                    StrOp::EndsWith => "ENDS_WITH".to_string(),
-                    StrOp::Contains => "CONTAINS".to_string(),
-                    StrOp::NotContains => "NOT_CONTAINS".to_string(),
-                    StrOp::FuzzySearch {
+                    StringOp::StartsWith => "STARTS_WITH".to_string(),
+                    StringOp::EndsWith => "ENDS_WITH".to_string(),
+                    StringOp::Contains => "CONTAINS".to_string(),
+                    StringOp::NotContains => "NOT_CONTAINS".to_string(),
+                    StringOp::FuzzySearch {
                         levenshtein_distance,
                         prefix_match,
                     } => format!("FUZZY_SEARCH[{levenshtein_distance}, {prefix_match}]"),

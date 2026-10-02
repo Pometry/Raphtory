@@ -157,12 +157,12 @@ fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
 
 #[test]
 fn const_expr_works() {
-    let filter = BinaryCmpExpr::new(
+    let filter = Predicate::new(BinaryCmpExpr::new(
         ConstExpr(2usize),
         BinaryOp::Eq,
         ConstExpr(2usize),
         NodeFilter,
-    );
+    ));
     let g = build_test_graph();
     assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);
 }

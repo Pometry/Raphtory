@@ -122,7 +122,7 @@ fn degree(direction: Direction) -> NodeExpr {
     })
 }
 
-fn cmp<L>(op: CmpOp, l: Expr<L>, r: Expr<L>) -> Expr<L> {
+fn cmp<L>(op: BinaryOp, l: Expr<L>, r: Expr<L>) -> Expr<L> {
     Expr::Cmp(op, Box::new(l), Box::new(r))
 }
 
@@ -156,11 +156,11 @@ fn window(start: i64, end: i64) -> ViewOp {
 #[test]
 fn a_constant_comparison_reads_the_latest_value() {
     let g = graph();
-    let f = node(cmp(CmpOp::Gt, prop("score"), c(4.0)));
+    let f = node(cmp(BinaryOp::Gt, prop("score"), c(4.0)));
     assert_eq!(nodes(&g, &f), ["alice"]);
     assert_eq!(f.to_string(), "NODE(score > 4)");
     // The constant may stand on either side.
-    let f = node(cmp(CmpOp::Lt, c(4.0), prop("score")));
+    let f = node(cmp(BinaryOp::Lt, c(4.0), prop("score")));
     assert_eq!(nodes(&g, &f), ["alice"]);
 }
 
@@ -173,7 +173,7 @@ fn views_scope_the_term_not_the_result() {
         temporal: false,
     });
     // inside [0,5): alice's latest score is 7, bob's is 5
-    let f = node(cmp(CmpOp::Gt, windowed, c(4.0)));
+    let f = node(cmp(BinaryOp::Gt, windowed, c(4.0)));
     assert_eq!(nodes(&g, &f), ["alice", "bob"]);
     assert_eq!(f.to_string(), "NODE(WINDOW[0..5](score) > 4)");
 }
@@ -182,13 +182,13 @@ fn views_scope_the_term_not_the_result() {
 fn both_sides_may_be_expressions() {
     let g = graph();
     let f = node(cmp(
-        CmpOp::Gt,
+        BinaryOp::Gt,
         degree(Direction::BOTH),
         degree(Direction::IN),
     ));
     assert_eq!(nodes(&g, &f), ["alice", "bob", "carol"]);
     // A degree compares by value with a fractional constant.
-    let f = node(cmp(CmpOp::Ge, degree(Direction::BOTH), c(1.5)));
+    let f = node(cmp(BinaryOp::Ge, degree(Direction::BOTH), c(1.5)));
     assert_eq!(nodes(&g, &f), ["bob", "carol"]);
 }
 
@@ -196,7 +196,7 @@ fn both_sides_may_be_expressions() {
 fn string_and_set_tests() {
     let g = graph();
     let starts = node(Expr::Str(
-        StrOp::StartsWith,
+        StringOp::StartsWith,
         Box::new(field(Field::Name)),
         Box::new(c("a")),
     ));
@@ -214,7 +214,7 @@ fn string_and_set_tests() {
     });
     assert_eq!(nodes(&g, &others), ["bob", "carol", "eve"]);
     // Naming ids outright narrows the scan to those nodes and still answers.
-    let by_id = node(cmp(CmpOp::Eq, field(Field::Id), c("bob")));
+    let by_id = node(cmp(BinaryOp::Eq, field(Field::Id), c("bob")));
     assert_eq!(nodes(&g, &by_id), ["bob"]);
     let by_ids = node(Expr::In {
         expr: Box::new(field(Field::Id)),
@@ -233,21 +233,25 @@ fn presence_and_combinators() {
     assert_eq!(nodes(&g, &no_score), ["carol", "eve"]);
     // Inside one entity's expression.
     let both = node(Expr::And(vec![
-        cmp(CmpOp::Gt, prop("score"), c(1.5)),
-        cmp(CmpOp::Lt, prop("score"), c(8.0)),
+        cmp(BinaryOp::Gt, prop("score"), c(1.5)),
+        cmp(BinaryOp::Lt, prop("score"), c(8.0)),
     ]));
     assert_eq!(nodes(&g, &both), ["bob"]);
     let either = node(Expr::Or(vec![
-        cmp(CmpOp::Gt, prop("score"), c(8.0)),
+        cmp(BinaryOp::Gt, prop("score"), c(8.0)),
         Expr::IsNone(Box::new(prop("score"))),
     ]));
     assert_eq!(nodes(&g, &either), ["alice", "carol", "eve"]);
-    let not = node(Expr::Not(Box::new(cmp(CmpOp::Gt, prop("score"), c(1.5)))));
+    let not = node(Expr::Not(Box::new(cmp(
+        BinaryOp::Gt,
+        prop("score"),
+        c(1.5),
+    ))));
     assert_eq!(nodes(&g, &not), ["carol", "dave", "eve"]);
     // And across filters.
     let f = FilterExpr::And(vec![
-        node(cmp(CmpOp::Gt, prop("score"), c(1.5))),
-        FilterExpr::Not(Box::new(node(cmp(CmpOp::Gt, prop("score"), c(8.0))))),
+        node(cmp(BinaryOp::Gt, prop("score"), c(1.5))),
+        FilterExpr::Not(Box::new(node(cmp(BinaryOp::Gt, prop("score"), c(8.0))))),
     ]);
     assert_eq!(nodes(&g, &f), ["bob"]);
 }
@@ -257,13 +261,13 @@ fn qualifiers_follow_the_comparison() {
     let g = graph();
     // alice 3,7,9 · bob 5,2 · dave 1,1
     let any_high = node(Expr::Any(Box::new(cmp(
-        CmpOp::Gt,
+        BinaryOp::Gt,
         history("score"),
         c(8.0),
     ))));
     assert_eq!(nodes(&g, &any_high), ["alice"]);
     let all_over_two = node(Expr::All(Box::new(cmp(
-        CmpOp::Gt,
+        BinaryOp::Gt,
         history("score"),
         c(2.5),
     ))));
@@ -276,14 +280,18 @@ fn qualifiers_follow_the_comparison() {
     assert_eq!(nodes(&g, &any_member), ["bob", "dave"]);
     // An element-wise result is a list of answers, not a filter, until it is
     // collapsed.
-    let bare = node(cmp(CmpOp::Gt, history("score"), c(8.0)));
+    let bare = node(cmp(BinaryOp::Gt, history("score"), c(8.0)));
     assert!(
         error(&g, &bare).contains("List<Bool>"),
         "{}",
         error(&g, &bare)
     );
     // any()/all() over a plain yes/no has nothing to collapse.
-    let scalar = node(Expr::Any(Box::new(cmp(CmpOp::Gt, prop("score"), c(8.0)))));
+    let scalar = node(Expr::Any(Box::new(cmp(
+        BinaryOp::Gt,
+        prop("score"),
+        c(8.0),
+    ))));
     assert!(error(&g, &scalar).contains("any()/all()"));
     assert_eq!(any_high.to_string(), "NODE(ANY(TEMPORAL(score) > 8))");
 }
@@ -292,34 +300,38 @@ fn qualifiers_follow_the_comparison() {
 fn aggregates_over_history_and_over_lists_of_lists() {
     let g = graph();
     let sum = Expr::Agg(Agg::Sum, Box::new(history("score")));
-    let f = node(cmp(CmpOp::Ge, sum, c(10.0)));
+    let f = node(cmp(BinaryOp::Ge, sum, c(10.0)));
     assert_eq!(nodes(&g, &f), ["alice"]);
     let len = Expr::Agg(Agg::Len, Box::new(history("score")));
-    let f = node(cmp(CmpOp::Eq, len, c(2u64)));
+    let f = node(cmp(BinaryOp::Eq, len, c(2u64)));
     assert_eq!(nodes(&g, &f), ["bob", "dave"]);
     // eve.scores is a list per update: the history is a list of lists, the
     // sum is one number per update, and the comparison is one answer per
     // update that any()/all() collapse.
     let sums = Expr::Agg(Agg::Sum, Box::new(history("scores")));
-    let any_big = node(Expr::Any(Box::new(cmp(CmpOp::Ge, sums.clone(), c(5i64)))));
+    let any_big = node(Expr::Any(Box::new(cmp(
+        BinaryOp::Ge,
+        sums.clone(),
+        c(5i64),
+    ))));
     assert_eq!(nodes(&g, &any_big), ["eve"]);
-    let all_big = node(Expr::All(Box::new(cmp(CmpOp::Ge, sums, c(5i64)))));
+    let all_big = node(Expr::All(Box::new(cmp(BinaryOp::Ge, sums, c(5i64)))));
     assert_eq!(nodes(&g, &all_big), Vec::<String>::new());
 }
 
 #[test]
 fn edges_endpoints_and_structure() {
     let g = graph();
-    let heavy = FilterExpr::Edge(cmp(CmpOp::Gt, edge_prop("w"), Expr::Const(1i64.into())));
+    let heavy = FilterExpr::Edge(cmp(BinaryOp::Gt, edge_prop("w"), Expr::Const(1i64.into())));
     assert_eq!(edges(&g, &heavy), ["alice->bob", "carol->dave"]);
     let from_alice = FilterExpr::Edge(cmp(
-        CmpOp::Eq,
+        BinaryOp::Eq,
         src(field(Field::Name)),
         Expr::Const("alice".into()),
     ));
     assert_eq!(edges(&g, &from_alice), ["alice->bob"]);
     // Two endpoint values compare at the edge level.
-    let downhill = FilterExpr::Edge(cmp(CmpOp::Gt, src(prop("score")), dst(prop("score"))));
+    let downhill = FilterExpr::Edge(cmp(BinaryOp::Gt, src(prop("score")), dst(prop("score"))));
     assert_eq!(edges(&g, &downhill), ["alice->bob"]);
     // A node predicate through an endpoint is an edge predicate.
     let into_scored = FilterExpr::Edge(dst(Expr::IsSome(Box::new(prop("score")))));
@@ -330,7 +342,7 @@ fn edges_endpoints_and_structure() {
     assert_eq!(edges(&g, &works), ["bob->carol"]);
     assert_eq!(works.to_string(), "EDGE(LAYER[works](IS_ACTIVE))");
     let exploded = FilterExpr::ExplodedEdge(cmp(
-        CmpOp::Eq,
+        BinaryOp::Eq,
         Expr::Term(ExplodedEdgeLeaf::Property {
             views: vec![],
             name: "w".into(),
@@ -347,7 +359,7 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
     let g = graph();
     let cases: Vec<(FilterExpr, &str)> = vec![
         (
-            node(cmp(CmpOp::Gt, prop("score"), c("x"))),
+            node(cmp(BinaryOp::Gt, prop("score"), c("x"))),
             "cannot be compared with F64",
         ),
         (node(prop("score")), "needs a yes/no answer"),
@@ -357,7 +369,7 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
         ),
         (
             node(Expr::Str(
-                StrOp::Contains,
+                StringOp::Contains,
                 Box::new(prop("score")),
                 Box::new(c("x")),
             )),
@@ -365,13 +377,16 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
         ),
         (
             node(Expr::Str(
-                StrOp::Contains,
+                StringOp::Contains,
                 Box::new(field(Field::Name)),
                 Box::new(c(3i64)),
             )),
             "cannot be compared with Str",
         ),
-        (node(cmp(CmpOp::Gt, prop("scores"), c(1i64))), "List<Bool>"),
+        (
+            node(cmp(BinaryOp::Gt, prop("scores"), c(1i64))),
+            "List<Bool>",
+        ),
         (
             node(Expr::And(vec![prop("score"), c(true)])),
             "and needs a yes/no answer",
@@ -387,7 +402,7 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
 #[test]
 fn a_view_leg_restricts_the_whole_filter() {
     let g = graph();
-    let score_gt_4 = node(cmp(CmpOp::Gt, prop("score"), c(4.0)));
+    let score_gt_4 = node(cmp(BinaryOp::Gt, prop("score"), c(4.0)));
     let win = FilterExpr::View(vec![window(0, 7)]);
     // The view applies first and the predicate runs inside it.
     let f = FilterExpr::And(vec![win.clone(), score_gt_4.clone()]);
@@ -409,7 +424,7 @@ fn a_view_leg_restricts_the_whole_filter() {
 fn trees_round_trip_through_json_with_the_term_as_the_key() {
     let f = FilterExpr::And(vec![
         node(Expr::Any(Box::new(cmp(
-            CmpOp::Gt,
+            BinaryOp::Gt,
             Expr::Term(NodeLeaf::Property {
                 views: vec![window(0, 5)],
                 name: "score".into(),
@@ -418,7 +433,7 @@ fn trees_round_trip_through_json_with_the_term_as_the_key() {
             c(4.0),
         )))),
         FilterExpr::Edge(cmp(
-            CmpOp::Eq,
+            BinaryOp::Eq,
             src(field(Field::Name)),
             Expr::Const("alice".into()),
         )),
@@ -439,7 +454,7 @@ fn trees_round_trip_through_json_with_the_term_as_the_key() {
 
 #[test]
 fn an_opaque_filter_refuses_to_serialise() {
-    let f = FilterExpr::Opaque(OpaqueFilter(node(c(true)).compile().unwrap()));
+    let f = FilterExpr::Opaque(OpaqueFilter::new(NodeFilter.property("tag").is_some()));
     let err = serde_json::to_string(&f).unwrap_err().to_string();
     assert!(err.contains(OPAQUE_FILTER_ERROR));
 }
@@ -535,7 +550,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         nodes(
             &g,
             &node(Expr::Any(Box::new(cmp(
-                CmpOp::Eq,
+                BinaryOp::Eq,
                 scores(Agg::First),
                 c(1i64)
             ))))
@@ -546,7 +561,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         nodes(
             &g,
             &node(Expr::All(Box::new(cmp(
-                CmpOp::Eq,
+                BinaryOp::Eq,
                 scores(Agg::Last),
                 c(5i64)
             ))))
@@ -557,7 +572,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         nodes(
             &g,
             &node(Expr::Any(Box::new(cmp(
-                CmpOp::Eq,
+                BinaryOp::Eq,
                 scores(Agg::Len),
                 c(2i64)
             ))))
@@ -577,7 +592,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         nodes(
             &g,
             &node(cmp(
-                CmpOp::Eq,
+                BinaryOp::Eq,
                 scores(Agg::Earliest),
                 Expr::Const(list(&[1, 2]))
             ))
@@ -588,7 +603,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         nodes(
             &g,
             &node(cmp(
-                CmpOp::Eq,
+                BinaryOp::Eq,
                 scores(Agg::Latest),
                 Expr::Const(list(&[5, 5]))
             ))
@@ -598,14 +613,14 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
     // On a scalar history the two readings agree.
     let score = |agg: Agg| Expr::Agg(agg, Box::new(history("score")));
     assert_eq!(
-        nodes(&g, &node(cmp(CmpOp::Eq, score(Agg::Earliest), c(3.0)))),
-        nodes(&g, &node(cmp(CmpOp::Eq, score(Agg::First), c(3.0))))
+        nodes(&g, &node(cmp(BinaryOp::Eq, score(Agg::Earliest), c(3.0)))),
+        nodes(&g, &node(cmp(BinaryOp::Eq, score(Agg::First), c(3.0))))
     );
     // An update is only a thing on a temporal history.
     let msg = error(
         &g,
         &node(cmp(
-            CmpOp::Eq,
+            BinaryOp::Eq,
             Expr::Agg(Agg::Latest, Box::new(prop("scores"))),
             c(1i64),
         )),
@@ -626,10 +641,10 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
 fn filters_answer_the_node_and_edge_questions_separately() {
     use crate::db::api::view::{DynamicGraph, IntoDynamic};
     let g = graph();
-    let score_gt = |v: f64| node(cmp(CmpOp::Gt, prop("score"), c(v)));
-    let score_lt = |v: f64| node(cmp(CmpOp::Lt, prop("score"), c(v)));
+    let score_gt = |v: f64| node(cmp(BinaryOp::Gt, prop("score"), c(v)));
+    let score_lt = |v: f64| node(cmp(BinaryOp::Lt, prop("score"), c(v)));
     let ec = |v: i64| -> EdgeExpr { Expr::Const(v.into()) };
-    let w_gt = |v: i64| FilterExpr::Edge(cmp(CmpOp::Gt, edge_prop("w"), ec(v)));
+    let w_gt = |v: i64| FilterExpr::Edge(cmp(BinaryOp::Gt, edge_prop("w"), ec(v)));
     let not = |f: FilterExpr| FilterExpr::Not(Box::new(f));
     let names = |v: &DynamicGraph| {
         let mut n: Vec<String> = v.nodes().iter().map(|n| n.name()).collect();
@@ -758,7 +773,7 @@ fn not_over_an_exploded_predicate_keeps_the_other_instances() {
     let g = graph();
     // alice→bob w=1@1 w=2@4 · bob→carol w=1@2 · carol→dave w=3@6
     let w_gt_1 = FilterExpr::ExplodedEdge(cmp(
-        CmpOp::Gt,
+        BinaryOp::Gt,
         Expr::Term(ExplodedEdgeLeaf::Property {
             views: vec![],
             name: "w".into(),
@@ -796,7 +811,7 @@ fn not_over_an_exploded_predicate_keeps_the_other_instances() {
 fn a_view_under_not_is_refused_inside_a_composite_too() {
     let g = graph();
     let win = FilterExpr::View(vec![window(0, 5)]);
-    let pred = node(cmp(CmpOp::Gt, prop("score"), c(1.5)));
+    let pred = node(cmp(BinaryOp::Gt, prop("score"), c(1.5)));
     let f = FilterExpr::Not(Box::new(FilterExpr::And(vec![win, pred])));
     assert!(error(&g, &f).contains("view"));
 }
@@ -806,8 +821,8 @@ fn a_view_under_not_is_refused_inside_a_composite_too() {
 #[test]
 fn a_node_collection_refuses_a_filter_that_tests_edges() {
     let g = graph();
-    let score_gt = |v: f64| node(cmp(CmpOp::Gt, prop("score"), c(v)));
-    let w_gt_2 = FilterExpr::Edge(cmp(CmpOp::Gt, edge_prop("w"), Expr::Const(2i64.into())));
+    let score_gt = |v: f64| node(cmp(BinaryOp::Gt, prop("score"), c(v)));
+    let w_gt_2 = FilterExpr::Edge(cmp(BinaryOp::Gt, edge_prop("w"), Expr::Const(2i64.into())));
     let refused = |f: FilterExpr| {
         matches!(
             g.nodes().select(f).map(|_| ()),
@@ -970,7 +985,7 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
             "tree: window name == late",
             Box::new(|| {
                 Arc::new(node(cmp(
-                    CmpOp::Eq,
+                    BinaryOp::Eq,
                     Expr::Term(NodeLeaf::Field {
                         views: vec![window(0, 5)],
                         field: Field::Name,

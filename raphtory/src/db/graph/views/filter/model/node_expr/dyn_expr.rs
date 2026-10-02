@@ -11,11 +11,8 @@ use crate::{
         graph::views::filter::model::{
             edge_expr::EdgeOp,
             edge_filter::EdgeEndpointWrapper,
-            expr::DynCreateHistory,
-            node_expr::{
-                AvgExpr, CreateOp, EntityAggOps, EntityExpr, FirstExpr, LastExpr, LenExpr, MaxExpr,
-                MinExpr, SumExpr,
-            },
+            expr::{DynCreateHistory, ValueTest},
+            node_expr::{CreateOp, EntityAggOps, EntityExpr, IndexQuery, IndexTerm, Pushdown},
             CreateView, EntityMarker, PropertyExpr,
         },
     },
@@ -28,6 +25,7 @@ pub trait DynEntityExpr: Send + Sync + 'static {
     fn dyn_entity(&self) -> EntityMarker;
     fn dyn_prop_type(&self) -> PropType;
     fn dyn_nullable(&self) -> bool;
+    fn dyn_constant(&self) -> Option<Prop>;
 }
 
 impl<E: EntityExpr<Marker: Into<EntityMarker>>> DynEntityExpr for E {
@@ -41,6 +39,10 @@ impl<E: EntityExpr<Marker: Into<EntityMarker>>> DynEntityExpr for E {
 
     fn dyn_nullable(&self) -> bool {
         self.nullable()
+    }
+
+    fn dyn_constant(&self) -> Option<Prop> {
+        self.constant()
     }
 }
 
@@ -91,7 +93,7 @@ impl DynTemporal for EdgeEndpointWrapper<Arc<dyn DynTemporal>> {
 
     fn history(&self) -> Arc<dyn DynCreateHistory> {
         Arc::new(EdgeEndpointWrapper::new(
-            self.inner.history(),
+            DynTemporal::history(self.inner.as_ref()),
             self.endpoint(),
         ))
     }
@@ -107,6 +109,12 @@ pub trait DynCreateOp: DynEntityExpr {
         &self,
         graph: Arc<dyn BoxableGraphView + 'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError>;
+
+    fn dyn_history(&self) -> Option<Arc<dyn DynCreateHistory>>;
+    fn dyn_index_term(&self) -> Option<IndexTerm>;
+    fn dyn_index_query(&self) -> Option<IndexQuery>;
+    fn dyn_pushdown(&self) -> Option<Pushdown>;
+    fn dyn_value_test(&self) -> Option<(Arc<dyn DynCreateHistory>, ValueTest)>;
 }
 
 impl<E: CreateOp> DynCreateOp for E {
@@ -122,6 +130,26 @@ impl<E: CreateOp> DynCreateOp for E {
         graph: Arc<dyn BoxableGraphView + 'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.create_edge_op(graph)
+    }
+
+    fn dyn_history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        self.history()
+    }
+
+    fn dyn_index_term(&self) -> Option<IndexTerm> {
+        self.index_term()
+    }
+
+    fn dyn_index_query(&self) -> Option<IndexQuery> {
+        self.index_query()
+    }
+
+    fn dyn_pushdown(&self) -> Option<Pushdown> {
+        self.pushdown()
+    }
+
+    fn dyn_value_test(&self) -> Option<(Arc<dyn DynCreateHistory>, ValueTest)> {
+        self.value_test()
     }
 }
 
@@ -139,6 +167,10 @@ impl<T: DynEntityExpr + ?Sized> EntityExpr for Arc<T> {
     fn nullable(&self) -> bool {
         self.deref().dyn_nullable()
     }
+
+    fn constant(&self) -> Option<Prop> {
+        self.deref().dyn_constant()
+    }
 }
 
 impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
@@ -155,28 +187,26 @@ impl<T: DynCreateOp + ?Sized> CreateOp for Arc<T> {
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.deref().dyn_create_edge_op(graph.into_dyn_graph_arc())
     }
+
+    fn history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        self.deref().dyn_history()
+    }
+
+    fn index_term(&self) -> Option<IndexTerm> {
+        self.deref().dyn_index_term()
+    }
+
+    fn index_query(&self) -> Option<IndexQuery> {
+        self.deref().dyn_index_query()
+    }
+
+    fn pushdown(&self) -> Option<Pushdown> {
+        self.deref().dyn_pushdown()
+    }
+
+    fn value_test(&self) -> Option<(Arc<dyn DynCreateHistory>, ValueTest)> {
+        self.deref().dyn_value_test()
+    }
 }
 
-impl<T: DynCreateOp + ?Sized> EntityAggOps for Arc<T> {
-    fn sum(self) -> SumExpr<Self> {
-        SumExpr(self)
-    }
-    fn avg(self) -> AvgExpr<Self> {
-        AvgExpr(self)
-    }
-    fn min(self) -> MinExpr<Self> {
-        MinExpr(self)
-    }
-    fn max(self) -> MaxExpr<Self> {
-        MaxExpr(self)
-    }
-    fn first(self) -> FirstExpr<Self> {
-        FirstExpr(self)
-    }
-    fn last(self) -> LastExpr<Self> {
-        LastExpr(self)
-    }
-    fn len(self) -> LenExpr<Self> {
-        LenExpr(self)
-    }
-}
+impl<T: DynCreateOp + ?Sized> EntityAggOps for Arc<T> {}

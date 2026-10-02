@@ -27,9 +27,12 @@ use raphtory::{
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
-            model::expr::{
-                self, Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, Leaf, NodeLeaf, StrOp,
-                ViewOp, OPAQUE_FILTER_ERROR,
+            model::{
+                expr::{
+                    self, Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, Leaf, NodeLeaf, ViewOp,
+                    OPAQUE_FILTER_ERROR,
+                },
+                filter_operator::{BinaryOp, StringOp},
             },
             CreateFilter, DynEdgeFilter,
         },
@@ -283,14 +286,14 @@ macro_rules! entity_expr_input {
                 let inner = |w: Wrapped<$expr>| -> Result<Box<Expr<$leaf>>, GraphError> {
                     Ok(Box::new(Expr::try_from(w.into_inner())?))
                 };
-                let cmp = |op: CmpOp, c: $cmp| -> Result<Expr<$leaf>, GraphError> {
+                let cmp = |op: BinaryOp, c: $cmp| -> Result<Expr<$leaf>, GraphError> {
                     Ok(Expr::Cmp(
                         op,
                         Box::new(Expr::try_from(c.lhs.into_inner())?),
                         Box::new(Expr::try_from(c.rhs.into_inner())?),
                     ))
                 };
-                let str_op = |op: StrOp, c: $cmp| -> Result<Expr<$leaf>, GraphError> {
+                let str_op = |op: StringOp, c: $cmp| -> Result<Expr<$leaf>, GraphError> {
                     Ok(Expr::Str(
                         op,
                         Box::new(Expr::try_from(c.lhs.into_inner())?),
@@ -337,18 +340,18 @@ macro_rules! entity_expr_input {
                     $expr::Len(e) => Expr::Agg(Agg::Len, inner(e)?),
                     $expr::Earliest(e) => Expr::Agg(Agg::Earliest, inner(e)?),
                     $expr::Latest(e) => Expr::Agg(Agg::Latest, inner(e)?),
-                    $expr::Eq(c) => cmp(CmpOp::Eq, c)?,
-                    $expr::Ne(c) => cmp(CmpOp::Ne, c)?,
-                    $expr::Lt(c) => cmp(CmpOp::Lt, c)?,
-                    $expr::Le(c) => cmp(CmpOp::Le, c)?,
-                    $expr::Gt(c) => cmp(CmpOp::Gt, c)?,
-                    $expr::Ge(c) => cmp(CmpOp::Ge, c)?,
-                    $expr::StartsWith(c) => str_op(StrOp::StartsWith, c)?,
-                    $expr::EndsWith(c) => str_op(StrOp::EndsWith, c)?,
-                    $expr::Contains(c) => str_op(StrOp::Contains, c)?,
-                    $expr::NotContains(c) => str_op(StrOp::NotContains, c)?,
+                    $expr::Eq(c) => cmp(BinaryOp::Eq, c)?,
+                    $expr::Ne(c) => cmp(BinaryOp::Ne, c)?,
+                    $expr::Lt(c) => cmp(BinaryOp::Lt, c)?,
+                    $expr::Le(c) => cmp(BinaryOp::Le, c)?,
+                    $expr::Gt(c) => cmp(BinaryOp::Gt, c)?,
+                    $expr::Ge(c) => cmp(BinaryOp::Ge, c)?,
+                    $expr::StartsWith(c) => str_op(StringOp::StartsWith, c)?,
+                    $expr::EndsWith(c) => str_op(StringOp::EndsWith, c)?,
+                    $expr::Contains(c) => str_op(StringOp::Contains, c)?,
+                    $expr::NotContains(c) => str_op(StringOp::NotContains, c)?,
                     $expr::FuzzySearch(f) => Expr::Str(
-                        StrOp::FuzzySearch {
+                        StringOp::FuzzySearch {
                             levenshtein_distance: f.levenshtein_distance,
                             prefix_match: f.prefix_match,
                         },
@@ -413,18 +416,18 @@ macro_rules! entity_expr_input {
                     Expr::Agg(Agg::Len, e) => $expr::Len(inner(e)?),
                     Expr::Agg(Agg::Earliest, e) => $expr::Earliest(inner(e)?),
                     Expr::Agg(Agg::Latest, e) => $expr::Latest(inner(e)?),
-                    Expr::Cmp(CmpOp::Eq, l, r) => $expr::Eq(cmp(l, r)?),
-                    Expr::Cmp(CmpOp::Ne, l, r) => $expr::Ne(cmp(l, r)?),
-                    Expr::Cmp(CmpOp::Lt, l, r) => $expr::Lt(cmp(l, r)?),
-                    Expr::Cmp(CmpOp::Le, l, r) => $expr::Le(cmp(l, r)?),
-                    Expr::Cmp(CmpOp::Gt, l, r) => $expr::Gt(cmp(l, r)?),
-                    Expr::Cmp(CmpOp::Ge, l, r) => $expr::Ge(cmp(l, r)?),
-                    Expr::Str(StrOp::StartsWith, l, r) => $expr::StartsWith(cmp(l, r)?),
-                    Expr::Str(StrOp::EndsWith, l, r) => $expr::EndsWith(cmp(l, r)?),
-                    Expr::Str(StrOp::Contains, l, r) => $expr::Contains(cmp(l, r)?),
-                    Expr::Str(StrOp::NotContains, l, r) => $expr::NotContains(cmp(l, r)?),
+                    Expr::Cmp(BinaryOp::Eq, l, r) => $expr::Eq(cmp(l, r)?),
+                    Expr::Cmp(BinaryOp::Ne, l, r) => $expr::Ne(cmp(l, r)?),
+                    Expr::Cmp(BinaryOp::Lt, l, r) => $expr::Lt(cmp(l, r)?),
+                    Expr::Cmp(BinaryOp::Le, l, r) => $expr::Le(cmp(l, r)?),
+                    Expr::Cmp(BinaryOp::Gt, l, r) => $expr::Gt(cmp(l, r)?),
+                    Expr::Cmp(BinaryOp::Ge, l, r) => $expr::Ge(cmp(l, r)?),
+                    Expr::Str(StringOp::StartsWith, l, r) => $expr::StartsWith(cmp(l, r)?),
+                    Expr::Str(StringOp::EndsWith, l, r) => $expr::EndsWith(cmp(l, r)?),
+                    Expr::Str(StringOp::Contains, l, r) => $expr::Contains(cmp(l, r)?),
+                    Expr::Str(StringOp::NotContains, l, r) => $expr::NotContains(cmp(l, r)?),
                     Expr::Str(
-                        StrOp::FuzzySearch {
+                        StringOp::FuzzySearch {
                             levenshtein_distance,
                             prefix_match,
                         },
@@ -868,6 +871,9 @@ impl CreateFilter for GqlFilter {
 mod tests {
     use super::*;
     use expr::FilterExpr as F;
+    use raphtory::db::graph::views::filter::model::{
+        node_filter::NodeFilter, EntityExprFilterOps, PropertyExprFactory,
+    };
 
     fn degree(direction: Direction) -> Expr<NodeLeaf> {
         Expr::Term(NodeLeaf::Degree {
@@ -880,7 +886,7 @@ mod tests {
     fn a_tree_survives_the_trip_through_the_wire_type_and_json() {
         let tree = F::And(vec![
             F::Node(Expr::Any(Box::new(Expr::Cmp(
-                CmpOp::Gt,
+                BinaryOp::Gt,
                 Box::new(Expr::Agg(
                     Agg::Sum,
                     Box::new(Expr::Term(NodeLeaf::Property {
@@ -895,7 +901,7 @@ mod tests {
                 Box::new(Expr::Const(Prop::F64(10.0))),
             )))),
             F::Node(Expr::Cmp(
-                CmpOp::Gt,
+                BinaryOp::Gt,
                 Box::new(degree(Direction::BOTH)),
                 Box::new(degree(Direction::IN)),
             )),
@@ -913,7 +919,7 @@ mod tests {
                 negated: false,
             }))),
             F::ExplodedEdge(Expr::Str(
-                StrOp::FuzzySearch {
+                StringOp::FuzzySearch {
                     levenshtein_distance: 2,
                     prefix_match: false,
                 },
@@ -936,7 +942,7 @@ mod tests {
     #[test]
     fn the_json_spelling_keys_on_the_entity_and_the_term() {
         let tree = F::Edge(Expr::Cmp(
-            CmpOp::Eq,
+            BinaryOp::Eq,
             Box::new(Expr::Term(EdgeLeaf::Src(Box::new(Expr::Term(
                 NodeLeaf::Property {
                     views: vec![ViewOp::Latest],
@@ -975,8 +981,9 @@ mod tests {
 
     #[test]
     fn an_opaque_filter_has_no_wire_form() {
-        let compiled = F::View(vec![ViewOp::Latest]).compile().unwrap();
-        let opaque = F::Opaque(expr::OpaqueFilter(compiled));
+        let opaque = F::Opaque(expr::OpaqueFilter::new(
+            NodeFilter.property("score").is_some(),
+        ));
         let err = GqlFilter::try_from(&opaque).unwrap_err();
         assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
     }

@@ -1,9 +1,10 @@
 use crate::{
     db::graph::views::filter::model::{
         expr::{
-            Agg, CmpOp, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field,
-            FilterExpr, Leaf, NodeExpr, NodeLeaf, OpaqueFilter, StrOp, ViewOp,
+            Agg, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field, FilterExpr,
+            Leaf, NodeExpr, NodeLeaf, OpaqueFilter, ViewOp,
         },
+        filter_operator::{BinaryOp, StringOp},
         node_expr::DynCreateOp,
         node_state_filter::NodeStateBoolColOp,
         validate_const_comparable,
@@ -197,7 +198,7 @@ fn check_str_value(v: &Prop) -> PyResult<()> {
 }
 
 impl PyExpr {
-    fn compare(&self, op: CmpOp, other: ExprOrValue) -> PyResult<PyExpr> {
+    fn compare(&self, op: BinaryOp, other: ExprOrValue) -> PyResult<PyExpr> {
         let rhs = match other {
             ExprOrValue::Expr(e) => e.0,
             ExprOrValue::Value(v) => {
@@ -212,7 +213,7 @@ impl PyExpr {
         ))?))
     }
 
-    fn string_op(&self, op: StrOp, other: ExprOrValue) -> PyResult<PyExpr> {
+    fn string_op(&self, op: StringOp, other: ExprOrValue) -> PyResult<PyExpr> {
         let rhs = match other {
             ExprOrValue::Expr(e) => e.0,
             ExprOrValue::Value(v) => {
@@ -282,27 +283,27 @@ impl PyExpr {
 #[pymethods]
 impl PyExpr {
     fn __eq__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Eq, other)
+        self.compare(BinaryOp::Eq, other)
     }
 
     fn __ne__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Ne, other)
+        self.compare(BinaryOp::Ne, other)
     }
 
     fn __lt__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Lt, other)
+        self.compare(BinaryOp::Lt, other)
     }
 
     fn __le__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Le, other)
+        self.compare(BinaryOp::Le, other)
     }
 
     fn __gt__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Gt, other)
+        self.compare(BinaryOp::Gt, other)
     }
 
     fn __ge__(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Ge, other)
+        self.compare(BinaryOp::Ge, other)
     }
 
     /// `self == other`, as a method, so a qualifier can follow without brackets:
@@ -314,7 +315,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn eq(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Eq, other)
+        self.compare(BinaryOp::Eq, other)
     }
 
     /// `self != other`, as a method.
@@ -325,7 +326,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn ne(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Ne, other)
+        self.compare(BinaryOp::Ne, other)
     }
 
     /// `self < other`, as a method.
@@ -336,7 +337,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn lt(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Lt, other)
+        self.compare(BinaryOp::Lt, other)
     }
 
     /// `self <= other`, as a method.
@@ -347,7 +348,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn le(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Le, other)
+        self.compare(BinaryOp::Le, other)
     }
 
     /// `self > other`, as a method.
@@ -358,7 +359,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn gt(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Gt, other)
+        self.compare(BinaryOp::Gt, other)
     }
 
     /// `self >= other`, as a method.
@@ -369,7 +370,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn ge(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.compare(CmpOp::Ge, other)
+        self.compare(BinaryOp::Ge, other)
     }
 
     /// Checks whether the string value starts with the given prefix.
@@ -380,7 +381,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn starts_with(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.string_op(StrOp::StartsWith, other)
+        self.string_op(StringOp::StartsWith, other)
     }
 
     /// Checks whether the string value ends with the given suffix.
@@ -391,7 +392,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn ends_with(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.string_op(StrOp::EndsWith, other)
+        self.string_op(StringOp::EndsWith, other)
     }
 
     /// Checks whether the string value contains the given substring.
@@ -402,7 +403,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn contains(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.string_op(StrOp::Contains, other)
+        self.string_op(StringOp::Contains, other)
     }
 
     /// Checks whether the string value does **not** contain the given substring.
@@ -413,7 +414,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn not_contains(&self, other: ExprOrValue) -> PyResult<PyExpr> {
-        self.string_op(StrOp::NotContains, other)
+        self.string_op(StringOp::NotContains, other)
     }
 
     /// Checks whether the string value is within a Levenshtein distance of the given text.
@@ -432,7 +433,7 @@ impl PyExpr {
         prefix_match: bool,
     ) -> PyResult<PyExpr> {
         self.string_op(
-            StrOp::FuzzySearch {
+            StringOp::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
             },
@@ -855,7 +856,7 @@ impl PyNodeFilter {
     fn by_state_column(&self, state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
         let op = NodeStateBoolColOp::new(&state.inner, &col)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyFilterExpr(FilterExpr::Opaque(OpaqueFilter(Arc::new(op)))))
+        Ok(PyFilterExpr(FilterExpr::Opaque(OpaqueFilter::new(op))))
     }
 }
 

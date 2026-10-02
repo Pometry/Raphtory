@@ -2,11 +2,12 @@
 //! instead of collecting it into a list first.
 //!
 //! A history term on its own still produces a list, because a list is the
-//! only value the engine can hand to an arbitrary consumer. When the compiler
-//! sees an aggregation directly over a history, or `any()`/`all()` over a
-//! comparison of a history with a constant, it builds one of the ops here
-//! instead: they ask the history for a stream, from whichever end the
-//! question needs, and stop as soon as the answer is known.
+//! only value the engine can hand to an arbitrary consumer. An aggregate
+//! built directly over a history, or `any()`/`all()` over a comparison of a
+//! history with a constant (see `CreateOp::history` and
+//! `CreateOp::value_test`), builds one of the ops here instead: they ask the
+//! history for a stream, from whichever end the question needs, and stop as
+//! soon as the answer is known.
 
 use crate::{
     core::utils::iter::GenLockedIter,
@@ -24,8 +25,9 @@ use crate::{
                 edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
                 edge_filter::{EdgeEndpointWrapper, Endpoint},
                 filter_operator::{BinaryOp, Comparable, StringComparable, StringOp},
-                node_expr::ops::{
-                    agg_out_pt, fold_values, reduce_list, view_node, TemporalNodePropOp,
+                node_expr::{
+                    ops::{agg_out_pt, fold_values, reduce_list, view_node, TemporalNodePropOp},
+                    typing::{comparison_shape, list, set_shape, string_shape, Shape},
                 },
                 property_filter::evaluate::aggregate_list_values,
             },
@@ -325,15 +327,50 @@ impl<'g> EdgeOp for StreamedAggEdgeOp<'g> {
 
 // ── qualified tests ──────────────────────────────────────────────────────────
 
-/// A test of one history value against a constant.
-#[derive(Clone)]
-pub(crate) enum ValueTest {
+/// A test of each history value against a constant.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ValueTest {
     Cmp(BinaryOp, Prop),
     Str(StringOp, Prop),
     In(Arc<HashSet<HashableProp>>, bool),
 }
 
 impl ValueTest {
+    /// Membership of each value in `values`, or (`negated`) its absence.
+    pub fn members(values: impl IntoIterator<Item = Prop>, negated: bool) -> Self {
+        ValueTest::In(
+            Arc::new(values.into_iter().map(HashableProp).collect()),
+            negated,
+        )
+    }
+
+    /// This test on a history of `history_type`, when the history's
+    /// element-wise result is one yes/no answer per value: the same test, with
+    /// a member set reduced to the values the type can equal. Anything else
+    /// (a nested list, a mismatch) is left to the list path, which reports it
+    /// the way it always has.
+    pub(crate) fn for_history(&self, history_type: &PropType) -> Option<ValueTest> {
+        let one_per_value = |(out, shape): (PropType, Shape)| {
+            shape == Shape::Elementwise && out == list(PropType::Bool)
+        };
+        match self {
+            ValueTest::Cmp(op, constant) => {
+                let shape =
+                    comparison_shape(op, history_type, &constant.dtype(), Some(constant)).ok()?;
+                one_per_value(shape).then(|| self.clone())
+            }
+            ValueTest::Str(_, constant) => {
+                let shape = string_shape(history_type, &constant.dtype(), Some(constant)).ok()?;
+                one_per_value(shape).then(|| self.clone())
+            }
+            ValueTest::In(members, negated) => {
+                let values: Vec<Prop> = members.iter().map(|m| m.0.clone()).collect();
+                let (out, shape, comparable) = set_shape(history_type, &values);
+                one_per_value((out, shape)).then(|| ValueTest::members(comparable, *negated))
+            }
+        }
+    }
+
     fn holds(&self, value: Prop) -> bool {
         match self {
             ValueTest::Cmp(op, constant) => Prop::binary_cmp(op, &value, constant),

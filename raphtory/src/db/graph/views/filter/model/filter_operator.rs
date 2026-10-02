@@ -3,6 +3,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::arc_str::ArcStr,
 };
+use serde::{Deserialize, Serialize};
 use std::{fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
@@ -206,7 +207,8 @@ pub trait StringComparable: Clone + Send + Sync + 'static {
 }
 
 /// Ordering and equality operators used by `BinaryCmpExpr`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BinaryOp {
     Eq,
     Ne,
@@ -217,7 +219,8 @@ pub enum BinaryOp {
 }
 
 /// String-only operators used by `StringExpr`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum StringOp {
     StartsWith,
     EndsWith,
@@ -230,14 +233,16 @@ pub enum StringOp {
 }
 
 /// Unary presence operators used by `UnaryExpr`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum UnaryOp {
     IsSome,
     IsNone,
 }
 
 /// Set membership operators used by `SetNodeFilter`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SetOp {
     IsIn,
     IsNotIn,
@@ -323,6 +328,19 @@ impl<T: StringComparable> StringComparable for Option<T> {
         match (left, right) {
             (Some(l), Some(r)) => T::string_cmp(op, l, r),
             _ => false,
+        }
+    }
+}
+
+impl BinaryOp {
+    /// The comparison with its sides swapped.
+    pub fn flipped(self) -> BinaryOp {
+        match self {
+            BinaryOp::Lt => BinaryOp::Gt,
+            BinaryOp::Le => BinaryOp::Ge,
+            BinaryOp::Gt => BinaryOp::Lt,
+            BinaryOp::Ge => BinaryOp::Le,
+            same => same,
         }
     }
 }

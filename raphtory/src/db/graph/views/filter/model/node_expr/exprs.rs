@@ -66,8 +66,8 @@ use super::{
         AvgNodeOp, EarliestNodeOp, FirstNodeOp, InViewNodeOp, LastNodeOp, LatestNodeOp, LenNodeOp,
         MaxNodeOp, MinNodeOp, NodeIdOp, SumNodeOp, TemporalNodePropOp,
     },
-    AvgEdgeOp, CreateOp, EarliestEdgeOp, EntityExpr, FirstEdgeOp, LastEdgeOp, LatestEdgeOp,
-    LenEdgeOp, MaxEdgeOp, MinEdgeOp, PredicateLhs, SumEdgeOp,
+    AvgEdgeOp, CreateOp, EarliestEdgeOp, EntityExpr, FirstEdgeOp, IndexTerm, LastEdgeOp,
+    LatestEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, PredicateLhs, SumEdgeOp,
 };
 use crate::{
     db::{
@@ -77,7 +77,10 @@ use crate::{
         },
         graph::views::filter::model::{
             edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
-            expr::{DynCreateHistory, EdgeHistory, NodeHistory},
+            expr::{
+                stream::{StreamedAggEdgeOp, StreamedAggNodeOp},
+                Agg, DynCreateHistory, EdgeHistory, NodeHistory,
+            },
             filter_operator::Comparable,
             node_filter::NodeFilter,
             require_aggregable, resolved_prop_type, ComposableFilter, CreateView, EntityMarker,
@@ -125,6 +128,13 @@ impl EntityExpr for Id {
 impl PredicateLhs for Id {}
 
 impl CreateOp for Id {
+    /// The id is a node field the id table answers outright. Read through an
+    /// edge endpoint the field is the node's, but the endpoint does not forward
+    /// this, since an edge predicate never narrows by a node index.
+    fn index_term(&self) -> Option<IndexTerm> {
+        Some(IndexTerm::Id)
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -140,6 +150,13 @@ impl EntityExpr for GID {
 
     fn entity(&self) -> Self::Marker {
         NodeFilter
+    }
+
+    fn constant(&self) -> Option<Prop> {
+        Some(match self {
+            GID::U64(id) => Prop::U64(*id),
+            GID::Str(name) => Prop::str(name.clone()),
+        })
     }
 }
 
@@ -167,6 +184,12 @@ impl EntityExpr for Name {
 impl PredicateLhs for Name {}
 
 impl CreateOp for Name {
+    /// The name is the node's external id, which the id index answers patterns
+    /// on; as for [`Id`], an edge endpoint does not forward this.
+    fn index_term(&self) -> Option<IndexTerm> {
+        Some(IndexTerm::Name)
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
@@ -249,6 +272,13 @@ where
     E: CreateView,
     F: EntityExpr<Marker = NodeFilter> + CreateOp,
 {
+    fn index_term(&self) -> Option<IndexTerm> {
+        if self.view_expr.narrows() {
+            return None;
+        }
+        self.field.index_term()
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -281,6 +311,10 @@ impl EntityExpr for usize {
     fn prop_type(&self) -> PropType {
         PropType::U64
     }
+
+    fn constant(&self) -> Option<Prop> {
+        Some(Prop::U64(*self as u64))
+    }
 }
 
 impl CreateOp for usize {
@@ -308,6 +342,9 @@ impl EntityExpr for String {
 
     fn prop_type(&self) -> PropType {
         PropType::Str
+    }
+    fn constant(&self) -> Option<Prop> {
+        Some(Prop::Str(ArcStr::from(self.as_str())))
     }
 }
 
@@ -337,6 +374,9 @@ impl EntityExpr for ArcStr {
     fn prop_type(&self) -> PropType {
         PropType::Str
     }
+    fn constant(&self) -> Option<Prop> {
+        Some(Prop::Str(self.clone()))
+    }
 }
 
 impl CreateOp for ArcStr {
@@ -364,6 +404,9 @@ impl EntityExpr for &'static str {
 
     fn prop_type(&self) -> PropType {
         PropType::Str
+    }
+    fn constant(&self) -> Option<Prop> {
+        Some(Prop::Str(ArcStr::from(*self)))
     }
 }
 
@@ -401,6 +444,10 @@ impl EntityExpr for Prop {
     fn prop_type(&self) -> PropType {
         self.dtype()
     }
+
+    fn constant(&self) -> Option<Prop> {
+        Some(self.clone())
+    }
 }
 
 impl CreateOp for Prop {
@@ -428,6 +475,9 @@ macro_rules! impl_create_op_for_numeric {
             }
             fn prop_type(&self) -> PropType {
                 PropType::$variant
+            }
+            fn constant(&self) -> Option<Prop> {
+                Some(Prop::$variant(*self))
             }
         }
 
@@ -470,11 +520,15 @@ impl_create_op_for_numeric!(u16, U16);
 #[derive(Clone)]
 pub struct ConstExpr<T>(pub T);
 
-impl<T: Comparable + Clone + Send + Sync + 'static> EntityExpr for ConstExpr<T> {
+impl<T: Comparable + Into<Prop> + Clone + Send + Sync + 'static> EntityExpr for ConstExpr<T> {
     type Marker = ConstFilter;
 
     fn entity(&self) -> Self::Marker {
         ConstFilter
+    }
+
+    fn constant(&self) -> Option<Prop> {
+        Some(self.0.clone().into())
     }
 }
 
@@ -542,7 +596,7 @@ impl<E: CreateView + Clone + Send + Sync + 'static> CreateOp for DegreeExpr<E> {
 // ─────────────────────────────────────────────────────────────────────────────
 // TemporalExpr<E> — all temporal values of a property over the view window
 //
-// Unified replacement for TemporalPropertyExpr (node) and TemporalEdgePropExpr (edge).
+// One type for node and edge histories.
 // Implements NodeExpr when E: NodeFilterFactory, EdgeExpr when E: EdgeFilterFactory.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -603,6 +657,21 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> DynCreateHistor
 }
 
 impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for TemporalPropExpr<E> {
+    fn history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        Some(Arc::new(self.clone()))
+    }
+
+    fn index_term(&self) -> Option<IndexTerm> {
+        if self.view_expr.narrows() {
+            return None;
+        }
+        Some(IndexTerm::Property {
+            name: self.name.clone(),
+            metadata: false,
+            ever: true,
+        })
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -638,16 +707,16 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Te
 // ─────────────────────────────────────────────────────────────────────────────
 // Aggregator Exprs — NodeExpr wrappers producing a single scalar
 //
-// Each wraps an inner NodeExpr (typically TemporalPropertyExpr) and reduces
+// Each wraps an inner expression (typically TemporalPropExpr) and reduces
 // the Prop::List it produces.  Not constructed directly —
 // EntityAggOps methods on TemporalExpr return these exprs directly:
 //
-//   .property("v").temporal().sum()  → SumExpr<TemporalPropertyExpr<..>>
-//   .property("v").temporal().len()  → LenExpr<TemporalPropertyExpr<..>>
-//   .property("v").temporal().any()  → AnyExpr<TemporalPropertyExpr<..>>
+//   .property("v").temporal().sum()  → SumExpr<TemporalPropExpr<..>>
+//   .property("v").temporal().len()  → LenExpr<TemporalPropExpr<..>>
+//   .property("v").temporal().any()  → AnyExpr<TemporalPropExpr<..>>
 //
-// Calling .gt() / .eq() etc. on any of these (via NodeExprFilterOps) produces:
-//   BinaryCmpExpr<SumExpr<TemporalPropertyExpr<..>>, RHS>
+// Calling .gt() / .eq() etc. on any of these (via EntityExprFilterOps) produces:
+//   BinaryCmpExpr<SumExpr<TemporalPropExpr<..>>, RHS>
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -688,8 +757,65 @@ pub trait EntityAggOps: EntityExpr + Sized {
     }
 }
 
+/// `earliest()` and `latest()` pick an update of a history, so they have no
+/// form over a list value.
+fn aggregates_a_list(agg: Agg) -> Result<(), GraphError> {
+    if matches!(agg, Agg::Earliest | Agg::Latest) {
+        return Err(GraphError::InvalidFilter(
+            "earliest() and latest() pick an update of a temporal history; use first() or \
+             last() for the elements of a list"
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// The node op of an aggregate over `inner`. Over a history it walks the
+/// values instead of taking them as one list; over anything else it reduces
+/// the list value with `list_op`.
+fn aggregate_node_op<'g, E: CreateOp, G: GraphView + 'g>(
+    inner: &E,
+    graph: G,
+    agg: Agg,
+    name: &str,
+    list_op: impl FnOnce(
+        Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    ) -> Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+    if let Some(history) = inner.history() {
+        let history = history.create_node_history(graph.into_dyn_graph_arc())?;
+        require_aggregable(&history.history_type(), name)?;
+        return Ok(Arc::new(StreamedAggNodeOp::new(history, agg)));
+    }
+    aggregates_a_list(agg)?;
+    let op = inner.create_node_op(graph)?;
+    require_aggregable(&resolved_prop_type(inner.prop_type(), op.prop_type()), name)?;
+    Ok(list_op(op))
+}
+
+/// The edge op of an aggregate over `inner`; see [`aggregate_node_op`].
+fn aggregate_edge_op<'g, E: CreateOp, G: GraphView + 'g>(
+    inner: &E,
+    graph: G,
+    agg: Agg,
+    name: &str,
+    list_op: impl FnOnce(
+        Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    ) -> Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+    if let Some(history) = inner.history() {
+        let history = history.create_edge_history(graph.into_dyn_graph_arc())?;
+        require_aggregable(&history.history_type(), name)?;
+        return Ok(Arc::new(StreamedAggEdgeOp::new(history, agg)));
+    }
+    aggregates_a_list(agg)?;
+    let op = inner.create_edge_op(graph)?;
+    require_aggregable(&resolved_prop_type(inner.prop_type(), op.prop_type()), name)?;
+    Ok(list_op(op))
+}
+
 macro_rules! impl_agg_expr {
-    ($expr:ident, $node_op_ty:ident, $edge_op_ty:ident, $name:literal) => {
+    ($expr:ident, $node_op_ty:ident, $edge_op_ty:ident, $agg:expr, $name:literal) => {
         impl_agg_expr!(@common $expr);
 
         impl<E: CreateOp> CreateOp for $expr<E> {
@@ -697,20 +823,18 @@ macro_rules! impl_agg_expr {
                 &self,
                 graph: G,
             ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                let inner = self.0.create_node_op(graph)?;
-                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
-                require_aggregable(&pt, $name)?;
-                Ok(Arc::new($node_op_ty { inner }))
+                aggregate_node_op(&self.0, graph, $agg, $name, |inner| {
+                    Arc::new($node_op_ty { inner })
+                })
             }
 
             fn create_edge_op<'g, G: GraphView + 'g>(
                 &self,
                 graph: G,
             ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-                let inner = self.0.create_edge_op(graph)?;
-                let pt = resolved_prop_type(self.0.prop_type(), inner.prop_type());
-                require_aggregable(&pt, $name)?;
-                Ok(Arc::new($edge_op_ty { inner }))
+                aggregate_edge_op(&self.0, graph, $agg, $name, |inner| {
+                    Arc::new($edge_op_ty { inner })
+                })
             }
         }
     };
@@ -736,15 +860,49 @@ macro_rules! impl_agg_expr {
     };
 }
 
-impl_agg_expr!(SumExpr, SumNodeOp, SumEdgeOp, "sum()");
-impl_agg_expr!(AvgExpr, AvgNodeOp, AvgEdgeOp, "avg()");
-impl_agg_expr!(MinExpr, MinNodeOp, MinEdgeOp, "min()");
-impl_agg_expr!(MaxExpr, MaxNodeOp, MaxEdgeOp, "max()");
-impl_agg_expr!(FirstExpr, FirstNodeOp, FirstEdgeOp, "first()");
-impl_agg_expr!(LastExpr, LastNodeOp, LastEdgeOp, "last()");
-impl_agg_expr!(LenExpr, LenNodeOp, LenEdgeOp, "len()");
-impl_agg_expr!(EarliestExpr, EarliestNodeOp, EarliestEdgeOp, "earliest()");
-impl_agg_expr!(LatestExpr, LatestNodeOp, LatestEdgeOp, "latest()");
+impl_agg_expr!(SumExpr, SumNodeOp, SumEdgeOp, Agg::Sum, "sum()");
+impl_agg_expr!(AvgExpr, AvgNodeOp, AvgEdgeOp, Agg::Avg, "avg()");
+impl_agg_expr!(MinExpr, MinNodeOp, MinEdgeOp, Agg::Min, "min()");
+impl_agg_expr!(MaxExpr, MaxNodeOp, MaxEdgeOp, Agg::Max, "max()");
+impl_agg_expr!(FirstExpr, FirstNodeOp, FirstEdgeOp, Agg::First, "first()");
+impl_agg_expr!(LastExpr, LastNodeOp, LastEdgeOp, Agg::Last, "last()");
+impl_agg_expr!(LenExpr, LenNodeOp, LenEdgeOp, Agg::Len, "len()");
+impl_agg_expr!(
+    EarliestExpr,
+    EarliestNodeOp,
+    EarliestEdgeOp,
+    Agg::Earliest,
+    "earliest()"
+);
+
+// `latest()` is the one aggregate that is also an indexable term: the latest
+// update of a history is the property's latest value, which the index covers.
+impl_agg_expr!(@common LatestExpr);
+
+impl<E: CreateOp> CreateOp for LatestExpr<E> {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        aggregate_node_op(&self.0, graph, Agg::Latest, "latest()", |inner| {
+            Arc::new(LatestNodeOp { inner })
+        })
+    }
+
+    fn create_edge_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        aggregate_edge_op(&self.0, graph, Agg::Latest, "latest()", |inner| {
+            Arc::new(LatestEdgeOp { inner })
+        })
+    }
+
+    fn index_term(&self) -> Option<IndexTerm> {
+        self.0.index_term()?.latest_value()
+    }
+}
+
 // `any()` / `all()` after a comparison: they collapse an element-wise result.
 impl_agg_expr!(AnyExpr);
 impl_agg_expr!(AllExpr);

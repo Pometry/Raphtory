@@ -2,8 +2,9 @@
 //! again, module-qualified so `eval` rebuilds it after `import raphtory`.
 
 use crate::{
-    db::graph::views::filter::model::expr::{
-        Agg, CmpOp, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, StrOp, ViewOp,
+    db::graph::views::filter::model::{
+        expr::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp},
+        filter_operator::{BinaryOp, StringOp},
     },
     python::filter::node_expr::Typed,
 };
@@ -165,12 +166,12 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
         }
         Expr::Cmp(op, l, r) => {
             let sym = match op {
-                CmpOp::Eq => "==",
-                CmpOp::Ne => "!=",
-                CmpOp::Lt => "<",
-                CmpOp::Le => "<=",
-                CmpOp::Gt => ">",
-                CmpOp::Ge => ">=",
+                BinaryOp::Eq => "==",
+                BinaryOp::Ne => "!=",
+                BinaryOp::Lt => "<",
+                BinaryOp::Le => "<=",
+                BinaryOp::Gt => ">",
+                BinaryOp::Ge => ">=",
             };
             let l = render(py, l, entity)?.atom();
             let r = render(py, r, entity)?.atom();
@@ -180,11 +181,11 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
             let l = render(py, l, entity)?.atom();
             let r = render(py, r, entity)?.atom();
             Rendered::chain(match op {
-                StrOp::StartsWith => format!("{l}.starts_with({r})"),
-                StrOp::EndsWith => format!("{l}.ends_with({r})"),
-                StrOp::Contains => format!("{l}.contains({r})"),
-                StrOp::NotContains => format!("{l}.not_contains({r})"),
-                StrOp::FuzzySearch {
+                StringOp::StartsWith => format!("{l}.starts_with({r})"),
+                StringOp::EndsWith => format!("{l}.ends_with({r})"),
+                StringOp::Contains => format!("{l}.contains({r})"),
+                StringOp::NotContains => format!("{l}.not_contains({r})"),
+                StringOp::FuzzySearch {
                     levenshtein_distance,
                     prefix_match,
                 } => format!(

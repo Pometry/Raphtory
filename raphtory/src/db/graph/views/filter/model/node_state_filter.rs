@@ -1,14 +1,24 @@
 use crate::{
-    db::api::{
-        state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
-        view::internal::NodeList,
+    db::{
+        api::{
+            state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+            view::internal::{GraphView, NodeList},
+        },
+        graph::views::filter::model::{
+            node_expr::{CreateOp, EntityExpr},
+            node_filter::NodeFilter,
+        },
     },
     errors::GraphError,
 };
 use arrow_array::{cast::AsArray, Array, BooleanArray};
 use arrow_schema::DataType;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropType},
+    VID,
+};
 use raphtory_storage::graph::graph::GraphStorage;
+use std::sync::Arc;
 
 /// A NodeOp<bool> backed by a boolean column in a TypedNodeState.
 /// Does NOT depend on the graph type `G` at runtime; it only needs the column + optional keys.
@@ -72,5 +82,32 @@ impl NodeOp for NodeStateBoolColOp {
             Some(r) => r,
         };
         self.bool_at_row(row)
+    }
+}
+
+/// The column as a yes/no node expression, so it combines with other node
+/// predicates and negates like one.
+impl EntityExpr for NodeStateBoolColOp {
+    type Marker = NodeFilter;
+
+    fn entity(&self) -> NodeFilter {
+        NodeFilter
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn nullable(&self) -> bool {
+        false
+    }
+}
+
+impl CreateOp for NodeStateBoolColOp {
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        _graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(self.clone().map(|b| Some(Prop::Bool(b)))))
     }
 }

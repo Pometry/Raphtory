@@ -12,9 +12,9 @@ pub use crate::{
                         UnaryOp,
                     },
                     node_expr::{
-                        AllExpr, AnyExpr, AvgExpr, BinaryCmpExpr, EntityAggOps, FirstExpr,
-                        LastExpr, LenExpr, MaxExpr, MinExpr, PropValueSetExpr, StringExpr, SumExpr,
-                        TemporalPropExpr, UnaryExpr,
+                        AvgExpr, BinaryCmpExpr, EntityAggOps, FirstExpr, IndexTerm, LastExpr,
+                        LenExpr, MaxExpr, MinExpr, Predicate, PropValueSetExpr, StringExpr,
+                        SumExpr, TemporalPropExpr, UnaryExpr,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
                     not_filter::NotFilter,
@@ -41,10 +41,6 @@ use crate::{
             filter::{
                 model::{
                     dyn_factory::DynEdgeFilterFactory,
-                    expr::{
-                        convert::{EdgeLeafKind, FactoryLeaf},
-                        NodeLeaf,
-                    },
                     is_active_edge_filter::IsActiveEdge,
                     is_active_node_filter::IsActiveNode,
                     is_deleted_filter::IsDeletedEdge,
@@ -71,6 +67,7 @@ use raphtory_api::core::{
 use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
+pub mod answer;
 pub mod dyn_factory;
 pub mod edge_expr;
 pub mod edge_filter;
@@ -246,6 +243,17 @@ impl<E: EntityExpr> EntityExpr for MetadataExpr<E> {
 }
 
 impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for PropertyExpr<E> {
+    fn index_term(&self) -> Option<IndexTerm> {
+        if self.view_expr.narrows() {
+            return None;
+        }
+        Some(IndexTerm::Property {
+            name: self.name.clone(),
+            metadata: false,
+            ever: false,
+        })
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -276,6 +284,17 @@ impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for Pr
 }
 
 impl<E: EntityExpr + CreateView + Clone + Send + Sync + 'static> CreateOp for MetadataExpr<E> {
+    fn index_term(&self) -> Option<IndexTerm> {
+        if self.view_expr.narrows() {
+            return None;
+        }
+        Some(IndexTerm::Property {
+            name: self.name.clone(),
+            metadata: true,
+            ever: false,
+        })
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -704,40 +723,37 @@ impl ComposableFilter for DynView {}
 
 /// The unit predicates of an edge or exploded-edge factory, each scoped to the
 /// factory's view chain.
-pub trait EdgeViewFilterOps: FactoryLeaf + CreateView
-where
-    Self::Leaf: EdgeLeafKind,
-{
-    fn is_active(&self) -> Scoped<Self, IsActiveEdge> {
-        Scoped {
+pub trait EdgeViewFilterOps: EdgeFilterFactory + CreateView {
+    fn is_active(&self) -> Predicate<Scoped<Self, IsActiveEdge>> {
+        Predicate::new(Scoped {
             view: self.clone(),
             inner: IsActiveEdge,
-        }
+        })
     }
 
-    fn is_valid(&self) -> Scoped<Self, IsValidEdge> {
-        Scoped {
+    fn is_valid(&self) -> Predicate<Scoped<Self, IsValidEdge>> {
+        Predicate::new(Scoped {
             view: self.clone(),
             inner: IsValidEdge,
-        }
+        })
     }
 
-    fn is_deleted(&self) -> Scoped<Self, IsDeletedEdge> {
-        Scoped {
+    fn is_deleted(&self) -> Predicate<Scoped<Self, IsDeletedEdge>> {
+        Predicate::new(Scoped {
             view: self.clone(),
             inner: IsDeletedEdge,
-        }
+        })
     }
 
-    fn is_self_loop(&self) -> Scoped<Self, IsSelfLoopEdge> {
-        Scoped {
+    fn is_self_loop(&self) -> Predicate<Scoped<Self, IsSelfLoopEdge>> {
+        Predicate::new(Scoped {
             view: self.clone(),
             inner: IsSelfLoopEdge,
-        }
+        })
     }
 }
 
-impl<T: FactoryLeaf + CreateView> EdgeViewFilterOps for T where T::Leaf: EdgeLeafKind {}
+impl<T: EdgeFilterFactory + CreateView> EdgeViewFilterOps for T {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EntityExprFilterOps — comparison and set operators on any EntityExpr
@@ -757,54 +773,54 @@ impl<T: FactoryLeaf + CreateView> EdgeViewFilterOps for T where T::Leaf: EdgeLea
 /// NodeFilter.property("score").temporal().gt(10i64).any()
 /// ```
 pub trait EntityExprFilterOps: EntityExpr + Sized {
-    fn gt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+    fn gt<R: EntityExpr>(self, rhs: R) -> Predicate<BinaryCmpExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Gt, rhs, entity)
+        Predicate::new(BinaryCmpExpr::new(self, BinaryOp::Gt, rhs, entity))
     }
 
-    fn ge<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+    fn ge<R: EntityExpr>(self, rhs: R) -> Predicate<BinaryCmpExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Ge, rhs, entity)
+        Predicate::new(BinaryCmpExpr::new(self, BinaryOp::Ge, rhs, entity))
     }
 
-    fn lt<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+    fn lt<R: EntityExpr>(self, rhs: R) -> Predicate<BinaryCmpExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Lt, rhs, entity)
+        Predicate::new(BinaryCmpExpr::new(self, BinaryOp::Lt, rhs, entity))
     }
 
-    fn le<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+    fn le<R: EntityExpr>(self, rhs: R) -> Predicate<BinaryCmpExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Le, rhs, entity)
+        Predicate::new(BinaryCmpExpr::new(self, BinaryOp::Le, rhs, entity))
     }
 
-    fn eq<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+    fn eq<R: EntityExpr>(self, rhs: R) -> Predicate<BinaryCmpExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Eq, rhs, entity)
+        Predicate::new(BinaryCmpExpr::new(self, BinaryOp::Eq, rhs, entity))
     }
 
-    fn ne<R: EntityExpr>(self, rhs: R) -> BinaryCmpExpr<Self, R, Self::Marker> {
+    fn ne<R: EntityExpr>(self, rhs: R) -> Predicate<BinaryCmpExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        BinaryCmpExpr::new(self, BinaryOp::Ne, rhs, entity)
+        Predicate::new(BinaryCmpExpr::new(self, BinaryOp::Ne, rhs, entity))
     }
 
-    fn starts_with<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+    fn starts_with<R: EntityExpr>(self, rhs: R) -> Predicate<StringExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        StringExpr::new(self, StringOp::StartsWith, rhs, entity)
+        Predicate::new(StringExpr::new(self, StringOp::StartsWith, rhs, entity))
     }
 
-    fn ends_with<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+    fn ends_with<R: EntityExpr>(self, rhs: R) -> Predicate<StringExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        StringExpr::new(self, StringOp::EndsWith, rhs, entity)
+        Predicate::new(StringExpr::new(self, StringOp::EndsWith, rhs, entity))
     }
 
-    fn contains<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+    fn contains<R: EntityExpr>(self, rhs: R) -> Predicate<StringExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        StringExpr::new(self, StringOp::Contains, rhs, entity)
+        Predicate::new(StringExpr::new(self, StringOp::Contains, rhs, entity))
     }
 
-    fn not_contains<R: EntityExpr>(self, rhs: R) -> StringExpr<Self, R, Self::Marker> {
+    fn not_contains<R: EntityExpr>(self, rhs: R) -> Predicate<StringExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        StringExpr::new(self, StringOp::NotContains, rhs, entity)
+        Predicate::new(StringExpr::new(self, StringOp::NotContains, rhs, entity))
     }
 
     fn fuzzy_search<R: EntityExpr>(
@@ -812,9 +828,9 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
         rhs: R,
         levenshtein_distance: usize,
         prefix_match: bool,
-    ) -> StringExpr<Self, R, Self::Marker> {
+    ) -> Predicate<StringExpr<Self, R, Self::Marker>> {
         let entity = self.entity();
-        StringExpr::new(
+        Predicate::new(StringExpr::new(
             self,
             StringOp::FuzzySearch {
                 levenshtein_distance,
@@ -822,59 +838,51 @@ pub trait EntityExprFilterOps: EntityExpr + Sized {
             },
             rhs,
             entity,
-        )
+        ))
     }
 
-    fn is_some(self) -> UnaryExpr<Self, Self::Marker> {
+    fn is_some(self) -> Predicate<UnaryExpr<Self, Self::Marker>> {
         let entity = self.entity();
-        UnaryExpr {
+        Predicate::new(UnaryExpr {
             expr: self,
             op: UnaryOp::IsSome,
             entity,
-        }
+        })
     }
 
-    fn is_none(self) -> UnaryExpr<Self, Self::Marker> {
+    fn is_none(self) -> Predicate<UnaryExpr<Self, Self::Marker>> {
         let entity = self.entity();
-        UnaryExpr {
+        Predicate::new(UnaryExpr {
             expr: self,
             op: UnaryOp::IsNone,
             entity,
-        }
+        })
     }
 
     fn is_in<V: Into<Prop>>(
         self,
         values: impl IntoIterator<Item = V>,
-    ) -> PropValueSetExpr<Self, Self::Marker> {
+    ) -> Predicate<PropValueSetExpr<Self, Self::Marker>> {
         let entity = self.entity();
-        PropValueSetExpr {
+        Predicate::new(PropValueSetExpr {
             expr: self,
             values: values.into_iter().map(Into::into).collect(),
             op: SetOp::IsIn,
             entity,
-        }
+        })
     }
 
     fn is_not_in<V: Into<Prop>>(
         self,
         values: impl IntoIterator<Item = V>,
-    ) -> PropValueSetExpr<Self, Self::Marker> {
+    ) -> Predicate<PropValueSetExpr<Self, Self::Marker>> {
         let entity = self.entity();
-        PropValueSetExpr {
+        Predicate::new(PropValueSetExpr {
             expr: self,
             values: values.into_iter().map(Into::into).collect(),
             op: SetOp::IsNotIn,
             entity,
-        }
-    }
-
-    fn any(self) -> AnyExpr<Self> {
-        AnyExpr(self)
-    }
-
-    fn all(self) -> AllExpr<Self> {
-        AllExpr(self)
+        })
     }
 }
 
@@ -1017,15 +1025,15 @@ pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}
 /// The unit predicates of a node factory, each scoped to the factory's view chain:
 /// `NodeFilter.window(1, 5).is_active()` asks whether the node is active inside that
 /// window.
-pub trait NodeViewFilterOps: FactoryLeaf<Leaf = NodeLeaf> + CreateView {
-    fn is_active(&self) -> Scoped<Self, IsActiveNode> {
-        Scoped {
+pub trait NodeViewFilterOps: NodeFilterFactory + CreateView {
+    fn is_active(&self) -> Predicate<Scoped<Self, IsActiveNode>> {
+        Predicate::new(Scoped {
             view: self.clone(),
             inner: IsActiveNode,
-        }
+        })
     }
 }
 
-impl<T: FactoryLeaf<Leaf = NodeLeaf> + CreateView> NodeViewFilterOps for T {}
+impl<T: NodeFilterFactory + CreateView> NodeViewFilterOps for T {}
 
 impl<T: CreateFilter + Clone + Send + Sync + 'static> CombinedFilter for T {}

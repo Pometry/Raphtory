@@ -20,7 +20,10 @@ use raphtory_storage::graph::{edges::edge_storage_ops::EdgeStorageOps, graph::Gr
 use storage::EdgeEntryRef;
 
 use super::EdgeOp;
-use crate::db::{api::state::ops::NodeOp, graph::views::filter::model::edge_filter::Endpoint};
+use crate::db::{
+    api::state::ops::NodeOp,
+    graph::views::filter::model::{edge_filter::Endpoint, node_expr::typing::truthy},
+};
 use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
 
@@ -730,5 +733,224 @@ mod tests {
                 ("b".to_string(), "c".to_string(), 2)
             ]
         );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Value ops — a yes/no (or element-wise yes/no) built from other values
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Two values combined by `kernel`, which produces a value of type `out`.
+pub struct BinaryValueEdgeOp<'g, K> {
+    pub(crate) left: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) kernel: K,
+    pub(crate) out: PropType,
+}
+
+impl<'g, K> EdgeOp for BinaryValueEdgeOp<'g, K>
+where
+    K: Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Send + Sync,
+{
+    type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        self.out.clone()
+    }
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+        (self.kernel)(
+            self.left.apply(storage, edge),
+            self.right.apply(storage, edge),
+        )
+    }
+
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Option<Prop> {
+        (self.kernel)(
+            self.left.apply_layer(storage, edge, layer),
+            self.right.apply_layer(storage, edge, layer),
+        )
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Option<Prop> {
+        (self.kernel)(
+            self.left.apply_exploded(storage, edge, layer, t),
+            self.right.apply_exploded(storage, edge, layer, t),
+        )
+    }
+}
+
+/// One value mapped by `kernel`, which produces a value of type `out`.
+pub struct UnaryValueEdgeOp<'g, K> {
+    pub(crate) inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) kernel: K,
+    pub(crate) out: PropType,
+}
+
+impl<'g, K> EdgeOp for UnaryValueEdgeOp<'g, K>
+where
+    K: Fn(Option<Prop>) -> Option<Prop> + Send + Sync,
+{
+    type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        self.out.clone()
+    }
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+        (self.kernel)(self.inner.apply(storage, edge))
+    }
+
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Option<Prop> {
+        (self.kernel)(self.inner.apply_layer(storage, edge, layer))
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Option<Prop> {
+        (self.kernel)(self.inner.apply_exploded(storage, edge, layer, t))
+    }
+}
+
+/// `and` over yes/no values, stopping at the first that does not hold.
+pub struct AndValueEdgeOp<'g> {
+    pub(crate) items: Vec<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>>,
+}
+
+impl<'g> EdgeOp for AndValueEdgeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .all(|item| truthy(&item.apply(storage, edge)));
+        Some(Prop::Bool(hit))
+    }
+
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .all(|item| truthy(&item.apply_layer(storage, edge, layer)));
+        Some(Prop::Bool(hit))
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .all(|item| truthy(&item.apply_exploded(storage, edge, layer, t)));
+        Some(Prop::Bool(hit))
+    }
+}
+
+/// `or` over yes/no values, stopping at the first that holds.
+pub struct OrValueEdgeOp<'g> {
+    pub(crate) items: Vec<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>>,
+}
+
+impl<'g> EdgeOp for OrValueEdgeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .any(|item| truthy(&item.apply(storage, edge)));
+        Some(Prop::Bool(hit))
+    }
+
+    fn apply_layer(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .any(|item| truthy(&item.apply_layer(storage, edge, layer)));
+        Some(Prop::Bool(hit))
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .any(|item| truthy(&item.apply_exploded(storage, edge, layer, t)));
+        Some(Prop::Bool(hit))
+    }
+}
+
+/// Adapts a yes/no edge value to the plain boolean the filtered graphs consume.
+pub struct TruthyEdgeOp<'g> {
+    pub(crate) inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+}
+
+impl<'g> EdgeOp for TruthyEdgeOp<'g> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
+        truthy(&self.inner.apply(storage, edge))
+    }
+
+    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
+        truthy(&self.inner.apply_layer(storage, edge, layer))
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> bool {
+        truthy(&self.inner.apply_exploded(storage, edge, layer, t))
     }
 }

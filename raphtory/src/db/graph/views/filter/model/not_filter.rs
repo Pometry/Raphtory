@@ -1,16 +1,14 @@
 use crate::{
     db::{
         api::{
-            state::{ops::NodeFilterOp, NodeOp},
+            state::NodeOp,
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
-                edge_expr::ops::EdgeExistsOp,
-                expr::{FilterExpr, ToFilterExpr},
-                ComposableFilter, DynCreateFilter,
+                answer::{compose, Answer, FilterAnswer, Question},
+                ComposableFilter,
             },
-            node_filtered_graph::NodeFilteredGraph,
             CreateFilter, DynEdgeFilter,
         },
     },
@@ -19,10 +17,6 @@ use crate::{
 use std::{fmt, fmt::Display, sync::Arc};
 
 /// The filter that keeps what `T` drops.
-///
-/// A typed filter negates through its tree: the compiler pushes the `not`
-/// down to the entity predicates, so a negated node predicate is a node
-/// predicate and the same entity rules apply either way round.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotFilter<T>(pub T);
 
@@ -34,15 +28,21 @@ impl<T: Display> Display for NotFilter<T> {
 
 impl<T> ComposableFilter for NotFilter<T> {}
 
-impl<T: ToFilterExpr> ToFilterExpr for NotFilter<T> {
-    fn to_filter_expr(&self) -> FilterExpr {
-        FilterExpr::Not(Box::new(self.0.to_filter_expr()))
+/// The opposite of the inner answer, pushed down to the leaves: `not` never
+/// flips an answer the inner filter did not give.
+impl<T: FilterAnswer> FilterAnswer for NotFilter<T> {
+    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
+        self.0.answer(question, !negated)
     }
 }
 
-/// An erased filter over in-process node state has no tree to push the `not`
-/// through; it is a node predicate, so its negation is the negated node op.
-impl CreateFilter for NotFilter<Arc<dyn DynCreateFilter>> {
+/// A typed `not` compiles by answering the two questions, negated, over its
+/// inner filter: a negated node predicate is a node predicate and the same
+/// entity rules apply either way round.
+impl<T> CreateFilter for NotFilter<T>
+where
+    T: FilterAnswer + Clone + Send + Sync + 'static,
+{
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
     where
@@ -65,27 +65,20 @@ impl CreateFilter for NotFilter<Arc<dyn DynCreateFilter>> {
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        let filter = self.create_node_filter(graph.clone())?;
-        Ok(Arc::new(NodeFilteredGraph::new(graph, filter)))
+        compose(&self)?.create_graph_filter(graph)
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(Arc::new(
-            self.0
-                .create_dyn_node_filter(graph.into_dyn_graph_arc())?
-                .not(),
-        ))
+        compose(&self)?.create_node_filter(graph)
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        Ok(Arc::new(EdgeExistsOp::new(
-            self.create_graph_filter(graph)?,
-        )))
+        compose(&self)?.create_edge_filter(graph)
     }
 }

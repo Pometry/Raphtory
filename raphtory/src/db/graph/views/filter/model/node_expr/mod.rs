@@ -12,15 +12,22 @@ pub mod dyn_expr;
 pub mod exprs;
 pub mod filters;
 pub mod ops;
+pub mod predicate;
+pub mod typing;
 
 #[cfg(test)]
 mod tests;
 
-use crate::db::graph::views::filter::model::{edge_expr::EdgeOp, ComposableFilter, EntityMarker};
+use crate::db::graph::views::filter::model::{
+    edge_expr::EdgeOp,
+    expr::{DynCreateHistory, ValueTest},
+    EntityMarker,
+};
 pub use dyn_expr::*;
 pub use exprs::*;
 pub use filters::*;
 pub use ops::*;
+pub use predicate::{IndexQuery, IndexTerm, Predicate, Pushdown};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type
@@ -61,6 +68,45 @@ pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Err(GraphError::NotEdgeFilter)
     }
+
+    // What an expression knows about its own shape before any graph is at hand,
+    // the way `NodeOp::const_value` lets an op say it is constant. Each has a
+    // default of "nothing", and only the expressions it describes answer.
+
+    /// The history this expression reads as is, for a consumer that walks the
+    /// values instead of taking them as one list: a temporal property term, or
+    /// one read through an edge endpoint.
+    fn history(&self) -> Option<Arc<dyn DynCreateHistory>> {
+        None
+    }
+
+    /// The term a node index covers, when this expression is such a term read
+    /// without a view: the id, the name, a property or a metadata entry.
+    fn index_term(&self) -> Option<IndexTerm> {
+        None
+    }
+
+    /// The test a node index can answer with a candidate set, when this is a
+    /// comparison, string test or membership test of an indexable term against
+    /// a constant.
+    fn index_query(&self) -> Option<IndexQuery> {
+        None
+    }
+
+    /// Where a node filter on this yes/no expression can start instead of at
+    /// every node: the nodes it names by id, or the index candidates for its
+    /// test. A history test narrows only under `any()`, a latest-value test
+    /// only outside it.
+    fn pushdown(&self) -> Option<Pushdown> {
+        None
+    }
+
+    /// For `any()` / `all()` over this expression: the history to walk and the
+    /// test to apply to each value, when this compares a history with a
+    /// constant.
+    fn value_test(&self) -> Option<(Arc<dyn DynCreateHistory>, ValueTest)> {
+        None
+    }
 }
 
 pub trait Marker: Into<EntityMarker> + Copy + Send + Sync + 'static {}
@@ -85,6 +131,11 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
     /// non-nullable expressions and should be rejected at compile time.
     fn nullable(&self) -> bool {
         true
+    }
+
+    /// The value, when this expression is a constant.
+    fn constant(&self) -> Option<Prop> {
+        None
     }
 }
 
@@ -122,8 +173,6 @@ impl<V: CreateView, T: EntityExpr> EntityExpr for Scoped<V, T> {
         self.inner.nullable()
     }
 }
-
-impl<V, T> ComposableFilter for Scoped<V, T> {}
 
 impl<V: CreateView, T: CreateOp> CreateOp for Scoped<V, T> {
     fn create_node_op<'g, G: GraphView + 'g>(

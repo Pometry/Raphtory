@@ -56,6 +56,7 @@ use crate::{
             node::NodeView,
             views::filter::model::{
                 expr::Agg,
+                node_expr::typing::truthy,
                 property_filter::evaluate::{
                     aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
                 },
@@ -718,5 +719,115 @@ impl<'g> NodeOp for DomainNodeOp<'g> {
 
     fn prop_type(&self) -> PropType {
         self.inner.prop_type()
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Value ops — a yes/no (or element-wise yes/no) built from other values
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Two values combined by `kernel`, which produces a value of type `out`.
+pub struct BinaryValueNodeOp<'g, K> {
+    pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) kernel: K,
+    pub(crate) out: PropType,
+}
+
+impl<'g, K> NodeOp for BinaryValueNodeOp<'g, K>
+where
+    K: Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Send + Sync,
+{
+    type Output = Option<Prop>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.out.clone()
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        (self.kernel)(
+            self.left.apply(storage, node),
+            self.right.apply(storage, node),
+        )
+    }
+}
+
+/// One value mapped by `kernel`, which produces a value of type `out`.
+pub struct UnaryValueNodeOp<'g, K> {
+    pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    pub(crate) kernel: K,
+    pub(crate) out: PropType,
+}
+
+impl<'g, K> NodeOp for UnaryValueNodeOp<'g, K>
+where
+    K: Fn(Option<Prop>) -> Option<Prop> + Send + Sync,
+{
+    type Output = Option<Prop>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.out.clone()
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        (self.kernel)(self.inner.apply(storage, node))
+    }
+}
+
+/// `and` over yes/no values, stopping at the first that does not hold.
+pub struct AndValueNodeOp<'g> {
+    pub(crate) items: Vec<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>>,
+}
+
+impl<'g> NodeOp for AndValueNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .all(|item| truthy(&item.apply(storage, node)));
+        Some(Prop::Bool(hit))
+    }
+}
+
+/// `or` over yes/no values, stopping at the first that holds.
+pub struct OrValueNodeOp<'g> {
+    pub(crate) items: Vec<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>>,
+}
+
+impl<'g> NodeOp for OrValueNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
+        let hit = self
+            .items
+            .iter()
+            .any(|item| truthy(&item.apply(storage, node)));
+        Some(Prop::Bool(hit))
     }
 }

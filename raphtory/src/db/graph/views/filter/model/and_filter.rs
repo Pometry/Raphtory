@@ -10,8 +10,8 @@ use crate::{
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             model::{
+                answer::{all_of, compose, Answer, FilterAnswer, Question},
                 edge_expr::ops::AndEdgeOp,
-                expr::{FilterExpr, ToFilterExpr},
                 ComposableFilter, DynFilter,
             },
             CreateFilter, DynEdgeFilter,
@@ -27,12 +27,16 @@ pub struct AndFilter<L, R> {
     pub(crate) right: R,
 }
 
-impl<L: ToFilterExpr, R: ToFilterExpr> ToFilterExpr for AndFilter<L, R> {
-    fn to_filter_expr(&self) -> FilterExpr {
-        FilterExpr::And(vec![
-            self.left.to_filter_expr(),
-            self.right.to_filter_expr(),
-        ])
+/// A leg that leaves a question open is dropped; the rest answer together.
+impl<L: FilterAnswer, R: FilterAnswer> FilterAnswer for AndFilter<L, R> {
+    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
+        all_of(
+            [
+                self.left.answer(question, negated),
+                self.right.answer(question, negated),
+            ],
+            negated,
+        )
     }
 }
 
@@ -44,10 +48,55 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
+/// A typed `and` compiles by answering the two questions over its legs.
+impl<L, R> CreateFilter for AndFilter<L, R>
+where
+    L: FilterAnswer + Clone + Send + Sync + 'static,
+    R: FilterAnswer + Clone + Send + Sync + 'static,
+{
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        compose(&self)?.create_graph_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        compose(&self)?.create_node_filter(graph)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        compose(&self)?.create_edge_filter(graph)
+    }
+}
+
 /// The `and` of two compiled filters, as the tree compiler builds it (the
 /// node and edge answers, the legs of one answer, or the predicates beside a
-/// view). A typed `and` compiles through its tree instead (see
-/// `compile_through_tree!`).
+/// view).
 impl CreateFilter for AndFilter<DynFilter, DynFilter> {
     type FilteredGraph<'graph, G>
         = AndFilteredGraph<G, DynGraphArc<'graph>, DynGraphArc<'graph>>
