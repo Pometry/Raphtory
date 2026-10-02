@@ -143,8 +143,12 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
         IndexQuery::cmp(term, op, value)
     }
 
+    /// Equality on the id, or on the name (the node's external id), names the
+    /// node outright; any other indexable test asks the index for candidates.
     fn pushdown(&self) -> Option<Pushdown> {
-        if let Some((IndexTerm::Id, BinaryOp::Eq, value)) = self.term_and_constant() {
+        if let Some((IndexTerm::Id | IndexTerm::Name, BinaryOp::Eq, value)) =
+            self.term_and_constant()
+        {
             return Some(Pushdown::Ids(vec![value]));
         }
         self.index_query()
@@ -388,7 +392,12 @@ impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
     }
 
     fn pushdown(&self) -> Option<Pushdown> {
-        if !self.negated() && matches!(self.expr.index_term(), Some(IndexTerm::Id)) {
+        if !self.negated()
+            && matches!(
+                self.expr.index_term(),
+                Some(IndexTerm::Id | IndexTerm::Name)
+            )
+        {
             return Some(Pushdown::Ids(self.values.clone()));
         }
         self.index_query()
@@ -859,8 +868,7 @@ mod pushdown_tests {
             .is_not_in(["a".into_prop()])
             .pushdown()
             .is_none());
-        // The id index answers patterns on the name; equality on it is a scan.
-        assert!(NodeFilter.name().eq("bob").pushdown().is_none());
+        // A pattern on the name goes to the id index; equality resolves the node outright.
         let prefix = index_of(NodeFilter.name().starts_with("bo").pushdown());
         assert_eq!(prefix.term(), &IndexTerm::Name);
         assert_eq!(prefix.test(), &IndexTest::StartsWith("bo".to_owned()));
@@ -881,9 +889,20 @@ mod pushdown_tests {
             NodeFilter.id().is_in([1u64, 2u64]).pushdown(),
             Some(Pushdown::Ids(vec![1u64.into_prop(), 2u64.into_prop()]))
         );
+        // The name is the node's external id, so equality on it resolves the node too.
+        assert_eq!(
+            NodeFilter.name().eq("bob").pushdown(),
+            Some(Pushdown::Ids(vec!["bob".into_prop()]))
+        );
+        assert_eq!(
+            NodeFilter.name().is_in(["bob", "carol"]).pushdown(),
+            Some(Pushdown::Ids(vec!["bob".into_prop(), "carol".into_prop()]))
+        );
         // Only equality names nodes; an ordering on the id is a scan.
         assert!(NodeFilter.id().gt(1u64).pushdown().is_none());
+        assert!(NodeFilter.name().ne("bob").pushdown().is_none());
         // A view that can hide nodes takes the id off the index.
         assert!(NodeFilter.latest().id().eq(1u64).pushdown().is_none());
+        assert!(NodeFilter.latest().name().eq("bob").pushdown().is_none());
     }
 }

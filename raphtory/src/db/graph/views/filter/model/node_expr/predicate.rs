@@ -492,13 +492,39 @@ mod tests {
             api::view::internal::CoreGraphOps,
             graph::views::filter::model::{
                 node_expr::{BinaryCmpExpr, DynCreateOp},
-                DynCreateFilter,
+                node_filter::{NodeFilter, NodeFilterFactory},
+                DynCreateFilter, EntityExprFilterOps,
             },
         },
-        prelude::{AdditionOps, Graph},
+        prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS},
     };
     use raphtory_api::core::entities::VID;
     use std::sync::Mutex;
+
+    /// `name == "x"` names its node, the way `id == x` does: the compiled
+    /// filter starts from that node alone instead of scanning every node.
+    #[test]
+    fn a_name_equality_starts_from_its_node() {
+        let g = Graph::new();
+        for name in ["alice", "bob", "carol"] {
+            g.add_node(0, name, NO_PROPS, None, None).unwrap();
+        }
+        let bob = g.node("bob").unwrap().node;
+        let alice = g.node("alice").unwrap().node;
+
+        let op = NodeFilter
+            .name()
+            .eq("bob")
+            .create_node_filter(g.clone())
+            .unwrap();
+        let NodeList::List { elems } = op.domain(g.core_graph()) else {
+            panic!("name equality scanned every node");
+        };
+        assert!(elems.index(&bob).is_some());
+        assert!(elems.index(&alice).is_none());
+        assert!(op.apply(g.core_graph(), bob));
+        assert!(!op.apply(g.core_graph(), alice));
+    }
 
     /// A leaf that records the address of the erased graph it is compiled against.
     #[derive(Clone, Default)]
