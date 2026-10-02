@@ -17,8 +17,8 @@ use super::{
     },
     predicate::{IndexQuery, IndexTerm, Pushdown},
     typing::{
-        cmp_kernel, comparison_shape, not_kernel, qualified_type, require_bool, set_kernel,
-        set_shape, str_kernel, string_shape,
+        cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type, require_bool,
+        set_kernel, set_shape, str_kernel, string_shape, SetMembers,
     },
     CreateOp, EntityExpr, Marker,
 };
@@ -116,7 +116,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
         Ok(Arc::new(BinaryValueNodeOp {
             left,
             right,
-            kernel: cmp_kernel(self.op, shape),
+            param: self.op,
+            kernel: cmp_kernel(shape),
             out,
         }))
     }
@@ -135,7 +136,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
         Ok(Arc::new(BinaryValueEdgeOp {
             left,
             right,
-            kernel: cmp_kernel(self.op, shape),
+            param: self.op,
+            kernel: cmp_kernel(shape),
             out,
         }))
     }
@@ -218,7 +220,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
         Ok(Arc::new(BinaryValueNodeOp {
             left,
             right,
-            kernel: str_kernel(self.op, shape),
+            param: self.op,
+            kernel: str_kernel(shape),
             out,
         }))
     }
@@ -237,7 +240,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
         Ok(Arc::new(BinaryValueEdgeOp {
             left,
             right,
-            kernel: str_kernel(self.op, shape),
+            param: self.op,
+            kernel: str_kernel(shape),
             out,
         }))
     }
@@ -292,16 +296,6 @@ impl<E: CreateOp, M: Marker> UnaryExpr<E, M> {
             self.op
         )))
     }
-
-    fn kernel(&self) -> impl Fn(Option<Prop>) -> Option<Prop> {
-        let op = self.op;
-        move |v| {
-            Some(Prop::Bool(match op {
-                UnaryOp::IsSome => v.is_some(),
-                UnaryOp::IsNone => v.is_none(),
-            }))
-        }
-    }
 }
 
 impl<E: CreateOp, M: Marker> CreateOp for UnaryExpr<E, M> {
@@ -312,7 +306,8 @@ impl<E: CreateOp, M: Marker> CreateOp for UnaryExpr<E, M> {
         self.check()?;
         Ok(Arc::new(UnaryValueNodeOp {
             inner: self.expr.create_node_op(graph)?,
-            kernel: self.kernel(),
+            param: self.op,
+            kernel: presence_kernel,
             out: PropType::Bool,
         }))
     }
@@ -324,7 +319,8 @@ impl<E: CreateOp, M: Marker> CreateOp for UnaryExpr<E, M> {
         self.check()?;
         Ok(Arc::new(UnaryValueEdgeOp {
             inner: self.expr.create_edge_op(graph)?,
-            kernel: self.kernel(),
+            param: self.op,
+            kernel: presence_kernel,
             out: PropType::Bool,
         }))
     }
@@ -369,7 +365,8 @@ impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
         let (out, shape, members) = set_shape(&pt, &self.values);
         Ok(Arc::new(UnaryValueNodeOp {
             inner,
-            kernel: set_kernel(members, self.negated(), shape),
+            param: SetMembers::new(members, self.negated()),
+            kernel: set_kernel(shape),
             out,
         }))
     }
@@ -383,7 +380,8 @@ impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
         let (out, shape, members) = set_shape(&pt, &self.values);
         Ok(Arc::new(UnaryValueEdgeOp {
             inner,
-            kernel: set_kernel(members, self.negated(), shape),
+            param: SetMembers::new(members, self.negated()),
+            kernel: set_kernel(shape),
             out,
         }))
     }
@@ -650,6 +648,7 @@ impl<E: CreateOp> CreateOp for NotExpr<E> {
         )?;
         Ok(Arc::new(UnaryValueNodeOp {
             inner,
+            param: (),
             kernel: not_kernel,
             out: PropType::Bool,
         }))
@@ -666,6 +665,7 @@ impl<E: CreateOp> CreateOp for NotExpr<E> {
         )?;
         Ok(Arc::new(UnaryValueEdgeOp {
             inner,
+            param: (),
             kernel: not_kernel,
             out: PropType::Bool,
         }))

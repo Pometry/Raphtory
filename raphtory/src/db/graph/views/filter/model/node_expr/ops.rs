@@ -56,7 +56,7 @@ use crate::{
             node::NodeView,
             views::filter::model::{
                 expr::Agg,
-                node_expr::typing::truthy,
+                node_expr::typing::{truthy, BinaryKernel, UnaryKernel},
                 property_filter::evaluate::{
                     aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
                 },
@@ -726,18 +726,17 @@ impl<'g> NodeOp for DomainNodeOp<'g> {
 // Value ops — a yes/no (or element-wise yes/no) built from other values
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Two values combined by `kernel`, which produces a value of type `out`.
-pub struct BinaryValueNodeOp<'g, K> {
+/// Two values combined by `kernel` with the test's `param`, producing a value
+/// of type `out`. The kernel is chosen for the test's shape when the op is built.
+pub struct BinaryValueNodeOp<'g, P> {
     pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) kernel: K,
+    pub(crate) param: P,
+    pub(crate) kernel: BinaryKernel<P>,
     pub(crate) out: PropType,
 }
 
-impl<'g, K> NodeOp for BinaryValueNodeOp<'g, K>
-where
-    K: Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Send + Sync,
-{
+impl<'g, P: Send + Sync> NodeOp for BinaryValueNodeOp<'g, P> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
@@ -750,23 +749,23 @@ where
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
         (self.kernel)(
+            &self.param,
             self.left.apply(storage, node),
             self.right.apply(storage, node),
         )
     }
 }
 
-/// One value mapped by `kernel`, which produces a value of type `out`.
-pub struct UnaryValueNodeOp<'g, K> {
+/// One value mapped by `kernel` with the test's `param`, producing a value of
+/// type `out`.
+pub struct UnaryValueNodeOp<'g, P> {
     pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) kernel: K,
+    pub(crate) param: P,
+    pub(crate) kernel: UnaryKernel<P>,
     pub(crate) out: PropType,
 }
 
-impl<'g, K> NodeOp for UnaryValueNodeOp<'g, K>
-where
-    K: Fn(Option<Prop>) -> Option<Prop> + Send + Sync,
-{
+impl<'g, P: Send + Sync> NodeOp for UnaryValueNodeOp<'g, P> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
@@ -778,7 +777,7 @@ where
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        (self.kernel)(self.inner.apply(storage, node))
+        (self.kernel)(&self.param, self.inner.apply(storage, node))
     }
 }
 

@@ -11,14 +11,14 @@
 use crate::{
     db::graph::views::filter::model::{
         comparable_set_values, const_mismatch_error,
-        filter_operator::{BinaryOp, Comparable, StringComparable, StringOp},
+        filter_operator::{BinaryOp, Comparable, StringComparable, StringOp, UnaryOp},
         node_expr::ops::{broadcast_binary, broadcast_unary},
         not_a_string_error, types_mismatch_error, validate_binary_op,
     },
     errors::GraphError,
 };
 use raphtory_api::core::entities::properties::prop::{prop_hashable::HashableProp, Prop, PropType};
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 fn invalid(msg: impl Into<String>) -> GraphError {
     GraphError::InvalidFilter(msg.into())
@@ -191,49 +191,101 @@ pub(crate) fn truthy(v: &Option<Prop>) -> bool {
     matches!(v, Some(Prop::Bool(true)))
 }
 
-pub(crate) fn cmp_kernel(
-    op: BinaryOp,
-    shape: Shape,
-) -> impl Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Clone {
-    move |l, r| match shape {
-        Shape::Whole => Some(Prop::Bool(Option::<Prop>::binary_cmp(&op, &l, &r))),
-        Shape::Elementwise => broadcast_binary(l, r, &|l, r| {
-            Some(Prop::Bool(Prop::binary_cmp(&op, &l?, &r?)))
-        }),
+// ── kernels ──────────────────────────────────────────────────────────────────
+//
+// Plain functions, one per shape, chosen once when the op is built: the op
+// holds a pointer to the one that applies, and no per-entity call asks which
+// shape it is.
+
+/// A kernel over two values, with the test's own parameter (its operator, or
+/// its member set) passed alongside.
+pub(crate) type BinaryKernel<P> = fn(&P, Option<Prop>, Option<Prop>) -> Option<Prop>;
+
+/// A kernel over one value.
+pub(crate) type UnaryKernel<P> = fn(&P, Option<Prop>) -> Option<Prop>;
+
+fn cmp_whole(op: &BinaryOp, l: Option<Prop>, r: Option<Prop>) -> Option<Prop> {
+    Some(Prop::Bool(Option::<Prop>::binary_cmp(op, &l, &r)))
+}
+
+fn cmp_elementwise(op: &BinaryOp, l: Option<Prop>, r: Option<Prop>) -> Option<Prop> {
+    broadcast_binary(l, r, &|l, r| {
+        Some(Prop::Bool(Prop::binary_cmp(op, &l?, &r?)))
+    })
+}
+
+/// The comparison kernel for `shape`.
+pub(crate) fn cmp_kernel(shape: Shape) -> BinaryKernel<BinaryOp> {
+    match shape {
+        Shape::Whole => cmp_whole,
+        Shape::Elementwise => cmp_elementwise,
     }
 }
 
-pub(crate) fn str_kernel(
-    op: StringOp,
-    shape: Shape,
-) -> impl Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Clone {
-    move |l, r| match shape {
-        Shape::Whole => Some(Prop::Bool(Option::<Prop>::string_cmp(&op, &l, &r))),
-        Shape::Elementwise => broadcast_binary(l, r, &|l, r| {
-            Some(Prop::Bool(Option::<Prop>::string_cmp(&op, &l, &r)))
-        }),
+fn str_whole(op: &StringOp, l: Option<Prop>, r: Option<Prop>) -> Option<Prop> {
+    Some(Prop::Bool(Option::<Prop>::string_cmp(op, &l, &r)))
+}
+
+fn str_elementwise(op: &StringOp, l: Option<Prop>, r: Option<Prop>) -> Option<Prop> {
+    broadcast_binary(l, r, &|l, r| {
+        Some(Prop::Bool(Option::<Prop>::string_cmp(op, &l, &r)))
+    })
+}
+
+/// The string-test kernel for `shape`.
+pub(crate) fn str_kernel(shape: Shape) -> BinaryKernel<StringOp> {
+    match shape {
+        Shape::Whole => str_whole,
+        Shape::Elementwise => str_elementwise,
     }
 }
 
-pub(crate) fn set_kernel(
-    values: Vec<Prop>,
+/// The members of a membership test, hashed once, and whether the test is
+/// for absence.
+pub(crate) struct SetMembers {
+    members: HashSet<HashableProp>,
     negated: bool,
-    shape: Shape,
-) -> impl Fn(Option<Prop>) -> Option<Prop> + Clone {
-    let values: Arc<HashSet<HashableProp>> =
-        Arc::new(values.into_iter().map(HashableProp).collect());
-    move |v| {
-        let member = |v: Option<Prop>| {
-            let present = values.contains(&HashableProp(v?));
-            Some(Prop::Bool(present != negated))
-        };
-        match shape {
-            Shape::Whole => member(v),
-            Shape::Elementwise => broadcast_unary(v, member),
+}
+
+impl SetMembers {
+    pub(crate) fn new(values: Vec<Prop>, negated: bool) -> Self {
+        SetMembers {
+            members: values.into_iter().map(HashableProp).collect(),
+            negated,
         }
     }
+
+    fn holds(&self, v: Option<Prop>) -> Option<Prop> {
+        let present = self.members.contains(&HashableProp(v?));
+        Some(Prop::Bool(present != self.negated))
+    }
 }
 
-pub(crate) fn not_kernel(v: Option<Prop>) -> Option<Prop> {
+fn set_whole(set: &SetMembers, v: Option<Prop>) -> Option<Prop> {
+    set.holds(v)
+}
+
+fn set_elementwise(set: &SetMembers, v: Option<Prop>) -> Option<Prop> {
+    broadcast_unary(v, |v| set.holds(v))
+}
+
+/// The membership kernel for `shape`.
+pub(crate) fn set_kernel(shape: Shape) -> UnaryKernel<SetMembers> {
+    match shape {
+        Shape::Whole => set_whole,
+        Shape::Elementwise => set_elementwise,
+    }
+}
+
+/// Whether a value is present (`is_some`) or missing (`is_none`).
+pub(crate) fn presence_kernel(op: &UnaryOp, v: Option<Prop>) -> Option<Prop> {
+    Some(Prop::Bool(match op {
+        UnaryOp::IsSome => v.is_some(),
+        UnaryOp::IsNone => v.is_none(),
+    }))
+}
+
+/// The opposite of a yes/no value.
+pub(crate) fn not_kernel(_: &(), v: Option<Prop>) -> Option<Prop> {
     Some(Prop::Bool(!truthy(&v)))
 }

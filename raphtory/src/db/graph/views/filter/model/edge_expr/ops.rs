@@ -22,7 +22,10 @@ use storage::EdgeEntryRef;
 use super::EdgeOp;
 use crate::db::{
     api::state::ops::NodeOp,
-    graph::views::filter::model::{edge_filter::Endpoint, node_expr::typing::truthy},
+    graph::views::filter::model::{
+        edge_filter::Endpoint,
+        node_expr::typing::{truthy, BinaryKernel, UnaryKernel},
+    },
 };
 use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
@@ -740,18 +743,17 @@ mod tests {
 // Value ops — a yes/no (or element-wise yes/no) built from other values
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Two values combined by `kernel`, which produces a value of type `out`.
-pub struct BinaryValueEdgeOp<'g, K> {
+/// Two values combined by `kernel` with the test's `param`, producing a value
+/// of type `out`. The kernel is chosen for the test's shape when the op is built.
+pub struct BinaryValueEdgeOp<'g, P> {
     pub(crate) left: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
     pub(crate) right: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) kernel: K,
+    pub(crate) param: P,
+    pub(crate) kernel: BinaryKernel<P>,
     pub(crate) out: PropType,
 }
 
-impl<'g, K> EdgeOp for BinaryValueEdgeOp<'g, K>
-where
-    K: Fn(Option<Prop>, Option<Prop>) -> Option<Prop> + Send + Sync,
-{
+impl<'g, P: Send + Sync> EdgeOp for BinaryValueEdgeOp<'g, P> {
     type Output = Option<Prop>;
 
     fn prop_type(&self) -> PropType {
@@ -760,6 +762,7 @@ where
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
         (self.kernel)(
+            &self.param,
             self.left.apply(storage, edge),
             self.right.apply(storage, edge),
         )
@@ -772,6 +775,7 @@ where
         layer: LayerId,
     ) -> Option<Prop> {
         (self.kernel)(
+            &self.param,
             self.left.apply_layer(storage, edge, layer),
             self.right.apply_layer(storage, edge, layer),
         )
@@ -785,23 +789,23 @@ where
         t: EventTime,
     ) -> Option<Prop> {
         (self.kernel)(
+            &self.param,
             self.left.apply_exploded(storage, edge, layer, t),
             self.right.apply_exploded(storage, edge, layer, t),
         )
     }
 }
 
-/// One value mapped by `kernel`, which produces a value of type `out`.
-pub struct UnaryValueEdgeOp<'g, K> {
+/// One value mapped by `kernel` with the test's `param`, producing a value of
+/// type `out`.
+pub struct UnaryValueEdgeOp<'g, P> {
     pub(crate) inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
-    pub(crate) kernel: K,
+    pub(crate) param: P,
+    pub(crate) kernel: UnaryKernel<P>,
     pub(crate) out: PropType,
 }
 
-impl<'g, K> EdgeOp for UnaryValueEdgeOp<'g, K>
-where
-    K: Fn(Option<Prop>) -> Option<Prop> + Send + Sync,
-{
+impl<'g, P: Send + Sync> EdgeOp for UnaryValueEdgeOp<'g, P> {
     type Output = Option<Prop>;
 
     fn prop_type(&self) -> PropType {
@@ -809,7 +813,7 @@ where
     }
 
     fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        (self.kernel)(self.inner.apply(storage, edge))
+        (self.kernel)(&self.param, self.inner.apply(storage, edge))
     }
 
     fn apply_layer(
@@ -818,7 +822,7 @@ where
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        (self.kernel)(self.inner.apply_layer(storage, edge, layer))
+        (self.kernel)(&self.param, self.inner.apply_layer(storage, edge, layer))
     }
 
     fn apply_exploded(
@@ -828,7 +832,10 @@ where
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        (self.kernel)(self.inner.apply_exploded(storage, edge, layer, t))
+        (self.kernel)(
+            &self.param,
+            self.inner.apply_exploded(storage, edge, layer, t),
+        )
     }
 }
 
