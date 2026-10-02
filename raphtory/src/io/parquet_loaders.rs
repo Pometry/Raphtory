@@ -388,7 +388,6 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     Ok(())
 }
 
-#[doc(hidden)] // pub for raphtory-tests
 pub fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Option<&[&str]>,

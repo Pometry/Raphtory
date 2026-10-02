@@ -189,7 +189,6 @@ where
         self.indexed(NodeList::from(index))
     }
 
-    #[doc(hidden)] // pub for raphtory-tests
     pub fn indexed(&self, nodes: NodeList) -> Nodes<'graph, G, GH, F> {
         Nodes::new_filtered(
             self.base_graph.clone(),

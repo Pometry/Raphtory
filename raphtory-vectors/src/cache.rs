@@ -1,4 +1,4 @@
-use crate::errors::{VectorResult};
+use crate::errors::VectorResult;
 use crate::{embeddings::EmbeddingError, embeddings::ModelConfig, Embedding};
 use ahash::RandomState;
 use futures_util::StreamExt;
@@ -14,7 +14,6 @@ use std::{
     sync::Arc,
 };
 
-#[doc(hidden)] // pub for raphtory-tests
 pub const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
 
 const MAX_DISK_ITEMS: usize = 1_000_000;
@@ -185,7 +184,6 @@ impl VectorCache {
         Ok(model)
     }
 
-    #[doc(hidden)] // pub for raphtory-tests
     pub async fn get(&self, model: &ModelConfig, text: &str) -> Option<Embedding> {
         let hash = hash(model, text);
         self.cache.get(&hash).await?;
@@ -197,7 +195,6 @@ impl VectorCache {
         }
     }
 
-    #[doc(hidden)] // pub for raphtory-tests
     pub async fn insert(&self, model: ModelConfig, text: String, vector: Embedding) {
         let hash = hash(&model, &text);
         let entry = CacheEntry {
@@ -227,7 +224,6 @@ impl CachedEmbeddingModel {
         self.model.dim()
     }
 
-    #[doc(hidden)] // pub for raphtory-tests
     pub async fn get_embeddings(
         &self,
         texts: Vec<String>,
@@ -270,7 +266,6 @@ impl CachedEmbeddingModel {
     }
 }
 
-#[doc(hidden)] // pub for raphtory-tests
 pub fn hash(model: &ModelConfig, text: &str) -> u64 {
     let hasher = RandomState::with_seeds(
         2576675592427417589,

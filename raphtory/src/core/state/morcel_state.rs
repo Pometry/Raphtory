@@ -111,7 +111,6 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         state.read_ref::<A, IN, OUT, ACC>(ss, i)
     }
 
-    #[doc(hidden)] // pub for raphtory-tests
     pub fn new(morcel_size: usize) -> Self {
         MorcelComputeState {
             morcel_size,
@@ -119,7 +118,6 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         }
     }
 
-    #[doc(hidden)] // pub for raphtory-tests
     pub fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,

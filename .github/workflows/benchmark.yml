@@ -14,13 +14,12 @@ on:
         default: false
         required: false
 
-
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   benchmark:
     if: ${{ !inputs.skip_tests }}
     name: Rust Benchmark
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
@@ -37,10 +36,7 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
           shared-key: rust-bench
-          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
-          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }}  # TODO: remove head_ref clause before merge (cache test)
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
@@ -52,10 +48,10 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
-          tool: 'cargo'
+          tool: "cargo"
           output-file-path: benchmark-result.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
@@ -65,10 +61,10 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
-          tool: 'cargo'
+          tool: "cargo"
           output-file-path: benchmark-result.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false

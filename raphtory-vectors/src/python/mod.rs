@@ -1,10 +1,21 @@
 pub mod document;
 
-pub use raphtory::python::graph::views::graph_view::TemplateConfig;
+use crate::errors::VectorError;
+use crate::{
+    cache::CachedEmbeddingModel, cache::VectorCache, custom::serve_custom_embedding,
+    custom::EmbeddingFunction, custom::EmbeddingServer, python::document::PyDocument,
+    storage::OpenAIEmbeddings, template::DocumentTemplate, template::DEFAULT_EDGE_TEMPLATE,
+    template::DEFAULT_NODE_TEMPLATE, vector_selection::noop_executor,
+    vector_selection::DynamicVectorSelection, vectorisable::Vectorisable,
+    vectorised_graph::VectorisedGraph, Document, DocumentEntity, Embedding,
+};
 use raphtory::python::graph::views::graph_view::register_vectorise;
-use crate::errors::{VectorError};
-use raphtory::{db::api::view::DynamicGraph, db::api::view::IntoDynamic, db::api::view::MaterializedGraph, db::api::view::StaticGraphViewOps, python::graph::edge::PyEdge, python::graph::node::PyNode, python::utils::block_on, python::utils::execute_async_task, python::utils::PyNodeRef};
-use crate::{python::document::PyDocument, cache::CachedEmbeddingModel, cache::VectorCache, custom::serve_custom_embedding, custom::EmbeddingFunction, custom::EmbeddingServer, storage::OpenAIEmbeddings, template::DocumentTemplate, template::DEFAULT_EDGE_TEMPLATE, template::DEFAULT_NODE_TEMPLATE, vector_selection::noop_executor, vector_selection::DynamicVectorSelection, vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Document, DocumentEntity, Embedding};
+pub use raphtory::python::graph::views::graph_view::TemplateConfig;
+use raphtory::{
+    db::api::view::DynamicGraph, db::api::view::IntoDynamic, db::api::view::MaterializedGraph,
+    db::api::view::StaticGraphViewOps, python::graph::edge::PyEdge, python::graph::node::PyNode,
+    python::utils::block_on, python::utils::execute_async_task, python::utils::PyNodeRef,
+};
 
 use itertools::Itertools;
 use pyo3::{
@@ -319,11 +330,9 @@ fn vectorise(
         edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
     };
     let vectorised: DynamicVectorisedGraph = execute_async_task(move || async move {
-        Ok::<_, VectorError>(
-            graph
-                .vectorise(model.cache_model, template, None, verbose)
-                .await?,
-        )
+        graph
+            .vectorise(model.cache_model, template, None, verbose)
+            .await
     })?;
     Ok(PyVectorisedGraph(vectorised)
         .into_pyobject(py)?

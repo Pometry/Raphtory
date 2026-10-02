@@ -42,13 +42,7 @@ mod three_node_motifs_test {
         global_info_logger();
         let events = [(true, 0, 1, 1, 1), (false, 1, 0, 1, 2), (false, 0, 0, 0, 3)]
             .iter()
-            .map(|x| TriangleEdge {
-                uv_edge: x.0,
-                uorv: x.1,
-                nb: x.2,
-                dir: x.3,
-                time: x.4,
-            })
+            .map(|x| TriangleEdge::new(x.0, x.1, x.2, x.3, x.4))
             .collect::<Vec<_>>();
         let mut triangle_count = init_tri_count(3);
         triangle_count.execute(&events, 5);

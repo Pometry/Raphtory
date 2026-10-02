@@ -25,10 +25,7 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
           shared-key: python-release-minimal
-          # Only base branches save caches: PR-scoped caches are unreadable by other PRs and evict the useful ones
-          save-if: ${{ github.ref == 'refs/heads/db_v4' || github.ref == 'refs/heads/master' || github.head_ref == 'pygraph_dfload_and_vacuum' }}  # TODO: remove head_ref clause before merge (cache test)
       - name: Install maturin
         run: pip install maturin==1.9.4
       - name: Build raphtory

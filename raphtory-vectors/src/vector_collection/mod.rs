@@ -1,16 +1,14 @@
-use crate::errors::{VectorResult};
+use crate::errors::VectorResult;
 use std::{future::Future, path::Path, sync::Arc};
 
-#[doc(hidden)] // pub for raphtory-tests
 pub mod lancedb;
 
 pub(super) use lancedb::LanceDbCollection;
 
-use crate::{Embedding};
+use crate::Embedding;
 
 pub(super) type CollectionPath = Arc<dyn AsRef<Path> + Send + Sync>;
 
-#[doc(hidden)] // pub for raphtory-tests
 #[allow(async_fn_in_trait)]
 pub trait VectorCollectionFactory {
     type DbType: VectorCollection;
@@ -28,7 +26,6 @@ pub trait VectorCollectionFactory {
     ) -> VectorResult<Self::DbType>;
 }
 
-#[doc(hidden)] // pub for raphtory-tests
 #[allow(async_fn_in_trait)]
 pub trait VectorCollection: Sized + Clone + Send + Sync {
     async fn insert_vectors(

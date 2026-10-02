@@ -1,5 +1,8 @@
 use crate::errors::{VectorError, VectorResult};
-use crate::{vector_collection::CollectionPath, vector_collection::VectorCollection, vector_collection::VectorCollectionFactory, Embedding};
+use crate::{
+    vector_collection::CollectionPath, vector_collection::VectorCollection,
+    vector_collection::VectorCollectionFactory, Embedding,
+};
 use arrow_array::{
     builder::{FixedSizeListBuilder, Float32Builder},
     types::{Float32Type, UInt64Type},
@@ -24,7 +27,6 @@ use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
 const VECTOR_COL_NAME: &str = "vector";
 
-#[doc(hidden)] // pub for raphtory-tests
 pub struct LanceDb;
 
 impl VectorCollectionFactory for LanceDb {
@@ -69,7 +71,6 @@ impl VectorCollectionFactory for LanceDb {
 }
 
 #[derive(Clone)]
-#[doc(hidden)] // pub for raphtory-tests
 pub struct LanceDbCollection {
     table: Table, // maybe this should be built in every call to the collection from path?
     dim: usize,

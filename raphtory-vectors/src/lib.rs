@@ -1,8 +1,8 @@
+use arrow_array::Float32Array;
 use raphtory::db::{
     api::view::StaticGraphViewOps,
     graph::{edge::EdgeView, node::NodeView},
 };
-use arrow_array::Float32Array;
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::{future::Future, ops::Deref, pin::Pin};
 
@@ -13,14 +13,13 @@ pub mod cache;
 pub mod custom;
 pub mod datetimeformat;
 pub mod embeddings;
-pub mod errors;
 mod entity_db;
 mod entity_ref;
+pub mod errors;
 pub mod splitting;
 pub mod storage; // TODO: re-export Embeddings instead of making this public
 pub mod template;
 mod utils;
-#[doc(hidden)] // pub for raphtory-tests
 pub mod vector_collection;
 pub mod vector_selection;
 pub mod vectorisable;

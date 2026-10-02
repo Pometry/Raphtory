@@ -16,9 +16,6 @@ runs:
       with:
         toolchain: ${{ steps.rust-version.outputs.version }}
         components: cargo,clippy,rust-docs,rust-src,rust-std,rustc,rustfmt
-    # Pin every cargo/rustc call in the job to the Cargo.toml version, while leaving other
-    # toolchains (the runner's stable, nightly for fmt) installed. `cargo +nightly ...`
-    # still takes precedence over RUSTUP_TOOLCHAIN.
     - name: Pin rust version
       shell: bash
       run: |

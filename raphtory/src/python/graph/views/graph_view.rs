@@ -506,7 +506,6 @@ static VECTORISE: OnceLock<VectoriseFn> = OnceLock::new();
 
 /// Called by `raphtory-vectors` when its python module is initialised: raphtory itself does
 /// not depend on the vector stack, so `GraphView.vectorise` forwards to this implementation.
-#[doc(hidden)]
 pub fn register_vectorise(vectorise: VectoriseFn) {
     let _ = VECTORISE.set(vectorise);
 }

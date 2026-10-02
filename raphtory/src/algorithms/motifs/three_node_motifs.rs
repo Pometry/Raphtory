@@ -1,10 +1,7 @@
-#[doc(hidden)] // pub for raphtory-tests
 pub const INCOMING: usize = 0;
-#[doc(hidden)] // pub for raphtory-tests
 pub const OUTGOING: usize = 1;
 const DIRS2D: [(usize, usize); 4] = [(0, 0), (0, 1), (1, 0), (1, 1)];
 
-#[doc(hidden)] // pub for raphtory-tests
 pub fn map2d(d1: usize, d2: usize) -> usize {
     2 * d1 + d2
 }
@@ -19,9 +16,7 @@ pub struct TwoNodeEvent {
     pub time: i64,
 }
 pub struct TwoNodeCounter {
-    #[doc(hidden)] // pub for raphtory-tests
     pub count1d: [usize; 2],
-    #[doc(hidden)] // pub for raphtory-tests
     pub count2d: [usize; 4],
     pub count3d: [usize; 8],
 }
@@ -195,30 +190,22 @@ pub fn init_star_count(n: usize) -> StarCounter {
 
 // Triangle Motifs
 pub struct TriangleEdge {
-    #[doc(hidden)] // pub for raphtory-tests
-    pub uv_edge: bool,
-    #[doc(hidden)] // pub for raphtory-tests
-    pub uorv: usize,
-    #[doc(hidden)] // pub for raphtory-tests
-    pub nb: usize,
-    #[doc(hidden)] // pub for raphtory-tests
-    pub dir: usize,
-    pub time: i64,
-}
-
-pub fn new_triangle_edge(
     uv_edge: bool,
     uorv: usize,
     nb: usize,
     dir: usize,
     time: i64,
-) -> TriangleEdge {
-    TriangleEdge {
-        uv_edge,
-        uorv,
-        nb,
-        dir,
-        time,
+}
+
+impl TriangleEdge {
+    pub fn new(uv_edge: bool, uorv: usize, nb: usize, dir: usize, time: i64) -> Self {
+        Self {
+            uv_edge,
+            uorv,
+            nb,
+            dir,
+            time,
+        }
     }
 }
 
@@ -229,7 +216,6 @@ pub struct TriangleCounter {
     pre_sum: [usize; 8],
     mid_sum: [usize; 8],
     post_sum: [usize; 8],
-    #[doc(hidden)] // pub for raphtory-tests
     pub final_counts: [usize; 8],
 }
 impl TriangleCounter {

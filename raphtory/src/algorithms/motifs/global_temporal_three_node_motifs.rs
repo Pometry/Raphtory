@@ -203,7 +203,7 @@ where
                             let (src_id, dst_id) = (e.src().node, e.dst().node);
                             let uid = u.node;
                             if src_id == *w {
-                                new_triangle_edge(
+                                TriangleEdge::new(
                                     false,
                                     if dst_id == uid { 0 } else { 1 },
                                     0,
@@ -211,7 +211,7 @@ where
                                     e.time().unwrap().t(),
                                 )
                             } else if dst_id == *w {
-                                new_triangle_edge(
+                                TriangleEdge::new(
                                     false,
                                     if src_id == uid { 0 } else { 1 },
                                     0,
@@ -219,9 +219,9 @@ where
                                     e.time().unwrap().t(),
                                 )
                             } else if src_id == uid {
-                                new_triangle_edge(true, 1, 0, 1, e.time().unwrap().t())
+                                TriangleEdge::new(true, 1, 0, 1, e.time().unwrap().t())
                             } else {
-                                new_triangle_edge(true, 0, 0, 0, e.time().unwrap().t())
+                                TriangleEdge::new(true, 0, 0, 0, e.time().unwrap().t())
                             }
                         })
                         .collect::<Vec<TriangleEdge>>();

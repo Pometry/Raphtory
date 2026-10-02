@@ -40,9 +40,7 @@ use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G, F = Const<bool>> {
-    #[doc(hidden)] // pub for raphtory-tests
     pub nodes: Nodes<'graph, G, GH, F>,
-    #[doc(hidden)] // pub for raphtory-tests
     pub op: Op,
 }
 

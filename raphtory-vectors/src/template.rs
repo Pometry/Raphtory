@@ -1,8 +1,13 @@
 use super::datetimeformat::datetimeformat;
-use raphtory::{db::api::properties::{internal::InternalPropertiesOps, TemporalPropertyView}, db::graph::edge::EdgeView, db::graph::node::NodeView, prelude::*};
 use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
+};
+use raphtory::{
+    db::api::properties::{internal::InternalPropertiesOps, TemporalPropertyView},
+    db::graph::edge::EdgeView,
+    db::graph::node::NodeView,
+    prelude::*,
 };
 use raphtory_api::core::storage::{
     arc_str::{ArcStr, OptionAsStr},
@@ -85,7 +90,6 @@ pub struct DocumentTemplate {
 
 impl DocumentTemplate {
     /// A function that translate a node into an iterator of documents
-    #[doc(hidden)] // pub for raphtory-tests
     pub fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeView<'graph, G>,
@@ -107,7 +111,6 @@ impl DocumentTemplate {
     }
 
     /// A function that translate an edge into an iterator of documents
-    #[doc(hidden)] // pub for raphtory-tests
     pub fn edge<'graph, G: GraphViewOps<'graph>>(&self, edge: EdgeView<G>) -> Option<String> {
         let template = self.edge_template.as_str()?;
         let mut env = Environment::new();
