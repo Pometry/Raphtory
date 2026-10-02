@@ -549,3 +549,56 @@ fn test_exploded_edges() {
         assert_eq!(graph.count_temporal_edges(), 4)
     });
 }
+
+#[test]
+fn open_exploded_edge_latest_time_is_the_view_end_not_a_sentinel() {
+    use raphtory::db::graph::views::deletion_graph::PersistentGraph;
+    use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
+
+    let p = PersistentGraph::new();
+    p.add_edge(1, "a", "b", NO_PROPS, None).unwrap(); // still in force
+    p.add_edge(2, "c", "d", NO_PROPS, None).unwrap();
+    p.delete_edge(5, "c", "d", None).unwrap(); // deleted
+
+    let open_edge = |g: &PersistentGraph| {
+        g.edges()
+            .explode()
+            .iter()
+            .find(|e| e.src().name() == "a")
+            .unwrap()
+            .latest_time()
+            .unwrap()
+    };
+    let deleted_edge = p
+        .edges()
+        .explode()
+        .iter()
+        .find(|e| e.src().name() == "c")
+        .unwrap()
+        .latest_time()
+        .unwrap();
+
+    let unwindowed = open_edge(&p);
+    // the end of the view, with the same convention as the windowed clamp: never usize::MAX
+    assert_eq!(unwindowed, EventTime::start(5));
+    assert_ne!(unwindowed.i(), usize::MAX);
+    let windowed = p
+        .window(0, 10)
+        .edges()
+        .explode()
+        .iter()
+        .find(|e| e.src().name() == "a")
+        .unwrap()
+        .latest_time()
+        .unwrap();
+    assert_eq!(windowed.i(), unwindowed.i());
+    assert_eq!(windowed.t(), 10);
+    // the deleted edge still reports the deletion's own event id, not 0
+    assert_eq!(deleted_edge.t(), 5);
+    assert_eq!(deleted_edge.i(), 2);
+
+    // a graph with a single open edge shows the same convention
+    let single = PersistentGraph::new();
+    single.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+    assert_eq!(open_edge(&single), EventTime::start(1));
+}
