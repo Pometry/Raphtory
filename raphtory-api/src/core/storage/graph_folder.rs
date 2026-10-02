@@ -600,23 +600,25 @@ impl GraphPaths for WriteableGraphFolder {
 }
 
 impl WriteableGraphFolder {
-    /// Finalise an in-progress write by atomically renaming the .dirty file to .raph
-    /// and cleaning up any old data.
+    /// Finalise an in-progress write by atomically renaming the .dirty file to .raph.
+    /// Removes the previous `data{id}` folder if `cleanup_old` is true.
     ///
     /// This operation returns an error if there is no write in progress.
-    pub fn finish(self) -> Result<GraphFolder, GraphFolderError> {
-        let dirty_path = self.root().join(DIRTY_PATH);
-        let raph_path = self.root().join(ROOT_RAPH_PATH);
-
-        fs::rename(dirty_path, raph_path)?;
-
+    pub fn finish(self, cleanup_old: bool) -> Result<GraphFolder, GraphFolderError> {
         let old_data_folder = read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?;
 
-        if let Some(old_data_folder) = old_data_folder {
-            let old_data_path = self.root().join(old_data_folder);
+        fs::rename(
+            self.root().join(DIRTY_PATH),
+            self.root().join(ROOT_RAPH_PATH),
+        )?;
 
-            if old_data_path.is_dir() {
-                fs::remove_dir_all(old_data_path)?;
+        if cleanup_old {
+            if let Some(old_data_folder) = old_data_folder {
+                let old_data_path = self.root().join(old_data_folder);
+
+                if old_data_path.is_dir() {
+                    fs::remove_dir_all(old_data_path)?;
+                }
             }
         }
 

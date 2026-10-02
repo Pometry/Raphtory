@@ -67,13 +67,17 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             let write_folder = folder.init_write()?;
             self.encode_parquet(write_folder.graph_path()?)?;
             let data_folder = write_folder.data_path()?;
+
             let meta = Metadata {
                 path: data_folder.relative_graph_path()?,
                 meta: build_graph_metadata(self),
             };
+
             data_folder.write_metadata(meta)?;
-            write_folder.finish()?;
+            let cleanup_old = true;
+            write_folder.finish(cleanup_old)?;
         }
+
         Ok(())
     }
 }

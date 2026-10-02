@@ -557,10 +557,16 @@ impl ValidWriteableGraphFolder {
 
     /// Swap old and new data and delete the old graph
     pub fn finish(self) -> Result<ValidGraphFolder, PathValidationError> {
-        let data_path = self.global_path.finish().with_path(&self.local_path)?;
+        let cleanup_old = true;
+        let data_path = self
+            .global_path
+            .finish(cleanup_old)
+            .with_path(&self.local_path)?;
+
         if let Some(cleanup) = self.dirty_marker.as_ref() {
             cleanup.persist().with_path(&self.local_path)?;
         }
+
         Ok(ValidGraphFolder {
             work_dir_guard: self.work_dir_write_guard.into(),
             global_path: data_path,

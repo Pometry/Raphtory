@@ -16,16 +16,16 @@ use storage::{
 };
 use thiserror::Error;
 
-/// Holds state for an ongoing `stage` call on a graph.
+/// Holds state for an ongoing `stage` on a graph.
 pub struct Handle {
     /// The underlying storage of the staged graph.
     storage: GraphStorage,
 
-    /// The directory on disk that holds data for this stage.
+    /// The directory on disk that holds data for this stage handle.
     folder: WriteableGraphFolder,
 
     /// The graph being staged from.
-    /// Read locks need to be held to prevent concurrent writes during a stage.
+    /// Read locks need to be held to prevent concurrent writes while staging.
     _src_graph: ReadLockedGraph,
 
     src_folder: GraphFolder,
@@ -71,7 +71,10 @@ impl Handle {
         };
 
         self.folder.write_metadata(new_meta)?;
-        self.folder.finish().map_err(StageError::Finish)?;
+        let cleanup_old = false; // Keep the previous data folders around as archives.
+        self.folder
+            .finish(cleanup_old)
+            .map_err(StageError::Finish)?;
 
         Ok(self.storage)
     }
@@ -143,15 +146,9 @@ impl ReadLockedGraph {
         let extension = Extension::load(&staged_graph_path, config)?;
 
         let temporal_graph = TemporalGraph::load(staged_graph_path, extension)?;
-        let staged_graph = GraphStorage::from(temporal_graph);
+        let storage = GraphStorage::from(temporal_graph);
 
-        Ok(Handle::new(
-            staged_graph,
-            staged_folder,
-            self,
-            src_folder,
-            guard,
-        ))
+        Ok(Handle::new(storage, staged_folder, self, src_folder, guard))
     }
 }
 
