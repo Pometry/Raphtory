@@ -45,9 +45,12 @@ fn type_filter_domain_uses_index() {
     let c = g.node("c").unwrap().node;
 
     // TODO: Remove manually updating the index here once it's wired up to add_node.
-    storage.node_type_index().head().insert(person_id, a);
-    storage.node_type_index().head().insert(person_id, b);
-    storage.node_type_index().head().insert(company_id, c);
+    storage.node_type_index().head_shared().insert(person_id, a);
+    storage.node_type_index().head_shared().insert(person_id, b);
+    storage
+        .node_type_index()
+        .head_shared()
+        .insert(company_id, c);
 
     let op = NodeTypeFilterOp::from_values(["Person"], &g);
 
@@ -89,12 +92,15 @@ fn typed_graphs() -> (Graph, Graph) {
             ("d", "Company", 4),
             ("e", "City", 5),
         ];
+
         for (name, node_type, p) in nodes {
             g.add_node(1, name, [("p", p)], Some(node_type), None)
                 .unwrap();
         }
+
         // untyped node: the loader does not index the default type
         g.add_node(1, "f", [("p", 6i64)], None, None).unwrap();
+
         for (src, dst) in [
             ("a", "b"),
             ("a", "c"),
@@ -105,18 +111,24 @@ fn typed_graphs() -> (Graph, Graph) {
         ] {
             g.add_edge(2, src, dst, NO_PROPS, None).unwrap();
         }
+
         if index {
             // TODO: Remove manually updating the index here once it's wired up to add_node.
             let storage = g.core_graph();
             for node in g.nodes() {
                 let type_id = storage.node_type_id(node.node);
                 if type_id != 0 {
-                    storage.node_type_index().head().insert(type_id, node.node);
+                    storage
+                        .node_type_index()
+                        .head_shared()
+                        .insert(type_id, node.node);
                 }
             }
         }
+
         g
     };
+
     (build(true), build(false))
 }
 

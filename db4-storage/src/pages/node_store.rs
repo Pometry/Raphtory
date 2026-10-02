@@ -9,7 +9,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{LockedNodePage, WriteLockedNodePages},
+        locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -29,8 +29,11 @@ use std::{
     sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
-// graph // (nodes|edges) // graph segments // layers // chunks
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
+
+pub fn type_index_path(nodes_path: impl AsRef<Path>) -> PathBuf {
+    nodes_path.as_ref().join("type_index")
+}
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT>
@@ -39,12 +42,12 @@ where
 {
     segments: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
-    node_type_index: Arc<EXT::NTI>,
+    type_index: Arc<EXT::NTI>,
 
     /// Contains ids of segments that can accomodate new nodes.
     free_segments: Box<[RwLock<usize>]>,
 
-    nodes_path: Option<PathBuf>,
+    path: Option<PathBuf>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     ext: EXT,
@@ -57,7 +60,7 @@ where
     EXT: PersistenceStrategy<NS = NS>,
 {
     storage: Arc<NodeStorageInner<NS, EXT>>,
-    locked_segments: Box<[NS::ArcLockedSegment]>,
+    segments: Box<[NS::ArcLockedSegment]>,
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
@@ -68,8 +71,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         node: impl Into<VID>,
     ) -> <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
-        let locked_segment = &self.locked_segments[segment_id];
-        locked_segment.entry_ref(pos)
+        let segment = &self.segments[segment_id];
+        segment.entry_ref(pos)
     }
 
     pub fn try_node_ref(
@@ -77,9 +80,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         node: VID,
     ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
-        let locked_segment = &self.locked_segments.get(segment_id)?;
-        if pos.0 < locked_segment.num_nodes() {
-            Some(locked_segment.entry_ref(pos))
+        let segment = &self.segments.get(segment_id)?;
+        if pos.0 < segment.num_nodes() {
+            Some(segment.entry_ref(pos))
         } else {
             None
         }
@@ -98,7 +101,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> impl Iterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        self.locked_segments
+        self.segments
             .iter()
             .flat_map(move |segment| segment.iter_entries())
     }
@@ -106,7 +109,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn segment_counts(&self) -> SegmentCounts<VID> {
         SegmentCounts::new(
             self.storage.max_segment_len(),
-            self.locked_segments.iter().map(|seg| seg.num_nodes()),
+            self.segments.iter().map(|seg| seg.num_nodes()),
         )
     }
 
@@ -115,7 +118,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ) -> impl ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        self.locked_segments
+        self.segments
             .par_iter()
             .flat_map(move |segment| segment.par_iter_entries())
     }
@@ -124,14 +127,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self,
     ) -> impl IndexedParallelIterator<Item = (usize, impl Iterator<Item = VID> + '_)> {
         let max_actual_seg_len = self
-            .locked_segments
+            .segments
             .iter()
             .map(|seg| seg.num_nodes())
             .max()
             .unwrap_or(0);
+
         row_group_par_iter(
             self.storage.max_segment_len() as usize,
-            self.locked_segments.len(),
+            self.segments.len(),
             self.storage.max_segment_len(),
             max_actual_seg_len,
         )
@@ -140,8 +144,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     fn has_vid(&self, vid: VID) -> bool {
         let (segment_id, pos) = self.storage.resolve_pos(vid);
-        segment_id < self.locked_segments.len()
-            && pos.0 < self.locked_segments[segment_id].num_nodes()
+        segment_id < self.segments.len() && pos.0 < self.segments[segment_id].num_nodes()
     }
 }
 
@@ -152,8 +155,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         &self.node_meta
     }
 
-    pub fn node_type_index(&self) -> &EXT::NTI {
-        &self.node_type_index
+    pub fn node_type_index(&self) -> &Arc<EXT::NTI> {
+        &self.type_index
     }
 
     pub fn num_layers(&self) -> usize {
@@ -213,7 +216,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn nodes_path(&self) -> Option<&Path> {
-        self.nodes_path.as_deref()
+        self.path.as_deref()
     }
 
     /// Return the position of the chunk and the position within the chunk
@@ -254,23 +257,37 @@ impl<'a, NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     NodeStorageInner<NS, EXT>
 {
-    pub fn new_with_meta(
-        nodes_path: Option<PathBuf>,
+    pub fn new(
+        path: Option<PathBuf>,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
-    ) -> Self {
+    ) -> Result<Self, StorageError> {
+        let type_index_path = path.as_ref().map(type_index_path);
+        let type_index = EXT::NTI::new(type_index_path.as_deref(), ext.clone())?;
+
+        Self::new_with_type_index(path, type_index, node_meta, edge_meta, ext)
+    }
+
+    fn new_with_type_index(
+        path: Option<PathBuf>,
+        type_index: EXT::NTI,
+        node_meta: Arc<Meta>,
+        edge_meta: Arc<Meta>,
+        ext: EXT,
+    ) -> Result<Self, StorageError> {
+        if let Some(path) = path.as_deref() {
+            std::fs::create_dir_all(path)?;
+        }
+
         let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
-        // TODO: Use a constant for type_index_path.
-        let type_index_path = nodes_path.as_ref().map(|p| p.join("type_index"));
-        let node_type_index = Arc::new(EXT::NTI::new(type_index_path.as_deref(), ext.clone()));
 
         let empty = Self {
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
-            node_type_index,
+            type_index: Arc::new(type_index),
             free_segments,
-            nodes_path,
+            path,
             node_meta,
             edge_meta,
             ext,
@@ -296,26 +313,27 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             segment.set_dirty(true);
         }
 
-        empty
+        Ok(empty)
     }
 
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
-        let locked_segments = self
+        let segments = self
             .segments_iter()
             .map(|segment| segment.locked())
             .collect::<Box<_>>();
+
         ReadLockedNodeStorage {
             storage: self.clone(),
-            locked_segments,
+            segments,
         }
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
-        WriteLockedNodePages::new(
+    pub fn write_locked<'a>(&'a self) -> WriteLockedNodeSegments<'a, NS> {
+        WriteLockedNodeSegments::new(
             self.segments
                 .iter()
                 .map(|(page_id, page)| {
-                    LockedNodePage::new(
+                    LockedNodeSegment::new(
                         page_id,
                         &self.stats,
                         self.max_segment_len(),
@@ -325,6 +343,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 })
                 .collect(),
         )
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.segments.iter().any(|(_, segment)| segment.is_dirty())
     }
 
     pub fn reserve_vid(&self, row: usize) -> VID {
@@ -412,7 +434,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 segment_id,
                 self.node_meta.clone(),
                 self.edge_meta.clone(),
-                self.nodes_path.clone(),
+                self.path.clone(),
                 self.ext.clone(),
             ))
         });
@@ -470,141 +492,148 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn load(
-        nodes_path: impl AsRef<Path>,
+        path: impl AsRef<Path>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, StorageError> {
-        let nodes_path = nodes_path.as_ref();
+        let path = path.as_ref();
+        let type_index_path = type_index_path(path);
         let max_page_len = ext.config().max_node_page_len();
         let node_meta = Arc::new(Meta::new_for_nodes());
 
-        if !nodes_path.exists() {
-            return Ok(Self::new_with_meta(
-                Some(nodes_path.to_path_buf()),
-                node_meta,
-                edge_meta,
-                ext.clone(),
-            ));
+        if !path.exists() {
+            return Self::new(Some(path.to_path_buf()), node_meta, edge_meta, ext.clone());
         }
 
-        let mut pages = std::fs::read_dir(nodes_path)?
+        let type_index = EXT::NTI::load(type_index_path, ext.clone())?;
+
+        let mut segments = std::fs::read_dir(path)?
             .par_bridge()
-            .filter(|entry| {
-                entry
-                    .as_ref()
-                    .ok()
-                    .and_then(|entry| entry.file_type().ok().map(|ft| ft.is_dir()))
-                    .unwrap_or_default()
-            })
             .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let page_id = entry
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                let is_dir = match entry.file_type() {
+                    Ok(file_type) => file_type.is_dir(),
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                if !is_dir {
+                    return None;
+                }
+
+                // Ignore directories that aren't segments.
+                let segment_id = entry
                     .path()
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
-                let page = NS::load(
-                    page_id,
-                    node_meta.clone(),
-                    edge_meta.clone(),
-                    nodes_path,
-                    ext.clone(),
+
+                Some(
+                    NS::load(
+                        segment_id,
+                        node_meta.clone(),
+                        edge_meta.clone(),
+                        path,
+                        ext.clone(),
+                    )
+                    .map(|segment| (segment_id, segment)),
                 )
-                .map(|page| (page_id, page));
-                Some(page)
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
-        if pages.is_empty() {
-            return Err(StorageError::EmptyGraphDir(nodes_path.to_path_buf()));
-        }
+        let Some(max_segment) = segments.keys().copied().max() else {
+            // Empty directory, no segments to load.
+            return Self::new_with_type_index(
+                Some(path.to_path_buf()),
+                type_index,
+                node_meta,
+                edge_meta,
+                ext,
+            );
+        };
 
-        let max_page = Iterator::max(pages.keys().copied()).unwrap();
-
-        let pages = (0..=max_page)
-            .map(|page_id| {
-                let np = pages.remove(&page_id).unwrap_or_else(|| {
+        // Segments flush independently, so ids below max may be missing on disk.
+        let segments = (0..=max_segment)
+            .map(|segment_id| {
+                let segment = if let Some(segment) = segments.remove(&segment_id) {
+                    segment
+                } else {
                     NS::new(
-                        page_id,
+                        segment_id,
                         node_meta.clone(),
                         edge_meta.clone(),
-                        Some(nodes_path.to_path_buf()),
+                        Some(path.to_path_buf()),
                         ext.clone(),
                     )
-                });
-                Arc::new(np)
+                };
+
+                Arc::new(segment)
             })
             .collect::<boxcar::Vec<_>>();
 
-        let first_page = pages.iter().next().unwrap().1;
-        let first_p_id = first_page.segment_id();
-
-        if first_p_id != 0 {
-            return Err(StorageError::GenericFailure(format!(
-                "First page id is not 0 in {nodes_path:?}"
-            )));
-        }
-
         let mut layer_counts = vec![];
 
-        for (_, page) in pages.iter() {
-            for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(LayerId(layer_id)) as usize;
+        for (_, segment) in segments.iter() {
+            for layer_id in 0..segment.num_layers() {
+                let count = segment.layer_count(LayerId(layer_id)) as usize;
+
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
+
                 layer_counts[layer_id] += count;
             }
         }
 
-        let earliest = pages
+        let earliest = segments
             .iter()
-            .filter_map(|(_, page)| page.earliest().filter(|t| t.t() != i64::MAX))
+            .filter_map(|(_, segment)| segment.earliest().filter(|t| t.t() != i64::MAX))
             .map(|t| t.t())
             .min()
             .unwrap_or(i64::MAX);
 
-        let latest = pages
+        let latest = segments
             .iter()
-            .filter_map(|(_, page)| page.latest().filter(|t| t.t() != i64::MIN))
+            .filter_map(|(_, segment)| segment.latest().filter(|t| t.t() != i64::MIN))
             .map(|t| t.t())
             .max()
             .unwrap_or(i64::MIN);
 
-        let mut free_pages = pages
+        let mut free_segments = segments
             .iter()
-            .filter_map(|(_, page)| {
-                let len = page.num_nodes();
+            .filter_map(|(_, segment)| {
+                let len = segment.num_nodes();
+
                 if len < max_page_len {
-                    Some(RwLock::new(page.segment_id()))
+                    Some(RwLock::new(segment.segment_id()))
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>();
 
-        let mut next_free_page = free_pages
+        let mut next_free_segment = free_segments
             .last()
-            .map(|page| *(page.read()))
+            .map(|segment| *(segment.read()))
             .map(|last| last + 1)
-            .unwrap_or_else(|| pages.count());
+            .unwrap_or_else(|| segments.count());
 
-        free_pages.resize_with(*N, || {
-            let lock = RwLock::new(next_free_page);
-            next_free_page += 1;
+        free_segments.resize_with(*N, || {
+            let lock = RwLock::new(next_free_segment);
+            next_free_segment += 1;
             lock
         });
 
         let stats = GraphStats::load(layer_counts, earliest, latest);
-        // TODO: Use a constant for type_index_path.
-        let type_index_path = nodes_path.join("type_index");
-        let node_type_index = Arc::new(EXT::NTI::load(&type_index_path, ext.clone())?);
 
         Ok(Self {
-            segments: pages,
-            free_segments: free_pages.into(),
-            nodes_path: Some(nodes_path.to_path_buf()),
+            segments,
+            free_segments: free_segments.into(),
+            path: Some(path.to_path_buf()),
             stats: stats.into(),
-            node_type_index,
+            type_index: Arc::new(type_index),
             node_meta,
             edge_meta,
             ext,
@@ -671,7 +700,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                         segment_id,
                         self.node_meta.clone(),
                         self.edge_meta.clone(),
-                        self.nodes_path.clone(),
+                        self.path.clone(),
                         self.ext.clone(),
                     ))
                 });
@@ -692,8 +721,22 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub(crate) fn flush(&self) -> Result<(), StorageError> {
-        self.segments_par_iter().try_for_each(|seg| seg.flush())?;
-        self.node_type_index.flush()
+        self.segments_par_iter()
+            .try_for_each(|segment| segment.flush())?;
+
+        self.type_index.flush()
+    }
+
+    /// Copy flushed data into `dst`.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        self.segments_par_iter().try_for_each(|segment| {
+            let segment_dst = dst.join(segment.segment_id().to_string());
+            segment.copy_to(&segment_dst)
+        })?;
+
+        self.type_index.copy_to(&type_index_path(dst))
     }
 }
 

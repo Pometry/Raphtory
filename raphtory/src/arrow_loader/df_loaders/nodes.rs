@@ -27,12 +27,13 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
+    fmt::Debug,
     sync::{atomic::Ordering, mpsc},
 };
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
-    pages::locked::nodes::LockedNodePage,
-    segments::node_type_index::index::MemNodeTypeIndex,
+    pages::locked::nodes::LockedNodeSegment,
+    segments::node_type_index::MemNodeTypeIndex,
     Extension,
 };
 
@@ -123,9 +124,7 @@ pub fn load_nodes_from_df_prefetch<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
->(
+pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + Debug>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     time: &str,
     secondary_index: Option<&str>,
@@ -150,13 +149,13 @@ pub fn load_nodes_from_df<
             .iter()
             .map(|name| df_view.get_index(name))
             .collect::<Result<Vec<_>, GraphError>>()?;
+
         let metadata_indices = metadata
             .iter()
             .map(|name| df_view.get_index(name))
             .collect::<Result<Vec<_>, GraphError>>()?;
 
-        let node_type_index =
-            node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
+        let node_type_index = node_type_col.map(|col| df_view.get_index(col.as_ref()));
         let node_type_index = node_type_index.transpose()?;
         let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
         let layer_id_index = layer_id_col
@@ -231,7 +230,7 @@ pub fn load_nodes_from_df<
                 extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
             node_col_resolved.resize_with(df.len(), Default::default);
 
-            let (src_vids, gid_str_cache) = get_or_resolve_node_vids::<G>(
+            let (src_vids, gid_str_cache) = get_or_resolve_node_vids(
                 graph,
                 node_id_index,
                 &mut node_resolve_cache,
@@ -244,7 +243,7 @@ pub fn load_nodes_from_df<
 
             if resolve_nodes && !gid_str_cache.is_empty() {
                 let index = graph.core_graph().node_type_index();
-                populate_node_type_index(&gid_str_cache, &index.head());
+                populate_node_type_index(&gid_str_cache, &index.head_shared());
                 index.notify_write();
             }
 
@@ -277,7 +276,13 @@ pub fn load_nodes_from_df<
                             let _writer = shard.writer();
                         }
 
-                        return Ok::<_, GraphError>(());
+                        return Ok(());
+                    }
+
+                    // resolve_nodes = false assumes we are loading our own graph via the parquet
+                    // loaders, so previous calls have already stored the node ids and types.
+                    if resolve_nodes {
+                        store_node_ids_and_type(&gid_str_cache, shard);
                     }
 
                     // Zip all columns for iteration.
@@ -287,13 +292,6 @@ pub fn load_nodes_from_df<
                         let secondary_index = secondary_index_at(&secondary_index_col, row);
                         (row, vid, time, secondary_index)
                     });
-
-                    // resolve_nodes=false
-                    // assumes we are loading our own graph, via the parquet loaders,
-                    // so previous calls have already stored the node ids and types
-                    if resolve_nodes {
-                        store_node_ids_and_type(&gid_str_cache, shard);
-                    }
 
                     let mut writer = shard.writer();
 
@@ -335,7 +333,7 @@ pub fn load_nodes_from_df<
 #[allow(clippy::too_many_arguments)]
 pub fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
@@ -789,7 +787,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[Resolved<'_>],
-    locked_page: &mut LockedNodePage<'_, NS>,
+    locked_page: &mut LockedNodeSegment<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
 

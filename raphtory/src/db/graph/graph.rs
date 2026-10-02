@@ -17,12 +17,15 @@
 //!
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    db::api::{
-        storage::storage::Storage,
-        view::internal::{
-            InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, InheritViewOps,
-            Static,
+    db::{
+        api::{
+            storage::storage::Storage,
+            view::internal::{
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritViewOps, Static,
+            },
         },
+        stage::Stage,
     },
     errors::GraphError,
     prelude::*,
@@ -262,6 +265,10 @@ impl Graph {
         Self {
             inner: Arc::new(self.inner.read_only()),
         }
+    }
+
+    pub fn stage(self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self)
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {

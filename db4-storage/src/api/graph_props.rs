@@ -5,7 +5,7 @@ use raphtory_api::core::entities::properties::{
     prop::{AsPropRef, Prop},
     tprop::TPropOps,
 };
-use std::{fmt::Debug, path::Path, sync::Arc};
+use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
 
 pub trait GraphPropSegmentOps: Send + Sync + Debug + 'static
 where
@@ -37,15 +37,27 @@ where
 
     fn set_dirty(&self, dirty: bool);
 
+    fn is_dirty(&self) -> bool;
+
     /// Returns the latest lsn for the immutable part of this segment.
     fn immut_lsn(&self) -> LSN;
 
     fn notify_write(
         &self,
-        mem_segment: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
+        head_lock: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
-    fn flush(&self) -> Result<(), StorageError>;
+    fn flush(&self) -> Result<(), StorageError> {
+        let head = self.head_mut();
+        self.flush_with_head(head)
+    }
+
+    fn flush_with_head(
+        &self,
+        head: impl DerefMut<Target = MemGraphPropSegment>,
+    ) -> Result<(), StorageError>;
+
+    fn copy_to(&self, dst: &Path) -> Result<(), StorageError>;
 
     fn check_metadata_immut<PR: AsPropRef>(
         &self,

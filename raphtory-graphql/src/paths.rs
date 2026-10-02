@@ -18,7 +18,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
-    WriteableGraphFolder, DIRTY_PATH, ROOT_META_PATH,
+    WriteableGraphFolder, DIRTY_PATH, ROOT_RAPH_PATH,
 };
 use std::{
     cmp::Ordering,
@@ -136,12 +136,12 @@ impl ValidPath {
 
     /// path exists and is a graph
     pub fn is_graph(&self) -> bool {
-        self.0.exists() && self.0.join(ROOT_META_PATH).exists()
+        self.0.exists() && self.0.join(ROOT_RAPH_PATH).exists()
     }
 
     /// path exists and is a namespace
     pub fn is_namespace(&self) -> bool {
-        self.0.exists() && !self.0.join(ROOT_META_PATH).exists()
+        self.0.exists() && !self.0.join(ROOT_RAPH_PATH).exists()
     }
 
     pub fn into_path(self) -> PathBuf {
@@ -311,7 +311,7 @@ fn extend_and_validate(
 ) -> Result<(), InternalPathValidationError> {
     let component = valid_component(component)?;
     // check if some intermediate path is already a graph
-    if full_path.join(ROOT_META_PATH).exists() {
+    if full_path.join(ROOT_RAPH_PATH).exists() {
         return Err(InvalidPathReason::ParentIsGraph.into());
     }
     full_path.push(component);
@@ -430,36 +430,33 @@ impl ValidGraphPaths for ValidWriteableGraphFolder {
 }
 
 impl ValidWriteableGraphFolder {
-    fn new_inner(
-        work_dir_write_guard: WorkDirWriteGuard,
-        valid_path: NewPath,
-        graph_name: &str,
-    ) -> Result<Self, InternalPathValidationError> {
-        let is_new = valid_path.is_new();
-        let graph_folder = GraphFolder::from(valid_path.path);
-        if !is_new {
-            if !graph_folder.is_reserved() {
-                return Err(InternalPathValidationError::GraphIsNamespace);
-            }
-        }
-        let data_path = graph_folder.init_swap()?;
-        Ok(Self {
-            work_dir_write_guard,
-            global_path: data_path,
-            dirty_marker: valid_path.cleanup,
-            local_path: graph_name.to_string(),
-        })
-    }
     fn new(
         work_dir_write_guard: WorkDirWriteGuard,
         valid_path: NewPath,
         graph_name: &str,
     ) -> Result<Self, PathValidationError> {
-        Self::new_inner(work_dir_write_guard, valid_path, graph_name).map_err(|error| {
-            PathValidationError::InternalError {
-                graph: graph_name.to_string(),
-                error,
+        let is_new = valid_path.is_new();
+        let graph_folder = GraphFolder::from(valid_path.path);
+        if !is_new {
+            if !graph_folder.is_reserved() {
+                return Err(PathValidationError::InternalError {
+                    graph: graph_name.to_string(),
+                    error: InternalPathValidationError::GraphIsNamespace,
+                });
             }
+        }
+        let data_path =
+            graph_folder
+                .init_swap()
+                .map_err(|error| PathValidationError::InternalError {
+                    graph: graph_name.to_string(),
+                    error: error.into(),
+                })?;
+        Ok(Self {
+            work_dir_write_guard,
+            global_path: data_path,
+            dirty_marker: valid_path.cleanup,
+            local_path: graph_name.to_string(),
         })
     }
 
@@ -560,10 +557,16 @@ impl ValidWriteableGraphFolder {
 
     /// Swap old and new data and delete the old graph
     pub fn finish(self) -> Result<ValidGraphFolder, PathValidationError> {
-        let data_path = self.global_path.finish().with_path(&self.local_path)?;
+        let cleanup_old = true;
+        let data_path = self
+            .global_path
+            .finish(cleanup_old)
+            .with_path(&self.local_path)?;
+
         if let Some(cleanup) = self.dirty_marker.as_ref() {
             cleanup.persist().with_path(&self.local_path)?;
         }
+
         Ok(ValidGraphFolder {
             work_dir_guard: self.work_dir_write_guard.into(),
             global_path: data_path,

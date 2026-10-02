@@ -541,7 +541,9 @@ mod test {
             storage.node_metadata(typed_a, NODE_TYPE_PROP_ID),
             Some(Prop::U64(a_id as u64))
         );
+
         assert_eq!(storage.node_metadata(untyped, NODE_TYPE_PROP_ID), None);
+
         assert_eq!(
             storage.node_metadata(typed_b, NODE_TYPE_PROP_ID),
             Some(Prop::U64(b_id as u64))
@@ -553,7 +555,9 @@ mod test {
             .iter()
             .next()
             .is_none());
-        assert_eq!(storage.node_type_index().head().num_entries(), 2);
+
+        assert_eq!(storage.node_type_index().head_shared().num_entries(), 2);
+
         assert_eq!(
             storage
                 .node_type_index()
@@ -562,6 +566,7 @@ mod test {
                 .collect::<Vec<_>>(),
             vec![typed_a]
         );
+
         assert_eq!(
             storage
                 .node_type_index()
@@ -581,7 +586,11 @@ mod test {
         )
         .expect("failed to load nodes");
 
-        let entries_before = graph.core_graph().node_type_index().head().num_entries();
+        let entries_before = graph
+            .core_graph()
+            .node_type_index()
+            .head_shared()
+            .num_entries();
 
         load_nodes_with_type_col(
             &graph,
@@ -594,7 +603,7 @@ mod test {
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
 
         assert_eq!(
-            storage.node_type_index().head().num_entries(),
+            storage.node_type_index().head_shared().num_entries(),
             entries_before
         );
         assert_eq!(entries_before, 2);

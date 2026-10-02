@@ -9,6 +9,7 @@ use crate::{
             view::internal::*,
         },
         graph::graph::graph_equal,
+        stage::Stage,
     },
     errors::GraphError,
     prelude::*,
@@ -245,6 +246,10 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
+    pub fn stage(self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self)
+    }
+
     pub fn event_graph(&self) -> Graph {
         Graph::from_storage(self.0.clone())
     }
@@ -303,6 +308,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+
     #[inline]
     fn window_filtered(&self) -> bool {
         false
