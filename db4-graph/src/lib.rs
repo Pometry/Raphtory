@@ -58,7 +58,7 @@ where
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
     /// Exclusive lock held while this graph is being staged for writes.
-    staging_lock: Arc<Mutex<()>>,
+    stage_lock: Arc<Mutex<()>>,
 }
 
 impl<EXT> TemporalGraph<EXT>
@@ -132,7 +132,7 @@ where
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
             round_robin_counter: AtomicUsize::new(0),
-            staging_lock: Arc::new(Mutex::new(())),
+            stage_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -168,7 +168,7 @@ where
             gid_resolver: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
-            staging_lock: Arc::new(Mutex::new(())),
+            stage_lock: Arc::new(Mutex::new(())),
         })
     }
 
@@ -430,8 +430,8 @@ where
     }
 
     /// Returns `None` if another thread is already staging this graph.
-    pub fn try_staging_guard(&self) -> Option<ArcMutexGuard<RawMutex, ()>> {
-        self.staging_lock.try_lock_arc()
+    pub fn try_stage_guard(&self) -> Option<ArcMutexGuard<RawMutex, ()>> {
+        self.stage_lock.try_lock_arc()
     }
 
     /// Copy flushed data into `dst`.

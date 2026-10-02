@@ -16,7 +16,7 @@ use storage::{
 };
 use thiserror::Error;
 
-/// Isolated fork of a graph used for staging writes before atomically
+/// Isolated fork of a graph used to stage writes before atomically
 /// applying them to the source graph.
 pub struct StagedGraph {
     /// The underlying storage of the staged graph.
@@ -24,7 +24,7 @@ pub struct StagedGraph {
     folder: WriteableGraphFolder,
 
     /// The graph being staged from.
-    /// Read locks need to be held to prevent concurrent writes during staging.
+    /// Read locks need to be held to prevent concurrent writes during a stage.
     _src_graph: ReadLockedGraph,
 
     src_folder: GraphFolder,
@@ -54,7 +54,7 @@ impl StagedGraph {
         &self.graph
     }
 
-    pub fn finish(self) -> Result<(), StagingError> {
+    pub fn finish(self) -> Result<(), StageError> {
         self.graph.flush()?;
 
         let src_meta = self.src_folder.read_metadata()?;
@@ -70,21 +70,21 @@ impl StagedGraph {
         };
 
         self.folder.write_metadata(new_meta)?;
-        self.folder.finish().map_err(StagingError::Finish)?;
+        self.folder.finish().map_err(StageError::Finish)?;
 
         Ok(())
     }
 
-    pub fn discard(self) -> Result<(), StagingError> {
-        self.folder.discard().map_err(StagingError::Discard)
+    pub fn discard(self) -> Result<(), StageError> {
+        self.folder.discard().map_err(StageError::Discard)
     }
 }
 
 impl GraphStorage {
-    pub fn stage(&self) -> Result<StagedGraph, StagingError> {
+    pub fn stage(&self) -> Result<StagedGraph, StageError> {
         let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
-                let guard = graph.try_staging_guard().ok_or(StagingError::InProgress)?;
+                let guard = graph.try_stage_guard().ok_or(StageError::InProgress)?;
 
                 // Unlocked graphs may have pending writes that need to be flushed to disk.
                 let mut write_locked_graph = graph.write_locked_graph();
@@ -110,12 +110,12 @@ impl GraphStorage {
             GraphStorage::Locked(locked_graph) => {
                 let guard = locked_graph
                     .graph
-                    .try_staging_guard()
-                    .ok_or(StagingError::InProgress)?;
+                    .try_stage_guard()
+                    .ok_or(StageError::InProgress)?;
 
-                // Callers need to call flush themselves before staging a ReadLockedGraph.
+                // Callers need to call flush themselves before staging a locked graph.
                 if locked_graph.graph.is_dirty() {
-                    return Err(StagingError::DirtyGraph);
+                    return Err(StageError::DirtyGraph);
                 }
 
                 (locked_graph.clone(), guard)
@@ -127,15 +127,12 @@ impl GraphStorage {
 }
 
 impl ReadLockedGraph {
-    fn stage(self, guard: ArcMutexGuard<RawMutex, ()>) -> Result<StagedGraph, StagingError> {
-        let src_path = self
-            .graph
-            .graph_dir()
-            .ok_or(StagingError::MissingGraphDir)?;
+    fn stage(self, guard: ArcMutexGuard<RawMutex, ()>) -> Result<StagedGraph, StageError> {
+        let src_path = self.graph.graph_dir().ok_or(StageError::MissingGraphDir)?;
 
         let src_folder = GraphFolder::from_graph_path(src_path)?;
-        let staged_folder = src_folder.clone().init_swap().map_err(StagingError::Init)?;
-        let staged_graph_path = staged_folder.graph_path().map_err(StagingError::Init)?;
+        let staged_folder = src_folder.clone().init_swap().map_err(StageError::Init)?;
+        let staged_graph_path = staged_folder.graph_path().map_err(StageError::Init)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
         self.graph.copy_to(&staged_graph_path)?;
@@ -158,7 +155,7 @@ impl ReadLockedGraph {
 }
 
 #[derive(Debug, Error)]
-pub enum StagingError {
+pub enum StageError {
     #[error(transparent)]
     GraphFolder(#[from] GraphFolderError),
 
@@ -171,18 +168,18 @@ pub enum StagingError {
     #[error("graph directory is missing")]
     MissingGraphDir,
 
-    #[error("graph is dirty, call flush() before staging")]
+    #[error("graph is dirty, call flush() before stage()")]
     DirtyGraph,
 
-    #[error("staging already in progress")]
+    #[error("stage already in progress")]
     InProgress,
 
-    #[error("failed to initialise staging")]
+    #[error("failed to initialise stage")]
     Init(#[source] GraphFolderError),
 
-    #[error("failed to finish staging")]
+    #[error("failed to finish stage")]
     Finish(#[source] GraphFolderError),
 
-    #[error("failed to discard staging")]
+    #[error("failed to discard stage")]
     Discard(#[source] GraphFolderError),
 }
