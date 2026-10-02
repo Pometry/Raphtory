@@ -667,8 +667,8 @@ def test_label_propagation_algorithm():
     ]
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
-    seed = [5] * 32
-    labels = algorithms.label_propagation(g, 10, seed)
+    labels = algorithms.label_propagation(g, 10, 2)
+    print(labels.groups(["community_id"]))
     groups = sorted(sorted(v.id) for _, v in labels.groups(["community_id"]))
     expected = [["B1", "B2", "B3", "B4", "B5", "G"], ["R1", "R2", "R3"]]
     assert groups == expected
