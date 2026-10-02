@@ -9,11 +9,10 @@
 
 use crate::{
     db::graph::views::filter::model::{
-        comparable_set_values,
+        comparable_set_values, const_mismatch_error,
         filter_operator::{BinaryOp, Comparable, StringComparable, StringOp},
         node_expr::ops::{broadcast_binary, broadcast_unary},
-        validate_binary_op, validate_const_comparable, validate_string_op,
-        validate_types_comparable,
+        not_a_string_error, types_mismatch_error, validate_binary_op,
     },
     errors::GraphError,
 };
@@ -59,13 +58,10 @@ pub(crate) fn comparison_shape(
             return Ok((list(out), Shape::Elementwise));
         }
     }
-    let mismatch = match rhs_const {
-        Some(value) => validate_const_comparable(lhs, Some(value)),
-        None => validate_types_comparable(lhs, rhs),
-    };
-    Err(mismatch
-        .err()
-        .unwrap_or_else(|| invalid(format!("type mismatch: lhs is {lhs}, rhs is {rhs}"))))
+    Err(match rhs_const {
+        Some(value) => const_mismatch_error(value, lhs),
+        None => types_mismatch_error(lhs, rhs),
+    })
 }
 
 /// The result type of a string test: the left side must be a string, or a
@@ -76,9 +72,11 @@ pub(crate) fn string_shape(
     rhs_const: Option<&Prop>,
 ) -> Result<(PropType, Shape), GraphError> {
     if lhs.is_unknown() || lhs.is_str() {
-        match rhs_const {
-            Some(value) => validate_const_comparable(&PropType::Str, Some(value))?,
-            None => validate_types_comparable(&PropType::Str, rhs)?,
+        if !PropType::Str.is_comparable_with(rhs) {
+            return Err(match rhs_const {
+                Some(value) => const_mismatch_error(value, &PropType::Str),
+                None => types_mismatch_error(&PropType::Str, rhs),
+            });
         }
         return Ok((PropType::Bool, Shape::Whole));
     }
@@ -87,11 +85,7 @@ pub(crate) fn string_shape(
             return Ok((list(out), Shape::Elementwise));
         }
     }
-    Err(validate_string_op(lhs).err().unwrap_or_else(|| {
-        invalid(format!(
-            "string operator requires a Str property, but the property type is {lhs}"
-        ))
-    }))
+    Err(not_a_string_error(lhs))
 }
 
 /// The result type of a membership test, and the members that can match. A

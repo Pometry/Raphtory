@@ -931,12 +931,16 @@ pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), Gra
 /// Only fires when the type is known (`!= PropType::Empty`).
 pub fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
     if !(prop_type.is_unknown() || prop_type.is_str()) {
-        return Err(GraphError::InvalidFilter(format!(
-            "string operator requires a Str property, but the property type is {}",
-            prop_type
-        )));
+        return Err(not_a_string_error(prop_type));
     }
     Ok(())
+}
+
+/// A string operator applied to a value that is not a string.
+pub fn not_a_string_error(prop_type: &PropType) -> GraphError {
+    GraphError::InvalidFilter(format!(
+        "string operator requires a Str property, but the property type is {prop_type}"
+    ))
 }
 
 /// Pick the more specific of the two known prop types.
@@ -965,16 +969,17 @@ pub fn validate_const_comparable(
     value: Option<&Prop>,
 ) -> Result<(), GraphError> {
     match value {
-        Some(v) if !lhs_pt.is_comparable_with(&v.dtype()) => {
-            Err(GraphError::InvalidFilter(format!(
-                "value {} of type {} cannot be compared with {}",
-                v,
-                v.dtype(),
-                lhs_pt
-            )))
-        }
+        Some(v) if !lhs_pt.is_comparable_with(&v.dtype()) => Err(const_mismatch_error(v, lhs_pt)),
         _ => Ok(()),
     }
+}
+
+/// A constant compared with an expression whose type it can never equal.
+pub fn const_mismatch_error(value: &Prop, expected: &PropType) -> GraphError {
+    GraphError::InvalidFilter(format!(
+        "value {value} of type {} cannot be compared with {expected}",
+        value.dtype()
+    ))
 }
 
 /// Reject a comparison between two expressions whose types can never be
@@ -983,11 +988,13 @@ pub fn validate_types_comparable(lhs_pt: &PropType, rhs_pt: &PropType) -> Result
     if lhs_pt.is_comparable_with(rhs_pt) {
         Ok(())
     } else {
-        Err(GraphError::InvalidFilter(format!(
-            "type mismatch: lhs is {}, rhs is {}",
-            lhs_pt, rhs_pt
-        )))
+        Err(types_mismatch_error(lhs_pt, rhs_pt))
     }
+}
+
+/// Two expressions whose types can never be equal.
+pub fn types_mismatch_error(lhs_pt: &PropType, rhs_pt: &PropType) -> GraphError {
+    GraphError::InvalidFilter(format!("type mismatch: lhs is {lhs_pt}, rhs is {rhs_pt}"))
 }
 
 /// Reject aggregators called on a declared scalar expression.
