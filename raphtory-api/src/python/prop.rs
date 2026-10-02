@@ -320,7 +320,7 @@ impl PyProp {
     #[staticmethod]
     pub fn list(values: &Bound<'_, PyAny>) -> PyResult<Self> {
         let elems: Vec<Prop> = values.extract()?;
-        Ok(PyProp(Prop::list(elems)))
+        Ok(PyProp(Prop::list(elems)?))
     }
 
     /// Construct a `Prop` holding a string-keyed map of values.
@@ -486,7 +486,15 @@ impl<'py> FromPyObject<'_, 'py> for Prop {
             return Ok(Prop::List(PropArray::Array(arr)));
         }
         if let Ok(list) = ob.extract::<Vec<Prop>>() {
-            return Ok(Prop::List(PropArray::Vec(list.into())));
+            // a list's elements must share one type: find out here, where a TypeError is the
+            // answer, rather than in PropArray::dtype(), where the mismatch is a panic
+            let array = PropArray::try_from(list).map_err(|e| {
+                PyTypeError::new_err(format!(
+                    "Could not convert {:?} to Prop: list elements have mixed types, {:?} and {:?}",
+                    ob, e.expected, e.actual
+                ))
+            })?;
+            return Ok(Prop::List(array));
         }
 
         if let Ok(map) = ob.extract() {
