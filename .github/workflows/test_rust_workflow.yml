@@ -54,7 +54,7 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --workspace --exclude raphtory_netflow --all-features --cargo-profile build-fast
+          cargo nextest run --workspace --all-features --cargo-profile build-fast
   feature-check:
     if: ${{ !inputs.skip_tests }}
     name: "Check all features"

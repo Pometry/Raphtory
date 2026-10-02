@@ -46,7 +46,7 @@ jobs:
         with:
           working-directory: python
           command: build
-          args: --release --no-default-features --interpreter python --out dist
+          args: --profile build-fast --no-default-features --interpreter python --out dist
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
