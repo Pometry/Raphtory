@@ -88,9 +88,11 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
 
 /// Background graph view caching operations.
 static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    // using 4 cores was found to be optimal
+    let num_threads = (cores() > 6).then_some(4).unwrap_or((cores() / 2).max(1));
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
-        .num_threads((cores() / 2).max(1))
+        .num_threads(num_threads)
         .thread_name(|t| format!("RAP-cache-{t}"))
         .build()
         .unwrap()
