@@ -1,29 +1,43 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::AndOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::{
+                ops::{filter::AndOp, NodeFilterOp},
+                NodeOp,
+            },
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
-                TryAsCompositeFilter,
+                answer::{all_of, compose, Answer, FilterAnswer, Question},
+                edge_expr::ops::AndEdgeOp,
+                ComposableFilter, DynFilter,
             },
-            CreateFilter,
+            CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
     pub(crate) left: L,
     pub(crate) right: R,
+}
+
+/// A leg that leaves a question open is dropped; the rest answer together.
+impl<L: FilterAnswer, R: FilterAnswer> FilterAnswer for AndFilter<L, R> {
+    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
+        all_of(
+            [
+                self.left.answer(question, negated),
+                self.right.answer(question, negated),
+            ],
+            negated,
+        )
+    }
 }
 
 impl<L: Display, R: Display> Display for AndFilter<L, R> {
@@ -34,108 +48,98 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
-impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = AndFilteredGraph<
-        G,
-        L::EntityFiltered<'graph, G, L::FilteredGraph<'graph, F>>,
-        R::EntityFiltered<'graph, G, R::FilteredGraph<'graph, F>>,
-    >
-    where
-        Self: 'graph;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = AndOp<
-        L::NodeFilter<'graph, G, L::FilteredGraph<'graph, F>>,
-        R::NodeFilter<'graph, G, R::FilteredGraph<'graph, F>>,
-    >
-    where
-        Self: 'graph;
-
+/// A typed `and` compiles by answering the two questions over its legs.
+impl<L, R> CreateFilter for AndFilter<L, R>
+where
+    L: FilterAnswer + Clone + Send + Sync + 'static,
+    R: FilterAnswer + Clone + Send + Sync + 'static,
+{
     type FilteredGraph<'graph, G>
-        = G
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_filter(graph.clone(), l)?;
-        let right = self.right.create_filter(graph.clone(), r)?;
-        Ok(AndFilteredGraph::new(graph, left, right))
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        compose(&self)?.create_graph_filter(graph)
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
-    where
-        Self: 'graph,
-    {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_node_filter(graph.clone(), l)?;
-        let right = self.right.create_node_filter(graph, r)?;
-        Ok(left.and(right))
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        compose(&self)?.create_node_filter(graph)
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
-    where
-        Self: 'graph,
-    {
-        Ok(graph)
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        compose(&self)?.create_edge_filter(graph)
     }
 }
 
-impl<L: TryAsCompositeFilter, R: TryAsCompositeFilter> TryAsCompositeFilter for AndFilter<L, R> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Same-kind combinations keep their composite form; mixed-kind trees
-        // export structurally — the case the composite exports cannot
-        // represent.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
-        }
-        Ok(FilterTree::And(vec![
-            self.left.try_as_filter_tree()?,
-            self.right.try_as_filter_tree()?,
-        ]))
+/// The `and` of two compiled filters, as the tree compiler builds it (the
+/// node and edge answers, the legs of one answer, or the predicates beside a
+/// view).
+impl CreateFilter for AndFilter<DynFilter, DynFilter> {
+    type FilteredGraph<'graph, G>
+        = AndFilteredGraph<G, DynGraphArc<'graph>, DynGraphArc<'graph>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G>
+        = AndOp<Arc<dyn NodeOp<Output = bool> + 'graph>, Arc<dyn NodeOp<Output = bool> + 'graph>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = AndEdgeOp<DynEdgeFilter<'graph>, DynEdgeFilter<'graph>>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        let left = self.left.create_graph_filter(graph.clone())?;
+        let right = self.right.create_graph_filter(graph.clone())?;
+        Ok(AndFilteredGraph::new(graph, left, right))
     }
 
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::And(
-            Box::new(self.left.try_as_composite_node_filter()?),
-            Box::new(self.right.try_as_composite_node_filter()?),
-        ))
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_node_filter(graph.clone())?;
+        let right = self.right.create_node_filter(graph)?;
+        Ok(left.and(right))
     }
 
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::And(
-            Box::new(self.left.try_as_composite_edge_filter()?),
-            Box::new(self.right.try_as_composite_edge_filter()?),
-        ))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::And(
-            Box::new(self.left.try_as_composite_exploded_edge_filter()?),
-            Box::new(self.right.try_as_composite_exploded_edge_filter()?),
-        ))
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        let left = self.left.create_edge_filter(graph.clone())?;
+        let right = self.right.create_edge_filter(graph)?;
+        Ok(AndEdgeOp { left, right })
     }
 }

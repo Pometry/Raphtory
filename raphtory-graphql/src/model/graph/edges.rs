@@ -3,7 +3,8 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
-            filtering::{EdgesViewCollection, GqlFilter},
+            filter_expr_input::GqlFilter,
+            filtering::ViewCollection,
             path_from_node::GqlPathFromNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
@@ -19,7 +20,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, Filter, Select},
-        graph::{edges::Edges, views::filter::model::DynFilter},
+        graph::edges::Edges,
     },
     errors::GraphError,
     prelude::*,
@@ -249,49 +250,45 @@ impl GqlEdges {
         #[graphql(
             desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
         )]
-        views: Vec<EdgesViewCollection>,
+        views: Vec<ViewCollection>,
     ) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
         for view in views {
             return_view = match view {
-                EdgesViewCollection::DefaultLayer(apply) => {
+                ViewCollection::DefaultLayer(apply) => {
                     if apply {
                         return_view.default_layer().await
                     } else {
                         return_view
                     }
                 }
-                EdgesViewCollection::Latest(apply) => {
+                ViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
                     } else {
                         return_view
                     }
                 }
-                EdgesViewCollection::SnapshotLatest(apply) => {
+                ViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
                     } else {
                         return_view
                     }
                 }
-                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
-                EdgesViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                EdgesViewCollection::Window(window) => {
+                ViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                ViewCollection::Layers(layers) => return_view.layers(layers).await,
+                ViewCollection::ExcludeLayers(layers) => return_view.exclude_layers(layers).await,
+                ViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                ViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
                 }
-                EdgesViewCollection::At(at) => return_view.at(at).await,
-                EdgesViewCollection::Before(time) => return_view.before(time).await,
-                EdgesViewCollection::After(time) => return_view.after(time).await,
-                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edge(filter)).await?
-                }
+                ViewCollection::At(at) => return_view.at(at).await,
+                ViewCollection::Before(time) => return_view.before(time).await,
+                ViewCollection::After(time) => return_view.after(time).await,
+                ViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                ViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                ViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
 
@@ -472,7 +469,7 @@ impl GqlEdges {
     /// E.g. restricting everything to a specific week:
     ///
     /// ```text
-    /// edges { filter(expr: {window: {start: 1234, end: 5678}}) {
+    /// edges { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
     ///   list { src { neighbours { list { name } } } }   # neighbours still windowed
     /// } }
     /// ```
@@ -488,8 +485,7 @@ impl GqlEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.ee.filter(filter)?;
+            let filtered = self_clone.ee.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -503,9 +499,9 @@ impl GqlEdges {
     /// neighbours on Wednesday:
     ///
     /// ```text
-    /// edges { select(expr: {window: {...monday...}}) {
-    ///   list { src { select(expr: {window: {...tuesday...}}) {
-    ///     neighbours { select(expr: {window: {...wednesday...}}) {
+    /// edges { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { src { select(expr: {view: [{window: {...tuesday...}}]}) {
+    ///     neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
     ///       neighbours { list { name } }
     ///     } }
     ///   } } }

@@ -1,24 +1,14 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
+        api::{
+            state::ops::filter::NodeExistsOp,
+            view::internal::{GraphView, Static},
+        },
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    node_filter::builders::{
-                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
-                    },
-                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
-                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    edge_expr::ops::EdgeExistsOp, graph_filter::GraphFilterOps, ComposableFilter,
+                    CreateView, InternalViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -40,6 +30,8 @@ pub struct Windowed<M> {
     pub end: EventTime,
     pub inner: M,
 }
+
+impl<M> Static for Windowed<M> {}
 
 impl<M: Display> Display for Windowed<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -83,201 +75,68 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
     }
 }
 
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Windowed<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Windowed<T> {
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Windowed<T> {
-    type Filter = Windowed<T::Filter>;
-    type ExprBuilder = Windowed<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Windowed<T> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Single-kind inners keep their composite form (the wrapper becomes a
-        // windowed/layered/... composite variant); only graph-level view
-        // chains export as `View` ops. Anything else (a view wrapping a
-        // mixed-kind tree) has no wire representation yet.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
-        }
-        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
-            return Err(GraphError::NotSupported);
-        };
-        let mut chain = vec![GraphViewOp::Window {
-            start: self.start,
-            end: self.end,
-        }];
-        chain.extend(ops);
-        Ok(FilterTree::View(chain))
-    }
-
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = CompositeNodeFilter::Windowed(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_edge_filter()?;
-        let filter = CompositeEdgeFilter::Windowed(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
-        let filter = CompositeExplodedEdgeFilter::Windowed(Box::new(self.wrap(filter)));
-        Ok(filter)
-    }
-}
-
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Windowed<T> {
-    type EntityFiltered<'graph, G, F>
-        = T::EntityFiltered<'graph, G, F>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type NodeFilter<'graph, G, F>
-        = T::NodeFilter<'graph, G, F>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
+/// A view wrapper applied as a filter: the inner filter's view is applied to the
+/// graph and this view on top of it, in the order the chain was written. The nodes
+/// and edges it selects are the ones that exist in the resulting view.
+impl<T: GraphFilterOps> CreateFilter for Windowed<T> {
     type FilteredGraph<'graph, G>
         = WindowedGraph<T::FilteredGraph<'graph, G>>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G, F>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
+    type NodeFilter<'graph, G>
+        = NodeExistsOp<WindowedGraph<T::FilteredGraph<'graph, G>>>
     where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph,
-    {
-        self.inner.create_filter(graph, filtered)
-    }
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G, F>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    type EdgeFilter<'graph, G>
+        = EdgeExistsOp<WindowedGraph<T::FilteredGraph<'graph, G>>>
     where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph,
-    {
-        self.inner.create_node_filter(graph, filtered)
-    }
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         Ok(self
             .inner
-            .filter_graph_view(graph)?
-            .window(self.start.t(), self.end.t()))
+            .create_graph_filter(graph)?
+            .window(self.start, self.end))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(NodeExistsOp::new(self.create_graph_filter(graph)?))
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        Ok(EdgeExistsOp::new(self.create_graph_filter(graph)?))
     }
 }
 
 impl<T: ComposableFilter> ComposableFilter for Windowed<T> {}
 
-impl<M> Wrap for Windowed<M> {
-    type Wrapped<T> = Windowed<T>;
+// ── expr-layer view construction ──
 
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        Windowed::new(self.start, self.end, value)
+impl<T: CreateView> CreateView for Windowed<T> {
+    type View<'graph, G: GraphView + 'graph> = WindowedGraph<<T as CreateView>::View<'graph, G>>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        let inner = self.inner.create_view(view)?;
+        Ok(inner.window(self.start, self.end))
     }
 }
 
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Windowed<T> {
-    type Entity = T::Entity;
-    type PropertyBuilder = Windowed<T::PropertyBuilder>;
-    type MetadataBuilder = Windowed<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Windowed<T> {}
-
-impl<U: NodeViewFilterOps> NodeViewFilterOps for Windowed<U> {
-    type Output<T: CombinedFilter> = Windowed<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.wrap(self.inner.is_active())
-    }
-}
-
-impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Windowed<U> {
-    type Output<T: CombinedFilter> = Windowed<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
-    }
-}
+// ── expr layer: the windowed view scopes any inner expression (per-expression view) ──
+// Nesting order of chained views is pinned by the view-semantics tests.

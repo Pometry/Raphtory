@@ -1,4 +1,5 @@
 from raphtory import Graph, PersistentGraph
+from raphtory import filter
 from io import StringIO
 import unittest
 from unittest import TestCase
@@ -62,3 +63,57 @@ class PyReprTest(TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FilterExprReprTest(TestCase):
+    """`repr` is the Python that builds the expression, module-qualified, so
+    `eval` rebuilds it after `import raphtory`."""
+
+    def test_repr_is_the_python_that_builds_the_expression(self):
+        expr = filter.Node.window(0, 5).property("score") > 4
+        self.assertEqual(
+            repr(expr), "raphtory.filter.Node.window(0, 5).property('score') > 4"
+        )
+
+    def test_repr_shows_temporal_ops_and_combinators(self):
+        expr = (filter.Node.property("score").temporal().sum() > 10) & ~(
+            filter.Node.name() == "carol"
+        )
+        self.assertEqual(
+            repr(expr),
+            "(raphtory.filter.Node.property('score').temporal().sum() > 10)"
+            " & ~(raphtory.filter.Node.name() == 'carol')",
+        )
+
+    def test_repr_shows_expressions_on_both_sides(self):
+        expr = filter.Node.degree() > filter.Node.in_degree()
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Node.degree() > raphtory.filter.Node.in_degree()",
+        )
+
+    def test_repr_round_trips_through_eval(self):
+        import raphtory
+
+        cases = [
+            filter.Node.window(0, 5).property("score") > 4,
+            filter.Node.property("p").temporal().starts_with("Go").all(),
+            filter.Node.layer("work").property("p").is_in(["a", "b", 3])
+            | filter.Node.metadata("m").is_some(),
+            (filter.Node.name() == "a")
+            & (filter.Node.name() == "b")
+            & (filter.Node.name() == "c"),
+            filter.Edge.window(1, 4).src().property("p").temporal().len() >= 2,
+            filter.Edge.dst().name().fuzzy_search("bob", 1, True),
+            filter.Edge.is_valid() & filter.Edge.layers(["a", "b"]).is_active(),
+            filter.ExplodedEdge.property("p") == 3.5,
+            filter.Graph.window(0, 5).latest(),
+            filter.Graph.window(0, 5) & (filter.Node.name() != "x"),
+            filter.Node.property("s") == "it's",
+            filter.Node.window((3, 2), 9).is_active(),
+            filter.Node.property("p"),
+            filter.Edge.at(3).src(),
+        ]
+        for expr in cases:
+            text = repr(expr)
+            self.assertEqual(repr(eval(text, {"raphtory": raphtory})), text)

@@ -19,7 +19,7 @@ use crate::{
         ClientError,
     },
     model::graph::{
-        filtering::GqlFilter,
+        filter_expr_input::GqlFilter,
         property::{gql_to_prop, parse_special_float},
     },
 };
@@ -588,7 +588,7 @@ impl GraphqlTransport {
 struct VarCollector {
     vars: serde_json::Map<String, JsonValue>,
     /// Accumulated variable declarations, already comma-joined
-    /// (`"$f0: NodeFilter!, $f1: EdgeFilter!"`) — appended in place rather than
+    /// (`"$f0: FilterExpr!, $f1: FilterExpr!"`) — appended in place rather than
     /// collected into a `Vec` and joined at the end.
     decls: String,
     counter: usize,
@@ -596,7 +596,7 @@ struct VarCollector {
 
 impl VarCollector {
     fn add_filter(&mut self, f: &GqlFilter) -> Result<String, ClientError> {
-        self.add("GqlFilter!", f)
+        self.add("FilterExpr!", f)
     }
 
     /// Serialize `value`, register it as `$fN: <gql_type>`, and return `$fN`.
@@ -1254,7 +1254,7 @@ fn render_read_into(
             )?;
         }
         ReadExpr::Filtered { input, filter } => {
-            // Unified server field `filter(expr: GqlFilter!)` — the same field
+            // Unified server field `filter(expr: FilterExpr!)` — the same field
             // on Graph, Node, Edge, and every collection. Applies to this view
             // AND propagates to downstream traversals (contrast `select`,
             // which narrows membership at one step only).
@@ -1262,14 +1262,14 @@ fn render_read_into(
             write!(out, " {{ filter(expr: {})", vars.add_filter(filter)?)?;
         }
         ReadExpr::SelectNodes { input, filter } => {
-            // Server field `select(expr: GqlFilter!)`: narrows the current
+            // Server field `select(expr: FilterExpr!)`: narrows the current
             // collection's membership only; downstream traversals see the
             // unfiltered graph.
             render_read_into(input, vars, out)?;
             write!(out, " {{ select(expr: {})", vars.add_filter(filter)?)?;
         }
         ReadExpr::SelectEdges { input, filter } => {
-            // Server field `select(expr: GqlFilter!)` on `Edges`: narrows the
+            // Server field `select(expr: FilterExpr!)` on `Edges`: narrows the
             // current collection's membership only.
             render_read_into(input, vars, out)?;
             write!(out, " {{ select(expr: {})", vars.add_filter(filter)?)?;
@@ -4296,21 +4296,35 @@ mod tests {
     use crate::{
         data::GqlGraphType,
         model::graph::{
-            filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
+            filter_expr_input::{GqlNodeCmp, GqlNodeExpr},
+            filtering::Wrapped,
             property::Value as GqlValue,
         },
         server::GraphServer,
     };
     use raphtory::{
-        db::graph::views::filter::model::node_filter::CompositeNodeFilter,
+        db::graph::views::filter::model::expr::FilterExpr,
         prelude::{Args, NO_PROPS},
     };
     use raphtory_api::core::storage::timeindex::AsTime;
     use reqwest::Url;
-    use std::{collections::HashMap as Map, str::FromStr, sync::Arc};
+    use std::{str::FromStr, sync::Arc};
     use tempfile::tempdir;
 
     // ============ Unit tests for the read pipeline ============
+
+    /// A node-property comparison in the tree grammar: `property(name) <op> value`.
+    fn node_prop(name: &str, op: fn(GqlNodeCmp) -> GqlNodeExpr, value: GqlValue) -> GqlFilter {
+        GqlFilter::Node(op(GqlNodeCmp {
+            lhs: Wrapped::from(GqlNodeExpr::Property(name.into())),
+            rhs: Wrapped::from(GqlNodeExpr::Const(value)),
+        }))
+    }
+
+    /// The tree a client hands to `filter`, as python does.
+    fn tree(filter: GqlFilter) -> FilterExpr {
+        FilterExpr::try_from(filter).unwrap()
+    }
 
     #[test]
     fn render_read_produces_nested_graphql() {
@@ -4673,14 +4687,15 @@ mod tests {
         // A filter with a quote-bearing string value: it must be shipped as a
         // `$fN` JSON variable (escaping inherent, no query-string splicing to
         // break out of), not rendered into the query text.
-        let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
-            name: "score".into(),
-            where_: PropCondition::Eq(GqlValue::Str("O\"Brien".into())),
-        }));
+        let filter = node_prop(
+            "score".into(),
+            GqlNodeExpr::Eq,
+            GqlValue::Str("O\"Brien".into()),
+        );
         let mut vars = VarCollector::default();
         let reference = vars.add_filter(&filter).unwrap();
         assert_eq!(reference, "$f0");
-        assert_eq!(vars.decls, "$f0: GqlFilter!");
+        assert_eq!(vars.decls, "$f0: FilterExpr!");
         // The value lives in the variables map as JSON data, quote intact.
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
         assert!(
@@ -4726,10 +4741,7 @@ mod tests {
     #[test]
     fn property_key_rides_json_variable_intact() {
         // A quote-bearing property KEY is carried as JSON data too.
-        let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
-            name: "wei\"rd".into(),
-            where_: PropCondition::Eq(GqlValue::Str("v".into())),
-        }));
+        let filter = node_prop("wei\"rd", GqlNodeExpr::Eq, GqlValue::Str("v".into()));
         let mut vars = VarCollector::default();
         vars.add_filter(&filter).unwrap();
         let json = serde_json::to_string(&vars.vars["f0"]).unwrap();
@@ -4744,12 +4756,8 @@ mod tests {
         // Two filters in one composed read must render as two declarations
         // with each field arg referencing its own variable — the payloads must
         // not collide or swap.
-        let prop_filter = |name: &str| {
-            GqlNodeFilter::Property(PropertyFilterNew {
-                name: name.into(),
-                where_: PropCondition::Eq(GqlValue::Str("x".into())),
-            })
-        };
+        let prop_filter =
+            |name: &str| node_prop(name.into(), GqlNodeExpr::Eq, GqlValue::Str("x".into()));
         let expr = ReadExpr::Ids {
             input: Arc::new(ReadExpr::Filtered {
                 input: Arc::new(ReadExpr::Filtered {
@@ -4759,15 +4767,15 @@ mod tests {
                             graph_type: None,
                         }),
                     }),
-                    filter: Arc::new(GqlFilter::Node(prop_filter("inner"))),
+                    filter: Arc::new(prop_filter("inner")),
                 }),
-                filter: Arc::new(GqlFilter::Node(prop_filter("outer"))),
+                filter: Arc::new(prop_filter("outer")),
             }),
         };
 
         let (query, vars) = render_read(&expr).unwrap();
         assert!(
-            query.contains("$f0: GqlFilter!") && query.contains("$f1: GqlFilter!"),
+            query.contains("$f0: FilterExpr!") && query.contains("$f1: FilterExpr!"),
             "missing declarations in: {query}"
         );
         assert!(
@@ -4803,10 +4811,7 @@ mod tests {
             GqlValue::F64(f64::INFINITY),
             GqlValue::F32(f32::NEG_INFINITY),
         ] {
-            let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
-                name: "x".into(),
-                where_: PropCondition::Eq(bad),
-            }));
+            let filter = node_prop("x", GqlNodeExpr::Eq, bad);
             let mut vars = VarCollector::default();
             assert!(matches!(
                 vars.add_filter(&filter),
@@ -4815,10 +4820,7 @@ mod tests {
         }
 
         // A finite float serializes fine.
-        let filter = GqlFilter::Node(GqlNodeFilter::Property(PropertyFilterNew {
-            name: "x".into(),
-            where_: PropCondition::Eq(GqlValue::F64(1.5)),
-        }));
+        let filter = node_prop("x", GqlNodeExpr::Eq, GqlValue::F64(1.5));
         let mut vars = VarCollector::default();
         assert!(vars.add_filter(&filter).is_ok());
     }
@@ -4950,6 +4952,11 @@ mod tests {
     /// degrees a=2 (b, c both match), b=1 (a dropped), c=1 (a dropped).
     #[tokio::test]
     async fn test_filtered_collect_matches_columnar_reads() {
+        use crate::{client::remote_client::RemoteClient, server::GraphServer};
+        use reqwest::Url;
+        use std::collections::HashMap as Map;
+        use tempfile::tempdir;
+
         let tmp_dir = tempdir().unwrap();
         let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
             .await
@@ -4974,14 +4981,11 @@ mod tests {
         rg.add_edge(2i64, "b", "c", NO_PROPS, None).await.unwrap();
         rg.add_edge(3i64, "c", "a", NO_PROPS, None).await.unwrap();
 
-        let score_gt_15 = GqlNodeFilter::Property(PropertyFilterNew {
-            name: "score".into(),
-            where_: PropCondition::Gt(GqlValue::I64(15)),
-        });
+        let score_gt_15 = node_prop("score", GqlNodeExpr::Gt, GqlValue::I64(15));
 
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
-        let filtered = rg.nodes().filter(score_gt_15.clone()).unwrap();
+        let filtered = rg.nodes().filter(tree(score_gt_15.clone())).unwrap();
         let mut ids = filtered.id().await.unwrap();
         ids.sort();
         assert_eq!(
@@ -5038,10 +5042,7 @@ mod tests {
         );
 
         // select() narrows membership only — handles see the unfiltered graph.
-        // Passed as a composite to pin that kind-typed callers still satisfy
-        // the widened `TryInto<GqlFilter>` bound.
-        let score_gt_15_composite = CompositeNodeFilter::try_from(score_gt_15.clone()).unwrap();
-        let selected = rg.nodes().select(score_gt_15_composite).unwrap();
+        let selected = rg.nodes().select(tree(score_gt_15.clone())).unwrap();
         let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();
         assert_eq!(
@@ -5065,7 +5066,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap()
-            .filter(score_gt_15)
+            .filter(tree(score_gt_15))
             .unwrap();
         let c_handles = b.neighbours().collect().await.unwrap();
         assert_eq!(c_handles.len(), 1);
@@ -5081,10 +5082,11 @@ mod tests {
         // is b-c, and its src (b) still evaluates under f.
         let nested = rg
             .nodes()
-            .filter(GqlNodeFilter::Property(PropertyFilterNew {
-                name: "score".into(),
-                where_: PropCondition::Gt(GqlValue::I64(15)),
-            }))
+            .filter(tree(node_prop(
+                "score".into(),
+                GqlNodeExpr::Gt,
+                GqlValue::I64(15),
+            )))
             .unwrap();
         let rows = nested.edges().collect().await.unwrap();
         let ids_in_order = nested.id().await.unwrap();

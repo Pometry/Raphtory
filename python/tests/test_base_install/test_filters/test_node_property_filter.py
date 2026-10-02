@@ -145,12 +145,12 @@ def test_filter_nodes_for_property_starts_with():
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().any().starts_with("Pap")
+        filter_expr = (filter.Node.property("p10").temporal().starts_with("Pap")).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().any().starts_with("Cap")
+        filter_expr = (filter.Node.property("p10").temporal().starts_with("Cap")).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -172,9 +172,9 @@ def test_filter_nodes_for_property_starts_with():
         expected_ids = ["2"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p20").temporal().all().starts_with("Gold")
+        filter_expr = (filter.Node.property("p20").temporal().starts_with("Gold")).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["3", "4"]
+        expected_ids = ["1", "3", "4"]
         assert result_ids == expected_ids
 
     return check
@@ -193,7 +193,7 @@ def test_filter_nodes_for_property_ends_with():
         expected_ids = []
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().any().ends_with("lane")
+        filter_expr = (filter.Node.property("p10").temporal().ends_with("lane")).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
@@ -208,9 +208,9 @@ def test_filter_nodes_for_property_ends_with():
         expected_ids = ["3", "4"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p20").temporal().all().ends_with("ship")
+        filter_expr = (filter.Node.property("p20").temporal().ends_with("ship")).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["2"]
+        expected_ids = ["1", "2"]
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").ends_with("ane")
@@ -231,7 +231,7 @@ def test_filter_nodes_for_property_contains():
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().any().contains("Paper")
+        filter_expr = (filter.Node.property("p10").temporal().contains("Paper")).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
@@ -264,7 +264,9 @@ def test_filter_nodes_for_property_not_contains():
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("p10").temporal().any().not_contains("ship")
+        filter_expr = (
+            filter.Node.property("p10").temporal().not_contains("ship")
+        ).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
@@ -359,9 +361,9 @@ def test_filter_nodes_for_property_len():
 
 
 @with_variants(create_test_graph)
-def test_filter_nodes_for_temporal_last_property_sum():
+def test_filter_nodes_for_temporal_latest_property_sum():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().last().sum() == 12
+        filter_expr = filter.Node.property("prop6").temporal().latest().sum() == 12
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -372,7 +374,7 @@ def test_filter_nodes_for_temporal_last_property_sum():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_last_property_avg():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().last().avg() == 4.0
+        filter_expr = filter.Node.property("prop6").temporal().latest().avg() == 4.0
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -383,7 +385,7 @@ def test_filter_nodes_for_temporal_last_property_avg():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_last_property_min():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().last().min() == 3
+        filter_expr = filter.Node.property("prop6").temporal().latest().min() == 3
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -394,7 +396,7 @@ def test_filter_nodes_for_temporal_last_property_min():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_last_property_max():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().last().max() == 5
+        filter_expr = filter.Node.property("prop6").temporal().latest().max() == 5
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -403,11 +405,11 @@ def test_filter_nodes_for_temporal_last_property_max():
 
 
 @with_variants(create_test_graph)
-def test_filter_nodes_for_temporal_last_property_len():
+def test_filter_nodes_for_temporal_latest_property_len():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().last().len() == Prop.u64(
-            3
-        )
+        filter_expr = filter.Node.property(
+            "prop6"
+        ).temporal().latest().len() == Prop.u64(3)
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -418,12 +420,12 @@ def test_filter_nodes_for_temporal_last_property_len():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_any_property_sum():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().any().sum() == 12
+        filter_expr = (filter.Node.property("prop6").temporal().sum() == 12).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().any().sum() == 6
+        filter_expr = (filter.Node.property("prop6").temporal().sum() == 6).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -434,12 +436,12 @@ def test_filter_nodes_for_temporal_any_property_sum():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_any_property_avg():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().any().avg() == 2.0
+        filter_expr = (filter.Node.property("prop6").temporal().avg() == 2.0).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().any().avg() == 4.0
+        filter_expr = (filter.Node.property("prop6").temporal().avg() == 4.0).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -450,12 +452,12 @@ def test_filter_nodes_for_temporal_any_property_avg():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_any_property_min():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().any().min() == 1
+        filter_expr = (filter.Node.property("prop6").temporal().min() == 1).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().any().min() == 3
+        filter_expr = (filter.Node.property("prop6").temporal().min() == 3).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -466,12 +468,12 @@ def test_filter_nodes_for_temporal_any_property_min():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_any_property_max():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().any().max() == 3
+        filter_expr = (filter.Node.property("prop6").temporal().max() == 3).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().any().max() == 5
+        filter_expr = (filter.Node.property("prop6").temporal().max() == 5).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -482,9 +484,9 @@ def test_filter_nodes_for_temporal_any_property_max():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_any_property_len():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().any().len() == Prop.u64(
-            3
-        )
+        filter_expr = (
+            filter.Node.property("prop6").temporal().len() == Prop.u64(3)
+        ).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -495,12 +497,12 @@ def test_filter_nodes_for_temporal_any_property_len():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_all_property_sum():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().all().sum() == 6
+        filter_expr = (filter.Node.property("prop5").temporal().sum() == 6).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().all().sum() == 6
+        filter_expr = (filter.Node.property("prop6").temporal().sum() == 6).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -511,12 +513,12 @@ def test_filter_nodes_for_temporal_all_property_sum():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_all_property_avg():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().all().avg() == 2.0
+        filter_expr = (filter.Node.property("prop5").temporal().avg() == 2.0).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().all().avg() == 2.0
+        filter_expr = (filter.Node.property("prop6").temporal().avg() == 2.0).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -527,12 +529,12 @@ def test_filter_nodes_for_temporal_all_property_avg():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_all_property_min():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().all().min() == 1
+        filter_expr = (filter.Node.property("prop5").temporal().min() == 1).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().all().min() == 1
+        filter_expr = (filter.Node.property("prop6").temporal().min() == 1).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -543,12 +545,12 @@ def test_filter_nodes_for_temporal_all_property_min():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_all_property_max():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().all().max() == 3
+        filter_expr = (filter.Node.property("prop5").temporal().max() == 3).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop6").temporal().all().max() == 3
+        filter_expr = (filter.Node.property("prop6").temporal().max() == 3).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -559,9 +561,9 @@ def test_filter_nodes_for_temporal_all_property_max():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_all_property_len():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().all().len() == Prop.u64(
-            3
-        )
+        filter_expr = (
+            filter.Node.property("prop5").temporal().len() == Prop.u64(3)
+        ).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "c"]
         assert result_ids == expected_ids
@@ -570,9 +572,9 @@ def test_filter_nodes_for_temporal_all_property_len():
 
 
 @with_variants(create_test_graph)
-def test_filter_nodes_for_temporal_first_property_sum():
+def test_filter_nodes_for_temporal_earliest_property_sum():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().first().sum() == 6
+        filter_expr = filter.Node.property("prop6").temporal().earliest().sum() == 6
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -581,9 +583,9 @@ def test_filter_nodes_for_temporal_first_property_sum():
 
 
 @with_variants(create_test_graph)
-def test_filter_nodes_for_temporal_first_property_avg():
+def test_filter_nodes_for_temporal_earliest_property_avg():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().first().avg() == 2.0
+        filter_expr = filter.Node.property("prop5").temporal().earliest().avg() == 2.0
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -594,7 +596,7 @@ def test_filter_nodes_for_temporal_first_property_avg():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_first_property_min():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").temporal().first().min() == 1
+        filter_expr = filter.Node.property("prop5").temporal().earliest().min() == 1
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -605,7 +607,7 @@ def test_filter_nodes_for_temporal_first_property_min():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_first_property_max():
     def check(graph):
-        filter_expr = filter.Node.property("prop6").temporal().first().max() == 3
+        filter_expr = filter.Node.property("prop6").temporal().earliest().max() == 3
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -614,11 +616,11 @@ def test_filter_nodes_for_temporal_first_property_max():
 
 
 @with_variants(create_test_graph)
-def test_filter_nodes_for_temporal_first_property_len():
+def test_filter_nodes_for_temporal_earliest_property_len():
     def check(graph):
         filter_expr = filter.Node.property(
             "prop6"
-        ).temporal().first().len() == Prop.u64(3)
+        ).temporal().earliest().len() == Prop.u64(3)
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -662,7 +664,7 @@ def test_filter_nodes_for_metadata_min():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_metadata_any():
     def check(graph):
-        filter_expr = filter.Node.metadata("prop2").any() == -2
+        filter_expr = (filter.Node.metadata("prop2") == -2).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "b"]
         assert result_ids == expected_ids
@@ -673,7 +675,7 @@ def test_filter_nodes_for_metadata_any():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_metadata_all():
     def check(graph):
-        filter_expr = filter.Node.metadata("prop4").all() > 10
+        filter_expr = (filter.Node.metadata("prop4") > 10).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["b"]
         assert result_ids == expected_ids
@@ -684,7 +686,7 @@ def test_filter_nodes_for_metadata_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_property_any():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").any().is_in([3])
+        filter_expr = (filter.Node.property("prop8").is_in([3])).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
@@ -695,7 +697,7 @@ def test_filter_nodes_for_property_any():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_property_all():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").all() == 3
+        filter_expr = (filter.Node.property("prop8") == 3).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["d"]
         assert result_ids == expected_ids
@@ -706,7 +708,7 @@ def test_filter_nodes_for_property_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporary_property_first_any():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().first().any() == 3
+        filter_expr = (filter.Node.property("prop8").temporal().first() == 3).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["d"]
         assert result_ids == expected_ids
@@ -717,7 +719,7 @@ def test_filter_nodes_for_temporary_property_first_any():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporary_property_first_all():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().first().all() == 2
+        filter_expr = (filter.Node.property("prop8").temporal().first() == 2).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -728,7 +730,7 @@ def test_filter_nodes_for_temporary_property_first_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporary_property_last_any():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().last().any() == 3
+        filter_expr = (filter.Node.property("prop8").temporal().last() == 3).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
@@ -739,12 +741,12 @@ def test_filter_nodes_for_temporary_property_last_any():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporary_property_last_all():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().last().all() > 1
+        filter_expr = (filter.Node.property("prop8").temporal().last() > 1).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop8").temporal().last().all() > 2
+        filter_expr = (filter.Node.property("prop8").temporal().last() > 2).all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["d"]
         assert result_ids == expected_ids
@@ -755,12 +757,12 @@ def test_filter_nodes_for_temporary_property_last_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporary_property_any_any():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().any().any() == 3
+        filter_expr = (filter.Node.property("prop8").temporal() == 3).any().any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop9").temporal().any().any() == 3
+        filter_expr = (filter.Node.property("prop9").temporal() == 3).any().any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -771,12 +773,12 @@ def test_filter_nodes_for_temporary_property_any_any():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporary_property_any_all():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").temporal().any().all() == 2
+        filter_expr = (filter.Node.property("prop8").temporal() == 2).all().any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.property("prop8").temporal().any().all() > 2
+        filter_expr = (filter.Node.property("prop8").temporal() > 2).all().any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["d"]
         assert result_ids == expected_ids
@@ -787,12 +789,15 @@ def test_filter_nodes_for_temporary_property_any_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_on_non_string():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").any() == "3"
-        with pytest.raises(
-            Exception,
-            match=r"Wrong type for property prop8: expected I64 but actual type is Str",
-        ):
-            graph.filter(filter_expr).nodes.id
+        # A string constant never compares against a numeric property,
+        # whether or not it happens to parse as a number.
+        for value in ["3", "pometry"]:
+            filter_expr = (filter.Node.property("prop8") == value).any()
+            with pytest.raises(
+                Exception,
+                match=r"of type Str cannot be compared with List<I64>",
+            ):
+                graph.filter(filter_expr).nodes.id
 
     return check
 
@@ -800,12 +805,13 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").any().is_some()
-        with pytest.raises(
-            Exception,
-            match=r"Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself \(without elem qualifiers\).",
-        ):
+        # Presence is a whole-value question; a qualifier has nothing to
+        # collapse on a single yes/no.
+        filter_expr = (filter.Node.property("prop8").is_some()).any()
+        with pytest.raises(Exception, match=r"any\(\)/all\(\) collapse"):
             graph.filter(filter_expr).nodes.id
+        filter_expr = filter.Node.property("prop8").is_some()
+        assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
 
     return check
 
@@ -813,17 +819,17 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
 @with_variants(create_test_graph)
 def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
     def check(graph):
-        filter_expr = filter.Node.property("prop8").all().len() > 0
+        filter_expr = (filter.Node.property("prop8").len() > 0).all()
         with pytest.raises(
             Exception,
-            match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
+            match=r"any\(\)/all\(\) collapse",
         ):
             graph.filter(filter_expr).nodes.id
 
-        filter_expr = filter.Node.property("prop8").sum().any() > 0
+        filter_expr = (filter.Node.property("prop8").sum() > 0).any()
         with pytest.raises(
             Exception,
-            match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
+            match=r"any\(\)/all\(\) collapse",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1042,7 +1048,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
 @with_variants(init_graph)
 def test_prop_not_found_error():
     def check(graph):
-        filter_expr = filter.Node.property("p").any().is_some()
+        filter_expr = (filter.Node.property("p").is_some()).any()
         with pytest.raises(
             Exception,
             match=r"Property p does not exist",
@@ -1138,18 +1144,18 @@ def test_filter_nodes_for_temporal_property_ne():
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() == 60
-        msg = "Wrong type for property prop1: expected List(I64) but actual type is I64"
+        msg = r"one answer per element"
         with pytest.raises(
             Exception,
-            match=re.escape(msg),
+            match=msg,
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop1").temporal() == "pometry"
-        msg = "Wrong type for property prop1: expected List(I64) but actual type is Str"
+        msg = r"of type Str cannot be compared with List"
         with pytest.raises(
             Exception,
-            match=re.escape(msg),
+            match=msg,
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1159,10 +1165,12 @@ def test_filter_nodes_for_temporal_property_fails():
 @with_variants(create_test_graph)
 def test_filter_nodes_temporal_window_sum_ge():
     def check(graph):
-        expr = filter.Node.window(1, 2).property("prop5").temporal().last().sum() >= 12
+        expr = (
+            filter.Node.window(1, 2).property("prop5").temporal().latest().sum() >= 12
+        )
         assert sorted(graph.filter(expr).nodes.id) == ["c"]
 
-        expr = filter.Node.window(1, 2).property("prop5").temporal().last().sum() >= 6
+        expr = filter.Node.window(1, 2).property("prop5").temporal().latest().sum() >= 6
         assert sorted(graph.filter(expr).nodes.id) == ["a", "c"]
 
     return check
@@ -1172,10 +1180,10 @@ def test_filter_nodes_temporal_window_sum_ge():
 def test_filter_nodes_two_windows_and():
     def check(graph):
         filter1 = (
-            filter.Node.window(1, 2).property("prop5").temporal().first().sum() == 6
+            filter.Node.window(1, 2).property("prop5").temporal().earliest().sum() == 6
         )
         filter2 = (
-            filter.Node.window(2, 3).property("prop6").temporal().last().sum() == 12
+            filter.Node.window(2, 3).property("prop6").temporal().latest().sum() == 12
         )
         assert sorted(graph.filter(filter1 & filter2).nodes.id) == ["a"]
 
@@ -1186,7 +1194,13 @@ def test_filter_nodes_two_windows_and():
 def test_filter_nodes_window_out_of_range_is_empty():
     def check(graph):
         expr = filter.Node.window(10, 20).property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(
+            Exception,
+            match=r"not valid for list properties|one answer per element",
+        ):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1215,10 +1229,10 @@ def test_filter_nodes_temporal_layer_sum_ge():
 @with_variants(create_test_graph)
 def test_filter_nodes_at():
     def check(graph):
-        expr = filter.Node.at(1).property("prop5").temporal().last().sum() >= 10
+        expr = filter.Node.at(1).property("prop5").temporal().latest().sum() >= 10
         assert sorted(graph.filter(expr).nodes.id) == ["c"]
 
-        expr = filter.Node.at(1).property("prop5").temporal().last().sum() == 6
+        expr = filter.Node.at(1).property("prop5").temporal().latest().sum() == 6
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
     return check
@@ -1227,10 +1241,10 @@ def test_filter_nodes_at():
 @with_variants(create_test_graph)
 def test_filter_nodes_before():
     def check(graph):
-        expr = filter.Node.before(2).property("prop5").temporal().last().sum() == 6
+        expr = filter.Node.before(2).property("prop5").temporal().latest().sum() == 6
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
-        expr = filter.Node.before(2).property("prop5").temporal().last().sum() >= 10
+        expr = filter.Node.before(2).property("prop5").temporal().latest().sum() >= 10
         assert sorted(graph.filter(expr).nodes.id) == ["c"]
 
     return check
@@ -1240,9 +1254,15 @@ def test_filter_nodes_before():
 def test_filter_nodes_after():
     def check(graph):
         expr = filter.Node.after(1).property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(
+            Exception,
+            match=r"not valid for list properties|one answer per element",
+        ):
+            graph.filter(expr).nodes.id
 
-        expr = filter.Node.after(1).property("prop6").temporal().last().sum() == 12
+        expr = filter.Node.after(1).property("prop6").temporal().latest().sum() == 12
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
     return check
@@ -1251,11 +1271,17 @@ def test_filter_nodes_after():
 @with_variants(create_test_graph)
 def test_filter_nodes_latest():
     def check(graph):
-        expr = filter.Node.latest().property("prop6").temporal().last().sum() == 12
+        expr = filter.Node.latest().property("prop6").temporal().latest().sum() == 12
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
         expr = filter.Node.latest().property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(
+            Exception,
+            match=r"not valid for list properties|one answer per element",
+        ):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1263,16 +1289,24 @@ def test_filter_nodes_latest():
 @with_variants(create_test_graph)
 def test_filter_nodes_snapshot_at():
     def check(graph):
-        expr = filter.Node.snapshot_at(1).property("prop5").temporal().last().sum() == 6
+        expr = (
+            filter.Node.snapshot_at(1).property("prop5").temporal().latest().sum() == 6
+        )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
         expr = (
-            filter.Node.snapshot_at(1).property("prop5").temporal().last().sum() >= 10
+            filter.Node.snapshot_at(1).property("prop5").temporal().latest().sum() >= 10
         )
         assert sorted(graph.filter(expr).nodes.id) == ["c"]
 
         expr = filter.Node.snapshot_at(1).property("prop6").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(
+            Exception,
+            match=r"not valid for list properties|one answer per element",
+        ):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1281,13 +1315,19 @@ def test_filter_nodes_snapshot_at():
 def test_filter_nodes_snapshot_latest():
     def check(graph):
         expr = (
-            filter.Node.snapshot_latest().property("prop6").temporal().last().sum()
+            filter.Node.snapshot_latest().property("prop6").temporal().latest().sum()
             == 12
         )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
         expr = filter.Node.snapshot_latest().property("prop5").temporal().sum() >= 0
-        assert list(graph.filter(expr).nodes.id) == []
+        # Per-snapshot sums form a list; comparing it to a scalar is a type
+        # error rather than a silent no-match.
+        with pytest.raises(
+            Exception,
+            match=r"not valid for list properties|one answer per element",
+        ):
+            graph.filter(expr).nodes.id
 
     return check
 
@@ -1296,7 +1336,12 @@ def test_filter_nodes_snapshot_latest():
 def test_filter_nodes_window_latest():
     def check(graph):
         expr = (
-            filter.Node.window(1, 3).latest().property("prop6").temporal().last().sum()
+            filter.Node.window(1, 3)
+            .latest()
+            .property("prop6")
+            .temporal()
+            .latest()
+            .sum()
             == 12
         )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
@@ -1308,7 +1353,12 @@ def test_filter_nodes_window_latest():
 def test_filter_nodes_latest_window():
     def check(graph):
         expr = (
-            filter.Node.latest().window(1, 3).property("prop6").temporal().last().sum()
+            filter.Node.latest()
+            .window(1, 3)
+            .property("prop6")
+            .temporal()
+            .latest()
+            .sum()
             == 12
         )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
@@ -1340,3 +1390,30 @@ def test_filter_nodes_latest_layer():
         assert sorted(graph.filter(expr).nodes.id) == [1]
 
     return check
+
+
+def test_first_reduces_each_update_and_earliest_picks_one():
+    """On a list-valued history the aggregates work inside every update, one
+    answer per update; `earliest()` and `latest()` are the updates themselves."""
+    from raphtory import Graph
+
+    graph = Graph()
+    graph.add_node(0, 0, {"list": [1, 2, 4]})
+    graph.add_node(1, 0, {"list": [3, 2, 1]})
+    history = filter.Node.property("list").temporal()
+
+    def ids(expr):
+        return [n.id for n in graph.filter(expr).nodes]
+
+    # max, first and len answer per update, so a qualifier chooses the updates.
+    assert ids((history.max() == 3).any()) == [0]
+    assert ids((history.first() == 3).any()) == [0]
+    assert ids((history.first() == 1).all()) == []
+    assert ids((history.len() == 3).all()) == [0]
+    # earliest and latest are whole updates.
+    assert ids(history.earliest() == [1, 2, 4]) == [0]
+    assert ids(history.latest() == [3, 2, 1]) == [0]
+    assert ids(history.latest().sum() == 6) == [0]
+    # An update is only a thing on a history.
+    with pytest.raises(Exception, match="pick an update of a temporal history"):
+        graph.filter(filter.Node.property("list").latest() == [3, 2, 1]).nodes.id

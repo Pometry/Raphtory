@@ -1,19 +1,4 @@
-use crate::{
-    db::{
-        api::state::ops::{filter::NodeExistsOp, GraphView},
-        graph::views::{
-            filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
-                },
-                CreateFilter,
-            },
-            is_self_loop_graph::IsSelfLoopGraph,
-        },
-    },
-    errors::GraphError,
-};
+use crate::db::{api::state::ops::GraphView, graph::views::filter::model::ComposableFilter};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,66 +10,39 @@ impl fmt::Display for IsSelfLoopEdge {
     }
 }
 
-impl CreateFilter for IsSelfLoopEdge {
-    type EntityFiltered<'graph, G, F>
-        = IsSelfLoopGraph<G>
-    // self loop doesn't depend on view filtering, can simplify
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
+impl ComposableFilter for IsSelfLoopEdge {}
 
-    type NodeFilter<'graph, G, F>
-        = NodeExistsOp<IsSelfLoopGraph<G>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
+// ── expr layer: the predicate as a boolean expression over the eval view ──
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
+use crate::db::graph::views::filter::model::{
+    edge_expr::{ops::IsSelfLoopEdgePropOp, EdgeOp},
+    edge_filter::EdgeFilter as EdgeFilterMarker,
+    node_expr::{CreateOp, EntityExpr},
+};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::sync::Arc;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        _filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        Ok(IsSelfLoopGraph::new(graph))
+impl EntityExpr for IsSelfLoopEdge {
+    type Marker = EdgeFilterMarker;
+
+    fn entity(&self) -> EdgeFilterMarker {
+        EdgeFilterMarker
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        _filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Ok(NodeExistsOp::new(IsSelfLoopGraph::new(graph)))
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
+    fn nullable(&self) -> bool {
+        false
     }
 }
 
-impl ComposableFilter for IsSelfLoopEdge {}
-
-impl TryAsCompositeFilter for IsSelfLoopEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
+impl CreateOp for IsSelfLoopEdge {
+    fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+        _graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
+        Ok(Arc::new(IsSelfLoopEdgePropOp))
     }
 }

@@ -2,7 +2,8 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
-        filtering::{EdgesViewCollection, GqlFilter},
+        filter_expr_input::GqlFilter,
+        filtering::ViewCollection,
         path_from_graph::GqlPathFromGraph,
         timeindex::{GqlEventTime, GqlTimeInput},
     },
@@ -13,7 +14,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{edges::NestedEdges, views::filter::model::DynFilter},
+        graph::edges::NestedEdges,
     },
     errors::GraphError,
     prelude::*,
@@ -186,49 +187,45 @@ impl GqlNestedEdges {
         #[graphql(
             desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
         )]
-        views: Vec<EdgesViewCollection>,
+        views: Vec<ViewCollection>,
     ) -> Result<GqlNestedEdges, GraphError> {
         let mut return_view: GqlNestedEdges = self.update(self.edges.clone());
         for view in views {
             return_view = match view {
-                EdgesViewCollection::DefaultLayer(apply) => {
+                ViewCollection::DefaultLayer(apply) => {
                     if apply {
                         return_view.default_layer().await
                     } else {
                         return_view
                     }
                 }
-                EdgesViewCollection::Latest(apply) => {
+                ViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
                     } else {
                         return_view
                     }
                 }
-                EdgesViewCollection::SnapshotLatest(apply) => {
+                ViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
                     } else {
                         return_view
                     }
                 }
-                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
-                EdgesViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                EdgesViewCollection::Window(window) => {
+                ViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                ViewCollection::Layers(layers) => return_view.layers(layers).await,
+                ViewCollection::ExcludeLayers(layers) => return_view.exclude_layers(layers).await,
+                ViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                ViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
                 }
-                EdgesViewCollection::At(at) => return_view.at(at).await,
-                EdgesViewCollection::Before(time) => return_view.before(time).await,
-                EdgesViewCollection::After(time) => return_view.after(time).await,
-                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edge(filter)).await?
-                }
+                ViewCollection::At(at) => return_view.at(at).await,
+                ViewCollection::Before(time) => return_view.before(time).await,
+                ViewCollection::After(time) => return_view.after(time).await,
+                ViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                ViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                ViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
 
@@ -405,8 +402,7 @@ impl GqlNestedEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.edges.filter(filter)?;
+            let filtered = self_clone.edges.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await

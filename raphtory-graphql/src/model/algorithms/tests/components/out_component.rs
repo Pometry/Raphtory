@@ -69,7 +69,20 @@ async fn test_algorithm_out_component_filtered() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { node: { name: { where: { ne: { str: "c" } } } } }) {
+              outComponent(node: "a", filter: {
+                                                node: {
+                                                  ne: {
+                                                    lhs: {
+                                                      field: NAME
+                                                    }
+                                                    rhs: {
+                                                      const: {
+                                                        str: "c"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }) {
                 nodes { list { id } }
               }
             }
@@ -100,12 +113,35 @@ async fn test_algorithm_out_component_node_filter_composed() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { node: {
-                and: [
-                  { name: { where: { ne: { str: "b" } } } },
-                  { name: { where: { ne: { str: "c" } } } }
-                ]
-              } }) {
+              outComponent(node: "a", filter: {
+                                                and: [{
+                                                  node: {
+                                                    ne: {
+                                                      lhs: {
+                                                        field: NAME
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "b"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }, {
+                                                  node: {
+                                                    ne: {
+                                                      lhs: {
+                                                        field: NAME
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "c"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }]
+                                              }) {
                 nodes { list { id } }
               }
             }
@@ -135,12 +171,39 @@ async fn test_algorithm_out_component_edge_filter_composed() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { edge: {
-                and: [
-                  { dst: { name: { where: { ne: { str: "b" } } } } },
-                  { dst: { name: { where: { ne: { str: "c" } } } } }
-                ]
-              } }) {
+              outComponent(node: "a", filter: {
+                                                and: [{
+                                                  edge: {
+                                                    ne: {
+                                                      lhs: {
+                                                        dst: {
+                                                          field: NAME
+                                                        }
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "b"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }, {
+                                                  edge: {
+                                                    ne: {
+                                                      lhs: {
+                                                        dst: {
+                                                          field: NAME
+                                                        }
+                                                      }
+                                                      rhs: {
+                                                        const: {
+                                                          str: "c"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }]
+                                              }) {
                 nodes { list { id } }
               }
             }
@@ -176,9 +239,19 @@ async fn test_algorithm_out_component_graph_filter_composed() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { graph: {
-                window: { start: 1, end: 3, expr: { before: { time: 2 } } }
-              } }) {
+              outComponent(node: "a", filter: {
+                view: [
+                  {
+                    before: 2
+                  },
+                  {
+                    window: {
+                      start: 1
+                      end: 3
+                    }
+                  }
+                ]
+              }) {
                 nodes { list { id } }
               }
             }
@@ -211,9 +284,20 @@ async fn test_algorithm_out_component_filter_equivalence() {
         {
           graph(path: "g") {
             algorithm {
-              outComponent(node: "a", filter: { node: {
-                name: { where: { ne: { str: "c" } } }
-              } }) {
+              outComponent(node: "a", filter: {
+                                                node: {
+                                                  ne: {
+                                                    lhs: {
+                                                      field: NAME
+                                                    }
+                                                    rhs: {
+                                                      const: {
+                                                        str: "c"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }) {
                 rows {
                   node { id }
                   entries {
@@ -230,8 +314,20 @@ async fn test_algorithm_out_component_filter_equivalence() {
     let pre_filtered = r#"
         {
           graph(path: "g") {
-            filter(expr: { node: {
-                name: { where: { ne: { str: "c" } } }} }) {
+            filter(expr: {
+                           node: {
+                             ne: {
+                               lhs: {
+                                 field: NAME
+                               }
+                               rhs: {
+                                 const: {
+                                   str: "c"
+                                 }
+                               }
+                             }
+                           }
+                         }) {
               algorithm {
                 outComponent(node: "a") {
                   rows {

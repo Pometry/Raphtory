@@ -1,101 +1,151 @@
 use crate::{
     db::{
         api::{
-            state::ops::NodeOp,
-            view::{internal::GraphView, BoxableGraphView},
+            state::NodeOp,
+            view::internal::{DynGraphArc, GraphView},
         },
-        graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
-                not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
-                TryAsCompositeFilter,
-            },
-            CreateFilter,
-        },
+        graph::views::filter::{model::expr::FilterExpr, CreateFilter, DynEdgeFilter},
     },
     errors::GraphError,
+    python::filter::{node_expr::PyExpr, repr},
 };
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*, Borrowed};
 use std::sync::Arc;
 
+/// A filter as a tree. The same tree runs locally, is sent to a server, and is
+/// what `repr` prints, so there is nothing to keep in step.
+///
+/// Anywhere a filter is expected, a yes/no `Expr` is accepted too: it is the
+/// filter on its own entity.
+///
+/// `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
+/// node test keeps the nodes that fail it and the edges between them, and a
+/// combination is negated test by test, node tests on nodes and edge tests on
+/// edges. A view combines with `&` only.
 #[pyclass(
     frozen,
     name = "FilterExpr",
     module = "raphtory.filter",
     subclass,
-    from_py_object
+    skip_from_py_object
 )]
 #[derive(Clone)]
-pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
+pub struct PyFilterExpr(pub FilterExpr);
 
 impl PyFilterExpr {
-    pub fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        self.0.try_as_filter_tree()
+    /// The tree itself, for a caller that owns the wrapper and is done with it.
+    pub fn into_tree(self) -> FilterExpr {
+        self.0
     }
+}
 
-    pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.0.try_as_composite_node_filter()
+impl<'py> FromPyObject<'_, 'py> for PyFilterExpr {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        if let Ok(filter) = ob.cast::<PyFilterExpr>() {
+            return Ok(filter.get().clone());
+        }
+        if let Ok(expr) = ob.cast::<PyExpr>() {
+            return Ok(PyFilterExpr(expr.get().0.clone().into_filter()));
+        }
+        Err(PyTypeError::new_err(format!(
+            "expected a filter (filter.Expr or filter.FilterExpr), got {}",
+            ob.get_type().name()?
+        )))
     }
+}
 
-    pub fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.0.try_as_composite_edge_filter()
+/// Either side of `&`, `|`: a yes/no expression or a filter.
+#[derive(FromPyObject)]
+pub(crate) enum ExprOrFilter {
+    Expr(PyExpr),
+    Filter(PyFilterExpr),
+}
+
+impl ExprOrFilter {
+    pub(crate) fn into_filter(self) -> FilterExpr {
+        match self {
+            ExprOrFilter::Expr(e) => e.0.into_filter(),
+            ExprOrFilter::Filter(f) => f.0,
+        }
     }
 }
 
 #[pymethods]
 impl PyFilterExpr {
-    pub fn __and__(&self, other: &Self) -> Self {
-        let left = self.0.clone();
-        let right = other.0.clone();
-        PyFilterExpr(Arc::new(AndFilter { left, right }))
+    fn __and__(&self, other: ExprOrFilter) -> Self {
+        PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.into_filter()]))
     }
 
-    pub fn __or__(&self, other: &Self) -> Self {
-        let left = self.0.clone();
-        let right = other.0.clone();
-        PyFilterExpr(Arc::new(OrFilter { left, right }))
+    fn __or__(&self, other: ExprOrFilter) -> PyResult<Self> {
+        let other = other.into_filter();
+        no_view(&self.0)?;
+        no_view(&other)?;
+        Ok(PyFilterExpr(FilterExpr::Or(vec![self.0.clone(), other])))
     }
 
-    fn __invert__(&self) -> Self {
-        PyFilterExpr(Arc::new(NotFilter(self.0.clone())))
+    fn __invert__(&self) -> PyResult<Self> {
+        no_view(&self.0)?;
+        Ok(PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone()))))
+    }
+
+    /// The Python expression that builds this filter, module-qualified, so
+    /// `eval` rebuilds it after `import raphtory`.
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        repr::filter(py, &self.0)
     }
 }
 
+/// A view applies to the whole filter, so it can be `&`-ed with predicates or applied
+/// alone, but has no meaning under `|` or `~`. Refused where it is written, as the
+/// engine would refuse it when applied.
+pub(crate) fn no_view(filter: &FilterExpr) -> PyResult<()> {
+    if filter.has_view() {
+        return Err(PyTypeError::new_err(
+            "a view (filter.Graph...) applies to the whole filter: combine it with `&` or apply it alone, not with `|` or `~`",
+        ));
+    }
+    Ok(())
+}
+
 impl CreateFilter for PyFilterExpr {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph> =
-        Arc<dyn BoxableGraphView + 'graph>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph;
-
     type FilteredGraph<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        self.0.create_filter(graph, filtered)
-    }
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        self.0.create_node_filter(graph, filtered)
-    }
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.0.filter_graph_view(graph)
+        self.0.create_graph_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        self.0.create_node_filter(graph)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        self.0.create_edge_filter(graph)
     }
 }

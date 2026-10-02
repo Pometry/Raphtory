@@ -47,7 +47,7 @@ def test_metadata_semantics():
 @with_variants(init_edges_graph, variants=["graph"])
 def test_temporal_any_semantics():
     def check(graph):
-        filter_expr = filter.Edge.property("p1").temporal().any() == 1
+        filter_expr = (filter.Edge.property("p1").temporal() == 1).any()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
@@ -72,7 +72,7 @@ def test_temporal_any_semantics():
 )
 def test_temporal_any_semantics_for_event_ids():
     def check(graph):
-        filter_expr = filter.Edge.property("p1").temporal().any() == 1
+        filter_expr = (filter.Edge.property("p1").temporal() == 1).any()
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [

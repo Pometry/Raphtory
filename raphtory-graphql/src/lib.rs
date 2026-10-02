@@ -4,7 +4,7 @@ pub use crate::{
     auth::{
         Access, KeyResolver, ReadOnly, Roles, RolesMissing, StaticKeyResolver, TokenClaimValues,
     },
-    model::graph::{filtering::GraphAccessFilter, property::Value},
+    model::graph::{filter_expr_input::GqlFilter, filtering::GraphAccessFilter, property::Value},
     server::GraphServer,
 };
 
@@ -558,7 +558,20 @@ mod graphql_test {
         {
           graph(path: "g") {
             filterNodes: filter(
-                expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }
+                expr: {
+                        node: {
+                          gt: {
+                            lhs: {
+                              degree: BOTH
+                            }
+                            rhs: {
+                              const: {
+                                u64: 0
+                              }
+                            }
+                          }
+                        }
+                      }
             ) {
               nodes {
                 list {
@@ -567,7 +580,20 @@ mod graphql_test {
               }
             }
             nodes {
-              select(expr: { node: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } } }) {
+              select(expr: {
+                             node: {
+                               gt: {
+                                 lhs: {
+                                   degree: BOTH
+                                 }
+                                 rhs: {
+                                   const: {
+                                     u64: 0
+                                   }
+                                 }
+                               }
+                             }
+                           }) {
                 list {
                   name
                 }

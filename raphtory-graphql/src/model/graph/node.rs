@@ -1,7 +1,8 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, NodeViewCollection},
+        filter_expr_input::GqlFilter,
+        filtering::ViewCollection,
         history::GqlHistory,
         node_id::GqlNodeId,
         nodes::GqlNodes,
@@ -24,12 +25,7 @@ use raphtory::{
             properties::dyn_props::DynProperties,
             view::{filter_ops::Select, Filter, *},
         },
-        graph::{
-            node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
-            },
-        },
+        graph::node::NodeView,
     },
     errors::GraphError,
     prelude::NodeStateOps,
@@ -250,48 +246,44 @@ impl GqlNode {
         self.vv.shrink_end(end.into_time()).into()
     }
 
-    pub async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
+    pub async fn apply_views(&self, views: Vec<ViewCollection>) -> Result<GqlNode, GraphError> {
         let mut return_view: GqlNode = self.vv.clone().into();
         for view in views {
             return_view = match view {
-                NodeViewCollection::DefaultLayer(apply) => {
+                ViewCollection::DefaultLayer(apply) => {
                     if apply {
                         return_view.default_layer().await
                     } else {
                         return_view
                     }
                 }
-                NodeViewCollection::Latest(apply) => {
+                ViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
                     } else {
                         return_view
                     }
                 }
-                NodeViewCollection::SnapshotLatest(apply) => {
+                ViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
                     } else {
                         return_view
                     }
                 }
-                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                NodeViewCollection::Layers(layers) => return_view.layers(layers).await,
-                NodeViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                NodeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                NodeViewCollection::Window(window) => {
+                ViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                ViewCollection::Layers(layers) => return_view.layers(layers).await,
+                ViewCollection::ExcludeLayers(layers) => return_view.exclude_layers(layers).await,
+                ViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                ViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
                 }
-                NodeViewCollection::At(at) => return_view.at(at).await,
-                NodeViewCollection::Before(time) => return_view.before(time).await,
-                NodeViewCollection::After(time) => return_view.after(time).await,
-                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodeViewCollection::NodeFilter(filter) => {
-                    return_view.filter(GqlFilter::Node(filter)).await?
-                }
+                ViewCollection::At(at) => return_view.at(at).await,
+                ViewCollection::Before(time) => return_view.before(time).await,
+                ViewCollection::After(time) => return_view.after(time).await,
+                ViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                ViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                ViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
@@ -408,17 +400,16 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.in_degree()).await
     }
 
-    /// Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
-    /// filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+    /// Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
+    /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full graph so their other-layer neighbours stay
     /// queryable.
     pub async fn in_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
         let self_clone = self.clone();
         match select {
             Some(select) => {
-                let filter: DynFilter = select.try_into()?;
                 blocking_compute(move || {
-                    in_component_filtered(self_clone.vv.clone(), filter)
+                    in_component_filtered(self_clone.vv.clone(), select)
                         .map(|state| GqlNodes::new(state.nodes()))
                 })
                 .await
@@ -430,17 +421,16 @@ impl GqlNode {
         }
     }
 
-    /// Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
-    /// filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+    /// Nodes reachable from this one via out-edges. `select` is a filter expression — node and edge
+    /// predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
     /// steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
     /// neighbours remain queryable.
     pub async fn out_component(&self, select: Option<GqlFilter>) -> Result<GqlNodes, GraphError> {
         let self_clone = self.clone();
         match select {
             Some(select) => {
-                let filter: DynFilter = select.try_into()?;
                 blocking_compute(move || {
-                    out_component_filtered(self_clone.vv.clone(), filter)
+                    out_component_filtered(self_clone.vv.clone(), select)
                         .map(|state| GqlNodes::new(state.nodes()))
                 })
                 .await
@@ -453,33 +443,30 @@ impl GqlNode {
     }
 
     /// Returns all connected edges.
-    pub async fn edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.vv.edges();
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
     }
 
     /// Returns outgoing edges.
-    pub async fn out_edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn out_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.vv.out_edges();
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
     }
 
     /// Returns incoming edges.
-    pub async fn in_edges(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    pub async fn in_edges(&self, select: Option<GqlFilter>) -> Result<GqlEdges, GraphError> {
         let base = self.vv.in_edges();
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
         Ok(GqlEdges::new(base))
@@ -488,12 +475,11 @@ impl GqlNode {
     /// Returns neighbouring nodes.
     pub async fn neighbours<'a>(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.vv.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -502,12 +488,11 @@ impl GqlNode {
     /// Returns the number of neighbours that have at least one in-going edge to this node.
     pub async fn in_neighbours<'a>(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.vv.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -516,12 +501,11 @@ impl GqlNode {
     /// Returns the number of neighbours that have at least one out-going edge from this node.
     pub async fn out_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.vv.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -536,8 +520,7 @@ impl GqlNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.vv.filter(filter)?;
+            let filtered = self_clone.vv.filter(expr)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })
         .await

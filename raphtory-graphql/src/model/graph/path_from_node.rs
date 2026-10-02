@@ -2,7 +2,8 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         edges::GqlEdges,
-        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
+        filter_expr_input::GqlFilter,
+        filtering::ViewCollection,
         history::GqlHistory,
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
@@ -17,10 +18,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{
-            path::PathFromNode,
-            views::filter::model::{CompositeNodeFilter, DynFilter},
-        },
+        graph::path::PathFromNode,
     },
     errors::GraphError,
     prelude::*,
@@ -419,43 +417,45 @@ impl GqlPathFromNode {
         #[graphql(
             desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
         )]
-        views: Vec<PathFromNodeViewCollection>,
+        views: Vec<ViewCollection>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let mut return_view: GqlPathFromNode = self.clone();
         for view in views {
             return_view = match view {
-                PathFromNodeViewCollection::Layers(layers) => return_view.layers(layers).await,
-                PathFromNodeViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                PathFromNodeViewCollection::ExcludeLayer(layer) => {
-                    return_view.exclude_layer(layer).await
-                }
-                PathFromNodeViewCollection::Window(window) => {
+                ViewCollection::Layers(layers) => return_view.layers(layers).await,
+                ViewCollection::ExcludeLayers(layers) => return_view.exclude_layers(layers).await,
+                ViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                ViewCollection::Window(window) => {
                     return_view.window(window.start, window.end).await
                 }
-                PathFromNodeViewCollection::ShrinkStart(time) => {
-                    return_view.shrink_start(time).await
-                }
-                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                PathFromNodeViewCollection::At(time) => return_view.at(time).await,
-                PathFromNodeViewCollection::SnapshotLatest(apply) => {
+                ViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                ViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                ViewCollection::At(time) => return_view.at(time).await,
+                ViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
                     } else {
                         return_view
                     }
                 }
-                PathFromNodeViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
-                PathFromNodeViewCollection::Latest(apply) => {
+                ViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
+                ViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
                     } else {
                         return_view
                     }
                 }
-                PathFromNodeViewCollection::Before(time) => return_view.before(time).await,
-                PathFromNodeViewCollection::After(time) => return_view.after(time).await,
+                ViewCollection::Before(time) => return_view.before(time).await,
+                ViewCollection::After(time) => return_view.after(time).await,
+                ViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
+                    }
+                }
+                ViewCollection::Filter(filter) => return_view.filter(filter).await?,
             }
         }
         Ok(return_view)
@@ -469,7 +469,7 @@ impl GqlPathFromNode {
     /// E.g. restricting the whole traversal to a specific week:
     ///
     /// ```text
-    /// node(name: "A") { neighbours { filter(expr: {window: {...week...}}) {
+    /// node(name: "A") { neighbours { filter(expr: {view: [{window: {...week...}}]}) {
     ///   list { neighbours { list { name } } }   # further hops still windowed
     /// } } }
     /// ```
@@ -485,8 +485,7 @@ impl GqlPathFromNode {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -499,8 +498,8 @@ impl GqlPathFromNode {
     /// Monday, then *their* neighbours active on Tuesday:
     ///
     /// ```text
-    /// node(name: "A") { neighbours { select(expr: {window: {...monday...}}) {
-    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
+    /// node(name: "A") { neighbours { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
     ///     list { name }
     ///   } } }
     /// } } }
@@ -531,12 +530,11 @@ impl GqlPathFromNode {
     /// (both directions), as a flat `PathFromNode`.
     pub async fn neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -546,12 +544,11 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn in_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))
@@ -561,12 +558,11 @@ impl GqlPathFromNode {
     /// flat `PathFromNode`.
     pub async fn out_neighbours(
         &self,
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromNode::new(narrowed));
         }
         Ok(GqlPathFromNode::new(base))

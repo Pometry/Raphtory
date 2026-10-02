@@ -335,9 +335,6 @@ pub enum GraphError {
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
 
-    #[error("Property filtering not implemented on PersistentGraph yet")]
-    PropertyFilteringNotImplemented,
-
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
 
@@ -347,8 +344,11 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
-    #[error("Node filter expected")]
+    #[error("Expression is not a node filter")]
     NotNodeFilter,
+
+    #[error("Expression is not an edge filter")]
+    NotEdgeFilter,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
@@ -391,15 +391,6 @@ pub enum GraphError {
 
     #[error("Value cannot be empty.")]
     EmptyValue,
-
-    #[error("Filter must contain at least one filter condition.")]
-    ParsingError,
-
-    #[error("Node filter is not supported for edge filtering")]
-    NodeFilterIsNotEdgeFilter,
-
-    #[error("Only property filters are supported for exploded edge filtering")]
-    NotExplodedEdgeFilter,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,

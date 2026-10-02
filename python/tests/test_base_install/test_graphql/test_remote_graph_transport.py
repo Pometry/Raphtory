@@ -2083,16 +2083,14 @@ def test_filter_by_node_id_keeps_membership_but_getitem_narrows():
 
 
 def test_temporal_multi_op_filter_preserves_op_order_e2e():
-    """End-to-end guard that a multi-op temporal filter keeps its op-order
-    through the wire — the client serializes it via `apply_ops_to_condition`
-    (filtering.rs), so an inversion there would corrupt the query.
+    """End-to-end guard that a multi-op temporal filter keeps its op order
+    through the wire.
 
-    On a list-valued temporal property, `.first().sum()` is shape-valid: First
-    picks the first snapshot's list, Sum reduces it to a scalar. The inversion
-    `.sum().first()` reduces a sequence-of-lists (→ None) and can never match,
-    so any op-order flip in the wire turns `["n"]` into `[]`. Uses the narrowing
-    `graph.filter()` path (not sticky `nodes.filter`) with a distractor node,
-    and pins the remote result against a local twin.
+    On a list-valued temporal property, `.earliest().sum()` picks the first
+    update's list and reduces it to a scalar. The inversion `.sum().earliest()`
+    is refused (`earliest` needs a history), so any op-order flip in the wire
+    cannot pass. Uses the narrowing `graph.filter()` path with a distractor
+    node, and pins the remote result against a local twin.
     """
     from raphtory import Graph
     from raphtory.filter import Node
@@ -2104,8 +2102,8 @@ def test_temporal_multi_op_filter_preserves_op_order_e2e():
         g.add_node(0, "d", properties={"x": [8, 9]})
         g.add_node(1, "d", properties={"x": [10, 11]})
 
-    first_sum_3 = Node.property("x").temporal().first().sum() == 3
-    first_sum_17 = Node.property("x").temporal().first().sum() == 17
+    first_sum_3 = Node.property("x").temporal().earliest().sum() == 3
+    first_sum_17 = Node.property("x").temporal().earliest().sum() == 17
 
     local = Graph()
     build(local)

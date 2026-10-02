@@ -243,16 +243,20 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        filterEdges: filter(expr: { edge: {
-              property:  {
-                name: "weight"
-                where:  {
-                    eq:  {
-                      f64: 0.9
-                    }
-                }
-              }
-          } }) {
+        filterEdges: filter(expr: {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          property: "weight"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            f64: 0.9
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -276,16 +280,20 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        filterEdges: filter(expr: { edge: {
-              property:  {
-                name: "weight"
-                where:  {
-                    eq:  {
-                      f64: 0.7
-                    }
-                }
-              }
-          } }) {
+        filterEdges: filter(expr: {
+                                    edge: {
+                                      eq: {
+                                        lhs: {
+                                          property: "weight"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            f64: 0.7
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -303,16 +311,20 @@ def test_history():
     query_1 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-            property:  {
-              name: "Age"
-              where:  {
-                  lt:  {
-                    i64: 51
-                  }
-              }
-            }
-          } }) {
+        filterNodes: filter(expr: {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 51
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -329,16 +341,20 @@ def test_history():
     query_2 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-              property:  {
-                name: "Age"
-                where:  {
-                    ge:  {
-                      i64: 51
-                    }
-                }
-            }
-          } }) {
+        filterNodes: filter(expr: {
+                                    node: {
+                                      ge: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 51
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -361,16 +377,20 @@ def test_history():
     query_3 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-              property:  {
-                name: "Age"
-                where:  {
-                    lt:  {
-                      i64: 21
-                    }
-                }
-              }
-          } }) {
+        filterNodes: filter(expr: {
+                                    node: {
+                                      lt: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 21
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Harry") {
             history {
               timestamps {
@@ -387,16 +407,20 @@ def test_history():
     query_4 = """
     {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: {
-              property:  {
-                name: "Age"
-                where:  {
-                    ge:  {
-                      i64: 21
-                    }
-                }
-              }
-          } }) {
+        filterNodes: filter(expr: {
+                                    node: {
+                                      ge: {
+                                        lhs: {
+                                          property: "Age"
+                                        }
+                                        rhs: {
+                                          const: {
+                                            i64: 21
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }) {
           node(name: "Harry") {
             history {
               timestamps {

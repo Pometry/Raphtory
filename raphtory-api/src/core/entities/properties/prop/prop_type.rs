@@ -181,16 +181,41 @@ impl PropType {
         matches!(self, PropType::DTime | PropType::NDTime)
     }
 
+    /// An unresolved type: nothing is known about the values yet, so every
+    /// capability check below passes and the real check happens once the
+    /// type is resolved.
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, PropType::Empty)
+    }
+
     pub fn has_add(&self) -> bool {
-        self.is_numeric() || self.is_str()
+        self.is_unknown() || self.is_numeric() || self.is_str()
     }
 
     pub fn has_divide(&self) -> bool {
-        self.is_numeric()
+        self.is_unknown() || self.is_numeric()
     }
 
+    /// Whether values of this type have an ordering (`<`, `<=`, `>`, `>=`).
     pub fn has_cmp(&self) -> bool {
-        self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
+        self.is_unknown() || self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
+    }
+
+    /// Whether a value of this type can ever equal a value of `other`.
+    ///
+    /// Numbers compare by value whatever their width, so every numeric type is
+    /// comparable with every other. Lists are comparable when their elements
+    /// are; two maps always are, since a declared map type is the union of the
+    /// shapes its values take. Anything else must be the same type. An
+    /// unresolved side is comparable with everything.
+    pub fn is_comparable_with(&self, other: &PropType) -> bool {
+        match (self, other) {
+            (PropType::Empty, _) | (_, PropType::Empty) => true,
+            (l, r) if l.is_numeric() && r.is_numeric() => true,
+            (PropType::List(l), PropType::List(r)) => l.is_comparable_with(r),
+            (PropType::Map(_), PropType::Map(_)) => true,
+            (l, r) => l == r,
+        }
     }
 
     pub fn homogeneous_map_value_type(&self) -> Option<PropType> {
@@ -533,6 +558,69 @@ mod test {
         assert_eq!(rendered, "Map{ alpha: Str, mid: Bool, zeta: I64 }");
         for _ in 0..20 {
             assert_eq!(map_type.to_string(), rendered);
+        }
+    }
+
+    #[test]
+    fn unknown_type_has_every_capability() {
+        assert!(PropType::Empty.has_cmp());
+        assert!(PropType::Empty.has_add());
+        assert!(PropType::Empty.has_divide());
+    }
+
+    #[test]
+    fn ordering_exists_for_scalars_only() {
+        for pt in [PropType::U8, PropType::F32, PropType::Decimal { scale: 2 }] {
+            assert!(pt.has_cmp(), "{pt}");
+        }
+        for pt in [
+            PropType::Str,
+            PropType::Bool,
+            PropType::DTime,
+            PropType::NDTime,
+        ] {
+            assert!(pt.has_cmp(), "{pt}");
+        }
+        for pt in [
+            PropType::List(Box::new(PropType::I64)),
+            PropType::map([("a", PropType::I64)]),
+        ] {
+            assert!(!pt.has_cmp(), "{pt}");
+        }
+    }
+
+    #[test]
+    fn comparable_types() {
+        let list = |inner| PropType::List(Box::new(inner));
+        let comparable = [
+            (PropType::U8, PropType::F64),
+            (PropType::I64, PropType::Decimal { scale: 3 }),
+            (PropType::Str, PropType::Str),
+            (PropType::Bool, PropType::Bool),
+            (PropType::Empty, PropType::Str),
+            (list(PropType::I64), list(PropType::F32)),
+            (list(PropType::Empty), list(PropType::Str)),
+            (
+                PropType::map([("a", PropType::I64)]),
+                PropType::map([("b", PropType::Str)]),
+            ),
+        ];
+        for (l, r) in comparable {
+            assert!(l.is_comparable_with(&r), "{l} vs {r}");
+            assert!(r.is_comparable_with(&l), "{r} vs {l}");
+        }
+        let incomparable = [
+            (PropType::U64, PropType::Str),
+            (PropType::Bool, PropType::I64),
+            (PropType::Str, PropType::DTime),
+            (PropType::DTime, PropType::NDTime),
+            (PropType::I64, list(PropType::I64)),
+            (list(PropType::I64), list(PropType::Str)),
+            (PropType::map([("a", PropType::I64)]), PropType::Str),
+        ];
+        for (l, r) in incomparable {
+            assert!(!l.is_comparable_with(&r), "{l} vs {r}");
+            assert!(!r.is_comparable_with(&l), "{r} vs {l}");
         }
     }
 

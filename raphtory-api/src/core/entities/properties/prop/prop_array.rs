@@ -2,7 +2,7 @@ use crate::{
     core::entities::properties::prop::{
         unify_types, ArrowRow, DirectConvert, Prop, PropType, EMPTY_MAP_FIELD_NAME,
     },
-    iter::{BoxedLIter, IntoDynBoxed},
+    iter::{BoxedLDIter, IntoDynDBoxed},
 };
 use arrow_array::{
     cast::AsArray, types::*, Array, ArrayRef, ArrowPrimitiveType, OffsetSizeTrait, PrimitiveArray,
@@ -106,13 +106,13 @@ impl PropArray {
     }
 
     // TODO: need something that returns PropRef instead to avoid allocations
-    pub fn iter(&self) -> impl Iterator<Item = Prop> + '_ {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = Prop> + '_ {
         self.iter_all().flatten()
     }
 
-    pub fn iter_all(&self) -> BoxedLIter<'_, Option<Prop>> {
+    pub fn iter_all(&self) -> BoxedLDIter<'_, Option<Prop>> {
         match self {
-            PropArray::Vec(ps) => ps.iter().cloned().map(Some).into_dyn_boxed(),
+            PropArray::Vec(ps) => ps.iter().cloned().map(Some).into_dyn_dboxed(),
             PropArray::Array(arr) => {
                 let dtype = arr.data_type();
                 match dtype {
@@ -120,7 +120,7 @@ impl PropArray {
                         .as_boolean()
                         .iter()
                         .map(|p| p.map(Prop::Bool))
-                        .into_dyn_boxed(),
+                        .into_dyn_dboxed(),
                     DataType::Int32 => as_primitive_iter::<Int32Type>(arr),
                     DataType::Int64 => as_primitive_iter::<Int64Type>(arr),
                     DataType::UInt8 => as_primitive_iter::<UInt8Type>(arr),
@@ -142,53 +142,53 @@ impl PropArray {
                     DataType::Struct(_) => as_struct_iter(arr),
                     DataType::List(_) => as_list_iter::<i32>(arr),
                     DataType::LargeList(_) => as_list_iter::<i64>(arr),
-                    _ => std::iter::empty().into_dyn_boxed(),
+                    _ => std::iter::empty().into_dyn_dboxed(),
                 }
             }
         }
     }
 }
 
-fn as_primitive_iter<TT: DirectConvert>(arr: &ArrayRef) -> BoxedLIter<'_, Option<Prop>> {
+fn as_primitive_iter<TT: DirectConvert>(arr: &ArrayRef) -> BoxedLDIter<'_, Option<Prop>> {
     arr.as_primitive_opt::<TT>()
         .into_iter()
         .flat_map(|primitive_array| {
             let dt = arr.data_type();
             primitive_array.iter().map(|v| v.map(|v| TT::prop(v, dt)))
         })
-        .into_dyn_boxed()
+        .into_dyn_dboxed()
 }
 
-fn as_str_iter(arr: &ArrayRef) -> BoxedLIter<'_, Option<Prop>> {
+fn as_str_iter(arr: &ArrayRef) -> BoxedLDIter<'_, Option<Prop>> {
     match arr.data_type() {
         DataType::Utf8 => arr
             .as_string::<i32>()
             .into_iter()
             .map(|opt_str| opt_str.map(|s| Prop::str(s.to_string())))
-            .into_dyn_boxed(),
+            .into_dyn_dboxed(),
         DataType::LargeUtf8 => arr
             .as_string::<i64>()
             .into_iter()
             .map(|opt_str| opt_str.map(|s| Prop::str(s.to_string())))
-            .into_dyn_boxed(),
+            .into_dyn_dboxed(),
         DataType::Utf8View => arr
             .as_string_view()
             .into_iter()
             .map(|opt_str| opt_str.map(|s| Prop::str(s.to_string())))
-            .into_dyn_boxed(),
+            .into_dyn_dboxed(),
         _ => panic!("as_str_iter called on non-string array"),
     }
 }
 
-fn as_struct_iter(arr: &ArrayRef) -> BoxedLIter<'_, Option<Prop>> {
+fn as_struct_iter(arr: &ArrayRef) -> BoxedLDIter<'_, Option<Prop>> {
     let arr = arr.as_struct();
     (0..arr.len())
         .map(|row| (!arr.is_null(row)).then(|| ArrowRow::new(arr, row)))
         .map(|arrow_row| arrow_row.and_then(|row| row.into_prop()))
-        .into_dyn_boxed()
+        .into_dyn_dboxed()
 }
 
-fn as_list_iter<O: OffsetSizeTrait>(arr: &ArrayRef) -> BoxedLIter<'_, Option<Prop>> {
+fn as_list_iter<O: OffsetSizeTrait>(arr: &ArrayRef) -> BoxedLDIter<'_, Option<Prop>> {
     let arr = arr.as_list::<O>();
     (0..arr.len())
         .map(|i| {
@@ -200,7 +200,7 @@ fn as_list_iter<O: OffsetSizeTrait>(arr: &ArrayRef) -> BoxedLIter<'_, Option<Pro
                 Some(Prop::List(prop_array))
             }
         })
-        .into_dyn_boxed()
+        .into_dyn_dboxed()
 }
 
 impl Serialize for PropArray {

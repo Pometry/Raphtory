@@ -2,7 +2,7 @@
 while returning full-graph nodes, so their other-layer neighbours remain queryable.
 
 All tests are read-only over the same graph, so one module-scoped server serves them all.
-Filter selects use `expr: {isValid: true}` as a pass-all edge expression.
+Filter selects use `{ edge: { isValid: true } }` as a pass-all edge expression.
 """
 
 import pytest
@@ -38,14 +38,14 @@ def test_out_component_scoped_by_edge_layer(client):
         client,
         "a",
         "outComponent",
-        '{edge: {layers: {names: ["owns"], expr: {isValid: true}}}}',
+        '{ edge: { viewed: { views: [{ layers: ["owns"] }], expr: { isValid: true } } } }',
     ) == ["b", "c"]
     # scope to `has` -> only a's own satellite (owns edges are not followed)
     assert _names(
         client,
         "a",
         "outComponent",
-        '{edge: {layers: {names: ["has"], expr: {isValid: true}}}}',
+        '{ edge: { viewed: { views: [{ layers: ["has"] }], expr: { isValid: true } } } }',
     ) == ["x"]
 
 
@@ -55,18 +55,17 @@ def test_out_component_scoped_by_node_filter(client):
         client,
         "a",
         "outComponent",
-        '{node: {name: {where: {isIn: {list: [{str: "b"}, {str: "c"}]}}}}}',
+        '{ node: { isIn: { expr: { field: NAME }, values: { list: [{ str: "b" }, { str: "c" }] } } } }',
     ) == ["b", "c"]
 
 
 def test_out_component_scoped_by_graph_layer_filter(client):
     # The graph-level layer filter (the `filter.Graph.layer(...)` equivalent).
-    assert _names(
-        client, "a", "outComponent", '{graph: {layers: {names: ["owns"]}}}'
-    ) == ["b", "c"]
-    assert _names(
-        client, "a", "outComponent", '{graph: {layers: {names: ["has"]}}}'
-    ) == ["x"]
+    assert _names(client, "a", "outComponent", '{view: [{layers: ["owns"]}]}') == [
+        "b",
+        "c",
+    ]
+    assert _names(client, "a", "outComponent", '{view: [{layers: ["has"]}]}') == ["x"]
 
 
 def test_component_filter_and_or_combinators(client):
@@ -76,31 +75,28 @@ def test_component_filter_and_or_combinators(client):
         client,
         "a",
         "outComponent",
-        '{node: {or: [{name: {where: {eq: {str: "b"}}}}, '
-        '{name: {where: {eq: {str: "c"}}}}]}}',
+        '{ or: [{ node: { eq: { lhs: { field: NAME }, rhs: { const: { str: "b" } } } } }, { node: { eq: { lhs: { field: NAME }, rhs: { const: { str: "c" } } } } }] }',
     ) == ["b", "c"]
     # node AND: step through nodes that are neither x nor y
     assert _names(
         client,
         "a",
         "outComponent",
-        '{node: {and: [{name: {where: {ne: {str: "x"}}}}, '
-        '{name: {where: {ne: {str: "y"}}}}]}}',
+        '{ and: [{ node: { ne: { lhs: { field: NAME }, rhs: { const: { str: "x" } } } } }, { node: { ne: { lhs: { field: NAME }, rhs: { const: { str: "y" } } } } }] }',
     ) == ["b", "c"]
     # edge OR: follow owns OR has edges -> everything downstream
     assert _names(
         client,
         "a",
         "outComponent",
-        '{edge: {or: [{layers: {names: ["owns"], expr: {isValid: true}}}, '
-        '{layers: {names: ["has"], expr: {isValid: true}}}]}}',
+        '{ or: [{ edge: { viewed: { views: [{ layers: ["owns"] }], expr: { isValid: true } } } }, { edge: { viewed: { views: [{ layers: ["has"] }], expr: { isValid: true } } } }] }',
     ) == ["b", "c", "x", "y"]
     # edge AND: owns AND valid
     assert _names(
         client,
         "a",
         "outComponent",
-        '{edge: {and: [{layers: {names: ["owns"], expr: {isValid: true}}}, {isValid: true}]}}',
+        '{ and: [{ edge: { viewed: { views: [{ layers: ["owns"] }], expr: { isValid: true } } } }, { edge: { isValid: true } }] }',
     ) == ["b", "c"]
 
 
@@ -111,16 +107,14 @@ def test_component_top_level_and_or_across_kinds(client):
         client,
         "a",
         "outComponent",
-        '{and: [{graph: {layers: {names: ["owns"]}}}, '
-        '{node: {name: {where: {ne: {str: "c"}}}}}]}',
+        '{ and: [{ view: [{ layers: ["owns"] }] }, { node: { ne: { lhs: { field: NAME }, rhs: { const: { str: "c" } } } } }] }',
     ) == ["b"]
-    # graph(has layer) OR edge(owns layer) -> everything downstream
+    # edge(has layer) OR edge(owns layer) -> everything downstream
     assert _names(
         client,
         "a",
         "outComponent",
-        '{or: [{graph: {layers: {names: ["has"]}}}, '
-        '{edge: {layers: {names: ["owns"], expr: {isValid: true}}}}]}',
+        '{ or: [{ edge: { viewed: { views: [{ layers: ["has"] }], expr: { isValid: true } } } }, { edge: { viewed: { views: [{ layers: ["owns"] }], expr: { isValid: true } } } }] }',
     ) == ["b", "c", "x", "y"]
 
 
@@ -131,30 +125,30 @@ def test_in_component_scoped_by_filters(client):
         client,
         "c",
         "inComponent",
-        '{node: {name: {where: {isIn: {list: [{str: "a"}, {str: "b"}]}}}}}',
+        '{ node: { isIn: { expr: { field: NAME }, values: { list: [{ str: "a" }, { str: "b" }] } } } }',
     ) == ["a", "b"]
     # edge filter
     assert _names(
         client,
         "c",
         "inComponent",
-        '{edge: {layers: {names: ["owns"], expr: {isValid: true}}}}',
+        '{ edge: { viewed: { views: [{ layers: ["owns"] }], expr: { isValid: true } } } }',
     ) == ["a", "b"]
     # graph (layer) filter
-    assert _names(
-        client, "c", "inComponent", '{graph: {layers: {names: ["owns"]}}}'
-    ) == ["a", "b"]
+    assert _names(client, "c", "inComponent", '{view: [{layers: ["owns"]}]}') == [
+        "a",
+        "b",
+    ]
     # no incoming `has` edges into c
-    assert (
-        _names(client, "c", "inComponent", '{graph: {layers: {names: ["has"]}}}') == []
-    )
+    assert _names(client, "c", "inComponent", '{view: [{layers: ["has"]}]}') == []
 
 
 def test_component_respects_an_external_graph_filter(client):
     # A graph-level filter (here removing `x`) applied before the walk must be honoured — the
     # returned nodes are over that already-filtered graph.
     q = (
-        '{ graph(path: "g") { filterNodes: filter(expr: {node: {name: {where: {ne: {str: "x"}}}}}) '
+        '{ graph(path: "g") { filterNodes: filter(expr: { node: { ne: { lhs: { field: NAME }, '
+        'rhs: { const: { str: "x" } } } } }) '
         '{ node(name: "a") { outComponent { list { name } } } } } }'
     )
     got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]
@@ -165,8 +159,9 @@ def test_component_external_graph_filter_composed_with_select(client):
     # External graph filter (remove `c`) AND a component `select` (owns layer) compose: the
     # owns walk from `a` would reach b, c — but c is filtered out, leaving only b.
     q = (
-        '{ graph(path: "g") { filterNodes: filter(expr: {node: {name: {where: {ne: {str: "c"}}}}}) '
-        '{ node(name: "a") { outComponent(select: {edge: {layers: {names: ["owns"], expr: {isValid: true}}}}) '
+        '{ graph(path: "g") { filterNodes: filter(expr: { node: { ne: { lhs: { field: NAME }, '
+        'rhs: { const: { str: "c" } } } } }) '
+        '{ node(name: "a") { outComponent(select: { edge: { viewed: { views: [{ layers: ["owns"] }], expr: { isValid: true } } } }) '
         "{ list { name } } } } } }"
     )
     got = client.query(q)["graph"]["filterNodes"]["node"]["outComponent"]["list"]

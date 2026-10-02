@@ -1,24 +1,22 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::NotOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::NodeOp,
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter,
-                exploded_edge_filter::CompositeExplodedEdgeFilter,
-                node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
-                TryAsCompositeFilter,
+                answer::{compose, Answer, FilterAnswer, Question},
+                ComposableFilter,
             },
-            not_filtered_graph::NotFilteredGraph,
-            CreateFilter,
+            CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
+/// The filter that keeps what `T` drops.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NotFilter<T>(pub T);
 
@@ -30,90 +28,57 @@ impl<T: Display> Display for NotFilter<T> {
 
 impl<T> ComposableFilter for NotFilter<T> {}
 
-impl<T: CreateFilter> CreateFilter for NotFilter<T> {
-    type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = NotFilteredGraph<G, T::EntityFiltered<'graph, F, T::FilteredGraph<'graph, F>>>
-    where
-        Self: 'graph;
+/// The opposite of the inner answer, pushed down to the leaves: `not` never
+/// flips an answer the inner filter did not give.
+impl<T: FilterAnswer> FilterAnswer for NotFilter<T> {
+    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
+        self.0.answer(question, !negated)
+    }
+}
 
-    type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = NotOp<T::NodeFilter<'graph, F, T::FilteredGraph<'graph, F>>>
-    where
-        Self: 'graph;
-
+/// A typed `not` compiles by answering the two questions, negated, over its
+/// inner filter: a negated node predicate is a node predicate and the same
+/// entity rules apply either way round.
+impl<T> CreateFilter for NotFilter<T>
+where
+    T: FilterAnswer + Clone + Send + Sync + 'static,
+{
     type FilteredGraph<'graph, G>
-        = G
+        = DynGraphArc<'graph>
     where
         Self: 'graph,
         G: GraphView + 'graph;
 
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let f = self.0.filter_graph_view(filtered.clone())?;
-        let filter = self.0.create_filter(filtered, f)?;
-        Ok(NotFilteredGraph { graph, filter })
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
     where
         Self: 'graph,
-    {
-        let f = self.0.filter_graph_view(filtered.clone())?;
-        Ok(self.0.create_node_filter(filtered, f)?.not())
-    }
+        G: GraphView + 'graph;
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
     where
         Self: 'graph,
-    {
-        Ok(graph)
-    }
-}
+        G: GraphView + 'graph;
 
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for NotFilter<T> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Same-kind combinations keep their composite form; mixed-kind trees
-        // export structurally — the case the composite exports cannot
-        // represent.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
-        }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
-        }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
-        }
-        Ok(FilterTree::Not(Box::new(self.0.try_as_filter_tree()?)))
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        compose(&self)?.create_graph_filter(graph)
     }
 
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::Not(Box::new(
-            self.0.try_as_composite_node_filter()?,
-        )))
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        compose(&self)?.create_node_filter(graph)
     }
 
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::Not(Box::new(
-            self.0.try_as_composite_edge_filter()?,
-        )))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
-        &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::Not(Box::new(
-            self.0.try_as_composite_exploded_edge_filter()?,
-        )))
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        compose(&self)?.create_edge_filter(graph)
     }
 }
