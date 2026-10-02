@@ -26,6 +26,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    time::Instant,
 };
 
 /// Default cap on sweeps per label
@@ -371,6 +372,14 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
 
     let pool: Arc<rayon::ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
     pool.install(|| {
+        if BP_TRACE {
+            println!(
+                "bp start: nodes={n} labels={} c={c} epsilon={epsilon} \
+                 activation_tol={activation_tol} max_iter={max_iter} threads={}",
+                labels.len(),
+                rayon::current_num_threads(),
+            );
+        }
         for (slot, slot_seeds) in seeds_by_slot.iter().enumerate() {
             // `slot_seeds` is sorted by position, so the prior is a binary search, never a dense array.
             let prior = |u: usize| {
@@ -384,8 +393,12 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
             let mut window: VecDeque<Sweep> = VecDeque::with_capacity(10);
             let mut prev_ds = 0.0f64;
             let mut max_b = 0.0f64;
+            if BP_TRACE {
+                println!("label={} seeds={}", labels[slot], slot_seeds.len());
+            }
             while !frontier.is_empty() && iterations < max_iter {
                 iterations += 1;
+                let sweep_start = Instant::now();
 
                 // Sweep: reads only `b` at t; `new_vals` holds t+1 until the write-back.
                 let b_t = &b;
@@ -444,6 +457,17 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
                 next_frontier
                     .par_iter()
                     .for_each(|&v| active[v].store(false, Ordering::Relaxed));
+                if BP_TRACE {
+                    let r = window.back().and_then(|sweep| sweep.0);
+                    println!(
+                        "  sweep={iterations} frontier={} reached={} max={max_b:.3e} dS={ds:.3e} \
+                         r={} time={:.3}s",
+                        frontier.len(),
+                        touched.len(),
+                        r.map_or("-".to_string(), |r| format!("{r:.4}")),
+                        sweep_start.elapsed().as_secs_f64(),
+                    );
+                }
                 frontier = next_frontier;
             }
             let converged = frontier.is_empty();
