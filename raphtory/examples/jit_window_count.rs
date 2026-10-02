@@ -2,14 +2,24 @@
 //!
 //! ```text
 //! cargo run --release -p raphtory --features io,jit --example jit_window_count -- \
-//!     <graph-dir> <start> <end> [--layer NAME] [--count WHAT] [--repeat N] [--check]
+//!     <graph-dir> <start> <end> [--layer NAME] [--count WHAT] [--backend B] [--repeat N] [--check]
+//!
+//! # with the LLVM backend too:
+//! LIBRARY_PATH=/opt/homebrew/lib cargo run --release -p raphtory --features io,jit-llvm \
+//!     --example jit_window_count -- ...
 //! ```
 //!
 //! Counts, in one layer and the window `[start, end)`, any of `active-nodes`,
 //! `node-events`, `active-edges`, `edge-additions` (default: all). Each count is a
-//! compiled kernel run once per segment, segments in parallel. Prints how long loading,
-//! locking, preparing, compiling and running took; `--check` also runs the same count
-//! through Raphtory's windowed view and compares.
+//! compiled kernel run once per segment, segments in parallel, with every backend the
+//! build has (`--backend cranelift|llvm` picks one).
+//!
+//! Every kernel is compared with `storage`: the same per-segment scan written in Rust
+//! against the storage API (`ffi::storage_count`), also in parallel over segments. Its
+//! count must match exactly, and both are timed the same way. Prints how long loading,
+//! locking, preparing, compiling and running took. `--check` also runs Raphtory's
+//! windowed view. That goes through `node.history()`, which includes a node's own
+//! updates, so `active-nodes` only agrees on graphs whose nodes have none.
 
 use raphtory::{prelude::*, storage::core_ops::CoreGraphOps};
 use std::{
@@ -17,7 +27,9 @@ use std::{
     process::exit,
     time::{Duration, Instant},
 };
-use storage::ffi::{Counted, FfiWindow, PreparedGraph, WindowCounter};
+use storage::ffi::{
+    storage_count, Counted, FfiWindow, JitBackend, PreparedGraph, WindowCounter, BACKENDS,
+};
 
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
@@ -31,19 +43,21 @@ struct Args {
     window: FfiWindow,
     layer: String,
     counts: Vec<Counted>,
+    backends: Vec<JitBackend>,
     repeat: usize,
     check: bool,
 }
 
 const USAGE: &str = "usage: jit_window_count <graph-dir> <start> <end> \
     [--layer NAME] [--count active-nodes|node-events|active-edges|edge-additions] \
-    [--repeat N] [--check]";
+    [--backend cranelift|llvm] [--repeat N] [--check]";
 
 fn parse_args() -> Result<Args, String> {
     let mut args = std::env::args().skip(1);
     let mut positional = Vec::new();
     let mut layer = "_default".to_string();
     let mut counts = Vec::new();
+    let mut backends = Vec::new();
     let mut repeat = 5;
     let mut check = false;
 
@@ -52,6 +66,7 @@ fn parse_args() -> Result<Args, String> {
         match arg.as_str() {
             "--layer" => layer = value()?,
             "--count" => counts.push(parse_counted(&value()?)?),
+            "--backend" => backends.push(parse_backend(&value()?)?),
             "--repeat" => repeat = value()?.parse().map_err(|e| format!("--repeat: {e}"))?,
             "--check" => check = true,
             "-h" | "--help" => return Err(USAGE.to_string()),
@@ -65,19 +80,33 @@ fn parse_args() -> Result<Args, String> {
     let parse_time = |name, value: &str| value.parse::<i64>().map_err(|e| format!("{name}: {e}"));
     Ok(Args {
         graph_dir: graph_dir.into(),
-        window: FfiWindow {
-            lo: parse_time("start", start)?,
-            hi: parse_time("end", end)?,
-        },
+        window: FfiWindow::new(parse_time("start", start)?, parse_time("end", end)?),
         layer,
         counts: if counts.is_empty() {
             Counted::ALL.to_vec()
         } else {
             counts
         },
+        backends: if backends.is_empty() {
+            BACKENDS.to_vec()
+        } else {
+            backends
+        },
         repeat: repeat.max(1),
         check,
     })
+}
+
+fn parse_backend(name: &str) -> Result<JitBackend, String> {
+    let backend = match name {
+        "cranelift" => JitBackend::Cranelift,
+        #[cfg(feature = "jit-llvm")]
+        "llvm" => JitBackend::Llvm,
+        #[cfg(not(feature = "jit-llvm"))]
+        "llvm" => return Err("built without the `jit-llvm` feature".to_string()),
+        _ => return Err(format!("unknown backend {name:?}\n{USAGE}")),
+    };
+    Ok(backend)
 }
 
 fn parse_counted(name: &str) -> Result<Counted, String> {
@@ -97,9 +126,27 @@ fn timed<T>(f: impl FnOnce() -> T) -> (T, Duration) {
     (result, start.elapsed())
 }
 
+/// Runs a count `repeat` times: the count, the fastest run and the mean.
+fn time_runs(
+    name: &str,
+    repeat: usize,
+    mut count: impl FnMut() -> u64,
+) -> (u64, Duration, Duration) {
+    let runs: Vec<(u64, Duration)> = (0..repeat).map(|_| timed(&mut count)).collect();
+    let value = runs[0].0;
+    assert!(
+        runs.iter().all(|(c, _)| *c == value),
+        "{name}: runs disagree"
+    );
+    let fastest = runs.iter().map(|(_, t)| *t).min().unwrap();
+    let mean = runs.iter().map(|(_, t)| *t).sum::<Duration>() / repeat as u32;
+    (value, fastest, mean)
+}
+
 /// The same count through Raphtory's windowed view, where it has one.
 fn raphtory_count(graph: &Graph, counted: Counted, layer: &str, w: FfiWindow) -> Option<u64> {
-    let view = graph.layers(layer).ok()?.window(w.lo, w.hi);
+    let range = w.range();
+    let view = graph.layers(layer).ok()?.window(range.start, range.end);
     let count = match counted {
         Counted::ActiveNodes => view.count_nodes(),
         Counted::ActiveEdges => view.count_edges(),
@@ -115,7 +162,7 @@ fn main() {
         exit(2);
     });
     let w = args.window;
-    println!("window [{}, {}), layer {:?}", w.lo, w.hi, args.layer);
+    println!("window {:?}, layer {:?}", w.range(), args.layer);
 
     let (graph, load_time) = timed(|| Graph::load(args.graph_dir.as_path()));
     let graph = graph.unwrap_or_else(|err| {
@@ -147,42 +194,50 @@ fn main() {
     );
 
     for counted in args.counts {
-        let (counter, compile_time) = timed(|| WindowCounter::compile(counted));
-        let counter = counter.unwrap_or_else(|err| {
-            eprintln!("failed to compile {counted:?}: {err:?}");
-            exit(1);
+        let (expected, fastest, mean) = time_runs("storage", args.repeat, || {
+            storage_count(counted, &nodes, &edges, layer, w)
         });
-
-        let runs: Vec<(u64, Duration)> = (0..args.repeat)
-            .map(|_| timed(|| counter.count(&prepared, layer.0, w)))
-            .collect();
-        let count = runs[0].0;
-        assert!(
-            runs.iter().all(|(c, _)| *c == count),
-            "{counted:?}: runs disagree"
-        );
-        let fastest = runs.iter().map(|(_, t)| *t).min().unwrap();
-        let mean = runs.iter().map(|(_, t)| *t).sum::<Duration>() / runs.len() as u32;
-
-        println!("\n{counted:?} = {count}");
-        println!("  compile {compile_time:>12.3?}");
+        println!("\n{counted:?} = {expected}");
         println!(
-            "  run     {fastest:>12.3?} fastest, {mean:.3?} mean of {}",
+            "  storage          run {fastest:>12.3?} fastest, {mean:.3?} mean of {}",
             args.repeat
         );
+        let baseline = fastest;
+
+        for &backend in &args.backends {
+            let (counter, compile_time) = timed(|| WindowCounter::compile_with(counted, backend));
+            let counter = counter.unwrap_or_else(|err| {
+                eprintln!("failed to compile {counted:?} with {backend:?}: {err:?}");
+                exit(1);
+            });
+            let name = format!("{backend:?}");
+            let (count, fastest, mean) =
+                time_runs(&name, args.repeat, || counter.count(&prepared, layer.0, w));
+            let speedup = baseline.as_secs_f64() / fastest.as_secs_f64();
+            println!(
+                "  {name:<16} run {fastest:>12.3?} fastest, {mean:.3?} mean, {speedup:.1}x storage; compile {compile_time:.3?}"
+            );
+            if count != expected {
+                eprintln!("{counted:?} with {backend:?}: {count}, but storage says {expected}");
+                exit(1);
+            }
+        }
 
         if args.check {
-            let (expected, raphtory_time) =
+            let (raphtory, raphtory_time) =
                 timed(|| raphtory_count(&graph, counted, &args.layer, w));
-            match expected {
-                Some(expected) => {
-                    let verdict = if expected == count { "ok" } else { "MISMATCH" };
-                    println!("  raphtory {raphtory_time:>11.3?}   {expected} ({verdict})");
-                    if expected != count {
-                        exit(1);
-                    }
+            match raphtory {
+                Some(raphtory) => {
+                    let verdict = if raphtory == expected {
+                        "same"
+                    } else {
+                        "DIFFERENT"
+                    };
+                    println!(
+                        "  raphtory view    run {raphtory_time:>12.3?}   {raphtory} ({verdict})"
+                    );
                 }
-                None => println!("  raphtory: no equivalent view count"),
+                None => println!("  raphtory view: no equivalent count"),
             }
         }
     }

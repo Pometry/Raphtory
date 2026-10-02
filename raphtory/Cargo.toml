@@ -171,6 +171,7 @@ panic-on-drop = [
 
 # JIT-compiled queries over disk storage (only with a storage crate that has `jit`)
 jit = ["storage/jit"]
+jit-llvm = ["jit", "storage/jit-llvm"]
 
 [[example]]
 name = "eth_loader"

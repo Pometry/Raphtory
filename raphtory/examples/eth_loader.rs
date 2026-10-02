@@ -17,18 +17,18 @@ fn load_eth_graph(parquet_path: &Path, graph: &Graph) -> Result<(), GraphError> 
     load_edges_from_parquet(
         graph,
         parquet_path,
-        ColumnNames::new(
-            "transaction_timestamp",
-            None,
-            "transfer_sender_cluster_id",
-            "transfer_receiver_cluster_id",
-            None,
-        ),
+        ColumnNames::new("block_timestamp", None, "from_address", "to_address", None),
         true,
-        &["receiver_address", "transfer_amount_usd"],
+        &[
+            "block_hash",
+            "gas",
+            "gas_price",
+            "value",
+            "transaction_type",
+        ],
         &[],
         None,
-        Some("dac"),
+        None,
         None,
         None,
     )?;
