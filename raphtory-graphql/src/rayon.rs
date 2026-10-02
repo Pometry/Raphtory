@@ -86,11 +86,7 @@ pub async fn blocking_load<R: Send + 'static, F: FnOnce() -> R + Send + 'static>
         .expect("graph load panicked")
 }
 
-/// Background graph view caching.
-///
-/// Its own pool rather than the compute pool: caching a view is one long `par_iter`, and rayon
-/// workers take stolen work before injected jobs, so caching on the compute pool would hold back every
-/// query spawned while it runs. Half the cores, so queries keep the other half.
+/// Background graph view caching operations.
 static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
@@ -100,16 +96,10 @@ static CACHING_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// One caching operation at a time. One already spreads across the whole caching pool, so a second would
-/// halve the speed of both and double the memory in flight. The semaphore is fair, which makes it
-/// the queue: caching operations start in the order they were requested.
+/// Limit to 1 caching operation at a time because they run in parallel.
 static CACHING_PERMITS: LazyLock<Arc<Semaphore>> = LazyLock::new(|| Arc::new(Semaphore::new(1)));
 
-/// Queue `closure` behind any other caching and run it on the caching pool.
-///
-/// Cancelling the waiting future while it is still queued means the caching never starts. Once
-/// started it runs to completion regardless, and keeps its permit until it does, so an abandoned
-/// caching operation still counts against the limit.
+/// Queue `closure` behind any other caching operation and run it on the caching pool.
 pub async fn blocking_cache<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(closure: F) -> R {
     let permit = CACHING_PERMITS
         .clone()
