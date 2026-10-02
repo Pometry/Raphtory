@@ -3,6 +3,7 @@ import { expect, type ConsoleMessage } from '@playwright/test';
 import { test } from '../fixtures';
 import {
     changeTab,
+    clearSelection,
     clickOnEdge,
     clickOnNode,
     clickOnNodes,
@@ -165,6 +166,55 @@ for (const nodeName of ['Pedro', 'Hamza', 'Ben']) {
         await expect(page.getByText('Age', { exact: true })).toBeVisible();
     });
 }
+
+test('Selecting an entity switches to the Selected tab until the user picks a tab', async ({
+    page,
+}) => {
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
+    const overviewTab = page.getByRole('tab', { name: 'Overview', exact: true });
+    const selectedTab = page.getByRole('tab', { name: 'Selected', exact: true });
+    await expect(overviewTab).toHaveAttribute('aria-selected', 'true');
+
+    await clickOnNode(page, 'Pedro');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeVisible();
+
+    // Clearing the selection falls back to Overview, so the edge click is a real switch
+    await clearSelection(page);
+    await expect(overviewTab).toHaveAttribute('aria-selected', 'true');
+    await clickOnEdge(page, 'Hamza', 'Pedro');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+
+    await changeTab(page, 'Overview');
+    await clickOnNode(page, 'Hamza');
+    await expect(overviewTab).toHaveAttribute('aria-selected', 'true');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'false');
+});
+
+test('Selecting an entity opens a collapsed drawer on the Selected tab', async ({ page }) => {
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
+    const selectedTab = page.getByRole('tab', { name: 'Selected', exact: true });
+    const collapseButton = page.getByRole('button', { name: 'Collapse panel' });
+
+    await collapseButton.click();
+    await expect(selectedTab).toBeHidden();
+
+    await clickOnNode(page, 'Pedro');
+    await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeVisible();
+
+    // Collapsing counts as the user's choice, so later selections leave it closed
+    await collapseButton.click();
+    await clickOnNode(page, 'Hamza');
+    await expect(selectedTab).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Expand Selected' })).toBeVisible();
+});
 
 test('Expand via all entry points and restore via all hide paths', async ({ page }) => {
     // Three expand/restore iterations stack up many waitForLayoutToFinish
