@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 #[cfg(feature = "vectors")]
-use raphtory::python::packages::base_modules::base_vectors_module;
+use raphtory_vectors::python::base_vectors_module;
 use raphtory::python::{
     filter::base_filter_module,
     graph::node_state::base_node_state_module,

@@ -1,3 +1,4 @@
+use crate::errors::{VectorResult};
 use std::{hash::Hash, pin::Pin, sync::Arc};
 
 use async_openai::{
@@ -7,10 +8,7 @@ use async_openai::{
 use futures_util::{future::BoxFuture, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    errors::GraphResult,
-    vectors::{cache::CachedEmbeddingModel, storage::OpenAIEmbeddings, Embedding},
-};
+use crate::{cache::CachedEmbeddingModel, storage::OpenAIEmbeddings, Embedding};
 
 const CHUNK_SIZE: usize = 1000;
 
@@ -82,7 +80,7 @@ impl OpenAIEmbeddings {
 pub(super) fn compute_embeddings<'a, I>(
     documents: I,
     model: &'a CachedEmbeddingModel,
-) -> impl Stream<Item = GraphResult<(u64, Embedding)>> + Send + 'a
+) -> impl Stream<Item = VectorResult<(u64, Embedding)>> + Send + 'a
 where
     I: Iterator<Item = (u64, String)> + Send + 'a,
 {
@@ -90,7 +88,7 @@ where
         .chunks(CHUNK_SIZE)
         .then(|chunk| async {
             let texts = chunk.iter().map(|(_, text)| text.clone()).collect();
-            let stream: Pin<Box<dyn Stream<Item = GraphResult<(u64, Embedding)>> + Send>> =
+            let stream: Pin<Box<dyn Stream<Item = VectorResult<(u64, Embedding)>> + Send>> =
                 match model.get_embeddings(texts).await {
                     Ok(embeddings) => {
                         let embedded: Vec<_> = chunk

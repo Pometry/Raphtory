@@ -4,7 +4,7 @@ mod template_tests {
 
     use raphtory::prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, NO_PROPS};
 
-    use raphtory::vectors::template::*;
+    use raphtory_vectors::template::*;
 
     #[test]
     fn test_default_templates() {

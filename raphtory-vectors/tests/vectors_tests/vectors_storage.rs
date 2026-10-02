@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod vector_storage_tests {
-    use raphtory::vectors::storage::LazyDiskVectorCache;
+    use raphtory_vectors::storage::LazyDiskVectorCache;
 
     /// Every clone has to resolve to the same underlying cache, otherwise the second one to
     /// resolve fails to open the heed env that the first one already holds

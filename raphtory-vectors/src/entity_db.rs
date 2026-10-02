@@ -1,3 +1,4 @@
+use crate::errors::{VectorResult};
 use std::{collections::HashSet, ops::Deref};
 
 use futures_util::StreamExt;
@@ -6,12 +7,8 @@ use super::{
     entity_ref::{EntityRef, IntoDbId},
     Embedding,
 };
-use crate::{
-    db::api::view::StaticGraphViewOps,
-    errors::GraphResult,
-    prelude::GraphViewOps,
-    vectors::{vector_collection::VectorCollection, VectorsQuery},
-};
+use raphtory::{db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
+use crate::{vector_collection::VectorCollection, VectorsQuery};
 
 #[derive(Clone)]
 pub(super) struct NodeDb<D: VectorCollection>(pub(super) D);
@@ -85,8 +82,8 @@ pub(super) trait EntityDb: Sized {
 
     async fn insert_vector_stream(
         &self,
-        vectors: impl futures_util::Stream<Item = GraphResult<(u64, Embedding)>> + Send,
-    ) -> GraphResult<()> {
+        vectors: impl futures_util::Stream<Item = VectorResult<(u64, Embedding)>> + Send,
+    ) -> VectorResult<()> {
         futures_util::pin_mut!(vectors);
 
         while let Some(result) = vectors.as_mut().chunks(1000).next().await {
@@ -112,7 +109,7 @@ pub(super) trait EntityDb: Sized {
         k: usize,
         view: Option<G>,
         filter: Option<HashSet<EntityRef>>,
-    ) -> VectorsQuery<GraphResult<Vec<(EntityRef, f32)>>> {
+    ) -> VectorsQuery<VectorResult<Vec<(EntityRef, f32)>>> {
         let candidates: Option<Vec<u64>> = match (view, filter) {
             (None, None) => None,
             (view, Some(filter)) => Some(

@@ -1,22 +1,10 @@
-use crate::{
-    db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
-    errors::GraphError,
-    python::{
-        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
-        types::wrappers::document::PyDocument,
-        utils::{block_on, execute_async_task, PyNodeRef},
-    },
-    vectors::{
-        cache::{CachedEmbeddingModel, VectorCache},
-        custom::{serve_custom_embedding, EmbeddingFunction, EmbeddingServer},
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-        vector_selection::{noop_executor, DynamicVectorSelection},
-        vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
-        Document, DocumentEntity, Embedding,
-    },
-};
+pub mod document;
+
+pub use raphtory::python::graph::views::graph_view::TemplateConfig;
+use raphtory::python::graph::views::graph_view::register_vectorise;
+use crate::errors::{VectorError};
+use raphtory::{db::api::view::DynamicGraph, db::api::view::IntoDynamic, db::api::view::MaterializedGraph, db::api::view::StaticGraphViewOps, python::graph::edge::PyEdge, python::graph::node::PyNode, python::utils::block_on, python::utils::execute_async_task, python::utils::PyNodeRef};
+use crate::{python::document::PyDocument, cache::CachedEmbeddingModel, cache::VectorCache, custom::serve_custom_embedding, custom::EmbeddingFunction, custom::EmbeddingServer, storage::OpenAIEmbeddings, template::DocumentTemplate, template::DEFAULT_EDGE_TEMPLATE, template::DEFAULT_NODE_TEMPLATE, vector_selection::noop_executor, vector_selection::DynamicVectorSelection, vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Document, DocumentEntity, Embedding};
 
 use itertools::Itertools;
 use pyo3::{
@@ -114,7 +102,7 @@ impl PyVectorCache {
                 VectorCache::in_memory()
             };
             let model = cache.openai(OpenAIEmbeddings::from(v_cache).into()).await?;
-            Ok::<_, GraphError>(model)
+            Ok::<_, VectorError>(model)
         })?;
         Ok(Self { cache_model })
     }
@@ -316,75 +304,31 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<Document<G>> for PyDocument {
     }
 }
 
-#[derive(FromPyObject)]
-pub enum TemplateConfig {
-    Bool(bool),
-    String(String),
-    // re-enable the code below to be able to customise the erro message
-    // #[pyo3(transparent)]
-    // CatchAll(Bound<'py, PyAny>), // This extraction never fails
-}
-
-impl TemplateConfig {
-    pub fn get_template_or(self, default: &str) -> Option<String> {
-        match self {
-            Self::Bool(vectorise) => {
-                if vectorise {
-                    Some(default.to_owned())
-                } else {
-                    None
-                }
-            }
-            Self::String(custom_template) => Some(custom_template),
-        }
-    }
-
-    pub fn is_disabled(&self) -> bool {
-        matches!(self, Self::Bool(false))
-    }
-}
-
-#[pymethods]
-impl PyGraphView {
-    /// Create a VectorisedGraph from the current graph.
-    ///
-    /// Every node and edge is rendered into a text document by a template, and the document is what gets embedded.
-    ///
-    /// Args:
-    ///   model (VectorCache): Cache wrapping the embedding model used to embed documents.
-    ///   nodes (bool | str): True to embed nodes with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each node with. Defaults to True.
-    ///   edges (bool | str): True to embed edges with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each edge with. Defaults to True.
-    ///   verbose (bool): Enable to print logs reporting progress. Defaults to False.
-    ///
-    /// Returns:
-    ///   VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
-    ///
-    /// Note:
-    ///   A template string is rendered as it is, so a bare word such as `"description"` becomes the literal document `description` for every entity; to embed a property, interpolate it: `"{{ properties.description }}"`.
-    ///
-    ///   A node template can use `name`, `node_type`, `properties`, `metadata` and `temporal_properties` (a mapping from property name to a list of `(time, value)` pairs). An edge template can use `src` and `dst` (each with the node variables above, e.g. `src.name`), `history` (the update times), `layers`, `properties`, `metadata` and `temporal_properties`. A `datetimeformat` filter formats a timestamp, as in `{{ time|datetimeformat }}`.
-    ///
-    /// Example:
-    ///   >>> vg = g.vectorise(cache, nodes="{{ name }} is a {{ node_type }}", edges="{{ src.name }} -> {{ dst.name }}: {{ properties.description }}")
-    #[pyo3(signature = (model, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), verbose = false))]
-    fn vectorise(
-        &self,
-        model: PyVectorCache,
-        nodes: TemplateConfig,
-        edges: TemplateConfig,
-        verbose: bool,
-    ) -> PyResult<DynamicVectorisedGraph> {
-        let template = DocumentTemplate {
-            node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
-            edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
-        };
-        let graph = self.graph.clone();
-        execute_async_task(move || async move {
-            Ok(graph
+/// Implementation of `GraphView.vectorise`, registered with raphtory by [`base_vectors_module`].
+fn vectorise(
+    graph: DynamicGraph,
+    model: &Bound<'_, PyAny>,
+    nodes: TemplateConfig,
+    edges: TemplateConfig,
+    verbose: bool,
+) -> PyResult<Py<PyAny>> {
+    let py = model.py();
+    let model: PyVectorCache = model.extract()?;
+    let template = DocumentTemplate {
+        node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
+        edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
+    };
+    let vectorised: DynamicVectorisedGraph = execute_async_task(move || async move {
+        Ok::<_, VectorError>(
+            graph
                 .vectorise(model.cache_model, template, None, verbose)
-                .await?)
-        })
-    }
+                .await?,
+        )
+    })?;
+    Ok(PyVectorisedGraph(vectorised)
+        .into_pyobject(py)?
+        .into_any()
+        .unbind())
 }
 
 #[pyclass(name = "VectorisedGraph", module = "raphtory.vectors", frozen)]
@@ -706,4 +650,22 @@ impl PyVectorSelection {
         )?;
         Ok(())
     }
+}
+
+pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
+    register_vectorise(vectorise);
+    let vectors_module = PyModule::new(py, "vectors")?;
+    raphtory::add_classes!(
+        &vectors_module,
+        PyVectorisedGraph,
+        document::PyDocument,
+        document::PyEmbedding,
+        PyVectorSelection,
+        PyOpenAIEmbeddings,
+        PyVectorCache,
+        PyEmbeddingServer,
+        PyRunningEmbeddingServer,
+    );
+    raphtory::add_functions!(&vectors_module, embedding_server);
+    Ok(vectors_module)
 }

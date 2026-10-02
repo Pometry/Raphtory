@@ -1,3 +1,4 @@
+use crate::errors::{VectorResult};
 use super::{
     entity_db::EntityDb,
     entity_ref::EntityRef,
@@ -5,16 +6,8 @@ use super::{
     vectorised_graph::VectorisedGraph,
     Document, DocumentEntity, Embedding,
 };
-use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
-    db::{
-        api::view::{DynamicGraph, StaticGraphViewOps},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    errors::GraphResult,
-    prelude::{EdgeViewOps, NodeViewOps, *},
-    vectors::{vector_collection::VectorCollection, VectorsQuery},
-};
+use raphtory::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph, db::api::view::StaticGraphViewOps, db::graph::edge::EdgeView, db::graph::node::NodeView, prelude::EdgeViewOps, prelude::NodeViewOps, prelude::*};
+use crate::{vector_collection::VectorCollection, VectorsQuery};
 use either::Either;
 use futures_util::future::join_all;
 use itertools::Itertools;
@@ -78,8 +71,8 @@ impl Selected {
 pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
 
 pub type QueryPair = (
-    VectorsQuery<GraphResult<Vec<(EntityRef, f32)>>>,
-    VectorsQuery<GraphResult<Vec<(EntityRef, f32)>>>,
+    VectorsQuery<VectorResult<Vec<(EntityRef, f32)>>>,
+    VectorsQuery<VectorResult<Vec<(EntityRef, f32)>>>,
 );
 
 pub trait BlockingExecutor<Fut>:
@@ -145,7 +138,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the documents present in the current selection
-    pub async fn get_documents(&self) -> GraphResult<Vec<Document<G>>> {
+    pub async fn get_documents(&self) -> VectorResult<Vec<Document<G>>> {
         Ok(self
             .get_documents_with_distances()
             .await?
@@ -155,7 +148,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the documents alongside their distances present in the current selection
-    pub async fn get_documents_with_distances(&self) -> GraphResult<Vec<(Document<G>, f32)>> {
+    pub async fn get_documents_with_distances(&self) -> VectorResult<Vec<(Document<G>, f32)>> {
         let futures = self.selected.iter().map(|(entity, distance)| async {
             self.regenerate_doc(*entity)
                 .await
@@ -249,7 +242,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         limit: usize,
         window: Option<(i64, i64)>,
         executor: Exec,
-    ) -> GraphResult<()>
+    ) -> VectorResult<()>
     where
         Fut: Future<Output = QueryPair> + Send,
         Exec: BlockingExecutor<Fut>,
@@ -272,7 +265,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         limit: usize,
         window: Option<(i64, i64)>,
         executor: Exec,
-    ) -> GraphResult<()>
+    ) -> VectorResult<()>
     where
         Fut: Future<Output = QueryPair> + Send,
         Exec: BlockingExecutor<Fut>,
@@ -295,7 +288,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         limit: usize,
         window: Option<(i64, i64)>,
         executor: Exec,
-    ) -> GraphResult<()>
+    ) -> VectorResult<()>
     where
         Fut: Future<Output = QueryPair> + Send,
         Exec: BlockingExecutor<Fut>,
@@ -313,7 +306,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         window: Option<(i64, i64)>,
         path: ExpansionPath,
         executor: Exec,
-    ) -> GraphResult<()>
+    ) -> VectorResult<()>
     where
         Fut: Future<Output = QueryPair> + Send,
         Exec: BlockingExecutor<Fut>,
@@ -405,7 +398,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .collect()
     }
 
-    async fn regenerate_doc(&self, entity: EntityRef) -> GraphResult<Document<G>> {
+    async fn regenerate_doc(&self, entity: EntityRef) -> VectorResult<Document<G>> {
         match entity.resolve_entity(&self.graph.source_graph).unwrap() {
             Either::Left(node) => Ok(Document {
                 entity: DocumentEntity::Node(node.clone()),

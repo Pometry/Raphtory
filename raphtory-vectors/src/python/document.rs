@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use crate::{
-    db::api::view::DynamicGraph,
-    python::types::repr::{Repr, StructReprBuilder},
-    vectors::{Document, DocumentEntity, Embedding},
-};
+use raphtory::{db::api::view::DynamicGraph, python::types::repr::Repr, python::types::repr::StructReprBuilder};
+use crate::{Document, DocumentEntity, Embedding};
 use pyo3::{prelude::*, IntoPyObjectExt};
 use pyo3_arrow::PyArray;
 

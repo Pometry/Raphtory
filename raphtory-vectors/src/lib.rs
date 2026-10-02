@@ -1,4 +1,4 @@
-use crate::db::{
+use raphtory::db::{
     api::view::StaticGraphViewOps,
     graph::{edge::EdgeView, node::NodeView},
 };
@@ -13,6 +13,7 @@ pub mod cache;
 pub mod custom;
 pub mod datetimeformat;
 pub mod embeddings;
+pub mod errors;
 mod entity_db;
 mod entity_ref;
 pub mod splitting;
@@ -24,6 +25,9 @@ pub mod vector_collection;
 pub mod vector_selection;
 pub mod vectorisable;
 pub mod vectorised_graph;
+
+#[cfg(feature = "python")]
+pub mod python;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedding(Float32Array);

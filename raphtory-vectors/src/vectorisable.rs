@@ -1,23 +1,10 @@
+use crate::errors::{VectorError, VectorResult};
 use super::{
     entity_db::{EdgeDb, NodeDb},
     storage::{collection_names, db_path, meta_path, VectorMeta},
 };
-use crate::{
-    db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
-    errors::{GraphError, GraphResult},
-    prelude::GraphViewOps,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        embeddings::compute_embeddings,
-        entity_db::EntityDb,
-        template::DocumentTemplate,
-        vector_collection::{
-            lancedb::LanceDb, CollectionPath, LanceDbCollection, VectorCollection,
-            VectorCollectionFactory,
-        },
-        vectorised_graph::VectorisedGraph,
-    },
-};
+use raphtory::{db::api::view::internal::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
+use crate::{cache::CachedEmbeddingModel, embeddings::compute_embeddings, entity_db::EntityDb, template::DocumentTemplate, vector_collection::lancedb::LanceDb, vector_collection::CollectionPath, vector_collection::LanceDbCollection, vector_collection::VectorCollection, vector_collection::VectorCollectionFactory, vectorised_graph::VectorisedGraph};
 use async_trait::async_trait;
 use roaring::RoaringTreemap;
 use std::{path::Path, sync::Arc};
@@ -43,7 +30,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
-    ) -> GraphResult<VectorisedGraph<G>>;
+    ) -> VectorResult<VectorisedGraph<G>>;
 
     /// Embed only the entities that are not in the index yet, leaving indexed rows untouched.
     ///
@@ -57,7 +44,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         template: DocumentTemplate,
         path: &Path,
         verbose: bool,
-    ) -> GraphResult<VectorisedGraph<G>>;
+    ) -> VectorResult<VectorisedGraph<G>>;
 }
 
 #[async_trait]
@@ -68,9 +55,9 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         template: DocumentTemplate,
         path: Option<&Path>,
         verbose: bool,
-    ) -> GraphResult<VectorisedGraph<G>> {
+    ) -> VectorResult<VectorisedGraph<G>> {
         let factory = LanceDb;
-        let dim = model.dim().ok_or_else(|| GraphError::UnresolvedModel)?;
+        let dim = model.dim().ok_or_else(|| VectorError::UnresolvedModel)?;
         let db_path: CollectionPath = match path {
             Some(path) => Arc::new(db_path(path)),
             None => Arc::new(tempfile::tempdir()?),
@@ -112,12 +99,12 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         template: DocumentTemplate,
         path: &Path,
         verbose: bool,
-    ) -> GraphResult<VectorisedGraph<G>> {
+    ) -> VectorResult<VectorisedGraph<G>> {
         let factory = LanceDb;
-        let dim = model.dim().ok_or_else(|| GraphError::UnresolvedModel)?;
+        let dim = model.dim().ok_or_else(|| VectorError::UnresolvedModel)?;
         let meta = VectorMeta::read_from_path(&meta_path(path)).await?;
         if meta.template != template || meta.model != model.model {
-            return Err(GraphError::VectorTemplateChanged);
+            return Err(VectorError::VectorTemplateChanged);
         }
 
         let db_path: CollectionPath = Arc::new(db_path(path));
@@ -157,7 +144,7 @@ trait IndexEntities<G: StaticGraphViewOps> {
         skip_nodes: &RoaringTreemap,
         skip_edges: &RoaringTreemap,
         verbose: bool,
-    ) -> GraphResult<VectorisedGraph<G>>;
+    ) -> VectorResult<VectorisedGraph<G>>;
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic + Send> IndexEntities<G> for G {
@@ -172,7 +159,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> IndexEntities<G> for G {
         skip_nodes: &RoaringTreemap,
         skip_edges: &RoaringTreemap,
         verbose: bool,
-    ) -> GraphResult<VectorisedGraph<G>> {
+    ) -> VectorResult<VectorisedGraph<G>> {
         if verbose {
             info!("computing embeddings for nodes");
         }

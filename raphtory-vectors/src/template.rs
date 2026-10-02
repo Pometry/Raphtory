@@ -1,11 +1,5 @@
 use super::datetimeformat::datetimeformat;
-use crate::{
-    db::{
-        api::properties::TemporalPropertyView,
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::*,
-};
+use raphtory::{db::api::properties::{internal::InternalPropertiesOps, TemporalPropertyView}, db::graph::edge::EdgeView, db::graph::node::NodeView, prelude::*};
 use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
@@ -24,45 +18,15 @@ struct PropUpdate {
     value: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<'graph, G>>> for Value {
-    fn from(value: TemporalPropertyView<NodeView<'graph, G>>) -> Self {
-        value
-            .iter()
-            .map(|(time, value)| PropUpdate {
-                time,
-                value: value.into(),
-            })
-            .map(Value::from_object)
-            .collect()
-    }
-}
-
-// FIXME: merge with the one above
-impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<G>> for Value {
-    fn from(value: TemporalPropertyView<G>) -> Self {
-        value
-            .iter()
-            .map(|(time, value)| PropUpdate {
-                time,
-                value: value.into(),
-            })
-            .map(Value::from_object)
-            .collect()
-    }
-}
-
-// FIXME: and merge this one as well
-impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<EdgeView<G>>> for Value {
-    fn from(value: TemporalPropertyView<EdgeView<G>>) -> Self {
-        value
-            .iter()
-            .map(|(time, value)| PropUpdate {
-                time,
-                value: value.into(),
-            })
-            .map(Value::from_object)
-            .collect()
-    }
+fn temporal_prop_value<P: InternalPropertiesOps + Clone>(value: TemporalPropertyView<P>) -> Value {
+    value
+        .iter()
+        .map(|(time, value)| PropUpdate {
+            time,
+            value: value.into(),
+        })
+        .map(Value::from_object)
+        .collect()
 }
 
 impl Object for PropUpdate {
@@ -107,7 +71,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplate
                 .properties()
                 .temporal()
                 .iter()
-                .map(|(key, prop)| (key.to_string(), Into::<Value>::into(prop)))
+                .map(|(key, prop)| (key.to_string(), temporal_prop_value(prop)))
                 .collect(),
         }
     }
@@ -217,7 +181,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
                 .properties()
                 .temporal()
                 .iter()
-                .map(|(key, prop)| (key.to_string(), Into::<Value>::into(prop)))
+                .map(|(key, prop)| (key.to_string(), temporal_prop_value(prop)))
                 .collect(),
         }
     }

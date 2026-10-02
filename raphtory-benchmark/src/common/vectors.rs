@@ -1,14 +1,12 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use raphtory::{
-    prelude::{AdditionOps, Graph, NO_PROPS},
-    vectors::{
+use raphtory::{prelude::{AdditionOps, Graph, NO_PROPS}};
+use raphtory_vectors::{
         cache::VectorCache, embeddings::EmbeddingResult, storage::OpenAIEmbeddings,
         template::DocumentTemplate, vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
         Embedding,
-    },
-};
+    };
 use tokio::runtime::Runtime;
 
 pub fn gen_embedding_for_bench(text: &str) -> Embedding {

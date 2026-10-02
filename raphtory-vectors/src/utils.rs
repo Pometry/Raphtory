@@ -1,7 +1,4 @@
-use crate::{
-    db::{api::view::StaticGraphViewOps, graph::views::window_graph::WindowedGraph},
-    prelude::TimeOps,
-};
+use raphtory::{db::api::view::StaticGraphViewOps, db::graph::views::window_graph::WindowedGraph, prelude::TimeOps};
 use itertools::Itertools;
 
 /// Returns the top k docs in descending order

@@ -3,14 +3,14 @@ mod cache_tests {
     use once_cell::sync::Lazy;
     use tempfile::tempdir;
 
-    use raphtory::vectors::{
+    use raphtory_vectors::{
         cache::{CachedEmbeddingModel, CONTENT_SAMPLE},
         embeddings::ModelConfig,
         storage::OpenAIEmbeddings,
         Embedding,
     };
 
-    use raphtory::vectors::cache::VectorCache;
+    use raphtory_vectors::cache::VectorCache;
 
     fn placeholder_config() -> OpenAIEmbeddings {
         OpenAIEmbeddings::empty("whatever")
@@ -25,7 +25,7 @@ mod cache_tests {
 
     #[test]
     fn stable_hash() {
-        let hash_value = raphtory::vectors::cache::hash(&PLACEHOLDER_MODEL, CONTENT_SAMPLE);
+        let hash_value = raphtory_vectors::cache::hash(&PLACEHOLDER_MODEL, CONTENT_SAMPLE);
         assert_eq!(hash_value, 17143601129976616271);
     }
 

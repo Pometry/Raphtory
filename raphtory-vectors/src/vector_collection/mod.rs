@@ -1,3 +1,4 @@
+use crate::errors::{VectorResult};
 use std::{future::Future, path::Path, sync::Arc};
 
 #[doc(hidden)] // pub for raphtory-tests
@@ -5,7 +6,7 @@ pub mod lancedb;
 
 pub(super) use lancedb::LanceDbCollection;
 
-use crate::{errors::GraphResult, vectors::Embedding};
+use crate::{Embedding};
 
 pub(super) type CollectionPath = Arc<dyn AsRef<Path> + Send + Sync>;
 
@@ -18,13 +19,13 @@ pub trait VectorCollectionFactory {
         path: CollectionPath,
         name: &str,
         dim: usize,
-    ) -> GraphResult<Self::DbType>;
+    ) -> VectorResult<Self::DbType>;
     async fn from_path(
         &self,
         path: CollectionPath,
         name: &str,
         dim: usize,
-    ) -> GraphResult<Self::DbType>;
+    ) -> VectorResult<Self::DbType>;
 }
 
 #[doc(hidden)] // pub for raphtory-tests
@@ -34,16 +35,16 @@ pub trait VectorCollection: Sized + Clone + Send + Sync {
         &self,
         ids: Vec<u64>,
         vectors: impl Iterator<Item = Embedding>,
-    ) -> crate::errors::GraphResult<()>;
+    ) -> VectorResult<()>;
     /// Ids already stored, so a partial index can skip them without rendering their documents.
     /// A bitmap rather than a hash set: these are dense entity ids, and a graph can have millions
-    async fn existing_ids(&self) -> GraphResult<roaring::RoaringTreemap>;
-    async fn get_id(&self, id: u64) -> GraphResult<Option<Embedding>>;
+    async fn existing_ids(&self) -> VectorResult<roaring::RoaringTreemap>;
+    async fn get_id(&self, id: u64) -> VectorResult<Option<Embedding>>;
     fn top_k_with_distances(
         &self,
         query: &Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64> + Send>,
-    ) -> impl Future<Output = GraphResult<impl Iterator<Item = (u64, f32)> + Send>> + Send;
-    async fn create_or_update_index(&self) -> GraphResult<()>;
+    ) -> impl Future<Output = VectorResult<impl Iterator<Item = (u64, f32)> + Send>> + Send;
+    async fn create_or_update_index(&self) -> VectorResult<()>;
 }

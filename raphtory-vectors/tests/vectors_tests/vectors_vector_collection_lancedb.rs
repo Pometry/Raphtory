@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod lancedb_tests {
-    use raphtory::vectors::{
+    use raphtory_vectors::{
         vector_collection::{
             lancedb::{LanceDb, LanceDbCollection},
             VectorCollection, VectorCollectionFactory,

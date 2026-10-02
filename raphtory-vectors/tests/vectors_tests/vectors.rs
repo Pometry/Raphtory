@@ -1,16 +1,14 @@
 #[cfg(test)]
 mod vector_tests {
-    use raphtory::{
-        prelude::*,
-        vectors::{
+    use raphtory::prelude::*;
+    use raphtory_vectors::{
             cache::{CachedEmbeddingModel, VectorCache},
             custom::serve_custom_embedding,
             embeddings::ModelConfig,
             storage::OpenAIEmbeddings,
             template::DocumentTemplate,
             vector_selection::noop_executor,
-            vectorisable::Vectorisable,
-        },
+        vectorisable::Vectorisable,
     };
     use raphtory_api::core::entities::properties::prop::Prop;
     use std::time::Duration;
@@ -36,7 +34,7 @@ mod vector_tests {
         tokio::time::sleep(Duration::from_secs(1)).await;
         VectorCache::in_memory()
             .openai(
-                raphtory::vectors::embeddings::ModelConfig::OpenAI(OpenAIEmbeddings::new(
+                raphtory_vectors::embeddings::ModelConfig::OpenAI(OpenAIEmbeddings::new(
                     "whatever",
                     format!("http://localhost:{port}"),
                 ))

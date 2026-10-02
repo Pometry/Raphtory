@@ -1,10 +1,5 @@
-use crate::{
-    errors::GraphResult,
-    vectors::{
-        embeddings::{EmbeddingError, ModelConfig},
-        Embedding,
-    },
-};
+use crate::errors::{VectorResult};
+use crate::{embeddings::EmbeddingError, embeddings::ModelConfig, Embedding};
 use ahash::RandomState;
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
@@ -44,7 +39,7 @@ impl VectorStore {
         Self::Mem(Default::default())
     }
 
-    fn on_disk(path: &Path) -> GraphResult<Self> {
+    fn on_disk(path: &Path) -> VectorResult<Self> {
         let _ = std::fs::create_dir_all(path);
         let page_size = 16384;
         let max_size =
@@ -67,7 +62,7 @@ impl VectorStore {
         Ok(Self::Disk { env, db })
     }
 
-    fn get_disk_keys(&self) -> GraphResult<Vec<u64>> {
+    fn get_disk_keys(&self) -> VectorResult<Vec<u64>> {
         match self {
             VectorStore::Mem(_) => Ok(vec![]),
             VectorStore::Disk { env, db } => {
@@ -137,7 +132,7 @@ impl VectorCache {
         }
     }
 
-    pub async fn on_disk(path: &Path) -> GraphResult<Self> {
+    pub async fn on_disk(path: &Path) -> VectorResult<Self> {
         let store: Arc<_> = VectorStore::on_disk(path)?.into();
         let cloned = store.clone();
 
@@ -158,14 +153,14 @@ impl VectorCache {
         })
     }
 
-    pub async fn openai(&self, config: ModelConfig) -> GraphResult<CachedEmbeddingModel> {
+    pub async fn openai(&self, config: ModelConfig) -> VectorResult<CachedEmbeddingModel> {
         self.validate_and_set_dim(config).await
     }
 
     pub(super) async fn validate_and_set_dim(
         &self,
         model: ModelConfig,
-    ) -> GraphResult<CachedEmbeddingModel> {
+    ) -> VectorResult<CachedEmbeddingModel> {
         let expected_model = self.load_model_dim(model.clone()).await?;
         Ok(CachedEmbeddingModel {
             model: expected_model,
@@ -173,7 +168,7 @@ impl VectorCache {
         })
     }
 
-    async fn load_model_dim(&self, config: ModelConfig) -> GraphResult<ModelConfig> {
+    async fn load_model_dim(&self, config: ModelConfig) -> VectorResult<ModelConfig> {
         let cloned_config = config.clone();
         let model = self
             .models
@@ -236,7 +231,7 @@ impl CachedEmbeddingModel {
     pub async fn get_embeddings(
         &self,
         texts: Vec<String>,
-    ) -> GraphResult<impl Iterator<Item = Embedding> + '_> {
+    ) -> VectorResult<impl Iterator<Item = Embedding> + '_> {
         // TODO: review, turned this into a vec only to make compute_embeddings work
         let results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
@@ -269,7 +264,7 @@ impl CachedEmbeddingModel {
         Ok(embeddings)
     }
 
-    pub(super) async fn get_single(&self, text: String) -> GraphResult<Embedding> {
+    pub(super) async fn get_single(&self, text: String) -> VectorResult<Embedding> {
         let mut embeddings = self.get_embeddings(vec![text]).await?;
         Ok(embeddings.next().unwrap())
     }

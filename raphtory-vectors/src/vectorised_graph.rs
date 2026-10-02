@@ -1,21 +1,11 @@
+use crate::errors::{VectorResult};
 use super::{
     entity_db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
 };
-use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
-    db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
-    errors::GraphResult,
-    prelude::GraphViewOps,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        template::DocumentTemplate,
-        utils::find_top_k,
-        vector_collection::{lancedb::LanceDbCollection, VectorCollection},
-        Embedding, VectorsQuery,
-    },
-};
+use raphtory::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::DynamicGraph, db::api::view::IntoDynamic, db::api::view::StaticGraphViewOps, prelude::GraphViewOps};
+use crate::{cache::CachedEmbeddingModel, template::DocumentTemplate, utils::find_top_k, vector_collection::lancedb::LanceDbCollection, vector_collection::VectorCollection, Embedding, VectorsQuery};
 
 #[derive(Clone)]
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
@@ -40,7 +30,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     /// Generates and stores embeddings for a batch of nodes
-    pub async fn update_nodes<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
+    pub async fn update_nodes<T: AsNodeRef>(&self, nodes: Vec<T>) -> VectorResult<()> {
         let (ids, docs): (Vec<_>, Vec<_>) = nodes
             .iter()
             .filter_map(|node| {
@@ -56,7 +46,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     /// Generates and stores embeddings for a batch of edges
-    pub async fn update_edges<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> GraphResult<()> {
+    pub async fn update_edges<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> VectorResult<()> {
         let (ids, docs): (Vec<_>, Vec<_>) = edges
             .iter()
             .filter_map(|(src, dst)| {
@@ -72,7 +62,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     /// Optmize the vector index
-    pub async fn optimize_index(&self) -> GraphResult<()> {
+    pub async fn optimize_index(&self) -> VectorResult<()> {
         self.node_db.create_or_update_index().await?;
         self.edge_db.create_or_update_index().await?;
         Ok(())
@@ -98,7 +88,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
+    ) -> VectorsQuery<VectorResult<VectorSelection<G>>> {
         let view = apply_window(&self.source_graph, window);
         let node_query = self.node_db.top_k(query, limit, view.clone(), None);
         let edge_query = self.edge_db.top_k(query, limit, view, None);
@@ -126,7 +116,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
+    ) -> VectorsQuery<VectorResult<VectorSelection<G>>> {
         let view = apply_window(&self.source_graph, window);
         let query = self.node_db.top_k(query, limit, view, None);
         let cloned = self.clone();
@@ -150,7 +140,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
+    ) -> VectorsQuery<VectorResult<VectorSelection<G>>> {
         let view = apply_window(&self.source_graph, window);
         let query = self.edge_db.top_k(query, limit, view, None);
         let cloned = self.clone();
@@ -161,7 +151,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     }
 
     /// Returns the embedding for the given text using the embedding model setup for this graph
-    pub async fn embed_text<T: Into<String>>(&self, text: T) -> GraphResult<Embedding> {
+    pub async fn embed_text<T: Into<String>>(&self, text: T) -> VectorResult<Embedding> {
         self.model.get_single(text.into()).await
     }
 

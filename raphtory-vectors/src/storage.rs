@@ -1,17 +1,12 @@
+use crate::errors::{VectorError, VectorResult};
 use super::{
     cache::VectorCache,
     entity_db::{EdgeDb, NodeDb},
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
 };
-use crate::{
-    db::api::view::StaticGraphViewOps,
-    errors::{GraphError, GraphResult},
-    vectors::{
-        embeddings::ModelConfig,
-        vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
-    },
-};
+use raphtory::{db::api::view::StaticGraphViewOps,};
+use crate::{embeddings::ModelConfig, vector_collection::lancedb::LanceDb, vector_collection::VectorCollectionFactory};
 use async_openai::config::{OpenAIConfig, OPENAI_API_BASE};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -95,7 +90,7 @@ pub(super) fn collection_names(generation: u64) -> (String, String) {
 
 impl VectorMeta {
     /// Atomically writes the new meta file
-    pub(super) fn write_to_path(&self, path: &Path) -> Result<(), GraphError> {
+    pub(super) fn write_to_path(&self, path: &Path) -> Result<(), VectorError> {
         let mut file = NamedTempFile::new_in(path)?;
         serde_json::to_writer(&mut file, self)?;
         file.as_file().sync_all()?;
@@ -103,7 +98,7 @@ impl VectorMeta {
         Ok(())
     }
 
-    pub(super) async fn read_from_path(path: &Path) -> GraphResult<Self> {
+    pub(super) async fn read_from_path(path: &Path) -> VectorResult<Self> {
         let meta_string = std::fs::read_to_string(path)?;
         let meta: VectorMeta = serde_json::from_str(&meta_string)?;
         Ok(meta)
@@ -126,7 +121,7 @@ impl LazyDiskVectorCache {
         }
     }
 
-    pub async fn resolve(&self) -> GraphResult<&VectorCache> {
+    pub async fn resolve(&self) -> VectorResult<&VectorCache> {
         self.cache
             .get_or_try_init(async || VectorCache::on_disk(&self.path.clone()).await)
             .await
@@ -139,7 +134,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         path: &Path,
         graph: G,
         cache: &LazyDiskVectorCache,
-    ) -> GraphResult<Self> {
+    ) -> VectorResult<Self> {
         let meta = VectorMeta::read_from_path(&meta_path(path)).await?;
 
         let factory = LanceDb;
@@ -148,7 +143,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
         let resolved = cache.resolve().await?;
         let model = resolved.validate_and_set_dim(meta.model).await?;
-        let dim = model.dim().ok_or_else(|| GraphError::UnresolvedModel)?;
+        let dim = model.dim().ok_or_else(|| VectorError::UnresolvedModel)?;
 
         let (node_table, edge_table) = collection_names(meta.generation);
         let node_db = NodeDb(factory.from_path(db_path.clone(), &node_table, dim).await?);

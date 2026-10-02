@@ -1,10 +1,5 @@
-use crate::{
-    errors::{GraphError, GraphResult},
-    vectors::{
-        vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
-        Embedding,
-    },
-};
+use crate::errors::{VectorError, VectorResult};
+use crate::{vector_collection::CollectionPath, vector_collection::VectorCollection, vector_collection::VectorCollectionFactory, Embedding};
 use arrow_array::{
     builder::{FixedSizeListBuilder, Float32Builder},
     types::{Float32Type, UInt64Type},
@@ -40,7 +35,7 @@ impl VectorCollectionFactory for LanceDb {
         path: CollectionPath,
         name: &str,
         dim: usize,
-    ) -> GraphResult<Self::DbType> {
+    ) -> VectorResult<Self::DbType> {
         let db = connect(path.deref().as_ref()).await?;
         let schema = get_schema(dim);
         // Overwrite: a re-vectorise of a graph whose collections are already on disk has to
@@ -62,7 +57,7 @@ impl VectorCollectionFactory for LanceDb {
         path: CollectionPath,
         name: &str,
         dim: usize,
-    ) -> GraphResult<Self::DbType> {
+    ) -> VectorResult<Self::DbType> {
         let db = connect(path.deref().as_ref()).await?;
         let table = db.open_table(name).execute().await?;
         Ok(Self::DbType {
@@ -92,7 +87,7 @@ impl VectorCollection for LanceDbCollection {
         &self,
         ids: Vec<u64>,
         vectors: impl IntoIterator<Item = Embedding>,
-    ) -> GraphResult<()> {
+    ) -> VectorResult<()> {
         // lance defines a merge with several source rows matching one target row as undefined,
         // and currently duplicates the row, so only the last vector for each id is kept
         let incoming: Vec<_> = ids.into_iter().zip(vectors).collect();
@@ -126,7 +121,7 @@ impl VectorCollection for LanceDbCollection {
         Ok(())
     }
 
-    async fn existing_ids(&self) -> GraphResult<RoaringTreemap> {
+    async fn existing_ids(&self) -> VectorResult<RoaringTreemap> {
         let stream = self
             .table
             .query()
@@ -137,19 +132,19 @@ impl VectorCollection for LanceDbCollection {
         let mut ids = RoaringTreemap::new();
         for batch in batches {
             let column = primitive_column::<UInt64Type>(&batch, "id")
-                .ok_or(GraphError::InvalidVectorDbSchema)?;
+                .ok_or(VectorError::InvalidVectorDbSchema)?;
             ids.extend(column.iter().flatten());
         }
         Ok(ids)
     }
 
-    async fn get_id(&self, id: u64) -> GraphResult<Option<Embedding>> {
+    async fn get_id(&self, id: u64) -> VectorResult<Option<Embedding>> {
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await?;
         let batches: Vec<_> = result.try_collect().await?;
         if let Some(batch) = batches.first() {
             let array = get_vector_array_from_simple_batch(batch)
-                .ok_or(GraphError::InvalidVectorDbSchema)?;
+                .ok_or(VectorError::InvalidVectorDbSchema)?;
             Ok(Some(array.into()))
         } else {
             Ok(None)
@@ -164,7 +159,7 @@ impl VectorCollection for LanceDbCollection {
         query: &Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
-    ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send> {
+    ) -> VectorResult<impl Iterator<Item = (u64, f32)> + Send> {
         let vector_query = self.table.query().nearest_to(query.as_ref())?;
         let limited = vector_query.limit(k);
         let filtered = if let Some(candidates) = candidates {
@@ -196,13 +191,13 @@ impl VectorCollection for LanceDbCollection {
             })
             // we need to collect the entire thing to be able to return this error if the column is missing in any of the records
             .collect::<Option<Vec<_>>>()
-            .ok_or(GraphError::InvalidVectorDbSchema)?
+            .ok_or(VectorError::InvalidVectorDbSchema)?
             .into_iter()
             .flatten();
         Ok(downcasted)
     }
 
-    async fn create_or_update_index(&self) -> GraphResult<()> {
+    async fn create_or_update_index(&self) -> VectorResult<()> {
         let count = self.table.count_rows(None).await?;
         if count > 0 {
             // TODO: could we save the index name when creating it instead of having to do this?
