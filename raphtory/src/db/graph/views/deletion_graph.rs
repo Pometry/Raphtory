@@ -9,6 +9,7 @@ use crate::{
             view::internal::*,
         },
         graph::graph::graph_equal,
+        stage::Stage,
     },
     errors::GraphError,
     prelude::*,
@@ -20,9 +21,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{
-    graph::graph::GraphStorage, mutation::InheritMutationOps, stage::StagedGraph,
-};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
@@ -247,8 +246,8 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
-    pub fn stage(&self) -> Result<StagedGraph, GraphError> {
-        Ok(self.core_graph().stage()?)
+    pub fn stage(self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self)
     }
 
     pub fn event_graph(&self) -> Graph {

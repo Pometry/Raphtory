@@ -16,11 +16,12 @@ use storage::{
 };
 use thiserror::Error;
 
-/// Isolated fork of a graph used to stage writes before atomically
-/// applying them to the source graph.
-pub struct StagedGraph {
+/// Holds state for an ongoing `stage` call on a graph.
+pub struct Handle {
     /// The underlying storage of the staged graph.
-    graph: GraphStorage,
+    storage: GraphStorage,
+
+    /// The directory on disk that holds data for this stage.
     folder: WriteableGraphFolder,
 
     /// The graph being staged from.
@@ -33,16 +34,16 @@ pub struct StagedGraph {
     _guard: ArcMutexGuard<RawMutex, ()>,
 }
 
-impl StagedGraph {
+impl Handle {
     pub fn new(
-        graph: GraphStorage,
+        storage: GraphStorage,
         folder: WriteableGraphFolder,
         src_graph: ReadLockedGraph,
         src_folder: GraphFolder,
         guard: ArcMutexGuard<RawMutex, ()>,
     ) -> Self {
         Self {
-            graph,
+            storage,
             folder,
             _src_graph: src_graph,
             src_folder,
@@ -50,20 +51,20 @@ impl StagedGraph {
         }
     }
 
-    pub fn graph(&self) -> &GraphStorage {
-        &self.graph
+    pub fn storage(&self) -> &GraphStorage {
+        &self.storage
     }
 
-    pub fn finish(self) -> Result<(), StageError> {
-        self.graph.flush()?;
+    pub fn finish(self) -> Result<GraphStorage, StageError> {
+        self.storage.flush()?;
 
         let src_meta = self.src_folder.read_metadata()?;
 
         let new_meta = Metadata {
             path: self.folder.relative_graph_path()?,
             meta: GraphMetadata {
-                node_count: self.graph.unfiltered_num_nodes(&LayerIds::All),
-                edge_count: self.graph.unfiltered_num_edges(&LayerIds::All),
+                node_count: self.storage.unfiltered_num_nodes(&LayerIds::All),
+                edge_count: self.storage.unfiltered_num_edges(&LayerIds::All),
                 graph_type: src_meta.graph_type,
                 is_diskgraph: src_meta.is_diskgraph,
             },
@@ -72,7 +73,7 @@ impl StagedGraph {
         self.folder.write_metadata(new_meta)?;
         self.folder.finish().map_err(StageError::Finish)?;
 
-        Ok(())
+        Ok(self.storage)
     }
 
     pub fn discard(self) -> Result<(), StageError> {
@@ -81,7 +82,7 @@ impl StagedGraph {
 }
 
 impl GraphStorage {
-    pub fn stage(&self) -> Result<StagedGraph, StageError> {
+    pub fn stage(&self) -> Result<Handle, StageError> {
         let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
                 let guard = graph.try_stage_guard().ok_or(StageError::InProgress)?;
@@ -127,7 +128,7 @@ impl GraphStorage {
 }
 
 impl ReadLockedGraph {
-    fn stage(self, guard: ArcMutexGuard<RawMutex, ()>) -> Result<StagedGraph, StageError> {
+    fn stage(self, guard: ArcMutexGuard<RawMutex, ()>) -> Result<Handle, StageError> {
         let src_path = self.graph.graph_dir().ok_or(StageError::MissingGraphDir)?;
 
         let src_folder = GraphFolder::from_graph_path(src_path)?;
@@ -144,7 +145,7 @@ impl ReadLockedGraph {
         let temporal_graph = TemporalGraph::load(staged_graph_path, extension)?;
         let staged_graph = GraphStorage::from(temporal_graph);
 
-        Ok(StagedGraph::new(
+        Ok(Handle::new(
             staged_graph,
             staged_folder,
             self,

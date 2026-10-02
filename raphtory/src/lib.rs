@@ -158,7 +158,7 @@ pub mod prelude {
 
     pub use storage::{
         persist::{args::ArgsOps, config::ConfigOps},
-        Args
+        Args,
     };
 
     #[cfg(feature = "io")]

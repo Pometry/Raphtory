@@ -60,8 +60,8 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{
-    api::node_type_index::NodeTypeIndexOps, persist::strategy::PersistenceStrategy, Extension,
-    Config,
+    api::node_type_index::NodeTypeIndexOps, persist::strategy::PersistenceStrategy, Config,
+    Extension,
 };
 
 /// This trait GraphViewOps defines operations for accessing

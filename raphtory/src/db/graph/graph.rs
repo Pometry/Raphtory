@@ -17,23 +17,23 @@
 //!
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    db::api::{
-        storage::storage::Storage,
-        view::internal::{
-            InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, InheritViewOps,
-            Static,
+    db::{
+        api::{
+            storage::storage::Storage,
+            view::internal::{
+                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritViewOps, Static,
+            },
         },
+        stage::Stage,
     },
     errors::GraphError,
     prelude::*,
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::graph::GraphStorage,
-    layer_ops::InheritLayerOps,
+    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
-    stage::StagedGraph,
 };
 use rayon::prelude::*;
 use std::{
@@ -267,8 +267,8 @@ impl Graph {
         }
     }
 
-    pub fn stage(&self) -> Result<StagedGraph, GraphError> {
-        Ok(self.core_graph().stage()?)
+    pub fn stage(self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self)
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
