@@ -633,11 +633,11 @@ fn id_eq_for_an_absent_node_visits_nothing() {
 #[test]
 fn non_id_and_inequality_filters_keep_the_full_domain() {
     let g = build_test_graph();
-    // Only equality and set membership name specific nodes; everything else
-    // has to be evaluated per node.
+    // Only equality and set membership on the id or the name name specific
+    // nodes; everything else has to be evaluated per node.
     for (label, domain) in [
         ("id != b", filter_domain(Id.ne("b"), &g)),
-        ("name == b", filter_domain(Name.eq("b"), &g)),
+        ("name != b", filter_domain(Name.ne("b"), &g)),
         (
             "degree == 2",
             filter_domain(
