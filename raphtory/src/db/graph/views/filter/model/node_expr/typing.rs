@@ -108,11 +108,20 @@ pub(crate) fn set_shape(lhs: &PropType, values: &[Prop]) -> (PropType, Shape, Ve
     (PropType::Bool, Shape::Whole, whole)
 }
 
+/// Whether `pt` is one yes/no per element, at any list depth: a `List<Bool>`,
+/// or a list of those, with `Bool` innermost.
+fn is_elementwise_bool(pt: &PropType) -> bool {
+    match pt {
+        PropType::List(inner) => matches!(**inner, PropType::Bool) || is_elementwise_bool(inner),
+        _ => false,
+    }
+}
+
 /// The type `any()`/`all()` produce over `inner`: one list level fewer, and
 /// only over an element-wise yes/no result.
 pub(crate) fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
     match inner {
-        PropType::List(elem) if matches!(**elem, PropType::Bool | PropType::List(_)) => {
+        PropType::List(elem) if matches!(**elem, PropType::Bool) || is_elementwise_bool(elem) => {
             Ok((**elem).clone())
         }
         other => Err(invalid(format!(
@@ -125,15 +134,46 @@ pub(crate) fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
 pub(crate) fn require_bool(pt: &PropType, what: &str) -> Result<(), GraphError> {
     match pt {
         PropType::Bool => Ok(()),
-        PropType::List(inner) if matches!(**inner, PropType::Bool | PropType::List(_)) => {
-            Err(invalid(format!(
-                "{what} needs a yes/no answer, but this comparison gives one answer per \
-                 element ({pt}); add any() or all() to say which elements must match"
-            )))
-        }
+        elementwise if is_elementwise_bool(elementwise) => Err(invalid(format!(
+            "{what} needs a yes/no answer, but this comparison gives one answer per \
+             element ({pt}); add any() or all() to say which elements must match"
+        ))),
         other => Err(invalid(format!(
             "{what} needs a yes/no answer, but this expression has type {other}"
         ))),
+    }
+}
+
+#[cfg(test)]
+mod shape_tests {
+    use super::*;
+
+    #[test]
+    fn any_and_all_collapse_only_an_elementwise_yes_no() {
+        assert_eq!(
+            qualified_type(&list(PropType::Bool)).unwrap(),
+            PropType::Bool
+        );
+        assert_eq!(
+            qualified_type(&list(list(PropType::Bool))).unwrap(),
+            list(PropType::Bool)
+        );
+        // A list whose innermost type is not a yes/no is not an element-wise answer.
+        assert!(qualified_type(&list(list(PropType::Str))).is_err());
+        assert!(qualified_type(&list(PropType::I64)).is_err());
+        assert!(qualified_type(&PropType::Bool).is_err());
+    }
+
+    #[test]
+    fn a_filter_needs_one_yes_no_and_says_when_to_add_a_qualifier() {
+        assert!(require_bool(&PropType::Bool, "a filter").is_ok());
+        let per_element = require_bool(&list(PropType::Bool), "a filter").unwrap_err();
+        assert!(per_element.to_string().contains("add any() or all()"));
+        let nested = require_bool(&list(list(PropType::Bool)), "a filter").unwrap_err();
+        assert!(nested.to_string().contains("add any() or all()"));
+        // A list of strings is not an element-wise yes/no, so the hint does not apply.
+        let strings = require_bool(&list(list(PropType::Str)), "a filter").unwrap_err();
+        assert!(!strings.to_string().contains("add any() or all()"));
     }
 }
 
