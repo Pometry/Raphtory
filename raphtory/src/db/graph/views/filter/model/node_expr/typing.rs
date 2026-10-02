@@ -4,8 +4,9 @@
 //! A comparison of two comparable values is one yes/no answer. A comparison of
 //! a list-valued side against a value its elements are comparable with is one
 //! answer per element, a `List<Bool>`, which `any()` or `all()` turn into one.
-//! The shape is decided here, when the expression is built against a graph,
-//! because only then are property types known.
+//! The shape is decided here, from the types alone, when the expression is
+//! built against a graph; the caller words a mismatch, since it is the one
+//! holding the constant a message can name.
 
 use crate::{
     db::graph::views::filter::model::{
@@ -31,6 +32,29 @@ pub(crate) enum Shape {
     Elementwise,
 }
 
+/// Why two sides cannot be tested against each other.
+#[derive(Debug)]
+pub(crate) enum ShapeError {
+    /// The other side can never equal a value of this type.
+    Mismatch(PropType),
+    /// The operator does not apply to the type, whatever the other side.
+    Invalid(GraphError),
+}
+
+impl ShapeError {
+    /// The error to report for a test against `rhs`, naming the constant when
+    /// the right side is one.
+    pub(crate) fn into_error(self, rhs: &PropType, constant: Option<&Prop>) -> GraphError {
+        match self {
+            ShapeError::Invalid(error) => error,
+            ShapeError::Mismatch(expected) => match constant {
+                Some(value) => const_mismatch_error(value, &expected),
+                None => types_mismatch_error(&expected, rhs),
+            },
+        }
+    }
+}
+
 pub(crate) fn list(inner: PropType) -> PropType {
     PropType::List(Box::new(inner))
 }
@@ -42,26 +66,22 @@ pub(crate) fn comparison_shape(
     op: &BinaryOp,
     lhs: &PropType,
     rhs: &PropType,
-    rhs_const: Option<&Prop>,
-) -> Result<(PropType, Shape), GraphError> {
+) -> Result<(PropType, Shape), ShapeError> {
     if lhs.is_comparable_with(rhs) {
-        validate_binary_op(op, lhs)?;
+        validate_binary_op(op, lhs).map_err(ShapeError::Invalid)?;
         return Ok((PropType::Bool, Shape::Whole));
     }
     if let PropType::List(inner) = lhs {
-        if let Ok((out, _)) = comparison_shape(op, inner, rhs, rhs_const) {
+        if let Ok((out, _)) = comparison_shape(op, inner, rhs) {
             return Ok((list(out), Shape::Elementwise));
         }
     }
     if let PropType::List(inner) = rhs {
-        if let Ok((out, _)) = comparison_shape(op, lhs, inner, None) {
+        if let Ok((out, _)) = comparison_shape(op, lhs, inner) {
             return Ok((list(out), Shape::Elementwise));
         }
     }
-    Err(match rhs_const {
-        Some(value) => const_mismatch_error(value, lhs),
-        None => types_mismatch_error(lhs, rhs),
-    })
+    Err(ShapeError::Mismatch(lhs.clone()))
 }
 
 /// The result type of a string test: the left side must be a string, or a
@@ -69,23 +89,19 @@ pub(crate) fn comparison_shape(
 pub(crate) fn string_shape(
     lhs: &PropType,
     rhs: &PropType,
-    rhs_const: Option<&Prop>,
-) -> Result<(PropType, Shape), GraphError> {
+) -> Result<(PropType, Shape), ShapeError> {
     if lhs.is_unknown() || lhs.is_str() {
         if !PropType::Str.is_comparable_with(rhs) {
-            return Err(match rhs_const {
-                Some(value) => const_mismatch_error(value, &PropType::Str),
-                None => types_mismatch_error(&PropType::Str, rhs),
-            });
+            return Err(ShapeError::Mismatch(PropType::Str));
         }
         return Ok((PropType::Bool, Shape::Whole));
     }
     if let PropType::List(inner) = lhs {
-        if let Ok((out, _)) = string_shape(inner, rhs, rhs_const) {
+        if let Ok((out, _)) = string_shape(inner, rhs) {
             return Ok((list(out), Shape::Elementwise));
         }
     }
-    Err(not_a_string_error(lhs))
+    Err(ShapeError::Invalid(not_a_string_error(lhs)))
 }
 
 /// The result type of a membership test, and the members that can match. A

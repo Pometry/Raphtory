@@ -355,12 +355,11 @@ impl ValueTest {
         };
         match self {
             ValueTest::Cmp(op, constant) => {
-                let shape =
-                    comparison_shape(op, history_type, &constant.dtype(), Some(constant)).ok()?;
+                let shape = comparison_shape(op, history_type, &constant.dtype()).ok()?;
                 one_per_value(shape).then(|| self.clone())
             }
             ValueTest::Str(_, constant) => {
-                let shape = string_shape(history_type, &constant.dtype(), Some(constant)).ok()?;
+                let shape = string_shape(history_type, &constant.dtype()).ok()?;
                 one_per_value(shape).then(|| self.clone())
             }
             ValueTest::In(members, negated) => {

@@ -111,7 +111,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
         let lhs_pt = resolved_prop_type(self.left.prop_type(), left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         let rhs_const = right.const_value().flatten();
-        let (out, shape) = comparison_shape(&self.op, &lhs_pt, &rhs_pt, rhs_const.as_ref())?;
+        let (out, shape) = comparison_shape(&self.op, &lhs_pt, &rhs_pt)
+            .map_err(|e| e.into_error(&rhs_pt, rhs_const.as_ref()))?;
         Ok(Arc::new(BinaryValueNodeOp {
             left,
             right,
@@ -129,7 +130,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
         let lhs_pt = resolved_prop_type(self.left.prop_type(), left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         let rhs_const = right.const_value().flatten();
-        let (out, shape) = comparison_shape(&self.op, &lhs_pt, &rhs_pt, rhs_const.as_ref())?;
+        let (out, shape) = comparison_shape(&self.op, &lhs_pt, &rhs_pt)
+            .map_err(|e| e.into_error(&rhs_pt, rhs_const.as_ref()))?;
         Ok(Arc::new(BinaryValueEdgeOp {
             left,
             right,
@@ -211,7 +213,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
         let lhs_pt = resolved_prop_type(self.left.prop_type(), left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         let rhs_const = right.const_value().flatten();
-        let (out, shape) = string_shape(&lhs_pt, &rhs_pt, rhs_const.as_ref())?;
+        let (out, shape) = string_shape(&lhs_pt, &rhs_pt)
+            .map_err(|e| e.into_error(&rhs_pt, rhs_const.as_ref()))?;
         Ok(Arc::new(BinaryValueNodeOp {
             left,
             right,
@@ -229,7 +232,8 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
         let lhs_pt = resolved_prop_type(self.left.prop_type(), left.prop_type());
         let rhs_pt = resolved_prop_type(self.right.prop_type(), right.prop_type());
         let rhs_const = right.const_value().flatten();
-        let (out, shape) = string_shape(&lhs_pt, &rhs_pt, rhs_const.as_ref())?;
+        let (out, shape) = string_shape(&lhs_pt, &rhs_pt)
+            .map_err(|e| e.into_error(&rhs_pt, rhs_const.as_ref()))?;
         Ok(Arc::new(BinaryValueEdgeOp {
             left,
             right,
