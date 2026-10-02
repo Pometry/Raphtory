@@ -1,4 +1,4 @@
-use super::view_ops::remote_view_ops;
+use super::{node_collection, view_ops::remote_view_ops};
 use crate::{
     client::{
         op::{HandleCtx, HandleOp, InputTime, NodeSortBy, Op, ReadExpr, ViewOp},
@@ -13,7 +13,10 @@ use crate::{
         },
         ClientError,
     },
-    model::graph::filtering::GqlFilter,
+    model::graph::{
+        filtering::{GqlFilter, GqlNodeFilter, NodeFieldCondition, NodeFieldWhere},
+        property::Value,
+    },
 };
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
@@ -137,6 +140,48 @@ impl RemoteNodes {
         })
     }
 
+    /// Narrow this collection to the members in positions `start..end` — the
+    /// half-open range, as in Python slicing. An `end` at or below `start`
+    /// yields an empty collection.
+    ///
+    /// Unlike every other combinator here this is **not lazy**: a slice is
+    /// positional, and only the server knows which members fall in it, so this
+    /// fires one RPC to fetch their ids and then pins them by id. The result is
+    /// an ordinary `RemoteNodes`, so the columnar reads (`.id()`,
+    /// `.properties()`, `.degree()`, …) and traversals all chain off it as
+    /// usual, under the same view the slice was taken from.
+    ///
+    /// Order of application matters, exactly as it does for list slicing:
+    /// `.sorted(k).slice(0, n)` is the top `n` by `k`, whereas
+    /// `.slice(0, n).sorted(k)` sorts *within* an arbitrary `n`. Likewise
+    /// `.filter(f).slice(..)` slices the matching nodes, while
+    /// `.slice(..).filter(f)` keeps whichever of the sliced nodes match.
+    ///
+    /// Slicing is not a snapshot: each call is its own traversal, so concurrent
+    /// writes can shift members between slices. Pin a view (`.snapshot_at(..)`,
+    /// `.at(..)`) first if that matters.
+    pub async fn slice(&self, start: usize, end: usize) -> Result<RemoteNodes, ClientError> {
+        // An empty range has no ids to look up, so skip the round trip and go
+        // straight to the empty selection.
+        let ids = match range_to_page(start, end) {
+            None => Vec::new(),
+            Some((limit, offset)) => self.id_page(limit, offset, None).await?,
+        };
+        // Pinned by id rather than position: `select` narrows membership here
+        // only, so traversals off the slice still see the whole graph. `ctx` is
+        // untouched for the same reason `select` leaves it — a materialized
+        // member's own id already identifies it.
+        Ok(RemoteNodes {
+            path: self.path.clone(),
+            transport: self.transport.clone(),
+            expr: Arc::new(ReadExpr::SelectNodes {
+                input: self.expr.clone(),
+                filter: id_in_filter(ids),
+            }),
+            ctx: self.ctx.clone(),
+        })
+    }
+
     /// Reorder this collection by the given sort keys (lexicographic — ties
     /// on the first key break to the second, etc.). Returns a new
     /// `RemoteNodes` handle carrying the sort; the RPC only fires on a
@@ -249,8 +294,20 @@ impl RemoteNodes {
     pub async fn id(&self) -> Result<Vec<GID>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
             input: self.expr.clone(),
+            page: None,
         });
         expect_gid_list(self.transport.execute(&op).await?, "id")
+    }
+
+    /// The ids of one page of members. Fires one RPC. Internal: `page()` and
+    /// `slice()` both need to know which members fall in a range.
+    async fn id_page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<GID>, ClientError> {
+        node_collection::id_page(&self.transport, &self.expr, limit, offset, page_index).await
     }
 
     /// Columnar accessor: each node's name — mirrors the local `Nodes.name`.
@@ -401,18 +458,69 @@ impl RemoteNodes {
     /// composed view as collection-level reads.
     pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
         let ids = self.id().await?;
-        Ok(ids
-            .into_iter()
-            .map(|id| {
-                RemoteNode::with_expr(
-                    self.path.clone(),
-                    id.clone(),
-                    self.transport.clone(),
-                    self.ctx.node_handle_expr(id),
-                    self.ctx.clone(),
-                )
-            })
-            .collect())
+        Ok(node_collection::materialize(
+            &self.path,
+            &self.transport,
+            &self.ctx,
+            ids,
+        ))
+    }
+
+    /// Materialize ONE PAGE of this collection as a `Vec<RemoteNode>` — the
+    /// bounded counterpart of `collect()`, with the same rebasing. At most
+    /// `limit` handles, starting `page_index * limit + offset` members in;
+    /// both `offset` and `page_index` default to 0 server-side. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Returns handles, so a read on each fires its own RPC. For a columnar
+    /// read across the page in a single request, use `slice()` instead.
+    pub async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<RemoteNode>, ClientError> {
+        let ids = self.id_page(limit, offset, page_index).await?;
+        Ok(node_collection::materialize(
+            &self.path,
+            &self.transport,
+            &self.ctx,
+            ids,
+        ))
+    }
+}
+
+
+/// A filter matching exactly the given node ids.
+///
+/// The server resolves `id.isIn` straight to a VID set (`NodeIdFilterOp::domain`),
+/// so on a `Nodes` collection this narrows the iteration domain rather than
+/// scanning. Ids keep their JSON type — string ids stay strings, integer-indexed
+/// graphs keep integers — so `isIn` compares like against like.
+pub(crate) fn id_in_filter(ids: Vec<GID>) -> Arc<GqlFilter> {
+    let values = ids
+        .into_iter()
+        .map(|id| match id {
+            GID::U64(n) => Value::U64(n),
+            GID::Str(s) => Value::Str(s),
+        })
+        .collect();
+    Arc::new(GqlFilter::Node(GqlNodeFilter::Id(NodeFieldWhere {
+        where_: NodeFieldCondition::IsIn(Value::List(values)),
+    })))
+}
+
+/// The half-open range `start..end` as `(limit, offset)` page arguments, or
+/// `None` when the range is empty — the caller can then skip the round trip.
+pub(crate) fn range_to_page(start: usize, end: usize) -> Option<(usize, Option<usize>)> {
+    let limit = end.saturating_sub(start);
+    if limit == 0 {
+        None
+    } else {
+        Some((limit, Some(start)))
     }
 }
 

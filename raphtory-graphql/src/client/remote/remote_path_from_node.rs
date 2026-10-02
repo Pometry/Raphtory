@@ -1,4 +1,4 @@
-use super::view_ops::remote_view_ops;
+use super::{node_collection, view_ops::remote_view_ops};
 use crate::{
     client::{
         op::{HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
@@ -127,6 +127,7 @@ impl RemotePathFromNode {
         })
     }
 
+
     /// Traverse one further hop to the neighbours (both directions) of this
     /// path, as a flat `RemotePathFromNode`. Lazy — no RPC.
     pub fn neighbours(&self) -> RemotePathFromNode {
@@ -211,8 +212,30 @@ impl RemotePathFromNode {
     pub async fn id(&self) -> Result<Vec<GID>, ClientError> {
         let op = Op::Read(ReadExpr::Ids {
             input: self.expr.clone(),
+            page: None,
         });
         expect_gid_list(self.transport.execute(&op).await?, "id")
+    }
+
+    /// The ids of one page of members. Fires one RPC. Internal: `page()` needs
+    /// to know which members fall in a range.
+    ///
+    /// Note there is deliberately no `slice()` here, unlike `RemoteNodes`. A
+    /// path is a multiset — the same node can occupy several positions (e.g.
+    /// `a.neighbours().neighbours()` can revisit `a`) — and the only way to pin
+    /// members server-side is `id.isIn`, which is set membership. Pinning the
+    /// ids at positions `0..3` re-admits *every* occurrence of those ids, so
+    /// the result is longer than the range asked for and consecutive slices
+    /// overlap rather than partition. Positions have no server-side identity to
+    /// select on, so `page()` (which returns the handles at those positions) is
+    /// the honest primitive here.
+    async fn id_page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<GID>, ClientError> {
+        node_collection::id_page(&self.transport, &self.expr, limit, offset, page_index).await
     }
 
     /// Columnar accessor: each node's name — mirrors the local
@@ -373,18 +396,38 @@ impl RemotePathFromNode {
     /// in application order.
     pub async fn collect(&self) -> Result<Vec<RemoteNode>, ClientError> {
         let ids = self.id().await?;
-        Ok(ids
-            .into_iter()
-            .map(|id| {
-                RemoteNode::with_expr(
-                    self.path.clone(),
-                    id.clone(),
-                    self.transport.clone(),
-                    self.ctx.node_handle_expr(id),
-                    self.ctx.clone(),
-                )
-            })
-            .collect())
+        Ok(node_collection::materialize(
+            &self.path,
+            &self.transport,
+            &self.ctx,
+            ids,
+        ))
+    }
+
+    /// Materialize ONE PAGE of this collection as a `Vec<RemoteNode>` — the
+    /// bounded counterpart of `collect()`, with the same rebasing. At most
+    /// `limit` handles, starting `page_index * limit + offset` members in;
+    /// both `offset` and `page_index` default to 0 server-side. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Returns handles, so a read on each fires its own RPC. For a columnar
+    /// read across the page in a single request, use `slice()` instead.
+    pub async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<RemoteNode>, ClientError> {
+        let ids = self.id_page(limit, offset, page_index).await?;
+        Ok(node_collection::materialize(
+            &self.path,
+            &self.transport,
+            &self.ctx,
+            ids,
+        ))
     }
 }
 

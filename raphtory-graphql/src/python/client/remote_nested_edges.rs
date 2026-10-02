@@ -348,6 +348,43 @@ impl PyRemoteNestedEdges {
             .collect())
     }
 
+    /// One page of this collection — the bounded counterpart of `collect()`,
+    /// materialized identically. At most `limit` source groups, starting
+    /// `page_index * limit + offset` in. Both `offset` and `page_index` default
+    /// to 0. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Paging is not a snapshot: each page is its own traversal, so concurrent
+    /// writes can shift members between pages.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of source groups in the page.
+    ///     offset (int, optional): additional source groups to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[list[RemoteEdge]]: at most `limit` source groups.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<Vec<PyRemoteEdge>>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        let result = execute_async_task(
+            move || async move { edges.page(limit, offset, page_index).await },
+        )?;
+        Ok(result
+            .into_iter()
+            .map(|row| row.into_iter().map(PyRemoteEdge::new).collect())
+            .collect())
+    }
+
+
     /// Enables `for row in remote_nested_edges:` — fetches everything in one
     /// RPC, then yields each per-source `list[RemoteEdge]`.
     fn __iter__(&self) -> Result<PyRemoteNestedEdgesIter, ClientError> {
