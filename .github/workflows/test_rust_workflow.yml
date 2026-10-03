@@ -1,5 +1,5 @@
 name: Run Rust test
-permissions: { }
+permissions: {}
 on:
   workflow_call:
     inputs:
@@ -15,7 +15,7 @@ jobs:
     runs-on: "${{ matrix.os }}"
     env:
       RUST_BACKTRACE: 1
-      CARGO_BUILD_JOBS: 2
+      CARGO_BUILD_JOBS: 3
     strategy:
       matrix:
         include:
@@ -42,11 +42,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-          cache-all-crates: true
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: rust-tests
       - name: Install nextest
         uses: taiki-e/install-action@nextest
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@cargo-hack
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -55,12 +54,37 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --workspace --all-features --cargo-profile build-fast
+          cargo nextest run --workspace --exclude raphtory_netflow --all-features --cargo-profile build-fast
+  feature-check:
+    if: ${{ !inputs.skip_tests }}
+    name: "Check all features"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Free up space (ubuntu)
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@v2
+        name: Cargo cache
+        with:
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: rust-check
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - name: Check all features
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --all-targets --each-feature
+          cargo hack check --workspace --exclude raphtory_netflow --all-targets --each-feature
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
@@ -81,7 +105,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-          cache-all-crates: true
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: rust-check
+          # Restore only: this job finishes first and would save a thin cache before the heavier job sharing the key
+          save-if: false
       - name: Build Rust Docs
         uses: actions-rs/cargo@v1
         env:

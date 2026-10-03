@@ -12,15 +12,57 @@ jobs:
       - id: set-matrix
         run: |
           echo "python-versions=[\"3.11\",\"3.14.0\"]" >> $GITHUB_OUTPUT
+  build-wheel:
+    env:
+      RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 3
+    name: Build UI wheel (${{ matrix.python }})
+    needs: select-strategy
+    strategy:
+      matrix:
+        python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@v2
+        name: Cargo cache
+        with:
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: python-release-minimal
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      # The UI does not need datafusion or vectors, so skip them to cut build time
+      - name: Build raphtory wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: python
+          command: build
+          args: --release --no-default-features --interpreter python --out dist
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-wheel-py-${{ matrix.python }}
+          path: python/dist/*.whl
+          if-no-files-found: error
+          retention-days: 1
   ui-test:
     name: UI Tests
-    needs: select-strategy
+    needs: [select-strategy, build-wheel]
     strategy:
       fail-fast: false
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        browser: [ chromium, firefox ]
-        shard: [ 1, 2, 3 ]
+        browser: [chromium, firefox]
+        shard: [1, 2, 3]
     runs-on: windows-latest
     env:
       NUM_SHARDS: 3
@@ -30,37 +72,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         name: Checkout
-      - uses: ./.github/actions/setup_rust
-        name: Setup Rust
       - name: Install Server-Media-Foundation (firefox needs it on Windows Server)
         if: matrix.browser == 'firefox'
         shell: pwsh
         run: Install-WindowsFeature Server-Media-Foundation
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: Swatinem/rust-cache@v2
-        name: Cargo cache
-        with:
-          cache-all-crates: true
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
-      - name: Create python venv for Maturin
-        run: python -m venv .venv
+      - name: Download wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-wheel-py-${{ matrix.python }}
+          path: wheel
+      - name: Install raphtory wheel into venv
+        run: |
+          python -m venv .venv
+          .venv/Scripts/python -m pip install wheel/*.whl
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "20"
-      - name: Build raphtory-python
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: python
-          command: develop
-          args: --release
       - name: Install ui-tests npm deps
         working-directory: ui-tests
         run: npm install
@@ -89,7 +122,7 @@ jobs:
         # http://localhost:1736 cannot self-mask: any test needing GraphQL
         # data would fail immediately when the GraphQL POST hits a dead origin.
         env:
-          RAPHTORY_PORT: '1737'
+          RAPHTORY_PORT: "1737"
         run: |
           # On Windows the venv activate script lives under Scripts/ rather than bin/.
           source .venv/Scripts/activate

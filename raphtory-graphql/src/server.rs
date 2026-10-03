@@ -64,7 +64,7 @@ use url::ParseError;
 #[cfg(feature = "vectors")]
 use {
     crate::{paths::ExistingGraphFolder, GQLError},
-    raphtory::vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
+    raphtory_vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 
 use crate::plugin::server::PluginRegistrationError;
@@ -530,10 +530,9 @@ mod server_tests {
     use tracing::info;
 
     #[cfg(feature = "vectors")]
-    use raphtory::{
-        prelude::*,
-        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
-    };
+    use raphtory::prelude::*;
+    #[cfg(feature = "vectors")]
+    use raphtory_vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate};
 
     #[tokio::test]
     async fn test_public_dir_serves_index_for_subpages() {

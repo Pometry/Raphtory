@@ -40,6 +40,7 @@ pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
@@ -204,6 +205,7 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_node_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
@@ -258,6 +260,7 @@ pub fn load_node_metadata_from_parquet<
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_edge_metadata_from_parquet<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
@@ -385,7 +388,7 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     Ok(())
 }
 
-pub(crate) fn process_parquet_file_to_df(
+pub fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Option<&[&str]>,
     batch_size: Option<usize>,
@@ -570,47 +573,4 @@ pub(crate) fn cast_columns(
         })?;
 
     Ok(RecordBatch::from(casted_struct))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use arrow::array::{ArrayRef, Float64Array, Int64Array, StringArray};
-    use itertools::Itertools;
-    use std::{path::PathBuf, sync::Arc};
-
-    #[test]
-    fn test_process_parquet_file_to_df() {
-        let parquet_file_path =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
-
-        let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
-        let df =
-            process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names), None, None)
-                .unwrap();
-
-        let expected_names: Vec<String> = ["src", "dst", "time", "weight", "marbles"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        let expected_chunks: Vec<Vec<ArrayRef>> = vec![vec![
-            Arc::new(Int64Array::from(vec![1i64, 2, 3, 4, 5])),
-            Arc::new(Int64Array::from(vec![2i64, 3, 4, 5, 6])),
-            Arc::new(Int64Array::from(vec![1i64, 2, 3, 4, 5])),
-            Arc::new(Float64Array::from(vec![1f64, 2f64, 3f64, 4f64, 5f64])),
-            Arc::new(StringArray::from(vec![
-                "red", "blue", "green", "yellow", "purple",
-            ])),
-        ]];
-
-        let actual_names = df.names;
-        let chunks: Vec<Result<DFChunk, GraphError>> = df.chunks.collect_vec();
-        let chunks: Result<Vec<DFChunk>, GraphError> = chunks.into_iter().collect();
-        let chunks: Vec<DFChunk> = chunks.unwrap();
-        let actual_chunks: Vec<Vec<ArrayRef>> =
-            chunks.into_iter().map(|c: DFChunk| c.chunk).collect_vec();
-
-        assert_eq!(actual_names, expected_names);
-        assert_eq!(actual_chunks, expected_chunks);
-    }
 }

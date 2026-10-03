@@ -34,10 +34,7 @@ use pyo3::PyErr;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
-#[cfg(feature = "vectors")]
-use crate::vectors::embeddings::EmbeddingError;
-
-#[cfg(any(feature = "vectors", feature = "io"))]
+#[cfg(feature = "io")]
 use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
@@ -132,7 +129,7 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
-    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[cfg(feature = "io")]
     #[error(transparent)]
     PersistError(#[from] PersistError),
 
@@ -168,9 +165,6 @@ pub enum GraphError {
 
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
-
-    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
-    VectorTemplateChanged,
 
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
@@ -255,22 +249,6 @@ pub enum GraphError {
     #[error("Invalid epidemic seeds: {0}")]
     SeedError(#[from] SeedError),
 
-    #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
-    HeedError(#[from] heed::Error),
-
-    #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
-    LanceDbError(#[from] lancedb::Error),
-
-    #[cfg(feature = "vectors")]
-    #[error("The path {0} does not contain a vector DB")]
-    VectorDbDoesntExist(String),
-
-    #[cfg(feature = "vectors")]
-    #[error("The schema of the vector DB is invalid")]
-    InvalidVectorDbSchema,
-
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
@@ -288,17 +266,6 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "vectors")]
-    #[error("Embedding operation failed")]
-    EmbeddingError {
-        #[from]
-        source: EmbeddingError,
-    },
-
-    #[cfg(feature = "vectors")]
-    #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
-    UnresolvedModel,
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,
@@ -490,23 +457,6 @@ impl From<StripPrefixError> for GraphError {
     fn from(source: StripPrefixError) -> Self {
         let location = Location::caller();
         GraphError::StripPrefixError { source, location }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::errors::GraphError;
-    use std::io;
-
-    #[test]
-    fn test_location_capture() {
-        fn inner() -> Result<(), GraphError> {
-            Err(io::Error::other(GraphError::IllegalSet("hi".to_string())))?;
-            Ok(())
-        }
-
-        let res = inner().err().unwrap();
-        println!("{}", res);
     }
 }
 

@@ -37,7 +37,7 @@ use tracing::debug;
 
 #[cfg(feature = "vectors")]
 use {
-    raphtory::vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
+    raphtory_vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
     tracing::error,
 };
 

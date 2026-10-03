@@ -117,14 +117,14 @@ fn generate_box_on_debug_lifetime_impl(input_fn: &ItemFn) -> Result<TokenStream2
     let where_clause = &sig.generics.where_clause;
 
     Ok(quote! {
-        #[cfg(has_debug_symbols)]
+        #[cfg(debug_assertions)]
         #(#attrs)*
         #vis fn #fn_name #generics(#inputs) #debug_return_type #where_clause {
             let iter = #block;
             Box::new(iter)
         }
 
-        #[cfg(not(has_debug_symbols))]
+        #[cfg(not(debug_assertions))]
         #(#attrs)*
         #vis fn #fn_name #generics(#inputs) #release_return_type #where_clause {
             #block

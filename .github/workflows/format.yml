@@ -15,9 +15,6 @@ jobs:
           persist-credentials: 'false'
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
-      - name: Setup nightly rust
-        run: |
-          rustup toolchain install nightly --allow-downgrade -c rustfmt
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -25,7 +22,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-          cache-all-crates: true
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: python-build-fast
+          # Restore only: this job finishes first and would save a thin cache before the heavier job sharing the key
+          save-if: false
+      - name: Setup nightly rust
+        run: |
+          rustup toolchain install nightly --allow-downgrade -c rustfmt
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
