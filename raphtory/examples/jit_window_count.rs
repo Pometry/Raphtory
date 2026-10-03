@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! cargo run --release -p raphtory --features io,jit --example jit_window_count -- \
-//!     <graph-dir> <start> <end> [--layer NAME] [--count WHAT] [--backend B] [--repeat N] [--check]
+//!     <graph-dir> <start> <end> [--layer NAME] [--count WHAT] [--backend B]
+//!     [--morsel ROWS|segment] [--repeat N] [--check]
 //!
 //! # with the LLVM backend too:
 //! LIBRARY_PATH=/opt/homebrew/lib cargo run --release -p raphtory --features io,jit-llvm \
@@ -12,7 +13,8 @@
 //! Counts, in one layer and the window `[start, end)`, any of `active-nodes`,
 //! `node-events`, `active-edges`, `edge-additions` (default: all). Each count is a
 //! compiled kernel run once per segment, segments in parallel, with every backend the
-//! build has (`--backend cranelift|llvm` picks one).
+//! build has (`--backend cranelift|llvm` picks one). Segments are split into morsels of
+//! `--morsel` rows (default 32k; `segment` for one per segment), run in parallel.
 //!
 //! Every kernel is compared with `storage`: the same per-segment scan written in Rust
 //! against the storage API (`ffi::storage_count`), also in parallel over segments. Its
@@ -28,7 +30,7 @@ use std::{
     time::{Duration, Instant},
 };
 use storage::ffi::{
-    storage_count, Counted, FfiWindow, JitBackend, PreparedGraph, WindowCounter, BACKENDS,
+    storage_count, Counted, FfiWindow, JitBackend, Morsels, PreparedGraph, WindowCounter, BACKENDS,
 };
 
 #[cfg(target_os = "macos")]
@@ -44,13 +46,14 @@ struct Args {
     layer: String,
     counts: Vec<Counted>,
     backends: Vec<JitBackend>,
+    morsels: Morsels,
     repeat: usize,
     check: bool,
 }
 
 const USAGE: &str = "usage: jit_window_count <graph-dir> <start> <end> \
     [--layer NAME] [--count active-nodes|node-events|active-edges|edge-additions] \
-    [--backend cranelift|llvm] [--repeat N] [--check]";
+    [--backend cranelift|llvm] [--morsel ROWS|segment] [--repeat N] [--check]";
 
 fn parse_args() -> Result<Args, String> {
     let mut args = std::env::args().skip(1);
@@ -58,6 +61,7 @@ fn parse_args() -> Result<Args, String> {
     let mut layer = "_default".to_string();
     let mut counts = Vec::new();
     let mut backends = Vec::new();
+    let mut morsels = Morsels::default();
     let mut repeat = 5;
     let mut check = false;
 
@@ -67,6 +71,7 @@ fn parse_args() -> Result<Args, String> {
             "--layer" => layer = value()?,
             "--count" => counts.push(parse_counted(&value()?)?),
             "--backend" => backends.push(parse_backend(&value()?)?),
+            "--morsel" => morsels = parse_morsels(&value()?)?,
             "--repeat" => repeat = value()?.parse().map_err(|e| format!("--repeat: {e}"))?,
             "--check" => check = true,
             "-h" | "--help" => return Err(USAGE.to_string()),
@@ -92,9 +97,22 @@ fn parse_args() -> Result<Args, String> {
         } else {
             backends
         },
+        morsels,
         repeat: repeat.max(1),
         check,
     })
+}
+
+fn parse_morsels(value: &str) -> Result<Morsels, String> {
+    match value {
+        "segment" => Ok(Morsels::Segment),
+        rows => match rows.parse::<u64>() {
+            Ok(0) | Err(_) => Err(format!(
+                "--morsel: expected rows > 0 or `segment`, got {rows:?}"
+            )),
+            Ok(rows) => Ok(Morsels::Rows(rows)),
+        },
+    }
 }
 
 fn parse_backend(name: &str) -> Result<JitBackend, String> {
@@ -197,7 +215,13 @@ fn main() {
         let (expected, fastest, mean) = time_runs("storage", args.repeat, || {
             storage_count(counted, &nodes, &edges, layer, w)
         });
-        println!("\n{counted:?} = {expected}");
+        let num_morsels = prepared
+            .morsels(counted.scan(), layer.0, args.morsels)
+            .len();
+        println!(
+            "\n{counted:?} = {expected}   ({num_morsels} morsels, {:?})",
+            args.morsels
+        );
         println!(
             "  storage          run {fastest:>12.3?} fastest, {mean:.3?} mean of {}",
             args.repeat
@@ -211,8 +235,9 @@ fn main() {
                 exit(1);
             });
             let name = format!("{backend:?}");
-            let (count, fastest, mean) =
-                time_runs(&name, args.repeat, || counter.count(&prepared, layer.0, w));
+            let (count, fastest, mean) = time_runs(&name, args.repeat, || {
+                counter.count_with(&prepared, layer.0, w, args.morsels)
+            });
             let speedup = baseline.as_secs_f64() / fastest.as_secs_f64();
             println!(
                 "  {name:<16} run {fastest:>12.3?} fastest, {mean:.3?} mean, {speedup:.1}x storage; compile {compile_time:.3?}"
