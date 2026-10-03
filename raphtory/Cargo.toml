@@ -169,10 +169,6 @@ panic-on-drop = [
     "storage/panic-on-drop"
 ]
 
-# JIT-compiled queries over disk storage (only with a storage crate that has `jit`)
-jit = ["storage/jit"]
-jit-llvm = ["jit", "storage/jit-llvm"]
-
 [[example]]
 name = "eth_loader"
 required-features = ["io"]
@@ -180,7 +176,3 @@ required-features = ["io"]
 [[example]]
 name = "snb_loader"
 required-features = ["io"]
-
-[[example]]
-name = "jit_window_count"
-required-features = ["io", "jit"]

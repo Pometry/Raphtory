@@ -52,8 +52,4 @@ test-log.workspace = true
 [features]
 test-utils = ["dep:proptest", "dep:chrono", "panic-on-drop"]
 panic-on-drop = ["drop-logging/panic-on-drop"]
-# Kept for parity with the disk storage crate, which provides the JIT descriptors
-# (`ffi`); a no-op here.
-jit = []
-jit-llvm = []
 
