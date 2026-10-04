@@ -7,11 +7,12 @@
 //!
 //! Graphs are described entirely by their metadata, and which keys matter is up
 //! to whoever wrote the graph. So rather than a fixed set of filterable and
-//! sortable columns, both filter and sort address metadata by key: filters use
-//! the `PropCondition` grammar over one value, and sorts either
-//! name a built-in field or a metadata key, with an optional explicit value order
-//! for keys holding a small vocabulary (`"critical"`, `"high"`, ...) whose
-//! natural ordering is not alphabetical.
+//! sortable columns, both filter and sort address metadata by key. A filter's
+//! leaves each test one built-in attribute or one metadata key with the
+//! `PropCondition` grammar (`eq`, `lt`, `contains`, ...), combined with `and` /
+//! `or` / `not`; sorts either name a built-in field or a metadata key, with an
+//! optional explicit value order for keys holding a small vocabulary
+//! (`"critical"`, `"high"`, ...) whose natural ordering is not alphabetical.
 
 use crate::{
     data::Data,
