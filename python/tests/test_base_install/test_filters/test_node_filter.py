@@ -128,6 +128,10 @@ def test_degree_filter_with_float_constants(value):
             lambda d: d != value,
             "is_not_in",
         ),
+        # A fraction on its own: no degree equals it, so nothing is in the set and
+        # everything is out of it. A member rounded to the degree's type would fail here.
+        (filter.Node.degree().is_in([half]), lambda d: False, "is_in half"),
+        (filter.Node.degree().is_not_in([half]), lambda d: True, "is_not_in half"),
     ]:
         assert_filter(graph, expr, "both", expected, context)
 
