@@ -379,31 +379,32 @@ impl ValueTest {
     }
 }
 
-/// Whether the test holds for any value of the stream, or for every one. An
-/// empty history has no value the test holds for, so `all` is false there
-/// too.
-fn qualified(test: &ValueTest, all: bool, mut values: BoxedLIter<'_, Prop>) -> Option<Prop> {
-    let hit = if all {
-        let mut seen = false;
-        let every = values.all(|v| {
-            seen = true;
-            test.holds(v)
-        });
-        seen && every
-    } else {
-        values.any(|v| test.holds(v))
-    };
-    Some(Prop::Bool(hit))
+/// Whether the test holds for any value of the stream, stopping at the first
+/// that does.
+fn any_holds(test: &ValueTest, mut values: BoxedLIter<'_, Prop>) -> Option<Prop> {
+    Some(Prop::Bool(values.any(|v| test.holds(v))))
 }
 
+/// Whether the test holds for every value of the stream, stopping at the
+/// first that does not. An empty history has no value the test holds for,
+/// so the answer is no there too.
+fn all_hold(test: &ValueTest, mut values: BoxedLIter<'_, Prop>) -> Option<Prop> {
+    let mut seen = false;
+    let every = values.all(|v| {
+        seen = true;
+        test.holds(v)
+    });
+    Some(Prop::Bool(seen && every))
+}
+
+/// `any()` over a test of each history value of a node.
 #[derive(Clone)]
-pub(crate) struct StreamedQualNodeOp<'g> {
+pub(crate) struct StreamedAnyNodeOp<'g> {
     pub(crate) history: Arc<dyn NodeHistory + 'g>,
     pub(crate) test: ValueTest,
-    pub(crate) all: bool,
 }
 
-impl<'g> NodeOp for StreamedQualNodeOp<'g> {
+impl<'g> NodeOp for StreamedAnyNodeOp<'g> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
@@ -415,24 +416,41 @@ impl<'g> NodeOp for StreamedQualNodeOp<'g> {
     }
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        qualified(&self.test, self.all, self.history.values(node))
+        any_holds(&self.test, self.history.values(node))
     }
 }
 
+/// `all()` over a test of each history value of a node.
 #[derive(Clone)]
-pub(crate) struct StreamedQualEdgeOp<'g> {
+pub(crate) struct StreamedAllNodeOp<'g> {
+    pub(crate) history: Arc<dyn NodeHistory + 'g>,
+    pub(crate) test: ValueTest,
+}
+
+impl<'g> NodeOp for StreamedAllNodeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.history.domain()
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
+        all_hold(&self.test, self.history.values(node))
+    }
+}
+
+/// `any()` over a test of each history value of an edge.
+#[derive(Clone)]
+pub(crate) struct StreamedAnyEdgeOp<'g> {
     pub(crate) history: Arc<dyn EdgeHistory + 'g>,
     pub(crate) test: ValueTest,
-    pub(crate) all: bool,
 }
 
-impl<'g> StreamedQualEdgeOp<'g> {
-    fn at(&self, edge: EdgeEntryRef, at: EdgeAt) -> Option<Prop> {
-        qualified(&self.test, self.all, self.history.values(edge, at))
-    }
-}
-
-impl<'g> EdgeOp for StreamedQualEdgeOp<'g> {
+impl<'g> EdgeOp for StreamedAnyEdgeOp<'g> {
     type Output = Option<Prop>;
 
     fn prop_type(&self) -> PropType {
@@ -440,7 +458,7 @@ impl<'g> EdgeOp for StreamedQualEdgeOp<'g> {
     }
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        self.at(edge, EdgeAt::Whole)
+        any_holds(&self.test, self.history.values(edge, EdgeAt::Whole))
     }
 
     fn apply_layer(
@@ -449,7 +467,7 @@ impl<'g> EdgeOp for StreamedQualEdgeOp<'g> {
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        self.at(edge, EdgeAt::Layer(layer))
+        any_holds(&self.test, self.history.values(edge, EdgeAt::Layer(layer)))
     }
 
     fn apply_exploded(
@@ -459,7 +477,51 @@ impl<'g> EdgeOp for StreamedQualEdgeOp<'g> {
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        self.at(edge, EdgeAt::Exploded(layer, t))
+        any_holds(
+            &self.test,
+            self.history.values(edge, EdgeAt::Exploded(layer, t)),
+        )
+    }
+}
+
+/// `all()` over a test of each history value of an edge.
+#[derive(Clone)]
+pub(crate) struct StreamedAllEdgeOp<'g> {
+    pub(crate) history: Arc<dyn EdgeHistory + 'g>,
+    pub(crate) test: ValueTest,
+}
+
+impl<'g> EdgeOp for StreamedAllEdgeOp<'g> {
+    type Output = Option<Prop>;
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
+        all_hold(&self.test, self.history.values(edge, EdgeAt::Whole))
+    }
+
+    fn apply_layer(
+        &self,
+        _storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+    ) -> Option<Prop> {
+        all_hold(&self.test, self.history.values(edge, EdgeAt::Layer(layer)))
+    }
+
+    fn apply_exploded(
+        &self,
+        _storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> Option<Prop> {
+        all_hold(
+            &self.test,
+            self.history.values(edge, EdgeAt::Exploded(layer, t)),
+        )
     }
 }
 
@@ -565,7 +627,7 @@ mod tests {
             pulled += 1;
             v.into_prop()
         })) as BoxedLIter<'_, Prop>;
-        assert_eq!(qualified(&gt, false, counted), Some(Prop::Bool(true)));
+        assert_eq!(any_holds(&gt, counted), Some(Prop::Bool(true)));
         assert_eq!(pulled, 2);
 
         let mut pulled = 0usize;
@@ -573,15 +635,15 @@ mod tests {
             pulled += 1;
             v.into_prop()
         })) as BoxedLIter<'_, Prop>;
-        assert_eq!(qualified(&gt, true, counted), Some(Prop::Bool(false)));
+        assert_eq!(all_hold(&gt, counted), Some(Prop::Bool(false)));
         assert_eq!(pulled, 2);
     }
 
     #[test]
     fn an_empty_history_satisfies_neither_any_nor_all() {
         let gt = ValueTest::Cmp(BinaryOp::Gt, 2i64.into_prop());
-        assert_eq!(qualified(&gt, false, stream(&[])), Some(Prop::Bool(false)));
-        assert_eq!(qualified(&gt, true, stream(&[])), Some(Prop::Bool(false)));
+        assert_eq!(any_holds(&gt, stream(&[])), Some(Prop::Bool(false)));
+        assert_eq!(all_hold(&gt, stream(&[])), Some(Prop::Bool(false)));
     }
 
     #[test]
@@ -590,17 +652,8 @@ mod tests {
             Arc::new([HashableProp(1i64.into_prop())].into_iter().collect());
         let is_in = ValueTest::In(members.clone(), false);
         let not_in = ValueTest::In(members, true);
-        assert_eq!(
-            qualified(&is_in, false, stream(&[2, 1])),
-            Some(Prop::Bool(true))
-        );
-        assert_eq!(
-            qualified(&not_in, true, stream(&[2, 1])),
-            Some(Prop::Bool(false))
-        );
-        assert_eq!(
-            qualified(&not_in, true, stream(&[2, 3])),
-            Some(Prop::Bool(true))
-        );
+        assert_eq!(any_holds(&is_in, stream(&[2, 1])), Some(Prop::Bool(true)));
+        assert_eq!(all_hold(&not_in, stream(&[2, 1])), Some(Prop::Bool(false)));
+        assert_eq!(all_hold(&not_in, stream(&[2, 3])), Some(Prop::Bool(true)));
     }
 }

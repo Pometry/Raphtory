@@ -31,8 +31,10 @@ use crate::{
                 EdgeOp,
             },
             expr::{
-                stream::{StreamedQualEdgeOp, StreamedQualNodeOp},
-                DynCreateHistory, ValueTest,
+                stream::{
+                    StreamedAllEdgeOp, StreamedAllNodeOp, StreamedAnyEdgeOp, StreamedAnyNodeOp,
+                },
+                DynCreateHistory, EdgeHistory, NodeHistory, ValueTest,
             },
             filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
             resolved_prop_type,
@@ -420,45 +422,50 @@ impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
 
 /// `any()` / `all()` over an element-wise yes/no result. A comparison of a
 /// history with a constant walks the history and stops at the first value
-/// that decides the answer; anything else collapses the list.
+/// that decides the answer; anything else collapses the list. `streamed`
+/// builds the walking op, `list` the collapsing one.
 fn qualify_node_op<'g, E: CreateOp, G: GraphView + 'g>(
     inner: &E,
     graph: G,
-    all: bool,
+    streamed: impl FnOnce(
+        Arc<dyn NodeHistory + 'g>,
+        ValueTest,
+    ) -> Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    list: impl FnOnce(
+        Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    ) -> Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
 ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
     if let Some((history, test)) = inner.value_test() {
         let history = history.create_node_history(graph.clone().into_dyn_graph_arc())?;
         if let Some(test) = test.for_history(&history.history_type()) {
-            return Ok(Arc::new(StreamedQualNodeOp { history, test, all }));
+            return Ok(streamed(history, test));
         }
     }
     let op = inner.create_node_op(graph)?;
     qualified_type(&resolved_prop_type(inner.prop_type(), op.prop_type()))?;
-    Ok(if all {
-        Arc::new(AllNodeOp { inner: op })
-    } else {
-        Arc::new(AnyNodeOp { inner: op })
-    })
+    Ok(list(op))
 }
 
 fn qualify_edge_op<'g, E: CreateOp, G: GraphView + 'g>(
     inner: &E,
     graph: G,
-    all: bool,
+    streamed: impl FnOnce(
+        Arc<dyn EdgeHistory + 'g>,
+        ValueTest,
+    ) -> Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    list: impl FnOnce(
+        Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+    ) -> Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
 ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
     if let Some((history, test)) = inner.value_test() {
         let history = history.create_edge_history(graph.clone().into_dyn_graph_arc())?;
         if let Some(test) = test.for_history(&history.history_type()) {
-            return Ok(Arc::new(StreamedQualEdgeOp { history, test, all }));
+            return Ok(streamed(history, test));
         }
     }
     let op = inner.create_edge_op(graph)?;
     qualified_type(&resolved_prop_type(inner.prop_type(), op.prop_type()))?;
-    Ok(if all {
-        Arc::new(AllEdgeOp { inner: op })
-    } else {
-        Arc::new(AnyEdgeOp { inner: op })
-    })
+    Ok(list(op))
 }
 
 impl<E: CreateOp> CreateOp for AnyExpr<E> {
@@ -466,14 +473,24 @@ impl<E: CreateOp> CreateOp for AnyExpr<E> {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        qualify_node_op(&self.0, graph, false)
+        qualify_node_op(
+            &self.0,
+            graph,
+            |history, test| Arc::new(StreamedAnyNodeOp { history, test }),
+            |inner| Arc::new(AnyNodeOp { inner }),
+        )
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        qualify_edge_op(&self.0, graph, false)
+        qualify_edge_op(
+            &self.0,
+            graph,
+            |history, test| Arc::new(StreamedAnyEdgeOp { history, test }),
+            |inner| Arc::new(AnyEdgeOp { inner }),
+        )
     }
 
     /// Under `any()` the history test narrows: any value ever held may match.
@@ -490,14 +507,24 @@ impl<E: CreateOp> CreateOp for AllExpr<E> {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        qualify_node_op(&self.0, graph, true)
+        qualify_node_op(
+            &self.0,
+            graph,
+            |history, test| Arc::new(StreamedAllNodeOp { history, test }),
+            |inner| Arc::new(AllNodeOp { inner }),
+        )
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        qualify_edge_op(&self.0, graph, true)
+        qualify_edge_op(
+            &self.0,
+            graph,
+            |history, test| Arc::new(StreamedAllEdgeOp { history, test }),
+            |inner| Arc::new(AllEdgeOp { inner }),
+        )
     }
 }
 
