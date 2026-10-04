@@ -44,10 +44,10 @@ pub(crate) mod view_ops;
 /// local `Nodes.__getitem__` raises, so one `except` clause catches it on
 /// either backend — and at the same moment: locally the rejection happens at
 /// subscript time, not at first read.
-pub(crate) fn node_subscript(filter: PyFilterExpr) -> PyResult<FilterExpr> {
+pub(crate) fn node_subscript(filter: PyFilterExpr) -> Result<FilterExpr, GraphError> {
     let tree = filter.into_tree();
     if tree.tests_edges() {
-        return Err(adapt_err_value(&GraphError::NotNodeFilter));
+        return Err(GraphError::NotNodeFilter);
     }
     Ok(tree)
 }
