@@ -107,6 +107,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             .flat_map(move |segment| segment.iter_entries())
     }
 
+    /// Entry counts per layer, kept as entries are written.
+    pub fn stats(&self) -> &Arc<GraphStats> {
+        self.storage.stats()
+    }
+
     pub fn segment_counts(&self) -> SegmentCounts<VID> {
         SegmentCounts::new(
             self.storage.max_segment_len(),
