@@ -887,12 +887,12 @@ mod test_nodes_filters_window_graph {
         ));
         let graph = init_graph(Graph::new());
         assert!(matches!(
-            graph.window(1, 9).filter(filter.clone()).map(|_| ()).unwrap_err(),
-            GraphError::PropertyMissingError(ref name) if name == "x"
+            graph.window(1, 9).filter(filter.clone()),
+            Err(GraphError::PropertyMissingError(ref name)) if name == "x"
         ));
         assert!(matches!(
-            graph.persistent_graph().window(1, 9).filter(filter).map(|_| ()).unwrap_err(),
-            GraphError::PropertyMissingError(ref name) if name == "x"
+            graph.persistent_graph().window(1, 9).filter(filter),
+            Err(GraphError::PropertyMissingError(ref name)) if name == "x"
         ));
     }
 
@@ -2198,12 +2198,12 @@ mod test_edges_filters_window_graph {
         ));
         let graph = init_graph(Graph::new());
         assert!(matches!(
-            graph.window(1, 9).filter(filter.clone()).map(|_| ()).unwrap_err(),
-            GraphError::PropertyMissingError(ref name) if name == "x"
+            graph.window(1, 9).filter(filter.clone()),
+            Err(GraphError::PropertyMissingError(ref name)) if name == "x"
         ));
         assert!(matches!(
-            graph.persistent_graph().window(1, 9).filter(filter).map(|_| ()).unwrap_err(),
-            GraphError::PropertyMissingError(ref name) if name == "x"
+            graph.persistent_graph().window(1, 9).filter(filter),
+            Err(GraphError::PropertyMissingError(ref name)) if name == "x"
         ));
     }
 
