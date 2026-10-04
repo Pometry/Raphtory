@@ -77,8 +77,11 @@ assert sorted(n.name for n in g.filter(high).nodes) == ["alice", "bob"]
 missing = filter.Node.property("score").is_none()
 assert [n.name for n in g.filter(missing).nodes] == ["carol"]
 
-has_an_out_neighbour = filter.Node.degree() > filter.Node.in_degree()
-assert sorted(n.name for n in g.filter(has_an_out_neighbour).nodes) == ["alice", "bob"]
+has_a_neighbour_that_does_not_point_back = filter.Node.degree() > filter.Node.in_degree()
+assert sorted(n.name for n in g.filter(has_a_neighbour_that_does_not_point_back).nodes) == [
+    "alice",
+    "bob",
+]
 ```
 ///
 
