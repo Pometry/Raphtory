@@ -61,10 +61,13 @@ jobs:
         run: |
           cd python && black .
 
-      # Run from the source tree so mypy checks the freshly generated stubs, not the stale copies inside the installed wheel
+      # The installed wheel ships the stubs from before stubsgen ran, so copy the fresh ones over it.
+      # mypy must check raphtory as an installed package (as the old editable install did); checking
+      # the source tree directly also reports errors in submodule stubs that it otherwise silences.
       - name: Run mypy
-        working-directory: python/python
         run: |
+          site=$(python -c 'import os, raphtory; print(os.path.dirname(raphtory.__file__))')
+          (cd python/python/raphtory && find . -name '*.pyi' -exec cp --parents {} "$site" \;)
           mypy -m raphtory
 
       - name: Check for uncommitted changes
