@@ -13,19 +13,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           persist-credentials: 'false'
-      - uses: ./.github/actions/setup_rust
-        name: Setup Rust
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: Swatinem/rust-cache@v2
-        name: Cargo cache
-        with:
-          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
-          shared-key: python-build-fast
-          # Restore only: this job finishes first and would save a thin cache before the heavier job sharing the key
-          save-if: false
+      # Only rustfmt is needed here: raphtory itself comes prebuilt from build_python_wheel.yml
       - name: Setup nightly rust
         run: |
           rustup toolchain install nightly --allow-downgrade -c rustfmt
@@ -41,9 +29,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '20'
+      - name: Download raphtory wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: python-wheel-linux
+          path: wheel
       - name: Install raphtory
         run: |
-          MATURIN_PEP517_ARGS="--profile=build-fast" pip install -e "./python[all]"
+          python -m pip install "$(ls wheel/*.whl)[all]"
 
       - name: Run rust format
         run: |
@@ -68,7 +61,9 @@ jobs:
         run: |
           cd python && black .
 
+      # Run from the source tree so mypy checks the freshly generated stubs, not the stale copies inside the installed wheel
       - name: Run mypy
+        working-directory: python/python
         run: |
           mypy -m raphtory
 

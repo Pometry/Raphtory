@@ -35,11 +35,16 @@ jobs:
     name: Run benchmarks
     uses: ./.github/workflows/stress-test.yml
     secrets: inherit
+  call-build-python-wheel:
+    name: Build Linux Python wheel
+    uses: ./.github/workflows/build_python_wheel.yml
+    secrets: inherit
   call-format:
     name: Formatting autofixes
     uses: ./.github/workflows/format.yml
     secrets: inherit
     needs: [
+      call-build-python-wheel,
       call-test-rust-workflow-in-local-repo,
       call-test-python-workflow-in-local-repo,
       #      call-test-ui-in-local-repo,
