@@ -11,7 +11,7 @@ pub struct Stage<G> {
 }
 
 impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
-    pub(crate) fn new(src_graph: G) -> Result<Self, GraphError> {
+    pub(crate) fn new(src_graph: &G) -> Result<Self, GraphError> {
         let handle = src_graph.core_graph().stage()?;
         let graph = G::from(handle.storage().clone());
 

@@ -246,7 +246,7 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
-    pub fn stage(self) -> Result<Stage<Self>, GraphError> {
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
         Stage::new(self)
     }
 

@@ -267,7 +267,7 @@ impl Graph {
         }
     }
 
-    pub fn stage(self) -> Result<Stage<Self>, GraphError> {
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
         Stage::new(self)
     }
 
