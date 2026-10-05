@@ -13,7 +13,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           persist-credentials: 'false'
-      # Only rustfmt is needed here: raphtory itself comes prebuilt from build_python_wheel.yml
+      # Only rustfmt is needed here: raphtory itself comes prebuilt from the Python tests (test_python_workflow.yml)
       - name: Setup nightly rust
         run: |
           rustup toolchain install nightly --allow-downgrade -c rustfmt
@@ -32,11 +32,12 @@ jobs:
       - name: Download raphtory wheel
         uses: actions/download-artifact@v4
         with:
-          name: python-wheel-linux
-          path: wheel
+          name: python-wheel-linux-py3.14
+          # Outside the checkout, so the commit step below does not pick the wheel up
+          path: ${{ runner.temp }}/wheel
       - name: Install raphtory
         run: |
-          python -m pip install "$(ls wheel/*.whl)[all]"
+          python -m pip install "$(ls ${{ runner.temp }}/wheel/*.whl)[all]"
 
       - name: Run rust format
         run: |

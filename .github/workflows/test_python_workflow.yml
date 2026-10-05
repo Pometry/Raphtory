@@ -64,6 +64,23 @@ jobs:
           python -m pip install black
           echo "Installing linting dependencies from cache..."
           python -m pip install maturin mypy networkx pyvis pandas-stubs
-      - name: Run Python tests
+      # Build the wheel ourselves (same flags as tox's .pkg env) so the exact wheel under test can be shared with format.yml
+      - name: Build raphtory wheel
+        shell: bash
+        working-directory: python
         run: |
-          cd python && tox run
+          maturin build --features test --profile build-fast --interpreter python --out dist
+      - name: Run Python tests
+        shell: bash
+        working-directory: python
+        run: |
+          tox run --installpkg "$(ls dist/*.whl)"
+      # Used by format.yml for stub and schema generation; the `test` feature only adds panic-on-drop, not API
+      - name: Upload wheel
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-linux-py3.14
+          path: python/dist/*.whl
+          if-no-files-found: error
+          retention-days: 1
