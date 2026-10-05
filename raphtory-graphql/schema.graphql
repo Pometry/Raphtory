@@ -180,9 +180,21 @@ type Algorithms {
 		"""
 		iterCount: Int,
 		"""
+		Seed for the tie-break draw. If unset, seeded from the OS.
+		"""
+		seed: Int,
+		"""
 		Number of threads to use. Defaults to all available.
 		"""
-		threads: Int
+		threads: Int,
+		"""
+		Relative-improvement threshold used to track convergence. Defaults to 3e-4.
+		"""
+		relTol: Float,
+		"""
+		Stop after this many iterations without progress. Defaults to 10.
+		"""
+		patience: Int
 	): NodeState!
 	"""
 	Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).

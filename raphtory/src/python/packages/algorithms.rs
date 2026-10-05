@@ -59,12 +59,12 @@ use crate::{
     db::{
         api::{
             state::{ops::filter::NO_FILTER, Index, OutputTypedNodeState},
-            view::internal::DynamicGraph,
+            view::internal::{DynamicGraph, NodeList},
         },
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::Graph,
+    prelude::{Graph, NodeStateOps, PropUnwrap},
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -79,6 +79,7 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
+use std::collections::HashMap;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -352,11 +353,12 @@ pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
     v: Option<&Bound<PyAny>>,
 ) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
-    if v.is_some() {
-        let v = process_node_param(v.unwrap())?;
-        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate());
-    }
-    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]).to_output_nodestate())
+    // an omitted `v` (and an empty list) means every node of the graph
+    let v = match v {
+        Some(v) => process_node_param(v)?,
+        None => Vec::new(),
+    };
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -556,23 +558,30 @@ pub fn global_temporal_three_node_motif(
     global_temporal_three_node_motif_rs(&graph.graph, delta, threads)
 }
 
-/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
-/// will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
+/// Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type.
+/// Let `G` be a graph with some nodes of type `A`. Given `delta > 0`, the projection graph `G'` pivoting over type `A` nodes,
+/// will make a connection between nodes `n1` and `n2` (not of type `A`) at time `(t1 + t2)/2`
+/// if they respectively have an edge at time `t1`, `t2` with the same node of type `A` in `G`, and `|t2-t1| < delta`.
+/// Note that the projection does not contain any existing edges between pairs of nodes that are not of type `A`.
+///
+/// Raises an error if the pivot type is not a valid node type. However, it is possible for the pivot
+/// set to be empty without an error if all nodes of the pivot type have been filtered out via view filtering.
 ///
 /// Arguments:
-///     graph (GraphView): A directed raphtory graph
+///     graph (GraphView): A directed raphtory graph. Every node must have a node type.
 ///     delta (int): Time period
 ///     pivot_type (str): node type to pivot over. If a bipartite graph has types `A` and `B`, and `B` is the pivot type, the new graph will consist of type `A` nodes.
 ///
 /// Returns:
 ///     Graph: Projected (unipartite) temporal graph.
+///
 #[pyfunction]
 #[pyo3(signature = (graph, delta, pivot_type))]
 pub fn temporal_bipartite_graph_projection(
     graph: &PyGraphView,
     delta: i64,
-    pivot_type: String,
-) -> Graph {
+    pivot_type: &str,
+) -> Result<Graph, GraphError> {
     temporal_bipartite_rs(&graph.graph, delta, pivot_type)
 }
 
@@ -790,23 +799,37 @@ pub fn betweenness_centrality(
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
 ///     iter_count (int): Number of iterations. Defaults to 20.
-///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
+///     seed (int, optional): Seeds the tie-break draw. Pass the value back to reproduce a run.
+///     init_state (dict[NodeInput, int], optional): initial community assignment. Nodes omitted from the map start unlabelled and take a label from their neighbours.
+///     rel_tol (float, optional): Relative-improvement threshold for the plateau stop. An iteration counts as progress only if its changed-node count drops below best * (1 - rel_tol). Defaults to 3e-4.
+///     patience (int, optional): Stop after this many consecutive iterations without progress. Defaults to 10.
 ///
 /// Returns:
-///     OutputNodeState: NodeState mapping nodes to community id
+///     OutputNodeState: NodeState mapping nodes to community id, and to the share of their votes it won
+///
+/// Raises:
+///     Exception: If a key of `init_state` is not a node in `graph`.
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, iter_count=20, seed=None)]]
+#[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None, rel_tol=None, patience=None)]]
 pub fn label_propagation(
     graph: &PyGraphView,
     iter_count: usize,
-    seed: Option<[u8; 32]>,
-) -> OutputTypedNodeState<'static, DynamicGraph> {
-    label_propagation_rs(&graph.graph, iter_count, seed, None).to_output_nodestate()
-    // match  {
-    //Ok(result) => Ok(result),
-    //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
-    // }
+    seed: Option<u64>,
+    init_state: Option<HashMap<PyNodeRef, usize>>,
+    rel_tol: Option<f64>,
+    patience: Option<usize>,
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
+    let result = label_propagation_rs(
+        &graph.graph,
+        iter_count,
+        seed,
+        None,
+        init_state,
+        rel_tol,
+        patience,
+    )?;
+    Ok(result.to_output_nodestate())
 }
 
 /// Determines which nodes are in the k-core for a given value of k
@@ -834,7 +857,12 @@ pub fn k_core(
     } else {
         Index::from_iter(v_set)
     };
-    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), NO_FILTER, index)
+    Nodes::new_filtered(
+        graph.graph.clone(),
+        graph.graph.clone(),
+        NO_FILTER,
+        NodeList::from(index),
+    )
 }
 
 /// Simulate an SEIR dynamic on the network

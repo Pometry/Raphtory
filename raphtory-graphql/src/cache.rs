@@ -14,7 +14,7 @@ use tracing::{debug, error};
 #[derive(Default, Copy, Clone)]
 pub struct ArcPinned;
 
-fn flush_graph(val: GraphWithVectors) -> () {
+fn flush_graph(val: GraphWithVectors) {
     if let Err(e) = val.persist() {
         error!("Failed to flush graph {}: {e}", val.folder().local_path())
     }
@@ -115,11 +115,8 @@ impl GraphCache {
             .entry_async(key, |_, _| EntryAction::<()>::ReplaceWithGuard)
             .await;
 
-        match res {
-            EntryResult::Replaced(_guard, graph) => {
-                blocking_compute(move || flush_graph(graph)).await;
-            }
-            _ => {}
+        if let EntryResult::Replaced(_guard, graph) = res {
+            blocking_compute(move || flush_graph(graph)).await;
         }
     }
 
