@@ -8,10 +8,9 @@
 //! flips an answer the filter did not give, and the per-node and per-edge
 //! forms of a filter agree with its graph.
 //!
-//! [`FilterAnswer`] is that rule as a trait. The typed combinators
-//! (`AndFilter`, `OrFilter`, `NotFilter`) implement it over their typed legs,
-//! and a filter tree built from data implements it over its own nodes, so the
-//! rule exists once and the tree is data, not the owner of the rule.
+//! [`FilterAnswer`] is that rule as a trait. A predicate answers for its own
+//! entity, and a filter tree implements it over its own nodes, so the rule
+//! exists once and the tree is data, not the owner of the rule.
 
 use crate::{
     db::{

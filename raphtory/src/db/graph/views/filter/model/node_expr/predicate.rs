@@ -29,7 +29,6 @@ use crate::{
                 expr::{DynCreateHistory, ValueTest},
                 filter_operator::{BinaryOp, StringOp},
                 node_expr::{
-                    exprs::{AllExpr, AnyExpr},
                     filters::NotExpr,
                     ops::{gid_for_id_lookup, DomainNodeOp},
                     typing::{require_bool, truthy},
@@ -81,16 +80,6 @@ impl<E> Predicate<E> {
 }
 
 impl<E: CreateOp> Predicate<E> {
-    /// Whether any value of an element-wise yes/no holds.
-    pub fn any(self) -> Predicate<AnyExpr<E>> {
-        Predicate::new(AnyExpr(self.inner))
-    }
-
-    /// Whether every value of an element-wise yes/no holds.
-    pub fn all(self) -> Predicate<AllExpr<E>> {
-        Predicate::new(AllExpr(self.inner))
-    }
-
     fn entity_marker(&self) -> EntityMarker {
         self.inner.entity()
     }

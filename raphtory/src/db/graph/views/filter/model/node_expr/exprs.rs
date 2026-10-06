@@ -36,10 +36,7 @@ use crate::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{
-        properties::prop::{IntoProp, Prop, PropType},
-        GID,
-    },
+    entities::properties::prop::{IntoProp, Prop, PropType},
     Direction,
 };
 use std::sync::Arc;
@@ -75,28 +72,6 @@ impl CreateOp for Id {
         Ok(Arc::new(NodeIdOp {
             id_type: graph.id_type(),
         }))
-    }
-}
-
-impl EntityExpr for GID {
-    fn entity(&self) -> EntityMarker {
-        EntityMarker::Node
-    }
-
-    fn constant(&self) -> Option<Prop> {
-        Some(match self {
-            GID::U64(id) => Prop::U64(*id),
-            GID::Str(name) => Prop::str(name.clone()),
-        })
-    }
-}
-
-impl CreateOp for GID {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(self.clone().into_prop()))))
     }
 }
 

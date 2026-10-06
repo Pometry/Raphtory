@@ -9,11 +9,7 @@ use crate::{
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
-            model::{
-                answer::{all_of, compose, Answer, FilterAnswer, Question},
-                edge_expr::ops::AndEdgeOp,
-                DynFilter,
-            },
+            model::{edge_expr::ops::AndEdgeOp, DynFilter},
             CreateFilter, DynEdgeFilter,
         },
     },
@@ -27,68 +23,9 @@ pub struct AndFilter<L, R> {
     pub(crate) right: R,
 }
 
-/// A leg that leaves a question open is dropped; the rest answer together.
-impl<L: FilterAnswer, R: FilterAnswer> FilterAnswer for AndFilter<L, R> {
-    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
-        all_of(
-            [
-                self.left.answer(question, negated),
-                self.right.answer(question, negated),
-            ],
-            negated,
-        )
-    }
-}
-
 impl<L: Display, R: Display> Display for AndFilter<L, R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({} AND {})", self.left, self.right)
-    }
-}
-
-/// A typed `and` compiles by answering the two questions over its legs.
-impl<L, R> CreateFilter for AndFilter<L, R>
-where
-    L: FilterAnswer + Clone + Send + Sync + 'static,
-    R: FilterAnswer + Clone + Send + Sync + 'static,
-{
-    type FilteredGraph<'graph, G>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type EdgeFilter<'graph, G>
-        = DynEdgeFilter<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_graph_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        compose(&self)?.create_graph_filter(graph)
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        compose(&self)?.create_node_filter(graph)
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        compose(&self)?.create_edge_filter(graph)
     }
 }
 

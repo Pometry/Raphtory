@@ -16,8 +16,6 @@ pub use crate::{
                         SumExpr, TemporalPropExpr, UnaryExpr,
                     },
                     node_filter::{NodeFilter, NodeFilterFactory},
-                    not_filter::NotFilter,
-                    or_filter::OrFilter,
                 },
                 CreateFilter,
             },
@@ -73,7 +71,6 @@ pub mod layered_filter;
 pub mod node_expr;
 pub mod node_filter;
 pub mod node_state_filter;
-pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
@@ -464,16 +461,6 @@ pub fn validate_binary_op(op: &BinaryOp, prop_type: &PropType) -> Result<(), Gra
     Ok(())
 }
 
-/// Reject string operators on non-string properties.
-///
-/// Only fires when the type is known (`!= PropType::Empty`).
-pub fn validate_string_op(prop_type: &PropType) -> Result<(), GraphError> {
-    if !(prop_type.is_unknown() || prop_type.is_str()) {
-        return Err(not_a_string_error(prop_type));
-    }
-    Ok(())
-}
-
 /// A string operator applied to a value that is not a string.
 pub fn not_a_string_error(prop_type: &PropType) -> GraphError {
     GraphError::InvalidFilter(format!(
@@ -518,16 +505,6 @@ pub fn const_mismatch_error(value: &Prop, expected: &PropType) -> GraphError {
         "value {value} of type {} cannot be compared with {expected}",
         value.dtype()
     ))
-}
-
-/// Reject a comparison between two expressions whose types can never be
-/// equal. Either side being unresolved defers to runtime.
-pub fn validate_types_comparable(lhs_pt: &PropType, rhs_pt: &PropType) -> Result<(), GraphError> {
-    if lhs_pt.is_comparable_with(rhs_pt) {
-        Ok(())
-    } else {
-        Err(types_mismatch_error(lhs_pt, rhs_pt))
-    }
 }
 
 /// Two expressions whose types can never be equal.
