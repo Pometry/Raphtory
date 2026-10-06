@@ -467,10 +467,6 @@ pub trait ContextValidation {
 #[derive(Clone, Copy, Debug)]
 pub struct ReadOnly;
 
-pub(crate) fn is_read_only(ctx: &Context<'_>) -> bool {
-    ctx.data::<ReadOnly>().is_ok()
-}
-
 impl<'a> ContextValidation for Context<'a> {
     /// Whether this context is marked [`ReadOnly`].
     fn is_read_only(&self) -> bool {

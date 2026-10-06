@@ -136,7 +136,6 @@ impl AsRef<HashableProp> for Prop {
 #[cfg(test)]
 mod tests {
     use crate::core::entities::properties::prop::{prop_hashable::HashableProp, Prop};
-    use proptest::{arbitrary::any, proptest};
     use std::collections::HashSet;
 
     #[test]
