@@ -302,6 +302,7 @@ impl<E: CreateView> PropertyExpr<E> {
 
 use crate::db::graph::views::filter::model::{
     edge_expr::ops::{EdgeMetaOp, EdgePropOp},
+    expr::Agg,
     node_expr::{CreateOp, EntityExpr},
 };
 use edge_expr::EdgeOp;
@@ -512,18 +513,38 @@ pub fn types_mismatch_error(lhs_pt: &PropType, rhs_pt: &PropType) -> GraphError 
     GraphError::InvalidFilter(format!("type mismatch: lhs is {lhs_pt}, rhs is {rhs_pt}"))
 }
 
-/// Reject aggregators called on a declared scalar expression.
+/// Reject an aggregate the expression's type cannot support.
 ///
-/// Lists and unresolved (`PropType::Empty`) types pass through; anything
-/// declaring a scalar type up front (`IsActiveNode` → `Bool`, `DegreeExpr` →
-/// `U64`) is rejected.
-pub fn require_aggregable(pt: &PropType, op: &str) -> Result<(), GraphError> {
+/// Aggregates collapse a list, so a declared scalar type (`IsActiveNode` ->
+/// `Bool`, `DegreeExpr` -> `U64`) is refused up front. `sum()`, `avg()`,
+/// `min()` and `max()` also need numeric elements, as they always have: a
+/// string or boolean history has no sum and no least value. An unresolved
+/// type (`PropType::Empty`) passes and is checked again once known.
+pub fn require_aggregable(pt: &PropType, agg: Agg, op: &str) -> Result<(), GraphError> {
     match pt {
-        PropType::List(_) | PropType::Empty => Ok(()),
+        PropType::Empty => Ok(()),
+        PropType::List(_) => {
+            let elem = innermost_element(pt);
+            if matches!(agg, Agg::Sum | Agg::Avg | Agg::Min | Agg::Max)
+                && !(elem.is_numeric() || elem.is_unknown())
+            {
+                return Err(GraphError::InvalidFilter(format!(
+                    "{op} requires numeric values, but the elements are {elem}"
+                )));
+            }
+            Ok(())
+        }
         _ => Err(GraphError::InvalidFilter(format!(
-            "{} is not valid on a scalar expression of type {}",
-            op, pt
+            "{op} is not valid on a scalar expression of type {pt}"
         ))),
+    }
+}
+
+/// The element type under every list level of `pt`.
+fn innermost_element(pt: &PropType) -> &PropType {
+    match pt {
+        PropType::List(inner) => innermost_element(inner),
+        other => other,
     }
 }
 

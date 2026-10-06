@@ -420,12 +420,16 @@ fn aggregate_node_op<'g, E: CreateOp, G: GraphView + 'g>(
 ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
     if let Some(history) = inner.history() {
         let history = history.create_node_history(graph.into_dyn_graph_arc())?;
-        require_aggregable(&history.history_type(), name)?;
+        require_aggregable(&history.history_type(), agg, name)?;
         return Ok(Arc::new(StreamedAggNodeOp::new(history, agg)));
     }
     aggregates_a_list(agg)?;
     let op = inner.create_node_op(graph)?;
-    require_aggregable(&resolved_prop_type(inner.prop_type(), op.prop_type()), name)?;
+    require_aggregable(
+        &resolved_prop_type(inner.prop_type(), op.prop_type()),
+        agg,
+        name,
+    )?;
     Ok(list_op(op))
 }
 
@@ -441,12 +445,16 @@ fn aggregate_edge_op<'g, E: CreateOp, G: GraphView + 'g>(
 ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
     if let Some(history) = inner.history() {
         let history = history.create_edge_history(graph.into_dyn_graph_arc())?;
-        require_aggregable(&history.history_type(), name)?;
+        require_aggregable(&history.history_type(), agg, name)?;
         return Ok(Arc::new(StreamedAggEdgeOp::new(history, agg)));
     }
     aggregates_a_list(agg)?;
     let op = inner.create_edge_op(graph)?;
-    require_aggregable(&resolved_prop_type(inner.prop_type(), op.prop_type()), name)?;
+    require_aggregable(
+        &resolved_prop_type(inner.prop_type(), op.prop_type()),
+        agg,
+        name,
+    )?;
     Ok(list_op(op))
 }
 

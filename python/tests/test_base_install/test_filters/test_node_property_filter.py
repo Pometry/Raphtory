@@ -1140,6 +1140,35 @@ def test_filter_nodes_for_temporal_property_ne():
     return check
 
 
+def init_text_and_flag_history(graph):
+    graph.add_node(1, "n", {"text": "a", "flag": True, "texts": ["a", "b"]})
+    graph.add_node(2, "n", {"text": "b", "flag": False})
+    return graph
+
+
+@with_variants(init_text_and_flag_history)
+def test_numeric_aggregates_need_numeric_values():
+    def check(graph):
+        cases = [
+            (filter.Node.property("text").temporal().sum().is_some(), "sum", "Str"),
+            (filter.Node.property("text").temporal().avg() > 0.5, "avg", "Str"),
+            (filter.Node.property("flag").temporal().sum() > 0, "sum", "Bool"),
+            (filter.Node.property("flag").temporal().avg() > 0.5, "avg", "Bool"),
+            (filter.Node.property("texts").sum() == "ab", "sum", "Str"),
+            (filter.Node.property("text").temporal().min() == "a", "min", "Str"),
+            (filter.Node.property("flag").temporal().max() == True, "max", "Bool"),
+            (filter.Node.property("texts").max() == "b", "max", "Str"),
+        ]
+        for filter_expr, agg, elem in cases:
+            with pytest.raises(
+                Exception,
+                match=rf"{agg}\(\) requires numeric values, but the elements are {elem}",
+            ):
+                graph.filter(filter_expr).nodes.id
+
+    return check
+
+
 @with_variants(create_test_graph)
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):

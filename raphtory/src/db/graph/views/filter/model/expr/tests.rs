@@ -7,8 +7,8 @@ use crate::{
                 edge_filter::EdgeFilter,
                 node_expr::Compiled,
                 node_filter::{NodeFilter, NodeFilterFactory},
-                ComposableFilter, DynCreateFilter, EdgeViewFilterOps, EntityExprFilterOps,
-                PropertyExprFactory, ViewWrapOps,
+                ComposableFilter, DynCreateFilter, EdgeViewFilterOps, EntityAggOps,
+                EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -450,6 +450,54 @@ fn trees_round_trip_through_json_with_the_term_as_the_key() {
     assert!(!json.contains("term"), "{json}");
     let back: FilterExpr = serde_json::from_str(&json).unwrap();
     assert_eq!(back, f);
+}
+
+#[test]
+fn numeric_aggregates_refuse_values_that_are_not_numbers() {
+    let g = Graph::new();
+    g.add_node(
+        1,
+        "n",
+        [("text", Prop::str("a")), ("flag", Prop::Bool(true))],
+        None,
+        None,
+    )
+    .unwrap();
+    g.add_node(
+        2,
+        "n",
+        [("text", Prop::str("b")), ("flag", Prop::Bool(false))],
+        None,
+        None,
+    )
+    .unwrap();
+    let text_sum = g
+        .filter(NodeFilter.property("text").temporal().sum().is_some())
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(text_sum.contains("sum() requires numeric values, but the elements are Str"));
+    let flag_avg = g
+        .filter(NodeFilter.property("flag").temporal().avg().gt(0.5))
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(flag_avg.contains("avg() requires numeric values, but the elements are Bool"));
+    let text_min = g
+        .filter(NodeFilter.property("text").temporal().min().eq("a"))
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(text_min.contains("min() requires numeric values, but the elements are Str"));
+    // a numeric history still sums
+    g.add_node(1, "m", [("n", Prop::I64(2))], None, None)
+        .unwrap();
+    g.add_node(2, "m", [("n", Prop::I64(3))], None, None)
+        .unwrap();
+    let summed = g
+        .filter(NodeFilter.property("n").temporal().sum().eq(5i64))
+        .unwrap();
+    assert_eq!(summed.nodes().name().collect::<Vec<_>>(), vec!["m"]);
 }
 
 #[test]
