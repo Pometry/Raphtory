@@ -18,7 +18,7 @@ use super::{
     predicate::{IndexQuery, IndexTerm, Pushdown},
     typing::{
         cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type, require_bool,
-        set_kernel, set_shape, str_kernel, string_shape, SetMembers,
+        set_kernel, set_shape, static_comparison_type, str_kernel, string_shape, SetMembers,
     },
     CreateOp, EntityExpr,
 };
@@ -80,6 +80,12 @@ impl<L, R> BinaryCmpExpr<L, R> {
 impl<L: EntityExpr, R: EntityExpr> EntityExpr for BinaryCmpExpr<L, R> {
     fn entity(&self) -> EntityMarker {
         self.entity
+    }
+
+    /// One yes/no, or one per element, when both sides' types are known
+    /// before the filter meets a graph.
+    fn prop_type(&self) -> PropType {
+        static_comparison_type(&self.op, &self.left.prop_type(), &self.right.prop_type())
     }
 
     fn nullable(&self) -> bool {

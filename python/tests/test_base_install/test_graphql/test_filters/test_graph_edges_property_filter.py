@@ -76,7 +76,11 @@ def test_graph_edge_property_filter_equal_type_error(graph):
       }
     }
     """
-    expected_error_message = "Invalid filter: a filter needs a yes/no answer, but this comparison gives one answer per element (List<Bool>); add any() or all() to say which elements must match"
+    expected_error_message = (
+        "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+        "temporal property gives one per element (List<Bool>); add any() or all() "
+        "to say whether any or every element must match"
+    )
     run_graphql_error_test(query, expected_error_message, graph)
 
 

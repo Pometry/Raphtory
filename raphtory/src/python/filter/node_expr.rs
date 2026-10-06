@@ -5,7 +5,10 @@ use crate::{
             Leaf, NodeExpr, NodeLeaf, OpaqueFilter, ViewOp,
         },
         filter_operator::{BinaryOp, StringOp},
-        node_expr::DynCreateOp,
+        node_expr::{
+            typing::{is_known, qualified_type},
+            DynCreateOp,
+        },
         node_state_filter::NodeStateBoolColOp,
         validate_const_comparable,
     },
@@ -187,6 +190,18 @@ fn check_nullable(lhs: &Typed, op: &str) -> PyResult<()> {
         return Err(PyTypeError::new_err(format!(
             "{op}() is not valid on an expression that always has a value"
         )));
+    }
+    Ok(())
+}
+
+/// `any()`/`all()` only follow a comparison that gives one yes/no per
+/// element. When the expression's type is already known and is not that, the
+/// qualifier is refused where it is written; otherwise it is checked when the
+/// filter is applied.
+fn check_qualifiable(inner: &Typed) -> PyResult<()> {
+    let pt = static_type(inner)?;
+    if is_known(&pt) {
+        qualified_type(&pt).map_err(|e| PyTypeError::new_err(e.to_string()))?;
     }
     Ok(())
 }
@@ -485,8 +500,11 @@ impl PyExpr {
     ///
     /// Returns:
     ///     filter.Expr:
-    fn any(&self) -> PyExpr {
-        PyExpr(map_typed!(self.0.clone(), |e| Expr::Any(Box::new(e))))
+    fn any(&self) -> PyResult<PyExpr> {
+        check_qualifiable(&self.0)?;
+        Ok(PyExpr(map_typed!(self.0.clone(), |e| Expr::Any(Box::new(
+            e
+        )))))
     }
 
     /// Requires that **all** elements match. Follows a comparison against a
@@ -495,8 +513,11 @@ impl PyExpr {
     ///
     /// Returns:
     ///     filter.Expr:
-    fn all(&self) -> PyExpr {
-        PyExpr(map_typed!(self.0.clone(), |e| Expr::All(Box::new(e))))
+    fn all(&self) -> PyResult<PyExpr> {
+        check_qualifiable(&self.0)?;
+        Ok(PyExpr(map_typed!(self.0.clone(), |e| Expr::All(Box::new(
+            e
+        )))))
     }
 
     /// Sums the elements when the value is numeric and list-like.

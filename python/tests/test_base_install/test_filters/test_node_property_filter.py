@@ -4,6 +4,24 @@ from utils import with_variants
 import pytest
 import re
 
+# The whole refusal of a filter that compares a list-like value (a temporal
+# history, or per-snapshot sums) without saying whether any or every element
+# must match.
+ONE_ANSWER_PER_ELEMENT = "^" + re.escape(
+    "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+    "temporal property gives one per element (List<Bool>); add any() or all() "
+    "to say whether any or every element must match"
+) + "$"
+
+# The whole refusal of any()/all() written after a test that gives a single
+# yes/no answer. A property's type is only known once the filter meets a
+# graph, so these are refused when the filter is applied.
+QUALIFIER_ON_ONE_ANSWER = "^" + re.escape(
+    "Invalid filter: any()/all() need one yes/no answer per element, which "
+    "comparing a list or temporal property gives; this expression gives a "
+    "single yes/no answer, so drop the any()/all()"
+) + "$"
+
 
 @with_variants(init_graph)
 def test_filter_nodes_for_property_eq():
@@ -808,7 +826,7 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
         # Presence is a whole-value question; a qualifier has nothing to
         # collapse on a single yes/no.
         filter_expr = (filter.Node.property("prop8").is_some()).any()
-        with pytest.raises(Exception, match=r"any\(\)/all\(\) collapse"):
+        with pytest.raises(Exception, match=QUALIFIER_ON_ONE_ANSWER):
             graph.filter(filter_expr).nodes.id
         filter_expr = filter.Node.property("prop8").is_some()
         assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
@@ -822,14 +840,14 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
         filter_expr = (filter.Node.property("prop8").len() > 0).all()
         with pytest.raises(
             Exception,
-            match=r"any\(\)/all\(\) collapse",
+            match=QUALIFIER_ON_ONE_ANSWER,
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = (filter.Node.property("prop8").sum() > 0).any()
         with pytest.raises(
             Exception,
-            match=r"any\(\)/all\(\) collapse",
+            match=QUALIFIER_ON_ONE_ANSWER,
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1173,10 +1191,9 @@ def test_numeric_aggregates_need_numeric_values():
 def test_filter_nodes_for_temporal_property_fails():
     def check(graph):
         filter_expr = filter.Node.property("prop1").temporal() == 60
-        msg = r"one answer per element"
         with pytest.raises(
             Exception,
-            match=msg,
+            match=ONE_ANSWER_PER_ELEMENT,
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1227,7 +1244,7 @@ def test_filter_nodes_window_out_of_range_is_empty():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|one answer per element",
+            match=ONE_ANSWER_PER_ELEMENT,
         ):
             graph.filter(expr).nodes.id
 
@@ -1287,7 +1304,7 @@ def test_filter_nodes_after():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|one answer per element",
+            match=ONE_ANSWER_PER_ELEMENT,
         ):
             graph.filter(expr).nodes.id
 
@@ -1308,7 +1325,7 @@ def test_filter_nodes_latest():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|one answer per element",
+            match=ONE_ANSWER_PER_ELEMENT,
         ):
             graph.filter(expr).nodes.id
 
@@ -1333,7 +1350,7 @@ def test_filter_nodes_snapshot_at():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|one answer per element",
+            match=ONE_ANSWER_PER_ELEMENT,
         ):
             graph.filter(expr).nodes.id
 
@@ -1354,7 +1371,7 @@ def test_filter_nodes_snapshot_latest():
         # error rather than a silent no-match.
         with pytest.raises(
             Exception,
-            match=r"not valid for list properties|one answer per element",
+            match=ONE_ANSWER_PER_ELEMENT,
         ):
             graph.filter(expr).nodes.id
 

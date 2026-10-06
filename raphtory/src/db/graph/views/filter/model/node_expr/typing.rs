@@ -127,17 +127,52 @@ fn is_elementwise_bool(pt: &PropType) -> bool {
     }
 }
 
+/// What `any()`/`all()` take, the opening of every refusal of a misplaced one.
+const QUALIFIER_NEEDS: &str = "any()/all() need one yes/no answer per element, which comparing \
+                               a list or temporal property gives";
+
 /// The type `any()`/`all()` produce over `inner`: one list level fewer, and
-/// only over an element-wise yes/no result.
+/// only over an element-wise yes/no result. A refusal says what the
+/// expression gives instead and what to write.
 pub(crate) fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
     match inner {
         PropType::List(elem) if matches!(**elem, PropType::Bool) || is_elementwise_bool(elem) => {
             Ok((**elem).clone())
         }
-        other => Err(invalid(format!(
-            "any()/all() collapse an element-wise comparison (a list of yes/no answers), \
-             but this expression has type {other}"
+        PropType::Bool => Err(invalid(format!(
+            "{QUALIFIER_NEEDS}; this expression gives a single yes/no answer, so drop the \
+             any()/all()"
         ))),
+        PropType::List(_) => Err(invalid(format!(
+            "{QUALIFIER_NEEDS}; this expression gives the list itself ({inner}), so compare it \
+             first and put any()/all() after the comparison"
+        ))),
+        other => Err(invalid(format!(
+            "{QUALIFIER_NEEDS}; this expression gives a single {other}, so compare it without \
+             any()/all()"
+        ))),
+    }
+}
+
+/// The result type of comparing `lhs` with `rhs`, when both are known before
+/// the filter meets a graph; `Empty` when either is not, or when the
+/// comparison is refused (the refusal is reported when the filter is applied).
+pub(crate) fn static_comparison_type(op: &BinaryOp, lhs: &PropType, rhs: &PropType) -> PropType {
+    if !is_known(lhs) || !is_known(rhs) {
+        return PropType::Empty;
+    }
+    comparison_shape(op, lhs, rhs)
+        .map(|(out, _)| out)
+        .unwrap_or(PropType::Empty)
+}
+
+/// Whether `pt` is fully known: no `Empty` anywhere inside it.
+pub(crate) fn is_known(pt: &PropType) -> bool {
+    match pt {
+        PropType::Empty => false,
+        PropType::List(inner) => is_known(inner),
+        PropType::Map(fields) => fields.values().all(is_known),
+        _ => true,
     }
 }
 
@@ -145,8 +180,9 @@ pub(crate) fn require_bool(pt: &PropType, what: &str) -> Result<(), GraphError> 
     match pt {
         PropType::Bool => Ok(()),
         elementwise if is_elementwise_bool(elementwise) => Err(invalid(format!(
-            "{what} needs a yes/no answer, but this comparison gives one answer per \
-             element ({pt}); add any() or all() to say which elements must match"
+            "{what} needs one yes/no answer, but comparing a list or temporal property gives \
+             one per element ({pt}); add any() or all() to say whether any or every element \
+             must match"
         ))),
         other => Err(invalid(format!(
             "{what} needs a yes/no answer, but this expression has type {other}"
@@ -168,22 +204,81 @@ mod shape_tests {
             qualified_type(&list(list(PropType::Bool))).unwrap(),
             list(PropType::Bool)
         );
+        let needs = "Invalid filter: any()/all() need one yes/no answer per element, which \
+                     comparing a list or temporal property gives; ";
+        let refused = |pt: PropType| qualified_type(&pt).unwrap_err().to_string();
+        assert_eq!(
+            refused(PropType::Bool),
+            format!("{needs}this expression gives a single yes/no answer, so drop the any()/all()")
+        );
         // A list whose innermost type is not a yes/no is not an element-wise answer.
-        assert!(qualified_type(&list(list(PropType::Str))).is_err());
-        assert!(qualified_type(&list(PropType::I64)).is_err());
-        assert!(qualified_type(&PropType::Bool).is_err());
+        assert_eq!(
+            refused(list(list(PropType::Str))),
+            format!(
+                "{needs}this expression gives the list itself (List<List<Str>>), so compare it \
+                 first and put any()/all() after the comparison"
+            )
+        );
+        assert_eq!(
+            refused(list(PropType::I64)),
+            format!(
+                "{needs}this expression gives the list itself (List<I64>), so compare it first \
+                 and put any()/all() after the comparison"
+            )
+        );
+        assert_eq!(
+            refused(PropType::I64),
+            format!("{needs}this expression gives a single I64, so compare it without any()/all()")
+        );
     }
 
     #[test]
     fn a_filter_needs_one_yes_no_and_says_when_to_add_a_qualifier() {
         assert!(require_bool(&PropType::Bool, "a filter").is_ok());
-        let per_element = require_bool(&list(PropType::Bool), "a filter").unwrap_err();
-        assert!(per_element.to_string().contains("add any() or all()"));
-        let nested = require_bool(&list(list(PropType::Bool)), "a filter").unwrap_err();
-        assert!(nested.to_string().contains("add any() or all()"));
+        let refused = |pt: PropType| require_bool(&pt, "a filter").unwrap_err().to_string();
+        let per_element = |pt: &str| {
+            format!(
+                "Invalid filter: a filter needs one yes/no answer, but comparing a list or \
+                 temporal property gives one per element ({pt}); add any() or all() to say \
+                 whether any or every element must match"
+            )
+        };
+        assert_eq!(refused(list(PropType::Bool)), per_element("List<Bool>"));
+        assert_eq!(
+            refused(list(list(PropType::Bool))),
+            per_element("List<List<Bool>>")
+        );
         // A list of strings is not an element-wise yes/no, so the hint does not apply.
-        let strings = require_bool(&list(list(PropType::Str)), "a filter").unwrap_err();
-        assert!(!strings.to_string().contains("add any() or all()"));
+        assert_eq!(
+            refused(list(list(PropType::Str))),
+            "Invalid filter: a filter needs a yes/no answer, but this expression has type \
+             List<List<Str>>"
+        );
+    }
+
+    #[test]
+    fn a_comparison_has_a_static_type_only_when_both_sides_are_known() {
+        assert_eq!(
+            static_comparison_type(&BinaryOp::Eq, &PropType::Str, &PropType::Str),
+            PropType::Bool
+        );
+        assert_eq!(
+            static_comparison_type(&BinaryOp::Eq, &list(PropType::I64), &PropType::I64),
+            list(PropType::Bool)
+        );
+        assert_eq!(
+            static_comparison_type(&BinaryOp::Eq, &PropType::Empty, &PropType::I64),
+            PropType::Empty
+        );
+        assert_eq!(
+            static_comparison_type(&BinaryOp::Eq, &list(PropType::Empty), &PropType::I64),
+            PropType::Empty
+        );
+        // A refused comparison is left to be reported when the filter is applied.
+        assert_eq!(
+            static_comparison_type(&BinaryOp::Eq, &PropType::Str, &PropType::I64),
+            PropType::Empty
+        );
     }
 }
 

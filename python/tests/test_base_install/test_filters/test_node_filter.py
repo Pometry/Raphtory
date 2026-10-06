@@ -7,6 +7,7 @@ from filters_setup import (
 )
 from utils import with_variants
 import pytest
+import re
 
 
 def sort_vids(vids):
@@ -972,16 +973,18 @@ def test_filter_nodes_by_column():
     assert result_ids == expected_ids
 
 
-@with_variants(init_graph)
 def test_filter_nodes_for_node_name_all_is_invalid():
-    def check(graph):
-        # The expression builds (the python surface is one Expr type); applying
-        # it rejects the qualifier on a scalar field.
-        filter_expr = (filter.Node.name() == "N1").all()
-        with pytest.raises(Exception, match=r"any\(\)/all\(\) collapse"):
-            graph.filter(filter_expr).nodes.id
-
-    return check
+    # A name is a single string, so comparing it gives one yes/no answer and
+    # all() is refused where it is written, before any graph is involved.
+    msg = (
+        "Invalid filter: any()/all() need one yes/no answer per element, which "
+        "comparing a list or temporal property gives; this expression gives a "
+        "single yes/no answer, so drop the any()/all()"
+    )
+    with pytest.raises(TypeError, match="^" + re.escape(msg) + "$"):
+        (filter.Node.name() == "N1").all()
+    with pytest.raises(TypeError, match="^" + re.escape(msg) + "$"):
+        (filter.Node.name() == "N1").any()
 
 
 @with_variants(init_graph)

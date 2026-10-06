@@ -6,6 +6,14 @@ import re
 import pytest
 from datetime import datetime
 
+# The whole refusal of a test on a list property that does not say whether any
+# or every element must match.
+ONE_ANSWER_PER_ELEMENT = (
+    "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+    "temporal property gives one per element (List<Bool>); add any() or all() "
+    "to say whether any or every element must match"
+)
+
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_graph(GraphClass):
@@ -513,15 +521,15 @@ def test_all_property_types(GraphClass):
         # Lists (tags) — odd comparisons
         (
             lambda: filter.ExplodedEdge.property("tags").contains("team_a"),
-            "one answer per element",
+            ONE_ANSWER_PER_ELEMENT,
         ),
         (
             lambda: filter.ExplodedEdge.property("tags").not_contains("team_z"),
-            "one answer per element",
+            ONE_ANSWER_PER_ELEMENT,
         ),
         (
             lambda: filter.ExplodedEdge.property("tags").fuzzy_search("blah", 2, False),
-            "one answer per element",
+            ONE_ANSWER_PER_ELEMENT,
         ),
         (
             lambda: filter.ExplodedEdge.property("tags") < ["x"],
