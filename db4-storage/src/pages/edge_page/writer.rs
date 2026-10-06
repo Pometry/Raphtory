@@ -1,18 +1,18 @@
 use crate::{
+    LocalPOS,
     api::edges::EdgeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, resolve_pos},
     segments::edge::segment::MemEdgeSegment,
     wal::LSN,
-    LocalPOS,
 };
 use drop_logging::drop_error;
 use raphtory_api::core::entities::{
+    EID, LayerId, VID,
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
         prop::{AsPropRef, Prop},
     },
-    LayerId, EID, VID,
 };
 use raphtory_core::storage::timeindex::AsTime;
 use std::ops::DerefMut;

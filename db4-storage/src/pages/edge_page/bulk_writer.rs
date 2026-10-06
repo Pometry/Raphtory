@@ -1,10 +1,10 @@
 use crate::{
-    api::edges::EdgeSegmentOps, pages::edge_page::writer::EdgeWriter,
-    segments::edge::segment::MemEdgeSegment, LocalPOS,
+    LocalPOS, api::edges::EdgeSegmentOps, pages::edge_page::writer::EdgeWriter,
+    segments::edge::segment::MemEdgeSegment,
 };
 use raphtory_api::core::entities::{
+    EID, LayerId, VID,
     properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
-    LayerId, EID, VID,
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
 use std::ops::DerefMut;

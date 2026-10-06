@@ -1,19 +1,19 @@
 use super::properties::{PropEntry, Properties};
-use crate::{error::StorageError, LocalPOS};
+use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
     entities::{
+        LayerId,
         properties::{
             meta::Meta,
             prop::{AsPropRef, Prop},
         },
-        LayerId,
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
-        properties::{tcell::TCell, tprop::TPropCell},
         ELID,
+        properties::{tcell::TCell, tprop::TPropCell},
     },
     storage::timeindex::EventTime,
 };
