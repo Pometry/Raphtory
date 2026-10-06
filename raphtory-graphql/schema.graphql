@@ -2470,17 +2470,6 @@ type Graph {
 		"""
 		expr: FilterExpr
 	): Graph!
-	"""
-	Apply a list of view operations in the given order and return the
-	resulting graph view. Lets callers compose multiple view transforms
-	(window, layer, filter, snapshot, ...) in a single call.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant applied to the running result.
-		"""
-		views: [GraphViewCollection!]!
-	): Graph!
 }
 
 type GraphSchema {
@@ -2497,85 +2486,6 @@ enum GraphType {
 	Event.
 	"""
 	EVENT
-}
-
-"""
-A view operation on a graph, applied in list order; graph-level ops such as
-`subgraph` and `valid` live here only.
-"""
-input GraphViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
-	defaultLayer: Boolean
-	"""
-	List of included layers.
-	"""
-	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
-	excludeLayers: [String!]
-	"""
-	Single excluded layer.
-	"""
-	excludeLayer: String
-	"""
-	Subgraph nodes.
-	"""
-	subgraph: [NodeId!]
-	"""
-	Subgraph node types.
-	"""
-	subgraphNodeTypes: [String!]
-	"""
-	List of excluded nodes.
-	"""
-	excludeNodes: [NodeId!]
-	"""
-	Valid state.
-	"""
-	valid: Boolean
-	"""
-	Window between a start and end time.
-	"""
-	window: Window
-	"""
-	View at a specified time.
-	"""
-	at: TimeInput
-	"""
-	View at the latest time.
-	"""
-	latest: Boolean
-	"""
-	Snapshot at specified time.
-	"""
-	snapshotAt: TimeInput
-	"""
-	Snapshot at latest time.
-	"""
-	snapshotLatest: Boolean
-	"""
-	View before a specified time (end exclusive).
-	"""
-	before: TimeInput
-	"""
-	View after a specified time (start exclusive).
-	"""
-	after: TimeInput
-	"""
-	Set the window start to a specified time.
-	"""
-	shrinkStart: TimeInput
-	"""
-	Set the window end to a specified time.
-	"""
-	shrinkEnd: TimeInput
-	"""
-	A filter expression; the entity it tests is written in the expression.
-	"""
-	filter: FilterExpr
 }
 
 """
@@ -7304,6 +7214,25 @@ input ViewOp @oneOf {
 	ever narrows.
 	"""
 	shrinkEnd: TimeInput
+	"""
+	Every node except the named ones, with their edges; an id the view does
+	not hold changes nothing.
+	"""
+	excludeNodes: [NodeId!]
+	"""
+	Only the named nodes and the edges between them; an id the view does
+	not hold is skipped.
+	"""
+	subgraph: [NodeId!]
+	"""
+	Only the nodes of the named types and the edges between them.
+	"""
+	subgraphNodeTypes: [String!]
+	"""
+	Only the edges that are valid in the view (on a persistent graph, whose
+	last update is an addition); written `valid: true`.
+	"""
+	valid: Boolean
 }
 
 input Window {
@@ -7350,4 +7279,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

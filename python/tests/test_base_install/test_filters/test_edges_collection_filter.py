@@ -39,14 +39,18 @@ VIEWS = TIME_VIEWS | {
     "default_layer",
     "exclude_layer",
     "exclude_layers2",
+    "exclude_nodes",
+    "subgraph",
+    "subgraph_node_types",
+    "valid",
 }
 NODE_KIND = {"node_prop", "node_name"}
 
 
 def _init(graph):
-    graph.add_node(5, "a", {"score": 10})
-    graph.add_node(10, "b", {"score": 20})
-    graph.add_node(15, "c", {"score": 30})
+    graph.add_node(5, "a", {"score": 10}, node_type="person")
+    graph.add_node(10, "b", {"score": 20}, node_type="person")
+    graph.add_node(15, "c", {"score": 30}, node_type="org")
     graph.add_edge(5, "a", "b", {"weight": 3}, layer="work")
     graph.add_edge(10, "b", "c", {"weight": 8}, layer="work")
     graph.add_edge(15, "c", "a", {"weight": 20}, layer="friends")
@@ -77,6 +81,10 @@ def _atoms():
         "shrink_start": Graph.shrink_start(8),
         "shrink_end": Graph.shrink_end(12),
         "shrunk_window": Graph.window(3, 20).shrink_start(8).shrink_end(12),
+        "exclude_nodes": Graph.exclude_nodes(["c", "nope"]),
+        "subgraph": Graph.subgraph(["a", "b", "d"]),
+        "subgraph_node_types": Graph.subgraph_node_types(["person"]),
+        "valid": Graph.valid(),
         "is_valid": Edge.is_valid(),
         "is_deleted": Edge.is_deleted(),
         "is_active": Edge.is_active(),
@@ -126,6 +134,10 @@ def _view_references(graph):
         "shrink_start": graph.shrink_start(8),
         "shrink_end": graph.shrink_end(12),
         "shrunk_window": graph.window(3, 20).shrink_start(8).shrink_end(12),
+        "exclude_nodes": graph.exclude_nodes(["c", "nope"]),
+        "subgraph": graph.subgraph(["a", "b", "d"]),
+        "subgraph_node_types": graph.subgraph_node_types(["person"]),
+        "valid": graph.valid(),
     }
 
 

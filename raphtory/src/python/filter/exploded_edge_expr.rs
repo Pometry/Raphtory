@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use pyo3::{pyclass, pymethods, PyResult, Python};
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 /// An exploded-edge filter scoped to a view.
 ///
@@ -228,6 +228,54 @@ impl PyExplodedEdgeFilter {
     ///     filter.ExplodedEdgeFilter:
     fn shrink_end(&self, end: EventTime) -> PyExplodedEdgeFilter {
         self.with_view(ViewOp::ShrinkEnd(end))
+    }
+
+    /// Reads through a view of every node except the given ones, with their edges.
+    ///
+    /// An id the view does not hold changes nothing.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    fn exclude_nodes(&self, nodes: FromIterable<GID>) -> PyExplodedEdgeFilter {
+        self.with_view(ViewOp::ExcludeNodes(nodes.into()))
+    }
+
+    /// Reads through a view of the given nodes and the edges between them.
+    ///
+    /// An id the view does not hold is skipped.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    fn subgraph(&self, nodes: FromIterable<GID>) -> PyExplodedEdgeFilter {
+        self.with_view(ViewOp::Subgraph(nodes.into()))
+    }
+
+    /// Reads through a view of the nodes of the given types and the edges between them.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): Node types.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    fn subgraph_node_types(&self, node_types: FromIterable<String>) -> PyExplodedEdgeFilter {
+        self.with_view(ViewOp::SubgraphNodeTypes(node_types.into()))
+    }
+
+    /// Reads through a view of the edges that are valid in the current view.
+    ///
+    /// On a persistent graph an edge is valid when its last update is an addition;
+    /// on an event graph when it has at least one addition. Nodes are untouched.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    fn valid(&self) -> PyExplodedEdgeFilter {
+        self.with_view(ViewOp::Valid)
     }
 
     /// Matches exploded edges that have at least one event in the current view.
@@ -472,6 +520,58 @@ impl PyExplodedEdge {
     #[staticmethod]
     fn shrink_end(end: EventTime) -> PyExplodedEdgeFilter {
         PyExplodedEdgeFilter::root().shrink_end(end)
+    }
+
+    /// Reads through a view of every node except the given ones, with their edges.
+    ///
+    /// An id the view does not hold changes nothing.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    #[staticmethod]
+    fn exclude_nodes(nodes: FromIterable<GID>) -> PyExplodedEdgeFilter {
+        PyExplodedEdgeFilter::root().exclude_nodes(nodes)
+    }
+
+    /// Reads through a view of the given nodes and the edges between them.
+    ///
+    /// An id the view does not hold is skipped.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    #[staticmethod]
+    fn subgraph(nodes: FromIterable<GID>) -> PyExplodedEdgeFilter {
+        PyExplodedEdgeFilter::root().subgraph(nodes)
+    }
+
+    /// Reads through a view of the nodes of the given types and the edges between them.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): Node types.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    #[staticmethod]
+    fn subgraph_node_types(node_types: FromIterable<String>) -> PyExplodedEdgeFilter {
+        PyExplodedEdgeFilter::root().subgraph_node_types(node_types)
+    }
+
+    /// Reads through a view of the edges that are valid in the current view.
+    ///
+    /// On a persistent graph an edge is valid when its last update is an addition;
+    /// on an event graph when it has at least one addition. Nodes are untouched.
+    ///
+    /// Returns:
+    ///     filter.ExplodedEdgeFilter:
+    #[staticmethod]
+    fn valid() -> PyExplodedEdgeFilter {
+        PyExplodedEdgeFilter::root().valid()
     }
 
     /// Matches exploded edges that have at least one event in the current view.

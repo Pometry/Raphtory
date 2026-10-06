@@ -7,7 +7,7 @@ use crate::{
     core::{entities::LayerIds, utils::iter::GenLockedIter},
     db::{
         api::view::{
-            internal::{EdgeTimeSemanticsOps, GraphView},
+            internal::{EdgeTimeSemanticsOps, GraphView, InnerFilterOps},
             BoxedLIter, IntoDynBoxed,
         },
         graph::views::layer_graph::LayeredGraph,
@@ -46,6 +46,25 @@ impl EdgeAt {
             EdgeAt::Layer(layer) | EdgeAt::Exploded(layer, _) => graph.layer_ids().contains(&layer),
         }
     }
+}
+
+/// `at` when the view shows that part of the edge apart from time, `None`
+/// when a node the view leaves out at either end, or an edge filter such as
+/// `valid()`, hides it. The reads below answer only through layers and time,
+/// which is all an edge already taken from the view needs; a filter term read
+/// through its own view asks this first and answers a hidden edge as it
+/// answers one outside the view's layers.
+pub(crate) fn shown<G: GraphView>(graph: &G, edge: EdgeEntryRef, at: EdgeAt) -> Option<EdgeAt> {
+    if !graph.filtered_inner() {
+        return Some(at);
+    }
+    let shown = match at {
+        EdgeAt::Whole => graph.filter_edge_inner(edge),
+        EdgeAt::Layer(layer) | EdgeAt::Exploded(layer, _) => {
+            graph.filter_edge_layer_inner(edge, layer)
+        }
+    };
+    shown.then_some(at)
 }
 
 /// The latest value of temporal property `id`.

@@ -10,7 +10,7 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyString};
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
+    entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
     Direction,
 };
@@ -406,6 +406,17 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
                 }
                 ViewOp::ShrinkStart(t) => format!(".shrink_start({})", time(t)),
                 ViewOp::ShrinkEnd(t) => format!(".shrink_end({})", time(t)),
+                ViewOp::ExcludeNodes(ids) => format!(".exclude_nodes([{}])", node_ids(py, ids)?),
+                ViewOp::Subgraph(ids) => format!(".subgraph([{}])", node_ids(py, ids)?),
+                ViewOp::SubgraphNodeTypes(types) => format!(
+                    ".subgraph_node_types([{}])",
+                    types
+                        .iter()
+                        .map(|t| py_str(py, t))
+                        .collect::<PyResult<Vec<_>>>()?
+                        .join(", ")
+                ),
+                ViewOp::Valid => ".valid()".to_owned(),
             })
         })
         .collect::<PyResult<Vec<_>>>()
@@ -426,6 +437,18 @@ fn layer_call(py: Python<'_>, one: &str, many: &str, names: &[String]) -> PyResu
                 .join(", ")
         ),
     })
+}
+
+/// Node ids as Python literals: a name quoted, an integer id bare.
+fn node_ids(py: Python<'_>, ids: &[GID]) -> PyResult<String> {
+    Ok(ids
+        .iter()
+        .map(|id| match id {
+            GID::U64(u) => Ok(u.to_string()),
+            GID::Str(s) => py_str(py, s),
+        })
+        .collect::<PyResult<Vec<_>>>()?
+        .join(", "))
 }
 
 /// A time the way a user passes it: the timestamp, or a `(t, event_id)` pair

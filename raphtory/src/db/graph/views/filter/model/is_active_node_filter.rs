@@ -13,7 +13,7 @@ impl fmt::Display for IsActiveNode {
 // ── expr layer: the predicate as a boolean expression over the eval view ──
 
 use crate::db::graph::views::filter::model::{
-    node_expr::{CreateOp, EntityExpr},
+    node_expr::{ops::ShownNodeOp, CreateOp, EntityExpr},
     EntityMarker,
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
@@ -38,8 +38,10 @@ impl CreateOp for IsActiveNode {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
-        Ok(Arc::new(
-            HistoryOp::new(graph).map(|h| Some(Prop::Bool(!h.is_empty()))),
-        ))
+        Ok(Arc::new(ShownNodeOp {
+            graph: graph.clone(),
+            term: HistoryOp::new(graph).map(|h| Some(Prop::Bool(!h.is_empty()))),
+            hidden: Some(Prop::Bool(false)),
+        }))
     }
 }

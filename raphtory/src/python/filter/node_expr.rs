@@ -28,7 +28,10 @@ use pyo3::{
     IntoPyObjectExt,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType},
+    entities::{
+        properties::prop::{Prop, PropType},
+        GID,
+    },
     storage::timeindex::EventTime,
     Direction,
 };
@@ -914,6 +917,54 @@ impl PyNodeFilter {
         self.with_view(ViewOp::ShrinkEnd(end))
     }
 
+    /// Reads through a view of every node except the given ones, with their edges.
+    ///
+    /// An id the view does not hold changes nothing.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn exclude_nodes(&self, nodes: FromIterable<GID>) -> PyNodeFilter {
+        self.with_view(ViewOp::ExcludeNodes(nodes.into()))
+    }
+
+    /// Reads through a view of the given nodes and the edges between them.
+    ///
+    /// An id the view does not hold is skipped.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn subgraph(&self, nodes: FromIterable<GID>) -> PyNodeFilter {
+        self.with_view(ViewOp::Subgraph(nodes.into()))
+    }
+
+    /// Reads through a view of the nodes of the given types and the edges between them.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): Node types.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn subgraph_node_types(&self, node_types: FromIterable<String>) -> PyNodeFilter {
+        self.with_view(ViewOp::SubgraphNodeTypes(node_types.into()))
+    }
+
+    /// Reads through a view of the edges that are valid in the current view.
+    ///
+    /// On a persistent graph an edge is valid when its last update is an addition;
+    /// on an event graph when it has at least one addition. Nodes are untouched.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn valid(&self) -> PyNodeFilter {
+        self.with_view(ViewOp::Valid)
+    }
+
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
@@ -1193,6 +1244,58 @@ impl PyNode {
     #[staticmethod]
     fn shrink_end(end: EventTime) -> PyNodeFilter {
         PyNodeFilter::root().shrink_end(end)
+    }
+
+    /// Reads through a view of every node except the given ones, with their edges.
+    ///
+    /// An id the view does not hold changes nothing.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn exclude_nodes(nodes: FromIterable<GID>) -> PyNodeFilter {
+        PyNodeFilter::root().exclude_nodes(nodes)
+    }
+
+    /// Reads through a view of the given nodes and the edges between them.
+    ///
+    /// An id the view does not hold is skipped.
+    ///
+    /// Arguments:
+    ///     nodes (list[str | int]): Node ids or names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn subgraph(nodes: FromIterable<GID>) -> PyNodeFilter {
+        PyNodeFilter::root().subgraph(nodes)
+    }
+
+    /// Reads through a view of the nodes of the given types and the edges between them.
+    ///
+    /// Arguments:
+    ///     node_types (list[str]): Node types.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn subgraph_node_types(node_types: FromIterable<String>) -> PyNodeFilter {
+        PyNodeFilter::root().subgraph_node_types(node_types)
+    }
+
+    /// Reads through a view of the edges that are valid in the current view.
+    ///
+    /// On a persistent graph an edge is valid when its last update is an addition;
+    /// on an event graph when it has at least one addition. Nodes are untouched.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn valid() -> PyNodeFilter {
+        PyNodeFilter::root().valid()
     }
 
     /// Matches nodes that have at least one event in the current view.

@@ -7,7 +7,6 @@ use crate::{
             edge::GqlEdge,
             edges::GqlEdges,
             filter_expr_input::GqlFilter,
-            filtering::GraphViewCollection,
             node::GqlNode,
             node_id::GqlNodeId,
             nodes::GqlNodes,
@@ -725,71 +724,5 @@ impl GqlGraph {
             ))
         })
         .await
-    }
-
-    /// Apply a list of view operations in the given order and return the
-    /// resulting graph view. Lets callers compose multiple view transforms
-    /// (window, layer, filter, snapshot, ...) in a single call.
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant applied to the running result."
-        )]
-        views: Vec<GraphViewCollection>,
-    ) -> Result<GqlGraph, GraphError> {
-        let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());
-        for view in views {
-            return_view = match view {
-                GraphViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::Layers(layers) => return_view.layers(layers).await,
-                GraphViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                GraphViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                GraphViewCollection::Subgraph(nodes) => return_view.subgraph(nodes).await,
-                GraphViewCollection::SubgraphNodeTypes(node_types) => {
-                    return_view.subgraph_node_types(node_types).await
-                }
-                GraphViewCollection::ExcludeNodes(nodes) => return_view.exclude_nodes(nodes).await,
-                GraphViewCollection::Valid(apply) => {
-                    if apply {
-                        return_view.valid().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                GraphViewCollection::At(at) => return_view.at(at).await,
-                GraphViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                GraphViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::Before(before) => return_view.before(before).await,
-                GraphViewCollection::After(after) => return_view.after(after).await,
-                GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
-                GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::Filter(filter) => return_view.filter(Some(filter)).await?,
-            };
-        }
-        Ok(return_view)
     }
 }

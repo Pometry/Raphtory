@@ -152,6 +152,33 @@ assert [n.name for n in g.filter(late_high).nodes] == ["alice"]
 ```
 ///
 
+Four more views choose which nodes and edges are in the view. Like the others, each one does what
+the graph method of the same name does to the view built so far. A node is named by its name or,
+in a graph indexed by integers, by its integer id.
+
+| view | reads through | example |
+|---|---|---|
+| `.exclude_nodes([...])` | every node except the ones listed, and the edges between the rest | `filter.Node.exclude_nodes(["carol"]).degree() > 0` |
+| `.subgraph([...])` | only the nodes listed, and the edges between them | `filter.Graph.subgraph(["alice", "bob"])` |
+| `.subgraph_node_types([...])` | only the nodes of the types listed, and the edges between them | `filter.Node.subgraph_node_types(["person"]).degree() > 1` |
+| `.valid()` | only the edges that are valid: on a persistent graph, those whose last update is not a deletion | `filter.Edge.valid().is_active()` |
+
+A name the view does not hold is skipped. A term read through one of these views for a node the
+view leaves out answers as it does for a node outside a window: a property or a name has no value,
+`.degree()` is 0 and `.is_active()` is false. With carol left out, bob keeps only his edge from
+alice; with only bob and carol kept, the one edge left is bob→carol.
+
+/// tab | :fontawesome-brands-python: Python
+
+```{.python continuation}
+without_carol = filter.Node.exclude_nodes(["carol"]).degree() > 0
+assert sorted(n.name for n in g.filter(without_carol).nodes) == ["alice", "bob"]
+
+bob_and_carol = filter.Graph.subgraph(["bob", "carol"])
+assert [(e.src.name, e.dst.name) for e in g.filter(bob_and_carol).edges] == [("bob", "carol")]
+```
+///
+
 ## Using a property's history
 
 `.temporal()` switches a property term from its latest value to its whole history. An aggregate

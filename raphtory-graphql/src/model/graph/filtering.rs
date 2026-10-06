@@ -1,6 +1,4 @@
-use crate::model::graph::{
-    filter_expr_input::GqlFilter, node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput,
-};
+use crate::model::graph::{filter_expr_input::GqlFilter, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -26,48 +24,6 @@ pub struct Window {
     pub start: GqlTimeInput,
     /// Window end time.
     pub end: GqlTimeInput,
-}
-
-/// A view operation on a graph, applied in list order; graph-level ops such as
-/// `subgraph` and `valid` live here only.
-#[derive(OneOfInput, Clone, Debug)]
-pub enum GraphViewCollection {
-    /// Contains only the default layer.
-    DefaultLayer(bool),
-    /// List of included layers.
-    Layers(Vec<String>),
-    /// List of excluded layers.
-    ExcludeLayers(Vec<String>),
-    /// Single excluded layer.
-    ExcludeLayer(String),
-    /// Subgraph nodes.
-    Subgraph(Vec<GqlNodeId>),
-    /// Subgraph node types.
-    SubgraphNodeTypes(Vec<String>),
-    /// List of excluded nodes.
-    ExcludeNodes(Vec<GqlNodeId>),
-    /// Valid state.
-    Valid(bool),
-    /// Window between a start and end time.
-    Window(Window),
-    /// View at a specified time.
-    At(GqlTimeInput),
-    /// View at the latest time.
-    Latest(bool),
-    /// Snapshot at specified time.
-    SnapshotAt(GqlTimeInput),
-    /// Snapshot at latest time.
-    SnapshotLatest(bool),
-    /// View before a specified time (end exclusive).
-    Before(GqlTimeInput),
-    /// View after a specified time (start exclusive).
-    After(GqlTimeInput),
-    /// Set the window start to a specified time.
-    ShrinkStart(GqlTimeInput),
-    /// Set the window end to a specified time.
-    ShrinkEnd(GqlTimeInput),
-    /// A filter expression; the entity it tests is written in the expression.
-    Filter(GqlFilter),
 }
 
 /// Boolean expression over a property value.

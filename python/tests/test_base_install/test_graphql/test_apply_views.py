@@ -50,7 +50,7 @@ def test_apply_view_snapshot_latest():
     query = """
  {
   graph(path: "g") {
-    applyViews(views: [{snapshotLatest: true}]) {
+    filter(expr: {view: [{snapshotLatest: true}]}) {
       earliestTime {
         timestamp
       }
@@ -112,7 +112,7 @@ def test_apply_view_snapshot_latest():
 
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "page": [
@@ -216,7 +216,7 @@ def test_apply_view_default_layer():
     query = """
  {
   graph(path: "g") {
-    applyViews(views: [{defaultLayer: true}]) {
+    filter(expr: {view: [{defaultLayer: true}]}) {
       earliestTime {
         timestamp
       }
@@ -276,7 +276,7 @@ def test_apply_view_default_layer():
 }"""
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "page": [
@@ -339,7 +339,7 @@ def test_apply_view_latest():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{latest: true}]) {
+    filter(expr: {view: [{latest: true}]}) {
       earliestTime {
         timestamp
       }
@@ -400,7 +400,7 @@ def test_apply_view_latest():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1736035200000}},
+            "filter": {"earliestTime": {"timestamp": 1736035200000}},
             "nodes": {"filter": {"page": [{"history": {"timestamps": {"list": []}}}]}},
             "node": {"filter": {"history": {"timestamps": {"list": []}}}},
             "edges": {
@@ -429,7 +429,7 @@ def test_apply_view_at():
     query = """
   {
   graph(path: "g") {
-    applyViews(views: [{at: 1735689600000}]) {
+    filter(expr: {view: [{at: 1735689600000}]}) {
       earliestTime {
         timestamp
       }
@@ -490,7 +490,7 @@ def test_apply_view_at():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "page": [
@@ -536,7 +536,7 @@ def test_apply_view_snapshot_at():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{snapshotAt: 1740873600000}]) {
+    filter(expr: {view: [{snapshotAt: 1740873600000}]}) {
     	latestTime {
         timestamp
       }
@@ -597,7 +597,7 @@ def test_apply_view_snapshot_at():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": 1736035200000}},
+            "filter": {"latestTime": {"timestamp": 1736035200000}},
             "nodes": {
                 "filter": {
                     "page": [
@@ -672,10 +672,10 @@ def test_apply_view_window():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {
+    filter(expr: {view: [{window: {
       start: 1735689600000
       end: 1735862400000
-    }}]) {
+    }}]}) {
     	latestTime {
         timestamp
       }
@@ -748,7 +748,7 @@ def test_apply_view_window():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": 1735776000000}},
+            "filter": {"latestTime": {"timestamp": 1735776000000}},
             "nodes": {
                 "filter": {
                     "page": [
@@ -830,7 +830,7 @@ def test_apply_view_before():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{before: 1735862400000}]) {
+    filter(expr: {view: [{before: 1735862400000}]}) {
       latestTime {
         timestamp
       }
@@ -891,7 +891,7 @@ def test_apply_view_before():
 
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": 1735776000000}},
+            "filter": {"latestTime": {"timestamp": 1735776000000}},
             "nodes": {
                 "filter": {
                     "page": [
@@ -973,7 +973,7 @@ def test_apply_view_after():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{after: 6}]) {
+    filter(expr: {view: [{after: 6}]}) {
       latestTime {
         timestamp
       }
@@ -1033,7 +1033,7 @@ def test_apply_view_after():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": None}},
+            "filter": {"latestTime": {"timestamp": None}},
             "nodes": {
                 "filter": {
                     "list": [
@@ -1084,7 +1084,7 @@ def test_apply_view_shrink_start():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{shrinkStart:  1736035200000}]) {
+    filter(expr: {view: [{shrinkStart:  1736035200000}]}) {
       latestTime {
         timestamp
       }
@@ -1142,7 +1142,7 @@ def test_apply_view_shrink_start():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": 1736035200000}},
+            "filter": {"latestTime": {"timestamp": 1736035200000}},
             "nodes": {
                 "filter": {
                     "list": [
@@ -1194,7 +1194,7 @@ def test_apply_view_shrink_end():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{shrinkEnd:  1735776000000}]) {
+    filter(expr: {view: [{shrinkEnd:  1735776000000}]}) {
       latestTime {
         timestamp
       }
@@ -1252,7 +1252,7 @@ def test_apply_view_shrink_end():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": 1735689600000}},
+            "filter": {"latestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "list": [
@@ -1304,7 +1304,7 @@ def test_apply_view_layers():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layers: ["finds", "Person"]}]) {
+    filter(expr: {view: [{layers: ["finds"]}]}) {
       earliestTime {
         timestamp
       }
@@ -1367,7 +1367,7 @@ def test_apply_view_layers():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "list": [
@@ -1434,7 +1434,7 @@ def test_apply_view_layer():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layers: ["Person"]}]) {
+    filter(expr: {view: [{layers: []}]}) {
       earliestTime {
         timestamp
       }
@@ -1496,7 +1496,7 @@ def test_apply_view_layer():
 }"""
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "select": {
                     "list": [
@@ -1559,7 +1559,7 @@ def test_apply_view_exclude_layer():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{excludeLayer: "Person"}]) {
+    filter(expr: {view: [{excludeLayers: []}]}) {
       earliestTime {
         timestamp
       }
@@ -1622,7 +1622,7 @@ def test_apply_view_exclude_layer():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "list": [
@@ -1749,7 +1749,7 @@ def test_apply_view_exclude_layers():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{excludeLayers: ["Person", "finds"]}]) {
+    filter(expr: {view: [{excludeLayers: ["finds"]}]}) {
       earliestTime {
         timestamp
       }
@@ -1812,7 +1812,7 @@ def test_apply_view_exclude_layers():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "filter": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "filter": {
                     "list": [
@@ -1953,7 +1953,7 @@ def test_apply_view_exclude_nodes():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{excludeNodes: ["6", "7"]}]) {
+    filter(expr: {view: [{excludeNodes: ["6", "7"]}]}) {
       latestTime {
         timestamp
       }
@@ -1962,7 +1962,7 @@ def test_apply_view_exclude_nodes():
 }"""
     correct = {
         "graph": {
-            "applyViews": {"latestTime": {"timestamp": 1735948800000}},
+            "filter": {"latestTime": {"timestamp": 1735948800000}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1973,15 +1973,15 @@ def test_apply_view_too_many_arguments():
     create_graph_date(graph)
     queries_and_exceptions = []
     too_many_arguments_exception = (
-        'Fields "views" conflict because they have differing arguments'
+        'Fields "expr" conflict because they have differing arguments'
     )
     query = """
 {
   graph(path: "g") {
-      applyViews(views: [{layers: ["odd"]}]) {
+      filter(expr: {view: [{layers: ["odd"]}]}) {
         name
       }
-      applyViews(views: [{layers: ["Person"]}]) {
+      filter(expr: {view: [{layers: ["Person"]}]}) {
         name
       }
       }
@@ -1996,7 +1996,7 @@ def test_apply_view_nested():
     query = """
 {
    graph(path: "g") {
-    applyViews(views: [{layers: ["finds"]}]) {
+    filter(expr: {view: [{layers: ["finds"]}]}) {
       earliestTime {
         timestamp
       }
@@ -2016,7 +2016,7 @@ def test_apply_view_nested():
     }"""
     correct = {
         "graph": {
-            "applyViews": {
+            "filter": {
                 "earliestTime": {"timestamp": 1735689600000},
                 "edges": {
                     "filter": {
@@ -2035,12 +2035,12 @@ def test_apply_view_invalid_argument():
     create_graph_date(graph)
     queries_and_exceptions = []
     invalid_argument = (
-        'Invalid value for argument "views.0.layers", expected type "String"'
+        'Invalid value for argument "expr.view.0.layers", expected type "String"'
     )
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layers: 5}]) {
+    filter(expr: {view: [{layers: 5}]}) {
       earliestTime {
         timestamp
       }
@@ -2058,9 +2058,7 @@ def test_apply_view_node_filter():
     query = """
     {
       graph(path: "g") {
-        applyViews(views: [
-          {
-            filter: {
+        filter(expr: {
                       node: {
                         eq: {
                           lhs: {
@@ -2073,9 +2071,7 @@ def test_apply_view_node_filter():
                           }
                         }
                       }
-                    }
-          }
-        ]) {
+                    }) {
           nodes {
             list {
               name
@@ -2085,7 +2081,7 @@ def test_apply_view_node_filter():
       }
     }
     """
-    correct = {"graph": {"applyViews": {"nodes": {"list": [{"name": "1"}]}}}}
+    correct = {"graph": {"filter": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, correct, graph)
 
 
@@ -2095,9 +2091,7 @@ def test_apply_view_edge_filter():
     query = """
     {
       graph(path: "g") {
-        applyViews(views: [
-          {
-            filter: {
+        filter(expr: {
                       edge: {
                         eq: {
                           lhs: {
@@ -2110,9 +2104,7 @@ def test_apply_view_edge_filter():
                           }
                         }
                       }
-                    }
-          }
-        ]) {
+                    }) {
           edges {
             list {
               history{
@@ -2127,7 +2119,7 @@ def test_apply_view_edge_filter():
     """
     correct = {
         "graph": {
-            "applyViews": {
+            "filter": {
                 "edges": {
                     "list": [{"history": {"timestamps": {"list": [1736035200000]}}}]
                 }
@@ -2143,7 +2135,7 @@ def test_apply_view_subgraph():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{subgraph: ["1", "2"]}]) {
+    filter(expr: {view: [{subgraph: ["1", "2"]}]}) {
       nodes {
         list {
           name
@@ -2152,9 +2144,7 @@ def test_apply_view_subgraph():
     }
   }
 }"""
-    correct = {
-        "graph": {"applyViews": {"nodes": {"list": [{"name": "1"}, {"name": "2"}]}}}
-    }
+    correct = {"graph": {"filter": {"nodes": {"list": [{"name": "1"}, {"name": "2"}]}}}}
     run_graphql_test(query, correct, graph)
 
 
@@ -2164,7 +2154,7 @@ def test_apply_view_subgraph_node_types():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{subgraphNodeTypes: ["Person"]}]) {
+    filter(expr: {view: [{subgraphNodeTypes: ["Person"]}]}) {
       nodes {
         list {
           name
@@ -2173,7 +2163,7 @@ def test_apply_view_subgraph_node_types():
     }
   }
 }"""
-    correct = {"graph": {"applyViews": {"nodes": {"list": [{"name": "1"}]}}}}
+    correct = {"graph": {"filter": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, correct, graph)
 
 
@@ -2183,7 +2173,7 @@ def test_apply_view_nodes_multiple_views():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["Person"]}]) {
+    filter(expr: {view: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: []}]}) {
       nodes {
         list {
           name
@@ -2199,7 +2189,7 @@ def test_apply_view_nodes_multiple_views():
 }"""
     correct = {
         "graph": {
-            "applyViews": {
+            "filter": {
                 "nodes": {
                     "list": [
                         {
@@ -2220,7 +2210,7 @@ def test_apply_view_edges_multiple_views():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["met"]}]) {
+    filter(expr: {view: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["met"]}]}) {
       edges {
         list {
           src {
@@ -2241,7 +2231,7 @@ def test_apply_view_edges_multiple_views():
 }"""
     correct = {
         "graph": {
-            "applyViews": {
+            "filter": {
                 "edges": {
                     "list": [
                         {
@@ -3068,7 +3058,7 @@ def test_valid_graph():
     query = """
             {
               graph(path:"g"){
-                applyViews(views:[{valid:true}]){
+                filter(expr: {view: [{valid:true}]}) {
                   edges{
                     list{
                       id
@@ -3082,7 +3072,7 @@ def test_valid_graph():
             }"""
     correct = {
         "graph": {
-            "applyViews": {
+            "filter": {
                 "edges": {"list": [{"id": [6, 7], "latestTime": {"timestamp": 5}}]}
             }
         }

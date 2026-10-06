@@ -51,6 +51,7 @@ use crate::{
                 },
                 node_filter::NodeFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
+                subgraph_filter::{ExcludeNodes, Subgraph, SubgraphNodeTypes, Valid},
                 windowed_filter::{ShrinkEnd, ShrinkStart, Windowed},
                 CreateView, DynCreateFilter, DynCreateView, EntityMarker, MetadataExpr,
                 PropertyExpr,
@@ -139,6 +140,10 @@ fn view_chain(root: Arc<dyn DynCreateView>, views: &[ViewOp]) -> Arc<dyn DynCrea
         ViewOp::ExcludeLayers(names) => Arc::new(ExcludeLayers::from_layers(names.clone(), chain)),
         ViewOp::ShrinkStart(t) => Arc::new(ShrinkStart::new(*t, chain)),
         ViewOp::ShrinkEnd(t) => Arc::new(ShrinkEnd::new(*t, chain)),
+        ViewOp::ExcludeNodes(ids) => Arc::new(ExcludeNodes::new(ids.clone(), chain)),
+        ViewOp::Subgraph(ids) => Arc::new(Subgraph::new(ids.clone(), chain)),
+        ViewOp::SubgraphNodeTypes(types) => Arc::new(SubgraphNodeTypes::new(types.clone(), chain)),
+        ViewOp::Valid => Arc::new(Valid::new(chain)),
     })
 }
 

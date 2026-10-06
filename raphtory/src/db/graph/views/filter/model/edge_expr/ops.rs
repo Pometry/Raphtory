@@ -112,7 +112,8 @@ impl<G: GraphView> EdgeOp for EdgePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        edge_reads::temporal_value(&self.graph, edge, EdgeAt::Whole, self.prop_id)
+        edge_reads::shown(&self.graph, edge, EdgeAt::Whole)
+            .and_then(|at| edge_reads::temporal_value(&self.graph, edge, at, self.prop_id))
     }
 
     fn apply_layer(
@@ -121,7 +122,8 @@ impl<G: GraphView> EdgeOp for EdgePropOp<G> {
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        edge_reads::temporal_value(&self.graph, edge, EdgeAt::Layer(layer), self.prop_id)
+        edge_reads::shown(&self.graph, edge, EdgeAt::Layer(layer))
+            .and_then(|at| edge_reads::temporal_value(&self.graph, edge, at, self.prop_id))
     }
 
     fn apply_exploded(
@@ -131,7 +133,8 @@ impl<G: GraphView> EdgeOp for EdgePropOp<G> {
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        edge_reads::temporal_value(&self.graph, edge, EdgeAt::Exploded(layer, t), self.prop_id)
+        edge_reads::shown(&self.graph, edge, EdgeAt::Exploded(layer, t))
+            .and_then(|at| edge_reads::temporal_value(&self.graph, edge, at, self.prop_id))
     }
 
     fn prop_type(&self) -> PropType {
@@ -157,7 +160,8 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        edge_reads::metadata(&self.graph, edge, EdgeAt::Whole, self.prop_id)
+        edge_reads::shown(&self.graph, edge, EdgeAt::Whole)
+            .and_then(|at| edge_reads::metadata(&self.graph, edge, at, self.prop_id))
     }
 
     fn apply_layer(
@@ -166,7 +170,8 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        edge_reads::metadata(&self.graph, edge, EdgeAt::Layer(layer), self.prop_id)
+        edge_reads::shown(&self.graph, edge, EdgeAt::Layer(layer))
+            .and_then(|at| edge_reads::metadata(&self.graph, edge, at, self.prop_id))
     }
 
     fn apply_exploded(
@@ -176,7 +181,8 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        edge_reads::metadata(&self.graph, edge, EdgeAt::Exploded(layer, t), self.prop_id)
+        edge_reads::shown(&self.graph, edge, EdgeAt::Exploded(layer, t))
+            .and_then(|at| edge_reads::metadata(&self.graph, edge, at, self.prop_id))
     }
 
     // No declared type: the runtime shape depends on the edge's layers (a
@@ -205,9 +211,12 @@ pub(crate) struct TemporalEdgePropOp<G> {
 
 impl<G: GraphView> TemporalEdgePropOp<G> {
     fn history(&self, edge: EdgeEntryRef, at: EdgeAt) -> Option<Prop> {
-        let vals: Vec<Prop> = edge_reads::temporal_hist(&self.graph, edge, at, self.prop_id)
-            .map(|(_, v)| v)
-            .collect();
+        let vals: Vec<Prop> = match edge_reads::shown(&self.graph, edge, at) {
+            Some(at) => edge_reads::temporal_hist(&self.graph, edge, at, self.prop_id)
+                .map(|(_, v)| v)
+                .collect(),
+            None => Vec::new(),
+        };
         Some(Prop::List(PropArray::from(vals)))
     }
 }
@@ -322,11 +331,10 @@ impl<G: GraphView> EdgeOp for IsActiveEdgePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_active(
-            &self.graph,
-            edge,
-            EdgeAt::Whole,
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Whole)
+                .is_some_and(|at| edge_reads::is_active(&self.graph, edge, at)),
+        ))
     }
 
     fn apply_layer(
@@ -335,11 +343,10 @@ impl<G: GraphView> EdgeOp for IsActiveEdgePropOp<G> {
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_active(
-            &self.graph,
-            edge,
-            EdgeAt::Layer(layer),
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Layer(layer))
+                .is_some_and(|at| edge_reads::is_active(&self.graph, edge, at)),
+        ))
     }
 
     fn apply_exploded(
@@ -349,11 +356,10 @@ impl<G: GraphView> EdgeOp for IsActiveEdgePropOp<G> {
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_active(
-            &self.graph,
-            edge,
-            EdgeAt::Exploded(layer, t),
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Exploded(layer, t))
+                .is_some_and(|at| edge_reads::is_active(&self.graph, edge, at)),
+        ))
     }
 
     fn prop_type(&self) -> PropType {
@@ -370,11 +376,10 @@ impl<G: GraphView> EdgeOp for IsValidEdgePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_valid(
-            &self.graph,
-            edge,
-            EdgeAt::Whole,
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Whole)
+                .is_some_and(|at| edge_reads::is_valid(&self.graph, edge, at)),
+        ))
     }
 
     fn apply_layer(
@@ -383,11 +388,10 @@ impl<G: GraphView> EdgeOp for IsValidEdgePropOp<G> {
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_valid(
-            &self.graph,
-            edge,
-            EdgeAt::Layer(layer),
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Layer(layer))
+                .is_some_and(|at| edge_reads::is_valid(&self.graph, edge, at)),
+        ))
     }
 
     fn apply_exploded(
@@ -397,11 +401,10 @@ impl<G: GraphView> EdgeOp for IsValidEdgePropOp<G> {
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_valid(
-            &self.graph,
-            edge,
-            EdgeAt::Exploded(layer, t),
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Exploded(layer, t))
+                .is_some_and(|at| edge_reads::is_valid(&self.graph, edge, at)),
+        ))
     }
 
     fn prop_type(&self) -> PropType {
@@ -418,11 +421,10 @@ impl<G: GraphView> EdgeOp for IsDeletedEdgePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, edge: EdgeEntryRef) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_deleted(
-            &self.graph,
-            edge,
-            EdgeAt::Whole,
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Whole)
+                .is_some_and(|at| edge_reads::is_deleted(&self.graph, edge, at)),
+        ))
     }
 
     fn apply_layer(
@@ -431,11 +433,10 @@ impl<G: GraphView> EdgeOp for IsDeletedEdgePropOp<G> {
         edge: EdgeEntryRef,
         layer: LayerId,
     ) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_deleted(
-            &self.graph,
-            edge,
-            EdgeAt::Layer(layer),
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Layer(layer))
+                .is_some_and(|at| edge_reads::is_deleted(&self.graph, edge, at)),
+        ))
     }
 
     fn apply_exploded(
@@ -445,11 +446,10 @@ impl<G: GraphView> EdgeOp for IsDeletedEdgePropOp<G> {
         layer: LayerId,
         t: EventTime,
     ) -> Option<Prop> {
-        Some(Prop::Bool(edge_reads::is_deleted(
-            &self.graph,
-            edge,
-            EdgeAt::Exploded(layer, t),
-        )))
+        Some(Prop::Bool(
+            edge_reads::shown(&self.graph, edge, EdgeAt::Exploded(layer, t))
+                .is_some_and(|at| edge_reads::is_deleted(&self.graph, edge, at)),
+        ))
     }
 
     fn prop_type(&self) -> PropType {

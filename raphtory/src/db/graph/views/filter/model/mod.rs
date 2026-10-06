@@ -74,6 +74,7 @@ pub mod node_state_filter;
 pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
+pub mod subgraph_filter;
 pub mod windowed_filter;
 
 pub use expr::builder::{

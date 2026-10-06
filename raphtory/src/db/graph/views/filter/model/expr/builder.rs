@@ -35,7 +35,7 @@ use crate::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, Layer},
+    entities::{properties::prop::Prop, Layer, GID},
     utils::time::IntoTime,
     Direction,
 };
@@ -177,6 +177,37 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
 
     fn shrink_end<T: IntoTime>(self, end: T) -> Chain<L> {
         self.into().push(Some(ViewOp::ShrinkEnd(end.into_time())))
+    }
+
+    fn exclude_nodes<I, V>(self, nodes: I) -> Chain<L>
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        let ids = nodes.into_iter().map(Into::into).collect();
+        self.into().push(Some(ViewOp::ExcludeNodes(ids)))
+    }
+
+    fn subgraph<I, V>(self, nodes: I) -> Chain<L>
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        let ids = nodes.into_iter().map(Into::into).collect();
+        self.into().push(Some(ViewOp::Subgraph(ids)))
+    }
+
+    fn subgraph_node_types<I, S>(self, node_types: I) -> Chain<L>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let types = node_types.into_iter().map(Into::into).collect();
+        self.into().push(Some(ViewOp::SubgraphNodeTypes(types)))
+    }
+
+    fn valid(self) -> Chain<L> {
+        self.into().push(Some(ViewOp::Valid))
     }
 }
 

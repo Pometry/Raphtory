@@ -16,11 +16,14 @@ use crate::{
     },
     errors::GraphError,
     prelude::{
-        AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps, NO_PROPS,
+        AdditionOps, DeletionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps,
+        NO_PROPS,
     },
 };
 use raphtory_api::core::{
-    entities::properties::prop::IntoProp, storage::timeindex::EventTime, Direction,
+    entities::{properties::prop::IntoProp, GID},
+    storage::timeindex::EventTime,
+    Direction,
 };
 use std::sync::Arc;
 
@@ -1035,6 +1038,21 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
             &["late"],
         ),
         (
+            "exclude_nodes name is_none",
+            Box::new(|| Arc::new(NodeFilter.exclude_nodes(["late"]).name().is_none())),
+            &["late"],
+        ),
+        (
+            "subgraph name is_some",
+            Box::new(|| Arc::new(NodeFilter.subgraph(["late"]).name().is_some())),
+            &["late"],
+        ),
+        (
+            "subgraph_node_types name == early",
+            Box::new(|| Arc::new(NodeFilter.subgraph_node_types(["kind"]).name().eq("early"))),
+            &[],
+        ),
+        (
             "tree: window name == late",
             Box::new(|| {
                 Arc::new(node(cmp(
@@ -1137,6 +1155,23 @@ fn agrees_with_core(
     with_degree.sort();
     let filtered = g.filter(degree).unwrap().into_dynamic();
     assert_eq!(names_of(&filtered), with_degree, "node term {label}");
+
+    let node_active = node(Expr::Term(NodeLeaf::IsActive {
+        views: ops.to_vec(),
+    }));
+    let mut active_nodes: Vec<String> = g
+        .nodes()
+        .iter()
+        .filter(|n| {
+            expected
+                .node(n.name())
+                .is_some_and(|in_view| in_view.is_active())
+        })
+        .map(|n| n.name())
+        .collect();
+    active_nodes.sort();
+    let filtered = g.filter(node_active).unwrap().into_dynamic();
+    assert_eq!(names_of(&filtered), active_nodes, "node is_active {label}");
 
     let active = FilterExpr::Edge(Expr::Term(EdgeLeaf::IsActive {
         views: ops.to_vec(),
@@ -1300,4 +1335,171 @@ fn the_new_views_display_and_round_trip_through_json() {
         one,
         FilterExpr::View(vec![ViewOp::ExcludeLayers(vec!["a".into()])])
     );
+}
+
+/// a→b @1 · b→c @3 · c→d @5, deleted @6 · z alone @9; a, b are `person`,
+/// c, d are `org`, z is `bot`
+///
+/// ```text
+///            1    3    5    6    9
+/// a→b        ●
+/// b→c             ●
+/// c→d                  ●    ✕
+/// z                              ●
+/// ```
+fn node_set_graph() -> Graph {
+    let g = Graph::new();
+    for (t, src, dst) in [(1, "a", "b"), (3, "b", "c"), (5, "c", "d")] {
+        g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+    }
+    g.delete_edge(6, "c", "d", None).unwrap();
+    for (t, name, node_type) in [
+        (1, "a", "person"),
+        (1, "b", "person"),
+        (3, "c", "org"),
+        (5, "d", "org"),
+        (9, "z", "bot"),
+    ] {
+        g.add_node(t, name, NO_PROPS, Some(node_type), None)
+            .unwrap();
+    }
+    g
+}
+
+fn ids(names: &[&str]) -> Vec<GID> {
+    names.iter().map(|n| GID::Str(n.to_string())).collect()
+}
+
+fn type_names(names: &[&str]) -> Vec<String> {
+    names.iter().map(|n| n.to_string()).collect()
+}
+
+#[test]
+fn node_set_views_agree_with_the_graph_views() {
+    let events = node_set_graph();
+    for g in [
+        events.clone().into_dynamic(),
+        events.persistent_graph().into_dynamic(),
+    ] {
+        agrees_with_core(&g, &[ViewOp::ExcludeNodes(ids(&["b", "z"]))], |g| {
+            Ok(g.exclude_nodes(["b", "z"]).into_dynamic())
+        });
+        // An id the view does not hold changes nothing.
+        agrees_with_core(&g, &[ViewOp::ExcludeNodes(ids(&["nope"]))], |g| {
+            Ok(g.exclude_nodes(["nope"]).into_dynamic())
+        });
+        agrees_with_core(&g, &[ViewOp::Subgraph(ids(&["a", "b", "c"]))], |g| {
+            Ok(g.subgraph(["a", "b", "c"]).into_dynamic())
+        });
+        agrees_with_core(&g, &[ViewOp::Subgraph(ids(&["a", "nope"]))], |g| {
+            Ok(g.subgraph(["a", "nope"]).into_dynamic())
+        });
+        agrees_with_core(&g, &[ViewOp::Subgraph(Vec::new())], |g| {
+            Ok(g.subgraph(Vec::<String>::new()).into_dynamic())
+        });
+        agrees_with_core(
+            &g,
+            &[ViewOp::SubgraphNodeTypes(type_names(&["org"]))],
+            |g| Ok(g.subgraph_node_types(["org"]).into_dynamic()),
+        );
+        agrees_with_core(
+            &g,
+            &[ViewOp::SubgraphNodeTypes(type_names(&["person", "bot"]))],
+            |g| Ok(g.subgraph_node_types(["person", "bot"]).into_dynamic()),
+        );
+        agrees_with_core(&g, &[ViewOp::Valid], |g| Ok(g.valid().into_dynamic()));
+        // They compose with time and with each other, in list order.
+        agrees_with_core(
+            &g,
+            &[window(0, 4), ViewOp::ExcludeNodes(ids(&["a"]))],
+            |g| Ok(g.window(0, 4).exclude_nodes(["a"]).into_dynamic()),
+        );
+        agrees_with_core(
+            &g,
+            &[ViewOp::ExcludeNodes(ids(&["a"])), window(0, 4)],
+            |g| Ok(g.exclude_nodes(["a"]).window(0, 4).into_dynamic()),
+        );
+        agrees_with_core(
+            &g,
+            &[ViewOp::Subgraph(ids(&["c", "d", "z"])), ViewOp::Valid],
+            |g| Ok(g.subgraph(["c", "d", "z"]).valid().into_dynamic()),
+        );
+        agrees_with_core(
+            &g,
+            &[
+                ViewOp::SubgraphNodeTypes(type_names(&["person", "org"])),
+                ViewOp::ExcludeNodes(ids(&["d"])),
+            ],
+            |g| {
+                Ok(g.subgraph_node_types(["person", "org"])
+                    .exclude_nodes(["d"])
+                    .into_dynamic())
+            },
+        );
+    }
+}
+
+#[test]
+fn exclude_nodes_before_latest_is_not_latest_before_exclude_nodes() {
+    // The newest event, z@9, belongs to the excluded node: excluding first
+    // leaves c→d@5 as the newest, the other way round leaves z's moment with
+    // z gone.
+    let g = node_set_graph().into_dynamic();
+    let excluded_first = [ViewOp::ExcludeNodes(ids(&["z"])), ViewOp::Latest];
+    let latest_first = [ViewOp::Latest, ViewOp::ExcludeNodes(ids(&["z"]))];
+    agrees_with_core(&g, &excluded_first, |g| {
+        Ok(g.exclude_nodes(["z"]).latest().into_dynamic())
+    });
+    agrees_with_core(&g, &latest_first, |g| {
+        Ok(g.latest().exclude_nodes(["z"]).into_dynamic())
+    });
+    let view = |ops: &[ViewOp]| {
+        g.filter(FilterExpr::View(ops.to_vec()))
+            .unwrap()
+            .into_dynamic()
+    };
+    let (a, b) = (view(&excluded_first), view(&latest_first));
+    assert_ne!(
+        (names_of(&a), edge_ids_of(&a)),
+        (names_of(&b), edge_ids_of(&b))
+    );
+}
+
+#[test]
+fn the_node_set_views_display_and_round_trip_through_json() {
+    let ops = vec![
+        ViewOp::ExcludeNodes(vec![GID::Str("a".into()), GID::U64(7)]),
+        ViewOp::Subgraph(vec![GID::U64(1), GID::Str("b".into())]),
+        ViewOp::SubgraphNodeTypes(type_names(&["person", "org"])),
+        ViewOp::Valid,
+    ];
+    let f = FilterExpr::View(ops.clone());
+    assert_eq!(
+        f.to_string(),
+        "VIEW(EXCLUDE_NODES[a, 7] . SUBGRAPH[1, b] . SUBGRAPH_NODE_TYPES[person, org] . VALID)"
+    );
+    let json = serde_json::to_string(&f).unwrap();
+    assert!(
+        json.contains(r#""exclude_nodes":[{"Str":"a"},{"U64":7}]"#),
+        "{json}"
+    );
+    assert!(
+        json.contains(r#""subgraph":[{"U64":1},{"Str":"b"}]"#),
+        "{json}"
+    );
+    assert!(
+        json.contains(r#""subgraph_node_types":["person","org"]"#),
+        "{json}"
+    );
+    assert!(json.contains(r#""valid""#), "{json}");
+    let back: FilterExpr = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, f);
+    // The builder spells the same ops.
+    let built: FilterExpr = GraphFilter
+        .exclude_nodes([GID::Str("a".into()), GID::U64(7)])
+        .subgraph([GID::U64(1), GID::Str("b".into())])
+        .subgraph_node_types(["person", "org"])
+        .valid()
+        .into();
+    assert_eq!(built, f);
 }

@@ -227,3 +227,82 @@ def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
                 for e in g.filter(local_scope.is_active()).edges
             )
             assert edge_pairs(client, active) == local, views
+
+
+def test_node_set_views_and_valid_read_as_the_graph_views():
+    """`excludeNodes`, `subgraph`, `subgraphNodeTypes` and `valid` are the graph
+    views of the same name applied to the view so far, both as a whole-filter
+    view and as the scope of a node or edge term. alice and bob are `person`,
+    carol is `org`; bob→carol is deleted @5, so it is not valid afterwards."""
+    g = build()
+    g.add_node(0, "alice", node_type="person")
+    g.add_node(1, "bob", node_type="person")
+    g.add_node(0, "carol", node_type="org")
+    g.delete_edge(5, "bob", "carol", layer="works")
+    cases = [
+        (
+            [{"excludeNodes": ["bob", "nobody"]}],
+            g.exclude_nodes(["bob", "nobody"]),
+            f.Node.exclude_nodes(["bob", "nobody"]),
+            f.Edge.exclude_nodes(["bob", "nobody"]),
+        ),
+        (
+            [{"subgraph": ["alice", "bob", "carol"]}],
+            g.subgraph(["alice", "bob", "carol"]),
+            f.Node.subgraph(["alice", "bob", "carol"]),
+            f.Edge.subgraph(["alice", "bob", "carol"]),
+        ),
+        (
+            [{"subgraphNodeTypes": ["person", "org"]}],
+            g.subgraph_node_types(["person", "org"]),
+            f.Node.subgraph_node_types(["person", "org"]),
+            f.Edge.subgraph_node_types(["person", "org"]),
+        ),
+        ([{"valid": True}], g.valid(), f.Node.valid(), f.Edge.valid()),
+        (
+            [{"window": {"start": 0, "end": 5}}, {"excludeNodes": ["alice"]}],
+            g.window(0, 5).exclude_nodes(["alice"]),
+            f.Node.window(0, 5).exclude_nodes(["alice"]),
+            f.Edge.window(0, 5).exclude_nodes(["alice"]),
+        ),
+    ]
+    with graphql_client(g) as client:
+        for views, local_view, node_scope, edge_scope in cases:
+            want = sorted((e.src.name, e.dst.name) for e in local_view.edges)
+            assert edge_pairs(client, {"view": views}) == want, views
+            assert node_names(client, {"view": views}) == sorted(
+                local_view.nodes.name
+            ), views
+            active = edge(viewed(views, {"isActive": True}))
+            local = sorted(
+                (e.src.name, e.dst.name) for e in g.filter(edge_scope.is_active()).edges
+            )
+            assert edge_pairs(client, active) == local, views
+            degree = node(
+                {
+                    "gt": {
+                        "lhs": viewed(views, {"degree": "BOTH"}),
+                        "rhs": const({"u64": 0}),
+                    }
+                }
+            )
+            local = sorted(g.filter(node_scope.degree() > 0).nodes.name)
+            assert node_names(client, degree) == local, views
+
+
+def test_node_ids_keep_their_type_in_a_view():
+    """A node id in `excludeNodes`/`subgraph` is the `NodeId` scalar: an integer
+    names an integer-indexed node."""
+    g = Graph()
+    for t, src, dst in [(1, 1, 2), (2, 2, 3), (3, 3, 1)]:
+        g.add_edge(t, src, dst)
+    with graphql_client(g) as client:
+        assert node_names(client, {"view": [{"excludeNodes": [2]}]}) == ["1", "3"]
+        assert node_names(client, {"view": [{"subgraph": [1, 2]}]}) == ["1", "2"]
+
+
+def test_a_view_op_that_is_not_applied_is_refused():
+    g = build()
+    with graphql_client(g) as client:
+        with pytest.raises(Exception, match="valid: false is not a view"):
+            client.query(NODES, {"f": {"view": [{"valid": False}]}})

@@ -4572,26 +4572,6 @@ Optional filter expression made of node/edge predicates, graph views (window, la
 
 </td>
 </tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Apply a list of view operations in the given order and return the
-resulting graph view. Lets callers compose multiple view transforms
-(window, layer, filter, snapshot, ...) in a single call.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#graphviewcollection">GraphViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant applied to the running result.
-
-</td>
-</tr>
 </tbody>
 </table>
 
@@ -13008,185 +12988,6 @@ Whether a prefix match within the distance also passes.
 </tbody>
 </table>
 
-### GraphViewCollection
-
-A view operation on a graph, applied in list order; graph-level ops such as
-`subgraph` and `valid` live here only.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.subgraph">subgraph</strong></td>
-<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
-<td>
-
-Subgraph nodes.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.subgraphnodetypes">subgraphNodeTypes</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-Subgraph node types.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.excludenodes">excludeNodes</strong></td>
-<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
-<td>
-
-List of excluded nodes.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.valid">valid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Valid state.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.filter">filter</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td>
-
-A filter expression; the entity it tests is written in the expression.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### InputEdge
 
 <table>
@@ -14978,6 +14779,45 @@ ever narrows.
 
 The window's end moved to a time when that is earlier; the window only
 ever narrows.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludenodes">excludeNodes</strong></td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Every node except the named ones, with their edges; an id the view does
+not hold changes nothing.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.subgraph">subgraph</strong></td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Only the named nodes and the edges between them; an id the view does
+not hold is skipped.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.subgraphnodetypes">subgraphNodeTypes</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Only the nodes of the named types and the edges between them.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.valid">valid</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Only the edges that are valid in the view (on a persistent graph, whose
+last update is an addition); written `valid: true`.
 
 </td>
 </tr>

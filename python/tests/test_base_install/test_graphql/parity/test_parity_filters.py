@@ -463,6 +463,19 @@ VIEW_EXPRS = {
     "view.chain_window_shrink": lambda: f.Graph.window(2, 10)
     .shrink_start(4)
     .shrink_end(8),
+    "view.exclude_nodes": lambda: f.Graph.exclude_nodes(["hub", "nobody"]),
+    "view.subgraph": lambda: f.Graph.subgraph(["hub", "spoke1", "spoke2", "leaf"]),
+    "view.subgraph_node_types": lambda: f.Graph.subgraph_node_types(["user", "admin"]),
+    # exclude_nodes before latest reads the newest moment without the nodes
+    # (t=8); after it, the newest moment of the whole graph (t=12) with one gone.
+    "view.chain_exclude_nodes_latest": lambda: f.Graph.exclude_nodes(
+        ["hub", "spoke1"]
+    ).latest(),
+    "view.chain_latest_exclude_nodes": lambda: f.Graph.latest().exclude_nodes(
+        ["spoke1"]
+    ),
+    "view.and_subgraph_node": lambda: f.Graph.subgraph(["hub", "spoke1", "spoke2"])
+    & (f.Node.property("score") > 15),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -492,6 +505,12 @@ SCOPED_EXPRS = {
     "scoped.node.exclude_layer": lambda: f.Node.exclude_layer("knows").degree() >= 2,
     "scoped.node.shrink_start": lambda: f.Node.shrink_start(5).property("score") > 15,
     "scoped.node.shrink_end": lambda: f.Node.shrink_end(4).property("score") > 15,
+    "scoped.node.exclude_nodes": lambda: f.Node.exclude_nodes(["hub"]).degree() >= 1,
+    "scoped.node.subgraph": lambda: f.Node.subgraph(["hub", "spoke1"]).property("score")
+    > 15,
+    "scoped.node.subgraph_node_types": lambda: f.Node.subgraph_node_types(
+        ["user"]
+    ).is_active(),
     "scoped.edge.window": lambda: f.Edge.window(2, 5).property("weight") > 2.0,
     "scoped.edge.at": lambda: f.Edge.at(3).property("weight") > 2.0,
     "scoped.edge.before": lambda: f.Edge.before(4).property("weight") > 2.0,
@@ -507,6 +526,11 @@ SCOPED_EXPRS = {
     )
     > 2.0,
     "scoped.edge.shrink_end": lambda: f.Edge.shrink_end(5).property("weight") > 2.0,
+    "scoped.edge.exclude_nodes": lambda: f.Edge.exclude_nodes(["leaf"]).property(
+        "weight"
+    )
+    > 2.0,
+    "scoped.edge.subgraph": lambda: f.Edge.subgraph(["hub", "spoke1"]).is_active(),
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
     "scoped.edge.is_deleted": lambda: f.Edge.window(2, 11).is_deleted(),
     "scoped.exploded.is_valid": lambda: f.ExplodedEdge.window(2, 4).is_valid(),
@@ -707,6 +731,14 @@ _UNIVERSAL_EXPRS = {
     "universal.view.snapshot_latest": (
         lambda: f.Graph.snapshot_latest(),
         "the latest snapshot of an EVENT graph is the whole graph",
+    ),
+    "universal.view.valid": (
+        lambda: f.Graph.valid(),
+        "every edge of an EVENT graph has an addition, so every edge is valid",
+    ),
+    "universal.edge.valid": (
+        lambda: f.Edge.valid().is_active(),
+        "as above, read through the view by an edge term",
     ),
     "universal.mixed_or": (
         lambda: (f.Node.name() == "iso") | (f.Edge.property("weight") > 3.0),

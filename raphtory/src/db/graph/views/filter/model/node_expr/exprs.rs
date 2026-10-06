@@ -13,7 +13,7 @@
 use super::{
     ops::{
         AvgNodeOp, EarliestNodeOp, FirstNodeOp, InViewNodeOp, LastNodeOp, LatestNodeOp, LenNodeOp,
-        MaxNodeOp, MinNodeOp, NodeIdOp, SumNodeOp, TemporalNodePropOp,
+        MaxNodeOp, MinNodeOp, NodeIdOp, ShownNodeOp, SumNodeOp, TemporalNodePropOp,
     },
     AvgEdgeOp, CreateOp, EarliestEdgeOp, EntityExpr, FirstEdgeOp, IndexTerm, LastEdgeOp,
     LatestEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, SumEdgeOp,
@@ -257,13 +257,20 @@ impl<E: CreateView + Clone + Send + Sync + 'static> CreateOp for DegreeExpr<E> {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(
-            Degree {
-                dir: self.dir,
-                view: self.view_expr.create_view(graph)?,
-            }
-            .map(|a| Some(Prop::U64(a as u64))),
-        ))
+        let view = self.view_expr.create_view(graph)?;
+        let degree = Degree {
+            dir: self.dir,
+            view: view.clone(),
+        }
+        .map(|a| Some(Prop::U64(a as u64)));
+        if !self.view_expr.narrows() {
+            return Ok(Arc::new(degree));
+        }
+        Ok(Arc::new(ShownNodeOp {
+            graph: view,
+            term: degree,
+            hidden: Some(Prop::U64(0)),
+        }))
     }
 }
 

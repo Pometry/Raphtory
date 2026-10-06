@@ -42,7 +42,9 @@ use super::{
     EntityMarker,
 };
 use raphtory_api::core::{
-    entities::properties::prop::Prop, storage::timeindex::EventTime, Direction,
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::EventTime,
+    Direction,
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
@@ -76,6 +78,17 @@ pub enum ViewOp {
     ShrinkStart(EventTime),
     /// `shrink_end(t)`: the earlier of `t` and the current end.
     ShrinkEnd(EventTime),
+    /// `exclude_nodes(ids)`: every node but the named ones; an id the view
+    /// does not hold changes nothing.
+    ExcludeNodes(Vec<GID>),
+    /// `subgraph(ids)`: the named nodes alone; an id the view does not hold
+    /// is skipped.
+    Subgraph(Vec<GID>),
+    /// `subgraph_node_types(types)`: the nodes of the named types alone.
+    SubgraphNodeTypes(Vec<String>),
+    /// `valid()`: only the edges that are valid in the view (on a persistent
+    /// graph, whose last update is an addition); nodes are untouched.
+    Valid,
 }
 
 /// A built-in node field.

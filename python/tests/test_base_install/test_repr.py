@@ -99,6 +99,19 @@ class FilterExprReprTest(TestCase):
             ".exclude_layers(['b', 'c']).shrink_start(2).shrink_end(9)",
         )
 
+    def test_repr_shows_node_set_views_and_valid(self):
+        expr = (
+            filter.Graph.exclude_nodes(["a", 7])
+            .subgraph([1, "b"])
+            .subgraph_node_types(["person", "org"])
+            .valid()
+        )
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Graph.exclude_nodes(['a', 7]).subgraph([1, 'b'])"
+            ".subgraph_node_types(['person', 'org']).valid()",
+        )
+
     def test_repr_shows_expressions_on_both_sides(self):
         expr = filter.Node.degree() > filter.Node.in_degree()
         self.assertEqual(
@@ -132,6 +145,10 @@ class FilterExprReprTest(TestCase):
             filter.Node.shrink_start(2).exclude_layer("a").property("p") > 1,
             filter.Edge.window(1, 9).shrink_end((5, 1)).default_layer().is_active(),
             filter.ExplodedEdge.exclude_layers(["a", "b"]).property("p") == 3.5,
+            filter.Graph.exclude_nodes(["a", 7]).valid(),
+            filter.Node.subgraph([1, "it's"]).degree() > 0,
+            filter.Edge.subgraph_node_types(["t"]).valid().is_active(),
+            filter.ExplodedEdge.exclude_nodes([]).property("p") == 3.5,
         ]
         for expr in cases:
             text = repr(expr)

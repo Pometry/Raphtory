@@ -458,12 +458,11 @@ function randomComposedReadQuery() {
         __args: {
           path: "empty",
         },
-        applyViews: {
+        ...viewFilter(randomViewOps(GRAPH_VIEW_RATES), {
           name: true,
           ...randomPropertyQuery(GRAPH_PROPERTY_RATE),
-          ...randomGraphView(GRAPH_VIEW_RATES),
           ...randomEntityQuery(),
-        },
+        }),
       },
     },
     OP.readQuery,
@@ -546,15 +545,6 @@ function randomViewOps(rate: ViewRate): ViewOp[] {
     ...randomAppend(rate.layer, { layers: [randomLayer()] }),
     ...randomAppend(rate.window, { window: { start, end } }),
   ];
-}
-
-/** Arguments for `graph.applyViews`. */
-function randomGraphView(rate: ViewRate) {
-  return {
-    __args: {
-      views: randomViewOps(rate),
-    },
-  };
 }
 
 /**

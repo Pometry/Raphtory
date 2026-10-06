@@ -48,7 +48,7 @@ use crate::{
             properties::PropertiesOps,
             state::ops::{Id, NodeOp},
             view::{
-                internal::{GraphView, NodeList},
+                internal::{GraphView, InnerFilterOps, NodeList},
                 NodeViewOps,
             },
         },
@@ -199,6 +199,48 @@ impl<G: GraphView, F: NodeOp<Output = Option<Prop>>> NodeOp for InViewNodeOp<G, 
 
     fn prop_type(&self) -> PropType {
         self.term.prop_type()
+    }
+}
+
+/// Whether `graph` holds the node apart from time: `false` for a node it
+/// leaves out with `exclude_nodes`, `subgraph`, `subgraph_node_types` or a
+/// node filter.
+#[inline]
+pub(crate) fn node_shown<G: GraphView>(graph: &G, node: VID) -> bool {
+    !graph.filtered_inner() || graph.filter_node_inner(graph.core_node(node).as_ref())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ShownNodeOp<G, F> — a term that answers `hidden` for a node the view hides
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A term read through `graph` that answers `hidden` for a node `graph` hides
+/// apart from time, as it answers for a node a window leaves out (`0` for a
+/// degree, `false` for `is_active`).
+#[derive(Clone)]
+pub(crate) struct ShownNodeOp<G, F: NodeOp> {
+    pub(crate) graph: G,
+    pub(crate) term: F,
+    pub(crate) hidden: F::Output,
+}
+
+impl<G: GraphView, F: NodeOp> NodeOp for ShownNodeOp<G, F> {
+    type Output = F::Output;
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.term.domain(storage)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.term.prop_type()
+    }
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> F::Output {
+        if node_shown(&self.graph, node) {
+            self.term.apply(storage, node)
+        } else {
+            self.hidden.clone()
+        }
     }
 }
 

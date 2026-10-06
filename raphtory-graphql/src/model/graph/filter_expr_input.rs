@@ -15,11 +15,13 @@
 //! applies the views to every term inside `expr`. A view is one of `window`,
 //! `at`, `after`, `before`, `latest`, `snapshotAt`, `snapshotLatest`, `layers`,
 //! `defaultLayer`, `excludeLayers` (or `excludeLayer` for one name),
-//! `shrinkStart` and `shrinkEnd`, each the graph view of the same name applied
-//! to the view built so far.
+//! `shrinkStart`, `shrinkEnd`, `excludeNodes`, `subgraph`, `subgraphNodeTypes`
+//! and `valid`, each the graph view of the same name applied to the view built
+//! so far.
 
 use crate::model::graph::{
     filtering::{Window, Wrapped},
+    node_id::GqlNodeId,
     property::Value,
     timeindex::GqlTimeInput,
 };
@@ -44,7 +46,7 @@ use raphtory::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
+    entities::{properties::prop::Prop, GID},
     storage::timeindex::EventTime,
     utils::time::{InputTime, IntoTime},
     Direction,
@@ -99,6 +101,17 @@ pub enum GqlViewOp {
     /// The window's end moved to a time when that is earlier; the window only
     /// ever narrows.
     ShrinkEnd(GqlTimeInput),
+    /// Every node except the named ones, with their edges; an id the view does
+    /// not hold changes nothing.
+    ExcludeNodes(Vec<GqlNodeId>),
+    /// Only the named nodes and the edges between them; an id the view does
+    /// not hold is skipped.
+    Subgraph(Vec<GqlNodeId>),
+    /// Only the nodes of the named types and the edges between them.
+    SubgraphNodeTypes(Vec<String>),
+    /// Only the edges that are valid in the view (on a persistent graph, whose
+    /// last update is an addition); written `valid: true`.
+    Valid(bool),
 }
 
 /// The direction a node degree counts.
@@ -708,9 +721,9 @@ fn applied_test(applied: bool, name: &str) -> Result<(), GraphError> {
 impl TryFrom<GqlViewOp> for ViewOp {
     type Error = GraphError;
 
-    /// `latest: false`, `snapshotLatest: false` and `defaultLayer: false` are
-    /// refused rather than ignored: a view op that is not applied has no place
-    /// in a view list.
+    /// `latest: false`, `snapshotLatest: false`, `defaultLayer: false` and
+    /// `valid: false` are refused rather than ignored: a view op that is not
+    /// applied has no place in a view list.
     fn try_from(op: GqlViewOp) -> Result<Self, Self::Error> {
         Ok(match op {
             GqlViewOp::Window(w) => ViewOp::Window {
@@ -736,6 +749,13 @@ impl TryFrom<GqlViewOp> for ViewOp {
             GqlViewOp::ExcludeLayer(name) => ViewOp::ExcludeLayers(vec![name]),
             GqlViewOp::ShrinkStart(t) => ViewOp::ShrinkStart(t.into_time()),
             GqlViewOp::ShrinkEnd(t) => ViewOp::ShrinkEnd(t.into_time()),
+            GqlViewOp::ExcludeNodes(ids) => {
+                ViewOp::ExcludeNodes(ids.into_iter().map(GID::from).collect())
+            }
+            GqlViewOp::Subgraph(ids) => ViewOp::Subgraph(ids.into_iter().map(GID::from).collect()),
+            GqlViewOp::SubgraphNodeTypes(types) => ViewOp::SubgraphNodeTypes(types),
+            GqlViewOp::Valid(true) => ViewOp::Valid,
+            GqlViewOp::Valid(false) => return Err(invalid("valid: false is not a view")),
         })
     }
 }
@@ -750,6 +770,10 @@ fn view_ops(views: Option<Vec<GqlViewOp>>) -> Result<Vec<ViewOp>, GraphError> {
 
 fn time(t: EventTime) -> GqlTimeInput {
     GqlTimeInput(InputTime::Indexed(t.0, t.1))
+}
+
+fn node_ids(ids: &[GID]) -> Vec<GqlNodeId> {
+    ids.iter().cloned().map(GqlNodeId).collect()
 }
 
 impl From<&ViewOp> for GqlViewOp {
@@ -770,6 +794,10 @@ impl From<&ViewOp> for GqlViewOp {
             ViewOp::ExcludeLayers(names) => GqlViewOp::ExcludeLayers(names.clone()),
             ViewOp::ShrinkStart(t) => GqlViewOp::ShrinkStart(time(*t)),
             ViewOp::ShrinkEnd(t) => GqlViewOp::ShrinkEnd(time(*t)),
+            ViewOp::ExcludeNodes(ids) => GqlViewOp::ExcludeNodes(node_ids(ids)),
+            ViewOp::Subgraph(ids) => GqlViewOp::Subgraph(node_ids(ids)),
+            ViewOp::SubgraphNodeTypes(types) => GqlViewOp::SubgraphNodeTypes(types.clone()),
+            ViewOp::Valid => GqlViewOp::Valid(true),
         }
     }
 }
@@ -966,6 +994,10 @@ mod tests {
                 ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
                 ViewOp::ShrinkStart(EventTime::from(3)),
                 ViewOp::ShrinkEnd(EventTime::from(9)),
+                ViewOp::ExcludeNodes(vec![GID::Str("a".into()), GID::U64(7)]),
+                ViewOp::Subgraph(vec![GID::U64(1), GID::Str("b".into())]),
+                ViewOp::SubgraphNodeTypes(vec!["person".into()]),
+                ViewOp::Valid,
             ]),
         ]);
         let wire = GqlFilter::try_from(&tree).unwrap();
@@ -1011,11 +1043,33 @@ mod tests {
     }
 
     #[test]
+    fn node_ids_take_the_scalar_spelling_and_keep_their_type() {
+        // The wire form is the variables a client sends, so a node id is the
+        // `NodeId` scalar: a JSON string or a JSON integer, never the tagged
+        // serde form of `GID`.
+        let op = ViewOp::ExcludeNodes(vec![GID::Str("7".into()), GID::U64(7)]);
+        let json = serde_json::to_value(GqlViewOp::from(&op)).unwrap();
+        assert_eq!(json, serde_json::json!({ "excludeNodes": ["7", 7] }));
+        let back: GqlViewOp = serde_json::from_value(json).unwrap();
+        assert_eq!(ViewOp::try_from(back).unwrap(), op);
+        let json = serde_json::to_value(GqlViewOp::from(&ViewOp::Valid)).unwrap();
+        assert_eq!(json, serde_json::json!({ "valid": true }));
+        assert!(
+            serde_json::from_value::<GqlViewOp>(serde_json::json!({ "subgraph": [-1] })).is_err()
+        );
+        assert!(serde_json::from_value::<GqlViewOp>(
+            serde_json::json!({ "subgraph": [{ "U64": 1 }] })
+        )
+        .is_err());
+    }
+
+    #[test]
     fn a_test_that_is_not_applied_is_refused() {
         for (op, name) in [
             (GqlViewOp::Latest(false), "latest"),
             (GqlViewOp::SnapshotLatest(false), "snapshotLatest"),
             (GqlViewOp::DefaultLayer(false), "defaultLayer"),
+            (GqlViewOp::Valid(false), "valid"),
         ] {
             let err = ViewOp::try_from(op).unwrap_err();
             assert!(err.to_string().contains(name), "{err}");

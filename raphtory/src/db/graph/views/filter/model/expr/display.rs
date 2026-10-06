@@ -5,6 +5,7 @@ use crate::{
     db::graph::views::filter::model::{
         filter_operator::{BinaryOp, StringOp},
         layered_filter::layer_label,
+        subgraph_filter::id_list,
     },
     prelude::Layer,
 };
@@ -34,6 +35,12 @@ impl Display for ViewOp {
             }
             ViewOp::ShrinkStart(t) => write!(f, "SHRINK_START[{}]", t.t()),
             ViewOp::ShrinkEnd(t) => write!(f, "SHRINK_END[{}]", t.t()),
+            ViewOp::ExcludeNodes(ids) => write!(f, "EXCLUDE_NODES[{}]", id_list(ids)),
+            ViewOp::Subgraph(ids) => write!(f, "SUBGRAPH[{}]", id_list(ids)),
+            ViewOp::SubgraphNodeTypes(types) => {
+                write!(f, "SUBGRAPH_NODE_TYPES[{}]", types.join(", "))
+            }
+            ViewOp::Valid => write!(f, "VALID"),
         }
     }
 }

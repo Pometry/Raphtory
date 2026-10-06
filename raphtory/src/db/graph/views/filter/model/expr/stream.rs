@@ -104,15 +104,21 @@ impl<G: GraphView> EdgeHistory for TemporalEdgePropOp<G> {
     }
 
     fn values<'a>(&'a self, edge: EdgeEntryRef<'a>, at: EdgeAt) -> BoxedLIter<'a, Prop> {
-        edge_reads::temporal_hist(&self.graph, edge, at, self.prop_id)
-            .map(|(_, v)| v)
-            .into_dyn_boxed()
+        match edge_reads::shown(&self.graph, edge, at) {
+            Some(at) => edge_reads::temporal_hist(&self.graph, edge, at, self.prop_id)
+                .map(|(_, v)| v)
+                .into_dyn_boxed(),
+            None => iter::empty().into_dyn_boxed(),
+        }
     }
 
     fn values_rev<'a>(&'a self, edge: EdgeEntryRef<'a>, at: EdgeAt) -> BoxedLIter<'a, Prop> {
-        edge_reads::temporal_hist_rev(&self.graph, edge, at, self.prop_id)
-            .map(|(_, v)| v)
-            .into_dyn_boxed()
+        match edge_reads::shown(&self.graph, edge, at) {
+            Some(at) => edge_reads::temporal_hist_rev(&self.graph, edge, at, self.prop_id)
+                .map(|(_, v)| v)
+                .into_dyn_boxed(),
+            None => iter::empty().into_dyn_boxed(),
+        }
     }
 }
 
