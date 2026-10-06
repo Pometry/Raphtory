@@ -8,7 +8,7 @@ use crate::core::{
         dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper},
     },
 };
-use itertools::Either;
+use itertools::{Either, Itertools};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -267,12 +267,17 @@ pub struct PropMapper {
 impl Debug for PropMapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("{")?;
+        let layer_prop_presence = self.layer_prop_presence.read_recursive();
         for (k, (id, dtype)) in self
             .all_keys()
             .iter()
             .zip(self.all_ids().zip(self.d_types().iter()))
         {
-            write!(f, "{k}: ({id}, {dtype:?}), ")?;
+            let map = layer_prop_presence
+                .iter()
+                .map(|v| v.get(id).copied().unwrap_or(false))
+                .collect_vec();
+            write!(f, "{k}: ({id}, {dtype:?}, {map:?}), ")?;
         }
         f.write_str("}")
     }
