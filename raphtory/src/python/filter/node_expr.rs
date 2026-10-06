@@ -858,6 +858,62 @@ impl PyNodeFilter {
         self.with_view(ViewOp::Layers(layers.into()))
     }
 
+    /// Reads through a view of the default layer only.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn default_layer(&self) -> PyNodeFilter {
+        self.with_view(ViewOp::DefaultLayer)
+    }
+
+    /// Reads through a view of every layer except the given one.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn exclude_layer(&self, layer: String) -> PyNodeFilter {
+        self.with_view(ViewOp::ExcludeLayers(vec![layer]))
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn exclude_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
+        self.with_view(ViewOp::ExcludeLayers(layers.into()))
+    }
+
+    /// Moves the start of the current window to `start` when that is later.
+    ///
+    /// The window only ever narrows: a start before the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): New start time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn shrink_start(&self, start: EventTime) -> PyNodeFilter {
+        self.with_view(ViewOp::ShrinkStart(start))
+    }
+
+    /// Moves the end of the current window to `end` when that is earlier.
+    ///
+    /// The window only ever narrows: an end after the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): New end time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn shrink_end(&self, end: EventTime) -> PyNodeFilter {
+        self.with_view(ViewOp::ShrinkEnd(end))
+    }
+
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
@@ -1076,6 +1132,67 @@ impl PyNode {
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyNodeFilter {
         PyNodeFilter::root().layers(layers)
+    }
+
+    /// Reads through a view of the default layer only.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn default_layer() -> PyNodeFilter {
+        PyNodeFilter::root().default_layer()
+    }
+
+    /// Reads through a view of every layer except the given one.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn exclude_layer(layer: String) -> PyNodeFilter {
+        PyNodeFilter::root().exclude_layer(layer)
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn exclude_layers(layers: FromIterable<String>) -> PyNodeFilter {
+        PyNodeFilter::root().exclude_layers(layers)
+    }
+
+    /// Moves the start of the current window to `start` when that is later.
+    ///
+    /// The window only ever narrows: a start before the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): New start time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn shrink_start(start: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().shrink_start(start)
+    }
+
+    /// Moves the end of the current window to `end` when that is earlier.
+    ///
+    /// The window only ever narrows: an end after the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): New end time.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn shrink_end(end: EventTime) -> PyNodeFilter {
+        PyNodeFilter::root().shrink_end(end)
     }
 
     /// Matches nodes that have at least one event in the current view.

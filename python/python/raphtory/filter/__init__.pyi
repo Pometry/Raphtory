@@ -29,22 +29,8 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "FilterExpr",
-    "Expr",
-    "PropertyExpr",
-    "Node",
-    "NodeFilter",
-    "Edge",
-    "EdgeFilter",
-    "EdgeEndpoint",
-    "ExplodedEdge",
-    "ExplodedEdgeFilter",
-    "Graph",
-    "GraphFilter",
-]
-
-class FilterExpr(object):
+__all__ = ['FilterExpr', 'Expr', 'PropertyExpr', 'Node', 'NodeFilter', 'Edge', 'EdgeFilter', 'EdgeEndpoint', 'ExplodedEdge', 'ExplodedEdgeFilter', 'Graph', 'GraphFilter']
+class FilterExpr(object): 
     """
     A filter as a tree. The same tree runs locally, is sent to a server, and is
     what `repr` prints, so there is nothing to keep in step.
@@ -76,7 +62,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class Expr(object):
+class Expr(object): 
     """
     A value expression: a field, degree, property, metadata entry, an aggregate
     over one, or a yes/no built from them. Comparing it to a value or to another
@@ -203,9 +189,7 @@ class Expr(object):
             filter.Expr:
         """
 
-    def fuzzy_search(
-        self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool
-    ) -> filter.Expr:
+    def fuzzy_search(self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool) -> filter.Expr:
         """
         Checks whether the string value is within a Levenshtein distance of the given text.
 
@@ -384,7 +368,7 @@ class Expr(object):
             filter.Expr:
         """
 
-class PropertyExpr(Expr):
+class PropertyExpr(Expr): 
     """A property term, which can switch to the property's history with `temporal()`."""
 
     def __repr__(self):
@@ -400,7 +384,7 @@ class PropertyExpr(Expr):
             filter.Expr:
         """
 
-class Node(object):
+class Node(object): 
     """
     Entry point for constructing node filter expressions.
 
@@ -459,12 +443,45 @@ class Node(object):
         """
 
     @staticmethod
+    def default_layer() -> filter.NodeFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
     def degree() -> filter.Expr:
         """
         Selects total node degree for filtering.
 
         Returns:
             filter.Expr:
+        """
+
+    @staticmethod
+    def exclude_layer(layer: str) -> filter.NodeFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
+    def exclude_layers(layers: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
         """
 
     @staticmethod
@@ -583,6 +600,34 @@ class Node(object):
         """
 
     @staticmethod
+    def shrink_end(end: TimeInput) -> filter.NodeFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
+    def shrink_start(start: TimeInput) -> filter.NodeFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
     def snapshot_at(time: TimeInput) -> filter.NodeFilter:
         """
         Evaluates filters against a snapshot of the graph at a given time.
@@ -618,7 +663,7 @@ class Node(object):
             filter.NodeFilter:
         """
 
-class NodeFilter(object):
+class NodeFilter(object): 
     """
     A node filter scoped to a view.
 
@@ -675,12 +720,42 @@ class NodeFilter(object):
             filter.FilterExpr:
         """
 
+    def default_layer(self) -> filter.NodeFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
     def degree(self) -> filter.Expr:
         """
         Selects total node degree for filtering.
 
         Returns:
             filter.Expr:
+        """
+
+    def exclude_layer(self, layer: str) -> filter.NodeFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    def exclude_layers(self, layers: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
         """
 
     def id(self) -> filter.Expr:
@@ -787,6 +862,32 @@ class NodeFilter(object):
             filter.PropertyExpr:
         """
 
+    def shrink_end(self, end: TimeInput) -> filter.NodeFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    def shrink_start(self, start: TimeInput) -> filter.NodeFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
     def snapshot_at(self, time: TimeInput) -> filter.NodeFilter:
         """
         Evaluates filters against a snapshot of the graph at a given time.
@@ -820,7 +921,7 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
-class Edge(object):
+class Edge(object): 
     """
     Entry point for constructing edge filter expressions.
 
@@ -866,12 +967,45 @@ class Edge(object):
         """
 
     @staticmethod
+    def default_layer() -> filter.EdgeFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
     def dst() -> filter.EdgeEndpoint:
         """
         Selects the edge **destination endpoint** for filtering.
 
         Returns:
             filter.EdgeEndpoint:
+        """
+
+    @staticmethod
+    def exclude_layer(layer: str) -> filter.EdgeFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_layers(layers: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeFilter:
         """
 
     @staticmethod
@@ -968,6 +1102,34 @@ class Edge(object):
         """
 
     @staticmethod
+    def shrink_end(end: TimeInput) -> filter.EdgeFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
+    def shrink_start(start: TimeInput) -> filter.EdgeFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
     def snapshot_at(time: TimeInput) -> filter.EdgeFilter:
         """
         Evaluates edge predicates against a snapshot of the graph at a given time.
@@ -1010,7 +1172,7 @@ class Edge(object):
             filter.EdgeFilter:
         """
 
-class EdgeFilter(object):
+class EdgeFilter(object): 
     """
     An edge filter scoped to a view.
 
@@ -1055,12 +1217,42 @@ class EdgeFilter(object):
             filter.EdgeFilter:
         """
 
+    def default_layer(self) -> filter.EdgeFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
     def dst(self) -> filter.EdgeEndpoint:
         """
         Selects the edge **destination endpoint** for filtering.
 
         Returns:
             filter.EdgeEndpoint:
+        """
+
+    def exclude_layer(self, layer: str) -> filter.EdgeFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    def exclude_layers(self, layers: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeFilter:
         """
 
     def is_active(self) -> filter.Expr:
@@ -1147,6 +1339,32 @@ class EdgeFilter(object):
             filter.PropertyExpr:
         """
 
+    def shrink_end(self, end: TimeInput) -> filter.EdgeFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    def shrink_start(self, start: TimeInput) -> filter.EdgeFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
     def snapshot_at(self, time: TimeInput) -> filter.EdgeFilter:
         """
         Evaluates edge predicates against a snapshot of the graph at a given time.
@@ -1186,7 +1404,7 @@ class EdgeFilter(object):
             filter.EdgeFilter:
         """
 
-class EdgeEndpoint(object):
+class EdgeEndpoint(object): 
     """
     Entry point for filtering an edge endpoint (source or destination).
 
@@ -1249,7 +1467,7 @@ class EdgeEndpoint(object):
             filter.PropertyExpr:
         """
 
-class ExplodedEdge(object):
+class ExplodedEdge(object): 
     """
     Entry point for constructing exploded-edge filter expressions.
 
@@ -1288,6 +1506,39 @@ class ExplodedEdge(object):
 
         Arguments:
             time (TimeInput): Upper time bound.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def default_layer() -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_layer(layer: str) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_layers(layers: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1391,6 +1642,34 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
+    def shrink_end(end: TimeInput) -> filter.ExplodedEdgeFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def shrink_start(start: TimeInput) -> filter.ExplodedEdgeFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
     def snapshot_at(time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Evaluates exploded edge predicates against a snapshot of the graph at a given time.
@@ -1426,7 +1705,7 @@ class ExplodedEdge(object):
             filter.ExplodedEdgeFilter:
         """
 
-class ExplodedEdgeFilter(object):
+class ExplodedEdgeFilter(object): 
     """
     An exploded-edge filter scoped to a view.
 
@@ -1467,6 +1746,36 @@ class ExplodedEdgeFilter(object):
 
         Arguments:
             time (TimeInput): Upper time bound.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def default_layer(self) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def exclude_layer(self, layer: str) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def exclude_layers(self, layers: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1560,6 +1869,32 @@ class ExplodedEdgeFilter(object):
             filter.PropertyExpr:
         """
 
+    def shrink_end(self, end: TimeInput) -> filter.ExplodedEdgeFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def shrink_start(self, start: TimeInput) -> filter.ExplodedEdgeFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
     def snapshot_at(self, time: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Evaluates exploded edge predicates against a snapshot of the graph at a given time.
@@ -1593,7 +1928,7 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
-class Graph(object):
+class Graph(object): 
     """
     Entry point for graph-level view filters.
 
@@ -1638,6 +1973,39 @@ class Graph(object):
         """
 
     @staticmethod
+    def default_layer() -> filter.GraphFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def exclude_layer(layer: str) -> filter.GraphFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def exclude_layers(layers: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
     def latest() -> filter.GraphFilter:
         """
         Evaluates filters against the latest available state of the graph.
@@ -1665,6 +2033,34 @@ class Graph(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def shrink_end(end: TimeInput) -> filter.GraphFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def shrink_start(start: TimeInput) -> filter.GraphFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
 
         Returns:
             filter.GraphFilter:
@@ -1706,7 +2102,7 @@ class Graph(object):
             filter.GraphFilter:
         """
 
-class GraphFilter(FilterExpr):
+class GraphFilter(FilterExpr): 
     """
     A graph-level view scope.
 
@@ -1752,6 +2148,36 @@ class GraphFilter(FilterExpr):
             filter.GraphFilter:
         """
 
+    def default_layer(self) -> filter.GraphFilter:
+        """
+        Reads through a view of the default layer only.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def exclude_layer(self, layer: str) -> filter.GraphFilter:
+        """
+        Reads through a view of every layer except the given one.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def exclude_layers(self, layers: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
     def latest(self) -> filter.GraphFilter:
         """
         Evaluates filters against the latest available state of the graph.
@@ -1777,6 +2203,32 @@ class GraphFilter(FilterExpr):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def shrink_end(self, end: TimeInput) -> filter.GraphFilter:
+        """
+        Moves the end of the current window to `end` when that is earlier.
+
+        The window only ever narrows: an end after the current one changes nothing.
+
+        Arguments:
+            end (TimeInput): New end time.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def shrink_start(self, start: TimeInput) -> filter.GraphFilter:
+        """
+        Moves the start of the current window to `start` when that is later.
+
+        The window only ever narrows: a start before the current one changes nothing.
+
+        Arguments:
+            start (TimeInput): New start time.
 
         Returns:
             filter.GraphFilter:

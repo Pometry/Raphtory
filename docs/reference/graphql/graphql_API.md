@@ -15347,6 +15347,54 @@ Only the named layers.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Only the default layer; written `defaultLayer: true`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludelayers">excludeLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Every layer except the named ones.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Every layer except the named one; the same view as `excludeLayers`
+with one name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+The window's start moved to a time when that is later; the window only
+ever narrows.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+The window's end moved to a time when that is earlier; the window only
+ever narrows.
+
+</td>
+</tr>
 </tbody>
 </table>
 

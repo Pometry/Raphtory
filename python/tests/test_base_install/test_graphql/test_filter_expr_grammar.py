@@ -190,3 +190,40 @@ def test_combinators_presence_and_membership():
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["bob", "dave"]
         assert node_names(client, members) == ["alice", "dave"]
+
+
+def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
+    """Each view op is the graph view of the same name applied to the view so
+    far, both as a whole-filter view and as the scope of an edge term. One
+    extra edge dave→alice @3 sits on the default layer."""
+    g = build()
+    g.add_edge(3, "dave", "alice")
+    cases = [
+        ([{"defaultLayer": True}], g.default_layer(), f.Edge.default_layer()),
+        (
+            [{"excludeLayer": "knows"}],
+            g.exclude_layer("knows"),
+            f.Edge.exclude_layer("knows"),
+        ),
+        (
+            [{"excludeLayers": ["knows", "works"]}],
+            g.exclude_layers(["knows", "works"]),
+            f.Edge.exclude_layers(["knows", "works"]),
+        ),
+        ([{"shrinkEnd": 4}], g.shrink_end(4), f.Edge.shrink_end(4)),
+        (
+            [{"window": {"start": 0, "end": 7}}, {"shrinkStart": 2}],
+            g.window(0, 7).shrink_start(2),
+            f.Edge.window(0, 7).shrink_start(2),
+        ),
+    ]
+    with graphql_client(g) as client:
+        for views, local_view, local_scope in cases:
+            want = sorted((e.src.name, e.dst.name) for e in local_view.edges)
+            assert edge_pairs(client, {"view": views}) == want, views
+            active = edge(viewed(views, {"isActive": True}))
+            local = sorted(
+                (e.src.name, e.dst.name)
+                for e in g.filter(local_scope.is_active()).edges
+            )
+            assert edge_pairs(client, active) == local, views

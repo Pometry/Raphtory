@@ -12,7 +12,11 @@
 //! ```
 //!
 //! Views scope terms: `{ node: { viewed: { views: [...], expr: { property: "score" } } } }`
-//! applies the views to every term inside `expr`.
+//! applies the views to every term inside `expr`. A view is one of `window`,
+//! `at`, `after`, `before`, `latest`, `snapshotAt`, `snapshotLatest`, `layers`,
+//! `defaultLayer`, `excludeLayers` (or `excludeLayer` for one name),
+//! `shrinkStart` and `shrinkEnd`, each the graph view of the same name applied
+//! to the view built so far.
 
 use crate::model::graph::{
     filtering::{Window, Wrapped},
@@ -82,6 +86,19 @@ pub enum GqlViewOp {
     SnapshotLatest(bool),
     /// Only the named layers.
     Layers(Vec<String>),
+    /// Only the default layer; written `defaultLayer: true`.
+    DefaultLayer(bool),
+    /// Every layer except the named ones.
+    ExcludeLayers(Vec<String>),
+    /// Every layer except the named one; the same view as `excludeLayers`
+    /// with one name.
+    ExcludeLayer(String),
+    /// The window's start moved to a time when that is later; the window only
+    /// ever narrows.
+    ShrinkStart(GqlTimeInput),
+    /// The window's end moved to a time when that is earlier; the window only
+    /// ever narrows.
+    ShrinkEnd(GqlTimeInput),
 }
 
 /// The direction a node degree counts.
@@ -691,8 +708,9 @@ fn applied_test(applied: bool, name: &str) -> Result<(), GraphError> {
 impl TryFrom<GqlViewOp> for ViewOp {
     type Error = GraphError;
 
-    /// `latest: false` and `snapshotLatest: false` are refused rather than
-    /// ignored: a view op that is not applied has no place in a view list.
+    /// `latest: false`, `snapshotLatest: false` and `defaultLayer: false` are
+    /// refused rather than ignored: a view op that is not applied has no place
+    /// in a view list.
     fn try_from(op: GqlViewOp) -> Result<Self, Self::Error> {
         Ok(match op {
             GqlViewOp::Window(w) => ViewOp::Window {
@@ -710,6 +728,14 @@ impl TryFrom<GqlViewOp> for ViewOp {
                 return Err(invalid("snapshotLatest: false is not a view"))
             }
             GqlViewOp::Layers(names) => ViewOp::Layers(names),
+            GqlViewOp::DefaultLayer(true) => ViewOp::DefaultLayer,
+            GqlViewOp::DefaultLayer(false) => {
+                return Err(invalid("defaultLayer: false is not a view"))
+            }
+            GqlViewOp::ExcludeLayers(names) => ViewOp::ExcludeLayers(names),
+            GqlViewOp::ExcludeLayer(name) => ViewOp::ExcludeLayers(vec![name]),
+            GqlViewOp::ShrinkStart(t) => ViewOp::ShrinkStart(t.into_time()),
+            GqlViewOp::ShrinkEnd(t) => ViewOp::ShrinkEnd(t.into_time()),
         })
     }
 }
@@ -740,6 +766,10 @@ impl From<&ViewOp> for GqlViewOp {
             ViewOp::SnapshotAt(t) => GqlViewOp::SnapshotAt(time(*t)),
             ViewOp::SnapshotLatest => GqlViewOp::SnapshotLatest(true),
             ViewOp::Layers(names) => GqlViewOp::Layers(names.clone()),
+            ViewOp::DefaultLayer => GqlViewOp::DefaultLayer(true),
+            ViewOp::ExcludeLayers(names) => GqlViewOp::ExcludeLayers(names.clone()),
+            ViewOp::ShrinkStart(t) => GqlViewOp::ShrinkStart(time(*t)),
+            ViewOp::ShrinkEnd(t) => GqlViewOp::ShrinkEnd(time(*t)),
         }
     }
 }
@@ -930,7 +960,13 @@ mod tests {
                 })),
                 Box::new(Expr::Const(Prop::str("rock"))),
             )),
-            F::View(vec![ViewOp::Latest]),
+            F::View(vec![
+                ViewOp::Latest,
+                ViewOp::DefaultLayer,
+                ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
+                ViewOp::ShrinkStart(EventTime::from(3)),
+                ViewOp::ShrinkEnd(EventTime::from(9)),
+            ]),
         ]);
         let wire = GqlFilter::try_from(&tree).unwrap();
         let json = serde_json::to_string(&wire).unwrap();
@@ -965,10 +1001,21 @@ mod tests {
     }
 
     #[test]
+    fn exclude_layer_is_exclude_layers_with_one_name() {
+        let one = ViewOp::try_from(GqlViewOp::ExcludeLayer("a".into())).unwrap();
+        let list = ViewOp::try_from(GqlViewOp::ExcludeLayers(vec!["a".into()])).unwrap();
+        assert_eq!(one, ViewOp::ExcludeLayers(vec!["a".into()]));
+        assert_eq!(one, list);
+        let json = serde_json::to_value(GqlViewOp::from(&one)).unwrap();
+        assert_eq!(json, serde_json::json!({ "excludeLayers": ["a"] }));
+    }
+
+    #[test]
     fn a_test_that_is_not_applied_is_refused() {
         for (op, name) in [
             (GqlViewOp::Latest(false), "latest"),
             (GqlViewOp::SnapshotLatest(false), "snapshotLatest"),
+            (GqlViewOp::DefaultLayer(false), "defaultLayer"),
         ] {
             let err = ViewOp::try_from(op).unwrap_err();
             assert!(err.to_string().contains(name), "{err}");

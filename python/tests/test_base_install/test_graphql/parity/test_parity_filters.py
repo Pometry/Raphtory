@@ -455,6 +455,14 @@ VIEW_EXPRS = {
     # inverts the chain remotely while local stays correct).
     "view.chain_window_latest": lambda: f.Graph.window(2, 5).latest(),
     "view.chain_latest_window": lambda: f.Graph.latest().window(11, 13),
+    "view.default_layer": lambda: f.Graph.default_layer(),
+    "view.exclude_layer": lambda: f.Graph.exclude_layer("knows"),
+    "view.exclude_layers": lambda: f.Graph.exclude_layers(["knows", "likes"]),
+    "view.shrink_start": lambda: f.Graph.shrink_start(5),
+    "view.shrink_end": lambda: f.Graph.shrink_end(6),
+    "view.chain_window_shrink": lambda: f.Graph.window(2, 10)
+    .shrink_start(4)
+    .shrink_end(8),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -481,6 +489,9 @@ SCOPED_EXPRS = {
         lambda: f.Node.latest().window(11, 13).property("score") > 15
     ),
     "scoped.node.is_active": lambda: f.Node.window(1, 3).is_active(),
+    "scoped.node.exclude_layer": lambda: f.Node.exclude_layer("knows").degree() >= 2,
+    "scoped.node.shrink_start": lambda: f.Node.shrink_start(5).property("score") > 15,
+    "scoped.node.shrink_end": lambda: f.Node.shrink_end(4).property("score") > 15,
     "scoped.edge.window": lambda: f.Edge.window(2, 5).property("weight") > 2.0,
     "scoped.edge.at": lambda: f.Edge.at(3).property("weight") > 2.0,
     "scoped.edge.before": lambda: f.Edge.before(4).property("weight") > 2.0,
@@ -491,6 +502,11 @@ SCOPED_EXPRS = {
     "scoped.edge.layers": lambda: f.Edge.layers(["knows", "works"]).property("weight")
     > 2.0,
     "scoped.edge.metadata": lambda: f.Edge.layer("knows").metadata("kind") == "strong",
+    "scoped.edge.exclude_layers": lambda: f.Edge.exclude_layers(["knows"]).property(
+        "weight"
+    )
+    > 2.0,
+    "scoped.edge.shrink_end": lambda: f.Edge.shrink_end(5).property("weight") > 2.0,
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
     "scoped.edge.is_deleted": lambda: f.Edge.window(2, 11).is_deleted(),
     "scoped.exploded.is_valid": lambda: f.ExplodedEdge.window(2, 4).is_valid(),

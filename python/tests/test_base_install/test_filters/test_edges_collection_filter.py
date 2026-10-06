@@ -21,8 +21,25 @@ Graph = filter.Graph
 Node = filter.Node
 Edge = filter.Edge
 
-TIME_VIEWS = {"before", "after", "window", "at", "latest", "snap_at", "snap_latest"}
-VIEWS = TIME_VIEWS | {"layer", "layers2"}
+TIME_VIEWS = {
+    "before",
+    "after",
+    "window",
+    "at",
+    "latest",
+    "snap_at",
+    "snap_latest",
+    "shrink_start",
+    "shrink_end",
+    "shrunk_window",
+}
+VIEWS = TIME_VIEWS | {
+    "layer",
+    "layers2",
+    "default_layer",
+    "exclude_layer",
+    "exclude_layers2",
+}
 NODE_KIND = {"node_prop", "node_name"}
 
 
@@ -54,6 +71,12 @@ def _atoms():
         "latest": Graph.latest(),
         "snap_at": Graph.snapshot_at(10),
         "snap_latest": Graph.snapshot_latest(),
+        "default_layer": Graph.default_layer(),
+        "exclude_layer": Graph.exclude_layer("work"),
+        "exclude_layers2": Graph.exclude_layers(["work", "friends"]),
+        "shrink_start": Graph.shrink_start(8),
+        "shrink_end": Graph.shrink_end(12),
+        "shrunk_window": Graph.window(3, 20).shrink_start(8).shrink_end(12),
         "is_valid": Edge.is_valid(),
         "is_deleted": Edge.is_deleted(),
         "is_active": Edge.is_active(),
@@ -97,6 +120,12 @@ def _view_references(graph):
         "latest": graph.latest(),
         "snap_at": graph.snapshot_at(10),
         "snap_latest": graph.snapshot_latest(),
+        "default_layer": graph.default_layer(),
+        "exclude_layer": graph.exclude_layer("work"),
+        "exclude_layers2": graph.exclude_layers(["work", "friends"]),
+        "shrink_start": graph.shrink_start(8),
+        "shrink_end": graph.shrink_end(12),
+        "shrunk_window": graph.window(3, 20).shrink_start(8).shrink_end(12),
     }
 
 
@@ -188,17 +217,7 @@ def _negations(graph, single):
 def test_single_filters_match_graph_filter_and_chained_views():
     def check(graph):
         atoms, mismatches = _atoms(), []
-        view_ref = {
-            "layer": graph.layers(["work"]),
-            "layers2": graph.layers(["work", "friends"]),
-            "before": graph.before(10),
-            "after": graph.after(8),
-            "window": graph.window(3, 12),
-            "at": graph.at(10),
-            "latest": graph.latest(),
-            "snap_at": graph.snapshot_at(10),
-            "snap_latest": graph.snapshot_latest(),
-        }
+        view_ref = _view_references(graph)
         for name, expr in atoms.items():
             got = _ids(graph.edges[expr])
             if got != _ids(graph.filter(expr).edges):

@@ -135,6 +135,62 @@ impl PyGraphFilter {
     fn layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
         self.with_view(ViewOp::Layers(layers.into()))
     }
+
+    /// Reads through a view of the default layer only.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    fn default_layer(&self) -> PyGraphFilter {
+        self.with_view(ViewOp::DefaultLayer)
+    }
+
+    /// Reads through a view of every layer except the given one.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    fn exclude_layer(&self, layer: String) -> PyGraphFilter {
+        self.with_view(ViewOp::ExcludeLayers(vec![layer]))
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    fn exclude_layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
+        self.with_view(ViewOp::ExcludeLayers(layers.into()))
+    }
+
+    /// Moves the start of the current window to `start` when that is later.
+    ///
+    /// The window only ever narrows: a start before the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): New start time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    fn shrink_start(&self, start: EventTime) -> PyGraphFilter {
+        self.with_view(ViewOp::ShrinkStart(start))
+    }
+
+    /// Moves the end of the current window to `end` when that is earlier.
+    ///
+    /// The window only ever narrows: an end after the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): New end time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    fn shrink_end(&self, end: EventTime) -> PyGraphFilter {
+        self.with_view(ViewOp::ShrinkEnd(end))
+    }
 }
 
 /// Entry point for graph-level view filters.
@@ -249,6 +305,67 @@ impl PyGraph {
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyGraphFilter {
         PyGraphFilter::root().layers(layers)
+    }
+
+    /// Reads through a view of the default layer only.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn default_layer() -> PyGraphFilter {
+        PyGraphFilter::root().default_layer()
+    }
+
+    /// Reads through a view of every layer except the given one.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn exclude_layer(layer: String) -> PyGraphFilter {
+        PyGraphFilter::root().exclude_layer(layer)
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn exclude_layers(layers: FromIterable<String>) -> PyGraphFilter {
+        PyGraphFilter::root().exclude_layers(layers)
+    }
+
+    /// Moves the start of the current window to `start` when that is later.
+    ///
+    /// The window only ever narrows: a start before the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): New start time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn shrink_start(start: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().shrink_start(start)
+    }
+
+    /// Moves the end of the current window to `end` when that is earlier.
+    ///
+    /// The window only ever narrows: an end after the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): New end time.
+    ///
+    /// Returns:
+    ///     filter.GraphFilter:
+    #[staticmethod]
+    fn shrink_end(end: EventTime) -> PyGraphFilter {
+        PyGraphFilter::root().shrink_end(end)
     }
 }
 

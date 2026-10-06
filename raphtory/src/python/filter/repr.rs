@@ -399,21 +399,33 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
                 ViewOp::Latest => ".latest()".to_owned(),
                 ViewOp::SnapshotAt(t) => format!(".snapshot_at({})", time(t)),
                 ViewOp::SnapshotLatest => ".snapshot_latest()".to_owned(),
-                ViewOp::Layers(names) => match names.as_slice() {
-                    [name] => format!(".layer({})", py_str(py, name)?),
-                    names => format!(
-                        ".layers([{}])",
-                        names
-                            .iter()
-                            .map(|n| py_str(py, n))
-                            .collect::<PyResult<Vec<_>>>()?
-                            .join(", ")
-                    ),
-                },
+                ViewOp::Layers(names) => layer_call(py, "layer", "layers", names)?,
+                ViewOp::DefaultLayer => ".default_layer()".to_owned(),
+                ViewOp::ExcludeLayers(names) => {
+                    layer_call(py, "exclude_layer", "exclude_layers", names)?
+                }
+                ViewOp::ShrinkStart(t) => format!(".shrink_start({})", time(t)),
+                ViewOp::ShrinkEnd(t) => format!(".shrink_end({})", time(t)),
             })
         })
         .collect::<PyResult<Vec<_>>>()
         .map(|parts| parts.concat())
+}
+
+/// A layer selection as a call: the one-name form for one name, the list form
+/// otherwise.
+fn layer_call(py: Python<'_>, one: &str, many: &str, names: &[String]) -> PyResult<String> {
+    Ok(match names {
+        [name] => format!(".{one}({})", py_str(py, name)?),
+        names => format!(
+            ".{many}([{}])",
+            names
+                .iter()
+                .map(|n| py_str(py, n))
+                .collect::<PyResult<Vec<_>>>()?
+                .join(", ")
+        ),
+    })
 }
 
 /// A time the way a user passes it: the timestamp, or a `(t, event_id)` pair

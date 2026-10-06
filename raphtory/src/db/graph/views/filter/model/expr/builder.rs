@@ -151,6 +151,33 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
     fn layer<Ly: Into<Layer>>(self, layer: Ly) -> Chain<L> {
         self.into().push(layer_view(layer.into()))
     }
+
+    fn default_layer(self) -> Chain<L> {
+        self.into().push(Some(ViewOp::DefaultLayer))
+    }
+
+    fn exclude_layer(self, layer: impl Into<String>) -> Chain<L> {
+        self.into()
+            .push(Some(ViewOp::ExcludeLayers(vec![layer.into()])))
+    }
+
+    fn exclude_layers<I, S>(self, layers: I) -> Chain<L>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let names = layers.into_iter().map(Into::into).collect();
+        self.into().push(Some(ViewOp::ExcludeLayers(names)))
+    }
+
+    fn shrink_start<T: IntoTime>(self, start: T) -> Chain<L> {
+        self.into()
+            .push(Some(ViewOp::ShrinkStart(start.into_time())))
+    }
+
+    fn shrink_end<T: IntoTime>(self, end: T) -> Chain<L> {
+        self.into().push(Some(ViewOp::ShrinkEnd(end.into_time())))
+    }
 }
 
 impl<L> ViewWrapOps<L> for Chain<L> {}

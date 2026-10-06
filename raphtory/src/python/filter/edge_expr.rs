@@ -300,6 +300,62 @@ impl PyEdgeFilter {
         self.with_view(ViewOp::Layers(layers.into()))
     }
 
+    /// Reads through a view of the default layer only.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    fn default_layer(&self) -> PyEdgeFilter {
+        self.with_view(ViewOp::DefaultLayer)
+    }
+
+    /// Reads through a view of every layer except the given one.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    fn exclude_layer(&self, layer: String) -> PyEdgeFilter {
+        self.with_view(ViewOp::ExcludeLayers(vec![layer]))
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    fn exclude_layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
+        self.with_view(ViewOp::ExcludeLayers(layers.into()))
+    }
+
+    /// Moves the start of the current window to `start` when that is later.
+    ///
+    /// The window only ever narrows: a start before the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): New start time.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    fn shrink_start(&self, start: EventTime) -> PyEdgeFilter {
+        self.with_view(ViewOp::ShrinkStart(start))
+    }
+
+    /// Moves the end of the current window to `end` when that is earlier.
+    ///
+    /// The window only ever narrows: an end after the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): New end time.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    fn shrink_end(&self, end: EventTime) -> PyEdgeFilter {
+        self.with_view(ViewOp::ShrinkEnd(end))
+    }
+
     /// Matches edges that have at least one event in the current view.
     ///
     /// Returns:
@@ -494,6 +550,67 @@ impl PyEdge {
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyEdgeFilter {
         PyEdgeFilter::root().layers(layers)
+    }
+
+    /// Reads through a view of the default layer only.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    #[staticmethod]
+    fn default_layer() -> PyEdgeFilter {
+        PyEdgeFilter::root().default_layer()
+    }
+
+    /// Reads through a view of every layer except the given one.
+    ///
+    /// Arguments:
+    ///     layer (str): Layer name.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    #[staticmethod]
+    fn exclude_layer(layer: String) -> PyEdgeFilter {
+        PyEdgeFilter::root().exclude_layer(layer)
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    #[staticmethod]
+    fn exclude_layers(layers: FromIterable<String>) -> PyEdgeFilter {
+        PyEdgeFilter::root().exclude_layers(layers)
+    }
+
+    /// Moves the start of the current window to `start` when that is later.
+    ///
+    /// The window only ever narrows: a start before the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     start (TimeInput): New start time.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    #[staticmethod]
+    fn shrink_start(start: EventTime) -> PyEdgeFilter {
+        PyEdgeFilter::root().shrink_start(start)
+    }
+
+    /// Moves the end of the current window to `end` when that is earlier.
+    ///
+    /// The window only ever narrows: an end after the current one changes nothing.
+    ///
+    /// Arguments:
+    ///     end (TimeInput): New end time.
+    ///
+    /// Returns:
+    ///     filter.EdgeFilter:
+    #[staticmethod]
+    fn shrink_end(end: EventTime) -> PyEdgeFilter {
+        PyEdgeFilter::root().shrink_end(end)
     }
 
     /// Matches edges that have at least one event in the current view.

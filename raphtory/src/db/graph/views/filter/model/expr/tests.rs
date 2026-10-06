@@ -1,10 +1,11 @@
 use super::*;
 use crate::{
     db::{
-        api::view::{Filter, Select},
+        api::view::{DynamicGraph, Filter, IntoDynamic, Select},
         graph::views::filter::{
             model::{
                 edge_filter::EdgeFilter,
+                graph_filter::GraphFilter,
                 node_expr::Compiled,
                 node_filter::{NodeFilter, NodeFilterFactory},
                 ComposableFilter, DynCreateFilter, EdgeViewFilterOps, EntityAggOps,
@@ -14,7 +15,9 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS},
+    prelude::{
+        AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps, NO_PROPS,
+    },
 };
 use raphtory_api::core::{
     entities::properties::prop::IntoProp, storage::timeindex::EventTime, Direction,
@@ -1050,4 +1053,251 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
         assert_eq!(filtered(&*f), want, "{label}: filter");
         assert_eq!(selected(&*f), want, "{label}: nodes.select");
     }
+}
+
+/// a→b [x] @1 · b→c [y] @3 · c→d [_default] @5 · d→a [x] @7 · e alone @8
+///
+/// ```text
+///            1    3    5    7    8
+/// a→b [x]    ●
+/// b→c [y]         ●
+/// c→d [def]            ●
+/// d→a [x]                   ●
+/// e                              ●
+/// ```
+fn layered_graph() -> Graph {
+    let g = Graph::new();
+    for (t, src, dst, layer) in [
+        (1, "a", "b", Some("x")),
+        (3, "b", "c", Some("y")),
+        (5, "c", "d", None),
+        (7, "d", "a", Some("x")),
+    ] {
+        g.add_edge(t, src, dst, NO_PROPS, layer).unwrap();
+    }
+    g.add_node(8, "e", NO_PROPS, None, None).unwrap();
+    g
+}
+
+fn names_of(g: &DynamicGraph) -> Vec<String> {
+    let mut names: Vec<String> = g.nodes().iter().map(|n| n.name()).collect();
+    names.sort();
+    names
+}
+
+fn edge_ids_of(g: &DynamicGraph) -> Vec<String> {
+    let mut ids: Vec<String> = g
+        .edges()
+        .iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect();
+    ids.sort();
+    ids
+}
+
+/// The view ops `ops` read the way `core` does: as a graph-level view, through
+/// a node term and through an edge term.
+fn agrees_with_core(
+    g: &DynamicGraph,
+    ops: &[ViewOp],
+    core: impl Fn(&DynamicGraph) -> Result<DynamicGraph, GraphError>,
+) {
+    let expected = core(g).unwrap();
+    let label = format!("{:?}", ops);
+
+    let viewed = g
+        .filter(FilterExpr::View(ops.to_vec()))
+        .unwrap()
+        .into_dynamic();
+    assert_eq!(names_of(&viewed), names_of(&expected), "nodes {label}");
+    assert_eq!(
+        edge_ids_of(&viewed),
+        edge_ids_of(&expected),
+        "edges {label}"
+    );
+
+    let degree = node(cmp(
+        BinaryOp::Gt,
+        Expr::Term(NodeLeaf::Degree {
+            views: ops.to_vec(),
+            direction: Direction::BOTH,
+        }),
+        c(0u64),
+    ));
+    let mut with_degree: Vec<String> = g
+        .nodes()
+        .iter()
+        .filter(|n| {
+            expected
+                .node(n.name())
+                .is_some_and(|in_view| in_view.degree() > 0)
+        })
+        .map(|n| n.name())
+        .collect();
+    with_degree.sort();
+    let filtered = g.filter(degree).unwrap().into_dynamic();
+    assert_eq!(names_of(&filtered), with_degree, "node term {label}");
+
+    let active = FilterExpr::Edge(Expr::Term(EdgeLeaf::IsActive {
+        views: ops.to_vec(),
+    }));
+    let mut active_in_view: Vec<String> = g
+        .edges()
+        .iter()
+        .filter(|e| {
+            expected
+                .edge(e.src().name(), e.dst().name())
+                .is_some_and(|in_view| in_view.is_active())
+        })
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect();
+    active_in_view.sort();
+    let filtered = g.filter(active).unwrap().into_dynamic();
+    assert_eq!(edge_ids_of(&filtered), active_in_view, "edge term {label}");
+}
+
+fn t(time: i64) -> EventTime {
+    EventTime::start(time)
+}
+
+#[test]
+fn shrink_start_and_shrink_end_agree_with_the_graph_views() {
+    let events = layered_graph();
+    for g in [
+        events.clone().into_dynamic(),
+        events.persistent_graph().into_dynamic(),
+    ] {
+        // On an unwindowed graph the shrink sets the one bound.
+        agrees_with_core(&g, &[ViewOp::ShrinkStart(t(3))], |g| {
+            Ok(g.shrink_start(3).into_dynamic())
+        });
+        agrees_with_core(&g, &[ViewOp::ShrinkEnd(t(5))], |g| {
+            Ok(g.shrink_end(5).into_dynamic())
+        });
+        // Inside a window it narrows the window.
+        agrees_with_core(&g, &[window(1, 9), ViewOp::ShrinkStart(t(3))], |g| {
+            Ok(g.window(1, 9).shrink_start(3).into_dynamic())
+        });
+        agrees_with_core(&g, &[window(1, 9), ViewOp::ShrinkEnd(t(6))], |g| {
+            Ok(g.window(1, 9).shrink_end(6).into_dynamic())
+        });
+        // It never widens: a bound outside the window changes nothing.
+        agrees_with_core(&g, &[window(3, 6), ViewOp::ShrinkStart(t(1))], |g| {
+            Ok(g.window(3, 6).shrink_start(1).into_dynamic())
+        });
+        agrees_with_core(&g, &[window(3, 6), ViewOp::ShrinkEnd(t(9))], |g| {
+            Ok(g.window(3, 6).shrink_end(9).into_dynamic())
+        });
+        // A shrink past the other bound leaves an empty window.
+        agrees_with_core(&g, &[window(3, 6), ViewOp::ShrinkStart(t(7))], |g| {
+            Ok(g.window(3, 6).shrink_start(7).into_dynamic())
+        });
+        // And a window after a shrink intersects with it.
+        agrees_with_core(&g, &[ViewOp::ShrinkStart(t(3)), window(1, 6)], |g| {
+            Ok(g.shrink_start(3).window(1, 6).into_dynamic())
+        });
+    }
+    // `window(1, 9).shrink_start(3)` is `window(3, 9)`.
+    let g = events.into_dynamic();
+    agrees_with_core(&g, &[window(1, 9), ViewOp::ShrinkStart(t(3))], |g| {
+        Ok(g.window(3, 9).into_dynamic())
+    });
+}
+
+#[test]
+fn default_layer_and_exclude_layers_agree_with_the_graph_views() {
+    let g = layered_graph().into_dynamic();
+    let names = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    agrees_with_core(&g, &[ViewOp::DefaultLayer], |g| {
+        Ok(g.default_layer().into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::ExcludeLayers(names(&["x"]))], |g| {
+        Ok(g.exclude_layers("x")?.into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::ExcludeLayers(names(&["x", "y"]))], |g| {
+        Ok(g.exclude_layers(vec!["x", "y"])?.into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::ExcludeLayers(Vec::new())], |g| {
+        Ok(g.exclude_layers(Vec::<String>::new())?.into_dynamic())
+    });
+    // After a layer selection: exclusion works inside it, and the default
+    // layer outside it is nothing.
+    agrees_with_core(
+        &g,
+        &[
+            ViewOp::Layers(names(&["x", "y"])),
+            ViewOp::ExcludeLayers(names(&["y"])),
+        ],
+        |g| {
+            Ok(g.layers(vec!["x", "y"])?
+                .exclude_layers("y")?
+                .into_dynamic())
+        },
+    );
+    agrees_with_core(
+        &g,
+        &[ViewOp::Layers(names(&["x"])), ViewOp::DefaultLayer],
+        |g| Ok(g.layers("x")?.default_layer().into_dynamic()),
+    );
+    agrees_with_core(
+        &g,
+        &[ViewOp::ExcludeLayers(names(&["x"])), ViewOp::DefaultLayer],
+        |g| Ok(g.exclude_layers("x")?.default_layer().into_dynamic()),
+    );
+    // Layers and time compose in either order.
+    agrees_with_core(
+        &g,
+        &[
+            ViewOp::ExcludeLayers(names(&["y"])),
+            ViewOp::ShrinkEnd(t(6)),
+        ],
+        |g| Ok(g.exclude_layers("y")?.shrink_end(6).into_dynamic()),
+    );
+    // A graph with no default layer has nothing in it, where naming the
+    // layer would be refused.
+    let no_default = Graph::new();
+    no_default
+        .add_edge(1, "a", "b", NO_PROPS, Some("x"))
+        .unwrap();
+    agrees_with_core(&no_default.into_dynamic(), &[ViewOp::DefaultLayer], |g| {
+        Ok(g.default_layer().into_dynamic())
+    });
+    // An unknown layer is refused, as the graph view refuses it.
+    assert!(g.exclude_layers("nope").is_err());
+    let unknown = FilterExpr::View(vec![ViewOp::ExcludeLayers(names(&["nope"]))]);
+    assert!(g.filter(unknown).is_err());
+}
+
+#[test]
+fn the_new_views_display_and_round_trip_through_json() {
+    let ops = vec![
+        ViewOp::DefaultLayer,
+        ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
+        ViewOp::ShrinkStart(t(3)),
+        ViewOp::ShrinkEnd(t(9)),
+    ];
+    let f = FilterExpr::View(ops.clone());
+    assert_eq!(
+        f.to_string(),
+        "VIEW(DEFAULT_LAYER . EXCLUDE_LAYER[a, b] . SHRINK_START[3] . SHRINK_END[9])"
+    );
+    let json = serde_json::to_string(&f).unwrap();
+    assert!(json.contains(r#""default_layer""#), "{json}");
+    assert!(json.contains(r#""exclude_layers":["a","b"]"#), "{json}");
+    assert!(json.contains(r#""shrink_start":"#), "{json}");
+    let back: FilterExpr = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, f);
+    // The builder spells the same ops.
+    let built: FilterExpr = GraphFilter
+        .default_layer()
+        .exclude_layers(["a", "b"])
+        .shrink_start(3)
+        .shrink_end(9)
+        .into();
+    assert_eq!(built, f);
+    let one: FilterExpr = GraphFilter.exclude_layer("a").into();
+    assert_eq!(
+        one,
+        FilterExpr::View(vec![ViewOp::ExcludeLayers(vec!["a".into()])])
+    );
 }

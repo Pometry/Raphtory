@@ -24,6 +24,16 @@ impl Display for ViewOp {
             ViewOp::Layers(names) => {
                 write!(f, "LAYER[{}]", layer_label(&Layer::from(names.clone())))
             }
+            ViewOp::DefaultLayer => write!(f, "DEFAULT_LAYER"),
+            ViewOp::ExcludeLayers(names) => {
+                write!(
+                    f,
+                    "EXCLUDE_LAYER[{}]",
+                    layer_label(&Layer::from(names.clone()))
+                )
+            }
+            ViewOp::ShrinkStart(t) => write!(f, "SHRINK_START[{}]", t.t()),
+            ViewOp::ShrinkEnd(t) => write!(f, "SHRINK_END[{}]", t.t()),
         }
     }
 }

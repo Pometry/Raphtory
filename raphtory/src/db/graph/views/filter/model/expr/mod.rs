@@ -47,18 +47,35 @@ use raphtory_api::core::{
 use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
 
-/// One view restriction, in the order it was applied.
+/// One view restriction, in the order it was applied. Each one is the graph
+/// view method of the same name applied to the view built so far.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ViewOp {
+    /// `window(start, end)`.
     Window { start: EventTime, end: EventTime },
+    /// `at(t)`.
     At(EventTime),
+    /// `after(t)`.
     After(EventTime),
+    /// `before(t)`.
     Before(EventTime),
+    /// `latest()`.
     Latest,
+    /// `snapshot_at(t)`.
     SnapshotAt(EventTime),
+    /// `snapshot_latest()`.
     SnapshotLatest,
+    /// `layers(names)`.
     Layers(Vec<String>),
+    /// `default_layer()`.
+    DefaultLayer,
+    /// `exclude_layers(names)`; one name is `exclude_layer(name)`.
+    ExcludeLayers(Vec<String>),
+    /// `shrink_start(t)`: the later of `t` and the current start.
+    ShrinkStart(EventTime),
+    /// `shrink_end(t)`: the earlier of `t` and the current end.
+    ShrinkEnd(EventTime),
 }
 
 /// A built-in node field.

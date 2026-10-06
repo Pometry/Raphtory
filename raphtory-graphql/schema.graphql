@@ -7467,6 +7467,29 @@ input ViewOp @oneOf {
 	Only the named layers.
 	"""
 	layers: [String!]
+	"""
+	Only the default layer; written `defaultLayer: true`.
+	"""
+	defaultLayer: Boolean
+	"""
+	Every layer except the named ones.
+	"""
+	excludeLayers: [String!]
+	"""
+	Every layer except the named one; the same view as `excludeLayers`
+	with one name.
+	"""
+	excludeLayer: String
+	"""
+	The window's start moved to a time when that is later; the window only
+	ever narrows.
+	"""
+	shrinkStart: TimeInput
+	"""
+	The window's end moved to a time when that is earlier; the window only
+	ever narrows.
+	"""
+	shrinkEnd: TimeInput
 }
 
 input Window {

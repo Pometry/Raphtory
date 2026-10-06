@@ -125,6 +125,33 @@ assert [n.name for n in g.filter(early_high).nodes] == ["bob"]
 ```
 ///
 
+Five more views choose layers or trim a window. Each one does what the graph method of the same
+name does to the view built so far. The *default layer* holds the updates added without a layer
+name.
+
+| view | reads through | example |
+|---|---|---|
+| `.default_layer()` | the default layer only | `filter.Edge.default_layer().is_active()` |
+| `.exclude_layer(name)` | every layer except `name` | `filter.Edge.exclude_layer("knows").is_active()` |
+| `.exclude_layers([...])` | every layer except the ones listed | `filter.Node.exclude_layers(["knows", "works"]).degree() > 0` |
+| `.shrink_start(t)` | the current window, with its start moved to `t` if `t` is later | `filter.Node.window(0, 3).shrink_start(2).property("score") > 4` |
+| `.shrink_end(t)` | the current window, with its end moved to `t` if `t` is earlier | `filter.Node.shrink_end(2).property("score") > 4` |
+
+The two shrinks only ever narrow a window. `window(0, 3).shrink_start(2)` reads through
+`window(2, 3)`, where alice's latest score is 7 and bob has no score at all; a start before the
+current one changes nothing. On a view with no window, `shrink_start(2)` reads from 2 onwards.
+
+/// tab | :fontawesome-brands-python: Python
+
+```{.python continuation}
+not_knows = filter.Edge.exclude_layer("knows").is_active()
+assert [(e.src.name, e.dst.name) for e in g.filter(not_knows).edges] == [("bob", "carol")]
+
+late_high = filter.Node.window(0, 3).shrink_start(2).property("score") > 4
+assert [n.name for n in g.filter(late_high).nodes] == ["alice"]
+```
+///
+
 ## Using a property's history
 
 `.temporal()` switches a property term from its latest value to its whole history. An aggregate

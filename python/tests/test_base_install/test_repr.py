@@ -85,6 +85,20 @@ class FilterExprReprTest(TestCase):
             " & ~(raphtory.filter.Node.name() == 'carol')",
         )
 
+    def test_repr_shows_layer_exclusion_default_layer_and_shrinks(self):
+        expr = (
+            filter.Graph.default_layer()
+            .exclude_layer("a")
+            .exclude_layers(["b", "c"])
+            .shrink_start(2)
+            .shrink_end(9)
+        )
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Graph.default_layer().exclude_layer('a')"
+            ".exclude_layers(['b', 'c']).shrink_start(2).shrink_end(9)",
+        )
+
     def test_repr_shows_expressions_on_both_sides(self):
         expr = filter.Node.degree() > filter.Node.in_degree()
         self.assertEqual(
@@ -113,6 +127,11 @@ class FilterExprReprTest(TestCase):
             filter.Node.window((3, 2), 9).is_active(),
             filter.Node.property("p"),
             filter.Edge.at(3).src(),
+            filter.Graph.default_layer().exclude_layer("a"),
+            filter.Graph.exclude_layers(["a", "b"]).shrink_start(2).shrink_end(9),
+            filter.Node.shrink_start(2).exclude_layer("a").property("p") > 1,
+            filter.Edge.window(1, 9).shrink_end((5, 1)).default_layer().is_active(),
+            filter.ExplodedEdge.exclude_layers(["a", "b"]).property("p") == 3.5,
         ]
         for expr in cases:
             text = repr(expr)
