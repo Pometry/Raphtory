@@ -1050,7 +1050,8 @@ mod parquet_tests {
                                                     BigDecimal::from_str("13e-13").unwrap(),
                                                 ),
                                             ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                         Prop::List(
                                             vec![
@@ -1064,7 +1065,8 @@ mod parquet_tests {
                                                     .unwrap(),
                                                 ),
                                             ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                         Prop::List(
                                             vec![
@@ -1123,10 +1125,12 @@ mod parquet_tests {
                                             .unwrap(),
                                     ),
                                 ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                     ]
-                                    .into(),
+                                    .try_into()
+                                    .unwrap(),
                                 ),
                             )],
                         )],
@@ -1209,7 +1213,7 @@ mod parquet_tests {
                         ("three".to_string(), Prop::I64(3)),
                         (
                             "four".to_string(),
-                            Prop::List(vec![Prop::I32(1), Prop::I32(2)].into()),
+                            Prop::List(vec![Prop::I32(1), Prop::I32(2)].try_into().unwrap()),
                         ),
                     ],
                     Some("b"),
@@ -1221,7 +1225,10 @@ mod parquet_tests {
                     vec![
                         ("three".to_string(), Prop::I64(3)),
                         ("one".to_string(), Prop::DTime(dt)),
-                        ("five".to_string(), Prop::List(vec![Prop::str("a")].into())),
+                        (
+                            "five".to_string(),
+                            Prop::List(vec![Prop::str("a")].try_into().unwrap()),
+                        ),
                     ],
                     Some("a"),
                 ),
@@ -1238,14 +1245,17 @@ mod parquet_tests {
                     0,
                     1,
                     12,
-                    vec![("a".to_string(), Prop::List(vec![].into()))],
+                    vec![("a".to_string(), Prop::List(vec![].try_into().unwrap()))],
                     None::<String>,
                 ),
                 (
                     1,
                     2,
                     12,
-                    vec![("a".to_string(), Prop::List(vec![Prop::str("aa")].into()))],
+                    vec![(
+                        "a".to_string(),
+                        Prop::List(vec![Prop::str("aa")].try_into().unwrap()),
+                    )],
                     None::<String>,
                 ),
             ]
@@ -1263,7 +1273,10 @@ mod parquet_tests {
                 0,
                 0,
                 0,
-                vec![("a".to_string(), Prop::List(vec![Prop::DTime(dt)].into()))],
+                vec![(
+                    "a".to_string(),
+                    Prop::List(vec![Prop::DTime(dt)].try_into().unwrap()),
+                )],
                 None::<String>,
             )]
             .into(),
@@ -1350,7 +1363,8 @@ mod parquet_tests {
                                     Prop::map([("n", Prop::I64(23))]),
                                     Prop::map([("b", Prop::F64(0.2))]),
                                 ]
-                                .into(),
+                                .try_into()
+                                .unwrap(),
                             ),
                         )],
                     },
@@ -1504,10 +1518,8 @@ mod parquet_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let graph_f = edges.into();
         let g = Graph::from(build_graph(&graph_f));
-        dbg!(&g);
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
-        dbg!(&g2);
         assert_eq!(g2.valid_layers("b").count_edges(), 1);
         assert_eq!(g2.valid_layers("a").count_edges(), 1);
 

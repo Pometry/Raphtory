@@ -408,10 +408,6 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("tags").is_none(), 0),
         (filter.ExplodedEdge.property("tags").is_in([1, 2]), 0),
         (
-            filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]]),
-            0,
-        ),  # actually does the filter, maybe should be a type error on the heterogeneous list
-        (
             filter.ExplodedEdge.property("tags").is_not_in([3]),
             6,
         ),  # actually does the filter
@@ -846,6 +842,10 @@ def test_all_property_types(GraphClass):
             # force evaluation so the exception surfaces here
             _ = g.filter(expr).edges.explode()
         assert "Property blah does not exist" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]])
+    assert "list elements have mixed types" in str(e.value)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
