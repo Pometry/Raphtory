@@ -709,6 +709,39 @@ mod test {
 
         // Verify time length increased
         assert_eq!(segment.t_len(0), 3);
+
+        let est_size_before = segment.est_size();
+        // Replay an update that already exists, same (timestamp, event_id): the row is
+        // appended to the column store, so the physical count grows, but the TCell
+        // deduplicates it, so the distinct count must not.
+        segment.insert_edge_internal(
+            EventTime::new(3, 2),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            LayerId(0),
+            vec![(0, Prop::from("test3 again"))],
+            true,
+        );
+        assert_eq!(segment.t_len(0), 3);
+
+        // make sure the estimated size increases
+        assert!(segment.est_size() > est_size_before);
+
+        let est_size_before = segment.est_size();
+        // a genuinely new event id at the same timestamp is a distinct update
+        segment.insert_edge_internal(
+            EventTime::new(3, 9),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            LayerId(0),
+            vec![(0, Prop::from("test3 later"))],
+            true,
+        );
+        assert_eq!(segment.t_len(0), 4);
+        // make sure the estimated size increases
+        assert!(segment.est_size() > est_size_before);
     }
 
     #[test]
