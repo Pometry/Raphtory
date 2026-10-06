@@ -1,4 +1,4 @@
-use crate::db::{api::state::ops::GraphView, graph::views::filter::model::ComposableFilter};
+use crate::db::api::state::ops::GraphView;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,23 +10,19 @@ impl fmt::Display for IsSelfLoopEdge {
     }
 }
 
-impl ComposableFilter for IsSelfLoopEdge {}
-
 // ── expr layer: the predicate as a boolean expression over the eval view ──
 
 use crate::db::graph::views::filter::model::{
     edge_expr::{ops::IsSelfLoopEdgePropOp, EdgeOp},
-    edge_filter::EdgeFilter as EdgeFilterMarker,
     node_expr::{CreateOp, EntityExpr},
+    EntityMarker,
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 
 impl EntityExpr for IsSelfLoopEdge {
-    type Marker = EdgeFilterMarker;
-
-    fn entity(&self) -> EdgeFilterMarker {
-        EdgeFilterMarker
+    fn entity(&self) -> EntityMarker {
+        EntityMarker::Edge
     }
 
     fn prop_type(&self) -> PropType {

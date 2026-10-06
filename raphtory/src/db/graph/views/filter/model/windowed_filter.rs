@@ -1,19 +1,7 @@
 use crate::{
     db::{
-        api::{
-            state::ops::filter::NodeExistsOp,
-            view::internal::{GraphView, Static},
-        },
-        graph::views::{
-            filter::{
-                model::{
-                    edge_expr::ops::EdgeExistsOp, graph_filter::GraphFilterOps, ComposableFilter,
-                    CreateView, InternalViewWrapOps,
-                },
-                CreateFilter,
-            },
-            window_graph::WindowedGraph,
-        },
+        api::view::internal::{GraphView, Static},
+        graph::views::{filter::model::CreateView, window_graph::WindowedGraph},
     },
     errors::GraphError,
     prelude::TimeOps,
@@ -63,67 +51,6 @@ impl<M> Windowed<M> {
     }
 }
 
-impl<T: InternalViewWrapOps> InternalViewWrapOps for Windowed<T> {
-    type Window = T::Window;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        (self.start, self.end)
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        self.inner.build_window(start, end)
-    }
-}
-
-/// A view wrapper applied as a filter: the inner filter's view is applied to the
-/// graph and this view on top of it, in the order the chain was written. The nodes
-/// and edges it selects are the ones that exist in the resulting view.
-impl<T: GraphFilterOps> CreateFilter for Windowed<T> {
-    type FilteredGraph<'graph, G>
-        = WindowedGraph<T::FilteredGraph<'graph, G>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G>
-        = NodeExistsOp<WindowedGraph<T::FilteredGraph<'graph, G>>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type EdgeFilter<'graph, G>
-        = EdgeExistsOp<WindowedGraph<T::FilteredGraph<'graph, G>>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_graph_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(self
-            .inner
-            .create_graph_filter(graph)?
-            .window(self.start, self.end))
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(self.create_graph_filter(graph)?))
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        Ok(EdgeExistsOp::new(self.create_graph_filter(graph)?))
-    }
-}
-
-impl<T: ComposableFilter> ComposableFilter for Windowed<T> {}
-
 // ── expr-layer view construction ──
 
 impl<T: CreateView> CreateView for Windowed<T> {
@@ -137,6 +64,3 @@ impl<T: CreateView> CreateView for Windowed<T> {
         Ok(inner.window(self.start, self.end))
     }
 }
-
-// ── expr layer: the windowed view scopes any inner expression (per-expression view) ──
-// Nesting order of chained views is pinned by the view-semantics tests.

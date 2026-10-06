@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     db::{
         api::{
-            state::ops::{Id, Name, NodeOp},
+            state::ops::NodeOp,
             view::{
                 filter_ops::Select,
                 internal::{CoreGraphOps, NodeList},
@@ -11,20 +11,19 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                dyn_factory::DynNodeFilterFactory, filter_operator::BinaryOp,
-                node_filter::NodeFilter, CreateView, PropertyExprFactory, ViewWrapOps,
+                expr::{Expr, NodeLeaf},
+                node_filter::{NodeFilter, NodeFilterFactory},
+                windowed_filter::Windowed,
+                CreateView, DynCreateView, PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
     },
     prelude::{AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{IntoProp, Prop},
-        GID, VID,
-    },
-    Direction,
+use raphtory_api::core::entities::{
+    properties::prop::{IntoProp, Prop},
+    VID,
 };
 
 use std::sync::Arc;
@@ -61,14 +60,7 @@ where
 fn degree_ge_2_keeps_all_nodes() {
     let g = build_test_graph();
     assert_eq!(
-        filtered_names(
-            DegreeExpr {
-                dir: Direction::BOTH,
-                view_expr: NodeFilter
-            }
-            .ge(2usize),
-            g
-        ),
+        filtered_names(NodeFilter.degree().ge(2usize), g),
         vec!["a", "b", "c"]
     );
 }
@@ -76,29 +68,14 @@ fn degree_ge_2_keeps_all_nodes() {
 #[test]
 fn degree_eq_1_keeps_no_nodes() {
     let g = build_test_graph();
-    assert!(filtered_names(
-        DegreeExpr {
-            dir: Direction::BOTH,
-            view_expr: NodeFilter
-        }
-        .eq(1usize),
-        g
-    )
-    .is_empty());
+    assert!(filtered_names(NodeFilter.degree().eq(1usize), g).is_empty());
 }
 
 #[test]
 fn degree_le_2_keeps_all_nodes() {
     let g = build_test_graph();
     assert_eq!(
-        filtered_names(
-            DegreeExpr {
-                dir: Direction::BOTH,
-                view_expr: NodeFilter
-            }
-            .le(2usize),
-            g
-        ),
+        filtered_names(NodeFilter.degree().le(2usize), g),
         vec!["a", "b", "c"]
     );
 }
@@ -106,29 +83,13 @@ fn degree_le_2_keeps_all_nodes() {
 #[test]
 fn degree_gt_2_keeps_no_nodes() {
     let g = build_test_graph();
-    assert!(filtered_names(
-        DegreeExpr {
-            dir: Direction::BOTH,
-            view_expr: NodeFilter
-        }
-        .gt(2usize),
-        g
-    )
-    .is_empty());
+    assert!(filtered_names(NodeFilter.degree().gt(2usize), g).is_empty());
 }
 
 #[test]
 fn degree_ne_2_keeps_no_nodes_when_all_are_2() {
     let g = build_test_graph();
-    assert!(filtered_names(
-        DegreeExpr {
-            dir: Direction::BOTH,
-            view_expr: NodeFilter
-        }
-        .ne(2usize),
-        g
-    )
-    .is_empty());
+    assert!(filtered_names(NodeFilter.degree().ne(2usize), g).is_empty());
 }
 
 // ── expression-vs-expression: RHS can be another NodeExpr ────────────────
@@ -138,17 +99,7 @@ fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
     // total=2, in-degrees: a=0, b=1, c=2 → total > in for a and b only
     let g = build_test_graph();
     assert_eq!(
-        filtered_names(
-            DegreeExpr {
-                dir: Direction::BOTH,
-                view_expr: NodeFilter
-            }
-            .gt(DegreeExpr {
-                dir: Direction::IN,
-                view_expr: NodeFilter
-            }),
-            g
-        ),
+        filtered_names(NodeFilter.degree().gt(NodeFilter.in_degree()), g),
         vec!["a", "b"]
     );
 }
@@ -157,12 +108,7 @@ fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
 
 #[test]
 fn const_expr_works() {
-    let filter = Predicate::new(BinaryCmpExpr::new(
-        ConstExpr(2usize),
-        BinaryOp::Eq,
-        ConstExpr(2usize),
-        NodeFilter,
-    ));
+    let filter = Expr::<NodeLeaf>::Const(Prop::U64(2)).eq(2usize);
     let g = build_test_graph();
     assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);
 }
@@ -172,7 +118,7 @@ fn test_id_filter_expr() {
     let g = Graph::new();
     g.add_node(0, 1, NO_PROPS, None, None).unwrap();
     g.add_node(0, 6, NO_PROPS, None, None).unwrap();
-    let filter = Id.ge(GID::U64(5u64));
+    let filter = NodeFilter.id().ge(5u64);
 
     assert_eq!(g.nodes().select(filter).unwrap().id(), [6u64])
 }
@@ -596,7 +542,7 @@ where
 fn id_eq_visits_only_the_named_node() {
     let g = build_test_graph();
     let vid = g.node("b").unwrap().node;
-    match filter_domain(Id.eq("b"), &g) {
+    match filter_domain(NodeFilter.id().eq("b"), &g) {
         NodeList::List { elems } => {
             assert_eq!(elems.into_iter().collect::<Vec<_>>(), vec![vid])
         }
@@ -609,7 +555,12 @@ fn id_is_in_visits_only_the_named_nodes() {
     let g = build_test_graph();
     let mut expected: Vec<VID> = ["a", "c"].iter().map(|n| g.node(n).unwrap().node).collect();
     expected.sort();
-    match filter_domain(Id.is_in(vec!["a".into_prop(), "c".into_prop()]), &g) {
+    match filter_domain(
+        NodeFilter
+            .id()
+            .is_in(vec!["a".into_prop(), "c".into_prop()]),
+        &g,
+    ) {
         NodeList::List { elems } => {
             let mut got: Vec<VID> = elems.into_iter().collect();
             got.sort();
@@ -622,7 +573,7 @@ fn id_is_in_visits_only_the_named_nodes() {
 #[test]
 fn id_eq_for_an_absent_node_visits_nothing() {
     let g = build_test_graph();
-    match filter_domain(Id.eq("nope"), &g) {
+    match filter_domain(NodeFilter.id().eq("nope"), &g) {
         NodeList::List { elems } => {
             assert!(elems.into_iter().next().is_none())
         }
@@ -636,18 +587,11 @@ fn non_id_and_inequality_filters_keep_the_full_domain() {
     // Only equality and set membership on the id or the name name specific
     // nodes; everything else has to be evaluated per node.
     for (label, domain) in [
-        ("id != b", filter_domain(Id.ne("b"), &g)),
-        ("name != b", filter_domain(Name.ne("b"), &g)),
+        ("id != b", filter_domain(NodeFilter.id().ne("b"), &g)),
+        ("name != b", filter_domain(NodeFilter.name().ne("b"), &g)),
         (
             "degree == 2",
-            filter_domain(
-                DegreeExpr {
-                    dir: Direction::BOTH,
-                    view_expr: NodeFilter,
-                }
-                .eq(2usize),
-                &g,
-            ),
+            filter_domain(NodeFilter.degree().eq(2usize), &g),
         ),
     ] {
         assert!(
@@ -792,7 +736,7 @@ fn windowed_temporal_term_skips_node_absent_from_window() {
 #[test]
 fn only_a_real_view_checks_membership() {
     assert!(!NodeFilter.narrows());
-    assert!(NodeFilter.window(0, 5).narrows());
-    let erased: Arc<dyn DynNodeFilterFactory> = Arc::new(NodeFilter);
+    assert!(Windowed::from_times(0, 5, NodeFilter).narrows());
+    let erased: Arc<dyn DynCreateView> = Arc::new(NodeFilter);
     assert!(!erased.narrows());
 }

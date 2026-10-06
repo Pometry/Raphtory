@@ -18,6 +18,7 @@ pub mod typing;
 #[cfg(test)]
 mod tests;
 
+pub use crate::db::graph::views::filter::model::expr::builder::EntityAggOps;
 use crate::db::graph::views::filter::model::{
     edge_expr::EdgeOp,
     expr::{DynCreateHistory, ValueTest},
@@ -109,14 +110,8 @@ pub trait CreateOp: EntityExpr + Clone + Send + Sync + 'static {
     }
 }
 
-pub trait Marker: Into<EntityMarker> + Copy + Send + Sync + 'static {}
-
-impl<M: Into<EntityMarker> + Copy + Send + Sync + 'static> Marker for M {}
-
 pub trait EntityExpr: Clone + Send + Sync + 'static {
-    type Marker: Marker;
-
-    fn entity(&self) -> Self::Marker;
+    fn entity(&self) -> EntityMarker;
 
     /// A priory known type (for early validation where possible)
     fn prop_type(&self) -> PropType {
@@ -139,16 +134,6 @@ pub trait EntityExpr: Clone + Send + Sync + 'static {
     }
 }
 
-/// Marker for the expressions that stand on the left-hand side of a predicate
-/// (`.eq` / `.gt` / `.contains` / ...).
-///
-/// Scoped narrowly (not blanket-impl'd for every `EntityExpr`) to avoid name
-/// collisions with stdlib methods like `str::contains` / `PartialOrd::gt` on
-/// primitive `EntityExpr` types (`String`, `&str`, `usize`, numerics, `Prop`).
-///
-/// Mirrors the same trick used by `EntityAggOps` for `min`/`max`/`sum`.
-pub trait PredicateLhs: EntityExpr {}
-
 /// Scopes an expression to a view chain: the inner expression is compiled against the view the
 /// chain constructs over the incoming graph. This is how a factory chain (window, latest, layers)
 /// carries its view into a unit expression such as a validity predicate.
@@ -159,9 +144,7 @@ pub struct Scoped<V, T> {
 }
 
 impl<V: CreateView, T: EntityExpr> EntityExpr for Scoped<V, T> {
-    type Marker = T::Marker;
-
-    fn entity(&self) -> Self::Marker {
+    fn entity(&self) -> EntityMarker {
         self.inner.entity()
     }
 
@@ -187,5 +170,35 @@ impl<V: CreateView, T: CreateOp> CreateOp for Scoped<V, T> {
         graph: G,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         self.inner.create_edge_op(self.view.create_view(graph)?)
+    }
+}
+
+#[cfg(test)]
+pub(crate) use compiled::Compiled;
+
+/// The compiled op a builder's tree becomes; what the unit tests of the
+/// compile-side hooks (`pushdown`, `value_test`, `history`) look at.
+#[cfg(test)]
+mod compiled {
+    use crate::db::graph::views::filter::model::{
+        expr::{Expr, Leaf, PropertyTerm},
+        node_expr::DynCreateOp,
+    };
+    use std::sync::Arc;
+
+    pub(crate) trait Compiled {
+        fn compiled(self) -> Arc<dyn DynCreateOp>;
+    }
+
+    impl<L: Leaf> Compiled for Expr<L> {
+        fn compiled(self) -> Arc<dyn DynCreateOp> {
+            self.compile_value().unwrap()
+        }
+    }
+
+    impl<L: Leaf> Compiled for PropertyTerm<L> {
+        fn compiled(self) -> Arc<dyn DynCreateOp> {
+            Expr::from(self).compile_value().unwrap()
+        }
     }
 }

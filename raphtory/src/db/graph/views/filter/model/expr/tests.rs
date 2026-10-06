@@ -5,8 +5,8 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::EdgeFilter,
+                node_expr::Compiled,
                 node_filter::{NodeFilter, NodeFilterFactory},
-                windowed_filter::Windowed,
                 ComposableFilter, DynCreateFilter, EdgeViewFilterOps, EntityExprFilterOps,
                 PropertyExprFactory, ViewWrapOps,
             },
@@ -454,7 +454,9 @@ fn trees_round_trip_through_json_with_the_term_as_the_key() {
 
 #[test]
 fn an_opaque_filter_refuses_to_serialise() {
-    let f = FilterExpr::Opaque(OpaqueFilter::new(NodeFilter.property("tag").is_some()));
+    let f = FilterExpr::Opaque(OpaqueFilter::new(
+        NodeFilter.property("tag").is_some().compiled(),
+    ));
     let err = serde_json::to_string(&f).unwrap_err().to_string();
     assert!(err.contains(OPAQUE_FILTER_ERROR));
 }
@@ -476,7 +478,7 @@ fn before_and_at_agree_with_the_graph_views() {
         ids
     }
     let view = |op: ViewOp| FilterExpr::View(vec![op]);
-    let typed = |f: Windowed<EdgeFilter>| Arc::new(f.is_active()) as Arc<dyn DynCreateFilter>;
+    let typed = |f: Chain<EdgeLeaf>| Arc::new(f.is_active()) as Arc<dyn DynCreateFilter>;
     fn applied(g: &Graph, filter: Arc<dyn DynCreateFilter>) -> Vec<String> {
         let mut ids: Vec<String> = g
             .filter(filter)

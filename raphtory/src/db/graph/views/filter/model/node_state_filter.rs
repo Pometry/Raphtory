@@ -6,7 +6,7 @@ use crate::{
         },
         graph::views::filter::model::{
             node_expr::{CreateOp, EntityExpr},
-            node_filter::NodeFilter,
+            EntityMarker,
         },
     },
     errors::GraphError,
@@ -88,10 +88,8 @@ impl NodeOp for NodeStateBoolColOp {
 /// The column as a yes/no node expression, so it combines with other node
 /// predicates and negates like one.
 impl EntityExpr for NodeStateBoolColOp {
-    type Marker = NodeFilter;
-
-    fn entity(&self) -> NodeFilter {
-        NodeFilter
+    fn entity(&self) -> EntityMarker {
+        EntityMarker::Node
     }
 
     fn prop_type(&self) -> PropType {

@@ -1,7 +1,4 @@
-use crate::db::{
-    api::state::ops::{GraphView, HistoryOp, NodeOp},
-    graph::views::filter::model::ComposableFilter,
-};
+use crate::db::api::state::ops::{GraphView, HistoryOp, NodeOp};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,22 +10,18 @@ impl fmt::Display for IsActiveNode {
     }
 }
 
-impl ComposableFilter for IsActiveNode {}
-
 // ── expr layer: the predicate as a boolean expression over the eval view ──
 
 use crate::db::graph::views::filter::model::{
     node_expr::{CreateOp, EntityExpr},
-    node_filter::NodeFilter as NodeFilterMarker,
+    EntityMarker,
 };
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 
 impl EntityExpr for IsActiveNode {
-    type Marker = NodeFilterMarker;
-
-    fn entity(&self) -> NodeFilterMarker {
-        NodeFilterMarker
+    fn entity(&self) -> EntityMarker {
+        EntityMarker::Node
     }
 
     fn prop_type(&self) -> PropType {

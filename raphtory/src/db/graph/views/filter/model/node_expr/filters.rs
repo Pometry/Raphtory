@@ -20,7 +20,7 @@ use super::{
         cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type, require_bool,
         set_kernel, set_shape, str_kernel, string_shape, SetMembers,
     },
-    CreateOp, EntityExpr, Marker,
+    CreateOp, EntityExpr,
 };
 use crate::{
     db::{
@@ -37,7 +37,7 @@ use crate::{
                 DynCreateHistory, EdgeHistory, NodeHistory, ValueTest,
             },
             filter_operator::{BinaryOp, SetOp, StringOp, UnaryOp},
-            resolved_prop_type,
+            resolved_prop_type, EntityMarker,
         },
     },
     errors::GraphError,
@@ -59,15 +59,15 @@ fn invalid(msg: impl Into<String>) -> GraphError {
 /// NodeFilter.out_degree().gt(NodeFilter.in_degree())
 /// ```
 #[derive(Clone)]
-pub struct BinaryCmpExpr<L, R, Entity> {
+pub struct BinaryCmpExpr<L, R> {
     pub left: L,
     pub op: BinaryOp,
     pub right: R,
-    pub entity: Entity,
+    pub entity: EntityMarker,
 }
 
-impl<L, R, E> BinaryCmpExpr<L, R, E> {
-    pub fn new(left: L, op: BinaryOp, right: R, entity: E) -> Self {
+impl<L, R> BinaryCmpExpr<L, R> {
+    pub fn new(left: L, op: BinaryOp, right: R, entity: EntityMarker) -> Self {
         Self {
             left,
             op,
@@ -77,10 +77,8 @@ impl<L, R, E> BinaryCmpExpr<L, R, E> {
     }
 }
 
-impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExpr for BinaryCmpExpr<L, R, E> {
-    type Marker = E;
-
-    fn entity(&self) -> Self::Marker {
+impl<L: EntityExpr, R: EntityExpr> EntityExpr for BinaryCmpExpr<L, R> {
+    fn entity(&self) -> EntityMarker {
         self.entity
     }
 
@@ -89,7 +87,7 @@ impl<L: EntityExpr, R: EntityExpr, E: Marker> EntityExpr for BinaryCmpExpr<L, R,
     }
 }
 
-impl<L: CreateOp, R: CreateOp, M: Marker> BinaryCmpExpr<L, R, M> {
+impl<L: CreateOp, R: CreateOp> BinaryCmpExpr<L, R> {
     /// The indexable term and the constant it is compared with, the operator
     /// turned round when the constant stands on the left.
     fn term_and_constant(&self) -> Option<(IndexTerm, BinaryOp, Prop)> {
@@ -103,7 +101,7 @@ impl<L: CreateOp, R: CreateOp, M: Marker> BinaryCmpExpr<L, R, M> {
     }
 }
 
-impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
+impl<L: CreateOp, R: CreateOp> CreateOp for BinaryCmpExpr<L, R> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -177,15 +175,15 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for BinaryCmpExpr<L, R, M> {
 
 /// A string test with a [`StringOp`]: `starts_with`, `contains`, `fuzzy_search`, …
 #[derive(Clone)]
-pub struct StringExpr<L, R, Entity> {
+pub struct StringExpr<L, R> {
     pub left: L,
     pub op: StringOp,
     pub right: R,
-    pub entity: Entity,
+    pub entity: EntityMarker,
 }
 
-impl<L, R, Entity> StringExpr<L, R, Entity> {
-    pub fn new(left: L, op: StringOp, right: R, entity: Entity) -> Self {
+impl<L, R> StringExpr<L, R> {
+    pub fn new(left: L, op: StringOp, right: R, entity: EntityMarker) -> Self {
         Self {
             left,
             op,
@@ -195,10 +193,8 @@ impl<L, R, Entity> StringExpr<L, R, Entity> {
     }
 }
 
-impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExpr for StringExpr<L, R, M> {
-    type Marker = M;
-
-    fn entity(&self) -> Self::Marker {
+impl<L: EntityExpr, R: EntityExpr> EntityExpr for StringExpr<L, R> {
+    fn entity(&self) -> EntityMarker {
         self.entity
     }
 
@@ -207,7 +203,7 @@ impl<L: EntityExpr, R: EntityExpr, M: Marker> EntityExpr for StringExpr<L, R, M>
     }
 }
 
-impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
+impl<L: CreateOp, R: CreateOp> CreateOp for StringExpr<L, R> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -269,16 +265,14 @@ impl<L: CreateOp, R: CreateOp, M: Marker> CreateOp for StringExpr<L, R, M> {
 
 /// A presence test: `is_some()` / `is_none()`.
 #[derive(Clone)]
-pub struct UnaryExpr<E, Entity> {
+pub struct UnaryExpr<E> {
     pub expr: E,
     pub op: UnaryOp,
-    pub entity: Entity,
+    pub entity: EntityMarker,
 }
 
-impl<E: EntityExpr, M: Marker> EntityExpr for UnaryExpr<E, M> {
-    type Marker = M;
-
-    fn entity(&self) -> Self::Marker {
+impl<E: EntityExpr> EntityExpr for UnaryExpr<E> {
+    fn entity(&self) -> EntityMarker {
         self.entity
     }
 
@@ -287,7 +281,7 @@ impl<E: EntityExpr, M: Marker> EntityExpr for UnaryExpr<E, M> {
     }
 }
 
-impl<E: CreateOp, M: Marker> UnaryExpr<E, M> {
+impl<E: CreateOp> UnaryExpr<E> {
     /// A presence test only means something on a value that can be missing.
     fn check(&self) -> Result<(), GraphError> {
         if self.expr.nullable() {
@@ -300,7 +294,7 @@ impl<E: CreateOp, M: Marker> UnaryExpr<E, M> {
     }
 }
 
-impl<E: CreateOp, M: Marker> CreateOp for UnaryExpr<E, M> {
+impl<E: CreateOp> CreateOp for UnaryExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -332,17 +326,15 @@ impl<E: CreateOp, M: Marker> CreateOp for UnaryExpr<E, M> {
 
 /// A membership test against a fixed set of values: `is_in` / `is_not_in`.
 #[derive(Clone)]
-pub struct PropValueSetExpr<E, Entity> {
+pub struct PropValueSetExpr<E> {
     pub(crate) expr: E,
     pub(crate) values: Vec<Prop>,
     pub(crate) op: SetOp,
-    pub(crate) entity: Entity,
+    pub(crate) entity: EntityMarker,
 }
 
-impl<E: EntityExpr, M: Marker> EntityExpr for PropValueSetExpr<E, M> {
-    type Marker = M;
-
-    fn entity(&self) -> Self::Marker {
+impl<E: EntityExpr> EntityExpr for PropValueSetExpr<E> {
+    fn entity(&self) -> EntityMarker {
         self.entity
     }
 
@@ -351,13 +343,13 @@ impl<E: EntityExpr, M: Marker> EntityExpr for PropValueSetExpr<E, M> {
     }
 }
 
-impl<E, M> PropValueSetExpr<E, M> {
+impl<E> PropValueSetExpr<E> {
     fn negated(&self) -> bool {
         matches!(self.op, SetOp::IsNotIn)
     }
 }
 
-impl<E: CreateOp, M: Marker> CreateOp for PropValueSetExpr<E, M> {
+impl<E: CreateOp> CreateOp for PropValueSetExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -533,15 +525,13 @@ impl<E: CreateOp> CreateOp for AllExpr<E> {
 /// `and` of yes/no values of one entity. Built from a filter tree; a typed
 /// `and` of two filters is an [`AndFilter`](super::super::and_filter::AndFilter).
 #[derive(Clone)]
-pub struct AndExpr<E, Entity> {
+pub struct AndExpr<E> {
     pub items: Vec<E>,
-    pub entity: Entity,
+    pub entity: EntityMarker,
 }
 
-impl<E: EntityExpr, M: Marker> EntityExpr for AndExpr<E, M> {
-    type Marker = M;
-
-    fn entity(&self) -> Self::Marker {
+impl<E: EntityExpr> EntityExpr for AndExpr<E> {
+    fn entity(&self) -> EntityMarker {
         self.entity
     }
 
@@ -550,7 +540,7 @@ impl<E: EntityExpr, M: Marker> EntityExpr for AndExpr<E, M> {
     }
 }
 
-impl<E: CreateOp, M: Marker> CreateOp for AndExpr<E, M> {
+impl<E: CreateOp> CreateOp for AndExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -572,15 +562,13 @@ impl<E: CreateOp, M: Marker> CreateOp for AndExpr<E, M> {
 
 /// `or` of yes/no values of one entity.
 #[derive(Clone)]
-pub struct OrExpr<E, Entity> {
+pub struct OrExpr<E> {
     pub items: Vec<E>,
-    pub entity: Entity,
+    pub entity: EntityMarker,
 }
 
-impl<E: EntityExpr, M: Marker> EntityExpr for OrExpr<E, M> {
-    type Marker = M;
-
-    fn entity(&self) -> Self::Marker {
+impl<E: EntityExpr> EntityExpr for OrExpr<E> {
+    fn entity(&self) -> EntityMarker {
         self.entity
     }
 
@@ -589,7 +577,7 @@ impl<E: EntityExpr, M: Marker> EntityExpr for OrExpr<E, M> {
     }
 }
 
-impl<E: CreateOp, M: Marker> CreateOp for OrExpr<E, M> {
+impl<E: CreateOp> CreateOp for OrExpr<E> {
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -652,9 +640,7 @@ fn bool_edge_ops<'g, E: CreateOp, G: GraphView + 'g>(
 pub struct NotExpr<E>(pub E);
 
 impl<E: EntityExpr> EntityExpr for NotExpr<E> {
-    type Marker = E::Marker;
-
-    fn entity(&self) -> Self::Marker {
+    fn entity(&self) -> EntityMarker {
         self.0.entity()
     }
 
@@ -704,8 +690,10 @@ mod streaming_tests {
     use super::*;
     use crate::{
         db::graph::views::filter::model::{
-            node_expr::typing::list, node_filter::NodeFilter, EntityExprFilterOps,
-            PropertyExprFactory,
+            expr::{Expr, NodeLeaf},
+            node_expr::{typing::list, Compiled},
+            node_filter::NodeFilter,
+            EntityExprFilterOps, PropertyExprFactory,
         },
         prelude::EntityAggOps,
     };
@@ -713,12 +701,18 @@ mod streaming_tests {
 
     #[test]
     fn a_history_term_walks_and_a_latest_value_does_not() {
-        assert!(NodeFilter.property("score").temporal().history().is_some());
-        assert!(NodeFilter.property("score").history().is_none());
+        assert!(NodeFilter
+            .property("score")
+            .temporal()
+            .compiled()
+            .history()
+            .is_some());
+        assert!(NodeFilter.property("score").compiled().history().is_none());
         assert!(NodeFilter
             .property("score")
             .temporal()
             .sum()
+            .compiled()
             .history()
             .is_none());
     }
@@ -727,22 +721,18 @@ mod streaming_tests {
     fn a_history_compared_with_a_constant_walks_from_either_side() {
         let gt = NodeFilter.property("score").temporal().gt(4i64);
         assert!(matches!(
-            gt.value_test(),
+            gt.compiled().value_test(),
             Some((_, ValueTest::Cmp(BinaryOp::Gt, Prop::I64(4))))
         ));
-        let mirrored = BinaryCmpExpr::new(
-            4i64,
-            BinaryOp::Lt,
-            NodeFilter.property("score").temporal(),
-            NodeFilter,
-        );
+        let mirrored =
+            Expr::<NodeLeaf>::Const(Prop::I64(4)).lt(NodeFilter.property("score").temporal());
         assert!(matches!(
-            mirrored.value_test(),
+            mirrored.compiled().value_test(),
             Some((_, ValueTest::Cmp(BinaryOp::Gt, Prop::I64(4))))
         ));
         let contains = NodeFilter.property("name").temporal().contains("a");
         assert!(matches!(
-            contains.value_test(),
+            contains.compiled().value_test(),
             Some((_, ValueTest::Str(StringOp::Contains, _)))
         ));
         let is_in = NodeFilter
@@ -750,7 +740,7 @@ mod streaming_tests {
             .temporal()
             .is_not_in([1i64.into_prop()]);
         assert!(matches!(
-            is_in.value_test(),
+            is_in.compiled().value_test(),
             Some((_, ValueTest::In(_, true)))
         ));
     }
@@ -758,14 +748,14 @@ mod streaming_tests {
     #[test]
     fn anything_else_under_any_keeps_the_list() {
         let latest = NodeFilter.property("score").gt(4i64);
-        assert!(latest.value_test().is_none());
+        assert!(latest.compiled().value_test().is_none());
         let two_reads = NodeFilter
             .property("score")
             .temporal()
             .gt(NodeFilter.property("other").temporal());
-        assert!(two_reads.value_test().is_none());
+        assert!(two_reads.compiled().value_test().is_none());
         let aggregated = NodeFilter.property("score").temporal().sum().gt(4i64);
-        assert!(aggregated.value_test().is_none());
+        assert!(aggregated.compiled().value_test().is_none());
     }
 
     #[test]
@@ -796,7 +786,8 @@ mod pushdown_tests {
     use super::*;
     use crate::{
         db::graph::views::filter::model::{
-            node_expr::predicate::IndexTest,
+            expr::{Expr, NodeLeaf},
+            node_expr::{predicate::IndexTest, Compiled},
             node_filter::{NodeFilter, NodeFilterFactory},
             EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
         },
@@ -821,26 +812,32 @@ mod pushdown_tests {
 
     #[test]
     fn plain_property_tests_reach_the_index_from_either_side() {
-        let gt = index_of(NodeFilter.property("score").gt(4i64).pushdown());
+        let gt = index_of(NodeFilter.property("score").gt(4i64).compiled().pushdown());
         assert_eq!(gt.term(), &property("score", false));
         assert_eq!(gt.test(), &IndexTest::Gt(4i64.into_prop()));
-        let flipped =
-            BinaryCmpExpr::new(4i64, BinaryOp::Lt, NodeFilter.property("score"), NodeFilter);
+        let flipped = Expr::<NodeLeaf>::Const(Prop::I64(4)).lt(NodeFilter.property("score"));
         assert_eq!(
-            index_of(flipped.pushdown()).test(),
+            index_of(flipped.compiled().pushdown()).test(),
             &IndexTest::Gt(4i64.into_prop())
         );
-        let contains = index_of(NodeFilter.property("name").contains("acme").pushdown());
+        let contains = index_of(
+            NodeFilter
+                .property("name")
+                .contains("acme")
+                .compiled()
+                .pushdown(),
+        );
         assert_eq!(contains.term(), &property("name", false));
         assert_eq!(contains.test(), &IndexTest::Contains("acme".to_owned()));
         let members = index_of(
             NodeFilter
                 .property("tag")
                 .is_in(["a".into_prop(), "b".into_prop()])
+                .compiled()
                 .pushdown(),
         );
         assert_eq!(members.term(), &property("tag", false));
-        let metadata = index_of(NodeFilter.metadata("kind").eq("x").pushdown());
+        let metadata = index_of(NodeFilter.metadata("kind").eq("x").compiled().pushdown());
         assert_eq!(
             metadata.term(),
             &IndexTerm::Property {
@@ -858,6 +855,7 @@ mod pushdown_tests {
             .temporal()
             .eq(4i64)
             .any()
+            .compiled()
             .pushdown();
         assert_eq!(index_of(any).term(), &property("score", true));
         // The latest update of a history is the property's latest value.
@@ -866,6 +864,7 @@ mod pushdown_tests {
             .temporal()
             .latest()
             .eq(4i64)
+            .compiled()
             .pushdown();
         assert_eq!(index_of(latest).term(), &property("score", false));
         // A history outside any() has no single value the index can test.
@@ -873,6 +872,7 @@ mod pushdown_tests {
             .property("score")
             .temporal()
             .eq(4i64)
+            .compiled()
             .pushdown()
             .is_none());
         // all() must see every value, so it scans.
@@ -881,6 +881,7 @@ mod pushdown_tests {
             .temporal()
             .eq(4i64)
             .all()
+            .compiled()
             .pushdown()
             .is_none());
     }
@@ -891,21 +892,29 @@ mod pushdown_tests {
             .latest()
             .property("score")
             .eq(4i64)
+            .compiled()
             .pushdown()
             .is_none());
-        assert!(NodeFilter.property("score").ne(4i64).pushdown().is_none());
+        assert!(NodeFilter
+            .property("score")
+            .ne(4i64)
+            .compiled()
+            .pushdown()
+            .is_none());
         assert!(NodeFilter
             .property("tag")
             .is_not_in(["a".into_prop()])
+            .compiled()
             .pushdown()
             .is_none());
         // A pattern on the name goes to the id index; equality resolves the node outright.
-        let prefix = index_of(NodeFilter.name().starts_with("bo").pushdown());
+        let prefix = index_of(NodeFilter.name().starts_with("bo").compiled().pushdown());
         assert_eq!(prefix.term(), &IndexTerm::Name);
         assert_eq!(prefix.test(), &IndexTest::StartsWith("bo".to_owned()));
         assert!(NodeFilter
             .property("a")
             .eq(NodeFilter.property("b"))
+            .compiled()
             .pushdown()
             .is_none());
     }
@@ -913,27 +922,43 @@ mod pushdown_tests {
     #[test]
     fn the_ids_a_predicate_names_are_resolved_outright() {
         assert_eq!(
-            NodeFilter.id().eq(1u64).pushdown(),
+            NodeFilter.id().eq(1u64).compiled().pushdown(),
             Some(Pushdown::Ids(vec![1u64.into_prop()]))
         );
         assert_eq!(
-            NodeFilter.id().is_in([1u64, 2u64]).pushdown(),
+            NodeFilter.id().is_in([1u64, 2u64]).compiled().pushdown(),
             Some(Pushdown::Ids(vec![1u64.into_prop(), 2u64.into_prop()]))
         );
         // The name is the node's external id, so equality on it resolves the node too.
         assert_eq!(
-            NodeFilter.name().eq("bob").pushdown(),
+            NodeFilter.name().eq("bob").compiled().pushdown(),
             Some(Pushdown::Ids(vec!["bob".into_prop()]))
         );
         assert_eq!(
-            NodeFilter.name().is_in(["bob", "carol"]).pushdown(),
+            NodeFilter
+                .name()
+                .is_in(["bob", "carol"])
+                .compiled()
+                .pushdown(),
             Some(Pushdown::Ids(vec!["bob".into_prop(), "carol".into_prop()]))
         );
         // Only equality names nodes; an ordering on the id is a scan.
-        assert!(NodeFilter.id().gt(1u64).pushdown().is_none());
-        assert!(NodeFilter.name().ne("bob").pushdown().is_none());
+        assert!(NodeFilter.id().gt(1u64).compiled().pushdown().is_none());
+        assert!(NodeFilter.name().ne("bob").compiled().pushdown().is_none());
         // A view that can hide nodes takes the id off the index.
-        assert!(NodeFilter.latest().id().eq(1u64).pushdown().is_none());
-        assert!(NodeFilter.latest().name().eq("bob").pushdown().is_none());
+        assert!(NodeFilter
+            .latest()
+            .id()
+            .eq(1u64)
+            .compiled()
+            .pushdown()
+            .is_none());
+        assert!(NodeFilter
+            .latest()
+            .name()
+            .eq("bob")
+            .compiled()
+            .pushdown()
+            .is_none());
     }
 }

@@ -33,9 +33,9 @@ use crate::{
                     filters::NotExpr,
                     ops::{gid_for_id_lookup, DomainNodeOp},
                     typing::{require_bool, truthy},
-                    CreateOp, EntityExpr, PredicateLhs,
+                    CreateOp, EntityExpr,
                 },
-                resolved_prop_type, ComposableFilter, EntityMarker,
+                resolved_prop_type, EntityMarker,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter, DynEdgeFilter,
@@ -92,7 +92,7 @@ impl<E: CreateOp> Predicate<E> {
     }
 
     fn entity_marker(&self) -> EntityMarker {
-        self.inner.entity().into()
+        self.inner.entity()
     }
 
     /// Where the node filter can start instead of at every node: the nodes the
@@ -240,16 +240,8 @@ impl<E: CreateOp> FilterAnswer for Predicate<E> {
     }
 }
 
-impl<E> ComposableFilter for Predicate<E> {}
-
-/// A predicate is also a yes/no value: it compares (`(a > b).eq(true)`), and
-/// `any()`/`all()` and the tree read it as the expression it wraps.
-impl<E: EntityExpr> PredicateLhs for Predicate<E> {}
-
 impl<E: EntityExpr> EntityExpr for Predicate<E> {
-    type Marker = E::Marker;
-
-    fn entity(&self) -> Self::Marker {
+    fn entity(&self) -> EntityMarker {
         self.inner.entity()
     }
 
@@ -533,8 +525,6 @@ mod tests {
     }
 
     impl EntityExpr for GraphProbe {
-        type Marker = EntityMarker;
-
         fn entity(&self) -> EntityMarker {
             EntityMarker::Node
         }

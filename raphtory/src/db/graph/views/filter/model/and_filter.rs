@@ -12,7 +12,7 @@ use crate::{
             model::{
                 answer::{all_of, compose, Answer, FilterAnswer, Question},
                 edge_expr::ops::AndEdgeOp,
-                ComposableFilter, DynFilter,
+                DynFilter,
             },
             CreateFilter, DynEdgeFilter,
         },
@@ -45,8 +45,6 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
         write!(f, "({} AND {})", self.left, self.right)
     }
 }
-
-impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
 /// A typed `and` compiles by answering the two questions over its legs.
 impl<L, R> CreateFilter for AndFilter<L, R>

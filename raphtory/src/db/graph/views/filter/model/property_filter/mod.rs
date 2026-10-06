@@ -4,11 +4,7 @@ use crate::{
             properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::internal::{GraphView, NodeTimeSemanticsOps},
         },
-        graph::{
-            edge::EdgeView,
-            node::NodeView,
-            views::filter::model::{ComposableFilter, FilterOperator},
-        },
+        graph::{edge::EdgeView, node::NodeView, views::filter::model::FilterOperator},
     },
     errors::GraphError,
     prelude::{EdgeViewOps, NodeViewOps, PropertiesOps},
@@ -367,5 +363,3 @@ impl<M> PropertyFilter<M> {
         }
     }
 }
-
-impl<M> ComposableFilter for PropertyFilter<M> {}

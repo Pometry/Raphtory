@@ -1645,7 +1645,7 @@ mod test_node_filter {
         db::{
             api::view::{filter_ops::Select, Filter},
             graph::views::filter::{
-                model::{not_filter::NotFilter, ComposableFilter, NodeViewFilterOps, ViewWrapOps},
+                model::{ComposableFilter, ViewWrapOps},
                 CreateFilter,
             },
         },
@@ -2828,9 +2828,8 @@ mod test_node_filter {
     #[test]
     fn test_is_active_node_window_not() {
         // is_active() returns true/false (no None case), so set-complement and
-        // SQL-NULL agree. Use NotFilter wrapper directly to avoid the composite
-        // path.
-        let filter = NotFilter(NodeFilter.window(1, 10).is_active());
+        // SQL-NULL agree.
+        let filter = NodeFilter.window(1, 10).is_active().not();
         let expected_results = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2917,8 +2916,8 @@ mod test_node_property_filter {
     };
     use raphtory::{
         db::graph::views::filter::model::{
-            graph_filter::GraphFilter, node_filter::NodeFilter, windowed_filter::Windowed,
-            ComposableFilter, PropertyExprFactory, ViewWrapOps,
+            graph_filter::GraphFilter, node_filter::NodeFilter, ComposableFilter,
+            PropertyExprFactory, ViewWrapOps,
         },
         prelude::{EntityAggOps, EntityExprFilterOps},
     };
@@ -4177,7 +4176,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_graph_filter_window() {
-        let filter: Windowed<GraphFilter> = GraphFilter.window(1, 2);
+        let filter = GraphFilter.window(1, 2);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4456,7 +4455,7 @@ mod composite_node_filter_tests {
     };
     use raphtory::{
         db::graph::views::filter::model::{
-            not_filter::NotFilter, ComposableFilter, NodeFilterFactory, PropertyExprFactory,
+            ComposableFilter, NodeFilterFactory, PropertyExprFactory,
         },
         prelude::{EntityExprFilterOps, NodeFilter},
     };
@@ -4619,13 +4618,12 @@ mod composite_node_filter_tests {
 
     #[test]
     fn test_not_composite_filter_nodes() {
-        let filter = NotFilter(
-            NodeFilter
-                .name()
-                .eq("2")
-                .and(NodeFilter.property("p2").eq(2u64))
-                .or(NodeFilter.property("p9").eq(5u64)),
-        );
+        let filter = NodeFilter
+            .name()
+            .eq("2")
+            .and(NodeFilter.property("p2").eq(2u64))
+            .or(NodeFilter.property("p9").eq(5u64))
+            .not();
         let expected_results = vec!["3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -4635,7 +4633,10 @@ mod composite_node_filter_tests {
             TestVariants::All,
         );
 
-        let filter = NotFilter(NodeFilter.name().eq("2"))
+        let filter = NodeFilter
+            .name()
+            .eq("2")
+            .not()
             .and(NodeFilter.property("p2").eq(2u64))
             .or(NodeFilter.property("p9").eq(5u64));
         let expected_results = vec!["1"];
@@ -10536,7 +10537,7 @@ mod test_edge_property_filter {
 mod composite_edge_filter_tests {
     use raphtory::{
         db::graph::views::filter::model::{
-            edge_filter::EdgeFilter, not_filter::NotFilter, ComposableFilter, PropertyExprFactory,
+            edge_filter::EdgeFilter, ComposableFilter, PropertyExprFactory,
         },
         prelude::EntityExprFilterOps,
     };
@@ -10719,12 +10720,11 @@ mod composite_edge_filter_tests {
 
     #[test]
     fn test_not_composite_filter_edges() {
-        let filter = NotFilter(
-            EdgeFilter::src()
-                .name()
-                .eq("13")
-                .and(EdgeFilter.property("p1").eq("prop1")),
-        );
+        let filter = EdgeFilter::src()
+            .name()
+            .eq("13")
+            .and(EdgeFilter.property("p1").eq("prop1"))
+            .not();
         let expected_results = vec![
             "1->2",
             "2->1",
@@ -10741,12 +10741,11 @@ mod composite_edge_filter_tests {
             TestVariants::All,
         );
 
-        let filter = NotFilter(
-            EdgeFilter::src()
-                .name()
-                .eq("13")
-                .and(NotFilter(EdgeFilter.property("p1").eq("prop1"))),
-        );
+        let filter = EdgeFilter::src()
+            .name()
+            .eq("13")
+            .and(EdgeFilter.property("p1").eq("prop1").not())
+            .not();
         let expected_results = vec![
             "1->2",
             "2->1",

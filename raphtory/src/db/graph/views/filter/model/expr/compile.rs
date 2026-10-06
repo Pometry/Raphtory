@@ -1,28 +1,36 @@
 //! From expression data to a filter the engine can apply.
 //!
-//! Terms and views replay onto the erased factories exactly as the typed API
-//! would build them, and every other node of a value expression becomes the
-//! typed expression of the rust API over those erased terms: the tree is data,
-//! and the typed expressions are the one compiler. A `Bool`-typed value is a
-//! filter on its entity through [`Predicate`]; this module adds what only a
-//! whole filter knows: which entities each leg answers for, how `and`, `or`
-//! and `not` combine those answers, and where a view applies.
+//! A term's views fold into a view chain over the graph, the term becomes the
+//! typed expression that reads through it, and every other node of a value
+//! expression becomes the typed expression over its compiled children: the
+//! tree is the data every API builds, and the typed expressions are the one
+//! compiler. A `Bool`-typed value is a filter on its entity through
+//! [`Predicate`]; this module adds what only a whole filter knows: which
+//! entities each leg answers for, how `and`, `or` and `not` combine those
+//! answers, and where a view applies.
 
-use super::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp};
+use super::{
+    builder::Chain, Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp,
+};
 use crate::{
     db::{
         api::{
             state::{
-                ops::{filter::NodeExistsOp, NodeFilterOp},
+                ops::{
+                    filter::NodeExistsOp,
+                    node::{Id, Name, Type},
+                    NodeFilterOp,
+                },
                 NodeOp,
             },
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             model::{
+                after_bounds,
                 and_filter::AndFilter,
                 answer::{all_of, any_of, combine, compose, Answer, FilterAnswer, Question},
-                dyn_factory::{DynEdgeFilterFactory, DynNodeFilterFactory},
+                at_bounds, before_bounds,
                 edge_expr::ops::{AndEdgeOp, EdgeExistsOp},
                 edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
                 exploded_edge_filter::ExplodedEdgeFilter,
@@ -33,20 +41,26 @@ use crate::{
                 is_deleted_filter::IsDeletedEdge,
                 is_self_loop_filter::IsSelfLoopEdge,
                 is_valid_filter::IsValidEdge,
+                latest_filter::Latest,
+                layered_filter::Layered,
                 node_expr::{
-                    AllExpr, AndExpr, AnyExpr, BinaryCmpExpr, DynCreateOp, NotExpr, OrExpr,
-                    Predicate, PropValueSetExpr, Scoped, StringExpr, UnaryExpr,
+                    AllExpr, AndExpr, AnyExpr, AvgExpr, BinaryCmpExpr, DegreeExpr, DynCreateOp,
+                    EarliestExpr, FirstExpr, LastExpr, LatestExpr, LenExpr, MaxExpr, MinExpr,
+                    NodeFieldExpr, NotExpr, OrExpr, Predicate, PropValueSetExpr, Scoped,
+                    StringExpr, SumExpr, UnaryExpr,
                 },
                 node_filter::NodeFilter,
-                DynCreateFilter, DynView, EntityMarker, ViewWrapOps,
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
+                windowed_filter::Windowed,
+                CreateView, DynCreateFilter, DynCreateView, EntityMarker, MetadataExpr,
+                PropertyExpr,
             },
             CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
-    prelude::{EntityAggOps, Layer},
 };
-use raphtory_api::core::Direction;
+use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt::Debug, sync::Arc};
 
 fn invalid(msg: impl Into<String>) -> GraphError {
@@ -107,42 +121,71 @@ impl<L: Leaf> Expr<L> {
     }
 }
 
-fn node_factory(views: &[ViewOp]) -> Arc<dyn DynNodeFilterFactory> {
-    let mut f: Arc<dyn DynNodeFilterFactory> = Arc::new(NodeFilter);
-    for op in views {
-        f = match op {
-            ViewOp::Window { start, end } => f.window(*start, *end),
-            ViewOp::At(t) => f.at(*t),
-            ViewOp::After(t) => f.after(*t),
-            ViewOp::Before(t) => f.before(*t),
-            ViewOp::Latest => Arc::new(f.latest()),
-            ViewOp::SnapshotAt(t) => Arc::new(f.snapshot_at(*t)),
-            ViewOp::SnapshotLatest => Arc::new(f.snapshot_latest()),
-            ViewOp::Layers(names) => Arc::new(f.layer(names.clone())),
-        };
-    }
-    f
+/// A view chain over the graph, as the tree's view ops describe it, over the
+/// identity view `root`, applied in order. A window inside a window narrows and
+/// never widens, because the graph's own `window` intersects with the view it
+/// is applied to, as `graph.window(..).window(..)` does.
+fn view_chain(root: Arc<dyn DynCreateView>, views: &[ViewOp]) -> Arc<dyn DynCreateView> {
+    views.iter().fold(root, |chain, op| match op {
+        ViewOp::Window { start, end } => window((*start, *end), chain),
+        ViewOp::At(t) => window(at_bounds(*t), chain),
+        ViewOp::After(t) => window(after_bounds(*t), chain),
+        ViewOp::Before(t) => window(before_bounds(*t), chain),
+        ViewOp::Latest => Arc::new(Latest::new(chain)),
+        ViewOp::SnapshotAt(t) => Arc::new(SnapshotAt::new(*t, chain)),
+        ViewOp::SnapshotLatest => Arc::new(SnapshotLatest::new(chain)),
+        ViewOp::Layers(names) => Arc::new(Layered::from_layers(names.clone(), chain)),
+    })
 }
 
-fn edge_factory(exploded: bool, views: &[ViewOp]) -> Arc<dyn DynEdgeFilterFactory> {
-    let mut f: Arc<dyn DynEdgeFilterFactory> = if exploded {
-        Arc::new(ExplodedEdgeFilter)
+fn window(
+    (start, end): (EventTime, EventTime),
+    chain: Arc<dyn DynCreateView>,
+) -> Arc<dyn DynCreateView> {
+    Arc::new(Windowed::new(start, end, chain))
+}
+
+fn node_chain(views: &[ViewOp]) -> Arc<dyn DynCreateView> {
+    view_chain(Arc::new(NodeFilter), views)
+}
+
+fn edge_chain(exploded: bool, views: &[ViewOp]) -> Arc<dyn DynCreateView> {
+    if exploded {
+        view_chain(Arc::new(ExplodedEdgeFilter), views)
     } else {
-        Arc::new(EdgeFilter)
-    };
-    for op in views {
-        f = match op {
-            ViewOp::Window { start, end } => f.dyn_window(*start, *end),
-            ViewOp::At(t) => f.dyn_at(*t),
-            ViewOp::After(t) => f.dyn_after(*t),
-            ViewOp::Before(t) => f.dyn_before(*t),
-            ViewOp::Latest => f.dyn_latest(),
-            ViewOp::SnapshotAt(t) => f.dyn_snapshot_at(*t),
-            ViewOp::SnapshotLatest => f.dyn_snapshot_latest(),
-            ViewOp::Layers(names) => f.dyn_layer(names.clone()),
-        };
+        view_chain(Arc::new(EdgeFilter), views)
     }
-    f
+}
+
+/// A property read through `view_expr`: its latest value, or its history.
+fn property(
+    view_expr: Arc<dyn DynCreateView>,
+    name: &str,
+    entity: EntityMarker,
+    temporal: bool,
+) -> Arc<dyn DynCreateOp> {
+    let prop = PropertyExpr {
+        view_expr,
+        name: name.to_owned(),
+        entity,
+    };
+    if temporal {
+        Arc::new(prop.temporal())
+    } else {
+        Arc::new(prop)
+    }
+}
+
+fn metadata(
+    view_expr: Arc<dyn DynCreateView>,
+    name: &str,
+    entity: EntityMarker,
+) -> Arc<dyn DynCreateOp> {
+    Arc::new(MetadataExpr {
+        view_expr,
+        name: name.to_owned(),
+        entity,
+    })
 }
 
 impl Leaf for NodeLeaf {
@@ -151,36 +194,34 @@ impl Leaf for NodeLeaf {
     fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
         Ok(match self {
             NodeLeaf::Field { views, field } => {
-                let f = node_factory(views);
+                let view_expr = node_chain(views);
                 match field {
-                    Field::Id => f.dyn_id(),
-                    Field::Name => f.dyn_name(),
-                    Field::NodeType => f.dyn_node_type(),
+                    Field::Id => Arc::new(NodeFieldExpr {
+                        view_expr,
+                        field: Id,
+                    }),
+                    Field::Name => Arc::new(NodeFieldExpr {
+                        view_expr,
+                        field: Name,
+                    }),
+                    Field::NodeType => Arc::new(NodeFieldExpr {
+                        view_expr,
+                        field: Type,
+                    }),
                 }
             }
-            NodeLeaf::Degree { views, direction } => {
-                let f = node_factory(views);
-                match direction {
-                    Direction::BOTH => f.dyn_degree(),
-                    Direction::IN => f.dyn_in_degree(),
-                    Direction::OUT => f.dyn_out_degree(),
-                }
-            }
+            NodeLeaf::Degree { views, direction } => Arc::new(DegreeExpr {
+                dir: *direction,
+                view_expr: node_chain(views),
+            }),
             NodeLeaf::Property {
                 views,
                 name,
                 temporal,
-            } => {
-                let prop = node_factory(views).dyn_property(name.clone());
-                if *temporal {
-                    prop.temporal()
-                } else {
-                    prop
-                }
-            }
-            NodeLeaf::Metadata { views, name } => node_factory(views).dyn_metadata(name.clone()),
+            } => property(node_chain(views), name, Self::ENTITY, *temporal),
+            NodeLeaf::Metadata { views, name } => metadata(node_chain(views), name, Self::ENTITY),
             NodeLeaf::IsActive { views } => Arc::new(Scoped {
-                view: node_factory(views),
+                view: node_chain(views),
                 inner: IsActiveNode,
             }),
         })
@@ -227,21 +268,14 @@ impl Leaf for EdgeLeaf {
     const ENTITY: EntityMarker = EntityMarker::Edge;
 
     fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
-        let f = |views| edge_factory(false, views);
+        let f = |views: &Vec<ViewOp>| edge_chain(false, views);
         Ok(match self {
             EdgeLeaf::Property {
                 views,
                 name,
                 temporal,
-            } => {
-                let prop = f(views).dyn_property(name.clone());
-                if *temporal {
-                    prop.temporal()
-                } else {
-                    prop
-                }
-            }
-            EdgeLeaf::Metadata { views, name } => f(views).dyn_metadata(name.clone()),
+            } => property(f(views), name, Self::ENTITY, *temporal),
+            EdgeLeaf::Metadata { views, name } => metadata(f(views), name, Self::ENTITY),
             EdgeLeaf::IsActive { views } => Arc::new(Scoped {
                 view: f(views),
                 inner: IsActiveEdge,
@@ -309,21 +343,14 @@ impl Leaf for ExplodedEdgeLeaf {
     const ENTITY: EntityMarker = EntityMarker::ExplodedEdge;
 
     fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
-        let f = |views| edge_factory(true, views);
+        let f = |views: &Vec<ViewOp>| edge_chain(true, views);
         Ok(match self {
             ExplodedEdgeLeaf::Property {
                 views,
                 name,
                 temporal,
-            } => {
-                let prop = f(views).dyn_property(name.clone());
-                if *temporal {
-                    prop.temporal()
-                } else {
-                    prop
-                }
-            }
-            ExplodedEdgeLeaf::Metadata { views, name } => f(views).dyn_metadata(name.clone()),
+            } => property(f(views), name, Self::ENTITY, *temporal),
+            ExplodedEdgeLeaf::Metadata { views, name } => metadata(f(views), name, Self::ENTITY),
             ExplodedEdgeLeaf::IsActive { views } => Arc::new(Scoped {
                 view: f(views),
                 inner: IsActiveEdge,
@@ -396,15 +423,15 @@ impl<L: Leaf> Expr<L> {
             Expr::Agg(agg, inner) => {
                 let op = inner.compile_value()?;
                 match agg {
-                    Agg::Sum => Arc::new(op.sum()),
-                    Agg::Avg => Arc::new(op.avg()),
-                    Agg::Min => Arc::new(op.min()),
-                    Agg::Max => Arc::new(op.max()),
-                    Agg::First => Arc::new(op.first()),
-                    Agg::Last => Arc::new(op.last()),
-                    Agg::Len => Arc::new(op.len()),
-                    Agg::Earliest => Arc::new(op.earliest()),
-                    Agg::Latest => Arc::new(op.latest()),
+                    Agg::Sum => Arc::new(SumExpr(op)),
+                    Agg::Avg => Arc::new(AvgExpr(op)),
+                    Agg::Min => Arc::new(MinExpr(op)),
+                    Agg::Max => Arc::new(MaxExpr(op)),
+                    Agg::First => Arc::new(FirstExpr(op)),
+                    Agg::Last => Arc::new(LastExpr(op)),
+                    Agg::Len => Arc::new(LenExpr(op)),
+                    Agg::Earliest => Arc::new(EarliestExpr(op)),
+                    Agg::Latest => Arc::new(LatestExpr(op)),
                 }
             }
             Expr::Cmp(op, lhs, rhs) => Arc::new(BinaryCmpExpr::new(
@@ -530,24 +557,6 @@ fn view_below_top_level() -> GraphError {
     )
 }
 
-/// The graph-level view a chain of view ops describes, applied in order.
-fn compile_view(views: &[ViewOp]) -> DynView {
-    let mut v: DynView = Arc::new(GraphFilter);
-    for op in views {
-        v = match op {
-            ViewOp::Window { start, end } => v.window(*start, *end),
-            ViewOp::At(t) => v.at(*t),
-            ViewOp::After(t) => v.after(*t),
-            ViewOp::Before(t) => v.before(*t),
-            ViewOp::Latest => Arc::new(v.latest()),
-            ViewOp::SnapshotAt(t) => Arc::new(v.snapshot_at(*t)),
-            ViewOp::SnapshotLatest => Arc::new(v.snapshot_latest()),
-            ViewOp::Layers(names) => Arc::new(v.layer(Layer::from(names.clone()))),
-        };
-    }
-    v
-}
-
 /// A filter applied inside a view: the graph is seen through `views` first and
 /// `inner` runs on that graph, terms included, so `and: [view, pred]` is
 /// `graph.view(..).filter(pred)`. As a per-node or per-edge predicate it also asks
@@ -563,7 +572,7 @@ impl Viewed {
         &self,
         graph: G,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
-        compile_view(&self.views).create_dyn_graph_filter(graph.into_dyn_graph_arc())
+        view_chain(Arc::new(GraphFilter), &self.views).create_view(graph)
     }
 }
 
@@ -694,5 +703,89 @@ impl CreateFilter for FilterExpr {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         self.compile()?.create_edge_filter(graph)
+    }
+}
+
+/// A yes/no expression is a filter on its entity, applied through its tree.
+impl<L: super::Leaf> CreateFilter for Expr<L> {
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        FilterExpr::from(self).create_graph_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        FilterExpr::from(self).create_node_filter(graph)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        FilterExpr::from(self).create_edge_filter(graph)
+    }
+}
+
+/// A view on the graph is a filter: the graph seen through it.
+impl CreateFilter for Chain<()> {
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        FilterExpr::from(self).create_graph_filter(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        FilterExpr::from(self).create_node_filter(graph)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        FilterExpr::from(self).create_edge_filter(graph)
     }
 }

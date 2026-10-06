@@ -2,20 +2,12 @@ use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
-            model::{
-                edge_expr::ops::EdgeExistsOp,
-                latest_filter::Latest,
-                layered_filter::Layered,
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
-                CombinedFilter, InternalViewWrapOps,
-            },
+            model::{edge_expr::ops::EdgeExistsOp, CreateView},
             CreateFilter,
         },
     },
     errors::GraphError,
 };
-use raphtory_api::core::storage::timeindex::EventTime;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct GraphFilter;
@@ -26,11 +18,19 @@ impl std::fmt::Display for GraphFilter {
     }
 }
 
-impl InternalViewWrapOps for GraphFilter {
-    type Window = Windowed<GraphFilter>;
+/// The unfiltered graph is the view that changes nothing.
+impl CreateView for GraphFilter {
+    type View<'graph, G: GraphView + 'graph> = G;
 
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Windowed::from_times(start, end, self)
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(view)
+    }
+
+    fn narrows(&self) -> bool {
+        false
     }
 }
 
@@ -73,36 +73,4 @@ impl CreateFilter for GraphFilter {
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         Ok(EdgeExistsOp::new(graph))
     }
-}
-
-// ── expr-layer view ops ──
-
-pub trait GraphFilterOps:
-    InternalViewWrapOps<Window = Self::GraphWindow> + CombinedFilter + Send + Sync + 'static
-{
-    type GraphWindow: GraphFilterOps + CombinedFilter;
-}
-
-impl GraphFilterOps for GraphFilter {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for Windowed<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for Layered<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for Latest<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for SnapshotAt<T> {
-    type GraphWindow = Self::Window;
-}
-
-impl<T: GraphFilterOps> GraphFilterOps for SnapshotLatest<T> {
-    type GraphWindow = Self::Window;
 }

@@ -5,10 +5,7 @@ use crate::{
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
-            model::{
-                answer::{compose, Answer, FilterAnswer, Question},
-                ComposableFilter,
-            },
+            model::answer::{compose, Answer, FilterAnswer, Question},
             CreateFilter, DynEdgeFilter,
         },
     },
@@ -25,8 +22,6 @@ impl<T: Display> Display for NotFilter<T> {
         write!(f, "NOT({})", self.0)
     }
 }
-
-impl<T> ComposableFilter for NotFilter<T> {}
 
 /// The opposite of the inner answer, pushed down to the leaves: `not` never
 /// flips an answer the inner filter did not give.

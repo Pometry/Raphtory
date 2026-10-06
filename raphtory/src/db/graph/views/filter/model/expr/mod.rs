@@ -25,12 +25,14 @@
 //! expressions of the rust API (`BinaryCmpExpr`, `AnyExpr`, …) over erased
 //! terms, and those compile themselves. See [`compile`].
 
+pub mod builder;
 mod compile;
 mod display;
 pub(crate) mod stream;
 #[cfg(test)]
 mod tests;
 
+pub use builder::{Chain, EdgeEndpoint, EdgeKind, IntoExpr, PropertyTerm};
 pub use compile::Leaf;
 pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory, ValueTest};
 

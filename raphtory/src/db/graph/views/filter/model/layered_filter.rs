@@ -1,24 +1,5 @@
-use crate::{
-    db::{
-        api::{
-            state::ops::filter::NodeExistsOp,
-            view::internal::{GraphView, Static},
-        },
-        graph::views::{
-            filter::{
-                model::{
-                    edge_expr::ops::EdgeExistsOp, graph_filter::GraphFilterOps, ComposableFilter,
-                    InternalViewWrapOps,
-                },
-                CreateFilter,
-            },
-            layer_graph::LayeredGraph,
-        },
-    },
-    errors::GraphError,
-    prelude::LayerOps,
-};
-use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
+use crate::db::api::view::internal::Static;
+use raphtory_api::core::entities::Layer;
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,67 +46,3 @@ impl<M> Layered<M> {
         Self::new(layer.into(), entity)
     }
 }
-
-impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
-    type Window = Layered<T::Window>;
-
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.inner.bounds()
-    }
-
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Layered::new(self.layer, self.inner.build_window(start, end))
-    }
-}
-
-/// A view wrapper applied as a filter: the inner filter's view is applied to the
-/// graph and this view on top of it, in the order the chain was written. The nodes
-/// and edges it selects are the ones that exist in the resulting view.
-impl<T: GraphFilterOps> CreateFilter for Layered<T> {
-    type FilteredGraph<'graph, G>
-        = LayeredGraph<T::FilteredGraph<'graph, G>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G>
-        = NodeExistsOp<LayeredGraph<T::FilteredGraph<'graph, G>>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type EdgeFilter<'graph, G>
-        = EdgeExistsOp<LayeredGraph<T::FilteredGraph<'graph, G>>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_graph_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(self
-            .inner
-            .create_graph_filter(graph)?
-            .layers(self.layer.clone())?)
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeExistsOp::new(self.create_graph_filter(graph)?))
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        Ok(EdgeExistsOp::new(self.create_graph_filter(graph)?))
-    }
-}
-
-impl<T: ComposableFilter> ComposableFilter for Layered<T> {}
-
-// ── expr layer: the layer view scopes any inner expression (per-expression view) ──
-// Nesting order of chained views is pinned by the view-semantics tests.

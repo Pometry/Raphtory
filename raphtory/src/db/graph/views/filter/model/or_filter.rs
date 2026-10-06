@@ -11,7 +11,7 @@ use crate::{
             model::{
                 answer::{any_of, compose, Answer, FilterAnswer, Question},
                 edge_expr::ops::OrEdgeOp,
-                ComposableFilter, DynFilter,
+                DynFilter,
             },
             or_filtered_graph::OrFilteredGraph,
             CreateFilter, DynEdgeFilter,
@@ -45,8 +45,6 @@ impl<L: Display, R: Display> Display for OrFilter<L, R> {
         write!(f, "({} OR {})", self.left, self.right)
     }
 }
-
-impl<L, R> ComposableFilter for OrFilter<L, R> {}
 
 /// A typed `or` compiles by answering the two questions over its legs.
 impl<L, R> CreateFilter for OrFilter<L, R>

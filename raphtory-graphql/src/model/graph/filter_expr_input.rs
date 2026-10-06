@@ -982,7 +982,11 @@ mod tests {
     #[test]
     fn an_opaque_filter_has_no_wire_form() {
         let opaque = F::Opaque(expr::OpaqueFilter::new(
-            NodeFilter.property("score").is_some(),
+            NodeFilter
+                .property("score")
+                .is_some()
+                .compile_value()
+                .unwrap(),
         ));
         let err = GqlFilter::try_from(&opaque).unwrap_err();
         assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
