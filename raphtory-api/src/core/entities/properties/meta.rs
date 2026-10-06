@@ -501,7 +501,7 @@ fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usiz
     }
     let before = row[prop_id];
     row[prop_id] = true;
-    before
+    !before
 }
 
 /// Write-locked view of a [`PropMapper`]'s name/id and dtype mappers.
