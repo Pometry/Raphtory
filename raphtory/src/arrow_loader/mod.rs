@@ -556,7 +556,7 @@ mod test {
             .next()
             .is_none());
 
-        assert_eq!(storage.node_type_index().head_shared().num_entries(), 2);
+        assert_eq!(storage.node_type_index().head_shared_arc().num_entries(), 2);
 
         assert_eq!(
             storage
@@ -589,7 +589,7 @@ mod test {
         let entries_before = graph
             .core_graph()
             .node_type_index()
-            .head_shared()
+            .head_shared_arc()
             .num_entries();
 
         load_nodes_with_type_col(
@@ -603,7 +603,7 @@ mod test {
         let b_id = graph.node_meta().get_node_type_id("b").unwrap();
 
         assert_eq!(
-            storage.node_type_index().head_shared().num_entries(),
+            storage.node_type_index().head_shared_arc().num_entries(),
             entries_before
         );
         assert_eq!(entries_before, 2);

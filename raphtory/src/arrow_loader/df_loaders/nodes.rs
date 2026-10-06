@@ -243,7 +243,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             if resolve_nodes && !gid_str_cache.is_empty() {
                 let index = graph.core_graph().node_type_index();
-                populate_node_type_index(&gid_str_cache, &index.head_shared());
+                populate_node_type_index(&gid_str_cache, &index.head_shared_arc());
                 index.notify_write();
             }
 

@@ -18,7 +18,7 @@ where
 
     fn load(path: impl AsRef<Path>, ext: Self::Extension) -> Result<Self, StorageError>;
 
-    fn head_shared(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex>;
+    fn head_shared_arc(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex>;
 
     fn head_exclusive(&self) -> RwLockWriteGuard<'_, MemNodeTypeIndex>;
 

@@ -45,7 +45,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
         ))
     }
 
-    fn head_shared(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex> {
+    fn head_shared_arc(&self) -> ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex> {
         self.head.read_arc_recursive()
     }
 
@@ -54,11 +54,11 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
     }
 
     fn entry(&self, type_ids: &[usize]) -> Self::Entry {
-        MemNodeTypeEntry::with_types(self.head_shared(), type_ids)
+        MemNodeTypeEntry::with_types(self.head_shared_arc(), type_ids)
     }
 
     fn is_empty(&self) -> bool {
-        self.head_shared().is_empty()
+        self.head_shared_arc().is_empty()
     }
 
     fn est_size(&self) -> usize {
@@ -75,7 +75,7 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
 
     fn notify_write(&self) {
         self.est_size
-            .store(self.head_shared().est_size(), Ordering::Relaxed);
+            .store(self.head_shared_arc().est_size(), Ordering::Relaxed);
     }
 
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
