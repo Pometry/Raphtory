@@ -60,8 +60,14 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
         List::List { elems } => {
             let chunk_size = (elems.len() / rayon::current_num_threads().max(1)).max(1);
             let keys = match elems {
-                Index::Partial(index) => Either::Left(index.par_iter()),
-                Index::Sorted { keys, .. } => Either::Right(keys.par_iter()),
+                Index::Partial(index) => Either::Left(Either::Left(index.par_iter().copied())),
+                Index::Sorted { keys, .. } => Either::Left(Either::Right(keys.par_iter().copied())),
+                // TODO: one `select` per key, see `Index::into_par_iter`.
+                Index::Roaring { keys, .. } => Either::Right(
+                    (0..keys.len() as usize)
+                        .into_par_iter()
+                        .map(move |i| VID(keys.select(i as u64).unwrap() as usize)),
+                ),
                 Index::Full(_) => unreachable!("matched by the first arm"),
             };
             let iter = keys
@@ -71,9 +77,9 @@ pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
                     (
                         c_id,
                         Either::Right(chunk.into_iter().filter_map(move |vid| {
-                            let node = g.core_node(*vid);
+                            let node = g.core_node(vid);
                             if list_trusted || g.filter_node(node.as_ref()) {
-                                Some(NodeView::new_internal(g, *vid))
+                                Some(NodeView::new_internal(g, vid))
                             } else {
                                 None
                             }

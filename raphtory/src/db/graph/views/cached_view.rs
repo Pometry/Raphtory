@@ -4,12 +4,13 @@ use crate::{
         properties::internal::{
             InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
         },
+        state::Index,
         view::internal::{
-            EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
-            InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalLayerOps,
-            InternalNodeFilterOps, Static,
+            EdgeList, EdgeTimeSemanticsOps, FilterOps, GraphView, Immutable,
+            InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
+            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+            InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::{GraphViewOps, Layer, LayerOps},
@@ -157,6 +158,15 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 },
             );
 
+        // Layer views reuse `node_list`, which is the global mask, so it must hold every layer's
+        // nodes. Ensures no node fails graph.filter_node() and passes a layer's filtering
+        debug_assert!(
+            layered_node_masks
+                .iter()
+                .all(|nodes| nodes.is_subset(&global_nodes_mask)),
+            "a layer shows a node the whole graph does not"
+        );
+
         let layered_mask = layered_node_masks
             .into_iter()
             .zip(layered_edge_masks)
@@ -200,8 +210,19 @@ fn sorted_id_mask(mut ids: Vec<u64>) -> RoaringTreemap {
     RoaringTreemap::from_sorted_iter(ids).expect("sorted and deduplicated")
 }
 
-// FIXME: this should use the list version ideally
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> ListOps for CachedView<G> {
+    /// The global mask itself, shared rather than copied, so listing the view's nodes never goes
+    /// back to the filter it was cached from.
+    fn node_list(&self) -> NodeList {
+        NodeList::List {
+            elems: Index::from_bitmap(self.global_nodes_mask.clone(), true),
+        }
+    }
+
+    fn edge_list(&self) -> EdgeList {
+        self.graph.edge_list()
+    }
+}
 
 impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedView<G> {
     fn internal_exploded_edge_filtered(&self) -> bool {
@@ -314,8 +335,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     fn internal_nodes_filtered(&self) -> bool {
         self.graph.internal_nodes_filtered()
     }
+    /// The list is exactly this view's nodes.
     fn internal_node_list_trusted(&self) -> bool {
-        self.graph.internal_node_list_trusted()
+        true
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {
@@ -360,8 +382,13 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
 
 #[cfg(test)]
 mod tests {
-    use crate::db::graph::views::filter::model::{ExplodedEdgeFilter, PropertyFilterFactory};
-    use crate::prelude::*;
+    use crate::{
+        db::{
+            api::view::filter_ops::Filter,
+            graph::views::filter::model::{ExplodedEdgeFilter, PropertyFilterFactory},
+        },
+        prelude::*,
+    };
 
     fn fixture() -> Graph {
         let graph = Graph::new();
