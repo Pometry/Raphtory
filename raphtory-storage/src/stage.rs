@@ -42,6 +42,10 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
         src.core_graph().stage()
     }
 
+    /// Get a reference to the staged graph.
+    ///
+    /// WARNING: Cloning this reference is not advised as the clone points to
+    /// volatile storage which may get discarded at any time.
     pub fn graph(&self) -> &G {
         &self.graph
     }
@@ -74,7 +78,7 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
 
     /// Abandon this stage and cleanup its files on disk.
     pub fn discard(self) -> Result<(), StageError> {
-        // Drop graph before removing files on disk to prevent dangling references.
+        // Invoke drop so it can write to disk before the graph folder is removed.
         drop(self.graph);
         self.folder.discard().map_err(StageError::Discard)
     }

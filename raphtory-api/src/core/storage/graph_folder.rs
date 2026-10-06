@@ -600,7 +600,7 @@ impl GraphPaths for WriteableGraphFolder {
 }
 
 impl WriteableGraphFolder {
-    /// Finalise an in-progress write by atomically renaming the .dirty file to .raph.
+    /// Finalise an in-progress write by atomically renaming the `.dirty` file to `.raph`.
     /// Removes the previous `data{id}` folder if `cleanup_old` is true.
     ///
     /// This operation returns an error if there is no write in progress.
@@ -628,9 +628,9 @@ impl WriteableGraphFolder {
         })
     }
 
-    /// Abandon the current write by removing the data folder and the .dirty file.
+    /// Abandon the current write by removing the data folder and the `.dirty` file.
     ///
-    /// The .raph file is unchanged and points to the previous data folder.
+    /// The `.raph` file is unchanged and points to the previous data folder.
     pub fn discard(self) -> Result<(), GraphFolderError> {
         let data_path = self.data_path()?;
         let dirty_path = self.root().join(DIRTY_PATH);
