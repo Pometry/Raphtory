@@ -110,35 +110,6 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
         }
     }
 
-    // ---- nodes_c ----
-    // Resolve by GID (not by the parquet's original VID column) so the new
-    // graph gets dense, contiguous VIDs. Passing `node_id_col`/`node_type_id_col`
-    // = None forces GID-based resolution inside the loader.
-    let c_node_path = parquet_dir.join(NODES_C_PATH);
-    if c_node_path.exists() {
-        let metadata_cols = parquet_prop_columns(
-            &c_node_path,
-            &[NODE_GID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL],
-        );
-        let metadata_cols: Vec<&str> = metadata_cols.iter().map(String::as_str).collect();
-        load_node_metadata_from_parquet(
-            &graph,
-            &c_node_path,
-            NODE_GID_COL,
-            None,
-            Some(TYPE_COL),
-            None,
-            None,
-            &metadata_cols,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
-    }
-
     // ---- nodes_t ----
     let t_node_path = parquet_dir.join(NODES_T_PATH);
     if t_node_path.exists() {
@@ -247,6 +218,35 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
             None,
             None,
             true,
+        )
+        .unwrap();
+    }
+
+    // ---- nodes_c ----
+    // Resolve by GID (not by the parquet's original VID column) so the new
+    // graph gets dense, contiguous VIDs. Passing `node_id_col`/`node_type_id_col`
+    // = None forces GID-based resolution inside the loader.
+    let c_node_path = parquet_dir.join(NODES_C_PATH);
+    if c_node_path.exists() {
+        let metadata_cols = parquet_prop_columns(
+            &c_node_path,
+            &[NODE_GID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL],
+        );
+        let metadata_cols: Vec<&str> = metadata_cols.iter().map(String::as_str).collect();
+        load_node_metadata_from_parquet(
+            &graph,
+            &c_node_path,
+            NODE_GID_COL,
+            None,
+            Some(TYPE_COL),
+            None,
+            None,
+            &metadata_cols,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
         .unwrap();
     }
