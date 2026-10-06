@@ -1,6 +1,9 @@
-use crate::graph::{
-    graph::{GraphStorage, Immutable},
-    locked::ReadLockedGraph,
+use crate::{
+    core_ops::CoreGraphOps,
+    graph::{
+        graph::{GraphStorage, Immutable},
+        locked::ReadLockedGraph,
+    },
 };
 use db4_graph::TemporalGraph;
 use parking_lot::{lock_api::ArcMutexGuard, RawMutex};
@@ -16,12 +19,12 @@ use storage::{
 };
 use thiserror::Error;
 
-/// Holds state for an ongoing `stage` on a graph.
-pub struct Handle {
-    /// The underlying storage of the staged graph.
-    storage: GraphStorage,
+/// Wrapper around a graph that can buffer writes and apply them as an atomic operation.
+pub struct Stage<G> {
+    /// The staged graph that can accept writes.
+    graph: G,
 
-    /// The directory on disk that holds data for this stage handle.
+    /// The directory on disk that holds data for this stage.
     folder: WriteableGraphFolder,
 
     /// The graph being staged from.
@@ -34,37 +37,27 @@ pub struct Handle {
     _guard: ArcMutexGuard<RawMutex, ()>,
 }
 
-impl Handle {
-    pub fn new(
-        storage: GraphStorage,
-        folder: WriteableGraphFolder,
-        src_graph: ReadLockedGraph,
-        src_folder: GraphFolder,
-        guard: ArcMutexGuard<RawMutex, ()>,
-    ) -> Self {
-        Self {
-            storage,
-            folder,
-            _src_graph: src_graph,
-            src_folder,
-            _guard: guard,
-        }
+impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
+    pub fn new(src: &G) -> Result<Self, StageError> {
+        src.core_graph().stage()
     }
 
-    pub fn storage(&self) -> &GraphStorage {
-        &self.storage
+    pub fn graph(&self) -> &G {
+        &self.graph
     }
 
-    pub fn finish(self) -> Result<GraphStorage, StageError> {
-        self.storage.flush()?;
+    /// Finalise all writes and promote the staged graph as the new primary graph.
+    pub fn finish(self) -> Result<G, StageError> {
+        let storage = self.graph.core_graph();
+        storage.flush()?;
 
         let src_meta = self.src_folder.read_metadata()?;
 
         let new_meta = Metadata {
             path: self.folder.relative_graph_path()?,
             meta: GraphMetadata {
-                node_count: self.storage.unfiltered_num_nodes(&LayerIds::All),
-                edge_count: self.storage.unfiltered_num_edges(&LayerIds::All),
+                node_count: storage.unfiltered_num_nodes(&LayerIds::All),
+                edge_count: storage.unfiltered_num_edges(&LayerIds::All),
                 graph_type: src_meta.graph_type,
                 is_diskgraph: src_meta.is_diskgraph,
             },
@@ -76,16 +69,19 @@ impl Handle {
             .finish(cleanup_old)
             .map_err(StageError::Finish)?;
 
-        Ok(self.storage)
+        Ok(self.graph)
     }
 
+    /// Abandon this stage and cleanup its files on disk.
     pub fn discard(self) -> Result<(), StageError> {
+        // Drop graph before removing files on disk to prevent dangling references.
+        drop(self.graph);
         self.folder.discard().map_err(StageError::Discard)
     }
 }
 
 impl GraphStorage {
-    pub fn stage(&self) -> Result<Handle, StageError> {
+    pub(crate) fn stage<G: From<GraphStorage>>(&self) -> Result<Stage<G>, StageError> {
         let (src_graph, guard) = match self {
             GraphStorage::Unlocked(graph) => {
                 let guard = graph.try_stage_guard().ok_or(StageError::InProgress)?;
@@ -126,29 +122,28 @@ impl GraphStorage {
             }
         };
 
-        src_graph.stage(guard)
-    }
-}
-
-impl ReadLockedGraph {
-    fn stage(self, guard: ArcMutexGuard<RawMutex, ()>) -> Result<Handle, StageError> {
-        let src_path = self.graph.graph_dir().ok_or(StageError::MissingGraphDir)?;
-
+        let src_path = src_graph.graph.graph_dir().ok_or(StageError::MissingGraphDir)?;
         let src_folder = GraphFolder::from_graph_path(src_path)?;
         let staged_folder = src_folder.clone().init_swap().map_err(StageError::Init)?;
         let staged_graph_path = staged_folder.graph_path().map_err(StageError::Init)?;
 
         // Copy existing flushed data to the staged graph to create a fork.
-        self.graph.copy_to(&staged_graph_path)?;
+        src_graph.graph.copy_to(&staged_graph_path)?;
 
         // Load a fresh extension so that the staged graph has its own WAL, control file, etc.
         let config = Config::load_from_dir(&staged_graph_path)?;
         let extension = Extension::load(&staged_graph_path, config)?;
 
         let temporal_graph = TemporalGraph::load(staged_graph_path, extension)?;
-        let storage = GraphStorage::from(temporal_graph);
+        let graph = G::from(GraphStorage::from(temporal_graph));
 
-        Ok(Handle::new(storage, staged_folder, self, src_folder, guard))
+        Ok(Stage {
+            graph,
+            folder: staged_folder,
+            _src_graph: src_graph,
+            src_folder,
+            _guard: guard,
+        })
     }
 }
 

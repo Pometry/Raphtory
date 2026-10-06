@@ -25,7 +25,6 @@ use crate::{
                 InheritViewOps, Static,
             },
         },
-        stage::Stage,
     },
     errors::GraphError,
     prelude::*,
@@ -33,7 +32,7 @@ use crate::{
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    mutation::InheritMutationOps, stage::Stage,
 };
 use rayon::prelude::*;
 use std::{
@@ -268,7 +267,7 @@ impl Graph {
     }
 
     pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
-        Stage::new(self)
+        Stage::new(self).map_err(GraphError::from)
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
