@@ -13,6 +13,7 @@ use raphtory_api::core::{
     storage::{graph_folder::GraphFolderError, timeindex::TimeError},
     utils::time::ParseTimeError,
 };
+use raphtory_api::core::entities::properties::prop::PropTypeError;
 use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
@@ -138,6 +139,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     PropError(#[from] PropError),
+
+    #[error(transparent)]
+    PropTypeError(#[from] PropTypeError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
