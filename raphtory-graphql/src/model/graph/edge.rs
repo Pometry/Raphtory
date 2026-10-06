@@ -2,7 +2,6 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filter_expr_input::GqlFilter,
-        filtering::ViewCollection,
         history::GqlHistory,
         node::GqlNode,
         node_id::GqlNodeId,
@@ -253,59 +252,6 @@ impl GqlEdge {
         end: GqlTimeInput,
     ) -> Self {
         self.ee.shrink_end(end.into_time()).into()
-    }
-
-    /// Takes a specified selection of views and applies them in given order.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
-        )]
-        views: Vec<ViewCollection>,
-    ) -> Result<GqlEdge, GraphError> {
-        let mut return_view: GqlEdge = self.ee.clone().into();
-        for view in views {
-            return_view = match view {
-                ViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                ViewCollection::Layers(layers) => return_view.layers(layers).await,
-
-                ViewCollection::ExcludeLayers(layers) => return_view.exclude_layers(layers).await,
-                ViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-
-                ViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                ViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                ViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                ViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                ViewCollection::At(at) => return_view.at(at).await,
-                ViewCollection::Before(time) => return_view.before(time).await,
-                ViewCollection::After(time) => return_view.after(time).await,
-                ViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                ViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                ViewCollection::Filter(filter) => return_view.filter(filter).await?,
-            }
-        }
-        Ok(return_view)
     }
 
     /// Returns the earliest time of an edge.

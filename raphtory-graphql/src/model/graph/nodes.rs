@@ -3,7 +3,6 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             filter_expr_input::GqlFilter,
-            filtering::NodesViewCollection,
             nested_edges::GqlNestedEdges,
             node::GqlNode,
             path_from_graph::GqlPathFromGraph,
@@ -253,63 +252,6 @@ impl GqlNodes {
     ) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
-    }
-
-    /// Apply a list of views in the given order and return the resulting nodes
-    /// collection. Lets callers compose window, layer, filter, and snapshot
-    /// operations in a single call.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, etc.) applied to the running result."
-        )]
-        views: Vec<NodesViewCollection>,
-    ) -> Result<GqlNodes, GraphError> {
-        let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
-        for view in views {
-            return_view = match view {
-                NodesViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
-                NodesViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                NodesViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                NodesViewCollection::At(at) => return_view.at(at).await,
-                NodesViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                NodesViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                NodesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                NodesViewCollection::Before(time) => return_view.before(time).await,
-                NodesViewCollection::After(time) => return_view.after(time).await,
-                NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                NodesViewCollection::Filter(filter) => return_view.filter(filter).await?,
-                NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
-            }
-        }
-
-        Ok(return_view)
     }
 
     /////////////////

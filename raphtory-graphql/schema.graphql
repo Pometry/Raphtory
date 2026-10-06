@@ -847,15 +847,6 @@ type Edge {
 		end: TimeInput!
 	): Edge!
 	"""
-	Takes a specified selection of views and applies them in given order.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-		"""
-		views: [ViewCollection!]!
-	): Edge!
-	"""
 	Returns the earliest time of an edge.
 	"""
 	earliestTime: EventTime!
@@ -1543,15 +1534,6 @@ type Edges {
 		Proposed new end (TimeInput); ignored if it would widen the window.
 		"""
 		end: TimeInput!
-	): Edges!
-	"""
-	Takes a specified selection of views and applies them in order given.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-		"""
-		views: [ViewCollection!]!
 	): Edges!
 	"""
 	Expand each edge into one edge per update: if `A->B` has three updates, it
@@ -4244,15 +4226,6 @@ type NestedEdges {
 		end: TimeInput!
 	): NestedEdges!
 	"""
-	Takes a specified selection of views and applies them in order given.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-		"""
-		views: [ViewCollection!]!
-	): NestedEdges!
-	"""
 	Returns the earliest time that this NestedEdges is valid or None if valid for all times.
 	"""
 	start: EventTime!
@@ -4555,7 +4528,6 @@ type Node {
 		"""
 		end: TimeInput!
 	): Node!
-	applyViews(views: [ViewCollection!]!): Node!
 	"""
 	Returns the earliest time that the node exists.
 	"""
@@ -5485,17 +5457,6 @@ type Nodes {
 		nodeTypes: [String!]!
 	): Nodes!
 	"""
-	Apply a list of views in the given order and return the resulting nodes
-	collection. Lets callers compose window, layer, filter, and snapshot
-	operations in a single call.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, etc.) applied to the running result.
-		"""
-		views: [NodesViewCollection!]!
-	): Nodes!
-	"""
 	Sort the nodes. Multiple criteria are applied lexicographically (ties on the
 	first key break to the second, etc.).
 	"""
@@ -5655,73 +5616,6 @@ type Nodes {
 	Returns the outgoing edges of each node in the collection.
 	"""
 	outEdges(select: FilterExpr): NestedEdges!
-}
-
-"""
-A view operation on a node collection, applied in list order; `typeFilter`
-keeps the nodes of the given types.
-"""
-input NodesViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
-	defaultLayer: Boolean
-	"""
-	View at the latest time.
-	"""
-	latest: Boolean
-	"""
-	Snapshot at latest time.
-	"""
-	snapshotLatest: Boolean
-	"""
-	List of included layers.
-	"""
-	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
-	excludeLayers: [String!]
-	"""
-	Single excluded layer.
-	"""
-	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
-	window: Window
-	"""
-	View at a specified time.
-	"""
-	at: TimeInput
-	"""
-	Snapshot at specified time.
-	"""
-	snapshotAt: TimeInput
-	"""
-	View before a specified time (end exclusive).
-	"""
-	before: TimeInput
-	"""
-	View after a specified time (start exclusive).
-	"""
-	after: TimeInput
-	"""
-	Set the window start to a specified time.
-	"""
-	shrinkStart: TimeInput
-	"""
-	Set the window end to a specified time.
-	"""
-	shrinkEnd: TimeInput
-	"""
-	A filter expression; the entity it tests is written in the expression.
-	"""
-	filter: FilterExpr
-	"""
-	List of types.
-	"""
-	typeFilter: [String!]
 }
 
 """
@@ -6007,15 +5901,6 @@ type PathFromGraph {
 	Columnar `outDegree`. Fast-path for `list { outDegree }`.
 	"""
 	outDegree: NestedIntList!
-	"""
-	Takes a specified selection of views and applies them in given order.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-		"""
-		views: [ViewCollection!]!
-	): PathFromGraph!
 	"""
 	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
 	the returned path — every subsequent traversal (further hops, edges,
@@ -6330,15 +6215,6 @@ type PathFromNode {
 	server when bulk list endpoints are disabled.
 	"""
 	ids: [String!]!
-	"""
-	Takes a specified selection of views and applies them in given order.
-	"""
-	applyViews(
-		"""
-		Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-		"""
-		views: [ViewCollection!]!
-	): PathFromNode!
 	"""
 	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
 	the returned path — every subsequent traversal (further hops, edges,
@@ -7370,68 +7246,6 @@ input VectorisedGraphWindow {
 }
 
 """
-A view operation on a node, an edge or a collection of either.
-"""
-input ViewCollection @oneOf {
-	"""
-	Contains only the default layer.
-	"""
-	defaultLayer: Boolean
-	"""
-	View at the latest time.
-	"""
-	latest: Boolean
-	"""
-	Snapshot at latest time.
-	"""
-	snapshotLatest: Boolean
-	"""
-	Snapshot at specified time.
-	"""
-	snapshotAt: TimeInput
-	"""
-	List of included layers.
-	"""
-	layers: [String!]
-	"""
-	List of excluded layers.
-	"""
-	excludeLayers: [String!]
-	"""
-	Single excluded layer.
-	"""
-	excludeLayer: String
-	"""
-	Window between a start and end time.
-	"""
-	window: Window
-	"""
-	View at a specified time.
-	"""
-	at: TimeInput
-	"""
-	View before a specified time (end exclusive).
-	"""
-	before: TimeInput
-	"""
-	View after a specified time (start exclusive).
-	"""
-	after: TimeInput
-	"""
-	Set the window start to a specified time.
-	"""
-	shrinkStart: TimeInput
-	"""
-	Set the window end to a specified time.
-	"""
-	shrinkEnd: TimeInput
-	"""
-	A filter expression; the entity it tests is written in the expression.
-	"""
-	filter: FilterExpr
-}
-
-"""
 One view restriction, applied in list order.
 """
 input ViewOp @oneOf {
@@ -7536,3 +7350,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -380,8 +380,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-    #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
-    TooManyViewsSet,
 
     #[error("Invalid Value conversion")]
     InvalidValueConversion,

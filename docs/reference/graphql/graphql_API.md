@@ -2521,24 +2521,6 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edge.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#edge">Edge</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in given order.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edge.earliesttime">earliestTime</strong></td>
 <td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
@@ -3336,24 +3318,6 @@ Set the end of the window.
 <td>
 
 Proposed new end (TimeInput); ignored if it would widen the window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edges.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#edges">Edges</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in order given.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
 
 </td>
 </tr>
@@ -7141,24 +7105,6 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nestededges.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in order given.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nestededges.start">start</strong></td>
 <td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
@@ -7723,16 +7669,6 @@ Set the end of the window to the smaller of a specified end and self.end().
 Proposed new end (TimeInput); ignored if it would widen the window.
 
 </td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="node.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
-<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.earliesttime">earliestTime</strong></td>
@@ -9089,26 +9025,6 @@ Node-type names to keep.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td>
-
-Apply a list of views in the given order and return the resulting nodes
-collection. Lets callers compose window, layer, filter, and snapshot
-operations in a single call.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#nodesviewcollection">NodesViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, etc.) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodes.sorted">sorted</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
@@ -9982,24 +9898,6 @@ Columnar `outDegree`. Fast-path for `list { outDegree }`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromgraph.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in given order.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.filter">filter</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -10638,24 +10536,6 @@ bulk list endpoints are disabled; use `page` for paginated access instead.
 
 Every neighbour node's id (name) as a flat list of strings. Rejected by the
 server when bulk list endpoints are disabled.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnode.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in given order.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#viewcollection">ViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
 
 </td>
 </tr>
@@ -14253,158 +14133,6 @@ The expression evaluated inside them.
 </tbody>
 </table>
 
-### NodesViewCollection
-
-A view operation on a node collection, applied in list order; `typeFilter`
-keeps the nodes of the given types.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.filter">filter</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td>
-
-A filter expression; the entity it tests is written in the expression.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.typefilter">typeFilter</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of types.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### ObjectEntry
 
 <table>
@@ -15114,148 +14842,6 @@ Inclusive lower bound of the search window.
 <td>
 
 Exclusive upper bound of the search window.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### ViewCollection
-
-A view operation on a node, an edge or a collection of either.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewcollection.filter">filter</strong></td>
-<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td>
-
-A filter expression; the entity it tests is written in the expression.
 
 </td>
 </tr>
