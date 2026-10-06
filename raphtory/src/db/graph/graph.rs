@@ -17,13 +17,11 @@
 //!
 use super::views::deletion_graph::PersistentGraph;
 use crate::{
-    db::{
-        api::{
-            storage::storage::Storage,
-            view::internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritViewOps, Static,
-            },
+    db::api::{
+        storage::storage::Storage,
+        view::internal::{
+            InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, InheritViewOps,
+            Static,
         },
     },
     errors::GraphError,

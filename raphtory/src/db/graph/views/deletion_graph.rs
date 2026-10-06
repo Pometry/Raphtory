@@ -20,9 +20,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{
-    graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage,
-};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,

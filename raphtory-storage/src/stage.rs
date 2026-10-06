@@ -126,7 +126,11 @@ impl GraphStorage {
             }
         };
 
-        let src_path = src_graph.graph.graph_dir().ok_or(StageError::MissingGraphDir)?;
+        let src_path = src_graph
+            .graph
+            .graph_dir()
+            .ok_or(StageError::MissingGraphDir)?;
+
         let src_folder = GraphFolder::from_graph_path(src_path)?;
         let staged_folder = src_folder.clone().init_swap().map_err(StageError::Init)?;
         let staged_graph_path = staged_folder.graph_path().map_err(StageError::Init)?;
