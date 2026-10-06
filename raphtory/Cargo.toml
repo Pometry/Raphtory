@@ -94,16 +94,14 @@ pythonize = { workspace = true, optional = true }
 csv = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true } # for vector testing
-dotenvy = { workspace = true } # for vector testing
-streaming-stats = { workspace = true }
-indoc = { workspace = true }
-proptest.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator.workspace = true
 
 [features]
 default = ["datafusion"]
+
+vectors = []
 
 # enables progress bars
 progress = ["dep:kdam"]

@@ -16,7 +16,7 @@ pub use raphtory::python::graph::views::graph_view::TemplateConfig;
 use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
     python::{
-        graph::{edge::PyEdge, node::PyNode, views::graph_view::register_vectorise},
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::vectors::register_vectorise},
         utils::{block_on, execute_async_task, PyNodeRef},
     },
 };

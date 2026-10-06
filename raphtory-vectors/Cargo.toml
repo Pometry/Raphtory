@@ -13,7 +13,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-raphtory = { workspace = true }
+raphtory = { workspace = true, features = ["vectors"] }
 raphtory-api = { workspace = true, features = ["template"] }
 raphtory-core.workspace = true
 raphtory-storage.workspace = true

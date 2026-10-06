@@ -35,7 +35,7 @@ jobs:
         name: Cargo cache
         with:
           # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
-          shared-key: python-release-minimal
+          shared-key: python-build-fast
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v7
         with:

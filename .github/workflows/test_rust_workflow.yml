@@ -84,7 +84,7 @@ jobs:
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo hack check --workspace --exclude raphtory_netflow --all-targets --each-feature
+          cargo hack check --workspace --all-targets --each-feature
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
