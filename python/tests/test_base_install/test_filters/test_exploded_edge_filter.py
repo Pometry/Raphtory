@@ -416,6 +416,9 @@ def test_all_property_types(GraphClass):
         ),
         (filter.ExplodedEdge.property("tags").is_some(), 6),
         (filter.ExplodedEdge.property("tags").is_none(), 0),
+        (filter.ExplodedEdge.property("tags").is_in([1, 2]).any(), 0),
+        # the edge with no tags has no tag that is not 3
+        (filter.ExplodedEdge.property("tags").is_not_in([3]).any(), 5),
         # meta (dict)
         (filter.ExplodedEdge.property("meta") == {"location": "SF", "level": 2}, 1),
         (filter.ExplodedEdge.property("meta") != {"location": "SF", "level": 2}, 5),
@@ -821,6 +824,10 @@ def test_all_property_types(GraphClass):
         assert "Property blah does not exist" in str(
             e.value
         ) or "cannot be compared with Str" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]])
+    assert "list elements have mixed types" in str(e.value)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
