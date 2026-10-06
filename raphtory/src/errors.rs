@@ -380,7 +380,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-
     #[error("Invalid Value conversion")]
     InvalidValueConversion,
 
