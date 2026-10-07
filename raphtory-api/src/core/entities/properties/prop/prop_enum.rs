@@ -151,11 +151,21 @@ impl PartialEq<Prop> for PropUntagged {
 
 /// Preserves the exact numeric width reported by the deserializer, unlike untagged
 /// deserialization which coerces (e.g. f32 -> f64) and narrows in-range integers.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PropExact(pub Prop);
 
 impl From<PropExact> for Prop {
     fn from(p: PropExact) -> Self {
         p.0
+    }
+}
+
+impl Serialize for PropExact {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        SerdeArrowProp(&self.0).serialize(serializer)
     }
 }
 

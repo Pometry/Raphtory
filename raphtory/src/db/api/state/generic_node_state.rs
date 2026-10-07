@@ -39,7 +39,7 @@ use parquet::{
 use raphtory_api::core::entities::{
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{Prop, PropUntagged, PropUnwrap},
+        prop::{Prop, PropExact, PropUnwrap},
     },
     LayerIds,
 };
@@ -105,7 +105,7 @@ pub enum MergePriority {
 pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>> {
     Node(NodeView<'graph, G>),
     Nodes(Nodes<'graph, G, G>),
-    Prop(Option<PropUntagged>),
+    Prop(Option<PropExact>),
 }
 
 // This exists because GenericNodeStates have a data structure (node_cols) exposing which columns contain nodes.
@@ -118,7 +118,7 @@ pub enum NodeStateOutputType {
 
 // Rows of TypedNodeStates containing references to nodes are first deserialized into this type,
 // a map of column names to generic values.
-pub type PropMap = IndexMap<String, Option<PropUntagged>>;
+pub type PropMap = IndexMap<String, Option<PropExact>>;
 
 pub fn convert_prop_map<A, B>(map: IndexMap<String, Option<A>>) -> IndexMap<String, Option<B>>
 where
@@ -958,7 +958,7 @@ impl<'graph, T: Clone + Sync + Send + 'graph, G: GraphViewOps<'graph>>
             && rows
                 .into_par_iter()
                 .zip(other.par_iter())
-                .all(|(a, b)| convert_prop_map::<PropUntagged, Prop>(a) == *b)
+                .all(|(a, b)| convert_prop_map::<PropExact, Prop>(a) == *b)
     }
 }
 
