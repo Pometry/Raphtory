@@ -25,12 +25,12 @@ use crate::{
 };
 use async_graphql::{async_trait, Value as GqlValue};
 use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropType},
+    properties::prop::{Prop, PropArray, PropMap, PropType},
     GID,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{json, Value as JsonValue};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// Build the `TimeInput` variable value: a bare int, or `{timestamp, eventId}`
 /// when an explicit secondary index is given.
@@ -97,9 +97,12 @@ impl GraphqlTransport {
 
 #[async_trait::async_trait]
 impl Transport for GraphqlTransport {
-    async fn execute(&self, op: &Op) -> Result<Option<Prop>, ClientError> {
+    async fn execute(&self, op: &Op) -> Result<JsonValue, ClientError> {
         match op {
-            Op::Write(w) => self.apply_write(w).await,
+            Op::Write(w) => {
+                self.apply_write(w).await?;
+                Ok(JsonValue::Null)
+            }
             Op::Read(expr) => self.eval_read(expr).await,
         }
     }
@@ -108,7 +111,7 @@ impl Transport for GraphqlTransport {
 // ============ Write path ============
 
 impl GraphqlTransport {
-    async fn apply_write(&self, op: &WriteOp) -> Result<Option<Prop>, ClientError> {
+    async fn apply_write(&self, op: &WriteOp) -> Result<(), ClientError> {
         match op {
             WriteOp::AddNode(args) => self.apply_add_node(args).await,
             WriteOp::CreateNode(args) => self.apply_create_node(args).await,
@@ -130,7 +133,7 @@ impl GraphqlTransport {
         }
     }
 
-    async fn apply_add_node(&self, args: &AddNode) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_node(&self, args: &AddNode) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $time: TimeInput!, $name: NodeId!,
                  $properties: [PropertyInput!], $nodeType: String, $layer: String) {
@@ -154,10 +157,10 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "addNode")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_create_node(&self, args: &CreateNode) -> Result<Option<Prop>, ClientError> {
+    async fn apply_create_node(&self, args: &CreateNode) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $time: TimeInput!, $name: NodeId!,
                  $properties: [PropertyInput!], $nodeType: String, $layer: String) {
@@ -181,10 +184,10 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "createNode")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_edge(&self, args: &AddEdge) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_edge(&self, args: &AddEdge) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $time: TimeInput!, $src: NodeId!, $dst: NodeId!,
                  $properties: [PropertyInput!], $layer: String) {
@@ -208,13 +211,10 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "addEdge")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_graph_property(
-        &self,
-        args: &AddGraphProperty,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_graph_property(&self, args: &AddGraphProperty) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $t: TimeInput!, $properties: [PropertyInput!]!) {
           updateGraph(path: $path) {
@@ -231,13 +231,10 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_bool(&res, "addProperties")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_graph_metadata(
-        &self,
-        args: &AddGraphMetadata,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_graph_metadata(&self, args: &AddGraphMetadata) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $properties: [PropertyInput!]!) {
           updateGraph(path: $path) {
@@ -253,13 +250,13 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_bool(&res, "addMetadata")?;
-        Ok(None)
+        Ok(())
     }
 
     async fn apply_update_graph_metadata(
         &self,
         args: &UpdateGraphMetadata,
-    ) -> Result<Option<Prop>, ClientError> {
+    ) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $properties: [PropertyInput!]!) {
           updateGraph(path: $path) {
@@ -275,10 +272,10 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_bool(&res, "updateMetadata")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_delete_edge(&self, args: &DeleteEdge) -> Result<Option<Prop>, ClientError> {
+    async fn apply_delete_edge(&self, args: &DeleteEdge) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $time: TimeInput!, $src: NodeId!, $dst: NodeId!,
                  $layer: String) {
@@ -300,10 +297,10 @@ impl GraphqlTransport {
         let res = self.client.query(query, variables).await?;
 
         expect_update_success(&res, "deleteEdge")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_set_node_type(&self, args: &SetNodeType) -> Result<Option<Prop>, ClientError> {
+    async fn apply_set_node_type(&self, args: &SetNodeType) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $name: NodeId!, $newType: String!) {
               updateGraph(path: $path) {
@@ -321,13 +318,10 @@ impl GraphqlTransport {
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_node_updates(
-        &self,
-        args: &AddNodeUpdates,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_node_updates(&self, args: &AddNodeUpdates) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $name: NodeId!, $time: TimeInput!,
                      $properties: [PropertyInput!], $layer: String) {
@@ -348,13 +342,10 @@ impl GraphqlTransport {
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_node_metadata(
-        &self,
-        args: &AddNodeMetadata,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_node_metadata(&self, args: &AddNodeMetadata) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $name: NodeId!, $properties: [PropertyInput!]!) {
               updateGraph(path: $path) {
@@ -372,13 +363,13 @@ impl GraphqlTransport {
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
-        Ok(None)
+        Ok(())
     }
 
     async fn apply_update_node_metadata(
         &self,
         args: &UpdateNodeMetadata,
-    ) -> Result<Option<Prop>, ClientError> {
+    ) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $name: NodeId!, $properties: [PropertyInput!]!) {
               updateGraph(path: $path) {
@@ -396,13 +387,10 @@ impl GraphqlTransport {
         });
         let res = self.client.query(query, variables).await?;
         ensure_write_target_present(&res, "node", format!("node '{}'", args.id))?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_edge_updates(
-        &self,
-        args: &AddEdgeUpdates,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_edge_updates(&self, args: &AddEdgeUpdates) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $src: NodeId!, $dst: NodeId!, $time: TimeInput!,
                      $properties: [PropertyInput!], $layer: String) {
@@ -428,13 +416,10 @@ impl GraphqlTransport {
             "edge",
             format!("edge '{}' -> '{}'", args.src, args.dst),
         )?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_delete_edge_at_time(
-        &self,
-        args: &DeleteEdgeAtTime,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_delete_edge_at_time(&self, args: &DeleteEdgeAtTime) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $src: NodeId!, $dst: NodeId!, $time: TimeInput!,
                      $layer: String) {
@@ -459,13 +444,10 @@ impl GraphqlTransport {
             "edge",
             format!("edge '{}' -> '{}'", args.src, args.dst),
         )?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_edge_metadata(
-        &self,
-        args: &AddEdgeMetadata,
-    ) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_edge_metadata(&self, args: &AddEdgeMetadata) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $src: NodeId!, $dst: NodeId!,
                      $properties: [PropertyInput!]!, $layer: String) {
@@ -490,13 +472,13 @@ impl GraphqlTransport {
             "edge",
             format!("edge '{}' -> '{}'", args.src, args.dst),
         )?;
-        Ok(None)
+        Ok(())
     }
 
     async fn apply_update_edge_metadata(
         &self,
         args: &UpdateEdgeMetadata,
-    ) -> Result<Option<Prop>, ClientError> {
+    ) -> Result<(), ClientError> {
         let query = r#"
             query($path: String!, $src: NodeId!, $dst: NodeId!,
                      $properties: [PropertyInput!]!, $layer: String) {
@@ -521,10 +503,10 @@ impl GraphqlTransport {
             "edge",
             format!("edge '{}' -> '{}'", args.src, args.dst),
         )?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_nodes(&self, args: &AddNodes) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_nodes(&self, args: &AddNodes) -> Result<(), ClientError> {
         // `NodeAddition` serializes to the schema input shape (camelCase fields,
         // `Value`-typed property values) — see its `Serialize` impl in `op.rs`.
         let query = r#"
@@ -541,10 +523,10 @@ impl GraphqlTransport {
         });
         let res = self.client.query(query, variables).await?;
         expect_update_bool(&res, "addNodes")?;
-        Ok(None)
+        Ok(())
     }
 
-    async fn apply_add_edges(&self, args: &AddEdges) -> Result<Option<Prop>, ClientError> {
+    async fn apply_add_edges(&self, args: &AddEdges) -> Result<(), ClientError> {
         let query = r#"
         query($path: String!, $edges: [EdgeAddition!]!) {
             updateGraph(path: $path) {
@@ -559,20 +541,20 @@ impl GraphqlTransport {
         });
         let res = self.client.query(query, variables).await?;
         expect_update_bool(&res, "addEdges")?;
-        Ok(None)
+        Ok(())
     }
 }
 
 // ============ Read path ============
 
 impl GraphqlTransport {
-    async fn eval_read(&self, expr: &ReadExpr) -> Result<Option<Prop>, ClientError> {
+    async fn eval_read(&self, expr: &ReadExpr) -> Result<JsonValue, ClientError> {
         let (query, variables) = render_read(expr)?;
         let res = self
             .client
             .query(&query, JsonValue::Object(variables))
             .await?;
-        parse_read(expr, &res)
+        parse_read(expr, res)
     }
 }
 
@@ -808,20 +790,6 @@ fn gid_var(gid: &GID) -> JsonValue {
     match gid {
         GID::U64(v) => json!(v),
         GID::Str(s) => json!(s),
-    }
-}
-
-/// Decode a `NodeId` scalar from a response — a string or a number, with the
-/// JSON type preserved (`Prop::Str` / `Prop::U64`), matching the local `.id`.
-fn gid_prop(v: &JsonValue) -> Result<Prop, ClientError> {
-    if let Some(s) = v.as_str() {
-        Ok(Prop::Str(s.into()))
-    } else if let Some(n) = v.as_u64() {
-        Ok(Prop::U64(n))
-    } else {
-        Err(ClientError::InvalidResponse(
-            "node id not a string or non-negative int".into(),
-        ))
     }
 }
 
@@ -2093,232 +2061,11 @@ fn read_depth(expr: &ReadExpr) -> usize {
 /// validation and terminal execution (server-side deletion in between), and
 /// for any future callers that construct a `ReadExpr::Node` / `Edge` without
 /// going through the validated builder.
-// ============ Columnar-accessor element decoders ============
-//
-// Each `col_*_elem` decodes ONE element of a `list { <field> }` array into a
-// `Prop`. Optional scalars use the `Prop::List` wrapper convention: `[]` =
-// None, `[x]` = Some(x) — so the outer column stays a uniform `Prop::List`.
-// `build_column` maps a flat `list` array; `build_nested_column` maps the
-// outer per-source `list` array and each source's inner `list`.
-
-/// `list { name }` element → `Prop::Str`.
-fn col_name_elem(v: &JsonValue) -> Result<Prop, ClientError> {
-    v.get("name")
-        .and_then(|x| x.as_str())
-        .map(|s| Prop::Str(s.into()))
-        .ok_or_else(|| ClientError::InvalidResponse("collection element missing `name`".into()))
-}
-
-/// `list { nodeType }` element → `Prop::List([])` (None) or `[Str]` (Some).
-fn col_node_type_elem(v: &JsonValue) -> Result<Prop, ClientError> {
-    match v.get("nodeType") {
-        None | Some(JsonValue::Null) => Ok(Prop::List(Vec::<Prop>::new().into())),
-        Some(x) => x
-            .as_str()
-            .map(|s| Prop::List(vec![Prop::Str(s.into())].into()))
-            .ok_or_else(|| ClientError::InvalidResponse("`nodeType` not a string".into())),
-    }
-}
-
-/// `list { layerNames }` element → `Prop::List(Prop::Str, ...)`.
-fn col_layer_names_elem(v: &JsonValue) -> Result<Prop, ClientError> {
-    let arr = v
-        .get("layerNames")
-        .and_then(|x| x.as_array())
-        .ok_or_else(|| {
-            ClientError::InvalidResponse("collection element missing `layerNames`".into())
-        })?;
-    let items: Result<Vec<Prop>, ClientError> = arr
-        .iter()
-        .map(|e| {
-            e.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                ClientError::InvalidResponse("`layerNames` element not a string".into())
-            })
-        })
-        .collect();
-    Ok(Prop::List(items?.into()))
-}
-
-/// `list { layerName }` element → `Prop::Str`.
-fn col_layer_name_elem(v: &JsonValue) -> Result<Prop, ClientError> {
-    v.get("layerName")
-        .and_then(|x| x.as_str())
-        .map(|s| Prop::Str(s.into()))
-        .ok_or_else(|| {
-            ClientError::InvalidResponse("collection element missing `layerName`".into())
-        })
-}
-
-/// `list { <field> }` element where `<field>` is a boolean → `Prop::Bool`.
-fn col_bool_elem(v: &JsonValue, field: &'static str) -> Result<Prop, ClientError> {
-    v.get(field)
-        .and_then(|x| x.as_bool())
-        .map(Prop::Bool)
-        .ok_or_else(|| {
-            ClientError::InvalidResponse(format!("collection element missing bool `{}`", field))
-        })
-}
-
-/// `list { <field> { timestamp eventId } }` element → `Prop::List([])`
-/// (None — no event in view) or `[Prop::Map]` (Some). Mirrors the single
-/// EventTime decode.
-fn col_event_time_elem(v: &JsonValue, field: &str) -> Result<Prop, ClientError> {
-    let obj = match v.get(field) {
-        None | Some(JsonValue::Null) => return Ok(Prop::List(Vec::<Prop>::new().into())),
-        Some(o) => o,
-    };
-    match obj.get("timestamp").and_then(|x| x.as_i64()) {
-        None => Ok(Prop::List(Vec::<Prop>::new().into())),
-        Some(t) => {
-            let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
-            if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
-                pairs.push(("eventId", Prop::I64(e)));
-            }
-            Ok(Prop::List(vec![Prop::map(pairs)].into()))
-        }
-    }
-}
-
-/// Map a flat `list` array with `elem_fn`, producing `Prop::List`.
-fn build_column<F>(terminal_val: &JsonValue, elem_fn: F) -> Result<Option<Prop>, ClientError>
-where
-    F: Fn(&JsonValue) -> Result<Prop, ClientError>,
-{
-    let arr = terminal_val
-        .as_array()
-        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let items: Result<Vec<Prop>, ClientError> = arr.iter().map(elem_fn).collect();
-    Ok(Some(Prop::List(items?.into())))
-}
-
-/// Map the outer per-source `list` array (each element carrying its own inner
-/// `list`) with `elem_fn`, producing `Prop::List(Prop::List(..))`.
-fn build_nested_column<F>(terminal_val: &JsonValue, elem_fn: F) -> Result<Option<Prop>, ClientError>
-where
-    F: Fn(&JsonValue) -> Result<Prop, ClientError>,
-{
-    let outer = terminal_val
-        .as_array()
-        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let rows: Result<Vec<Prop>, ClientError> = outer
-        .iter()
-        .map(|row| {
-            let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
-                ClientError::InvalidResponse("columnar element missing inner `list` array".into())
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = inner.iter().map(&elem_fn).collect();
-            Ok(Prop::List(items?.into()))
-        })
-        .collect();
-    Ok(Some(Prop::List(rows?.into())))
-}
-
-/// Decode one collection member's property/metadata container into a
-/// `Prop::List` of `{key, value}` records. `container` is the JSON field name
-/// (`metadata` or `properties`); the element shape is
-/// `{ <container>: { values: [ {key, value}, ... ] } }`.
-/// Decode one member's aliased columns into `n` optional values, positionally.
-///
-/// `c{i}` is the column requested at index `i`; a `null` alias means this
-/// member has no value for that key. Each value is wrapped as a 0- or
-/// 1-element `Prop::List`, the convention the optional-column decoders use.
-fn member_column_values(
-    el: &JsonValue,
-    container: &str,
-    n: usize,
-) -> Result<Vec<Prop>, ClientError> {
-    let container_val = el.get(container).ok_or_else(|| {
-        ClientError::InvalidResponse(format!("columnar element missing `{}`", container))
-    })?;
-    (0..n)
-        .map(|i| match container_val.get(format!("c{i}")) {
-            // `null` is an answer: this member has no value for the key. A
-            // *missing* alias is not — every requested field comes back, as
-            // null at worst, so its absence is a protocol violation and must
-            // fail loudly rather than decode as an absent value.
-            None => Err(ClientError::InvalidResponse(format!(
-                "columnar response missing requested alias `c{i}`"
-            ))),
-            Some(JsonValue::Null) => Ok(Prop::List(Vec::<Prop>::new().into())),
-            Some(column) => {
-                let obj = column.as_object().ok_or_else(|| {
-                    ClientError::InvalidResponse(format!("columnar `c{i}` not a JSON object"))
-                })?;
-                let value_json = obj.get("value").ok_or_else(|| {
-                    ClientError::InvalidResponse(format!("columnar `c{i}` record missing `value`"))
-                })?;
-                Ok(Prop::List(
-                    vec![record_value_to_prop(obj, value_json)?].into(),
-                ))
-            }
-        })
-        .collect()
-}
-
-/// Transpose per-member decoded values into per-column lists.
-fn transpose(rows: Vec<Vec<Prop>>, n: usize) -> Vec<Prop> {
-    let mut columns: Vec<Vec<Prop>> = vec![Vec::with_capacity(rows.len()); n];
-    for row in rows {
-        for (col, value) in columns.iter_mut().zip(row) {
-            col.push(value);
-        }
-    }
-    columns
-        .into_iter()
-        .map(|col| Prop::List(col.into()))
-        .collect()
-}
-
-/// Decode a flat collection's aliased columns into one `Prop::List` per
-/// requested column, each holding a 0-or-1-element optional per member.
-fn build_property_column(
-    terminal_val: &JsonValue,
-    container: &str,
-    keys: &[String],
-) -> Result<Option<Prop>, ClientError> {
-    let arr = terminal_val
-        .as_array()
-        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    let rows = arr
-        .iter()
-        .map(|el| member_column_values(el, container, keys.len()))
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(Some(Prop::List(transpose(rows, keys.len()).into())))
-}
-
-/// Nested variant: one `Prop::List` per requested column, each holding one
-/// per-source list of optionals.
-fn build_nested_property_column(
-    terminal_val: &JsonValue,
-    container: &str,
-    keys: &[String],
-) -> Result<Option<Prop>, ClientError> {
-    let outer = terminal_val
-        .as_array()
-        .ok_or_else(|| ClientError::InvalidResponse("columnar `list` not a JSON array".into()))?;
-    // Per source, the columns for that source's members.
-    let per_source = outer
-        .iter()
-        .map(|row| {
-            let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
-                ClientError::InvalidResponse("columnar element missing inner `list` array".into())
-            })?;
-            let rows = inner
-                .iter()
-                .map(|el| member_column_values(el, container, keys.len()))
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(transpose(rows, keys.len()))
-        })
-        .collect::<Result<Vec<_>, ClientError>>()?;
-    // Regroup source-major into column-major.
-    let columns = transpose(per_source, keys.len());
-    Ok(Some(Prop::List(columns.into())))
-}
 
 fn parse_read(
     expr: &ReadExpr,
-    root: &HashMap<String, JsonValue>,
-) -> Result<Option<Prop>, ClientError> {
+    mut root: HashMap<String, JsonValue>,
+) -> Result<JsonValue, ClientError> {
     // The response map is indexed as-is — no re-wrapping into a `JsonValue`
     // (which would rebuild the map) and no `serde_json::to_value` (which
     // would deep-copy the payload). Everything below the root field borrows.
@@ -2326,6 +2073,7 @@ fn parse_read(
     // Every executable read names the graph root field plus a terminal, so the
     // path has at least two segments. A bare `Root` has no terminal to read —
     // reject it rather than indexing past the end (the slice below would panic).
+
     let [first, rest @ ..] = path.as_slice() else {
         return Err(ClientError::InvalidInput(
             "read expression has no terminal to read".into(),
@@ -2337,866 +2085,20 @@ fn parse_read(
         ));
     }
     let mut cursor = root
-        .get(*first)
+        .remove(*first)
         .ok_or_else(|| ClientError::InvalidResponse(format!("missing `{}` in response", first)))?;
     if cursor.is_null() && path.len() > 1 {
         return Err(build_not_found_error(expr, first));
     }
-    for key in &rest[..rest.len() - 1] {
-        cursor = cursor.get(*key).ok_or_else(|| {
-            ClientError::InvalidResponse(format!("missing `{}` in response", key))
-        })?;
-        if cursor.is_null() {
-            return Err(build_not_found_error(expr, key));
+    for key in rest {
+        cursor = match cursor {
+            JsonValue::Object(mut map) => map.remove(*key).ok_or_else(|| {
+                ClientError::InvalidResponse(format!("missing `{}` in response", key))
+            })?,
+            _ => return Err(build_not_found_error(expr, key)),
         }
     }
-    let terminal_key = path[path.len() - 1];
-    let terminal_val = cursor.get(terminal_key).ok_or_else(|| {
-        ClientError::InvalidResponse(format!("missing terminal `{}` in response", terminal_key))
-    })?;
-
-    match expr {
-        // i64-shaped terminals (non-null on the wire).
-        ReadExpr::Degree { .. }
-        | ReadExpr::InDegree { .. }
-        | ReadExpr::OutDegree { .. }
-        | ReadExpr::CountNodes { .. }
-        | ReadExpr::CountEdges { .. }
-        | ReadExpr::CountTemporalEdges { .. }
-        | ReadExpr::EdgeHistoryCount { .. }
-        | ReadExpr::Count { .. }
-        | ReadExpr::Created { .. }
-        | ReadExpr::LastOpened { .. }
-        | ReadExpr::LastUpdated { .. } => terminal_val
-            .as_i64()
-            .map(|n| Some(Prop::I64(n)))
-            .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))),
-        // Sub-container list/page terminals — always an int list. (`.dt`
-        // reads the timestamps container and converts client-side.)
-        ReadExpr::SubList { input }
-        | ReadExpr::SubListRev { input }
-        | ReadExpr::SubPage { input, .. }
-        | ReadExpr::SubPageRev { input, .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            match &**input {
-                ReadExpr::HistoryTimestamps { .. }
-                | ReadExpr::HistoryEventIds { .. }
-                | ReadExpr::HistoryIntervals { .. } => {
-                    let items: Result<Vec<Prop>, ClientError> = arr
-                        .iter()
-                        .map(|v| {
-                            v.as_i64().map(Prop::I64).ok_or_else(|| {
-                                ClientError::InvalidResponse(format!(
-                                    "`{}` element not an i64",
-                                    terminal_key
-                                ))
-                            })
-                        })
-                        .collect();
-                    Ok(Some(Prop::List(items?.into())))
-                }
-                _ => Err(ClientError::InvalidResponse(format!(
-                    "`{}` on unknown sub-container parent",
-                    terminal_key
-                ))),
-            }
-        }
-        // `IntervalsMean` — `Option<f64>` scalar.
-        ReadExpr::IntervalsMean { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                terminal_val
-                    .as_f64()
-                    .map(|n| Some(Prop::F64(n)))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse(format!("`{}` not an f64", terminal_key))
-                    })
-            }
-        }
-        // Typed node-id list — `list { id }`, each element's `id` a string or
-        // number (the `NodeId` scalar). The JSON type is preserved so an
-        // integer-indexed graph reports integer ids, matching local.
-        ReadExpr::Ids { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    gid_prop(v.get("id").ok_or_else(|| {
-                        ClientError::InvalidResponse("collection element missing `id`".into())
-                    })?)
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Nested variant — `list { list { id } }`, one inner list per source.
-        ReadExpr::NestedIds { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|source| {
-                    let inner = source
-                        .get("list")
-                        .and_then(|x| x.as_array())
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(format!(
-                                "`{}` element missing inner `list`",
-                                terminal_key
-                            ))
-                        })?;
-                    let items: Result<Vec<Prop>, ClientError> = inner
-                        .iter()
-                        .map(|v| {
-                            gid_prop(v.get("id").ok_or_else(|| {
-                                ClientError::InvalidResponse(
-                                    "collection element missing `id`".into(),
-                                )
-                            })?)
-                        })
-                        .collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
-        }
-        // List-of-string terminal — the JSON is an array of strings.
-        ReadExpr::SourceIds { .. }
-        | ReadExpr::LayerNames { .. }
-        | ReadExpr::UniqueLayers { .. }
-        | ReadExpr::PropertyKeys { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element not a string",
-                            terminal_key
-                        ))
-                    })
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Flat collection degree terminals — the JSON is an array of ints
-        // (`degree`/`inDegree`/`outDegree`/`edgeHistoryCount` on a `Nodes`
-        // or `PathFromNode` collection). Parsed as `Prop::List(Prop::I64)`.
-        ReadExpr::CollectionDegree { .. }
-        | ReadExpr::CollectionInDegree { .. }
-        | ReadExpr::CollectionOutDegree { .. }
-        | ReadExpr::CollectionEdgeHistoryCount { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    v.as_i64().map(Prop::I64).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element not an i64",
-                            terminal_key
-                        ))
-                    })
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Columnar nested degree terminals — `PathFromGraph.{degree,inDegree,
-        // outDegree}` are `[[Int]]` fields (outer = per source, inner = that
-        // source's per-node degrees). Parse straight into
-        // `Prop::List(Prop::List(Prop::I64))`.
-        ReadExpr::NestedDegree { .. }
-        | ReadExpr::NestedInDegree { .. }
-        | ReadExpr::NestedOutDegree { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|inner_val| {
-                    let inner = inner_val.as_array().ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element not a JSON array",
-                            terminal_key
-                        ))
-                    })?;
-                    let items: Result<Vec<Prop>, ClientError> = inner
-                        .iter()
-                        .map(|v| {
-                            v.as_i64().map(Prop::I64).ok_or_else(|| {
-                                ClientError::InvalidResponse(format!(
-                                    "`{}` inner element not an i64",
-                                    terminal_key
-                                ))
-                            })
-                        })
-                        .collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
-        }
-        // Nested edgeHistoryCount (PathFromGraph → per-source PathFromNode)
-        // still resolves via the `list` array of records
-        // `[{"edgeHistoryCount": [1,2]}, ...]` — GqlPathFromGraph has no
-        // columnar `edgeHistoryCount` field (only ids/degree/inDegree/outDegree).
-        ReadExpr::NestedEdgeHistoryCount { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|row| {
-                    let inner = row
-                        .get("edgeHistoryCount")
-                        .and_then(|v| v.as_array())
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(format!(
-                                "`{}` element missing `edgeHistoryCount` array",
-                                terminal_key
-                            ))
-                        })?;
-                    let items: Result<Vec<Prop>, ClientError> = inner
-                        .iter()
-                        .map(|v| {
-                            v.as_i64().map(Prop::I64).ok_or_else(|| {
-                                ClientError::InvalidResponse(format!(
-                                    "`{}` inner element not an i64",
-                                    terminal_key
-                                ))
-                            })
-                        })
-                        .collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
-        }
-        // List-of-GID terminal — each element can be a JSON string or int.
-        // Used for edge `id` which returns [src, dst] as `Vec<GqlNodeId>`.
-        // As with the `id` terminal, the JSON type is preserved.
-        ReadExpr::EdgeIdPair { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    if let Some(s) = v.as_str() {
-                        Ok(Prop::Str(s.into()))
-                    } else if let Some(n) = v.as_u64() {
-                        Ok(Prop::U64(n))
-                    } else {
-                        Err(ClientError::InvalidResponse(format!(
-                            "`{}` element not a string or int",
-                            terminal_key
-                        )))
-                    }
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Compound structured list terminal — JSON shape is
-        // `[{"timestamp":N,"dt":"...","eventId":N}, ...]`. Any field may be
-        // null. Decode each element into a `Prop::Map` (missing keys → null
-        // semantically); `expect_event_time_list` unwraps to a typed
-        // `Vec<EventTime>`.
-        ReadExpr::HistoryList { .. }
-        | ReadExpr::HistoryListRev { .. }
-        | ReadExpr::HistoryPage { .. }
-        | ReadExpr::HistoryPageRev { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    let obj = v.as_object().ok_or_else(|| {
-                        ClientError::InvalidResponse(
-                            "history event element is not a JSON object".into(),
-                        )
-                    })?;
-                    let mut pairs: Vec<(&'static str, Prop)> = Vec::new();
-                    if let Some(t) = obj.get("timestamp").and_then(|x| x.as_i64()) {
-                        pairs.push(("timestamp", Prop::I64(t)));
-                    }
-                    if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
-                        pairs.push(("eventId", Prop::I64(e)));
-                    }
-                    Ok(Prop::map(pairs))
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `sharedNeighbours { id }` — an array of typed-id records; the
-        // client wraps each id in a `RemoteNode`.
-        ReadExpr::SharedNeighbours { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    gid_prop(v.get("id").ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing `id`",
-                            terminal_key
-                        ))
-                    })?)
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `getAllNodeTypes` — a JSON array of strings.
-        ReadExpr::GetAllNodeTypes { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                        ClientError::InvalidResponse("getAllNodeTypes element not a string".into())
-                    })
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `getDtypeOf(key)` — nullable string (the `PropType` display form).
-        // `PropertyGetDtypeOf`: `{ dtype }` record or null. The structured
-        // dtype JSON is carried through the Prop-typed transport as a string
-        // and deserialized to a `PropType` at the handle layer.
-        ReadExpr::PropertyGetDtypeOf { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                let dtype = terminal_val.get("dtype").ok_or_else(|| {
-                    ClientError::InvalidResponse("dtype record missing `dtype`".into())
-                })?;
-                let carrier = serde_json::to_string(dtype)
-                    .map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
-                Ok(Some(Prop::Str(carrier.into())))
-            }
-        }
-        // Property terminals — each entry is a `{key, value}` record where
-        // value is an untagged Prop (JSON number/string/bool/array/object).
-        //
-        // `PropertyGet`: single `{ value }` record or null (only the value is
-        // selected — the caller supplied the key). Terminal value is null when
-        // the key isn't present in the container — decode as `Ok(None)`.
-        ReadExpr::PropertyGet { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                let obj = terminal_val.as_object().ok_or_else(|| {
-                    ClientError::InvalidResponse("property record is not a JSON object".into())
-                })?;
-                let value_json = obj.get("value").ok_or_else(|| {
-                    ClientError::InvalidResponse("property record missing `value`".into())
-                })?;
-                Ok(Some(record_value_to_prop(obj, value_json)?))
-            }
-        }
-        // `PropertyValues`: array of `{value}` records (values only) →
-        // `Prop::List(...)` of the bare values.
-        ReadExpr::PropertyValues { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    let obj = v.as_object().ok_or_else(|| {
-                        ClientError::InvalidResponse("property record is not a JSON object".into())
-                    })?;
-                    let value_json = obj.get("value").ok_or_else(|| {
-                        ClientError::InvalidResponse("property record missing `value`".into())
-                    })?;
-                    record_value_to_prop(obj, value_json)
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `PropertyItems`: array of `{key, value}` records → `Prop::List(...)`
-        // of `Prop::Map({key, value})`.
-        ReadExpr::PropertyItems { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> =
-                arr.iter().map(json_to_property_record).collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `TemporalPropertyList`: array of `{key}` records → `Prop::List` of
-        // `Prop::Str`. Only the key is fetched — clients build handles.
-        ReadExpr::TemporalPropertyList { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    let key = v
-                        .as_object()
-                        .and_then(|o| o.get("key"))
-                        .and_then(|k| k.as_str())
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse(
-                                "temporal property record missing `key`".into(),
-                            )
-                        })?;
-                    Ok(Prop::Str(key.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `TemporalPropertyValueList`: array of stored values, decoded via the
-        // sibling `dtype` the fragment fetches on the temporal property.
-        ReadExpr::TemporalPropertyValueList { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let dtype = sibling_dtype(cursor)?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| decode_with_dtype(dtype.as_ref(), v))
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `TemporalPropertyAt` / `TemporalPropertyLatest`: nullable stored
-        // value — decoded via the sibling `dtype`.
-        ReadExpr::TemporalPropertyAt { .. } | ReadExpr::TemporalPropertyLatest { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                let dtype = sibling_dtype(cursor)?;
-                Ok(Some(decode_with_dtype(dtype.as_ref(), terminal_val)?))
-            }
-        }
-        // `Sum` / `Mean` / `Average`: computed aggregates — these may widen
-        // beyond the property dtype (e.g. mean of ints), so stay shape-decoded.
-        ReadExpr::TemporalPropertySum { .. }
-        | ReadExpr::TemporalPropertyMean { .. }
-        | ReadExpr::TemporalPropertyAverage { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                Ok(Some(json_to_prop(terminal_val)?))
-            }
-        }
-        // `TemporalPropertyUnique`: array of stored values, dtype-directed.
-        ReadExpr::TemporalPropertyUnique { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let dtype = sibling_dtype(cursor)?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| decode_with_dtype(dtype.as_ref(), v))
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `TemporalPropertyMin` / `Max` / `Median`: nullable `{time, value}`
-        // record. Decode to a `Prop::Map` with keys `time` (event-time-record)
-        // and `value` (untagged Prop).
-        ReadExpr::TemporalPropertyMin { .. }
-        | ReadExpr::TemporalPropertyMax { .. }
-        | ReadExpr::TemporalPropertyMedian { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                let dtype = sibling_dtype(cursor)?;
-                Ok(Some(json_to_property_tuple(terminal_val, dtype.as_ref())?))
-            }
-        }
-        // `TemporalPropertyOrderedDedupe`: array of `{time, value}` records.
-        ReadExpr::TemporalPropertyOrderedDedupe { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let dtype = sibling_dtype(cursor)?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| json_to_property_tuple(v, dtype.as_ref()))
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // `Schema`: the full nested schema tree. Each `dtype` is the serde
-        // form of `PropType`, which the generic Prop conversion would mangle
-        // (`{"Map": ...}` would become a `Prop::Map`), so each is re-encoded
-        // as its JSON text first and survives the tree as a string; the
-        // schema decoder deserializes it back into a real `PropType`.
-        // the response is untagged JSON strings, arrays, and objects, all of
-        // which `json_to_prop` decodes natively into a nested `Prop::Map` /
-        // `Prop::List` tree. The call site walks that tree to build typed
-        // `RemoteGraphSchema` structs.
-        ReadExpr::Schema { .. } => {
-            let mut tree = terminal_val.clone();
-            stash_dtypes_as_json_text(&mut tree);
-            Ok(Some(json_to_prop(&tree)?))
-        }
-        // Compound structured list terminal — JSON shape is
-        // `[{"src":{"name":"X"},"dst":{"name":"Y"}}, ...]`. Decode each element
-        // into a 2-element inner list `[src, dst]`, wrapped in an outer list.
-        ReadExpr::EdgesList { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    let src = v
-                        .get("src")
-                        .and_then(|s| s.get("id"))
-                        .map(gid_prop)
-                        .transpose()?
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse("edge element missing `src.id`".into())
-                        })?;
-                    let dst = v
-                        .get("dst")
-                        .and_then(|d| d.get("id"))
-                        .map(gid_prop)
-                        .transpose()?
-                        .ok_or_else(|| {
-                            ClientError::InvalidResponse("edge element missing `dst.id`".into())
-                        })?;
-                    Ok(Prop::List(vec![src, dst].into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Nested edge-list terminal — `NestedEdges.list` returns a JSON array of
-        // `Edges` records `[{"list": [{"src":{"name":..},"dst":{"name":..}}, ..]}, ..]`,
-        // one per source node. We pull each record's `list` and decode each
-        // element into a 2-element inner list `[src, dst]`, rebuilding the
-        // nested `Prop::List(Prop::List(Prop::List(Prop::Str)))` (outer = per
-        // source, middle = that source's edges, inner = `[src, dst]`). Mirrors
-        // `EdgesList`, one level deeper.
-        ReadExpr::NestedEdgesList { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|row| {
-                    let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing `list` array",
-                            terminal_key
-                        ))
-                    })?;
-                    let items: Result<Vec<Prop>, ClientError> = inner
-                        .iter()
-                        .map(|v| {
-                            let src = v
-                                .get("src")
-                                .and_then(|s| s.get("id"))
-                                .map(gid_prop)
-                                .transpose()?
-                                .ok_or_else(|| {
-                                    ClientError::InvalidResponse(
-                                        "edge element missing `src.id`".into(),
-                                    )
-                                })?;
-                            let dst = v
-                                .get("dst")
-                                .and_then(|d| d.get("id"))
-                                .map(gid_prop)
-                                .transpose()?
-                                .ok_or_else(|| {
-                                    ClientError::InvalidResponse(
-                                        "edge element missing `dst.id`".into(),
-                                    )
-                                })?;
-                            Ok(Prop::List(vec![src, dst].into()))
-                        })
-                        .collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
-        }
-        // Exploded edge-list terminal — JSON shape is
-        // `[{"src":{"name":..},"dst":{"name":..},"time":{"timestamp":..,"eventId":..},"layerName":..}, ..]`.
-        // Decode each element into a 5-element inner list
-        // `[src, dst, timestamp, event_id, layer_name]`.
-        ReadExpr::ExplodedEdgesList { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> =
-                arr.iter().map(exploded_edge_elem).collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Layer-exploded edge-list terminal — each element `{src, dst, layerName}`
-        // decodes to `[src, dst, layer_name]`.
-        ReadExpr::ExplodedLayersEdgesList { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> =
-                arr.iter().map(exploded_layers_edge_elem).collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Nested exploded edge-list terminal — one per-source record each
-        // holding its own `list` of exploded elements. Mirrors
-        // `NestedEdgesList`, with the exploded element decoding.
-        ReadExpr::NestedExplodedEdgesList { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|row| {
-                    let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing `list` array",
-                            terminal_key
-                        ))
-                    })?;
-                    let items: Result<Vec<Prop>, ClientError> =
-                        inner.iter().map(exploded_edge_elem).collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
-        }
-        // Nested layer-exploded edge-list — like `NestedExplodedEdgesList` but
-        // each inner element is `{src, dst, layerName}`.
-        ReadExpr::NestedExplodedLayersEdgesList { .. } => {
-            let outer = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let rows: Result<Vec<Prop>, ClientError> = outer
-                .iter()
-                .map(|row| {
-                    let inner = row.get("list").and_then(|v| v.as_array()).ok_or_else(|| {
-                        ClientError::InvalidResponse(format!(
-                            "`{}` element missing `list` array",
-                            terminal_key
-                        ))
-                    })?;
-                    let items: Result<Vec<Prop>, ClientError> =
-                        inner.iter().map(exploded_layers_edge_elem).collect();
-                    Ok(Prop::List(items?.into()))
-                })
-                .collect();
-            Ok(Some(Prop::List(rows?.into())))
-        }
-        // Columnar accessors — FLAT collections. `terminal_val` is the `list`
-        // array; each element carries the requested per-member field.
-        ReadExpr::CollectionNames { .. } => build_column(terminal_val, col_name_elem),
-        ReadExpr::CollectionNodeTypes { .. } => build_column(terminal_val, col_node_type_elem),
-        ReadExpr::CollectionLayerNames { .. } => build_column(terminal_val, col_layer_names_elem),
-        ReadExpr::CollectionLayerName { .. } => build_column(terminal_val, col_layer_name_elem),
-        ReadExpr::CollectionEarliestTime { .. } => {
-            build_column(terminal_val, |v| col_event_time_elem(v, "earliestTime"))
-        }
-        ReadExpr::CollectionLatestTime { .. } => {
-            build_column(terminal_val, |v| col_event_time_elem(v, "latestTime"))
-        }
-        ReadExpr::CollectionTime { .. } => {
-            build_column(terminal_val, |v| col_event_time_elem(v, "time"))
-        }
-        // Columnar accessors — NESTED collections. `terminal_val` is the outer
-        // `list` array of per-source records, each with its own inner `list`.
-        ReadExpr::NestedNames { .. } => build_nested_column(terminal_val, col_name_elem),
-        ReadExpr::NestedNodeTypes { .. } => build_nested_column(terminal_val, col_node_type_elem),
-        ReadExpr::NestedLayerNames { .. } => {
-            build_nested_column(terminal_val, col_layer_names_elem)
-        }
-        ReadExpr::NestedLayerName { .. } => build_nested_column(terminal_val, col_layer_name_elem),
-        ReadExpr::NestedEarliestTime { .. } => {
-            build_nested_column(terminal_val, |v| col_event_time_elem(v, "earliestTime"))
-        }
-        ReadExpr::NestedLatestTime { .. } => {
-            build_nested_column(terminal_val, |v| col_event_time_elem(v, "latestTime"))
-        }
-        ReadExpr::NestedTime { .. } => {
-            build_nested_column(terminal_val, |v| col_event_time_elem(v, "time"))
-        }
-        // Boolean columnar accessors — FLAT collections.
-        ReadExpr::CollectionIsActive { .. } => {
-            build_column(terminal_val, |v| col_bool_elem(v, "isActive"))
-        }
-        ReadExpr::CollectionIsValid { .. } => {
-            build_column(terminal_val, |v| col_bool_elem(v, "isValid"))
-        }
-        ReadExpr::CollectionIsDeleted { .. } => {
-            build_column(terminal_val, |v| col_bool_elem(v, "isDeleted"))
-        }
-        ReadExpr::CollectionIsSelfLoop { .. } => {
-            build_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
-        }
-        // Boolean columnar accessors — NESTED collections.
-        ReadExpr::NestedIsActive { .. } => {
-            build_nested_column(terminal_val, |v| col_bool_elem(v, "isActive"))
-        }
-        ReadExpr::NestedIsValid { .. } => {
-            build_nested_column(terminal_val, |v| col_bool_elem(v, "isValid"))
-        }
-        ReadExpr::NestedIsDeleted { .. } => {
-            build_nested_column(terminal_val, |v| col_bool_elem(v, "isDeleted"))
-        }
-        ReadExpr::NestedIsSelfLoop { .. } => {
-            build_nested_column(terminal_val, |v| col_bool_elem(v, "isSelfLoop"))
-        }
-        // Columnar property / metadata accessors — FLAT collections. Each `list`
-        // element carries the aliased columns for one member; decode straight
-        // into one `Prop::List` per requested column.
-        ReadExpr::CollectionMetadataValues { keys, .. } => {
-            build_property_column(terminal_val, "metadata", keys)
-        }
-        ReadExpr::CollectionPropertiesValues { keys, .. } => {
-            build_property_column(terminal_val, "properties", keys)
-        }
-        // Columnar property / metadata accessors — NESTED collections. The outer
-        // `list` array holds per-source records, each with its own inner `list`
-        // of members.
-        ReadExpr::NestedMetadataValues { keys, .. } => {
-            build_nested_property_column(terminal_val, "metadata", keys)
-        }
-        ReadExpr::NestedPropertiesValues { keys, .. } => {
-            build_nested_property_column(terminal_val, "properties", keys)
-        }
-        // Collection key lookup — a plain string array from the server's
-        // registry-backed `propertyKeys`/`metadataKeys` fields.
-        ReadExpr::CollectionMetadataKeys { .. }
-        | ReadExpr::CollectionPropertiesKeys { .. }
-        | ReadExpr::NestedMetadataKeys { .. }
-        | ReadExpr::NestedPropertiesKeys { .. } => {
-            let arr = terminal_val.as_array().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON array", terminal_key))
-            })?;
-            let items: Result<Vec<Prop>, ClientError> = arr
-                .iter()
-                .map(|v| {
-                    v.as_str().map(|s| Prop::Str(s.into())).ok_or_else(|| {
-                        ClientError::InvalidResponse("property key is not a string".into())
-                    })
-                })
-                .collect();
-            Ok(Some(Prop::List(items?.into())))
-        }
-        // Bool-shaped terminals.
-        ReadExpr::HasNode { .. }
-        | ReadExpr::HasEdge { .. }
-        | ReadExpr::HistoryContains { .. }
-        | ReadExpr::HistoryValueContains { .. }
-        | ReadExpr::IsActive { .. }
-        | ReadExpr::IsValid { .. }
-        | ReadExpr::IsDeleted { .. }
-        | ReadExpr::IsSelfLoop { .. }
-        | ReadExpr::IsEmpty { .. }
-        | ReadExpr::HasLayer { .. }
-        | ReadExpr::PropertyContains { .. } => terminal_val
-            .as_bool()
-            .map(|b| Some(Prop::Bool(b)))
-            .ok_or_else(|| ClientError::InvalidResponse(format!("`{}` not a bool", terminal_key))),
-        // `id` is the GID scalar — a string for string-indexed graphs, a
-        // number for integer-indexed ones. The JSON type is the answer, so it
-        // is preserved rather than coerced (a stringified integer id would
-        // diverge from the local `.id`, which returns an int).
-        ReadExpr::Id { .. } => {
-            if let Some(s) = terminal_val.as_str() {
-                Ok(Some(Prop::Str(s.into())))
-            } else if let Some(n) = terminal_val.as_u64() {
-                Ok(Some(Prop::U64(n)))
-            } else {
-                Err(ClientError::InvalidResponse(
-                    "`id` not a string or int".into(),
-                ))
-            }
-        }
-        // Nullable String terminal — server can return JSON null.
-        ReadExpr::NodeType { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                terminal_val
-                    .as_str()
-                    .map(|s| Some(Prop::Str(s.into())))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
-                    })
-            }
-        }
-        // EventTime terminals — the terminal value is the whole
-        // `{ timestamp, datetime, eventId }` object. Decode it into a
-        // `Prop::Map` (missing fields → absent keys); the client unwraps to a
-        // `EventTime` via `expect_optional_event_time`. A JSON `null`
-        // object (e.g. an empty graph) maps to `Ok(None)`.
-        ReadExpr::EarliestTime { .. }
-        | ReadExpr::LatestTime { .. }
-        | ReadExpr::EarliestEdgeTime { .. }
-        | ReadExpr::LatestEdgeTime { .. }
-        | ReadExpr::Start { .. }
-        | ReadExpr::End { .. }
-        | ReadExpr::Time { .. } => {
-            if terminal_val.is_null() {
-                return Ok(None);
-            }
-            let obj = terminal_val.as_object().ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a JSON object", terminal_key))
-            })?;
-            // A present object with a null `timestamp` means "no event in this
-            // view" (e.g. an empty window) — collapse to `None`, matching the
-            // local API's `OptionalEventTime` and the pre-EventTime behavior.
-            match obj.get("timestamp").and_then(|x| x.as_i64()) {
-                None => Ok(None),
-                Some(t) => {
-                    let mut pairs: Vec<(&'static str, Prop)> = vec![("timestamp", Prop::I64(t))];
-                    if let Some(e) = obj.get("eventId").and_then(|x| x.as_i64()) {
-                        pairs.push(("eventId", Prop::I64(e)));
-                    }
-                    Ok(Some(Prop::map(pairs)))
-                }
-            }
-        }
-        // Nullable i64-shaped terminals — server can return JSON `null`
-        // (e.g. an empty history has no median interval). We map
-        // JSON null → Ok(None); a valid number → Ok(Some(Prop::I64(n))).
-        ReadExpr::FirstUpdate { .. }
-        | ReadExpr::LastUpdate { .. }
-        | ReadExpr::WindowSize { .. }
-        | ReadExpr::IntervalsMedian { .. }
-        | ReadExpr::IntervalsMax { .. }
-        | ReadExpr::IntervalsMin { .. } => {
-            if terminal_val.is_null() {
-                Ok(None)
-            } else {
-                terminal_val
-                    .as_i64()
-                    .map(|n| Some(Prop::I64(n)))
-                    .ok_or_else(|| {
-                        ClientError::InvalidResponse(format!("`{}` not an i64", terminal_key))
-                    })
-            }
-        }
-        // String-shaped terminals
-        ReadExpr::Name { .. }
-        | ReadExpr::Path { .. }
-        | ReadExpr::Namespace { .. }
-        | ReadExpr::LayerName { .. } => terminal_val
-            .as_str()
-            .map(|s| Some(Prop::Str(s.into())))
-            .ok_or_else(|| {
-                ClientError::InvalidResponse(format!("`{}` not a string", terminal_key))
-            }),
-        // Non-terminals — outermost expr must be a terminal in a well-formed tree.
-        _ => Err(ClientError::InvalidResponse(
-            "expression tree has no terminal".into(),
-        )),
-    }
+    Ok(cursor)
 }
 
 fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
@@ -3377,27 +2279,21 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::TemporalPropertyValueList { input } => {
                 go(input, out);
-                out.push("values");
             }
             ReadExpr::TemporalPropertyAt { input, .. } => {
                 go(input, out);
-                out.push("at");
             }
             ReadExpr::TemporalPropertyLatest { input } => {
                 go(input, out);
-                out.push("latest");
             }
             ReadExpr::TemporalPropertyUnique { input } => {
                 go(input, out);
-                out.push("unique");
             }
             ReadExpr::TemporalPropertyOrderedDedupe { input, .. } => {
                 go(input, out);
-                out.push("orderedDedupe");
             }
             ReadExpr::TemporalPropertySum { input } => {
                 go(input, out);
-                out.push("sum");
             }
             ReadExpr::TemporalPropertyMean { input } => {
                 go(input, out);
@@ -3409,15 +2305,12 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
             }
             ReadExpr::TemporalPropertyMin { input } => {
                 go(input, out);
-                out.push("min");
             }
             ReadExpr::TemporalPropertyMax { input } => {
                 go(input, out);
-                out.push("max");
             }
             ReadExpr::TemporalPropertyMedian { input } => {
                 go(input, out);
-                out.push("median");
             }
             ReadExpr::Schema { input } => {
                 go(input, out);
@@ -3780,60 +2673,9 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
     out
 }
 
-/// Decode an untagged JSON value into a `Prop`. Mirrors the server's
-/// `prop_to_gql` — server serializes `Prop` as native JSON (number / string /
-/// bool / array / object) with no type tag. Recovering the exact original
-/// variant isn't possible for numbers (I64 vs F64 vs DTime all wire as
-/// numbers) — we pick the widest fitting variant.
-/// Decode a leaf property value from a JSON response. Delegates to the model's
-/// `gql_to_prop` (the single source of truth for JSON→`Prop` value semantics)
-/// after lifting `serde_json::Value` into `async_graphql::Value`.
-/// Replace every `dtype` value in a schema response with its own JSON text,
-/// so the typed form rides the `Prop` tree as an opaque string instead of
-/// being decoded as if it were property data.
-fn stash_dtypes_as_json_text(v: &mut JsonValue) {
-    match v {
-        JsonValue::Object(map) => {
-            for (key, value) in map.iter_mut() {
-                if key == "dtype" {
-                    *value = JsonValue::String(value.to_string());
-                } else {
-                    stash_dtypes_as_json_text(value);
-                }
-            }
-        }
-        JsonValue::Array(items) => items.iter_mut().for_each(stash_dtypes_as_json_text),
-        _ => {}
-    }
-}
-
-fn json_to_prop(v: &JsonValue) -> Result<Prop, ClientError> {
-    let gql =
-        GqlValue::from_json(v.clone()).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
+fn json_to_prop(v: JsonValue) -> Result<Prop, ClientError> {
+    let gql = GqlValue::from_json(v).map_err(|e| ClientError::InvalidResponse(e.to_string()))?;
     gql_to_prop(gql).map_err(|e| ClientError::InvalidResponse(e.message))
-}
-
-/// Decode the serde JSON form of `PropType` served by the `dtype` fields.
-fn json_to_prop_type(v: &JsonValue) -> Result<PropType, ClientError> {
-    PropType::deserialize(v).map_err(|e| ClientError::InvalidResponse(format!("bad dtype: {e}")))
-}
-
-/// Read the `dtype` sibling the fragment fetched on the terminal's parent
-/// (e.g. the temporal-property node). `None` when absent or null — older
-/// servers don't serve it, and an empty property has no declared type.
-fn sibling_dtype(parent: &JsonValue) -> Result<Option<PropType>, ClientError> {
-    match parent.get("dtype") {
-        Some(d) if !d.is_null() => Ok(Some(json_to_prop_type(d)?)),
-        _ => Ok(None),
-    }
-}
-
-/// Type-directed decode when a dtype is known, shape-based fallback otherwise.
-fn decode_with_dtype(dtype: Option<&PropType>, v: &JsonValue) -> Result<Prop, ClientError> {
-    match dtype {
-        Some(d) => json_to_prop_typed(d, v),
-        None => json_to_prop(v),
-    }
 }
 
 /// Type-directed decode of an untagged JSON property value: the server-declared
@@ -3841,7 +2683,7 @@ fn decode_with_dtype(dtype: Option<&PropType>, v: &JsonValue) -> Result<Prop, Cl
 /// (`U8` instead of `I64`), datetimes (epoch-millis numbers), decimals, and
 /// non-finite floats (protobuf-style `"NaN"`/`"Infinity"`/`"-Infinity"`
 /// sentinels in float positions).
-fn json_to_prop_typed(dtype: &PropType, v: &JsonValue) -> Result<Prop, ClientError> {
+pub(crate) fn json_to_prop_typed(dtype: &PropType, v: JsonValue) -> Result<Prop, ClientError> {
     let mismatch =
         |want: &str| ClientError::InvalidResponse(format!("dtype says {want}, got `{v}`"));
     let int = |want: &str| v.as_i64().ok_or_else(|| mismatch(want));
@@ -3880,174 +2722,41 @@ fn json_to_prop_typed(dtype: &PropType, v: &JsonValue) -> Result<Prop, ClientErr
             let s = v.as_str().ok_or_else(|| mismatch("Decimal"))?;
             Prop::Decimal(s.parse().map_err(|_| mismatch("Decimal"))?)
         }
-        PropType::List(inner) => {
-            let arr = v.as_array().ok_or_else(|| mismatch("List"))?;
-            Prop::List(
-                arr.iter()
-                    .map(|item| json_to_prop_typed(inner, item))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .into(),
-            )
-        }
-        PropType::Map(fields) => {
-            let obj = v.as_object().ok_or_else(|| mismatch("Map"))?;
-            let entries = obj
-                .iter()
-                .map(|(k, item)| {
-                    let prop = match fields.get(k) {
-                        Some(field_type) => json_to_prop_typed(field_type, item)?,
-                        None => json_to_prop(item)?,
-                    };
-                    Ok::<_, ClientError>((k.as_str(), prop))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Prop::map(entries)
-        }
+        PropType::List(inner) => match v {
+            JsonValue::Array(arr) => Prop::List(
+                PropArray::try_from(
+                    arr.into_iter()
+                        .map(|item| json_to_prop_typed(inner, item))
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+                .map_err(|err| {
+                    ClientError::InvalidResponse(format!(
+                        "heterogeneous types {} and {} in List",
+                        err.expected, err.actual
+                    ))
+                })?,
+            ),
+            _ => Err(mismatch("List"))?,
+        },
+        PropType::Map(fields) => match v {
+            JsonValue::Object(obj) => {
+                let entries = obj
+                    .into_iter()
+                    .map(|(k, item)| {
+                        let prop = match fields.get(&k) {
+                            Some(field_type) => json_to_prop_typed(field_type, item)?,
+                            None => Err(ClientError::InvalidResponse(format!(
+                                "unexpected field {k} in map"
+                            )))?,
+                        };
+                        Ok::<_, ClientError>((k.into(), prop))
+                    })
+                    .collect::<Result<PropMap, _>>()?;
+                Prop::Map(Arc::new(entries))
+            }
+            _ => Err(mismatch("Map"))?,
+        },
     })
-}
-
-/// Decode a `{value, dtype?}` record's value, type-directed when the server
-/// sent a `dtype` sibling (older servers may not).
-fn record_value_to_prop(
-    obj: &serde_json::Map<String, JsonValue>,
-    value_json: &JsonValue,
-) -> Result<Prop, ClientError> {
-    let dtype = match obj.get("dtype") {
-        Some(d) if !d.is_null() => Some(json_to_prop_type(d)?),
-        _ => None,
-    };
-    decode_with_dtype(dtype.as_ref(), value_json)
-}
-
-/// Decode a `{ time: {timestamp, datetime, eventId}, value }` JSON record
-/// into a `Prop::Map` with `"time"` (nested Prop::Map matching the event-
-/// time shape used elsewhere) and `"value"` (arbitrary Prop). Used by
-/// TemporalProperty stats (`min`/`max`/`median`) and `ordered_dedupe`.
-fn json_to_property_tuple(v: &JsonValue, dtype: Option<&PropType>) -> Result<Prop, ClientError> {
-    let obj = v.as_object().ok_or_else(|| {
-        ClientError::InvalidResponse("property tuple is not a JSON object".into())
-    })?;
-    let time_json = obj
-        .get("time")
-        .ok_or_else(|| ClientError::InvalidResponse("property tuple missing `time`".into()))?;
-    let value_json = obj
-        .get("value")
-        .ok_or_else(|| ClientError::InvalidResponse("property tuple missing `value`".into()))?;
-
-    let time_obj = time_json.as_object().ok_or_else(|| {
-        ClientError::InvalidResponse("property tuple `time` is not a JSON object".into())
-    })?;
-    // A field that is present but the wrong type is a protocol error — dropping
-    // it here would be indistinguishable from the server not selecting it.
-    let mut time_pairs: Vec<(&'static str, Prop)> = Vec::new();
-    for field in ["timestamp", "eventId"] {
-        if let Some(raw) = time_obj.get(field) {
-            let v = raw.as_i64().ok_or_else(|| {
-                ClientError::InvalidResponse(format!(
-                    "property tuple `time.{field}` is not an integer: `{raw}`"
-                ))
-            })?;
-            time_pairs.push((field, Prop::I64(v)));
-        }
-    }
-    let time_map = Prop::map(time_pairs);
-    let value = match dtype {
-        Some(d) => json_to_prop_typed(d, value_json)?,
-        None => json_to_prop(value_json)?,
-    };
-    Ok(Prop::map(vec![("time", time_map), ("value", value)]))
-}
-
-/// Decode a `{ key, value }` JSON record into a `Prop::Map` with `"key"` (Prop::Str)
-/// and `"value"` (arbitrary Prop). Used by property terminals.
-fn json_to_property_record(v: &JsonValue) -> Result<Prop, ClientError> {
-    let obj = v.as_object().ok_or_else(|| {
-        ClientError::InvalidResponse("property record is not a JSON object".into())
-    })?;
-    let key = obj
-        .get("key")
-        .and_then(|k| k.as_str())
-        .ok_or_else(|| ClientError::InvalidResponse("property record missing `key`".into()))?;
-    let value_json = obj
-        .get("value")
-        .ok_or_else(|| ClientError::InvalidResponse("property record missing `value`".into()))?;
-    let value = record_value_to_prop(obj, value_json)?;
-    Ok(Prop::map(vec![
-        ("key", Prop::Str(key.into())),
-        ("value", value),
-    ]))
-}
-
-/// Build a `NotFound` error describing which Node/Edge/Graph selection
-/// returned `null` in the response. Walks the `expr` tree from outermost
-/// inward to find the variant whose json key matches `null_key`.
-/// Decode one exploded-edge record — `{"src":{"id":..},"dst":{"id":..},
-/// "time":{"timestamp":..,"eventId":..},"layerName":..}` — into the
-/// 5-element list `[src, dst, timestamp, event_id, layer_name]` used by the
-/// `ExplodedEdgesList` / `NestedExplodedEdgesList` terminals.
-fn exploded_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
-    let src = v
-        .get("src")
-        .and_then(|s| s.get("id"))
-        .map(gid_prop)
-        .transpose()?
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.id`".into()))?;
-    let dst = v
-        .get("dst")
-        .and_then(|d| d.get("id"))
-        .map(gid_prop)
-        .transpose()?
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.id`".into()))?;
-    let time = v.get("time").ok_or_else(|| {
-        ClientError::InvalidResponse("exploded edge element missing `time`".into())
-    })?;
-    let timestamp = time
-        .get("timestamp")
-        .and_then(|t| t.as_i64())
-        .ok_or_else(|| {
-            ClientError::InvalidResponse("exploded edge element missing `time.timestamp`".into())
-        })?;
-    let event_id = time
-        .get("eventId")
-        .and_then(|i| i.as_i64())
-        .ok_or_else(|| {
-            ClientError::InvalidResponse("exploded edge element missing `time.eventId`".into())
-        })?;
-    let layer = v.get("layerName").and_then(|l| l.as_str()).ok_or_else(|| {
-        ClientError::InvalidResponse("exploded edge element missing `layerName`".into())
-    })?;
-    Ok(Prop::List(
-        vec![
-            src,
-            dst,
-            Prop::I64(timestamp),
-            Prop::I64(event_id),
-            Prop::Str(layer.into()),
-        ]
-        .into(),
-    ))
-}
-
-/// Decode one `ExplodedLayersEdgesList` element — `{src{id}, dst{id},
-/// layerName}` — into `[src, dst, layer]` (no time; layer-exploded members have
-/// a layer but not a single event time).
-fn exploded_layers_edge_elem(v: &JsonValue) -> Result<Prop, ClientError> {
-    let src = v
-        .get("src")
-        .and_then(|s| s.get("id"))
-        .map(gid_prop)
-        .transpose()?
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `src.id`".into()))?;
-    let dst = v
-        .get("dst")
-        .and_then(|d| d.get("id"))
-        .map(gid_prop)
-        .transpose()?
-        .ok_or_else(|| ClientError::InvalidResponse("edge element missing `dst.id`".into()))?;
-    let layer = v.get("layerName").and_then(|l| l.as_str()).ok_or_else(|| {
-        ClientError::InvalidResponse("layer-exploded edge element missing `layerName`".into())
-    })?;
-    Ok(Prop::List(vec![src, dst, Prop::Str(layer.into())].into()))
 }
 
 fn build_not_found_error(expr: &ReadExpr, null_key: &str) -> ClientError {
@@ -4263,7 +2972,7 @@ mod tests {
             path: "g".into(),
             graph_type: None,
         };
-        let err = parse_read(&root, &HashMap::new()).unwrap_err();
+        let err = parse_read(&root, HashMap::new()).unwrap_err();
         assert!(
             matches!(err, ClientError::InvalidInput(_)),
             "bare Root must be InvalidInput, got {err:?}"
@@ -4281,19 +2990,23 @@ mod tests {
             (PropType::U32, json!(5_000_000_000u64)),
             (PropType::I32, json!(3_000_000_000i64)),
         ] {
-            let err = json_to_prop_typed(&dtype, &val).unwrap_err();
+            let err = json_to_prop_typed(&dtype, val.clone()).unwrap_err();
             assert!(
                 matches!(err, ClientError::InvalidResponse(_)),
                 "{dtype:?} {val} must be InvalidResponse, got {err:?}"
             );
         }
         assert_eq!(
-            json_to_prop_typed(&PropType::U8, &json!(255)).unwrap(),
+            json_to_prop_typed(&PropType::U8, json!(255)).unwrap(),
             Prop::U8(255)
         );
     }
     use super::*;
     use crate::{
+        client::{
+            Column, RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema,
+            RemotePropertySchema, RemotePropertyTuple,
+        },
         data::GqlGraphType,
         model::graph::{
             filtering::{GqlNodeFilter, PropCondition, PropertyFilterNew},
@@ -4305,11 +3018,10 @@ mod tests {
         db::graph::views::filter::model::node_filter::CompositeNodeFilter,
         prelude::{Args, NO_PROPS},
     };
-    use raphtory_api::core::storage::timeindex::AsTime;
+    use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
     use reqwest::Url;
-    use std::{collections::HashMap as Map, str::FromStr, sync::Arc};
+    use std::{collections::HashMap as Map, hash::Hash, str::FromStr, sync::Arc};
     use tempfile::tempdir;
-
     // ============ Unit tests for the read pipeline ============
 
     #[test]
@@ -4620,19 +3332,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn node_ids_are_decoded_back_to_their_type() {
-        // The reverse direction: a JSON number decodes to an integer id and a
-        // JSON string to a string id, so `.id` reports what the graph holds
-        // rather than a stringification of it.
-        assert_eq!(gid_prop(&json!(5)).unwrap(), Prop::U64(5));
-        assert_eq!(gid_prop(&json!("5")).unwrap(), Prop::Str("5".into()));
-        // Negative ids are not representable (`GID::U64`), so they are a
-        // protocol error rather than a silent truncation.
-        assert!(gid_prop(&json!(-1)).is_err());
-        assert!(gid_prop(&json!(null)).is_err());
-    }
-
     // ============ Unit tests for GraphQL string escaping ============
 
     #[test]
@@ -4838,11 +3537,8 @@ mod tests {
             "graph".to_string(),
             serde_json::json!({ "node": { "degree": 42 } }),
         )]);
-        let value = parse_read(&expr, &response).unwrap();
-        match value {
-            Some(Prop::I64(n)) => assert_eq!(n, 42),
-            _ => panic!("expected Some(Prop::I64)"),
-        }
+        let value = parse_read(&expr, response).unwrap();
+        assert_eq!(value.as_i64(), Some(42));
     }
 
     // ============ End-to-end integration: server + client + transport ============
@@ -5108,6 +3804,513 @@ mod tests {
         // (DataInner::drop → flush_and_clear). Without it the tempdir is
         // deleted while background flushes are still writing into it, which
         // panics under panic-on-drop builds.
+        running.stop().await;
+        running.wait().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_earliest_latest() {
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+        let client = RemoteClient::new(url, None);
+        client.new_graph("test", GqlGraphType::Event).await.unwrap();
+        let rg = client.remote_graph("test".into());
+        rg.add_edge(0, 0, 1, NO_PROPS, None).await.unwrap();
+
+        // edges
+        let edges = rg.edges();
+        let earliest = edges.earliest_time().await.unwrap();
+        assert_eq!(
+            earliest
+                .into_iter()
+                .map(|t| t.map(|t| t.t()))
+                .collect::<Vec<_>>(),
+            [Some(0)]
+        );
+
+        let latest = edges.latest_time().await.unwrap();
+        assert_eq!(
+            latest
+                .into_iter()
+                .map(|t| t.map(|t| t.t()))
+                .collect::<Vec<_>>(),
+            [Some(0)]
+        );
+
+        let earliest = edges
+            .window(InputTime::Simple(1), InputTime::Simple(2))
+            .earliest_time()
+            .await
+            .unwrap();
+        assert_eq!(earliest, [None]);
+
+        let latest = edges
+            .window(InputTime::Simple(1), InputTime::Simple(2))
+            .latest_time()
+            .await
+            .unwrap();
+        assert_eq!(latest, [None]);
+
+        // nodes
+        let nodes = rg.nodes();
+        let earliest = nodes.earliest_time().await.unwrap();
+        assert_eq!(
+            earliest
+                .into_iter()
+                .map(|t| t.map(|t| t.t()))
+                .collect::<Vec<_>>(),
+            [Some(0), Some(0)]
+        );
+
+        let latest = nodes.latest_time().await.unwrap();
+        assert_eq!(
+            latest
+                .into_iter()
+                .map(|t| t.map(|t| t.t()))
+                .collect::<Vec<_>>(),
+            [Some(0), Some(0)]
+        );
+
+        let earliest = nodes
+            .window(InputTime::Simple(1), InputTime::Simple(2))
+            .earliest_time()
+            .await
+            .unwrap();
+        assert_eq!(earliest, [None, None]);
+
+        let latest = nodes
+            .window(InputTime::Simple(1), InputTime::Simple(2))
+            .latest_time()
+            .await
+            .unwrap();
+        assert_eq!(latest, [None, None]);
+
+        // path
+        let neighbours = rg.nodes().out_neighbours();
+        let earliest = neighbours
+            .earliest_time()
+            .await
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .map(|v| v.map(|t| t.t()))
+            .collect::<Vec<_>>();
+        assert_eq!(earliest, [Some(0)]);
+
+        let latest = neighbours
+            .latest_time()
+            .await
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .map(|v| v.map(|t| t.t()))
+            .collect::<Vec<_>>();
+        assert_eq!(latest, [Some(0)]);
+
+        let earliest = neighbours
+            .window(InputTime::Simple(1), InputTime::Simple(2))
+            .earliest_time()
+            .await
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert_eq!(earliest, [None]);
+
+        let latest = neighbours
+            .window(InputTime::Simple(1), InputTime::Simple(2))
+            .latest_time()
+            .await
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        assert_eq!(latest, [None]);
+
+        running.stop().await;
+        running.wait().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_id() {
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+        let client = RemoteClient::new(url, None);
+        client.new_graph("test", GqlGraphType::Event).await.unwrap();
+        let rg = client.remote_graph("test".into());
+        rg.add_edge(0, 0, 1, NO_PROPS, None).await.unwrap();
+
+        // edges
+        let edges = rg.edges();
+        let id = edges.id().await.unwrap();
+        assert_eq!(id, [(GID::U64(0), GID::U64(1))]);
+
+        let neighours = rg.nodes().out_neighbours().id().await.unwrap();
+        assert_eq!(
+            neighours.into_iter().flatten().collect::<Vec<_>>(),
+            [GID::U64(1)]
+        );
+
+        running.stop().await;
+        running.wait().await.unwrap();
+    }
+
+    fn as_mapped_result<K: Clone + Hash + Eq, V>(ids: &[K], values: Vec<V>) -> HashMap<K, V> {
+        ids.iter().cloned().zip(values).collect()
+    }
+
+    #[tokio::test]
+    async fn test_properties() {
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+        let client = RemoteClient::new(url, None);
+        client.new_graph("test", GqlGraphType::Event).await.unwrap();
+        let rg = client.remote_graph("test".into());
+        rg.add_node(0, 0, [("test", Prop::I64(1))], None, None)
+            .await
+            .unwrap()
+            .add_metadata([("meta", Prop::Bool(false))])
+            .await
+            .unwrap();
+        rg.add_node(1, 1, [("test2", Prop::str("hi"))], None, None)
+            .await
+            .unwrap();
+        rg.add_edge(0, 0, 0, [("test", Prop::I64(2))], None)
+            .await
+            .unwrap()
+            .add_metadata([("meta", Prop::Bool(false))], None)
+            .await
+            .unwrap();
+
+        let remote_node = rg.node(0).await.unwrap().unwrap();
+
+        let dtype = remote_node
+            .properties()
+            .get_dtype_of("test")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(dtype, PropType::I64);
+
+        assert!(remote_node
+            .properties()
+            .get_dtype_of("bla")
+            .await
+            .unwrap()
+            .is_none());
+
+        let prop_values = remote_node.properties().values(None).await.unwrap();
+        assert_eq!(prop_values, [Prop::I64(1)]);
+
+        let prop = remote_node.properties().get("test").await.unwrap().unwrap();
+        assert_eq!(prop, Prop::I64(1));
+        let keys = remote_node.properties().keys().await.unwrap();
+        assert_eq!(keys, ["test"]);
+        assert!(remote_node.properties().contains("test").await.unwrap());
+
+        let meta = remote_node.metadata().get("meta").await.unwrap().unwrap();
+        assert_eq!(meta, Prop::Bool(false));
+        assert!(remote_node.metadata().contains("meta").await.unwrap());
+        let keys = remote_node.metadata().keys().await.unwrap();
+        assert_eq!(keys, ["meta"]);
+        let values = remote_node.metadata().values(None).await.unwrap();
+        assert_eq!(values, [Prop::Bool(false)]);
+        let items = remote_node.metadata().items(None).await.unwrap();
+        assert_eq!(items, [("meta".to_string(), Prop::Bool(false))]);
+
+        let prop_items = remote_node.properties().items(None).await.unwrap();
+        assert_eq!(prop_items, [("test".to_string(), Prop::I64(1))]);
+
+        let tprops = remote_node
+            .properties()
+            .temporal()
+            .values(None)
+            .await
+            .unwrap();
+
+        assert_eq!(tprops.len(), 1);
+        let tprop = tprops.into_iter().next().unwrap();
+        let t_values = tprop.values().await.unwrap();
+        assert_eq!(t_values, [Prop::I64(1)]);
+        assert_eq!(
+            tprop.history().collect().await.unwrap(),
+            [EventTime::start(0)]
+        );
+        assert_eq!(tprop.at(1).await.unwrap(), Some(Prop::I64(1)));
+        assert_eq!(tprop.at(-1).await.unwrap(), None);
+        assert_eq!(tprop.latest().await.unwrap(), Some(Prop::I64(1)));
+        assert_eq!(tprop.count().await.unwrap(), 1);
+        assert_eq!(tprop.unique().await.unwrap(), [Prop::I64(1)]);
+        assert_eq!(
+            tprop.ordered_dedupe(true).await.unwrap(),
+            [RemotePropertyTuple {
+                time: EventTime::start(0),
+                value: Prop::I64(1)
+            }]
+        );
+        assert_eq!(tprop.sum().await.unwrap(), Some(Prop::I64(1)));
+        assert_eq!(tprop.mean().await.unwrap(), Some(1.0));
+        assert_eq!(tprop.average().await.unwrap(), Some(1.0));
+        assert_eq!(
+            tprop.min().await.unwrap(),
+            Some(RemotePropertyTuple {
+                time: EventTime::start(0),
+                value: Prop::I64(1)
+            })
+        );
+        assert_eq!(
+            tprop.max().await.unwrap(),
+            Some(RemotePropertyTuple {
+                time: EventTime::start(0),
+                value: Prop::I64(1)
+            })
+        );
+        assert_eq!(
+            tprop.median().await.unwrap(),
+            Some(RemotePropertyTuple {
+                time: EventTime::start(0),
+                value: Prop::I64(1)
+            })
+        );
+
+        let ids = rg.nodes().id().await.unwrap();
+        let vals = rg.nodes().properties().get("test").await.unwrap().unwrap();
+        match vals {
+            Column::Flat(v) => {
+                let res: HashMap<_, _> = ids.iter().cloned().zip(v).collect();
+                assert_eq!(
+                    res,
+                    HashMap::from([(GID::U64(0), Some(Prop::I64(1))), (GID::U64(1), None)])
+                );
+            }
+            Column::Nested(_) => {
+                panic!("not nested")
+            }
+        }
+
+        let vals = rg.nodes().metadata().get("meta").await.unwrap().unwrap();
+        match vals {
+            Column::Flat(v) => {
+                let res: HashMap<_, _> = ids.iter().cloned().zip(v).collect();
+                assert_eq!(
+                    res,
+                    HashMap::from([(GID::U64(0), Some(Prop::Bool(false))), (GID::U64(1), None)])
+                );
+            }
+            Column::Nested(_) => {
+                panic!("not nested")
+            }
+        }
+
+        let out_neighoburs = rg.nodes().out_neighbours();
+
+        let vals = out_neighoburs
+            .properties()
+            .get("test")
+            .await
+            .unwrap()
+            .unwrap();
+        match vals {
+            Column::Nested(v) => {
+                let res = as_mapped_result(&ids, v);
+                assert_eq!(
+                    res,
+                    HashMap::from([
+                        (GID::U64(0), vec![Some(Prop::I64(1))]),
+                        (GID::U64(1), vec![])
+                    ])
+                );
+            }
+            Column::Flat(_) => {
+                panic!("not flat")
+            }
+        }
+
+        let res = as_mapped_result(&ids, out_neighoburs.edge_history_count().await.unwrap());
+        assert_eq!(
+            res,
+            HashMap::from([(GID::U64(0), vec![1]), (GID::U64(1), vec![])])
+        );
+
+        let degree = as_mapped_result(&ids, out_neighoburs.degree().await.unwrap());
+        assert_eq!(
+            degree,
+            HashMap::from([(GID::U64(0), vec![1]), (GID::U64(1), vec![])])
+        );
+
+        let in_degree = as_mapped_result(&ids, out_neighoburs.in_degree().await.unwrap());
+        assert_eq!(
+            in_degree,
+            HashMap::from([(GID::U64(0), vec![1]), (GID::U64(1), vec![])])
+        );
+
+        let out_degree = as_mapped_result(&ids, out_neighoburs.out_degree().await.unwrap());
+        assert_eq!(
+            out_degree,
+            HashMap::from([(GID::U64(0), vec![1]), (GID::U64(1), vec![])])
+        );
+
+        let name = as_mapped_result(&ids, out_neighoburs.name().await.unwrap());
+        assert_eq!(
+            name,
+            HashMap::from([(GID::U64(0), vec!["0".to_string()]), (GID::U64(1), vec![])])
+        );
+
+        let edges = rg.edges();
+
+        let edge_ids = edges.id().await.unwrap();
+        assert_eq!(edge_ids, [(GID::U64(0), GID::U64(0))]);
+        let layer_names = edges.layer_names().await.unwrap();
+        assert_eq!(layer_names, [["_default"]]);
+        let is_active = edges.is_active().await.unwrap();
+        assert_eq!(is_active, [true]);
+        let is_valid = edges.is_valid().await.unwrap();
+        assert_eq!(is_valid, [true]);
+        let is_deleted = edges.is_deleted().await.unwrap();
+        assert_eq!(is_deleted, [false]);
+        let is_self_loop = edges.is_self_loop().await.unwrap();
+        assert_eq!(is_self_loop, [true]);
+
+        let nested_edges = rg.nodes().out_edges();
+        let edge_ids = as_mapped_result(&ids, nested_edges.id().await.unwrap());
+        assert_eq!(
+            edge_ids,
+            HashMap::from([
+                (GID::U64(0), vec![(GID::U64(0), GID::U64(0))]),
+                (GID::U64(1), vec![])
+            ])
+        );
+
+        let layer_names = as_mapped_result(&ids, nested_edges.layer_names().await.unwrap());
+        assert_eq!(
+            layer_names,
+            HashMap::from([
+                (GID::U64(0), vec![vec!["_default".to_string()]]),
+                (GID::U64(1), vec![])
+            ])
+        );
+
+        let layer_names = as_mapped_result(
+            &ids,
+            nested_edges.explode_layers().layer_name().await.unwrap(),
+        );
+        assert_eq!(
+            layer_names,
+            HashMap::from([
+                (GID::U64(0), vec!["_default".to_string()]),
+                (GID::U64(1), vec![])
+            ])
+        );
+        let is_active = as_mapped_result(&ids, nested_edges.is_active().await.unwrap());
+        assert_eq!(
+            is_active,
+            HashMap::from([(GID::U64(0), vec![true]), (GID::U64(1), vec![])])
+        );
+
+        let is_valid = as_mapped_result(&ids, nested_edges.is_valid().await.unwrap());
+        assert_eq!(
+            is_valid,
+            HashMap::from([(GID::U64(0), vec![true]), (GID::U64(1), vec![])])
+        );
+
+        let is_deleted = as_mapped_result(&ids, nested_edges.is_deleted().await.unwrap());
+        assert_eq!(
+            is_deleted,
+            HashMap::from([(GID::U64(0), vec![false]), (GID::U64(1), vec![])])
+        );
+
+        let is_self_loop = as_mapped_result(&ids, nested_edges.is_self_loop().await.unwrap());
+        assert_eq!(
+            is_self_loop,
+            HashMap::from([(GID::U64(0), vec![true]), (GID::U64(1), vec![])])
+        );
+
+        running.stop().await;
+        running.wait().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_remote_graph() {
+        let tmp_dir = tempdir().unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
+            .await
+            .unwrap();
+        let running = server.start_with_port(0).await.unwrap();
+        let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+        let client = RemoteClient::new(url, None);
+        client.new_graph("test", GqlGraphType::Event).await.unwrap();
+        let rg = client.remote_graph("test".into());
+        rg.add_node(0, 0, [("test", Prop::I64(1))], None, None)
+            .await
+            .unwrap()
+            .add_metadata([("meta", Prop::Bool(false))])
+            .await
+            .unwrap();
+        rg.add_edge(0, 0, 1, [("test", Prop::I64(2))], None)
+            .await
+            .unwrap()
+            .add_metadata([("meta", Prop::Bool(false))], None)
+            .await
+            .unwrap();
+        rg.add_edge(0, 0, 2, NO_PROPS, None).await.unwrap();
+
+        let schema = rg.schema().await.unwrap();
+        assert_eq!(
+            schema,
+            RemoteGraphSchema {
+                nodes: vec![RemoteNodeSchema {
+                    type_name: "None".to_string(),
+                    properties: vec![RemotePropertySchema {
+                        key: "test".to_string(),
+                        property_type: PropType::I64,
+                        variants: vec!["1".to_string()],
+                    }],
+                    metadata: vec![RemotePropertySchema {
+                        key: "meta".to_string(),
+                        property_type: PropType::Bool,
+                        variants: vec!["false".to_string()],
+                    }],
+                }],
+                layers: vec![RemoteLayerSchema {
+                    name: "_default".to_string(),
+                    edges: vec![RemoteEdgeSchema {
+                        src_type: "None".to_string(),
+                        dst_type: "None".to_string(),
+                        properties: vec![RemotePropertySchema {
+                            key: "test".to_string(),
+                            property_type: PropType::I64,
+                            variants: vec!["2".to_string()],
+                        }],
+                        metadata: vec![RemotePropertySchema {
+                            key: "meta".to_string(),
+                            property_type: PropType::Bool,
+                            variants: vec!["false".to_string()],
+                        }],
+                    }],
+                }],
+            }
+        );
+
+        let shared: Vec<_> = rg
+            .shared_neighbours(vec![1.into(), 2.into()])
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|v| v.id)
+            .collect();
+        assert_eq!(shared, [0]);
         running.stop().await;
         running.wait().await.unwrap();
     }

@@ -667,8 +667,8 @@ def test_label_propagation_algorithm():
     ]
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
-    seed = [5] * 32
-    labels = algorithms.label_propagation(g, 10, seed)
+    labels = algorithms.label_propagation(g, 10, 2)
+    print(labels.groups(["community_id"]))
     groups = sorted(sorted(v.id) for _, v in labels.groups(["community_id"]))
     expected = [["B1", "B2", "B3", "B4", "B5", "G"], ["R1", "R2", "R3"]]
     assert groups == expected
@@ -884,3 +884,40 @@ def test_local_clustering_coefficient_batch_without_v_matches_explicit_list():
         "c": 1.0,
         "isolated": 0.0,
     }
+
+
+def test_temporal_bipartite_graph_projection():
+    g = Graph()
+    for t, src, dst in [
+        (1, "A", "1"),
+        (3, "A", "2"),
+        (3, "B", "2"),
+        (4, "C", "3"),
+        (6, "B", "3"),
+    ]:
+        g.add_node(t, src, node_type="Left")
+        g.add_node(t, dst, node_type="Right")
+        g.add_edge(t, src, dst)
+
+    projected = algorithms.temporal_bipartite_graph_projection(g, 1, "Right")
+    assert projected.has_edge("A", "B")
+    assert not projected.has_edge("A", "C")
+
+    # an invalid pivot type is an error
+    with pytest.raises(Exception) as e:
+        algorithms.temporal_bipartite_graph_projection(g, 1, "Item")
+    assert "Node type 'Item' does not exist" in str(e.value)
+
+
+def test_temporal_bipartite_graph_projection_untyped_node_works():
+    # one untyped node among typed ones is still an error
+    g = Graph()
+    g.add_node(1, "A", node_type="Left")
+    g.add_node(1, "1", node_type="Right")
+    g.add_edge(1, "A", "1")
+    g.add_edge(2, "B", "1")
+    projected = algorithms.temporal_bipartite_graph_projection(g, 5, "Right")
+    assert projected.has_edge("A", "B")
+    assert not projected.has_edge("A", "1")
+    assert not projected.has_edge("B", "1")
+    assert not projected.has_node("1")

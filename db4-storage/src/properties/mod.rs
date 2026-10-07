@@ -39,6 +39,8 @@ pub struct Properties {
     has_deletions: bool,
     pub additions_count: usize,
     pub deletions_count: usize,
+    /// Distinct `(timestamp, event_id)` temporal updates; see `t_additions_count()`.
+    t_additions_count: usize,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -283,7 +285,14 @@ impl Properties {
         }
     }
 
+    /// Physical number of temporal rows, one per write accepted, excluding a replayed update
+    /// that overwrote an existing `(timestamp, event_id)`.
     pub fn t_len(&self) -> usize {
+        self.t_additions_count
+    }
+
+    /// Actual number of temporal updates, including a replayed update (used for size estimate)
+    pub fn t_additions_count(&self) -> usize {
         self.t_properties.len()
     }
 
@@ -335,7 +344,10 @@ impl<'a> PropMutEntry<'a> {
 
     pub(crate) fn set_time(&mut self, t: EventTime, t_prop_row: usize) {
         let prop_timestamps = &mut self.properties.times_from_props[self.row];
-        prop_timestamps.set(t, Some(t_prop_row));
+        // the row was already pushed to the column store; only a new key is a new update
+        if prop_timestamps.set(t, Some(t_prop_row)) {
+            self.properties.t_additions_count += 1;
+        }
     }
 
     pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID) {
