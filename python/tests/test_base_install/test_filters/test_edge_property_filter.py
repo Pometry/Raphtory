@@ -1,5 +1,5 @@
 from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
-from raphtory import filter, Prop
+from raphtory import filter, Prop, ExplodedEdges, NestedExplodedEdges
 from filters_setup import init_graph, init_graph3, create_test_graph2
 from utils import with_variants
 import pytest
@@ -1297,6 +1297,42 @@ def test_nested_edges_getitem_property_filter_expr():
             "Jimmy Page": [("John Mayer", "Jimmy Page")],
         }
         assert result_ids == expected_ids
+
+    return check
+
+
+@with_variants(init_graph)
+def test_select_asks_about_the_items_of_the_collection():
+    # `[]` asks its question of each item of the collection on its left: once
+    # per edge on edges, once per exploded edge on exploded edges. The kind of
+    # the predicate plays no part. Edge 1 -> 2 has two updates, p2 unset at
+    # t=1 and p2 = 4 at t=2.
+    def check(graph):
+        any_update_is_4 = filter.ExplodedEdge.property("p2") == 4
+        latest_is_4 = filter.Edge.property("p2") == 4
+
+        # on edges: the edge is kept with all its updates
+        edges = graph.edges[latest_is_4]
+        assert list(edges.explode().properties["p2"]) == [None, 4]
+        if type(graph).__name__ == "Graph":
+            # an exploded-edge predicate keeps the edges with such an update. On
+            # a persistent graph an edge stays present however its updates are
+            # filtered, so there every edge is kept; that is the persistent
+            # semantics of hiding updates, the same as `graph.filter(f).edges`.
+            edges = graph.edges[any_update_is_4]
+            assert edges.id.collect() == [("1", "2")]
+            assert list(edges.explode().properties["p2"]) == [None, 4]
+
+        # on exploded edges: each update answers for itself, whichever way the
+        # question is phrased
+        assert list(graph.edges.explode()[any_update_is_4].properties["p2"]) == [4]
+        assert list(graph.edges.explode()[latest_is_4].properties["p2"]) == [4]
+
+        # exploding gives a collection of exploded edges, selecting keeps the kind
+        assert isinstance(graph.edges.explode(), ExplodedEdges)
+        assert isinstance(graph.edge("1", "2").explode(), ExplodedEdges)
+        assert isinstance(graph.edges.explode()[latest_is_4], ExplodedEdges)
+        assert isinstance(graph.nodes.edges.explode(), NestedExplodedEdges)
 
     return check
 

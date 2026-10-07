@@ -6,7 +6,7 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            edges::{Edges, NestedEdges},
+            edges::{Edge, Edges, ExplodedEdge, NestedEdges},
         },
     },
     errors::GraphError,
@@ -36,59 +36,54 @@ use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
-/// A list of edges that can be iterated over.
-#[pyclass(name = "Edges", module = "raphtory", frozen)]
-pub struct PyEdges {
-    edges: Edges<'static, DynamicGraph>,
-}
-
-impl_edgeviewops!(PyEdges, edges, Edges<'static, DynamicGraph>, "Edges");
-impl_iterable_mixin!(
-    PyEdges,
-    edges,
-    Vec<EdgeView<DynamicGraph>>,
-    "list[Edge]",
-    "edge",
-    |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
-);
-
-impl<'graph, G: GraphViewOps<'graph>> Repr for Edges<'graph, G> {
-    fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.iter()))
-    }
-}
-
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'static, G> {
-    type Target = PyEdges;
-    type Output = Bound<'py, PyEdges>;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = self.into_dyn();
-        PyEdges { edges }.into_pyobject(py)
-    }
-}
-
-impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
-    fn from(value: Edges<'static, G>) -> Self {
-        let base_graph = value.base_graph.into_dynamic();
-        let edges = value.edges;
-        let select = value.select;
-        Self {
-            edges: Edges {
-                base_graph,
-                edges,
-                select,
-            },
+/// The python class for a collection of edges of one kind, and the
+/// conversions into it. The methods are written once here and stamped out
+/// for the collection of edges and the collection of exploded edges.
+macro_rules! impl_edges_class {
+    ($obj:ident, $kind:ty, $name:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[pyclass(name = $name, module = "raphtory", frozen)]
+        pub struct $obj {
+            edges: Edges<'static, DynamicGraph, $kind>,
         }
-    }
-}
 
-#[pymethods]
-impl PyEdges {
-    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyEdges> {
+        impl_edgeviewops!($obj, edges, Edges<'static, DynamicGraph, $kind>, $name, "ExplodedEdges");
+        impl_iterable_mixin!(
+            $obj,
+            edges,
+            Vec<EdgeView<DynamicGraph>>,
+            "list[Edge]",
+            "edge",
+            |edges: &Edges<'static, DynamicGraph, $kind>| edges.clone().into_iter()
+        );
+
+        impl<'graph, G: GraphViewOps<'graph>> Repr for Edges<'graph, G, $kind> {
+            fn repr(&self) -> String {
+                format!(concat!($name, "({})"), iterator_repr(self.iter()))
+            }
+        }
+
+        impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'static, G, $kind> {
+            type Target = $obj;
+            type Output = Bound<'py, $obj>;
+            type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                $obj { edges: self.into_dyn() }.into_pyobject(py)
+            }
+        }
+
+        impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G, $kind>> for $obj {
+            fn from(value: Edges<'static, G, $kind>) -> Self {
+                Self { edges: value.into_dyn() }
+            }
+        }
+
+        #[pymethods]
+        impl $obj {
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<$obj> {
         let r = self.edges.select(filter)?;
-        Ok(PyEdges::from(r))
+        Ok($obj::from(r))
     }
 
     /// Reorder this collection by an ordered list of sort keys. Multi-key
@@ -98,10 +93,10 @@ impl PyEdges {
     ///     sort_bys (list[EdgeSortBy]): the ordered sort keys.
     ///
     /// Returns:
-    ///     Edges: a new collection in the sorted order.
-    fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> PyEdges {
+    #[doc = concat!("    ", $name, ": a new collection in the sorted order.")]
+    fn sorted(&self, sort_bys: Vec<PyEdgeSortBy>) -> $obj {
         let sort_bys: Vec<_> = sort_bys.into_iter().map(|s| s.inner).collect();
-        PyEdges::from(self.edges.sorted(&sort_bys))
+        $obj::from(self.edges.sorted(&sort_bys))
     }
 
     /// Returns the earliest time of the edges.
@@ -344,247 +339,276 @@ impl PyEdges {
                 .unbind())
         })
     }
-}
-
-impl Repr for PyEdges {
-    fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.edges.iter()))
-    }
-}
-
-#[pyclass(name = "NestedEdges", module = "raphtory")]
-pub struct PyNestedEdges {
-    edges: NestedEdges<'static, DynamicGraph>,
-}
-
-impl_edgeviewops!(
-    PyNestedEdges,
-    edges,
-    NestedEdges<'static, DynamicGraph>,
-    "NestedEdges"
-);
-impl_iterable_mixin!(
-    PyNestedEdges,
-    edges,
-    Vec<Vec<EdgeView<DynamicGraph>>>,
-    "list[list[Edges]]",
-    "edge"
-);
-
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges<'static, G> {
-    type Target = PyNestedEdges;
-    type Output = Bound<'py, Self::Target>;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let edges = self.into_dyn_hop();
-        PyNestedEdges { edges }.into_pyobject(py)
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
-    fn repr(&self) -> String {
-        format!("NestedEdges({})", iterator_repr(self.iter()))
-    }
-}
-
-impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
-    fn from(value: NestedEdges<'static, G>) -> Self {
-        let graph = value.graph.into_dynamic();
-        let nodes = value.nodes;
-        let edges = value.edges;
-        let select = value.select;
-        Self {
-            edges: NestedEdges {
-                graph,
-                nodes,
-                edges,
-                select,
-            },
         }
-    }
-}
 
-#[pymethods]
-impl PyNestedEdges {
-    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNestedEdges> {
-        let r = self.edges.select(filter)?;
-        Ok(PyNestedEdges::from(r))
-    }
-
-    /// Returns the earliest time of the edges.
-    ///
-    /// Returns:
-    ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
-    #[getter]
-    fn earliest_time(&self) -> NestedOptionEventTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.earliest_time()).into()
-    }
-
-    /// Returns the latest time of the edges.
-    ///
-    /// Returns:
-    ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
-    #[getter]
-    fn latest_time(&self) -> NestedOptionEventTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.latest_time()).into()
-    }
-
-    /// Returns the times of exploded edges.
-    ///
-    /// Returns:
-    ///     NestedEventTimeIterable: A nested iterable of `EventTime`s.
-    ///
-    /// Raises:
-    ///     GraphError: If a graph error occurs (e.g. the edges are not exploded).
-    #[getter]
-    fn time(&self) -> Result<NestedEventTimeIterable, GraphError> {
-        match self.edges.time().flatten().next() {
-            Some(Err(err)) => Err(err),
-            _ => {
-                let edges = self.edges.clone();
-                Ok((move || {
-                    edges
-                        .time()
-                        .map(|t_iter| t_iter.map(|t| t.unwrap()).into_dyn_boxed())
-                        .into_dyn_boxed()
-                })
-                .into())
+        impl Repr for $obj {
+            fn repr(&self) -> String {
+                self.edges.repr()
             }
         }
-    }
+    };
+}
 
-    /// Returns the name of the layer the edges belong to - assuming they only belong to one layer.
-    ///
-    /// Returns:
-    ///     NestedArcStringIterable:
-    #[getter]
-    fn layer_name(&self) -> Result<NestedArcStringIterable, GraphError> {
-        match self.edges.layer_name().flatten().next() {
-            Some(Err(err)) => Err(err),
-            _ => {
+impl_edges_class!(
+    PyEdges,
+    Edge,
+    "Edges",
+    "A list of edges that can be iterated over."
+);
+impl_edges_class!(
+    PyExplodedEdges,
+    ExplodedEdge,
+    "ExplodedEdges",
+    "A list of exploded edges, one per update of the edges it came from, that can be iterated over."
+);
+
+/// The python class for a collection of edges of one kind per node, and the
+/// conversions into it; stamped out for edges and for exploded edges.
+macro_rules! impl_nested_edges_class {
+    ($obj:ident, $kind:ty, $name:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[pyclass(name = $name, module = "raphtory")]
+        pub struct $obj {
+            edges: NestedEdges<'static, DynamicGraph, $kind>,
+        }
+
+        impl_edgeviewops!(
+            $obj,
+            edges,
+            NestedEdges<'static, DynamicGraph, $kind>,
+            $name,
+            "NestedExplodedEdges"
+        );
+        impl_iterable_mixin!(
+            $obj,
+            edges,
+            Vec<Vec<EdgeView<DynamicGraph>>>,
+            "list[list[Edges]]",
+            "edge"
+        );
+
+        impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
+            for NestedEdges<'static, G, $kind>
+        {
+            type Target = $obj;
+            type Output = Bound<'py, Self::Target>;
+            type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                let edges = self.into_dyn_hop();
+                $obj { edges }.into_pyobject(py)
+            }
+        }
+
+        impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G, $kind> {
+            fn repr(&self) -> String {
+                format!(concat!($name, "({})"), iterator_repr(self.iter()))
+            }
+        }
+
+        impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G, $kind>> for $obj {
+            fn from(value: NestedEdges<'static, G, $kind>) -> Self {
+                Self {
+                    edges: value.into_dyn(),
+                }
+            }
+        }
+
+        #[pymethods]
+        impl $obj {
+            fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<$obj> {
+                let r = self.edges.select(filter)?;
+                Ok($obj::from(r))
+            }
+
+            /// Returns the earliest time of the edges.
+            ///
+            /// Returns:
+            ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
+            #[getter]
+            fn earliest_time(&self) -> NestedOptionEventTimeIterable {
                 let edges = self.edges.clone();
-                Ok((move || {
-                    edges
-                        .layer_name()
-                        .map(|layer_name_iter| {
-                            layer_name_iter
-                                .map(|layer_name| layer_name.unwrap())
+                (move || edges.earliest_time()).into()
+            }
+
+            /// Returns the latest time of the edges.
+            ///
+            /// Returns:
+            ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
+            #[getter]
+            fn latest_time(&self) -> NestedOptionEventTimeIterable {
+                let edges = self.edges.clone();
+                (move || edges.latest_time()).into()
+            }
+
+            /// Returns the times of exploded edges.
+            ///
+            /// Returns:
+            ///     NestedEventTimeIterable: A nested iterable of `EventTime`s.
+            ///
+            /// Raises:
+            ///     GraphError: If a graph error occurs (e.g. the edges are not exploded).
+            #[getter]
+            fn time(&self) -> Result<NestedEventTimeIterable, GraphError> {
+                match self.edges.time().flatten().next() {
+                    Some(Err(err)) => Err(err),
+                    _ => {
+                        let edges = self.edges.clone();
+                        Ok((move || {
+                            edges
+                                .time()
+                                .map(|t_iter| t_iter.map(|t| t.unwrap()).into_dyn_boxed())
                                 .into_dyn_boxed()
                         })
-                        .into_dyn_boxed()
+                        .into())
+                    }
+                }
+            }
+
+            /// Returns the name of the layer the edges belong to - assuming they only belong to one layer.
+            ///
+            /// Returns:
+            ///     NestedArcStringIterable:
+            #[getter]
+            fn layer_name(&self) -> Result<NestedArcStringIterable, GraphError> {
+                match self.edges.layer_name().flatten().next() {
+                    Some(Err(err)) => Err(err),
+                    _ => {
+                        let edges = self.edges.clone();
+                        Ok((move || {
+                            edges
+                                .layer_name()
+                                .map(|layer_name_iter| {
+                                    layer_name_iter
+                                        .map(|layer_name| layer_name.unwrap())
+                                        .into_dyn_boxed()
+                                })
+                                .into_dyn_boxed()
+                        })
+                        .into())
+                    }
+                }
+            }
+
+            /// Returns the names of the layers the edges belong to.
+            ///
+            /// Returns:
+            ///     NestedArcStringVecIterable:
+            #[getter]
+            fn layer_names(&self) -> NestedArcStringVecIterable {
+                let edges = self.edges.clone();
+                (move || edges.layer_names()).into()
+            }
+
+            // FIXME: needs a view that allows indexing into the properties
+            /// Returns all properties of the edges
+            ///
+            /// Returns:
+            ///     PyNestedPropsIterable:
+            #[getter]
+            fn properties(&self) -> PyNestedPropsIterable {
+                let edges = self.edges.clone();
+                (move || edges.properties()).into()
+            }
+
+            /// Get a view of the metadata only.
+            ///
+            /// Returns:
+            ///     MetadataListList:
+            #[getter]
+            pub fn metadata(&self) -> MetadataListList {
+                let edges = self.edges.clone();
+                (move || edges.metadata()).into()
+            }
+
+            /// Returns all ids of the edges.
+            ///
+            /// Returns:
+            ///     NestedGIDGIDIterable:
+            #[getter]
+            fn id(&self) -> NestedGIDGIDIterable {
+                let edges = self.edges.clone();
+                (move || edges.id()).into()
+            }
+
+            /// Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
+            ///
+            /// Returns:
+            ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+            #[getter]
+            fn history(&self) -> NestedHistoryIterable {
+                let edges = self.edges.clone();
+                (move || {
+                    edges
+                        .history()
+                        .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
                 })
-                .into())
+                .into()
+            }
+
+            /// Returns a history object for each edge containing their deletion times.
+            ///
+            /// Returns:
+            ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+            #[getter]
+            fn deletions(&self) -> NestedHistoryIterable {
+                let edges = self.edges.clone();
+                (move || {
+                    edges
+                        .deletions()
+                        .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
+                })
+                .into()
+            }
+
+            /// Check if edges are valid (i.e., not deleted).
+            ///
+            /// Returns:
+            ///     NestedBoolIterable:
+            fn is_valid(&self) -> NestedBoolIterable {
+                let edges = self.edges.clone();
+                (move || edges.is_valid()).into()
+            }
+
+            /// Check if the edges are active (there is at least one update during this time).
+            ///
+            /// Returns:
+            ///     NestedBoolIterable:
+            fn is_active(&self) -> NestedBoolIterable {
+                let edges = self.edges.clone();
+                (move || edges.is_active()).into()
+            }
+
+            /// Check if the edges are on the same node.
+            ///
+            /// Returns:
+            ///     NestedBoolIterable:
+            fn is_self_loop(&self) -> NestedBoolIterable {
+                let edges = self.edges.clone();
+                (move || edges.is_self_loop()).into()
+            }
+
+            /// Check if edges are deleted.
+            ///
+            /// Returns:
+            ///     NestedBoolIterable:
+            fn is_deleted(&self) -> NestedBoolIterable {
+                let edges = self.edges.clone();
+                (move || edges.is_deleted()).into()
             }
         }
-    }
-
-    /// Returns the names of the layers the edges belong to.
-    ///
-    /// Returns:
-    ///     NestedArcStringVecIterable:
-    #[getter]
-    fn layer_names(&self) -> NestedArcStringVecIterable {
-        let edges = self.edges.clone();
-        (move || edges.layer_names()).into()
-    }
-
-    // FIXME: needs a view that allows indexing into the properties
-    /// Returns all properties of the edges
-    ///
-    /// Returns:
-    ///     PyNestedPropsIterable:
-    #[getter]
-    fn properties(&self) -> PyNestedPropsIterable {
-        let edges = self.edges.clone();
-        (move || edges.properties()).into()
-    }
-
-    /// Get a view of the metadata only.
-    ///
-    /// Returns:
-    ///     MetadataListList:
-    #[getter]
-    pub fn metadata(&self) -> MetadataListList {
-        let edges = self.edges.clone();
-        (move || edges.metadata()).into()
-    }
-
-    /// Returns all ids of the edges.
-    ///
-    /// Returns:
-    ///     NestedGIDGIDIterable:
-    #[getter]
-    fn id(&self) -> NestedGIDGIDIterable {
-        let edges = self.edges.clone();
-        (move || edges.id()).into()
-    }
-
-    /// Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
-    ///
-    /// Returns:
-    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
-    #[getter]
-    fn history(&self) -> NestedHistoryIterable {
-        let edges = self.edges.clone();
-        (move || {
-            edges
-                .history()
-                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
-        })
-        .into()
-    }
-
-    /// Returns a history object for each edge containing their deletion times.
-    ///
-    /// Returns:
-    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
-    #[getter]
-    fn deletions(&self) -> NestedHistoryIterable {
-        let edges = self.edges.clone();
-        (move || {
-            edges
-                .deletions()
-                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
-        })
-        .into()
-    }
-
-    /// Check if edges are valid (i.e., not deleted).
-    ///
-    /// Returns:
-    ///     NestedBoolIterable:
-    fn is_valid(&self) -> NestedBoolIterable {
-        let edges = self.edges.clone();
-        (move || edges.is_valid()).into()
-    }
-
-    /// Check if the edges are active (there is at least one update during this time).
-    ///
-    /// Returns:
-    ///     NestedBoolIterable:
-    fn is_active(&self) -> NestedBoolIterable {
-        let edges = self.edges.clone();
-        (move || edges.is_active()).into()
-    }
-
-    /// Check if the edges are on the same node.
-    ///
-    /// Returns:
-    ///     NestedBoolIterable:
-    fn is_self_loop(&self) -> NestedBoolIterable {
-        let edges = self.edges.clone();
-        (move || edges.is_self_loop()).into()
-    }
-
-    /// Check if edges are deleted.
-    ///
-    /// Returns:
-    ///     NestedBoolIterable:
-    fn is_deleted(&self) -> NestedBoolIterable {
-        let edges = self.edges.clone();
-        (move || edges.is_deleted()).into()
-    }
+    };
 }
+
+impl_nested_edges_class!(
+    PyNestedEdges,
+    Edge,
+    "NestedEdges",
+    "A list of edges per node."
+);
+impl_nested_edges_class!(
+    PyNestedExplodedEdges,
+    ExplodedEdge,
+    "NestedExplodedEdges",
+    "A list of exploded edges per node, one per update of the edges they came from."
+);

@@ -110,6 +110,14 @@ assert sorted(n.name for n in g.filter(either).nodes) == ["alice", "carol"]
 ```
 ///
 
+## Selecting from a collection
+
+`collection[f]` keeps the items of the collection on its left that pass `f`, and asks the question
+once per item: once per edge on `g.edges`, once per exploded edge on `g.edges.explode()`. The
+kind of `f` does not change that. A view used this way, `g.edges[filter.Graph.window(0, 5)]`, keeps
+the edges active in the window, and exploding them afterwards lists all of their updates; to see
+only the updates inside the window, put the window on the graph: `g.window(0, 5).edges.explode()`.
+
 ## Reading through a view
 
 A view can sit in front of a term. `filter.Node.window(0, 2).property("score")` reads the score

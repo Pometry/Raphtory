@@ -5,7 +5,7 @@ use crate::{
         algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
         graph::{
             edge::{PyEdge, PyMutableEdge},
-            edges::{PyEdges, PyNestedEdges},
+            edges::{PyEdges, PyExplodedEdges, PyNestedEdges, PyNestedExplodedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             history::{
@@ -79,7 +79,9 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyMutableNode,
         PyEdge,
         PyEdges,
+        PyExplodedEdges,
         PyNestedEdges,
+        PyNestedExplodedEdges,
         PyMutableEdge,
         PySortByTime,
         PyNodeSortBy,

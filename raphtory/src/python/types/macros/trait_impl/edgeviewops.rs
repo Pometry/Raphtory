@@ -6,8 +6,9 @@
 /// * base_type: The rust type of `field` (note that `<$base_type as LayerOps<'static>>::LayeredViewType`
 ///              should have an `IntoPyObject` implementation)
 /// * name: The name of the object that appears in the docstring
+/// * exploded: The name of the python class `explode()` and `explode_layers()` return
 macro_rules! impl_edgeviewops {
-    ($obj:ident, $field:ident, $base_type:ty, $name:literal) => {
+    ($obj:ident, $field:ident, $base_type:ty, $name:literal, $exploded:literal) => {
         impl_timeops!($obj, $field, $base_type, $name);
         impl_filter_ops!($obj<$base_type>, $field, $name);
         impl_layerops!($obj, $field, $base_type, $name);
@@ -45,7 +46,7 @@ macro_rules! impl_edgeviewops {
             /// Explodes returns an edge object for each update within the original edge.
             ///
             /// Returns:
-            ///     Edges:
+            #[doc = concat!("    ", $exploded, ":")]
             fn explode(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
@@ -55,7 +56,7 @@ macro_rules! impl_edgeviewops {
             /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
             ///
             /// Returns:
-            ///     Edges:
+            #[doc = concat!("    ", $exploded, ":")]
             fn explode_layers(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
