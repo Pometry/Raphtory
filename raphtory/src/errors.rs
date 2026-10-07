@@ -7,13 +7,14 @@ use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
+        properties::prop::{
+            InvalidPropertyTypeErr, PropError, PropType, PropTypeError, PropTypeParseError,
+        },
         GidType, GID, VID,
     },
     storage::{graph_folder::GraphFolderError, timeindex::TimeError},
     utils::time::ParseTimeError,
 };
-use raphtory_api::core::entities::properties::prop::PropTypeError;
 use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
