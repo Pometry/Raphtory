@@ -6,10 +6,10 @@ use crate::{
         remote_edge::RemoteEdge,
         remote_path_from_graph::RemotePathFromGraph,
         transport::{
-            expect_bool, expect_double_nested_string_list, expect_i64, expect_nested_bool_list,
             expect_nested_edge_list, expect_nested_exploded_edge_list,
             expect_nested_exploded_layers_edge_list, expect_nested_optional_event_time_list,
-            expect_nested_string_list, expect_optional_event_time, expect_optional_i64, Transport,
+            expect_optional_event_time, expect_optional_typed,
+            expect_tagged_nested_tagged_typed_list, expect_typed, Transport,
         },
         ClientError,
     },
@@ -188,7 +188,7 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -197,7 +197,7 @@ impl RemoteNestedEdges {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Terminal: the size of the window covered by this view (`end - start`),
@@ -206,7 +206,7 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// The non-temporal metadata of this collection as a nested columnar view —
@@ -239,7 +239,7 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedEdgesList {
             input: self.expr.clone(),
         });
-        expect_nested_edge_list(self.transport.execute(&op).await?, "id")
+        expect_nested_edge_list(self.transport.execute(&op).await?, "list")
     }
 
     /// Columnar accessor: each source's per-edge layer names — one inner list
@@ -248,7 +248,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedLayerNames {
             input: self.expr.clone(),
         });
-        expect_double_nested_string_list(self.transport.execute(&op).await?, "layerNames")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "layerNames",
+        )
     }
 
     /// Columnar accessor: each source's per-edge single layer name — one inner
@@ -259,7 +263,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedLayerName {
             input: self.expr.clone(),
         });
-        expect_nested_string_list(self.transport.execute(&op).await?, "layerName")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "layerName",
+        )
     }
 
     /// Columnar accessor: each source's per-edge earliest event time — one
@@ -269,7 +277,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedEarliestTime {
             input: self.expr.clone(),
         });
-        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+        expect_nested_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "earliestTime",
+            "earliestTime",
+        )
     }
 
     /// Columnar accessor: each source's per-edge latest event time — one inner
@@ -279,7 +291,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedLatestTime {
             input: self.expr.clone(),
         });
-        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+        expect_nested_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "latestTime",
+            "latestTime",
+        )
     }
 
     /// Columnar accessor: each source's per-edge event time — one inner list
@@ -289,7 +305,7 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedTime {
             input: self.expr.clone(),
         });
-        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "time")
+        expect_nested_optional_event_time_list(self.transport.execute(&op).await?, "time", "time")
     }
 
     /// Columnar accessor: whether each edge is active (has an event) in the
@@ -299,7 +315,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedIsActive {
             input: self.expr.clone(),
         });
-        expect_nested_bool_list(self.transport.execute(&op).await?, "isActive")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "isActive",
+        )
     }
 
     /// Columnar accessor: whether each edge is valid (not deleted) at the
@@ -309,7 +329,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedIsValid {
             input: self.expr.clone(),
         });
-        expect_nested_bool_list(self.transport.execute(&op).await?, "isValid")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "isValid",
+        )
     }
 
     /// Columnar accessor: whether each edge has been deleted at the current
@@ -319,7 +343,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedIsDeleted {
             input: self.expr.clone(),
         });
-        expect_nested_bool_list(self.transport.execute(&op).await?, "isDeleted")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "isDeleted",
+        )
     }
 
     /// Columnar accessor: whether each edge is a self-loop (`src == dst`),
@@ -329,7 +357,11 @@ impl RemoteNestedEdges {
         let op = Op::Read(ReadExpr::NestedIsSelfLoop {
             input: self.expr.clone(),
         });
-        expect_nested_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
+        expect_tagged_nested_tagged_typed_list(
+            self.transport.execute(&op).await?,
+            "list",
+            "isSelfLoop",
+        )
     }
 
     /// Terminal: view start bound for this collection — `None` if unbounded.

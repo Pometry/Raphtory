@@ -356,14 +356,11 @@ impl<E: CreateView> CreateOp for TemporalPropExpr<E> {
             .get_prop_id(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
         let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(
-            TemporalNodePropOp {
-                graph,
-                prop_id,
-                narrows: self.view_expr.narrows(),
-            }
-            .map(|a| Some(a)),
-        ))
+        Ok(Arc::new(TemporalNodePropOp {
+            graph,
+            prop_id,
+            narrows: self.view_expr.narrows(),
+        }))
     }
 
     fn create_edge_op<'g, G: GraphView + 'g>(

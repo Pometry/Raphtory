@@ -68,7 +68,7 @@ use crate::{
 use bigdecimal::BigDecimal;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{IntoProp, Prop, PropArray, PropType},
+        properties::prop::{IntoProp, Prop, PropType},
         GidType, LayerId, GID, VID,
     },
     storage::timeindex::EventTime,
@@ -307,9 +307,9 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
             .map_or(PropType::Empty, |dt| PropType::List(Box::new(dt)))
     }
 
-    type Output = Prop;
+    type Output = Option<Prop>;
 
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Prop {
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
         let vals: Vec<Prop> = view_node(&self.graph, self.narrows, node)
             .and_then(|n| {
                 n.properties()
@@ -318,7 +318,9 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
                     .map(|tpv| tpv.values().collect())
             })
             .unwrap_or_default();
-        Prop::List(PropArray::from(vals))
+        // Every value in one property's history has the property's type, so
+        // the list always unifies.
+        Prop::list(vals).ok()
     }
 }
 
@@ -656,7 +658,9 @@ impl_agg_entity_op!(
 
 pub fn broadcast_unary(v: Option<Prop>, op: impl Fn(Option<Prop>) -> Option<Prop>) -> Option<Prop> {
     match v {
-        Some(Prop::List(v)) => Some(Prop::List(v.iter_all().map(|l| op(l)).flatten().collect())),
+        // The kernels passed here answer every element with a `Bool`, so the
+        // list always unifies.
+        Some(Prop::List(v)) => Prop::list(v.iter_all().filter_map(op)).ok(),
         _ => op(v),
     }
 }
@@ -669,32 +673,26 @@ pub fn broadcast_binary(
     let l = l?;
     let r = r?;
 
+    // The kernels passed here answer every element with a `Bool` (or, one
+    // level down, a list of them), so each list built below always unifies.
     match (l, r) {
         (Prop::List(l), Prop::List(r)) => {
             if l.len() == r.len() {
-                Some(Prop::List(
-                    l.iter_all()
-                        .zip(r.iter_all())
-                        .map(|(l, r)| op(l, r))
-                        .flatten()
-                        .collect(),
-                ))
+                Prop::list(l.iter_all().zip(r.iter_all()).filter_map(|(l, r)| op(l, r))).ok()
             } else {
                 None
             }
         }
-        (Prop::List(l), r) => Some(Prop::List(
+        (Prop::List(l), r) => Prop::list(
             l.iter_all()
-                .map(|l| broadcast_binary(l, Some(r.clone()), op))
-                .flatten()
-                .collect(),
-        )),
-        (l, Prop::List(r)) => Some(Prop::List(
+                .filter_map(|l| broadcast_binary(l, Some(r.clone()), op)),
+        )
+        .ok(),
+        (l, Prop::List(r)) => Prop::list(
             r.iter_all()
-                .map(|r| broadcast_binary(Some(l.clone()), r, op))
-                .flatten()
-                .collect(),
-        )),
+                .filter_map(|r| broadcast_binary(Some(l.clone()), r, op)),
+        )
+        .ok(),
         (l, r) => op(Some(l), Some(r)),
     }
 }

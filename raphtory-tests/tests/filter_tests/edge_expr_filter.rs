@@ -545,7 +545,10 @@ fn test_edge_aggregated_latest_then_sum() {
         1,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(1), Prop::I64(2)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -555,7 +558,7 @@ fn test_edge_aggregated_latest_then_sum() {
         "B",
         [(
             "score",
-            Prop::List(vec![Prop::I64(3), Prop::I64(4), Prop::I64(5)].into()),
+            Prop::list(vec![Prop::I64(3), Prop::I64(4), Prop::I64(5)]).unwrap(),
         )],
         None,
     )
@@ -567,7 +570,7 @@ fn test_edge_aggregated_latest_then_sum() {
         "D",
         [(
             "score",
-            Prop::List(vec![Prop::I64(1), Prop::I64(2), Prop::I64(3)].into()),
+            Prop::list(vec![Prop::I64(1), Prop::I64(2), Prop::I64(3)]).unwrap(),
         )],
         None,
     )
@@ -636,7 +639,7 @@ fn test_edge_aggregated_last_then_len() {
         1,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(10)].into()))],
+        [("score", Prop::list(vec![Prop::I64(10)]).unwrap())],
         None,
     )
     .unwrap();
@@ -644,7 +647,7 @@ fn test_edge_aggregated_last_then_len() {
         2,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(15)].into()))],
+        [("score", Prop::list(vec![Prop::I64(15)]).unwrap())],
         None,
     )
     .unwrap();
@@ -654,7 +657,7 @@ fn test_edge_aggregated_last_then_len() {
         "B",
         [(
             "score",
-            Prop::List(vec![Prop::I64(20), Prop::I64(30)].into()),
+            Prop::list(vec![Prop::I64(20), Prop::I64(30)]).unwrap(),
         )],
         None,
     )
@@ -666,7 +669,7 @@ fn test_edge_aggregated_last_then_len() {
         "D",
         [(
             "score",
-            Prop::List(vec![Prop::I64(5), Prop::I64(10), Prop::I64(15)].into()),
+            Prop::list(vec![Prop::I64(5), Prop::I64(10), Prop::I64(15)]).unwrap(),
         )],
         None,
     )
@@ -696,7 +699,7 @@ fn test_edge_aggregated_last_then_any_is_in() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("rock"), Prop::str("pop")].into()),
+            Prop::list(vec![Prop::str("rock"), Prop::str("pop")]).unwrap(),
         )],
         None,
     )
@@ -707,7 +710,7 @@ fn test_edge_aggregated_last_then_any_is_in() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("metal"), Prop::str("folk")].into()),
+            Prop::list(vec![Prop::str("metal"), Prop::str("folk")]).unwrap(),
         )],
         None,
     )
@@ -719,7 +722,7 @@ fn test_edge_aggregated_last_then_any_is_in() {
         "D",
         [(
             "tag",
-            Prop::List(vec![Prop::str("jazz"), Prop::str("pop")].into()),
+            Prop::list(vec![Prop::str("jazz"), Prop::str("pop")]).unwrap(),
         )],
         None,
     )
@@ -745,7 +748,7 @@ fn test_edge_aggregated_latest_then_all_contains() {
         1,
         "A",
         "B",
-        [("tag", Prop::List(vec![Prop::str("jazz")].into()))],
+        [("tag", Prop::list(vec![Prop::str("jazz")]).unwrap())],
         None,
     )
     .unwrap();
@@ -755,7 +758,7 @@ fn test_edge_aggregated_latest_then_all_contains() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("rock"), Prop::str("rock-n-roll")].into()),
+            Prop::list(vec![Prop::str("rock"), Prop::str("rock-n-roll")]).unwrap(),
         )],
         None,
     )
@@ -767,7 +770,7 @@ fn test_edge_aggregated_latest_then_all_contains() {
         "D",
         [(
             "tag",
-            Prop::List(vec![Prop::str("rock"), Prop::str("jazz")].into()),
+            Prop::list(vec![Prop::str("rock"), Prop::str("jazz")]).unwrap(),
         )],
         None,
     )
@@ -881,7 +884,10 @@ fn test_edge_quantified_any_sum_gt() {
         1,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(3), Prop::I64(8)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(3), Prop::I64(8)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -889,7 +895,10 @@ fn test_edge_quantified_any_sum_gt() {
         2,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(1), Prop::I64(2)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -898,7 +907,10 @@ fn test_edge_quantified_any_sum_gt() {
         1,
         "C",
         "D",
-        [("score", Prop::List(vec![Prop::I64(1), Prop::I64(2)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(1), Prop::I64(2)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -906,7 +918,10 @@ fn test_edge_quantified_any_sum_gt() {
         2,
         "C",
         "D",
-        [("score", Prop::List(vec![Prop::I64(1), Prop::I64(4)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(1), Prop::I64(4)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -925,7 +940,10 @@ fn test_edge_quantified_all_min_ge() {
         1,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(3), Prop::I64(8)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(3), Prop::I64(8)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -933,7 +951,10 @@ fn test_edge_quantified_all_min_ge() {
         2,
         "A",
         "B",
-        [("score", Prop::List(vec![Prop::I64(5), Prop::I64(9)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(5), Prop::I64(9)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -942,7 +963,10 @@ fn test_edge_quantified_all_min_ge() {
         1,
         "C",
         "D",
-        [("score", Prop::List(vec![Prop::I64(1), Prop::I64(9)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(1), Prop::I64(9)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -950,7 +974,10 @@ fn test_edge_quantified_all_min_ge() {
         2,
         "C",
         "D",
-        [("score", Prop::List(vec![Prop::I64(3), Prop::I64(5)].into()))],
+        [(
+            "score",
+            Prop::list(vec![Prop::I64(3), Prop::I64(5)]).unwrap(),
+        )],
         None,
     )
     .unwrap();
@@ -971,7 +998,7 @@ fn test_edge_quantified_any_any_contains() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("rock"), Prop::str("metal")].into()),
+            Prop::list(vec![Prop::str("rock"), Prop::str("metal")]).unwrap(),
         )],
         None,
     )
@@ -982,7 +1009,7 @@ fn test_edge_quantified_any_any_contains() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("jazz"), Prop::str("blues")].into()),
+            Prop::list(vec![Prop::str("jazz"), Prop::str("blues")]).unwrap(),
         )],
         None,
     )
@@ -994,7 +1021,7 @@ fn test_edge_quantified_any_any_contains() {
         "D",
         [(
             "tag",
-            Prop::List(vec![Prop::str("jazz"), Prop::str("blues")].into()),
+            Prop::list(vec![Prop::str("jazz"), Prop::str("blues")]).unwrap(),
         )],
         None,
     )
@@ -1005,7 +1032,7 @@ fn test_edge_quantified_any_any_contains() {
         "D",
         [(
             "tag",
-            Prop::List(vec![Prop::str("folk"), Prop::str("pop")].into()),
+            Prop::list(vec![Prop::str("folk"), Prop::str("pop")]).unwrap(),
         )],
         None,
     )
@@ -1034,7 +1061,7 @@ fn test_edge_quantified_any_last_is_in() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("rock"), Prop::str("folk")].into()),
+            Prop::list(vec![Prop::str("rock"), Prop::str("folk")]).unwrap(),
         )],
         None,
     )
@@ -1045,7 +1072,7 @@ fn test_edge_quantified_any_last_is_in() {
         "B",
         [(
             "tag",
-            Prop::List(vec![Prop::str("metal"), Prop::str("pop")].into()),
+            Prop::list(vec![Prop::str("metal"), Prop::str("pop")]).unwrap(),
         )],
         None,
     )
@@ -1057,7 +1084,7 @@ fn test_edge_quantified_any_last_is_in() {
         "D",
         [(
             "tag",
-            Prop::List(vec![Prop::str("jazz"), Prop::str("blues")].into()),
+            Prop::list(vec![Prop::str("jazz"), Prop::str("blues")]).unwrap(),
         )],
         None,
     )

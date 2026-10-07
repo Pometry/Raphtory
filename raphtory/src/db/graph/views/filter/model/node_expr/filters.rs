@@ -770,7 +770,7 @@ mod streaming_tests {
         let gt = ValueTest::Cmp(BinaryOp::Gt, 4i64.into_prop());
         assert!(gt.for_history(&history).is_some());
         // A constant list compares against the whole history, not each value.
-        let whole = ValueTest::Cmp(BinaryOp::Eq, Prop::list([1i64, 2i64]));
+        let whole = ValueTest::Cmp(BinaryOp::Eq, Prop::list([1i64, 2i64]).unwrap());
         assert!(whole.for_history(&history).is_none());
         // A mismatch is left to the list path, which reports it.
         assert!(gt.for_history(&list(PropType::Str)).is_none());

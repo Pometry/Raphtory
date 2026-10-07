@@ -607,7 +607,7 @@ fn non_id_and_inequality_filters_keep_the_full_domain() {
 /// the range of the element type.
 fn graph_with_list(prop: &str, values: Vec<Prop>) -> Graph {
     let g = Graph::new();
-    g.add_node(0, "n", [(prop, Prop::List(values.into()))], None, None)
+    g.add_node(0, "n", [(prop, Prop::list(values).unwrap())], None, None)
         .unwrap();
     g
 }
@@ -633,8 +633,8 @@ fn sum_over_a_nested_list_widens_only_the_innermost_level() {
     let g = graph_with_list(
         "xs",
         vec![
-            Prop::List(vec![Prop::U8(u8::MAX), Prop::U8(u8::MAX)].into()),
-            Prop::List(vec![Prop::U8(1), Prop::U8(1)].into()),
+            Prop::list([u8::MAX, u8::MAX]).unwrap(),
+            Prop::list([1u8, 1]).unwrap(),
         ],
     );
     let filter = NodeFilter.property("xs").sum().eq(510u64).any();

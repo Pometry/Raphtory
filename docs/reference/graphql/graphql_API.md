@@ -1215,11 +1215,38 @@ Number of iterations to run. Defaults to 20.
 </td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">seed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the tie-break draw. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" align="right" valign="top">threads</td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
 Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">relTol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Relative-improvement threshold used to track convergence. Defaults to 3e-4.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">patience</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Stop after this many iterations without progress. Defaults to 10.
 
 </td>
 </tr>

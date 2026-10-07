@@ -47,7 +47,7 @@ fn graph() -> Graph {
     g.add_node(0, "carol", [("tag", "x".into_prop())], None, None)
         .unwrap();
     for (t, scores) in [(0, vec![1i64, 2]), (1, vec![5, 5])] {
-        let list = Prop::List(scores.into_iter().map(Prop::I64).collect::<Vec<_>>().into());
+        let list = Prop::list(scores).unwrap();
         g.add_node(t, "eve", [("scores", list)], None, None)
             .unwrap();
     }
@@ -635,15 +635,7 @@ fn aggregates_reduce_inside_each_update_and_earliest_picks_one() {
         ),
         eve
     );
-    let list = |items: &[i64]| {
-        Prop::List(
-            items
-                .iter()
-                .map(|v| Prop::I64(*v))
-                .collect::<Vec<_>>()
-                .into(),
-        )
-    };
+    let list = |items: &[i64]| Prop::list(items.iter().copied()).unwrap();
     assert_eq!(
         nodes(
             &g,

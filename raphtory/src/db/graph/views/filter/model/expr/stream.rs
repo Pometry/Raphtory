@@ -222,13 +222,13 @@ fn reduce<'a>(
     match agg {
         Agg::Earliest => values().next(),
         Agg::Latest => values_rev().next(),
-        _ if per_update => Some(Prop::List(
-            values()
-                .filter_map(|update| {
-                    aggregate_list_values(Some(update), &|items| reduce_list(agg, items))
-                })
-                .collect(),
-        )),
+        // A sum that overflows one update but not another answers `Decimal`
+        // beside `U64`/`I64`; such a list has no element type, so it has no
+        // answer.
+        _ if per_update => Prop::list(values().filter_map(|update| {
+            aggregate_list_values(Some(update), &|items| reduce_list(agg, items))
+        }))
+        .ok(),
         Agg::Last => values_rev().next(),
         _ => fold_values(agg, values()),
     }
@@ -595,9 +595,9 @@ mod tests {
     fn a_history_of_lists_reduces_each_update() {
         let updates = || {
             vec![
-                Prop::list([1i64, 2]),
-                Prop::list([5i64]),
-                Prop::list(Vec::<i64>::new()),
+                Prop::list([1i64, 2]).unwrap(),
+                Prop::list([5i64]).unwrap(),
+                Prop::list(Vec::<i64>::new()).unwrap(),
             ]
             .into_iter()
             .into_dyn_boxed()
@@ -606,7 +606,7 @@ mod tests {
         assert!(updates_are_lists(&history_type));
         assert!(!updates_are_lists(&PropType::List(Box::new(PropType::I64))));
         let sums = reduce(Agg::Sum, true, updates, updates);
-        assert_eq!(sums, Some(Prop::list([3i64, 5])));
+        assert_eq!(sums, Some(Prop::list([3i64, 5]).unwrap()));
         let latest = reduce(Agg::Latest, true, updates, || {
             updates()
                 .collect::<Vec<_>>()
@@ -614,7 +614,7 @@ mod tests {
                 .rev()
                 .into_dyn_boxed()
         });
-        assert_eq!(latest, Some(Prop::list(Vec::<i64>::new())));
+        assert_eq!(latest, Some(Prop::list(Vec::<i64>::new()).unwrap()));
         let lasts = reduce(Agg::Last, true, updates, || {
             updates()
                 .collect::<Vec<_>>()
@@ -622,7 +622,7 @@ mod tests {
                 .rev()
                 .into_dyn_boxed()
         });
-        assert_eq!(lasts, Some(Prop::list([2i64, 5])));
+        assert_eq!(lasts, Some(Prop::list([2i64, 5]).unwrap()));
     }
 
     #[test]

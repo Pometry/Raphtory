@@ -1,5 +1,8 @@
 use crate::{db::graph::views::filter::model::property_filter::Op, prelude::PropertyFilter};
-use raphtory_api::core::{entities::properties::prop::Prop, utils::generalised_reduce};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropArray},
+    utils::generalised_reduce,
+};
 use std::borrow::Borrow;
 
 enum ValueType {
@@ -312,7 +315,9 @@ impl<M> PropertyFilter<M> {
         }
 
         if let Some(seq) = maybe_seq {
-            let full = Prop::List(seq.into());
+            let full = Prop::List(
+                PropArray::try_from(seq).expect("internal lists should have correct types"),
+            );
             self.operator
                 .apply_to_property(&self.prop_value, Some(&full))
         } else {
@@ -412,11 +417,10 @@ pub fn aggregate_list_values(
         Prop::List(x) => {
             let nested = matches!(x.iter_all().next(), Some(Some(Prop::List(_))));
             if nested {
-                let s = x
-                    .iter_all()
-                    .filter_map(|y| aggregate_list_values(y, op))
-                    .collect();
-                Some(Prop::List(s))
+                // A sum that overflows one sub-list but not another answers
+                // `Decimal` beside `U64`/`I64`; such a list has no element
+                // type, so it has no answer.
+                Prop::list(x.iter_all().filter_map(|y| aggregate_list_values(y, op))).ok()
             } else {
                 op(Box::new(x.iter()))
             }

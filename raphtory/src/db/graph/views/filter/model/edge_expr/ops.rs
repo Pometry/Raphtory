@@ -27,7 +27,6 @@ use crate::db::{
         node_expr::typing::{truthy, BinaryKernel, UnaryKernel},
     },
 };
-use raphtory_api::core::entities::properties::prop::PropArray;
 use std::sync::Arc;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,7 +216,9 @@ impl<G: GraphView> TemporalEdgePropOp<G> {
                 .collect(),
             None => Vec::new(),
         };
-        Some(Prop::List(PropArray::from(vals)))
+        // Every value in one property's history has the property's type, so
+        // the list always unifies.
+        Prop::list(vals).ok()
     }
 }
 

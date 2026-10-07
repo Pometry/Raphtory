@@ -12,6 +12,7 @@ use crate::{
         },
         graph::nodes::Nodes,
     },
+    errors::GraphError,
     prelude::{GraphViewOps, NodeStateOps, Prop},
     python::{
         graph::{
@@ -225,11 +226,14 @@ impl PyOutputNodeState {
     fn groups(
         &self,
         cols: Vec<String>,
-    ) -> Vec<(
-        TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
-        Nodes<'static, DynamicGraph>,
-    )> {
-        self.inner.get_groups(cols).unwrap()
+    ) -> Result<
+        Vec<(
+            TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
+            Nodes<'static, DynamicGraph>,
+        )>,
+        GraphError,
+    > {
+        self.inner.get_groups(cols)
     }
 
     //fn sorted_by_id(&self) -> OutputTypedNodeState<'static, DynamicGraph> {
