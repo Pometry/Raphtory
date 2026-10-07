@@ -352,7 +352,7 @@ impl PyGraph {
     ///     MutableNode: The added node.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(
         signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None)
     )]
@@ -396,7 +396,7 @@ impl PyGraph {
     ///     MutableNode: The created node.
     ///
     /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,

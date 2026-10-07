@@ -186,7 +186,6 @@ def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=Fals
 
 def run_graphql_error_test(query, expected_error_message, graph):
     with graphql_client(graph) as client:
-
         with pytest.raises(Exception) as excinfo:
             client.query(query)
 
@@ -215,7 +214,6 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
 
 def run_graphql_error_test_contains(query, expected_substrings, graph):
     with graphql_client(graph) as client:
-
         with pytest.raises(Exception) as excinfo:
             client.query(query)
 
@@ -229,7 +227,6 @@ def run_graphql_error_test_contains(query, expected_substrings, graph):
 
 def run_graphql_compare_test(query_a, query_b, graph):
     with graphql_client(graph) as client:
-
         resp_a = client.query(query_a)
         resp_b = client.query(query_b)
 
@@ -276,7 +273,7 @@ def expect_unify_error(fn):
         # check the message
         fn()
     print(e.value)
-    assert "Failed to unify props" in str(e.value)
+    assert "Mismatched value type" in str(e.value)
 
 
 def assert_in_all(haystack: str, needles):

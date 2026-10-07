@@ -601,7 +601,6 @@ fn test_single_filtered_edge_persistent() {
         .filter(ExplodedEdgeFilter.property("test").gt(0i64))
         .unwrap();
     let gfm = gf.materialize().unwrap();
-    dbg!(&gfm);
     assert_eq!(gf.node(0).unwrap().out_degree(), 1);
     assert_eq!(gfm.node(0).unwrap().out_degree(), 1);
     assert_graph_equal(&gf, &gfm);

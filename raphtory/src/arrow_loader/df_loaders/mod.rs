@@ -135,7 +135,7 @@ pub(crate) fn load_edges_props_from_df_prefetch<
     graph: &G,
     resolve_nodes: bool,
 ) -> Result<(), GraphError> {
-    edge_props::load_edges_from_df_prefetch(
+    edge_props::load_edges_metadata_from_df_prefetch(
         df_view,
         ColumnNames::new("", None, src, dst, layer_col),
         resolve_nodes,

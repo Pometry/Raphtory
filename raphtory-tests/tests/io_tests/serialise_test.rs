@@ -435,7 +435,7 @@ mod serialise_test {
         props.push(("weight", Prop::F64(75.5)));
         props.push((
             "children",
-            Prop::from(vec![Prop::Str("Bob".into()), Prop::Str("Charlie".into())]),
+            Prop::list([Prop::str("Bob"), Prop::str("Charlie")]).unwrap(),
         ));
         props.push((
             "properties",
