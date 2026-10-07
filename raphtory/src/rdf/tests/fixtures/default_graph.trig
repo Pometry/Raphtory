@@ -1,0 +1,6 @@
+@prefix ex: <http://ex/> .
+
+ex:a ex:p ex:b .
+{
+    ex:b ex:p ex:c .
+}

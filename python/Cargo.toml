@@ -29,8 +29,14 @@ auth = { workspace = true }
 
 
 [features]
-default = ["datafusion", "vectors"]
+default = ["datafusion", "vectors", "rdf", "shacl"]
 datafusion = ["raphtory/datafusion"]
+# RDF import/export and SPARQL queries (GraphView.sparql / to_rdf, Graph.load_rdf / retract_rdf,
+# and the `sparql` field of the GraphQL server)
+rdf = ["raphtory/rdf", "raphtory-graphql/rdf"]
+# SHACL validation of graph views (GraphView.validate_shacl / validate_shacl_at). It also turns
+# on RDF 1.2 and SPARQL 1.2 syntax for the whole module.
+shacl = ["rdf", "raphtory/shacl"]
 # search = ["raphtory/search", "raphtory-graphql/search"]
 vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
 test = ["raphtory/panic-on-drop"]

@@ -19,3 +19,5 @@ tempfile = { workspace = true }
 
 [features]
 vectors = ["raphtory-graphql/vectors"]
+# the `sparql` field on `Graph`; off by default, like `vectors`
+rdf = ["raphtory-graphql/rdf"]

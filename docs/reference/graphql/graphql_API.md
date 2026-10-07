@@ -4655,6 +4655,46 @@ Ordered list of view operations; each entry is a one-of variant applied to the r
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graph.sparql">sparql</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the RDF triples of this
+view and returns the results as one serialized document. The view has one triple per
+visible edge and layer (source, layer, destination); a name that is not an IRI, a blank
+node or a literal is an IRI under `raphtory:`, a prefix every query can use. On
+PERSISTENT graphs the triples are the state at the end of the view, so under
+`snapshotAt(time: T)` the state as of T; EVENT graphs ignore deletions (use
+`graphType: PERSISTENT`). `GRAPH <raphtory:asof:T>` matches the triples as of T. The
+temporal functions (`raphtory:validFrom`, `validTo`, `validFromTime`, `validToTime`) are
+unavailable when the caller's access to the graph is row-filtered. Disabled when the
+server sets `disable_lists`. Queries longer than the server's `max_sparql_query_length`
+(16 KiB by default), with more than `max_sparql_triple_patterns` triple patterns (100 by
+default) or with brackets nested more than 128 deep are rejected before they run, and a
+query that runs longer than `sparql_timeout` (30 seconds by default) is stopped with an
+error.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">query</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The SPARQL 1.1 query.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">format</td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Result format: a name, file extension or media type. SELECT and ASK: `json` (SPARQL Results JSON, the default), `xml`, `csv` or `tsv`. CONSTRUCT and DESCRIBE: an RDF format, `nt` (N-Triples, the default), `ttl`, `jsonld`, `rdf` (RDF/XML), `nq` or `trig`. `json` and `xml` mean a different format for each form of query; a format that does not fit the query is an error.
+
+</td>
+</tr>
 </tbody>
 </table>
 

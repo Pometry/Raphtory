@@ -16,7 +16,9 @@ members = [
     "raphtory-tests",
     "raphtory-itertools",
     "drop-logging",
-    "raphtory-graphql-tests"
+    "raphtory-graphql-tests",
+    "raphtory-rdf-tests",
+    "rdf-bench"
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -203,6 +205,20 @@ opentelemetry-appender-tracing = "0.32.0"
 mock-collector = "0.2.14"
 dyn-clone = "1.0.20"
 inventory = "0.3.24"
+# RDF / SPARQL support. The oxigraph crates pin each other with `=` versions, so
+# spareval and spargebra must match the versions oxigraph depends on.
+oxigraph = { version = "0.5.11", default-features = false }
+spareval = { version = "=0.2.7", features = ["sep-0002", "sep-0006", "calendar-ext"] }
+spargebra = { version = "=0.4.7", features = ["sep-0002", "sep-0006"] }
+# names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
+oxiri = "0.2.11"
+# SHACL validation (rudof). Exact pins: their oxigraph dependency must stay compatible with the
+# pins above. Do not enable their `sparql` features (the native engine would then need a
+# SPARQL-capable store).
+shacl = { version = "=0.3.24", default-features = false }
+rudof_rdf = { version = "=0.3.24", default-features = false }
+prefixmap = { version = "=0.3.24", default-features = false }
+rudof_iri = { version = "=0.3.24", default-features = false }
 
 [workspace.dependencies.storage]
 package = "db4-storage"

@@ -74,6 +74,18 @@ impl GqlGraph {
         }
     }
 
+    /// The view this object resolves on, with the caller's access filter already applied.
+    #[cfg_attr(not(feature = "rdf"), allow(dead_code))]
+    pub(crate) fn graph(&self) -> &DynamicGraph {
+        &self.graph
+    }
+
+    /// The folder of the stored graph this view comes from.
+    #[cfg_attr(not(feature = "rdf"), allow(dead_code))]
+    pub(crate) fn folder(&self) -> &UnlockedGraphFolder {
+        &self.path
+    }
+
     fn apply<F, G>(&self, graph_operation: F) -> Self
     where
         F: Fn(&DynamicGraph) -> G,

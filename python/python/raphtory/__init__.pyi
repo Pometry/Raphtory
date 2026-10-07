@@ -534,6 +534,82 @@ class GraphView(object):
              GraphView:
         """
 
+    def sparql(
+        self,
+        query: str,
+        decode_literals: bool = False,
+        format: Optional[str] = None,
+        timeout: Optional[float] = None,
+        max_triple_patterns: Optional[int] = None,
+    ) -> str | list[dict[str, Any]] | bool | list[tuple[str, str, Any]]:
+        """
+        Runs a SPARQL 1.1 query on the RDF triples of this view.
+
+        Every edge is one triple per layer, `src layer dst`, where node and layer names are RDF terms:
+        an absolute IRI is kept as written, `_:label` is a blank node, a name in N-Triples literal form
+        (e.g. `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`) is that literal, and any other name is
+        the IRI `raphtory:` followed by the percent-encoded name (the `raphtory:` prefix is
+        pre-registered, so the node `Alice` is `raphtory:Alice` and the default layer is
+        `raphtory:_default`).
+
+        The query sees the triples visible in `valid()`: on a PersistentGraph, the triples whose latest
+        event in the view is an assertion (so `g.snapshot_at(t).sparql(..)` queries the state as of
+        `t`); on a Graph, every triple asserted at least once in the view. Inside a query,
+        `GRAPH <raphtory:asof:T> { .. }` matches its patterns against `snapshot_at(T)`, where `T` is
+        epoch milliseconds or a date-time such as `2024-01-01`.
+
+        Queries can also ask since when a triple has held. `raphtory:validFrom(s, p, o)` returns the time
+        since which a triple visible in this view has held, and `raphtory:validTo(s, p, o)` the time it
+        stopped holding, as `xsd:dateTime` values in UTC (a datetime with `decode_literals`);
+        `raphtory:validFromTime` and `raphtory:validToTime` return the same times as integers (Raphtory
+        times). An optional fourth argument is the reference time: a time graph such as
+        `raphtory:asof:2024-01-01` (or the `?g` of `GRAPH ?g`, in a `BIND` after the `GRAPH` pattern), an
+        integer or an `xsd:dateTime`. Without it they answer for the present of the view, so `validTo` is
+        unbound. They are unbound for a triple the view (as of the reference time) does not show, and for
+        arguments they do not accept. On a Graph a triple holds from its first assertion on; use
+        `persistent_graph()` for intervals that end at retractions.
+
+        `SERVICE` calls (SPARQL federated queries) are not supported: a query that calls a service
+        raises a GraphError, and no query ever makes a network request.
+
+        Every value is returned as the Raphtory name of its term (a str), so it can be passed to
+        `node()` or `layer()`. The exceptions are IRIs under `raphtory:` that do not encode a name,
+        such as the time graphs `<raphtory:asof:T>`: they are returned in N-Triples form, with angle
+        brackets.
+
+        With `format`, the results are instead returned serialized, as one str: for SELECT and ASK in
+        a SPARQL results format ("json", "xml", "csv" or "tsv"), for CONSTRUCT and DESCRIBE in an RDF
+        format (such as "nt", "ttl", "jsonld" or "rdf"). A name means what it means for the form of
+        the query: "json" is SPARQL Results JSON for SELECT and ASK and JSON-LD for CONSTRUCT and
+        DESCRIBE, "xml" is SPARQL Results XML or RDF/XML. Serialized results hold RDF terms, as
+        `to_rdf()` writes them (the node `Alice` is `raphtory:Alice`), not Raphtory names. CSV loses
+        the kind, datatype and language of values; SPARQL Results XML cannot hold a literal with a
+        control character other than tab and line feed (including a carriage return), which raises an
+        error; and RDF/XML skips the triples `to_rdf()` skips.
+
+        By default a query runs until it is done. To run queries you do not control, bound them with
+        `timeout`, which stops the query once it has run that long, and `max_triple_patterns`, which
+        rejects a query that is too large before it is planned (planning cannot be interrupted by
+        `timeout`). Each triple pattern counts one, including those of collections such as
+        `(1 2 3)`; a property path counts one per predicate it names, a `BIND` or an expression
+        `(... AS ?v)` of `SELECT` or `GROUP BY` one, and a `VALUES` block one plus one per variable
+        and per 100 rows.
+
+        Arguments:
+            query (str): The SPARQL query.
+            decode_literals (bool): If True, literals are returned as Python values (str, bool, int, float, Decimal or datetime) where their datatype is supported and the value fits the Python type (a datetime from year 1 to 9999), instead of their names. Cannot be combined with `format`. Defaults to False.
+            format (str, optional): If given, the results are returned as a document in this format, as a file extension, name or media type (e.g. "json", "xml", "csv", "tsv", "application/sparql-results+json" for SELECT and ASK; "nt", "ttl", "jsonld", "rdf", "text/turtle" for CONSTRUCT and DESCRIBE). Defaults to None.
+            timeout (float, optional): If given, the query is stopped with a GraphError once it has run this many seconds; if not, there is no time limit. Defaults to None.
+            max_triple_patterns (int, optional): If given, a query with more triple patterns raises a GraphError before it runs; if not, there is no limit. Defaults to None.
+
+        Returns:
+            str | list[dict[str, Any]] | bool | list[tuple[str, str, Any]]: If `format` is given, the serialized results. Otherwise, for SELECT, one dict per solution mapping every variable (in the order of the SELECT clause, or sorted by name for `SELECT *`) to its value (None if unbound); for ASK, a bool; for CONSTRUCT and DESCRIBE, one (subject, predicate, object) tuple per triple.
+
+        Raises:
+            GraphError: If the query does not parse or its evaluation fails (for example because it calls an unknown function), if `format` is unknown or does not fit the form of the query, if SPARQL Results XML cannot hold a value, if the query has more than `max_triple_patterns` triple patterns, or if it runs longer than `timeout`.
+            ValueError: If both `decode_literals` and `format` are given, or if `timeout` is negative or not finite.
+        """
+
     @property
     def start(self) -> OptionalEventTime:
         """
@@ -629,6 +705,37 @@ class GraphView(object):
             pyvis.network.Network: A pyvis network
         """
 
+    def to_rdf(
+        self,
+        path: Optional[str | PathLike] = None,
+        format: Optional[str] = None,
+        prefixes: Optional[dict[str, str]] = None,
+    ) -> Optional[str]:
+        """
+        Exports the RDF triples of this view, the same triples `sparql()` sees.
+
+        Every edge visible in `valid()` is written as one triple per layer, `src layer dst`, with
+        node and layer names mapped to RDF terms as described in `sparql()`. Edges that are not valid
+        RDF (from a node named by a literal, or in a layer named by a literal or a blank node) are
+        skipped. RDF/XML also skips triples it cannot represent: those whose predicate IRI does not
+        end in an XML name, is in the `xmlns` namespace or is an RDF/XML syntax term such as `rdf:li`,
+        an `rdf:type` triple whose object IRI cannot name an element when it is its subject's only
+        triple, and literals with a control character other than tab and line feed; a blank node label
+        starting with a digit is written with an `x` in front (`_:1` is `x1`). Only the state of the
+        view is exported, not its history.
+
+        Arguments:
+            path (str | PathLike, optional): The file to write. If not given, the document is returned as a string instead. Defaults to None.
+            format (str, optional): The RDF format, as a file extension, name or media type (e.g. "nt", "ttl", "turtle", "trig", "rdf"). If not given, it is taken from the extension of `path` (an unknown extension raises an error), and is N-Triples if there is no `path` or it has no extension. Defaults to None.
+            prefixes (dict[str, str], optional): Prefix names mapped to IRIs, used by formats that support them (Turtle, TriG, RDF/XML). A name must be empty or a valid prefix name of the format, e.g. a letter followed by letters, digits, '_', '-' or '.' (not ending with '.'). Defaults to None.
+
+        Returns:
+            Optional[str]: The document if `path` is not given, otherwise None.
+
+        Raises:
+            GraphError: If the format is unknown, a prefix name or IRI is invalid, or writing fails.
+        """
+
     @property
     def unique_layers(self) -> list[str]:
         """
@@ -662,6 +769,93 @@ class GraphView(object):
 
         Returns:
              GraphView: The layered view
+        """
+
+    def validate_shacl(
+        self,
+        shapes: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+        report_format: Optional[str] = None,
+    ) -> str | dict[str, Any]:
+        """
+        Validates the RDF triples of this view against a SHACL shapes graph.
+
+        The data graph is the triples `to_rdf()` writes and `sparql()` matches: one per edge and layer
+        visible in `valid()`, so `g.snapshot_at(t).validate_shacl(..)` validates the state as of `t` on
+        a PersistentGraph (see also `validate_shacl_at()`). Node and layer names are RDF terms as
+        described in `sparql()`: the node `Alice` of a graph that was not loaded from RDF is the IRI
+        `raphtory:Alice`, which shapes can name with `@prefix raphtory: <raphtory:> .`.
+
+        All of SHACL Core is supported. Shapes raise an error if they use SHACL-SPARQL, SHACL
+        Advanced Features, SHACL-JS, `sh:entailment`, SHACL 1.2 features, the inverse of a path that
+        is not a predicate (write `^(ex:p / ex:q)` as `(^ex:q / ^ex:p)`), or a literal in
+        `sh:hasValue` or `sh:in` that the validator would rewrite (such as `"1"^^xsd:boolean`).
+        Other unknown `sh:` terms are ignored. Shapes with an RDF list of more than 10,000 members,
+        or nested more than 256 deep, raise an error too. `owl:imports` is not followed.
+
+        `sh:targetClass` targets direct `rdf:type` instances only, and implicit class targets and
+        `sh:class` follow a single `rdfs:subClassOf` step (the report warns if the data has
+        `rdfs:subClassOf` triples). Recursive shapes have least-fixpoint semantics: a node whose
+        conformance depends on itself through a cycle is reported, with a warning.
+
+        The report is a dict with `conforms` (bool, True if there are no results of any severity),
+        `results` (a list of dicts with `focus_node`, `path`, `value`, `source_shape`,
+        `constraint_component`, `severity` and `messages`) and `warnings` (a list of str). Terms are
+        Raphtory names, as in `sparql()`: `focus_node` and `value` can be passed to `node()`, `path`
+        is the name of the predicate (a layer name) for a single predicate and otherwise a SPARQL
+        property path such as `(<http://ex/a> / <http://ex/b>)`, `constraint_component` and
+        `severity` are SHACL IRIs such as `http://www.w3.org/ns/shacl#MinCountConstraintComponent`,
+        and `messages` are the values of the result messages. `path`, `value` and `source_shape` are
+        None when the result has none. Results are in a deterministic order, and shape blank nodes
+        get the same labels each time. Some literals are rewritten in canonical form (booleans,
+        date-times, integer types other than `xsd:integer` and `xsd:int`, region language tags);
+        they come back as written in the graph when unambiguous, otherwise as rewritten, which
+        `node()` may not find.
+
+        Validation releases the GIL.
+
+        Arguments:
+            shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format of the shapes, as a file extension, name or media type (e.g. "ttl", "nt", "jsonld", "rdf"). If not given, it is taken from the extension of a path (an unknown extension raises an error), and is Turtle for bytes and for a path without an extension. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs of the shapes are resolved. Defaults to None.
+            report_format (str, optional): If given, the report is returned as a W3C `sh:ValidationReport` document in this RDF format (e.g. "ttl", "nt", "jsonld", "rdf"), holding RDF terms rather than Raphtory names, and without the warnings. RDF/XML ("rdf") raises a GraphError if the report has a literal with a control character other than tab and line feed. Defaults to None.
+
+        Returns:
+            str | dict[str, Any]: The report as a dict, or as a document if `report_format` is given.
+
+        Raises:
+            GraphError: If the shapes do not parse, use an unsupported SHACL feature or are not a valid shapes graph, if a format is unknown, if validation fails, or if RDF/XML cannot hold the report.
+            TypeError: If `shapes` is neither bytes nor a path, or is a str that looks like a document rather than a path.
+        """
+
+    def validate_shacl_at(
+        self,
+        shapes: bytes | str | PathLike,
+        times: list[TimeInput],
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+    ) -> list[tuple[int, dict[str, Any]]]:
+        """
+        Validates this view as of each of several times against a SHACL shapes graph.
+
+        For each time `t`, in the order given, validates `snapshot_at(t)` as `validate_shacl()` does,
+        parsing the shapes once. On a PersistentGraph that is the state as of `t`, so this tells when
+        the data started or stopped conforming; on a Graph a snapshot holds every triple asserted up
+        to `t`.
+
+        Arguments:
+            shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
+            times (list[TimeInput]): The times to validate at.
+            format (str, optional): The RDF format of the shapes, as in `validate_shacl()`. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs of the shapes are resolved. Defaults to None.
+
+        Returns:
+            list[tuple[int, dict[str, Any]]]: Each time, in milliseconds, with the report of `validate_shacl()` for it.
+
+        Raises:
+            GraphError: If the shapes do not parse, use an unsupported SHACL feature or are not a valid shapes graph, if the format is unknown, or if validation fails.
+            TypeError: If `shapes` is neither bytes nor a path, or is a str that looks like a document rather than a path.
         """
 
     def vectorise(
@@ -1338,6 +1532,39 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def load_rdf(
+        self,
+        time: TimeInput,
+        source: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+    ) -> int:
+        """
+        Asserts every triple of an RDF document at `time`.
+
+        Each triple `s p o` is added as an edge from `s` to `o` in the layer `p`. Node and layer names
+        are RDF terms: IRIs as written, blank nodes as `_:label` (renamed to fresh labels on every
+        load) and literals in their N-Triples form, e.g. `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`,
+        so identical literals share a node. Named graphs are rejected. The load is not atomic: triples
+        read before an error stay in the graph.
+
+        Each triple is written as one edge event, in document order, so a load can run while other
+        threads query or write the graph.
+
+        Arguments:
+            time (TimeInput): The time at which the triples are asserted.
+            source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format, as a file extension, name or media type (e.g. "ttl", "nt", "turtle", "text/turtle", "trig", "rdf"). If not given, it is taken from the extension of a path (an unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes and for a path without an extension. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+
+        Returns:
+            int: The number of triples read.
+
+        Raises:
+            GraphError: If the format is unknown, the document does not parse, the graph uses integer node ids, or the operation fails.
+            TypeError: If `source` is neither bytes nor a path, or is a str that looks like a document rather than a path.
+        """
+
     def node(self, id: str | int) -> MutableNode:
         """
         Gets the node with the specified id
@@ -1374,6 +1601,36 @@ class Graph(GraphView):
 
         Returns:
             Graph: a read-only handle to the same graph data.
+        """
+
+    def retract_rdf(
+        self,
+        time: TimeInput,
+        source: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+    ) -> int:
+        """
+        Retracts every triple of an RDF document at `time`.
+
+        Each triple `s p o` is deleted from the layer `p` of the edge from `s` to `o`, with names
+        mapped as in `load_rdf()`. A retraction is recorded even if the triple was never asserted.
+        On a Graph, retractions are only seen through `persistent_graph()`. Blank-node labels are used
+        as written, so they must be the stored labels (as returned by `to_rdf()` or `sparql()`).
+        Each triple is written as one edge event, in document order.
+
+        Arguments:
+            time (TimeInput): The time at which the triples are retracted.
+            source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format, as a file extension, name or media type (e.g. "ttl", "nt", "turtle", "text/turtle", "trig", "rdf"). If not given, it is taken from the extension of a path (an unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes and for a path without an extension. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+
+        Returns:
+            int: The number of triples read.
+
+        Raises:
+            GraphError: If the format is unknown, the document does not parse, the graph uses integer node ids, or the operation fails.
+            TypeError: If `source` is neither bytes nor a path, or is a str that looks like a document rather than a path.
         """
 
     def save_to_file(self, path: str) -> None:
@@ -2125,6 +2382,39 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def load_rdf(
+        self,
+        time: TimeInput,
+        source: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+    ) -> int:
+        """
+        Asserts every triple of an RDF document at `time`.
+
+        Each triple `s p o` is added as an edge from `s` to `o` in the layer `p`. Node and layer names
+        are RDF terms: IRIs as written, blank nodes as `_:label` (renamed to fresh labels on every
+        load) and literals in their N-Triples form, e.g. `"42"^^<http://www.w3.org/2001/XMLSchema#integer>`,
+        so identical literals share a node. Named graphs are rejected. The load is not atomic: triples
+        read before an error stay in the graph.
+
+        Each triple is written as one edge event, in document order, so a load can run while other
+        threads query or write the graph.
+
+        Arguments:
+            time (TimeInput): The time at which the triples are asserted.
+            source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format, as a file extension, name or media type (e.g. "ttl", "nt", "turtle", "text/turtle", "trig", "rdf"). If not given, it is taken from the extension of a path (an unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes and for a path without an extension. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+
+        Returns:
+            int: The number of triples read.
+
+        Raises:
+            GraphError: If the format is unknown, the document does not parse, the graph uses integer node ids, or the operation fails.
+            TypeError: If `source` is neither bytes nor a path, or is a str that looks like a document rather than a path.
+        """
+
     def node(self, id: str | int) -> Optional[MutableNode]:
         """
         Gets the node with the specified id
@@ -2161,6 +2451,36 @@ class PersistentGraph(GraphView):
 
         Returns:
             PersistentGraph: a read-only handle to the same graph data.
+        """
+
+    def retract_rdf(
+        self,
+        time: TimeInput,
+        source: bytes | str | PathLike,
+        format: Optional[str] = None,
+        base_iri: Optional[str] = None,
+    ) -> int:
+        """
+        Retracts every triple of an RDF document at `time`.
+
+        Each triple `s p o` is deleted from the layer `p` of the edge from `s` to `o`, with names
+        mapped as in `load_rdf()`, so from `time` on it is no longer visible (until it is asserted
+        again). A retraction is recorded even if the triple was never asserted. Blank-node labels are
+        used as written, so they must be the stored labels (as returned by `to_rdf()` or `sparql()`).
+        Each triple is written as one edge event, in document order.
+
+        Arguments:
+            time (TimeInput): The time at which the triples are retracted.
+            source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
+            format (str, optional): The RDF format, as a file extension, name or media type (e.g. "ttl", "nt", "turtle", "text/turtle", "trig", "rdf"). If not given, it is taken from the extension of a path (an unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes and for a path without an extension. Defaults to None.
+            base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+
+        Returns:
+            int: The number of triples read.
+
+        Raises:
+            GraphError: If the format is unknown, the document does not parse, the graph uses integer node ids, or the operation fails.
+            TypeError: If `source` is neither bytes nor a path, or is a str that looks like a document rather than a path.
         """
 
     def save_to_file(self, path: str) -> None:

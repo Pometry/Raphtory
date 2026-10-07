@@ -1128,6 +1128,22 @@ impl Data {
         let graph = self.get_graph_unchecked(path).await?;
         Ok(graph.vectors().cloned().map(|g| g.into()))
     }
+
+    /// Whether the caller reads the graph at `path` through a row filter (hiding nodes, edges,
+    /// layers or times); the SPARQL temporal functions are disabled for such reads.
+    /// Property/metadata redaction alone does not count. The permission is resolved as the read
+    /// path resolves it. Fails closed: an unresolvable or non-read permission counts as filtered.
+    #[cfg(feature = "rdf")]
+    pub(crate) async fn read_has_row_filter(&self, ctx: &Context<'_>, path: &str) -> bool {
+        let Ok(perm) = require_at_least_read(ctx, &self.auth_policy, path) else {
+            return true;
+        };
+        match refine(ctx, &self.auth_policy, path, perm).await {
+            Ok(GraphPermission::Read { filter: Some(f) }) => f.filter.is_some(),
+            Ok(GraphPermission::Read { filter: None } | GraphPermission::Write) => false,
+            Ok(GraphPermission::Introspect) | Err(_) => true,
+        }
+    }
 }
 
 impl Drop for DataInner {
