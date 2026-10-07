@@ -27,7 +27,7 @@ use ouroboros::self_referencing;
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{
     iter::{
-        plumbing::{bridge, Consumer, Producer, ProducerCallback, UnindexedConsumer},
+        plumbing::{bridge, Consumer, Folder, Producer, ProducerCallback, UnindexedConsumer},
         Either,
     },
     prelude::*,
@@ -226,7 +226,9 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Sorted { keys, .. } => Either::Right(Either::Left(
                 (0..keys.len()).into_par_iter().map(move |i| keys[i]),
             )),
-            Index::Roaring { keys, .. } => Either::Right(Either::Right(RoaringParIter::new(keys))),
+            Index::Roaring { keys, .. } => {
+                Either::Right(Either::Right(RoaringParIter::new(keys).map(|(_, key)| key)))
+            }
         }
     }
 
@@ -287,7 +289,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
                 keys.par_iter().enumerate().map(|(i, v)| (i, *v)),
             )),
             Index::Roaring { keys, .. } => {
-                Either::Right(Either::Right(RoaringParIter::new(keys.clone()).enumerate()))
+                Either::Right(Either::Right(RoaringParIter::new(keys.clone())))
             }
         }
     }
@@ -577,7 +579,7 @@ impl<K: Copy> DoubleEndedIterator for SortedIndexIntoIter<K> {
 
 impl<K: Copy> ExactSizeIterator for SortedIndexIntoIter<K> {}
 
-/// Parallel iterator over the keys of a [`Index::Roaring`] bitmap in order.
+/// Parallel iterator over the keys of a [`Index::Roaring`] bitmap in order, with their positions.
 pub struct RoaringParIter<K> {
     keys: Arc<RoaringTreemap>,
     _key: PhantomData<K>,
@@ -593,9 +595,9 @@ impl<K> RoaringParIter<K> {
 }
 
 impl<K: From<usize> + Send> ParallelIterator for RoaringParIter<K> {
-    type Item = K;
+    type Item = (usize, K);
 
-    fn drive_unindexed<C: UnindexedConsumer<K>>(self, consumer: C) -> C::Result {
+    fn drive_unindexed<C: UnindexedConsumer<(usize, K)>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
 
@@ -609,11 +611,11 @@ impl<K: From<usize> + Send> IndexedParallelIterator for RoaringParIter<K> {
         self.keys.len() as usize
     }
 
-    fn drive<C: Consumer<K>>(self, consumer: C) -> C::Result {
+    fn drive<C: Consumer<(usize, K)>>(self, consumer: C) -> C::Result {
         bridge(self, consumer)
     }
 
-    fn with_producer<CB: ProducerCallback<K>>(self, callback: CB) -> CB::Output {
+    fn with_producer<CB: ProducerCallback<(usize, K)>>(self, callback: CB) -> CB::Output {
         let len = IndexedParallelIterator::len(&self);
         callback.callback(RoaringProducer {
             keys: self.keys,
@@ -630,20 +632,30 @@ struct RoaringProducer<K> {
     _key: PhantomData<K>,
 }
 
-impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
-    type Item = K;
-    /// Collected because we can't borrow the shared bitmap.
-    type IntoIter = std::vec::IntoIter<K>;
-
-    fn into_iter(self) -> Self::IntoIter {
+impl<K: From<usize>> RoaringProducer<K> {
+    /// Keys with their positions: one `select` finds the first, then the bitmap is walked.
+    fn walk(&self) -> impl Iterator<Item = (usize, K)> + '_ {
         let mut iter = self.keys.iter();
         if let Some(first) = self.keys.select(self.range.start as u64) {
             iter.advance_to(first);
         }
-        iter.take(self.range.len())
-            .map(from_roaring)
-            .collect::<Vec<_>>()
-            .into_iter()
+        self.range.clone().zip(iter.map(from_roaring))
+    }
+}
+
+impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
+    type Item = (usize, K);
+    /// Collected because we can't borrow the shared bitmap. Only adapters that need the iterator
+    /// itself (`zip`, `chunks`, ...) use this; the rest go through `fold_with`.
+    type IntoIter = std::vec::IntoIter<(usize, K)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.walk().collect::<Vec<_>>().into_iter()
+    }
+
+    /// Rayon finishes each piece here, where we can borrow the bitmap so nothing is collected.
+    fn fold_with<F: Folder<(usize, K)>>(self, folder: F) -> F {
+        folder.consume_iter(self.walk())
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
@@ -1368,21 +1380,31 @@ mod index_subset_test {
             index.par_iter().collect::<Vec<_>>(),
             expected.iter().copied().enumerate().collect::<Vec<_>>()
         );
+        let with_positions: Vec<(usize, VID)> = expected.iter().copied().enumerate().collect();
         // tiny pieces, so nearly every key sits next to a split
         assert_eq!(
             RoaringParIter::<VID>::new(bitmap.clone())
                 .with_max_len(7)
                 .collect::<Vec<_>>(),
-            expected
+            with_positions
+        );
+        // the same, through the iterator each piece hands out rather than `fold_with`
+        assert_eq!(
+            RoaringParIter::<VID>::new(bitmap.clone())
+                .with_max_len(7)
+                .zip((0..with_positions.len()).into_par_iter())
+                .map(|(pair, _)| pair)
+                .collect::<Vec<_>>(),
+            with_positions
         );
         // indexed operations, which the parquet encoder relies on
         assert_eq!(
             RoaringParIter::<VID>::new(bitmap)
                 .chunks(1_000)
                 .collect::<Vec<_>>(),
-            expected
+            with_positions
                 .chunks(1_000)
-                .map(<[VID]>::to_vec)
+                .map(<[(usize, VID)]>::to_vec)
                 .collect::<Vec<_>>()
         );
     }
