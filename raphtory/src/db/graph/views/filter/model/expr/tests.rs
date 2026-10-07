@@ -979,10 +979,11 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
     assert_eq!(names, ["a"], "not(or): nodes.select");
 }
 
-/// A field term under a view reads the node in that view: a node the
-/// view does not hold has no name, id or type there, as it has no properties.
+/// A name, id or type has no time axis and does not depend on the node set,
+/// so a view written on a field term is kept for display and ignored when the
+/// filter runs: the term reads the field whether or not the view holds the node.
 #[test]
-fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
+fn a_view_on_a_field_term_is_ignored() {
     // early@1 · late@7
     let g = Graph::new();
     g.add_node(1, "early", NO_PROPS, None, None).unwrap();
@@ -1002,7 +1003,7 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
         (
             "window name == late",
             Box::new(move || Arc::new(win().name().eq("late"))),
-            &[],
+            &["late"],
         ),
         (
             "window name == early",
@@ -1012,17 +1013,17 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
         (
             "window id == late",
             Box::new(move || Arc::new(win().id().eq("late"))),
-            &[],
+            &["late"],
         ),
         (
             "window node_type == kind",
             Box::new(move || Arc::new(win().node_type().eq("kind"))),
-            &[],
+            &["late"],
         ),
         (
-            "window node_type is_none",
-            Box::new(move || Arc::new(win().node_type().is_none())),
-            &["late"],
+            "window node_type == _default",
+            Box::new(move || Arc::new(win().node_type().eq("_default"))),
+            &["early"],
         ),
         (
             "name == late",
@@ -1030,19 +1031,19 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
             &["late"],
         ),
         (
-            "exclude_nodes name is_none",
-            Box::new(|| Arc::new(NodeFilter.exclude_nodes(["late"]).name().is_none())),
+            "exclude_nodes name == late",
+            Box::new(|| Arc::new(NodeFilter.exclude_nodes(["late"]).name().eq("late"))),
             &["late"],
         ),
         (
-            "subgraph name is_some",
-            Box::new(|| Arc::new(NodeFilter.subgraph(["late"]).name().is_some())),
-            &["late"],
+            "subgraph name == early",
+            Box::new(|| Arc::new(NodeFilter.subgraph(["late"]).name().eq("early"))),
+            &["early"],
         ),
         (
             "subgraph_node_types name == early",
             Box::new(|| Arc::new(NodeFilter.subgraph_node_types(["kind"]).name().eq("early"))),
-            &[],
+            &["early"],
         ),
         (
             "tree: window name == late",
@@ -1056,7 +1057,7 @@ fn a_field_term_under_a_view_is_none_for_a_node_outside_it() {
                     c("late"),
                 )))
             }),
-            &[],
+            &["late"],
         ),
     ];
     for (label, f, want) in cases {

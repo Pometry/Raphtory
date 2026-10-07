@@ -46,8 +46,8 @@ use crate::{
                 node_expr::{
                     AllExpr, AndExpr, AnyExpr, AvgExpr, BinaryCmpExpr, DegreeExpr, DynCreateOp,
                     EarliestExpr, FirstExpr, LastExpr, LatestExpr, LenExpr, MaxExpr, MinExpr,
-                    NodeFieldExpr, NotExpr, OrExpr, Predicate, PropValueSetExpr, Scoped,
-                    StringExpr, SumExpr, UnaryExpr,
+                    NotExpr, OrExpr, Predicate, PropValueSetExpr, Scoped, StringExpr, SumExpr,
+                    UnaryExpr,
                 },
                 node_filter::NodeFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
@@ -202,23 +202,14 @@ impl Leaf for NodeLeaf {
 
     fn compile(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
         Ok(match self {
-            NodeLeaf::Field { views, field } => {
-                let view_expr = node_chain(views);
-                match field {
-                    Field::Id => Arc::new(NodeFieldExpr {
-                        view_expr,
-                        field: Id,
-                    }),
-                    Field::Name => Arc::new(NodeFieldExpr {
-                        view_expr,
-                        field: Name,
-                    }),
-                    Field::NodeType => Arc::new(NodeFieldExpr {
-                        view_expr,
-                        field: Type,
-                    }),
-                }
-            }
+            // A field has no time axis and does not depend on layers or on the
+            // node set, so the views written on it are kept for display and
+            // ignored here.
+            NodeLeaf::Field { field, .. } => match field {
+                Field::Id => Arc::new(Id),
+                Field::Name => Arc::new(Name),
+                Field::NodeType => Arc::new(Type),
+            },
             NodeLeaf::Degree { views, direction } => Arc::new(DegreeExpr {
                 dir: *direction,
                 view_expr: node_chain(views),
@@ -297,10 +288,8 @@ impl Leaf for EdgeLeaf {
                 view: f(views),
                 inner: IsDeletedEdge,
             }),
-            EdgeLeaf::IsSelfLoop { views } => Arc::new(Scoped {
-                view: f(views),
-                inner: IsSelfLoopEdge,
-            }),
+            // Whether an edge is a self loop does not depend on any view.
+            EdgeLeaf::IsSelfLoop { .. } => Arc::new(IsSelfLoopEdge),
             // An endpoint term is a node expression the edge evaluates on the
             // node at that end; its views scope that node term.
             EdgeLeaf::Src(inner) => Arc::new(EdgeEndpointWrapper::new(
@@ -372,10 +361,7 @@ impl Leaf for ExplodedEdgeLeaf {
                 view: f(views),
                 inner: IsDeletedEdge,
             }),
-            ExplodedEdgeLeaf::IsSelfLoop { views } => Arc::new(Scoped {
-                view: f(views),
-                inner: IsSelfLoopEdge,
-            }),
+            ExplodedEdgeLeaf::IsSelfLoop { .. } => Arc::new(IsSelfLoopEdge),
         })
     }
 

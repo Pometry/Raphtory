@@ -172,36 +172,6 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// InViewNodeOp<G, F> — a term that holds only for nodes the view holds
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A term that does not consult the view itself (e.g. a node's name), taken
-/// through a view that can hide nodes: `None` for a node the view does not
-/// hold, as a property term through the same view would be.
-#[derive(Clone)]
-pub(crate) struct InViewNodeOp<G, F> {
-    pub(crate) graph: G,
-    pub(crate) term: F,
-}
-
-impl<G: GraphView, F: NodeOp<Output = Option<Prop>>> NodeOp for InViewNodeOp<G, F> {
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        self.graph.node_list()
-    }
-
-    type Output = Option<Prop>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<Prop> {
-        (&self.graph).node(node)?;
-        self.term.apply(storage, node)
-    }
-
-    fn prop_type(&self) -> PropType {
-        self.term.prop_type()
-    }
-}
-
 /// Whether `graph` holds the node apart from time: `false` for a node it
 /// leaves out with `exclude_nodes`, `subgraph`, `subgraph_node_types` or a
 /// node filter.

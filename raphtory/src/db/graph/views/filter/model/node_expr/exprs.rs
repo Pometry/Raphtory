@@ -12,8 +12,8 @@
 
 use super::{
     ops::{
-        AvgNodeOp, EarliestNodeOp, FirstNodeOp, InViewNodeOp, LastNodeOp, LatestNodeOp, LenNodeOp,
-        MaxNodeOp, MinNodeOp, NodeIdOp, ShownNodeOp, SumNodeOp, TemporalNodePropOp,
+        AvgNodeOp, EarliestNodeOp, FirstNodeOp, LastNodeOp, LatestNodeOp, LenNodeOp, MaxNodeOp,
+        MinNodeOp, NodeIdOp, ShownNodeOp, SumNodeOp, TemporalNodePropOp,
     },
     AvgEdgeOp, CreateOp, EarliestEdgeOp, EntityExpr, FirstEdgeOp, IndexTerm, LastEdgeOp,
     LatestEdgeOp, LenEdgeOp, MaxEdgeOp, MinEdgeOp, SumEdgeOp,
@@ -125,59 +125,6 @@ impl CreateOp for Type {
         Ok(Arc::new(Type.map(|a| {
             Some(a.map_or_else(|| Prop::str("_default"), |b| b.into_prop()))
         })))
-    }
-}
-
-/// A built-in node field (`Id`, `Name` or `Type`) read through a factory's
-/// view chain: `NodeFilter.window(1, 5).name()`. The field's value does not
-/// change with the view, but a node the view does not hold has no field there,
-/// so under a view that can hide nodes the term is `None` for such a node.
-#[derive(Clone)]
-pub struct NodeFieldExpr<E, F> {
-    pub(crate) view_expr: E,
-    pub(crate) field: F,
-}
-
-impl<E, F> EntityExpr for NodeFieldExpr<E, F>
-where
-    E: CreateView,
-    F: EntityExpr,
-{
-    fn entity(&self) -> EntityMarker {
-        EntityMarker::Node
-    }
-
-    fn prop_type(&self) -> PropType {
-        self.field.prop_type()
-    }
-
-    fn nullable(&self) -> bool {
-        self.view_expr.narrows() || self.field.nullable()
-    }
-}
-
-impl<E, F> CreateOp for NodeFieldExpr<E, F>
-where
-    E: CreateView,
-    F: EntityExpr + CreateOp,
-{
-    fn index_term(&self) -> Option<IndexTerm> {
-        if self.view_expr.narrows() {
-            return None;
-        }
-        self.field.index_term()
-    }
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        if !self.view_expr.narrows() {
-            return self.field.create_node_op(graph);
-        }
-        let graph = self.view_expr.create_view(graph)?;
-        let term = self.field.create_node_op(graph.clone())?;
-        Ok(Arc::new(InViewNodeOp { graph, term }))
     }
 }
 

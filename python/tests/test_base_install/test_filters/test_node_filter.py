@@ -841,15 +841,18 @@ def init_early_and_late(graph):
 
 
 @with_variants(init_early_and_late)
-def test_windowed_field_terms_are_none_outside_the_window():
+def test_views_do_not_affect_field_terms():
+    # A name, id or node type has no time axis, so a view written on the term
+    # is kept for display and ignored when the filter runs: "late" is found
+    # through a window it is not active in, and "early" reads the default type.
     def check(graph):
         window = filter.Node.window(0, 5)
         cases = [
-            (window.name() == "late", []),
+            (window.name() == "late", ["late"]),
             (window.name() == "early", ["early"]),
-            (window.id() == "late", []),
-            (window.node_type() == "kind", []),
-            (window.node_type().is_none(), ["late"]),
+            (window.id() == "late", ["late"]),
+            (window.node_type() == "kind", ["late"]),
+            (window.node_type() == "_default", ["early"]),
             (filter.Node.name() == "late", ["late"]),
         ]
         for filter_expr, expected_ids in cases:

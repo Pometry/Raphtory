@@ -951,20 +951,14 @@ mod pushdown_tests {
         // Only equality names nodes; an ordering on the id is a scan.
         assert!(NodeFilter.id().gt(1u64).compiled().pushdown().is_none());
         assert!(NodeFilter.name().ne("bob").compiled().pushdown().is_none());
-        // A view that can hide nodes takes the id off the index.
-        assert!(NodeFilter
-            .latest()
-            .id()
-            .eq(1u64)
-            .compiled()
-            .pushdown()
-            .is_none());
-        assert!(NodeFilter
-            .latest()
-            .name()
-            .eq("bob")
-            .compiled()
-            .pushdown()
-            .is_none());
+        // A view written on a field is ignored, so the id stays resolvable outright.
+        assert_eq!(
+            NodeFilter.latest().id().eq(1u64).compiled().pushdown(),
+            Some(Pushdown::Ids(vec![1u64.into_prop()]))
+        );
+        assert_eq!(
+            NodeFilter.latest().name().eq("bob").compiled().pushdown(),
+            Some(Pushdown::Ids(vec!["bob".into_prop()]))
+        );
     }
 }
