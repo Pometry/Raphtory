@@ -24,7 +24,13 @@ use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use itertools::Itertools;
 use raphtory_api::core::storage::timeindex::EventTime;
-use rayon::{iter::Either, prelude::*};
+use rayon::{
+    iter::{
+        plumbing::{bridge, Consumer, Producer, ProducerCallback, UnindexedConsumer},
+        Either,
+    },
+    prelude::*,
+};
 use roaring::RoaringTreemap;
 use std::{
     collections::HashMap,
@@ -219,13 +225,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Sorted { keys, .. } => Either::Right(Either::Left(
                 (0..keys.len()).into_par_iter().map(move |i| keys[i]),
             )),
-            // TODO: `select` walks the bitmap's containers for every key; split into ranges of
-            // positions instead, and iterate each from its first key.
-            Index::Roaring { keys, .. } => Either::Right(Either::Right(
-                (0..keys.len() as usize)
-                    .into_par_iter()
-                    .map(move |i| roaring_select(&keys, i).unwrap()),
-            )),
+            Index::Roaring { keys, .. } => Either::Right(Either::Right(RoaringParIter::new(keys))),
         }
     }
 
@@ -285,12 +285,9 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             Index::Sorted { keys, .. } => Either::Right(Either::Left(
                 keys.par_iter().enumerate().map(|(i, v)| (i, *v)),
             )),
-            // TODO: as for `into_par_iter`, one `select` per key.
-            Index::Roaring { keys, .. } => Either::Right(Either::Right(
-                (0..keys.len() as usize)
-                    .into_par_iter()
-                    .map(move |i| (i, roaring_select(keys, i).unwrap())),
-            )),
+            Index::Roaring { keys, .. } => {
+                Either::Right(Either::Right(RoaringParIter::new(keys.clone()).enumerate()))
+            }
         }
     }
 
@@ -578,6 +575,92 @@ impl<K: Copy> DoubleEndedIterator for SortedIndexIntoIter<K> {
 }
 
 impl<K: Copy> ExactSizeIterator for SortedIndexIntoIter<K> {}
+
+/// Parallel iterator over the keys of a [`Index::Roaring`] bitmap in order.
+pub struct RoaringParIter<K> {
+    keys: Arc<RoaringTreemap>,
+    _key: PhantomData<K>,
+}
+
+impl<K> RoaringParIter<K> {
+    pub fn new(keys: Arc<RoaringTreemap>) -> Self {
+        Self {
+            keys,
+            _key: PhantomData,
+        }
+    }
+}
+
+impl<K: From<usize> + Send> ParallelIterator for RoaringParIter<K> {
+    type Item = K;
+
+    fn drive_unindexed<C: UnindexedConsumer<K>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn opt_len(&self) -> Option<usize> {
+        Some(IndexedParallelIterator::len(self))
+    }
+}
+
+impl<K: From<usize> + Send> IndexedParallelIterator for RoaringParIter<K> {
+    fn len(&self) -> usize {
+        self.keys.len() as usize
+    }
+
+    fn drive<C: Consumer<K>>(self, consumer: C) -> C::Result {
+        bridge(self, consumer)
+    }
+
+    fn with_producer<CB: ProducerCallback<K>>(self, callback: CB) -> CB::Output {
+        let len = IndexedParallelIterator::len(&self);
+        callback.callback(RoaringProducer {
+            keys: self.keys,
+            range: 0..len,
+            _key: PhantomData,
+        })
+    }
+}
+
+/// One piece of a [`RoaringParIter`]
+struct RoaringProducer<K> {
+    keys: Arc<RoaringTreemap>,
+    range: Range<usize>,
+    _key: PhantomData<K>,
+}
+
+impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
+    type Item = K;
+    /// Collected because we can't borrow the shared bitmap.
+    type IntoIter = std::vec::IntoIter<K>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let mut iter = self.keys.iter();
+        if let Some(first) = self.keys.select(self.range.start as u64) {
+            iter.advance_to(first);
+        }
+        iter.take(self.range.len())
+            .map(from_roaring)
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+
+    fn split_at(self, index: usize) -> (Self, Self) {
+        let mid = self.range.start + index;
+        (
+            Self {
+                keys: self.keys.clone(),
+                range: self.range.start..mid,
+                _key: PhantomData,
+            },
+            Self {
+                keys: self.keys,
+                range: mid..self.range.end,
+                _key: PhantomData,
+            },
+        )
+    }
+}
 
 /// Positions into a [`Index::Roaring`] bitmap. The bitmap is shared, so its own iterator, which
 /// borrows it, cannot be kept here; each key is found by position instead.
@@ -1148,6 +1231,38 @@ mod index_subset_test {
 
     fn full(len: usize) -> Index<VID> {
         Index::Full(Arc::new(StateIndex::new([len], len as u32)))
+    }
+
+    /// Big enough for rayon to split many times, with gaps so a key's position and value differ.
+    #[test]
+    fn roaring_parallel_iteration_keeps_order_across_splits() {
+        let keys: Vec<usize> = (0..300_000).filter(|k| k % 3 != 1).collect();
+        let bitmap = Arc::new(keys.iter().map(|k| *k as u64).collect::<RoaringTreemap>());
+        let expected: Vec<VID> = keys.iter().map(|k| VID(*k)).collect();
+        let index = Index::<VID>::from_bitmap(bitmap.clone(), true);
+
+        assert_eq!(index.clone().into_par_iter().collect::<Vec<_>>(), expected);
+        assert_eq!(
+            index.par_iter().collect::<Vec<_>>(),
+            expected.iter().copied().enumerate().collect::<Vec<_>>()
+        );
+        // tiny pieces, so nearly every key sits next to a split
+        assert_eq!(
+            RoaringParIter::<VID>::new(bitmap.clone())
+                .with_max_len(7)
+                .collect::<Vec<_>>(),
+            expected
+        );
+        // indexed operations, which the parquet encoder relies on
+        assert_eq!(
+            RoaringParIter::<VID>::new(bitmap)
+                .chunks(1_000)
+                .collect::<Vec<_>>(),
+            expected
+                .chunks(1_000)
+                .map(<[VID]>::to_vec)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
