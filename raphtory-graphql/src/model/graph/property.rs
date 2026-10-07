@@ -20,7 +20,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropMap, Prop, PropMap, PropType},
+    entities::properties::prop::{IntoPropMap, Prop, PropArray, PropMap, PropType},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
@@ -249,7 +249,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
                 .into_iter()
                 .map(value_to_prop)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(Prop::List(prop_list.into()))
+            Ok(Prop::List(PropArray::try_from(prop_list)?))
         }
         Value::Object(object) => {
             let prop_map: PropMap = object
@@ -389,12 +389,11 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
             .collect::<Result<Vec<(String, Prop)>, Error>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
-        GqlValue::List(arr) => Ok(Prop::List(
+        GqlValue::List(arr) => Ok(Prop::List(PropArray::try_from(
             arr.into_iter()
                 .map(gql_to_prop)
-                .collect::<Result<Vec<Prop>, Error>>()?
-                .into(),
-        )),
+                .collect::<Result<Vec<Prop>, Error>>()?,
+        )?)),
         _ => Err(Error::new("Unable to convert")),
     }
 }
