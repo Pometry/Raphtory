@@ -23,9 +23,10 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      eq: {
+                                      cmp: {
+                                        op: EQ
                                         lhs: {
-                                          field: ID
+                                          read: { field: ID }
                                         }
                                         rhs: {
                                           const: {
@@ -58,7 +59,8 @@ def test_sort_key_with_no_or_several_fields_is_rejected(graph):
                 nodes { sorted(sortBys: %s) { list { name } } }
               }
             }
-            """ % keys,
+            """
+            % keys,
             "exactly one",
             graph,
         )
@@ -71,9 +73,10 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      eq: {
+                                      cmp: {
+                                        op: EQ
                                         lhs: {
-                                          field: ID
+                                          read: { field: ID }
                                         }
                                         rhs: {
                                           const: {
@@ -107,9 +110,10 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      eq: {
+                                      cmp: {
+                                        op: EQ
                                         lhs: {
-                                          field: ID
+                                          read: { field: ID }
                                         }
                                         rhs: {
                                           const: {
@@ -138,9 +142,10 @@ def test_nodes_chained_selection_with_node_filter(graph):
         nodes {
           select(expr: {
                          node: {
-                           eq: {
+                           cmp: {
+                             op: EQ
                              lhs: {
-                               field: NODE_TYPE
+                               read: { field: NODE_TYPE }
                              }
                              rhs: {
                                const: {
@@ -152,9 +157,10 @@ def test_nodes_chained_selection_with_node_filter(graph):
                        }) {
             select(expr: {
                            node: {
-                             eq: {
+                             cmp: {
+                               op: EQ
                                lhs: {
-                                 property: "p9"
+                                 read: { property: "p9" }
                                }
                                rhs: {
                                  const: {
@@ -166,9 +172,10 @@ def test_nodes_chained_selection_with_node_filter(graph):
                          }) {
               filter(expr: {
                              node: {
-                               gt: {
+                               cmp: {
+                                 op: GT
                                  lhs: {
-                                   property: "p100"
+                                   read: { property: "p100" }
                                  }
                                  rhs: {
                                    const: {
@@ -204,16 +211,14 @@ def test_nodes_filter_windowed_is_active(graph):
         nodes {
           select(expr: {
                          node: {
-                           viewed: {
+                           read: {
+                             field: IS_ACTIVE
                              views: [{
                                window: {
                                  start: 1
                                  end: 4
                                }
                              }]
-                             expr: {
-                               isActive: true
-                             }
                            }
                          }
                        }) {
@@ -247,16 +252,14 @@ def test_nodes_filter_windowed_is_not_active(graph):
           select(expr: {
                          not: {
                            node: {
-                             viewed: {
+                             read: {
+                               field: IS_ACTIVE
                                views: [{
                                  window: {
                                    start: 1
                                    end: 4
                                  }
                                }]
-                               expr: {
-                                 isActive: true
-                               }
                              }
                            }
                          }
@@ -307,22 +310,39 @@ def _expected_degree_select_names(graph, direction, predicate):
     )
 
 
+_DEGREE_FIELD = {"BOTH": "DEGREE", "IN": "IN_DEGREE", "OUT": "OUT_DEGREE"}
+_CMP_OP = {"eq": "EQ", "ne": "NE", "lt": "LT", "le": "LE", "gt": "GT", "ge": "GE"}
+_STR_OP = {
+    "startsWith": "STARTS_WITH",
+    "endsWith": "ENDS_WITH",
+    "contains": "CONTAINS",
+    "notContains": "NOT_CONTAINS",
+}
+_PRESENCE_OP = {"isSome": "IS_SOME", "isNone": "IS_NONE"}
+
+
 def _degree(direction, op, value=None, over=None):
     """A degree predicate in the tree grammar: `degree(direction) <op> value`. `over` wraps
     the degree in an aggregate, or the comparison in a qualifier, so invalid chains can be
     spelled.
     """
-    lhs = f"{{ degree: {direction} }}"
+    lhs = f"{{ read: {{ field: {_DEGREE_FIELD[direction]} }} }}"
     if over in ("sum", "avg", "min", "max", "first", "last", "len"):
-        lhs = f"{{ {over}: {lhs} }}"
-    if op in ("isSome", "isNone"):
-        pred = f"{{ {op}: {lhs} }}"
+        lhs = f"{{ agg: {{ op: {over.upper()}, expr: {lhs} }} }}"
+    if op in _PRESENCE_OP:
+        pred = f"{{ presence: {{ op: {_PRESENCE_OP[op]}, expr: {lhs} }} }}"
     elif op in ("isIn", "isNotIn"):
         pred = f"{{ {op}: {{ expr: {lhs}, values: {value} }} }}"
+    elif op in _STR_OP:
+        pred = (
+            f"{{ str: {{ op: {_STR_OP[op]}, lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
+        )
     else:
-        pred = f"{{ {op}: {{ lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
+        pred = (
+            f"{{ cmp: {{ op: {_CMP_OP[op]}, lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
+        )
     if over in ("any", "all"):
-        pred = f"{{ {over}: {pred} }}"
+        pred = f"{{ quantified: {{ op: {over.upper()}, expr: {pred} }} }}"
     return f"{{ node: {pred} }}"
 
 

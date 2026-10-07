@@ -16,9 +16,10 @@ def test_out_neighbours_found(graph):
               filter(expr: {
                              and: [{
                                node: {
-                                 eq: {
+                                 cmp: {
+                                   op: EQ
                                    lhs: {
-                                     field: NAME
+                                     read: { field: NAME }
                                    }
                                    rhs: {
                                      const: {
@@ -29,9 +30,10 @@ def test_out_neighbours_found(graph):
                                }
                              }, {
                                node: {
-                                 gt: {
+                                 cmp: {
+                                   op: GT
                                    lhs: {
-                                     property: "prop1"
+                                     read: { property: "prop1" }
                                    }
                                    rhs: {
                                      const: {
@@ -65,9 +67,10 @@ def test_out_neighbours_found_select(graph):
               filter(expr: {
                              and: [{
                                node: {
-                                 eq: {
+                                 cmp: {
+                                   op: EQ
                                    lhs: {
-                                     field: NAME
+                                     read: { field: NAME }
                                    }
                                    rhs: {
                                      const: {
@@ -78,9 +81,10 @@ def test_out_neighbours_found_select(graph):
                                }
                              }, {
                                node: {
-                                 gt: {
+                                 cmp: {
+                                   op: GT
                                    lhs: {
-                                     property: "prop1"
+                                     read: { property: "prop1" }
                                    }
                                    rhs: {
                                      const: {
@@ -93,9 +97,10 @@ def test_out_neighbours_found_select(graph):
                            }) {
                 outNeighbours(select: {
                                         node: {
-                                          eq: {
+                                          cmp: {
+                                            op: EQ
                                             lhs: {
-                                              field: NAME
+                                              read: { field: NAME }
                                             }
                                             rhs: {
                                               const: {
@@ -126,9 +131,10 @@ def test_out_neighbours_not_found(graph):
             node(name: "a") {
               filter(expr: {
                              node: {
-                               eq: {
+                               cmp: {
+                                 op: EQ
                                  lhs: {
-                                   field: NAME
+                                   read: { field: NAME }
                                  }
                                  rhs: {
                                    const: {
@@ -158,9 +164,10 @@ def test_in_neighbours_found(graph):
             node(name: "d") {
               filter(expr: {
                              node: {
-                               gt: {
+                               cmp: {
+                                 op: GT
                                  lhs: {
-                                   property: "prop1"
+                                   read: { property: "prop1" }
                                  }
                                  rhs: {
                                    const: {
@@ -196,9 +203,10 @@ def test_in_neighbours_found_select(graph):
             node(name: "d") {
               filter(expr: {
                              node: {
-                               gt: {
+                               cmp: {
+                                 op: GT
                                  lhs: {
-                                   property: "prop1"
+                                   read: { property: "prop1" }
                                  }
                                  rhs: {
                                    const: {
@@ -210,9 +218,10 @@ def test_in_neighbours_found_select(graph):
                            }) {
                 inNeighbours(select: {
                                        node: {
-                                         eq: {
+                                         cmp: {
+                                           op: EQ
                                            lhs: {
-                                             field: NAME
+                                             read: { field: NAME }
                                            }
                                            rhs: {
                                              const: {
@@ -243,9 +252,10 @@ def test_in_neighbours_not_found(graph):
             node(name: "d") {
               filter(expr: {
                              node: {
-                               eq: {
+                               cmp: {
+                                 op: EQ
                                  lhs: {
-                                   field: NAME
+                                   read: { field: NAME }
                                  }
                                  rhs: {
                                    const: {
@@ -275,9 +285,10 @@ def test_neighbours_found(graph):
             node(name: "d") {
               filter(expr: {
                              node: {
-                               ne: {
+                               cmp: {
+                                 op: NE
                                  lhs: {
-                                   field: NAME
+                                   read: { field: NAME }
                                  }
                                  rhs: {
                                    const: {
@@ -311,9 +322,10 @@ def test_neighbours_found_select(graph):
             node(name: "d") {
               filter(expr: {
                              node: {
-                               ne: {
+                               cmp: {
+                                 op: NE
                                  lhs: {
-                                   field: NAME
+                                   read: { field: NAME }
                                  }
                                  rhs: {
                                    const: {
@@ -325,9 +337,10 @@ def test_neighbours_found_select(graph):
                            }) {
                 neighbours(select: {
                                      node: {
-                                       eq: {
+                                       cmp: {
+                                         op: EQ
                                          lhs: {
-                                           field: NAME
+                                           read: { field: NAME }
                                          }
                                          rhs: {
                                            const: {
@@ -358,9 +371,10 @@ def test_neighbours_not_found(graph):
             node(name: "d") {
               filter(expr: {
                              node: {
-                               eq: {
+                               cmp: {
+                                 op: EQ
                                  lhs: {
-                                   field: NAME
+                                   read: { field: NAME }
                                  }
                                  rhs: {
                                    const: {
@@ -393,9 +407,10 @@ def test_neighbours_selection(graph):
           graph(path: "g") {
             nodes(select: {
                             node: {
-                              gt: {
+                              cmp: {
+                                op: GT
                                 lhs: {
-                                  property: "p100"
+                                  read: { property: "p100" }
                                 }
                                 rhs: {
                                   const: {
@@ -409,9 +424,10 @@ def test_neighbours_selection(graph):
                 neighbours {
                   select(expr: {
                                  node: {
-                                   gt: {
+                                   cmp: {
+                                     op: GT
                                      lhs: {
-                                       property: "p2"
+                                       read: { property: "p2" }
                                      }
                                      rhs: {
                                        const: {
@@ -451,9 +467,10 @@ def test_neighbours_neighbours_filtering(graph):
           graph(path: "g") {
             nodes(select: {
                             node: {
-                              gt: {
+                              cmp: {
+                                op: GT
                                 lhs: {
-                                  property: "p100"
+                                  read: { property: "p100" }
                                 }
                                 rhs: {
                                   const: {
@@ -468,9 +485,10 @@ def test_neighbours_neighbours_filtering(graph):
                 neighbours {
                   filter(expr: {
                                  node: {
-                                   gt: {
+                                   cmp: {
+                                     op: GT
                                      lhs: {
-                                       property: "p2"
+                                       read: { property: "p2" }
                                      }
                                      rhs: {
                                        const: {

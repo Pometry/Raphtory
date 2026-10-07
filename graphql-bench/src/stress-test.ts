@@ -541,7 +541,7 @@ function randomViewOps(rate: ViewRate): ViewOp[] {
   const [start, end] = [randomTime(), randomTime()].sort((a, b) => a - b);
   // TODO: add more kind of filters
   return [
-    ...randomAppend(rate.latest, { latest: true }),
+    ...randomAppend<ViewOp>(rate.latest, { kind: "LATEST" }),
     ...randomAppend(rate.layer, { layers: [randomLayer()] }),
     ...randomAppend(rate.window, { window: { start, end } }),
   ];

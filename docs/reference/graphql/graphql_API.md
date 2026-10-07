@@ -11746,9 +11746,9 @@ Metadata.
 </tbody>
 </table>
 
-### EdgeCmp
+### EdgeAggregate
 
-Two expressions to compare.
+A list reduced to one value.
 
 <table>
 <thead>
@@ -11760,7 +11760,50 @@ Two expressions to compare.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgecmp.lhs">lhs</strong></td>
+<td colspan="2" valign="top"><strong id="edgeaggregate.op">op</strong></td>
+<td valign="top"><a href="#aggop">AggOp</a>!</td>
+<td>
+
+The reduction.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeaggregate.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The list; the innermost list when lists nest.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeComparison
+
+Two values compared.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgecomparison.op">op</strong></td>
+<td valign="top"><a href="#cmpop">CmpOp</a>!</td>
+<td>
+
+How they compare.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgecomparison.lhs">lhs</strong></td>
 <td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
@@ -11769,7 +11812,7 @@ The left side.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgecmp.rhs">rhs</strong></td>
+<td colspan="2" valign="top"><strong id="edgecomparison.rhs">rhs</strong></td>
 <td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
@@ -11782,8 +11825,7 @@ The right side.
 
 ### EdgeExpr
 
-A value or yes/no on one entity: a term, an aggregate over one, a
-comparison or test, or a combination of yes/nos.
+A value or a yes/no on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 
 <table>
 <thead>
@@ -11804,272 +11846,38 @@ A literal.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.read">read</strong></td>
+<td valign="top"><a href="#edgeread">EdgeRead</a></td>
 <td>
 
-The latest value of a property.
+One term of the edge.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.agg">agg</strong></td>
+<td valign="top"><a href="#edgeaggregate">EdgeAggregate</a></td>
 <td>
 
-The history of a property, as a list.
+A list reduced to one value.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.cmp">cmp</strong></td>
+<td valign="top"><a href="#edgecomparison">EdgeComparison</a></td>
 <td>
 
-A metadata entry.
+Two values compared.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.isactive">isActive</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.str">str</strong></td>
+<td valign="top"><a href="#edgestringtest">EdgeStringTest</a></td>
 <td>
 
-Whether the entity is active; written `isActive: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.isvalid">isValid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Whether the edge is valid; written `isValid: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.isdeleted">isDeleted</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Whether the edge is deleted; written `isDeleted: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.isselfloop">isSelfLoop</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Whether the edge is a self loop; written `isSelfLoop: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.src">src</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-A node expression evaluated on the edge's source node.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.dst">dst</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-A node expression evaluated on the edge's destination node.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.viewed">viewed</strong></td>
-<td valign="top"><a href="#edgeviewed">EdgeViewed</a></td>
-<td>
-
-Views applied to every term inside.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.sum">sum</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The sum of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.avg">avg</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The mean of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.min">min</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The smallest element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.max">max</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The largest element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.first">first</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The first element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.last">last</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The last element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.len">len</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The number of elements of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.earliest">earliest</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The earliest update of a temporal history.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.latest">latest</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-The latest update of a temporal history.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.eq">eq</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-`lhs == rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.ne">ne</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-`lhs != rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.lt">lt</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-`lhs < rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.le">le</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-`lhs <= rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.gt">gt</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-`lhs > rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.ge">ge</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-`lhs >= rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.startswith">startsWith</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-The string `lhs` starts with the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.endswith">endsWith</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-The string `lhs` ends with the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.contains">contains</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-The string `lhs` contains the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.notcontains">notContains</strong></td>
-<td valign="top"><a href="#edgecmp">EdgeCmp</a></td>
-<td>
-
-The string `lhs` does not contain the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.fuzzysearch">fuzzySearch</strong></td>
-<td valign="top"><a href="#edgefuzzycmp">EdgeFuzzyCmp</a></td>
-<td>
-
-The string `lhs` is within an edit distance of `rhs`.
+One string tested against another.
 
 </td>
 </tr>
@@ -12092,38 +11900,20 @@ The string `lhs` is within an edit distance of `rhs`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.issome">isSome</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.presence">presence</strong></td>
+<td valign="top"><a href="#edgepresence">EdgePresence</a></td>
 <td>
 
-The value is present.
+Whether a value is there.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.isnone">isNone</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.quantified">quantified</strong></td>
+<td valign="top"><a href="#edgequantified">EdgeQuantified</a></td>
 <td>
 
-The value is absent.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.any">any</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-Holds when the element-wise result inside holds for any element.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.all">all</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
-<td>
-
-Holds when the element-wise result inside holds for every element.
+An element-wise yes/no over a list, made one.
 
 </td>
 </tr>
@@ -12157,63 +11947,9 @@ The yes/no inside does not hold.
 </tbody>
 </table>
 
-### EdgeFuzzyCmp
-
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefuzzycmp.lhs">lhs</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
-<td>
-
-The string to test.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefuzzycmp.rhs">rhs</strong></td>
-<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
-<td>
-
-The string to match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-The largest edit distance that still matches.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefuzzycmp.prefixmatch">prefixMatch</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Whether a match on a prefix counts.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### EdgeMembership
 
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 
 <table>
 <thead>
@@ -12239,6 +11975,155 @@ The value to look for.
 <td>
 
 The values it may be one of.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgePresence
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgepresence.op">op</strong></td>
+<td valign="top"><a href="#presenceop">PresenceOp</a>!</td>
+<td>
+
+Present or absent.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgepresence.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeQuantified
+
+An element-wise yes/no over a list, made one yes/no.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgequantified.op">op</strong></td>
+<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td>
+
+Any element or every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgequantified.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The element-wise yes/no.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeRead
+
+One edge term, read through optional views. Name exactly one of
+`property`, `temporalProperty`, `metadata`, `field`, `src` or `dst`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.property">property</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.metadata">metadata</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.field">field</strong></td>
+<td valign="top"><a href="#edgefield">EdgeField</a></td>
+<td>
+
+A built-in edge term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.src">src</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+A node expression evaluated on the edge's source node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.dst">dst</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+A node expression evaluated on the edge's destination node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views that scope the term, applied in list order; on `src` or `dst`
+they scope every node term inside.
 
 </td>
 </tr>
@@ -12317,9 +12202,9 @@ Property
 </tbody>
 </table>
 
-### EdgeViewed
+### EdgeStringTest
 
-Views applied to every term inside `expr`, in list order.
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
 
 <table>
 <thead>
@@ -12331,20 +12216,47 @@ Views applied to every term inside `expr`, in list order.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewed.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]!</td>
+<td colspan="2" valign="top"><strong id="edgestringtest.op">op</strong></td>
+<td valign="top"><a href="#strop">StrOp</a>!</td>
 <td>
 
-The views, applied in list order.
+The test.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewed.expr">expr</strong></td>
+<td colspan="2" valign="top"><strong id="edgestringtest.lhs">lhs</strong></td>
 <td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
-The expression evaluated inside them.
+The string tested.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgestringtest.rhs">rhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The string it is tested against.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgestringtest.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+`FUZZY` only: the largest edit distance that still matches.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgestringtest.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+`FUZZY` only: whether a match on a prefix counts.
 
 </td>
 </tr>
@@ -12374,9 +12286,9 @@ OpenAI embedding models or compatible providers
 </tbody>
 </table>
 
-### ExplodedEdgeCmp
+### ExplodedEdgeAggregate
 
-Two expressions to compare.
+A list reduced to one value.
 
 <table>
 <thead>
@@ -12388,7 +12300,50 @@ Two expressions to compare.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgecmp.lhs">lhs</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgeaggregate.op">op</strong></td>
+<td valign="top"><a href="#aggop">AggOp</a>!</td>
+<td>
+
+The reduction.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeaggregate.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The list; the innermost list when lists nest.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeComparison
+
+Two values compared.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgecomparison.op">op</strong></td>
+<td valign="top"><a href="#cmpop">CmpOp</a>!</td>
+<td>
+
+How they compare.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgecomparison.lhs">lhs</strong></td>
 <td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
@@ -12397,7 +12352,7 @@ The left side.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgecmp.rhs">rhs</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgecomparison.rhs">rhs</strong></td>
 <td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
@@ -12410,8 +12365,7 @@ The right side.
 
 ### ExplodedEdgeExpr
 
-A value or yes/no on one entity: a term, an aggregate over one, a
-comparison or test, or a combination of yes/nos.
+A value or a yes/no on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 
 <table>
 <thead>
@@ -12432,254 +12386,38 @@ A literal.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.read">read</strong></td>
+<td valign="top"><a href="#explodededgeread">ExplodedEdgeRead</a></td>
 <td>
 
-The latest value of a property.
+One term of the exploded edge.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.agg">agg</strong></td>
+<td valign="top"><a href="#explodededgeaggregate">ExplodedEdgeAggregate</a></td>
 <td>
 
-The history of a property, as a list.
+A list reduced to one value.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.cmp">cmp</strong></td>
+<td valign="top"><a href="#explodededgecomparison">ExplodedEdgeComparison</a></td>
 <td>
 
-A metadata entry.
+Two values compared.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.isactive">isActive</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.str">str</strong></td>
+<td valign="top"><a href="#explodededgestringtest">ExplodedEdgeStringTest</a></td>
 <td>
 
-Whether the entity is active; written `isActive: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.isvalid">isValid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Whether the edge update is valid; written `isValid: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.isdeleted">isDeleted</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Whether the edge update is deleted; written `isDeleted: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.isselfloop">isSelfLoop</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Whether the edge update is a self loop; written `isSelfLoop: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.viewed">viewed</strong></td>
-<td valign="top"><a href="#explodededgeviewed">ExplodedEdgeViewed</a></td>
-<td>
-
-Views applied to every term inside.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.sum">sum</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The sum of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.avg">avg</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The mean of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.min">min</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The smallest element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.max">max</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The largest element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.first">first</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The first element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.last">last</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The last element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.len">len</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The number of elements of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.earliest">earliest</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The earliest update of a temporal history.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.latest">latest</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-The latest update of a temporal history.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.eq">eq</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-`lhs == rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.ne">ne</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-`lhs != rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.lt">lt</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-`lhs < rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.le">le</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-`lhs <= rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.gt">gt</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-`lhs > rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.ge">ge</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-`lhs >= rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.startswith">startsWith</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-The string `lhs` starts with the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.endswith">endsWith</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-The string `lhs` ends with the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.contains">contains</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-The string `lhs` contains the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.notcontains">notContains</strong></td>
-<td valign="top"><a href="#explodededgecmp">ExplodedEdgeCmp</a></td>
-<td>
-
-The string `lhs` does not contain the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.fuzzysearch">fuzzySearch</strong></td>
-<td valign="top"><a href="#explodededgefuzzycmp">ExplodedEdgeFuzzyCmp</a></td>
-<td>
-
-The string `lhs` is within an edit distance of `rhs`.
+One string tested against another.
 
 </td>
 </tr>
@@ -12702,38 +12440,20 @@ The string `lhs` is within an edit distance of `rhs`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.issome">isSome</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.presence">presence</strong></td>
+<td valign="top"><a href="#explodededgepresence">ExplodedEdgePresence</a></td>
 <td>
 
-The value is present.
+Whether a value is there.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.isnone">isNone</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.quantified">quantified</strong></td>
+<td valign="top"><a href="#explodededgequantified">ExplodedEdgeQuantified</a></td>
 <td>
 
-The value is absent.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.any">any</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-Holds when the element-wise result inside holds for any element.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.all">all</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
-<td>
-
-Holds when the element-wise result inside holds for every element.
+An element-wise yes/no over a list, made one.
 
 </td>
 </tr>
@@ -12767,63 +12487,9 @@ The yes/no inside does not hold.
 </tbody>
 </table>
 
-### ExplodedEdgeFuzzyCmp
-
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.lhs">lhs</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
-<td>
-
-The string to test.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.rhs">rhs</strong></td>
-<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
-<td>
-
-The string to match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-The largest edit distance that still matches.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefuzzycmp.prefixmatch">prefixMatch</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Whether a match on a prefix counts.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### ExplodedEdgeMembership
 
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 
 <table>
 <thead>
@@ -12855,9 +12521,9 @@ The values it may be one of.
 </tbody>
 </table>
 
-### ExplodedEdgeViewed
+### ExplodedEdgePresence
 
-Views applied to every term inside `expr`, in list order.
+Whether a value is there.
 
 <table>
 <thead>
@@ -12869,20 +12535,178 @@ Views applied to every term inside `expr`, in list order.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeviewed.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]!</td>
+<td colspan="2" valign="top"><strong id="explodededgepresence.op">op</strong></td>
+<td valign="top"><a href="#presenceop">PresenceOp</a>!</td>
 <td>
 
-The views, applied in list order.
+Present or absent.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeviewed.expr">expr</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgepresence.expr">expr</strong></td>
 <td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
-The expression evaluated inside them.
+The value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeQuantified
+
+An element-wise yes/no over a list, made one yes/no.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgequantified.op">op</strong></td>
+<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td>
+
+Any element or every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgequantified.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The element-wise yes/no.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeRead
+
+One exploded-edge term (one update of an edge), read through optional
+views. Name exactly one of `property`, `temporalProperty`, `metadata` or
+`field`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.property">property</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.metadata">metadata</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.field">field</strong></td>
+<td valign="top"><a href="#edgefield">EdgeField</a></td>
+<td>
+
+A built-in edge term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views that scope the term, applied in list order.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeStringTest
+
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.op">op</strong></td>
+<td valign="top"><a href="#strop">StrOp</a>!</td>
+<td>
+
+The test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.lhs">lhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The string tested.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.rhs">rhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The string it is tested against.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+`FUZZY` only: the largest edit distance that still matches.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+`FUZZY` only: whether a match on a prefix counts.
 
 </td>
 </tr>
@@ -13387,9 +13211,9 @@ Layer.
 </tbody>
 </table>
 
-### NodeCmp
+### NodeAggregate
 
-Two expressions to compare.
+A list reduced to one value.
 
 <table>
 <thead>
@@ -13401,7 +13225,50 @@ Two expressions to compare.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodecmp.lhs">lhs</strong></td>
+<td colspan="2" valign="top"><strong id="nodeaggregate.op">op</strong></td>
+<td valign="top"><a href="#aggop">AggOp</a>!</td>
+<td>
+
+The reduction.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeaggregate.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The list; the innermost list when lists nest.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeComparison
+
+Two values compared.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodecomparison.op">op</strong></td>
+<td valign="top"><a href="#cmpop">CmpOp</a>!</td>
+<td>
+
+How they compare.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodecomparison.lhs">lhs</strong></td>
 <td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
@@ -13410,7 +13277,7 @@ The left side.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodecmp.rhs">rhs</strong></td>
+<td colspan="2" valign="top"><strong id="nodecomparison.rhs">rhs</strong></td>
 <td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
@@ -13423,8 +13290,7 @@ The right side.
 
 ### NodeExpr
 
-A value or yes/no on one entity: a term, an aggregate over one, a
-comparison or test, or a combination of yes/nos.
+A value or a yes/no on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 
 <table>
 <thead>
@@ -13445,245 +13311,38 @@ A literal.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.read">read</strong></td>
+<td valign="top"><a href="#noderead">NodeRead</a></td>
 <td>
 
-The latest value of a property.
+One term of the node.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.agg">agg</strong></td>
+<td valign="top"><a href="#nodeaggregate">NodeAggregate</a></td>
 <td>
 
-The history of a property, as a list.
+A list reduced to one value.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.cmp">cmp</strong></td>
+<td valign="top"><a href="#nodecomparison">NodeComparison</a></td>
 <td>
 
-A metadata entry.
+Two values compared.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.isactive">isActive</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.str">str</strong></td>
+<td valign="top"><a href="#nodestringtest">NodeStringTest</a></td>
 <td>
 
-Whether the entity is active; written `isActive: true`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.field">field</strong></td>
-<td valign="top"><a href="#nodefieldname">NodeFieldName</a></td>
-<td>
-
-A built-in node field.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.degree">degree</strong></td>
-<td valign="top"><a href="#degreedirection">DegreeDirection</a></td>
-<td>
-
-The node's degree in a direction.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.viewed">viewed</strong></td>
-<td valign="top"><a href="#nodeviewed">NodeViewed</a></td>
-<td>
-
-Views applied to every term inside.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.sum">sum</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The sum of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.avg">avg</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The mean of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.min">min</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The smallest element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.max">max</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The largest element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.first">first</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The first element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.last">last</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The last element of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.len">len</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The number of elements of the innermost list.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.earliest">earliest</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The earliest update of a temporal history.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.latest">latest</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-The latest update of a temporal history.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.eq">eq</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-`lhs == rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.ne">ne</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-`lhs != rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.lt">lt</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-`lhs < rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.le">le</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-`lhs <= rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.gt">gt</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-`lhs > rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.ge">ge</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-`lhs >= rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.startswith">startsWith</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-The string `lhs` starts with the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.endswith">endsWith</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-The string `lhs` ends with the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.contains">contains</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-The string `lhs` contains the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.notcontains">notContains</strong></td>
-<td valign="top"><a href="#nodecmp">NodeCmp</a></td>
-<td>
-
-The string `lhs` does not contain the string `rhs`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.fuzzysearch">fuzzySearch</strong></td>
-<td valign="top"><a href="#nodefuzzycmp">NodeFuzzyCmp</a></td>
-<td>
-
-The string `lhs` is within an edit distance of `rhs`.
+One string tested against another.
 
 </td>
 </tr>
@@ -13706,38 +13365,20 @@ The string `lhs` is within an edit distance of `rhs`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.issome">isSome</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.presence">presence</strong></td>
+<td valign="top"><a href="#nodepresence">NodePresence</a></td>
 <td>
 
-The value is present.
+Whether a value is there.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.isnone">isNone</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.quantified">quantified</strong></td>
+<td valign="top"><a href="#nodequantified">NodeQuantified</a></td>
 <td>
 
-The value is absent.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.any">any</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-Holds when the element-wise result inside holds for any element.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.all">all</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
-<td>
-
-Holds when the element-wise result inside holds for every element.
+An element-wise yes/no over a list, made one.
 
 </td>
 </tr>
@@ -13771,63 +13412,9 @@ The yes/no inside does not hold.
 </tbody>
 </table>
 
-### NodeFuzzyCmp
-
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefuzzycmp.lhs">lhs</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
-<td>
-
-The string to test.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefuzzycmp.rhs">rhs</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
-<td>
-
-The string to match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefuzzycmp.levenshteindistance">levenshteinDistance</strong></td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td>
-
-The largest edit distance that still matches.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefuzzycmp.prefixmatch">prefixMatch</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-Whether a match on a prefix counts.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### NodeMembership
 
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 
 <table>
 <thead>
@@ -13853,6 +13440,136 @@ The value to look for.
 <td>
 
 The values it may be one of.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodePresence
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodepresence.op">op</strong></td>
+<td valign="top"><a href="#presenceop">PresenceOp</a>!</td>
+<td>
+
+Present or absent.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodepresence.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeQuantified
+
+An element-wise yes/no over a list, made one yes/no.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodequantified.op">op</strong></td>
+<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td>
+
+Any element or every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodequantified.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The element-wise yes/no.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeRead
+
+One node term, read through optional views. Name exactly one of
+`property`, `temporalProperty`, `metadata` or `field`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.property">property</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.metadata">metadata</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.field">field</strong></td>
+<td valign="top"><a href="#nodefield">NodeField</a></td>
+<td>
+
+A built-in node term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views that scope the term, applied in list order.
 
 </td>
 </tr>
@@ -13927,9 +13644,9 @@ Property
 </tbody>
 </table>
 
-### NodeViewed
+### NodeStringTest
 
-Views applied to every term inside `expr`, in list order.
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
 
 <table>
 <thead>
@@ -13941,20 +13658,47 @@ Views applied to every term inside `expr`, in list order.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewed.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]!</td>
+<td colspan="2" valign="top"><strong id="nodestringtest.op">op</strong></td>
+<td valign="top"><a href="#strop">StrOp</a>!</td>
 <td>
 
-The views, applied in list order.
+The test.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewed.expr">expr</strong></td>
+<td colspan="2" valign="top"><strong id="nodestringtest.lhs">lhs</strong></td>
 <td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-The expression evaluated inside them.
+The string tested.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestringtest.rhs">rhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The string it is tested against.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestringtest.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+`FUZZY` only: the largest edit distance that still matches.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodestringtest.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+`FUZZY` only: whether a match on a prefix counts.
 
 </td>
 </tr>
@@ -14726,11 +14470,12 @@ Strictly before a time.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="viewop.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
+<td colspan="2" valign="top"><strong id="viewop.kind">kind</strong></td>
+<td valign="top"><a href="#viewkind">ViewKind</a></td>
 <td>
 
-At the latest time; written `latest: true`.
+A view that takes no argument: `LATEST`, `SNAPSHOT_LATEST`, `VALID` or
+`DEFAULT_LAYER`.
 
 </td>
 </tr>
@@ -14744,29 +14489,11 @@ Everything up to and including a time; written `snapshotAt: t`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="viewop.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Everything up to the latest time; written `snapshotLatest: true`.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="viewop.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
 <td>
 
 Only the named layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewop.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Only the default layer; written `defaultLayer: true`.
 
 </td>
 </tr>
@@ -14835,16 +14562,6 @@ not hold is skipped.
 <td>
 
 Only the nodes of the named types and the edges between them.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewop.valid">valid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Only the edges that are valid in the view (on a persistent graph, whose
-last update is an addition); written `valid: true`.
 
 </td>
 </tr>
@@ -14919,6 +14636,93 @@ Time.
 
 ## Enums
 
+### AggOp
+
+How the values of a list are reduced to one.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>SUM</strong></td>
+<td>
+
+The sum of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>AVG</strong></td>
+<td>
+
+The mean of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>MIN</strong></td>
+<td>
+
+The smallest element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>MAX</strong></td>
+<td>
+
+The largest element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>FIRST</strong></td>
+<td>
+
+The first element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LAST</strong></td>
+<td>
+
+The last element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LEN</strong></td>
+<td>
+
+The number of elements of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>EARLIEST</strong></td>
+<td>
+
+The earliest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LATEST</strong></td>
+<td>
+
+The latest update of a temporal history.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### AlignmentUnit
 
 Alignment unit used to align window boundaries.
@@ -14970,9 +14774,9 @@ Alignment unit used to align window boundaries.
 </tbody>
 </table>
 
-### DegreeDirection
+### CmpOp
 
-The direction a node degree counts.
+How two values compare.
 
 <table>
 <thead>
@@ -14983,16 +14787,52 @@ The direction a node degree counts.
 </thead>
 <tbody>
 <tr>
-<td valign="top"><strong>IN</strong></td>
-<td></td>
+<td valign="top"><strong>EQ</strong></td>
+<td>
+
+`lhs == rhs`.
+
+</td>
 </tr>
 <tr>
-<td valign="top"><strong>OUT</strong></td>
-<td></td>
+<td valign="top"><strong>NE</strong></td>
+<td>
+
+`lhs != rhs`.
+
+</td>
 </tr>
 <tr>
-<td valign="top"><strong>BOTH</strong></td>
-<td></td>
+<td valign="top"><strong>LT</strong></td>
+<td>
+
+`lhs < rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LE</strong></td>
+<td>
+
+`lhs <= rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>GT</strong></td>
+<td>
+
+`lhs > rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>GE</strong></td>
+<td>
+
+`lhs >= rhs`.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -15020,6 +14860,54 @@ Edge direction to follow during traversal.
 <tr>
 <td valign="top"><strong>BOTH</strong></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeField
+
+A built-in edge term that takes no argument; exploded edges have the same.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>IS_ACTIVE</strong></td>
+<td>
+
+Whether the edge is active.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_VALID</strong></td>
+<td>
+
+Whether the edge is valid (on a persistent graph, its last update is an
+addition).
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_DELETED</strong></td>
+<td>
+
+Whether the edge is deleted.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_SELF_LOOP</strong></td>
+<td>
+
+Whether the edge is a self loop.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -15118,9 +15006,9 @@ Number of edges.
 </tbody>
 </table>
 
-### NodeFieldName
+### NodeField
 
-A built-in node field.
+A built-in node term that takes no argument.
 
 <table>
 <thead>
@@ -15131,14 +15019,6 @@ A built-in node field.
 </thead>
 <tbody>
 <tr>
-<td valign="top"><strong>ID</strong></td>
-<td>
-
-The node's id.
-
-</td>
-</tr>
-<tr>
 <td valign="top"><strong>NAME</strong></td>
 <td>
 
@@ -15147,10 +15027,112 @@ The node's name.
 </td>
 </tr>
 <tr>
+<td valign="top"><strong>ID</strong></td>
+<td>
+
+The node's id.
+
+</td>
+</tr>
+<tr>
 <td valign="top"><strong>NODE_TYPE</strong></td>
 <td>
 
 The node's type.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>DEGREE</strong></td>
+<td>
+
+The number of edges at the node, in and out.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IN_DEGREE</strong></td>
+<td>
+
+The number of edges into the node.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>OUT_DEGREE</strong></td>
+<td>
+
+The number of edges out of the node.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_ACTIVE</strong></td>
+<td>
+
+Whether the node is active.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### PresenceOp
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>IS_SOME</strong></td>
+<td>
+
+The value is present.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_NONE</strong></td>
+<td>
+
+The value is absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### Quantifier
+
+How an element-wise yes/no over a list becomes one yes/no.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>ANY</strong></td>
+<td>
+
+Holds when the yes/no inside holds for any element.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>ALL</strong></td>
+<td>
+
+Holds when the yes/no inside holds for every element.
 
 </td>
 </tr>
@@ -15212,6 +15194,110 @@ explicitly rather than silently coercing them to `null`.
 <tr>
 <td valign="top"><strong>NEG_INFINITY</strong></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### StrOp
+
+How one string is tested against another.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>STARTS_WITH</strong></td>
+<td>
+
+The string `lhs` starts with the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>ENDS_WITH</strong></td>
+<td>
+
+The string `lhs` ends with the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>CONTAINS</strong></td>
+<td>
+
+The string `lhs` contains the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>NOT_CONTAINS</strong></td>
+<td>
+
+The string `lhs` does not contain the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>FUZZY</strong></td>
+<td>
+
+The string `lhs` is within `levenshteinDistance` edits of `rhs`,
+optionally matching by prefix; the only test that takes those two.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ViewKind
+
+A view that takes no argument.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>LATEST</strong></td>
+<td>
+
+At the latest time.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>SNAPSHOT_LATEST</strong></td>
+<td>
+
+Everything up to and including the latest time.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>VALID</strong></td>
+<td>
+
+Only the edges that are valid in the view (on a persistent graph, whose
+last update is an addition).
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>DEFAULT_LAYER</strong></td>
+<td>
+
+Only the default layer.
+
+</td>
 </tr>
 </tbody>
 </table>

@@ -14,9 +14,10 @@ def test_graph_node_sort_by_nothing(graph):
       graph(path: "g") {
         nodes(select: {
                         node: {
-                          eq: {
+                          cmp: {
+                            op: EQ
                             lhs: {
-                              field: ID
+                              read: { field: ID }
                             }
                             rhs: {
                               const: {

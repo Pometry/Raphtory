@@ -50,13 +50,13 @@ def test_apply_view_snapshot_latest():
     query = """
  {
   graph(path: "g") {
-    filter(expr: {view: [{snapshotLatest: true}]}) {
+    filter(expr: {view: [{kind: SNAPSHOT_LATEST}]}) {
       earliestTime {
         timestamp
       }
     }
     nodes {
-      filter(expr: {view: [{snapshotLatest: true}]}) {
+      filter(expr: {view: [{kind: SNAPSHOT_LATEST}]}) {
         page(limit: 1, offset: 0) {
           history {
             timestamps {
@@ -67,7 +67,7 @@ def test_apply_view_snapshot_latest():
       }
     }
     node(name: "1") {
-      filter(expr: {view: [{snapshotLatest: true}]}) {
+      filter(expr: {view: [{kind: SNAPSHOT_LATEST}]}) {
         history {
           timestamps {
             list
@@ -76,7 +76,7 @@ def test_apply_view_snapshot_latest():
       }
     }
     edges {
-      filter(expr: {view: [{snapshotLatest: true}]}) {
+      filter(expr: {view: [{kind: SNAPSHOT_LATEST}]}) {
         page(limit: 1, offset: 0) {
           src {
             history {
@@ -96,7 +96,7 @@ def test_apply_view_snapshot_latest():
       }
     }
     edge(src: "1", dst: "2") {
-      filter(expr: {view: [{snapshotLatest: true}]}) {
+      filter(expr: {view: [{kind: SNAPSHOT_LATEST}]}) {
         src {
           history {
             timestamps {
@@ -216,13 +216,13 @@ def test_apply_view_default_layer():
     query = """
  {
   graph(path: "g") {
-    filter(expr: {view: [{defaultLayer: true}]}) {
+    filter(expr: {view: [{kind: DEFAULT_LAYER}]}) {
       earliestTime {
         timestamp
       }
     }
     nodes {
-      filter(expr: {view: [{defaultLayer: true}]}) {
+      filter(expr: {view: [{kind: DEFAULT_LAYER}]}) {
         page(limit: 1, offset: 0) {
           history {
             timestamps {
@@ -233,7 +233,7 @@ def test_apply_view_default_layer():
       }
     }
     node(name: "2") {
-      filter(expr: {view: [{defaultLayer: true}]}) {
+      filter(expr: {view: [{kind: DEFAULT_LAYER}]}) {
         history {
           timestamps {
             list
@@ -242,7 +242,7 @@ def test_apply_view_default_layer():
       }
     }
     edges {
-      filter(expr: {view: [{defaultLayer: true}]}) {
+      filter(expr: {view: [{kind: DEFAULT_LAYER}]}) {
         page(limit: 1, offset: 0) {
           src {
             history {
@@ -262,7 +262,7 @@ def test_apply_view_default_layer():
       }
     }
     edge(src: "6", dst: "7") {
-      filter(expr: {view: [{defaultLayer: true}]}) {
+      filter(expr: {view: [{kind: DEFAULT_LAYER}]}) {
         src {
           history {
             timestamps {
@@ -339,13 +339,13 @@ def test_apply_view_latest():
     query = """
 {
   graph(path: "g") {
-    filter(expr: {view: [{latest: true}]}) {
+    filter(expr: {view: [{kind: LATEST}]}) {
       earliestTime {
         timestamp
       }
     }
     nodes {
-      filter(expr: {view: [{latest: true}]}) {
+      filter(expr: {view: [{kind: LATEST}]}) {
         page(limit: 1, offset: 0) {
           history {
             timestamps {
@@ -356,7 +356,7 @@ def test_apply_view_latest():
       }
     }
     node(name: "2") {
-      filter(expr: {view: [{latest: true}]}) {
+      filter(expr: {view: [{kind: LATEST}]}) {
         history {
           timestamps {
             list
@@ -365,7 +365,7 @@ def test_apply_view_latest():
       }
     }
     edges {
-      filter(expr: {view: [{latest: true}]}) {
+      filter(expr: {view: [{kind: LATEST}]}) {
         page(limit: 1, offset: 0) {
           src {
             history {
@@ -385,7 +385,7 @@ def test_apply_view_latest():
       }
     }
     edge(src: "6", dst: "7") {
-      filter(expr: {view: [{latest: true}]}) {
+      filter(expr: {view: [{kind: LATEST}]}) {
         src {
           history {
             timestamps {
@@ -1440,7 +1440,7 @@ def test_apply_view_layer():
       }
     }
     nodes {
-     select(expr: {node: {eq: {lhs: {field: NODE_TYPE}, rhs: {const: {str: "Person"}}}}}) {
+     select(expr: {node: {cmp: {op: EQ, lhs: {read: { field: NODE_TYPE }}, rhs: {const: {str: "Person"}}}}}) {
         list {
           history {
             timestamps {
@@ -1934,7 +1934,7 @@ def test_apply_view_type_filter():
 {
   graph(path: "g") {
       nodes {
-        select(expr: {node: {eq: {lhs: {field: NODE_TYPE}, rhs: {const: {str: "Person"}}}}}) {
+        select(expr: {node: {cmp: {op: EQ, lhs: {read: { field: NODE_TYPE }}, rhs: {const: {str: "Person"}}}}}) {
           list {
             name
           }
@@ -2060,9 +2060,10 @@ def test_apply_view_node_filter():
       graph(path: "g") {
         filter(expr: {
                       node: {
-                        eq: {
+                        cmp: {
+                          op: EQ
                           lhs: {
-                            property: "where"
+                            read: { property: "where" }
                           }
                           rhs: {
                             const: {
@@ -2093,9 +2094,10 @@ def test_apply_view_edge_filter():
       graph(path: "g") {
         filter(expr: {
                       edge: {
-                        eq: {
+                        cmp: {
+                          op: EQ
                           lhs: {
-                            property: "where"
+                            read: { property: "where" }
                           }
                           rhs: {
                             const: {
@@ -2256,9 +2258,10 @@ def test_apply_view_a_lot_of_views():
         nodes {
           filter(expr: {and: [{view: [{ window: { start: 1735689600000, end: 1735862400000 } }, { layers: ["follows"] }]}, {
                         node: {
-                          eq: {
+                          cmp: {
+                            op: EQ
                             lhs: {
-                              property: "where"
+                              read: { property: "where" }
                             }
                             rhs: {
                               const: {
@@ -2310,7 +2313,7 @@ def test_apply_view_neighbours():
     nodes {
       list {
         neighbours {
-          filter(expr: {view: [{latest: true}]}) {
+          filter(expr: {view: [{kind: LATEST}]}) {
             list {
               name
               history {
@@ -2414,7 +2417,7 @@ def test_apply_view_neighbours_latest():
   graph(path: "g") {
     node(name: "1") {
       neighbours {
-        filter(expr: {view: [{latest: true}]}) {
+        filter(expr: {view: [{kind: LATEST}]}) {
           list {
             name
             history {
@@ -2940,7 +2943,7 @@ def test_apply_view_out_neighbours_snapshot_latest():
   graph(path: "g") {
     node(name: "1") {
       outNeighbours {
-        filter(expr: {view: [{snapshotLatest: true}]}) {
+        filter(expr: {view: [{kind: SNAPSHOT_LATEST}]}) {
           list {
             name
             history {
@@ -3058,7 +3061,7 @@ def test_valid_graph():
     query = """
             {
               graph(path:"g"){
-                filter(expr: {view: [{valid:true}]}) {
+                filter(expr: {view: [{kind: VALID}]}) {
                   edges{
                     list{
                       id

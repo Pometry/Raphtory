@@ -1,8 +1,9 @@
 """The filter tree as a GraphQL input.
 
 `FilterExpr` is the same tree the local engine compiles: the entity is the key
-(`node`, `edge`, `explodedEdge`), each term on it is a plain field, and an
-expression stands on *both* sides of a comparison. These tests send trees as
+(`node`, `edge`, `explodedEdge`), each term on it is a `read` that carries its
+own views, operators are enum values, and an expression stands on *both* sides
+of a comparison. These tests send trees as
 JSON variables and check the answers against the same graph read locally, so
 the wire grammar is pinned by results, not by shape.
 """
@@ -62,8 +63,16 @@ def const(v):
     return {"const": v}
 
 
-def viewed(views, expr):
-    return {"viewed": {"views": views, "expr": expr}}
+def read(term, views=None):
+    """A read of one term (`{"property": "score"}`, `{"field": "NAME"}`, ...),
+    under `views` when given."""
+    if views is None:
+        return {"read": term}
+    return {"read": {**term, "views": views}}
+
+
+def cmp(op, lhs, rhs):
+    return {"cmp": {"op": op, "lhs": lhs, "rhs": rhs}}
 
 
 def node_names(client, tree):
@@ -84,7 +93,7 @@ def test_both_sides_of_a_comparison_are_expressions():
     constant-only grammar could not say. The tree can, and the server answers
     what the local engine answers."""
     g = build()
-    tree = node({"gt": {"lhs": {"degree": "BOTH"}, "rhs": {"degree": "IN"}}})
+    tree = node(cmp("GT", read({"field": "DEGREE"}), read({"field": "IN_DEGREE"})))
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["alice", "bob", "carol"]
     local = sorted(n.name for n in g.filter(f.Node.degree() > f.Node.in_degree()).nodes)
@@ -94,9 +103,9 @@ def test_both_sides_of_a_comparison_are_expressions():
 def test_views_belong_to_the_term():
     """Inside [0, 5) alice's latest score is 7 and bob's is 5."""
     g = build()
-    windowed = viewed([{"window": {"start": 0, "end": 5}}], {"property": "score"})
-    tree = node({"gt": {"lhs": windowed, "rhs": const({"f64": 4.0})}})
-    plain = node({"gt": {"lhs": {"property": "score"}, "rhs": const({"f64": 4.0})}})
+    windowed = read({"property": "score"}, [{"window": {"start": 0, "end": 5}}])
+    tree = node(cmp("GT", windowed, const({"f64": 4.0})))
+    plain = node(cmp("GT", read({"property": "score"}), const({"f64": 4.0})))
     with graphql_client(g) as client:
         assert node_names(client, tree) == ["alice", "bob"]
         assert node_names(client, plain) == ["alice"]
@@ -104,16 +113,25 @@ def test_views_belong_to_the_term():
 
 def test_temporal_aggregates_and_qualifiers():
     g = build()
-    history = {"temporalProperty": "score"}
-    total = node({"gt": {"lhs": {"sum": history}, "rhs": const({"f64": 10.0})}})
+    history = read({"temporalProperty": "score"})
+
+    def agg(op):
+        return {"agg": {"op": op, "expr": history}}
+
+    total = node(cmp("GT", agg("SUM"), const({"f64": 10.0})))
     # The qualifier follows the comparison: one answer per update, any must hold.
-    any_high = node({"any": {"gt": {"lhs": history, "rhs": const({"f64": 4.0})}}})
-    two_updates = node({"eq": {"lhs": {"len": history}, "rhs": const({"u64": 2})}})
-    # earliest / latest are updates of the history, not reductions of it.
-    started_low = node(
-        {"lt": {"lhs": {"earliest": history}, "rhs": const({"f64": 2.0})}}
+    any_high = node(
+        {
+            "quantified": {
+                "op": "ANY",
+                "expr": cmp("GT", history, const({"f64": 4.0})),
+            }
+        }
     )
-    ended_low = node({"lt": {"lhs": {"latest": history}, "rhs": const({"f64": 3.0})}})
+    two_updates = node(cmp("EQ", agg("LEN"), const({"u64": 2})))
+    # earliest / latest are updates of the history, not reductions of it.
+    started_low = node(cmp("LT", agg("EARLIEST"), const({"f64": 2.0})))
+    ended_low = node(cmp("LT", agg("LATEST"), const({"f64": 3.0})))
     with graphql_client(g) as client:
         assert node_names(client, total) == ["alice"]
         assert node_names(client, any_high) == ["alice", "bob"]
@@ -126,11 +144,11 @@ def test_edge_reads_through_an_endpoint_keep_the_edge_views():
     """The window on the edge scopes the source node's score: inside [0, 5)
     alice's latest score is 7, so asking for the later 9 matches nothing."""
     g = build()
-    src_score = {
-        "src": viewed([{"window": {"start": 0, "end": 5}}], {"property": "score"})
-    }
-    late = edge({"eq": {"lhs": src_score, "rhs": const({"f64": 9.0})}})
-    early = edge({"eq": {"lhs": src_score, "rhs": const({"f64": 7.0})}})
+    src_score = read(
+        {"src": read({"property": "score"}, [{"window": {"start": 0, "end": 5}}])}
+    )
+    late = edge(cmp("EQ", src_score, const({"f64": 9.0})))
+    early = edge(cmp("EQ", src_score, const({"f64": 7.0})))
     with graphql_client(g) as client:
         assert edge_pairs(client, late) == []
         assert edge_pairs(client, early) == [("alice", "bob")]
@@ -142,7 +160,9 @@ def test_a_view_leg_restricts_the_whole_filter():
     outside [0, 2), so he is gone before the predicate runs."""
     g = build()
     window = {"view": [{"window": {"start": 0, "end": 2}}]}
-    has_score = node({"isSome": {"property": "score"}})
+    has_score = node(
+        {"presence": {"op": "IS_SOME", "expr": read({"property": "score"})}}
+    )
     with graphql_client(g) as client:
         assert node_names(client, {"and": [window, has_score]}) == ["alice", "bob"]
         assert node_names(client, has_score) == ["alice", "bob", "dave"]
@@ -153,9 +173,9 @@ def test_a_view_leg_restricts_the_whole_filter():
 
 def test_structural_predicates_and_views():
     g = build()
-    works = edge(viewed([{"layers": ["works"]}], {"isActive": True}))
+    works = edge(read({"field": "IS_ACTIVE"}, [{"layers": ["works"]}]))
     window_then_latest = {
-        "view": [{"window": {"start": 0, "end": 5}}, {"latest": True}]
+        "view": [{"window": {"start": 0, "end": 5}}, {"kind": "LATEST"}]
     }
     with graphql_client(g) as client:
         assert edge_pairs(client, works) == [("bob", "carol")]
@@ -167,11 +187,12 @@ def test_combinators_presence_and_membership():
     tree = node(
         {
             "and": [
-                {"isSome": {"property": "score"}},
+                {"presence": {"op": "IS_SOME", "expr": read({"property": "score"})}},
                 {
                     "not": {
-                        "startsWith": {
-                            "lhs": {"field": "NAME"},
+                        "str": {
+                            "op": "STARTS_WITH",
+                            "lhs": read({"field": "NAME"}),
                             "rhs": const({"str": "a"}),
                         }
                     }
@@ -182,7 +203,7 @@ def test_combinators_presence_and_membership():
     members = node(
         {
             "isIn": {
-                "expr": {"field": "NAME"},
+                "expr": read({"field": "NAME"}),
                 "values": {"list": [{"str": "alice"}, {"str": "dave"}]},
             }
         }
@@ -199,7 +220,7 @@ def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
     g = build()
     g.add_edge(3, "dave", "alice")
     cases = [
-        ([{"defaultLayer": True}], g.default_layer(), f.Edge.default_layer()),
+        ([{"kind": "DEFAULT_LAYER"}], g.default_layer(), f.Edge.default_layer()),
         (
             [{"excludeLayer": "knows"}],
             g.exclude_layer("knows"),
@@ -221,7 +242,7 @@ def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
         for views, local_view, local_scope in cases:
             want = sorted((e.src.name, e.dst.name) for e in local_view.edges)
             assert edge_pairs(client, {"view": views}) == want, views
-            active = edge(viewed(views, {"isActive": True}))
+            active = edge(read({"field": "IS_ACTIVE"}, views))
             local = sorted(
                 (e.src.name, e.dst.name)
                 for e in g.filter(local_scope.is_active()).edges
@@ -230,7 +251,7 @@ def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
 
 
 def test_node_set_views_and_valid_read_as_the_graph_views():
-    """`excludeNodes`, `subgraph`, `subgraphNodeTypes` and `valid` are the graph
+    """`excludeNodes`, `subgraph`, `subgraphNodeTypes` and `kind: VALID` are the graph
     views of the same name applied to the view so far, both as a whole-filter
     view and as the scope of a node or edge term. alice and bob are `person`,
     carol is `org`; bob→carol is deleted @5, so it is not valid afterwards."""
@@ -258,7 +279,7 @@ def test_node_set_views_and_valid_read_as_the_graph_views():
             f.Node.subgraph_node_types(["person", "org"]),
             f.Edge.subgraph_node_types(["person", "org"]),
         ),
-        ([{"valid": True}], g.valid(), f.Node.valid(), f.Edge.valid()),
+        ([{"kind": "VALID"}], g.valid(), f.Node.valid(), f.Edge.valid()),
         (
             [{"window": {"start": 0, "end": 5}}, {"excludeNodes": ["alice"]}],
             g.window(0, 5).exclude_nodes(["alice"]),
@@ -273,18 +294,13 @@ def test_node_set_views_and_valid_read_as_the_graph_views():
             assert node_names(client, {"view": views}) == sorted(
                 local_view.nodes.name
             ), views
-            active = edge(viewed(views, {"isActive": True}))
+            active = edge(read({"field": "IS_ACTIVE"}, views))
             local = sorted(
                 (e.src.name, e.dst.name) for e in g.filter(edge_scope.is_active()).edges
             )
             assert edge_pairs(client, active) == local, views
             degree = node(
-                {
-                    "gt": {
-                        "lhs": viewed(views, {"degree": "BOTH"}),
-                        "rhs": const({"u64": 0}),
-                    }
-                }
+                cmp("GT", read({"field": "DEGREE"}, views), const({"u64": 0}))
             )
             local = sorted(g.filter(node_scope.degree() > 0).nodes.name)
             assert node_names(client, degree) == local, views
@@ -301,8 +317,21 @@ def test_node_ids_keep_their_type_in_a_view():
         assert node_names(client, {"view": [{"subgraph": [1, 2]}]}) == ["1", "2"]
 
 
-def test_a_view_op_that_is_not_applied_is_refused():
+def test_a_view_without_argument_is_named_by_kind():
+    """`latest`, `snapshotLatest`, `valid` and `defaultLayer` are values of
+    `kind`, so a view that is named but not applied cannot be spelled: the old
+    boolean field is unknown, and so is a kind outside the enum."""
     g = build()
     with graphql_client(g) as client:
-        with pytest.raises(Exception, match="valid: false is not a view"):
-            client.query(NODES, {"f": {"view": [{"valid": False}]}})
+        for old in [True, False]:
+            with pytest.raises(
+                Exception,
+                match='argument "expr.view.0", unknown field "valid" of type "ViewOp"',
+            ):
+                client.query(NODES, {"f": {"view": [{"valid": old}]}})
+        with pytest.raises(
+            Exception,
+            match='argument "expr.view.0.kind", enumeration type "ViewKind" '
+            'does not contain the value "VALIDATE"',
+        ):
+            client.query(NODES, {"f": {"view": [{"kind": "VALIDATE"}]}})

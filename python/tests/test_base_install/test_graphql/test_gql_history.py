@@ -245,9 +245,10 @@ def test_history():
       graph(path: "g") {
         filterEdges: filter(expr: {
                                     edge: {
-                                      eq: {
+                                      cmp: {
+                                        op: EQ
                                         lhs: {
-                                          property: "weight"
+                                          read: { property: "weight" }
                                         }
                                         rhs: {
                                           const: {
@@ -282,9 +283,10 @@ def test_history():
       graph(path: "g") {
         filterEdges: filter(expr: {
                                     edge: {
-                                      eq: {
+                                      cmp: {
+                                        op: EQ
                                         lhs: {
-                                          property: "weight"
+                                          read: { property: "weight" }
                                         }
                                         rhs: {
                                           const: {
@@ -313,9 +315,10 @@ def test_history():
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      lt: {
+                                      cmp: {
+                                        op: LT
                                         lhs: {
-                                          property: "Age"
+                                          read: { property: "Age" }
                                         }
                                         rhs: {
                                           const: {
@@ -343,9 +346,10 @@ def test_history():
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      ge: {
+                                      cmp: {
+                                        op: GE
                                         lhs: {
-                                          property: "Age"
+                                          read: { property: "Age" }
                                         }
                                         rhs: {
                                           const: {
@@ -379,9 +383,10 @@ def test_history():
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      lt: {
+                                      cmp: {
+                                        op: LT
                                         lhs: {
-                                          property: "Age"
+                                          read: { property: "Age" }
                                         }
                                         rhs: {
                                           const: {
@@ -409,9 +414,10 @@ def test_history():
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      ge: {
+                                      cmp: {
+                                        op: GE
                                         lhs: {
-                                          property: "Age"
+                                          read: { property: "Age" }
                                         }
                                         rhs: {
                                           const: {
