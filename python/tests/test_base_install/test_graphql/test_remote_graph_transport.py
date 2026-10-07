@@ -4129,3 +4129,32 @@ def test_mixed_kind_filter_expression_remote():
         local_ids = sorted(lg.filter(expr).nodes.id)
         remote_ids = sorted(rg.filter(expr).nodes.id)
         assert remote_ids == local_ids, f"{remote_ids} != {local_ids}"
+
+
+def test_exploded_edges_select_per_item():
+    """`[]` asks its question of the items of the collection it is called on,
+    remotely as locally: once per edge on `edges`, once per exploded edge on
+    `edges.explode()`. Exploding returns the exploded classes."""
+    from raphtory import Graph, filter
+    from raphtory.graphql import RemoteExplodedEdges, RemoteNestedExplodedEdges
+
+    def build(g):
+        g.add_edge(1, "a", "b", properties={"w": 1}, layer="x")
+        g.add_edge(7, "a", "b", properties={"w": 7}, layer="y")
+        g.add_edge(2, "b", "c", properties={"w": 2}, layer="x")
+        return g
+
+    local = build(Graph())
+    with _remote_graph("g") as rg:
+        build(rg)
+        assert isinstance(rg.edges.explode(), RemoteExplodedEdges)
+        assert isinstance(rg.nodes.edges.explode(), RemoteNestedExplodedEdges)
+        for expr in (
+            filter.Graph.window(0, 5),
+            filter.ExplodedEdge.property("w") == 7,
+            filter.Edge.property("w") == 7,
+        ):
+            assert len(rg.edges[expr].explode()) == len(local.edges[expr].explode())
+            assert len(rg.edges.explode()[expr]) == len(local.edges.explode()[expr])
+        assert len(rg.edges[filter.Graph.window(0, 5)].explode()) == 3
+        assert len(rg.edges.explode()[filter.Graph.window(0, 5)]) == 2

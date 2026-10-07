@@ -5,7 +5,7 @@ use crate::{
             remote_client::PyRaphtoryClient,
             remote_collection_metadata::{PyRemoteMetadataView, PyRemotePropertiesView},
             remote_edge::PyRemoteEdge,
-            remote_edges::PyRemoteEdges,
+            remote_edges::{PyRemoteEdges, PyRemoteExplodedEdges},
             remote_graph::PyRemoteGraph,
             remote_history::{
                 PyRemoteHistory, PyRemoteHistoryDateTimes, PyRemoteHistoryEventIds,
@@ -15,7 +15,7 @@ use crate::{
                 PyRemoteMetadata, PyRemoteProperties, PyRemoteTemporalProperties,
                 PyRemoteTemporalProperty,
             },
-            remote_nested_edges::PyRemoteNestedEdges,
+            remote_nested_edges::{PyRemoteNestedEdges, PyRemoteNestedExplodedEdges},
             remote_node::PyRemoteNode,
             remote_nodes::PyRemoteNodes,
             remote_path_from_graph::PyRemotePathFromGraph,
@@ -63,6 +63,8 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_class::<PyRaphtoryClient>()?;
     graphql_module.add_class::<PyRemoteGraph>()?;
     graphql_module.add_class::<PyRemoteEdge>()?;
+    graphql_module.add_class::<PyRemoteExplodedEdges>()?;
+    graphql_module.add_class::<PyRemoteNestedExplodedEdges>()?;
     graphql_module.add_class::<PyRemoteNode>()?;
     graphql_module.add_class::<PyRemoteNodes>()?;
     graphql_module.add_class::<PyRemotePathFromNode>()?;
