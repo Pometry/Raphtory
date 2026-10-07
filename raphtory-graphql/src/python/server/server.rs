@@ -66,7 +66,7 @@ use {
 ///                              extension's settings, so which further sections are accepted
 ///                              depends on which extensions the build has.
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
-pub struct PyGraphServer(GraphServer);
+pub struct PyGraphServer(Option<GraphServer>);
 
 impl<'py> IntoPyObject<'py> for GraphServer {
     type Target = PyGraphServer;
@@ -74,7 +74,7 @@ impl<'py> IntoPyObject<'py> for GraphServer {
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphServer(self).into_pyobject(py)
+        PyGraphServer(Some(self)).into_pyobject(py)
     }
 }
 
@@ -98,6 +98,20 @@ fn template_from_python(
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         })
+    }
+}
+
+impl PyGraphServer {
+    fn inner(&self) -> Result<&GraphServer, PyErr> {
+        self.0
+            .as_ref()
+            .ok_or_else(|| PyRuntimeError::new_err("Server already started"))
+    }
+
+    fn take_inner(&mut self) -> Result<GraphServer, PyErr> {
+        self.0
+            .take()
+            .ok_or_else(|| PyRuntimeError::new_err("Server already started"))
     }
 }
 
@@ -130,7 +144,7 @@ impl PyGraphServer {
         // still respond.
         let server =
             py.detach(|| block_on(GraphServer::new(work_dir, app_config, Args::default())))?;
-        Ok(PyGraphServer(server))
+        Ok(PyGraphServer(Some(server)))
     }
 
     /// The full config schema as a nested dict: every field, including ones unset by default.
@@ -138,7 +152,8 @@ impl PyGraphServer {
     /// Returns:
     ///     dict: the configuration schema.
     fn config_schema<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let value = self.0.config().config_schema_json()?;
+        let server = self.inner()?;
+        let value = server.config().config_schema_json()?;
         Ok(pythonize(py, &value)?)
     }
 
@@ -165,10 +180,11 @@ impl PyGraphServer {
         edges: TemplateConfig,
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
+        let server = self.inner()?;
         // allow threads just in case the embedding server is using the same python runtime
         py.detach(|| {
             block_on(async move {
-                self.0
+                server
                     .vectorise_graph(name, &template, embeddings.into())
                     .await?;
                 Ok(())
@@ -198,9 +214,10 @@ impl PyGraphServer {
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
         // allow threads just in case the embedding server is using the same python runtime
+        let server = self.inner()?;
         py.detach(|| {
             block_on(async move {
-                self.0
+                server
                     .vectorise_all_graphs(&template, embeddings.into())
                     .await?;
                 Ok(())
@@ -222,11 +239,11 @@ impl PyGraphServer {
     #[pyo3(
         signature = (port = None, timeout_ms = 5000)
     )]
-    pub fn start(&self, port: Option<u16>, timeout_ms: u64) -> PyResult<PyRunningGraphServer> {
+    pub fn start(&mut self, port: Option<u16>, timeout_ms: u64) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let (start_sender, start_receiver) = crossbeam_channel::bounded::<ServerStarted>(1);
         let cloned_sender = sender.clone();
-        let server = self.0.clone();
+        let server = self.take_inner()?;
 
         let join_handle = thread::spawn(move || {
             block_on(async move {
@@ -295,7 +312,7 @@ impl PyGraphServer {
     #[pyo3(
         signature = (port = None, timeout_ms = 180000)
     )]
-    pub fn run(&self, py: Python, port: Option<u16>, timeout_ms: u64) -> PyResult<()> {
+    pub fn run(&mut self, py: Python, port: Option<u16>, timeout_ms: u64) -> PyResult<()> {
         let mut server = self.start(port, timeout_ms)?.server_handler;
         py.detach(|| wait_server(&mut server))
     }
