@@ -560,10 +560,7 @@ mod graphql_test {
             filterNodes: filter(
                 expr: {
                         node: {
-                          gt: {
-                            lhs: {
-                              degree: BOTH
-                            }
+                          cmp: { op: GT, lhs: { read: { field: DEGREE } }
                             rhs: {
                               const: {
                                 u64: 0
@@ -582,10 +579,7 @@ mod graphql_test {
             nodes {
               select(expr: {
                              node: {
-                               gt: {
-                                 lhs: {
-                                   degree: BOTH
-                                 }
+                               cmp: { op: GT, lhs: { read: { field: DEGREE } }
                                  rhs: {
                                    const: {
                                      u64: 0

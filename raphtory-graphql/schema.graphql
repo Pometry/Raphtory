@@ -1,4 +1,46 @@
 """
+How the values of a list are reduced to one.
+"""
+enum AggOp {
+	"""
+	The sum of the innermost list.
+	"""
+	SUM
+	"""
+	The mean of the innermost list.
+	"""
+	AVG
+	"""
+	The smallest element of the innermost list.
+	"""
+	MIN
+	"""
+	The largest element of the innermost list.
+	"""
+	MAX
+	"""
+	The first element of the innermost list.
+	"""
+	FIRST
+	"""
+	The last element of the innermost list.
+	"""
+	LAST
+	"""
+	The number of elements of the innermost list.
+	"""
+	LEN
+	"""
+	The earliest update of a temporal history.
+	"""
+	EARLIEST
+	"""
+	The latest update of a temporal history.
+	"""
+	LATEST
+}
+
+"""
 The algorithms that can be run on a graph view.
 """
 type Algorithms {
@@ -535,6 +577,36 @@ enum AlignmentUnit {
 }
 
 """
+How two values compare.
+"""
+enum CmpOp {
+	"""
+	`lhs == rhs`.
+	"""
+	EQ
+	"""
+	`lhs != rhs`.
+	"""
+	NE
+	"""
+	`lhs < rhs`.
+	"""
+	LT
+	"""
+	`lhs <= rhs`.
+	"""
+	LE
+	"""
+	`lhs > rhs`.
+	"""
+	GT
+	"""
+	`lhs >= rhs`.
+	"""
+	GE
+}
+
+"""
 Collection of items
 """
 type CollectionOfMetaGraph {
@@ -634,15 +706,6 @@ type CollectionOfNamespacedItem {
 	Returns a count of collection objects.
 	"""
 	count: Int!
-}
-
-"""
-The direction a node degree counts.
-"""
-enum DegreeDirection {
-	IN
-	OUT
-	BOTH
 }
 
 """
@@ -1056,9 +1119,27 @@ input EdgeAddition {
 }
 
 """
-Two expressions to compare.
+A list reduced to one value.
 """
-input EdgeCmp {
+input EdgeAggregate {
+	"""
+	The reduction.
+	"""
+	op: AggOp!
+	"""
+	The list; the innermost list when lists nest.
+	"""
+	expr: EdgeExpr!
+}
+
+"""
+Two values compared.
+"""
+input EdgeComparison {
+	"""
+	How they compare.
+	"""
+	op: CmpOp!
 	"""
 	The left side.
 	"""
@@ -1070,8 +1151,7 @@ input EdgeCmp {
 }
 
 """
-A value or yes/no on one entity: a term, an aggregate over one, a
-comparison or test, or a combination of yes/nos.
+A value or a yes/no on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 """
 input EdgeExpr @oneOf {
 	"""
@@ -1079,125 +1159,21 @@ input EdgeExpr @oneOf {
 	"""
 	const: Value
 	"""
-	The latest value of a property.
+	One term of the edge.
 	"""
-	property: String
+	read: EdgeRead
 	"""
-	The history of a property, as a list.
+	A list reduced to one value.
 	"""
-	temporalProperty: String
+	agg: EdgeAggregate
 	"""
-	A metadata entry.
+	Two values compared.
 	"""
-	metadata: String
+	cmp: EdgeComparison
 	"""
-	Whether the entity is active; written `isActive: true`.
+	One string tested against another.
 	"""
-	isActive: Boolean
-	"""
-	Whether the edge is valid; written `isValid: true`.
-	"""
-	isValid: Boolean
-	"""
-	Whether the edge is deleted; written `isDeleted: true`.
-	"""
-	isDeleted: Boolean
-	"""
-	Whether the edge is a self loop; written `isSelfLoop: true`.
-	"""
-	isSelfLoop: Boolean
-	"""
-	A node expression evaluated on the edge's source node.
-	"""
-	src: NodeExpr
-	"""
-	A node expression evaluated on the edge's destination node.
-	"""
-	dst: NodeExpr
-	"""
-	Views applied to every term inside.
-	"""
-	viewed: EdgeViewed
-	"""
-	The sum of the innermost list.
-	"""
-	sum: EdgeExpr
-	"""
-	The mean of the innermost list.
-	"""
-	avg: EdgeExpr
-	"""
-	The smallest element of the innermost list.
-	"""
-	min: EdgeExpr
-	"""
-	The largest element of the innermost list.
-	"""
-	max: EdgeExpr
-	"""
-	The first element of the innermost list.
-	"""
-	first: EdgeExpr
-	"""
-	The last element of the innermost list.
-	"""
-	last: EdgeExpr
-	"""
-	The number of elements of the innermost list.
-	"""
-	len: EdgeExpr
-	"""
-	The earliest update of a temporal history.
-	"""
-	earliest: EdgeExpr
-	"""
-	The latest update of a temporal history.
-	"""
-	latest: EdgeExpr
-	"""
-	`lhs == rhs`.
-	"""
-	eq: EdgeCmp
-	"""
-	`lhs != rhs`.
-	"""
-	ne: EdgeCmp
-	"""
-	`lhs < rhs`.
-	"""
-	lt: EdgeCmp
-	"""
-	`lhs <= rhs`.
-	"""
-	le: EdgeCmp
-	"""
-	`lhs > rhs`.
-	"""
-	gt: EdgeCmp
-	"""
-	`lhs >= rhs`.
-	"""
-	ge: EdgeCmp
-	"""
-	The string `lhs` starts with the string `rhs`.
-	"""
-	startsWith: EdgeCmp
-	"""
-	The string `lhs` ends with the string `rhs`.
-	"""
-	endsWith: EdgeCmp
-	"""
-	The string `lhs` contains the string `rhs`.
-	"""
-	contains: EdgeCmp
-	"""
-	The string `lhs` does not contain the string `rhs`.
-	"""
-	notContains: EdgeCmp
-	"""
-	The string `lhs` is within an edit distance of `rhs`.
-	"""
-	fuzzySearch: EdgeFuzzyCmp
+	str: EdgeStringTest
 	"""
 	`expr` is one of `values`.
 	"""
@@ -1207,21 +1183,13 @@ input EdgeExpr @oneOf {
 	"""
 	isNotIn: EdgeMembership
 	"""
-	The value is present.
+	Whether a value is there.
 	"""
-	isSome: EdgeExpr
+	presence: EdgePresence
 	"""
-	The value is absent.
+	An element-wise yes/no over a list, made one.
 	"""
-	isNone: EdgeExpr
-	"""
-	Holds when the element-wise result inside holds for any element.
-	"""
-	any: EdgeExpr
-	"""
-	Holds when the element-wise result inside holds for every element.
-	"""
-	all: EdgeExpr
+	quantified: EdgeQuantified
 	"""
 	Every yes/no inside holds.
 	"""
@@ -1237,31 +1205,30 @@ input EdgeExpr @oneOf {
 }
 
 """
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
+A built-in edge term that takes no argument; exploded edges have the same.
 """
-input EdgeFuzzyCmp {
+enum EdgeField {
 	"""
-	The string to test.
+	Whether the edge is active.
 	"""
-	lhs: EdgeExpr!
+	IS_ACTIVE
 	"""
-	The string to match.
+	Whether the edge is valid (on a persistent graph, its last update is an
+	addition).
 	"""
-	rhs: EdgeExpr!
+	IS_VALID
 	"""
-	The largest edit distance that still matches.
+	Whether the edge is deleted.
 	"""
-	levenshteinDistance: Int!
+	IS_DELETED
 	"""
-	Whether a match on a prefix counts.
+	Whether the edge is a self loop.
 	"""
-	prefixMatch: Boolean!
+	IS_SELF_LOOP
 }
 
 """
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 """
 input EdgeMembership {
 	"""
@@ -1272,6 +1239,70 @@ input EdgeMembership {
 	The values it may be one of.
 	"""
 	values: Value!
+}
+
+"""
+Whether a value is there.
+"""
+input EdgePresence {
+	"""
+	Present or absent.
+	"""
+	op: PresenceOp!
+	"""
+	The value.
+	"""
+	expr: EdgeExpr!
+}
+
+"""
+An element-wise yes/no over a list, made one yes/no.
+"""
+input EdgeQuantified {
+	"""
+	Any element or every element.
+	"""
+	op: Quantifier!
+	"""
+	The element-wise yes/no.
+	"""
+	expr: EdgeExpr!
+}
+
+"""
+One edge term, read through optional views. Name exactly one of
+`property`, `temporalProperty`, `metadata`, `field`, `src` or `dst`.
+"""
+input EdgeRead {
+	"""
+	The latest value of a property.
+	"""
+	property: String
+	"""
+	The history of a property, as a list.
+	"""
+	temporalProperty: String
+	"""
+	A metadata entry.
+	"""
+	metadata: String
+	"""
+	A built-in edge term.
+	"""
+	field: EdgeField
+	"""
+	A node expression evaluated on the edge's source node.
+	"""
+	src: NodeExpr
+	"""
+	A node expression evaluated on the edge's destination node.
+	"""
+	dst: NodeExpr
+	"""
+	Views that scope the term, applied in list order; on `src` or `dst`
+	they scope every node term inside.
+	"""
+	views: [ViewOp!]
 }
 
 """
@@ -1330,17 +1361,29 @@ input EdgeSortBy {
 }
 
 """
-Views applied to every term inside `expr`, in list order.
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
 """
-input EdgeViewed {
+input EdgeStringTest {
 	"""
-	The views, applied in list order.
+	The test.
 	"""
-	views: [ViewOp!]!
+	op: StrOp!
 	"""
-	The expression evaluated inside them.
+	The string tested.
 	"""
-	expr: EdgeExpr!
+	lhs: EdgeExpr!
+	"""
+	The string it is tested against.
+	"""
+	rhs: EdgeExpr!
+	"""
+	`FUZZY` only: the largest edit distance that still matches.
+	"""
+	levenshteinDistance: Int
+	"""
+	`FUZZY` only: whether a match on a prefix counts.
+	"""
+	prefixMatch: Boolean
 }
 
 """
@@ -1775,9 +1818,27 @@ type EventTime {
 }
 
 """
-Two expressions to compare.
+A list reduced to one value.
 """
-input ExplodedEdgeCmp {
+input ExplodedEdgeAggregate {
+	"""
+	The reduction.
+	"""
+	op: AggOp!
+	"""
+	The list; the innermost list when lists nest.
+	"""
+	expr: ExplodedEdgeExpr!
+}
+
+"""
+Two values compared.
+"""
+input ExplodedEdgeComparison {
+	"""
+	How they compare.
+	"""
+	op: CmpOp!
 	"""
 	The left side.
 	"""
@@ -1789,8 +1850,7 @@ input ExplodedEdgeCmp {
 }
 
 """
-A value or yes/no on one entity: a term, an aggregate over one, a
-comparison or test, or a combination of yes/nos.
+A value or a yes/no on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 """
 input ExplodedEdgeExpr @oneOf {
 	"""
@@ -1798,117 +1858,21 @@ input ExplodedEdgeExpr @oneOf {
 	"""
 	const: Value
 	"""
-	The latest value of a property.
+	One term of the exploded edge.
 	"""
-	property: String
+	read: ExplodedEdgeRead
 	"""
-	The history of a property, as a list.
+	A list reduced to one value.
 	"""
-	temporalProperty: String
+	agg: ExplodedEdgeAggregate
 	"""
-	A metadata entry.
+	Two values compared.
 	"""
-	metadata: String
+	cmp: ExplodedEdgeComparison
 	"""
-	Whether the entity is active; written `isActive: true`.
+	One string tested against another.
 	"""
-	isActive: Boolean
-	"""
-	Whether the edge update is valid; written `isValid: true`.
-	"""
-	isValid: Boolean
-	"""
-	Whether the edge update is deleted; written `isDeleted: true`.
-	"""
-	isDeleted: Boolean
-	"""
-	Whether the edge update is a self loop; written `isSelfLoop: true`.
-	"""
-	isSelfLoop: Boolean
-	"""
-	Views applied to every term inside.
-	"""
-	viewed: ExplodedEdgeViewed
-	"""
-	The sum of the innermost list.
-	"""
-	sum: ExplodedEdgeExpr
-	"""
-	The mean of the innermost list.
-	"""
-	avg: ExplodedEdgeExpr
-	"""
-	The smallest element of the innermost list.
-	"""
-	min: ExplodedEdgeExpr
-	"""
-	The largest element of the innermost list.
-	"""
-	max: ExplodedEdgeExpr
-	"""
-	The first element of the innermost list.
-	"""
-	first: ExplodedEdgeExpr
-	"""
-	The last element of the innermost list.
-	"""
-	last: ExplodedEdgeExpr
-	"""
-	The number of elements of the innermost list.
-	"""
-	len: ExplodedEdgeExpr
-	"""
-	The earliest update of a temporal history.
-	"""
-	earliest: ExplodedEdgeExpr
-	"""
-	The latest update of a temporal history.
-	"""
-	latest: ExplodedEdgeExpr
-	"""
-	`lhs == rhs`.
-	"""
-	eq: ExplodedEdgeCmp
-	"""
-	`lhs != rhs`.
-	"""
-	ne: ExplodedEdgeCmp
-	"""
-	`lhs < rhs`.
-	"""
-	lt: ExplodedEdgeCmp
-	"""
-	`lhs <= rhs`.
-	"""
-	le: ExplodedEdgeCmp
-	"""
-	`lhs > rhs`.
-	"""
-	gt: ExplodedEdgeCmp
-	"""
-	`lhs >= rhs`.
-	"""
-	ge: ExplodedEdgeCmp
-	"""
-	The string `lhs` starts with the string `rhs`.
-	"""
-	startsWith: ExplodedEdgeCmp
-	"""
-	The string `lhs` ends with the string `rhs`.
-	"""
-	endsWith: ExplodedEdgeCmp
-	"""
-	The string `lhs` contains the string `rhs`.
-	"""
-	contains: ExplodedEdgeCmp
-	"""
-	The string `lhs` does not contain the string `rhs`.
-	"""
-	notContains: ExplodedEdgeCmp
-	"""
-	The string `lhs` is within an edit distance of `rhs`.
-	"""
-	fuzzySearch: ExplodedEdgeFuzzyCmp
+	str: ExplodedEdgeStringTest
 	"""
 	`expr` is one of `values`.
 	"""
@@ -1918,21 +1882,13 @@ input ExplodedEdgeExpr @oneOf {
 	"""
 	isNotIn: ExplodedEdgeMembership
 	"""
-	The value is present.
+	Whether a value is there.
 	"""
-	isSome: ExplodedEdgeExpr
+	presence: ExplodedEdgePresence
 	"""
-	The value is absent.
+	An element-wise yes/no over a list, made one.
 	"""
-	isNone: ExplodedEdgeExpr
-	"""
-	Holds when the element-wise result inside holds for any element.
-	"""
-	any: ExplodedEdgeExpr
-	"""
-	Holds when the element-wise result inside holds for every element.
-	"""
-	all: ExplodedEdgeExpr
+	quantified: ExplodedEdgeQuantified
 	"""
 	Every yes/no inside holds.
 	"""
@@ -1948,31 +1904,7 @@ input ExplodedEdgeExpr @oneOf {
 }
 
 """
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
-"""
-input ExplodedEdgeFuzzyCmp {
-	"""
-	The string to test.
-	"""
-	lhs: ExplodedEdgeExpr!
-	"""
-	The string to match.
-	"""
-	rhs: ExplodedEdgeExpr!
-	"""
-	The largest edit distance that still matches.
-	"""
-	levenshteinDistance: Int!
-	"""
-	Whether a match on a prefix counts.
-	"""
-	prefixMatch: Boolean!
-}
-
-"""
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 """
 input ExplodedEdgeMembership {
 	"""
@@ -1986,17 +1918,85 @@ input ExplodedEdgeMembership {
 }
 
 """
-Views applied to every term inside `expr`, in list order.
+Whether a value is there.
 """
-input ExplodedEdgeViewed {
+input ExplodedEdgePresence {
 	"""
-	The views, applied in list order.
+	Present or absent.
 	"""
-	views: [ViewOp!]!
+	op: PresenceOp!
 	"""
-	The expression evaluated inside them.
+	The value.
 	"""
 	expr: ExplodedEdgeExpr!
+}
+
+"""
+An element-wise yes/no over a list, made one yes/no.
+"""
+input ExplodedEdgeQuantified {
+	"""
+	Any element or every element.
+	"""
+	op: Quantifier!
+	"""
+	The element-wise yes/no.
+	"""
+	expr: ExplodedEdgeExpr!
+}
+
+"""
+One exploded-edge term (one update of an edge), read through optional
+views. Name exactly one of `property`, `temporalProperty`, `metadata` or
+`field`.
+"""
+input ExplodedEdgeRead {
+	"""
+	The latest value of a property.
+	"""
+	property: String
+	"""
+	The history of a property, as a list.
+	"""
+	temporalProperty: String
+	"""
+	A metadata entry.
+	"""
+	metadata: String
+	"""
+	A built-in edge term.
+	"""
+	field: EdgeField
+	"""
+	Views that scope the term, applied in list order.
+	"""
+	views: [ViewOp!]
+}
+
+"""
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
+"""
+input ExplodedEdgeStringTest {
+	"""
+	The test.
+	"""
+	op: StrOp!
+	"""
+	The string tested.
+	"""
+	lhs: ExplodedEdgeExpr!
+	"""
+	The string it is tested against.
+	"""
+	rhs: ExplodedEdgeExpr!
+	"""
+	`FUZZY` only: the largest edit distance that still matches.
+	"""
+	levenshteinDistance: Int
+	"""
+	`FUZZY` only: whether a match on a prefix counts.
+	"""
+	prefixMatch: Boolean
 }
 
 """
@@ -4588,9 +4588,27 @@ input NodeAddition {
 }
 
 """
-Two expressions to compare.
+A list reduced to one value.
 """
-input NodeCmp {
+input NodeAggregate {
+	"""
+	The reduction.
+	"""
+	op: AggOp!
+	"""
+	The list; the innermost list when lists nest.
+	"""
+	expr: NodeExpr!
+}
+
+"""
+Two values compared.
+"""
+input NodeComparison {
+	"""
+	How they compare.
+	"""
+	op: CmpOp!
 	"""
 	The left side.
 	"""
@@ -4602,8 +4620,7 @@ input NodeCmp {
 }
 
 """
-A value or yes/no on one entity: a term, an aggregate over one, a
-comparison or test, or a combination of yes/nos.
+A value or a yes/no on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 """
 input NodeExpr @oneOf {
 	"""
@@ -4611,113 +4628,21 @@ input NodeExpr @oneOf {
 	"""
 	const: Value
 	"""
-	The latest value of a property.
+	One term of the node.
 	"""
-	property: String
+	read: NodeRead
 	"""
-	The history of a property, as a list.
+	A list reduced to one value.
 	"""
-	temporalProperty: String
+	agg: NodeAggregate
 	"""
-	A metadata entry.
+	Two values compared.
 	"""
-	metadata: String
+	cmp: NodeComparison
 	"""
-	Whether the entity is active; written `isActive: true`.
+	One string tested against another.
 	"""
-	isActive: Boolean
-	"""
-	A built-in node field.
-	"""
-	field: NodeFieldName
-	"""
-	The node's degree in a direction.
-	"""
-	degree: DegreeDirection
-	"""
-	Views applied to every term inside.
-	"""
-	viewed: NodeViewed
-	"""
-	The sum of the innermost list.
-	"""
-	sum: NodeExpr
-	"""
-	The mean of the innermost list.
-	"""
-	avg: NodeExpr
-	"""
-	The smallest element of the innermost list.
-	"""
-	min: NodeExpr
-	"""
-	The largest element of the innermost list.
-	"""
-	max: NodeExpr
-	"""
-	The first element of the innermost list.
-	"""
-	first: NodeExpr
-	"""
-	The last element of the innermost list.
-	"""
-	last: NodeExpr
-	"""
-	The number of elements of the innermost list.
-	"""
-	len: NodeExpr
-	"""
-	The earliest update of a temporal history.
-	"""
-	earliest: NodeExpr
-	"""
-	The latest update of a temporal history.
-	"""
-	latest: NodeExpr
-	"""
-	`lhs == rhs`.
-	"""
-	eq: NodeCmp
-	"""
-	`lhs != rhs`.
-	"""
-	ne: NodeCmp
-	"""
-	`lhs < rhs`.
-	"""
-	lt: NodeCmp
-	"""
-	`lhs <= rhs`.
-	"""
-	le: NodeCmp
-	"""
-	`lhs > rhs`.
-	"""
-	gt: NodeCmp
-	"""
-	`lhs >= rhs`.
-	"""
-	ge: NodeCmp
-	"""
-	The string `lhs` starts with the string `rhs`.
-	"""
-	startsWith: NodeCmp
-	"""
-	The string `lhs` ends with the string `rhs`.
-	"""
-	endsWith: NodeCmp
-	"""
-	The string `lhs` contains the string `rhs`.
-	"""
-	contains: NodeCmp
-	"""
-	The string `lhs` does not contain the string `rhs`.
-	"""
-	notContains: NodeCmp
-	"""
-	The string `lhs` is within an edit distance of `rhs`.
-	"""
-	fuzzySearch: NodeFuzzyCmp
+	str: NodeStringTest
 	"""
 	`expr` is one of `values`.
 	"""
@@ -4727,21 +4652,13 @@ input NodeExpr @oneOf {
 	"""
 	isNotIn: NodeMembership
 	"""
-	The value is present.
+	Whether a value is there.
 	"""
-	isSome: NodeExpr
+	presence: NodePresence
 	"""
-	The value is absent.
+	An element-wise yes/no over a list, made one.
 	"""
-	isNone: NodeExpr
-	"""
-	Holds when the element-wise result inside holds for any element.
-	"""
-	any: NodeExpr
-	"""
-	Holds when the element-wise result inside holds for every element.
-	"""
-	all: NodeExpr
+	quantified: NodeQuantified
 	"""
 	Every yes/no inside holds.
 	"""
@@ -4757,44 +4674,37 @@ input NodeExpr @oneOf {
 }
 
 """
-A built-in node field.
+A built-in node term that takes no argument.
 """
-enum NodeFieldName {
-	"""
-	The node's id.
-	"""
-	ID
+enum NodeField {
 	"""
 	The node's name.
 	"""
 	NAME
 	"""
+	The node's id.
+	"""
+	ID
+	"""
 	The node's type.
 	"""
 	NODE_TYPE
-}
-
-"""
-A fuzzy string match: `lhs` is within `levenshteinDistance` edits of
-`rhs`, optionally matching by prefix.
-"""
-input NodeFuzzyCmp {
 	"""
-	The string to test.
+	The number of edges at the node, in and out.
 	"""
-	lhs: NodeExpr!
+	DEGREE
 	"""
-	The string to match.
+	The number of edges into the node.
 	"""
-	rhs: NodeExpr!
+	IN_DEGREE
 	"""
-	The largest edit distance that still matches.
+	The number of edges out of the node.
 	"""
-	levenshteinDistance: Int!
+	OUT_DEGREE
 	"""
-	Whether a match on a prefix counts.
+	Whether the node is active.
 	"""
-	prefixMatch: Boolean!
+	IS_ACTIVE
 }
 
 """
@@ -4805,8 +4715,7 @@ when nodes were added.
 scalar NodeId
 
 """
-A membership test. `values` is a list; a policy may also leave a single
-placeholder here (`{"var": …}`) that resolves to the list per caller.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 """
 input NodeMembership {
 	"""
@@ -4817,6 +4726,61 @@ input NodeMembership {
 	The values it may be one of.
 	"""
 	values: Value!
+}
+
+"""
+Whether a value is there.
+"""
+input NodePresence {
+	"""
+	Present or absent.
+	"""
+	op: PresenceOp!
+	"""
+	The value.
+	"""
+	expr: NodeExpr!
+}
+
+"""
+An element-wise yes/no over a list, made one yes/no.
+"""
+input NodeQuantified {
+	"""
+	Any element or every element.
+	"""
+	op: Quantifier!
+	"""
+	The element-wise yes/no.
+	"""
+	expr: NodeExpr!
+}
+
+"""
+One node term, read through optional views. Name exactly one of
+`property`, `temporalProperty`, `metadata` or `field`.
+"""
+input NodeRead {
+	"""
+	The latest value of a property.
+	"""
+	property: String
+	"""
+	The history of a property, as a list.
+	"""
+	temporalProperty: String
+	"""
+	A metadata entry.
+	"""
+	metadata: String
+	"""
+	A built-in node term.
+	"""
+	field: NodeField
+	"""
+	Views that scope the term, applied in list order.
+	"""
+	views: [ViewOp!]
 }
 
 """
@@ -5152,17 +5116,29 @@ node, or a collection of nodes.
 union NodeStateValue = NodeStateProp | Node | Nodes
 
 """
-Views applied to every term inside `expr`, in list order.
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
 """
-input NodeViewed {
+input NodeStringTest {
 	"""
-	The views, applied in list order.
+	The test.
 	"""
-	views: [ViewOp!]!
+	op: StrOp!
 	"""
-	The expression evaluated inside them.
+	The string tested.
 	"""
-	expr: NodeExpr!
+	lhs: NodeExpr!
+	"""
+	The string it is tested against.
+	"""
+	rhs: NodeExpr!
+	"""
+	`FUZZY` only: the largest edit distance that still matches.
+	"""
+	levenshteinDistance: Int
+	"""
+	`FUZZY` only: whether a match on a prefix counts.
+	"""
+	prefixMatch: Boolean
 }
 
 """
@@ -6254,6 +6230,20 @@ type PathFromNodeWindowSet {
 }
 
 """
+Whether a value is there.
+"""
+enum PresenceOp {
+	"""
+	The value is present.
+	"""
+	IS_SOME
+	"""
+	The value is absent.
+	"""
+	IS_NONE
+}
+
+"""
 Boolean expression over a property value.
 
 `PropCondition` is the `where` of a namespace metagraph filter: how one
@@ -6532,6 +6522,20 @@ strings (`"F64"`), containers are tagged objects
 """
 scalar PropertyType
 
+"""
+How an element-wise yes/no over a list becomes one yes/no.
+"""
+enum Quantifier {
+	"""
+	Holds when the yes/no inside holds for any element.
+	"""
+	ANY
+	"""
+	Holds when the yes/no inside holds for every element.
+	"""
+	ALL
+}
+
 type QueryRoot {
 	"""
 	Hello world demo
@@ -6706,6 +6710,33 @@ enum SpecialFloat {
 	NAN
 	INFINITY
 	NEG_INFINITY
+}
+
+"""
+How one string is tested against another.
+"""
+enum StrOp {
+	"""
+	The string `lhs` starts with the string `rhs`.
+	"""
+	STARTS_WITH
+	"""
+	The string `lhs` ends with the string `rhs`.
+	"""
+	ENDS_WITH
+	"""
+	The string `lhs` contains the string `rhs`.
+	"""
+	CONTAINS
+	"""
+	The string `lhs` does not contain the string `rhs`.
+	"""
+	NOT_CONTAINS
+	"""
+	The string `lhs` is within `levenshteinDistance` edits of `rhs`,
+	optionally matching by prefix; the only test that takes those two.
+	"""
+	FUZZY
 }
 
 input Template @oneOf {
@@ -7168,6 +7199,29 @@ input VectorisedGraphWindow {
 }
 
 """
+A view that takes no argument.
+"""
+enum ViewKind {
+	"""
+	At the latest time.
+	"""
+	LATEST
+	"""
+	Everything up to and including the latest time.
+	"""
+	SNAPSHOT_LATEST
+	"""
+	Only the edges that are valid in the view (on a persistent graph, whose
+	last update is an addition).
+	"""
+	VALID
+	"""
+	Only the default layer.
+	"""
+	DEFAULT_LAYER
+}
+
+"""
 One view restriction, applied in list order.
 """
 input ViewOp @oneOf {
@@ -7188,25 +7242,18 @@ input ViewOp @oneOf {
 	"""
 	before: TimeInput
 	"""
-	At the latest time; written `latest: true`.
+	A view that takes no argument: `LATEST`, `SNAPSHOT_LATEST`, `VALID` or
+	`DEFAULT_LAYER`.
 	"""
-	latest: Boolean
+	kind: ViewKind
 	"""
 	Everything up to and including a time; written `snapshotAt: t`.
 	"""
 	snapshotAt: TimeInput
 	"""
-	Everything up to the latest time; written `snapshotLatest: true`.
-	"""
-	snapshotLatest: Boolean
-	"""
 	Only the named layers.
 	"""
 	layers: [String!]
-	"""
-	Only the default layer; written `defaultLayer: true`.
-	"""
-	defaultLayer: Boolean
 	"""
 	Every layer except the named ones.
 	"""
@@ -7240,11 +7287,6 @@ input ViewOp @oneOf {
 	Only the nodes of the named types and the edges between them.
 	"""
 	subgraphNodeTypes: [String!]
-	"""
-	Only the edges that are valid in the view (on a persistent graph, whose
-	last update is an addition); written `valid: true`.
-	"""
-	valid: Boolean
 }
 
 input Window {
@@ -7291,3 +7333,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+
