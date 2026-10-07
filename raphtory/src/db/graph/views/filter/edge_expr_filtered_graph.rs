@@ -16,7 +16,6 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use either::Either;
 use raphtory_api::{
     core::{
         entities::{LayerId, ELID},
@@ -24,7 +23,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_storage::core_ops::{CoreGraphOps, InheritCoreGraphOps};
+use raphtory_storage::core_ops::InheritCoreGraphOps;
 use storage::EdgeEntryRef;
 
 /// Edge-filtered graph: hides edges that fail the predicate `filter`.
@@ -102,61 +101,44 @@ impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InheritE
     for EdgeExprFilteredGraph<G, F>
 {
 }
-/// An op that tells exploded instances apart (`filters_exploded`) is asked about each
-/// one; a plain op decides per edge and the instances of a kept edge all pass.
+/// A predicate decides per edge: the layers and exploded instances of a kept
+/// edge all pass, so both hooks defer to the graph underneath.
 impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone>
     InternalExplodedEdgeFilterOps for EdgeExprFilteredGraph<G, F>
 {
     fn internal_exploded_edge_filtered(&self) -> bool {
-        self.filter.filters_exploded() || self.graph.internal_exploded_edge_filtered()
+        self.graph.internal_exploded_edge_filtered()
     }
 
     fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
-        !self.filter.filters_exploded() && self.graph.internal_exploded_filter_edge_list_trusted()
+        self.graph.internal_exploded_filter_edge_list_trusted()
     }
 
     fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
-        if !self.graph.internal_filter_exploded_edge(eid, t, layer_ids) {
-            return false;
-        }
-        // Deletions carry no properties, so they always pass through: filtering
-        // them out would silently extend the previous addition's interval on a
-        // persistent graph.
-        if !self.filter.filters_exploded() || eid.is_deletion() {
-            return true;
-        }
-        let edge = self.core_edge(Either::Left(eid.eid()));
-        self.filter
-            .apply_exploded(self.graph.core_graph(), edge.as_ref(), eid.layer(), t)
+        self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
     }
 
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
-        !self.filter.filters_exploded() && self.graph.node_filter_includes_exploded_edge_filter()
+        self.graph.node_filter_includes_exploded_edge_filter()
     }
 }
 impl<'graph, G: GraphViewOps<'graph>, F: EdgeOp<Output = bool> + Clone> InternalEdgeLayerFilterOps
     for EdgeExprFilteredGraph<G, F>
 {
     fn internal_edge_layer_filtered(&self) -> bool {
-        self.filter.filters_exploded() || self.graph.internal_edge_layer_filtered()
+        self.graph.internal_edge_layer_filtered()
     }
 
     fn internal_layer_filter_edge_list_trusted(&self) -> bool {
-        !self.filter.filters_exploded() && self.graph.internal_layer_filter_edge_list_trusted()
+        self.graph.internal_layer_filter_edge_list_trusted()
     }
 
     fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        if !self.graph.internal_filter_edge_layer(edge, layer) {
-            return false;
-        }
-        !self.filter.filters_exploded()
-            || self
-                .filter
-                .apply_layer(self.graph.core_graph(), edge, layer)
+        self.graph.internal_filter_edge_layer(edge, layer)
     }
 
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
-        !self.filter.filters_exploded() && self.graph.node_filter_includes_edge_layer_filter()
+        self.graph.node_filter_includes_edge_layer_filter()
     }
 }
 

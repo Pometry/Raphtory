@@ -12,7 +12,10 @@ use crate::{
                 BaseEdgeViewOps, BoxedLIter, Select,
             },
         },
-        graph::{edges::Edges, views::filter::CreateFilter},
+        graph::{
+            edges::{Edge, EdgeItem, Edges, ExplodedEdge},
+            views::filter::CreateFilter,
+        },
         task::{
             edge::eval_edge::EvalEdgeView,
             eval_graph::EvalGraph,
@@ -26,17 +29,17 @@ use crate::{
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
-pub struct EvalEdges<'graph, 'a, G, CS: Clone, S> {
+pub struct EvalEdges<'graph, 'a, G, CS: Clone, S, K = Edge> {
     pub(crate) ss: usize,
-    pub(crate) edges: Edges<'graph, G>,
+    pub(crate) edges: Edges<'graph, G, K>,
     pub(crate) storage: &'graph GraphStorage,
     pub(crate) index: &'graph Index<VID>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: Clone, S> Clone
-    for EvalEdges<'graph, 'a, G, CS, S>
+impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: Clone, S, K: EdgeItem> Clone
+    for EvalEdges<'graph, 'a, G, CS, S, K>
 {
     fn clone(&self) -> Self {
         Self {
@@ -50,14 +53,16 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: Clone, S> Clone
     }
 }
 
-impl<'graph, 'a, Current, CS, S> InternalFilter<'graph> for EvalEdges<'graph, 'a, Current, CS, S>
+impl<'graph, 'a, Current, CS, S, K> InternalFilter<'graph>
+    for EvalEdges<'graph, 'a, Current, CS, S, K>
 where
     'a: 'graph,
     Current: GraphViewOps<'graph>,
     CS: Clone,
+    K: EdgeItem,
 {
     type Graph = Current;
-    type Filtered<Next: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, Next, CS, S>;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, Next, CS, S, K>;
 
     fn base_graph(&self) -> &Self::Graph {
         &self.edges.base_graph
@@ -84,8 +89,8 @@ where
     }
 }
 
-impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S>
-    EvalEdges<'graph, 'a, G, CS, S>
+impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S, K: EdgeItem>
+    EvalEdges<'graph, 'a, G, CS, S, K>
 {
     pub fn iter(&self) -> impl Iterator<Item = EvalEdgeView<'graph, 'a, G, CS, S>> + 'graph {
         let node_state = self.node_state.clone();
@@ -107,8 +112,8 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S>
     }
 }
 
-impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S> IntoIterator
-    for EvalEdges<'graph, 'a, G, CS, S>
+impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S, K: EdgeItem> IntoIterator
+    for EvalEdges<'graph, 'a, G, CS, S, K>
 {
     type Item = EvalEdgeView<'graph, 'a, G, CS, S>;
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
@@ -130,17 +135,17 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S> IntoItera
     }
 }
 
-impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
-    BaseEdgeViewOps<'graph> for EvalEdges<'graph, 'a, G, CS, S>
+impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static, K: EdgeItem>
+    BaseEdgeViewOps<'graph> for EvalEdges<'graph, 'a, G, CS, S, K>
 {
     type Graph = G;
     type ValueType<T>
         = BoxedLIter<'graph, T>
     where
         T: 'graph;
-    type PropType = <Edges<'graph, G> as BaseEdgeViewOps<'graph>>::PropType;
+    type PropType = <Edges<'graph, G, K> as BaseEdgeViewOps<'graph>>::PropType;
     type Nodes = EvalPathFromNode<'graph, 'a, G, CS, S>;
-    type Exploded = EvalEdges<'graph, 'a, G, CS, S>;
+    type Exploded = EvalEdges<'graph, 'a, G, CS, S, ExplodedEdge>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -192,7 +197,7 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
         let edges = self.edges.map_exploded(op);
         let storage = self.storage;
         let index = self.index;
-        Self {
+        EvalEdges {
             ss,
             storage,
             index,
@@ -203,10 +208,10 @@ impl<'graph, 'a, G: GraphViewOps<'graph>, CS: Clone + ComputeState, S: 'static>
     }
 }
 
-impl<'graph, 'a, G: GraphView + 'graph, CS: Clone + ComputeState, S> Select<'graph>
-    for EvalEdges<'graph, 'a, G, CS, S>
+impl<'graph, 'a, G: GraphView + 'graph, CS: Clone + ComputeState, S, K: EdgeItem> Select<'graph>
+    for EvalEdges<'graph, 'a, G, CS, S, K>
 {
-    type IterFiltered<Filter: CreateFilter + 'graph> = EvalEdges<'graph, 'a, G, CS, S>;
+    type IterFiltered<Filter: CreateFilter + 'graph> = EvalEdges<'graph, 'a, G, CS, S, K>;
 
     fn select<F: CreateFilter + 'graph>(
         &self,

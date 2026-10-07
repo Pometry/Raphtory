@@ -27,7 +27,7 @@ use crate::{
         },
         graph::{
             edge_reads::{self, EdgeAt},
-            edges::Edges,
+            edges::{Edges, ExplodedEdges},
             node::NodeView,
             views::layer_graph::LayeredGraph,
         },
@@ -250,7 +250,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
         T: 'graph;
     type PropType = Self;
     type Nodes = NodeView<'graph, G>;
-    type Exploded = Edges<'graph, G>;
+    type Exploded = ExplodedEdges<'graph, G>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,

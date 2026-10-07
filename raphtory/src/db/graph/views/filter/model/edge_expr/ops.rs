@@ -5,7 +5,7 @@
 use crate::db::{
     api::{
         state::ops::Const,
-        view::internal::{FilterOps, GraphView, InnerFilterOps},
+        view::internal::{FilterOps, GraphView},
     },
     graph::edge_reads::{self, EdgeAt},
 };
@@ -60,10 +60,6 @@ impl<'a, V: Clone + Send + Sync> EdgeOp for Arc<dyn EdgeOp<Output = V> + 'a> {
 
     fn const_value(&self) -> Option<V> {
         self.as_ref().const_value()
-    }
-
-    fn filters_exploded(&self) -> bool {
-        self.as_ref().filters_exploded()
     }
 }
 
@@ -533,16 +529,6 @@ impl<G: GraphView> EdgeOp for EdgeExistsOp<G> {
     fn prop_type(&self) -> PropType {
         PropType::Bool
     }
-
-    /// Layers and exploded instances of an edge can only fall out of `graph` on
-    /// their own when it restricts layers, filters layers or exploded instances,
-    /// or has a window; otherwise the per-edge answer holds for all of them.
-    fn filters_exploded(&self) -> bool {
-        self.graph.is_layer_filtered()
-            || self.graph.internal_edge_layer_filtered()
-            || self.graph.internal_exploded_edge_filtered()
-            || self.graph.window_filtered()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -583,10 +569,6 @@ impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for AndEdgeOp<L,
             (Some(true), Some(true)) => Some(true),
             _ => None,
         }
-    }
-
-    fn filters_exploded(&self) -> bool {
-        self.left.filters_exploded() || self.right.filters_exploded()
     }
 }
 
@@ -629,10 +611,6 @@ impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for OrEdgeOp<L, 
             _ => None,
         }
     }
-
-    fn filters_exploded(&self) -> bool {
-        self.left.filters_exploded() || self.right.filters_exploded()
-    }
 }
 
 #[cfg(test)]
@@ -644,30 +622,45 @@ mod tests {
                 filter_ops::Select,
                 internal::{InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps},
             },
-            graph::views::filter::{
-                edge_expr_filtered_graph::EdgeExprFilteredGraph,
-                model::{
-                    graph_filter::GraphFilter,
-                    node_filter::{NodeFilter, NodeFilterFactory},
-                    ViewWrapOps,
+            graph::{
+                edges::{EdgeItem, Edges},
+                views::filter::{
+                    edge_expr_filtered_graph::EdgeExprFilteredGraph,
+                    model::{
+                        edge_filter::EdgeFilter,
+                        exploded_edge_filter::ExplodedEdgeFilter,
+                        graph_filter::GraphFilter,
+                        node_filter::{NodeFilter, NodeFilterFactory},
+                        PropertyExprFactory, ViewWrapOps,
+                    },
+                    CreateFilter,
                 },
-                CreateFilter,
             },
         },
         prelude::{
-            AdditionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps, LayerOps,
-            NodeViewOps, NO_PROPS,
+            AdditionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps,
+            TimeOps, NO_PROPS,
         },
     };
     use raphtory_api::core::storage::timeindex::AsTime;
 
-    /// a→b @1 [x] · a→b @7 [y] · b→c @2 [x]
+    /// a→b @1 [x] w=1 · a→b @7 [y] w=7 · b→c @2 [x] w=2
     fn graph() -> Graph {
         let g = Graph::new();
-        g.add_edge(1, "a", "b", NO_PROPS, Some("x")).unwrap();
-        g.add_edge(7, "a", "b", NO_PROPS, Some("y")).unwrap();
-        g.add_edge(2, "b", "c", NO_PROPS, Some("x")).unwrap();
+        g.add_edge(1, "a", "b", [("w", 1i64)], Some("x")).unwrap();
+        g.add_edge(7, "a", "b", [("w", 7i64)], Some("y")).unwrap();
+        g.add_edge(2, "b", "c", [("w", 2i64)], Some("x")).unwrap();
         g
+    }
+
+    fn exploded<'graph, G: GraphViewOps<'graph>, K: EdgeItem>(
+        edges: &Edges<'graph, G, K>,
+    ) -> Vec<(String, String, i64)> {
+        edges
+            .explode()
+            .iter()
+            .map(|e| (e.src().name(), e.dst().name(), e.time().unwrap().t()))
+            .collect()
     }
 
     #[test]
@@ -678,7 +671,6 @@ mod tests {
             .ne("c")
             .create_edge_filter(g.clone())
             .unwrap();
-        assert!(!op.filters_exploded());
 
         let view = EdgeExprFilteredGraph::new(g.clone(), op);
         assert!(!view.internal_exploded_edge_filtered());
@@ -703,24 +695,21 @@ mod tests {
         );
     }
 
+    /// A view used as an edge predicate decides membership once per edge: the
+    /// layers and exploded instances of a kept edge all pass, so exploding
+    /// after the selection lists every instance, including those outside the
+    /// window. Narrowing the instances is what a graph view is for.
     #[test]
-    fn windowed_or_layered_view_is_asked_per_instance() {
+    fn a_view_predicate_decides_per_edge() {
         let g = graph();
         let windowed = GraphFilter
             .window(0, 5)
             .create_edge_filter(g.clone())
             .unwrap();
-        assert!(windowed.filters_exploded());
         let view = EdgeExprFilteredGraph::new(g.clone(), windowed);
-        assert!(view.internal_exploded_edge_filtered());
-        assert!(!view.internal_exploded_filter_edge_list_trusted());
-
-        let layered = NodeFilter
-            .name()
-            .eq("a")
-            .create_edge_filter(g.layers("x").unwrap())
-            .unwrap();
-        assert!(layered.filters_exploded());
+        assert!(!view.internal_exploded_edge_filtered());
+        assert!(!view.internal_edge_layer_filtered());
+        assert!(view.internal_exploded_filter_edge_list_trusted());
 
         let selected = g
             .edges()
@@ -734,9 +723,60 @@ mod tests {
             selected,
             vec![
                 ("a".to_string(), "b".to_string(), 1),
+                ("a".to_string(), "b".to_string(), 7),
                 ("b".to_string(), "c".to_string(), 2)
             ]
         );
+
+        let narrowed = g
+            .window(0, 5)
+            .edges()
+            .explode()
+            .iter()
+            .map(|e| (e.src().name(), e.dst().name(), e.time().unwrap().t()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            narrowed,
+            vec![
+                ("a".to_string(), "b".to_string(), 1),
+                ("b".to_string(), "c".to_string(), 2)
+            ]
+        );
+    }
+
+    /// `select` asks its question of the items of the collection it is called
+    /// on: once per edge on edges, once per exploded edge on exploded edges.
+    /// The predicate's kind plays no part.
+    #[test]
+    fn select_asks_about_the_items_of_the_collection() {
+        let g = graph();
+        let ab = |t| ("a".to_string(), "b".to_string(), t);
+        let bc = |t| ("b".to_string(), "c".to_string(), t);
+
+        // a view on a collection of edges keeps the edges active in it, and
+        // every exploded edge of a kept edge; on exploded edges it keeps the
+        // exploded edges inside it
+        let window = || GraphFilter.window(0, 5);
+        let edges = g.edges().select(window()).unwrap();
+        assert_eq!(exploded(&edges), vec![ab(1), ab(7), bc(2)]);
+        let instances = g.edges().explode().select(window()).unwrap();
+        assert_eq!(exploded(&instances), vec![ab(1), bc(2)]);
+
+        // an exploded-edge predicate on a collection of edges keeps the edges
+        // with a passing exploded edge, and all of their exploded edges
+        let seven = || ExplodedEdgeFilter.property("w").eq(7i64);
+        let edges = g.edges().select(seven()).unwrap();
+        assert_eq!(exploded(&edges), vec![ab(1), ab(7)]);
+        let instances = g.edges().explode().select(seven()).unwrap();
+        assert_eq!(exploded(&instances), vec![ab(7)]);
+
+        // an edge predicate reads the edge's latest value on edges, and each
+        // exploded edge's own value on exploded edges
+        let latest_seven = || EdgeFilter.property("w").eq(7i64);
+        let edges = g.edges().select(latest_seven()).unwrap();
+        assert_eq!(exploded(&edges), vec![ab(1), ab(7)]);
+        let instances = g.edges().explode().select(latest_seven()).unwrap();
+        assert_eq!(exploded(&instances), vec![ab(7)]);
     }
 }
 

@@ -13,7 +13,10 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
-            views::filter::{edge_expr_filtered_graph::EdgeExprFilteredGraph, CreateFilter},
+            views::filter::{
+                edge_expr_filtered_graph::EdgeExprFilteredGraph,
+                exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph, CreateFilter,
+            },
         },
     },
     errors::GraphError,
@@ -23,6 +26,7 @@ use itertools::Itertools;
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
+    marker::PhantomData,
     sync::Arc,
 };
 
@@ -33,35 +37,82 @@ pub type EdgeOp<'graph> = Arc<
         + 'graph,
 >;
 
+/// What a collection holds: edges, or exploded edges. The kind decides what
+/// `select` asks its question of. A predicate on a collection of edges is
+/// asked once per edge, and the exploded edges of a kept edge all pass; on a
+/// collection of exploded edges it is asked once per exploded edge.
+pub trait EdgeItem: Copy + Debug + Default + Send + Sync + 'static {
+    /// `select` with the items that pass `filter` taken out, on top of the
+    /// selections already made.
+    fn select<'graph, F: CreateFilter + 'graph>(
+        select: DynGraphArc<'graph>,
+        filter: F,
+    ) -> Result<DynGraphArc<'graph>, GraphError>;
+}
+
+/// The items of a collection are edges.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Edge;
+
+/// The items of a collection are exploded edges.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ExplodedEdge;
+
+impl EdgeItem for Edge {
+    fn select<'graph, F: CreateFilter + 'graph>(
+        select: DynGraphArc<'graph>,
+        filter: F,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
+        let filter = filter.create_edge_filter(select.clone())?;
+        Ok(Arc::new(EdgeExprFilteredGraph::new(select, filter)))
+    }
+}
+
+impl EdgeItem for ExplodedEdge {
+    fn select<'graph, F: CreateFilter + 'graph>(
+        select: DynGraphArc<'graph>,
+        filter: F,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
+        let filter = filter.create_edge_filter(select.clone())?;
+        Ok(Arc::new(ExplodedEdgeExprFilteredGraph::new(select, filter)))
+    }
+}
+
+/// A collection of exploded edges: what `explode()` and `explode_layers()` return.
+pub type ExplodedEdges<'graph, G> = Edges<'graph, G, ExplodedEdge>;
+
 #[derive(Clone)]
-pub struct Edges<'graph, G> {
+pub struct Edges<'graph, G, K = Edge> {
     pub(crate) base_graph: G,
     pub(crate) select: DynGraphArc<'graph>,
     pub(crate) edges: EdgeOp<'graph>,
+    pub(crate) kind: PhantomData<K>,
 }
 
-impl<G: IntoDynamic> Edges<'static, G> {
-    pub fn into_dyn(self) -> Edges<'static, DynamicGraph> {
+impl<G: IntoDynamic, K: EdgeItem> Edges<'static, G, K> {
+    pub fn into_dyn(self) -> Edges<'static, DynamicGraph, K> {
         Edges {
             base_graph: self.base_graph.into_dynamic(),
             select: self.select,
             edges: self.edges,
+            kind: PhantomData,
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Debug for Edges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> Debug for Edges<'graph, G, K> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<'graph, Current> InternalFilter<'graph> for Edges<'graph, Current>
+impl<'graph, Current, K> InternalFilter<'graph> for Edges<'graph, Current, K>
 where
     Current: GraphViewOps<'graph>,
+    K: EdgeItem,
 {
     type Graph = Current;
-    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Edges<'graph, Next>;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Edges<'graph, Next, K>;
 
     fn base_graph(&self) -> &Self::Graph {
         &self.base_graph
@@ -75,17 +126,19 @@ where
             base_graph: filtered_graph,
             select: self.select.clone(),
             edges: self.edges.clone(),
+            kind: PhantomData,
         }
     }
 }
 
-impl<'graph, G: GraphView + 'graph> Edges<'graph, G> {
+impl<'graph, G: GraphView + 'graph, K: EdgeItem> Edges<'graph, G, K> {
     pub fn new(base_graph: G, edges: EdgeOp<'graph>) -> Self {
         let select = Arc::new(base_graph.clone()) as DynGraphArc<'graph>;
         Edges {
             base_graph,
             select,
             edges,
+            kind: PhantomData,
         }
     }
 
@@ -139,7 +192,7 @@ impl<'graph, G: GraphView + 'graph> Edges<'graph, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> IntoIterator for Edges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> IntoIterator for Edges<'graph, G, K> {
     type Item = EdgeView<G>;
     type IntoIter = BoxedLIter<'graph, EdgeView<G>>;
 
@@ -151,7 +204,7 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for Edges<'graph, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> BaseEdgeViewOps<'graph> for Edges<'graph, G, K> {
     type Graph = G;
     type ValueType<T>
         = BoxedLIter<'graph, T>
@@ -159,7 +212,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, 
         T: 'graph;
     type PropType = EdgeView<G>;
     type Nodes = PathFromNode<'graph, G>;
-    type Exploded = Self;
+    type Exploded = ExplodedEdges<'graph, G>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -215,35 +268,38 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, 
             base_graph: self.base_graph.clone(),
             select,
             edges,
+            kind: PhantomData,
         }
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic + Static> From<Edges<'static, G>>
-    for Edges<'static, DynamicGraph>
+impl<G: StaticGraphViewOps + IntoDynamic + Static, K: EdgeItem> From<Edges<'static, G, K>>
+    for Edges<'static, DynamicGraph, K>
 {
-    fn from(value: Edges<'static, G>) -> Self {
+    fn from(value: Edges<'static, G, K>) -> Self {
         Edges {
             base_graph: value.base_graph.into_dynamic(),
             select: value.select,
             edges: value.edges,
+            kind: PhantomData,
         }
     }
 }
 
-impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
-    type IterFiltered<Filter: CreateFilter + 'graph> = Edges<'graph, G>;
+impl<'graph, G: GraphView + 'graph, K: EdgeItem> Select<'graph> for Edges<'graph, G, K> {
+    type IterFiltered<Filter: CreateFilter + 'graph> = Edges<'graph, G, K>;
 
     fn select<F: CreateFilter + 'graph>(
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        // Chain onto the current select so every earlier selection keeps its say.
-        let filter = filter.create_edge_filter(self.select.clone())?;
+        // Chain onto the current select so every earlier selection keeps its say;
+        // the kind of item decides what the predicate is asked about.
         Ok(Edges {
             base_graph: self.base_graph.clone(),
-            select: Arc::new(EdgeExprFilteredGraph::new(self.select.clone(), filter)),
+            select: K::select(self.select.clone(), filter)?,
             edges: self.edges.clone(),
+            kind: PhantomData,
         })
     }
 }
@@ -251,15 +307,19 @@ impl<'graph, G: GraphView + 'graph> Select<'graph> for Edges<'graph, G> {
 pub type NestedEdgeOp<'graph> =
     Arc<dyn Fn(DynGraphArc<'graph>, VID) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>;
 
+/// A collection of exploded edges per node: what `explode()` returns on nested edges.
+pub type NestedExplodedEdges<'graph, G> = NestedEdges<'graph, G, ExplodedEdge>;
+
 #[derive(Clone)]
-pub struct NestedEdges<'graph, G> {
+pub struct NestedEdges<'graph, G, K = Edge> {
     pub(crate) graph: G,
     pub(crate) select: DynGraphArc<'graph>,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
     pub(crate) edges: NestedEdgeOp<'graph>,
+    pub(crate) kind: PhantomData<K>,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> NestedEdges<'graph, G, K> {
     pub fn new(
         graph: G,
         nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
@@ -271,6 +331,7 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
             select,
             nodes,
             edges,
+            kind: PhantomData,
         }
     }
 
@@ -282,7 +343,7 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
         (self.nodes)().next().is_none()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Edges<'graph, G>> + 'graph {
+    pub fn iter(&self) -> impl Iterator<Item = Edges<'graph, G, K>> + 'graph {
         let base_graph = self.graph.clone();
         let edges = self.edges.clone();
         let select = self.select.clone();
@@ -292,6 +353,7 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
                 base_graph: base_graph.clone(),
                 select: select.clone(),
                 edges: Arc::new(move |graph| edge_fn(graph, n)),
+                kind: PhantomData,
             }
         })
     }
@@ -301,36 +363,39 @@ impl<'graph, G: GraphViewOps<'graph>> NestedEdges<'graph, G> {
     }
 }
 
-impl<'graph, G: IntoDynamic> NestedEdges<'graph, G> {
-    pub fn into_dyn(self) -> NestedEdges<'graph, DynamicGraph> {
+impl<'graph, G: IntoDynamic, K: EdgeItem> NestedEdges<'graph, G, K> {
+    pub fn into_dyn(self) -> NestedEdges<'graph, DynamicGraph, K> {
         NestedEdges {
             graph: self.graph.into_dynamic(),
             select: self.select,
             nodes: self.nodes,
             edges: self.edges,
+            kind: PhantomData,
         }
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic + Static> From<NestedEdges<'static, G>>
-    for NestedEdges<'static, DynamicGraph>
+impl<G: StaticGraphViewOps + IntoDynamic + Static, K: EdgeItem> From<NestedEdges<'static, G, K>>
+    for NestedEdges<'static, DynamicGraph, K>
 {
-    fn from(value: NestedEdges<'static, G>) -> Self {
+    fn from(value: NestedEdges<'static, G, K>) -> Self {
         NestedEdges {
             graph: value.graph.into_dynamic(),
             select: value.select,
             nodes: value.nodes,
             edges: value.edges,
+            kind: PhantomData,
         }
     }
 }
 
-impl<'graph, Current> InternalFilter<'graph> for NestedEdges<'graph, Current>
+impl<'graph, Current, K> InternalFilter<'graph> for NestedEdges<'graph, Current, K>
 where
     Current: GraphViewOps<'graph>,
+    K: EdgeItem,
 {
     type Graph = Current;
-    type Filtered<Next: GraphViewOps<'graph> + 'graph> = NestedEdges<'graph, Next>;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = NestedEdges<'graph, Next, K>;
 
     fn base_graph(&self) -> &Self::Graph {
         &self.graph
@@ -345,11 +410,14 @@ where
             select: self.select.clone(),
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
+            kind: PhantomData,
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> BaseEdgeViewOps<'graph>
+    for NestedEdges<'graph, G, K>
+{
     type Graph = G;
     type ValueType<T>
         = BoxedLIter<'graph, BoxedLIter<'graph, T>>
@@ -357,7 +425,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
         T: 'graph;
     type PropType = EdgeView<G>;
     type Nodes = PathFromGraph<'graph, G>;
-    type Exploded = Self;
+    type Exploded = NestedExplodedEdges<'graph, G>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -419,23 +487,24 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
             nodes: self.nodes.clone(),
             select,
             edges,
+            kind: PhantomData,
         }
     }
 }
 
-impl<'graph, G: GraphView + 'graph> Select<'graph> for NestedEdges<'graph, G> {
-    type IterFiltered<Filter: CreateFilter + 'graph> = NestedEdges<'graph, G>;
+impl<'graph, G: GraphView + 'graph, K: EdgeItem> Select<'graph> for NestedEdges<'graph, G, K> {
+    type IterFiltered<Filter: CreateFilter + 'graph> = NestedEdges<'graph, G, K>;
 
     fn select<F: CreateFilter + 'graph>(
         &self,
         filter: F,
     ) -> Result<Self::IterFiltered<F>, GraphError> {
-        let filter = filter.create_edge_filter(self.select.clone())?;
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            select: Arc::new(EdgeExprFilteredGraph::new(self.select.clone(), filter)),
+            select: K::select(self.select.clone(), filter)?,
             edges: self.edges.clone(),
+            kind: PhantomData,
         })
     }
 }

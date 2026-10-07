@@ -66,11 +66,4 @@ pub trait EdgeOp: Send + Sync {
     fn const_value(&self) -> Option<Self::Output> {
         None
     }
-
-    /// Whether the answer differs between the edge as a whole and one of its
-    /// layers or exploded instances. A plain op answers for the edge as a whole,
-    /// and a filtered graph consults it once per edge.
-    fn filters_exploded(&self) -> bool {
-        false
-    }
 }
