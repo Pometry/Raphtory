@@ -114,8 +114,6 @@ where
             .first()
             .and_then(GidType::from_prop_type);
 
-        // TODO: Once resolver is moved inside storage, remove this and change GraphStore paths to
-        // use Path instead of GraphDir.
         let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver());
         let gid_resolver = match gid_resolver_dir {
             Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir, id_type)?,
