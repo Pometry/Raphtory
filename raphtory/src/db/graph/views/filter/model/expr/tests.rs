@@ -979,6 +979,32 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
     assert_eq!(names, ["a"], "not(or): nodes.select");
 }
 
+/// An `and`, `or` or view leg with nothing under it is refused wherever it
+/// sits: an empty `and` is not "everything", `not` of it is not either, and an
+/// empty view leg beside a real one is not nothing.
+#[test]
+fn empty_legs_are_refused() {
+    let g = Graph::new();
+    g.add_node(1, "a", NO_PROPS, None, None).unwrap();
+    let refused = |filter: FilterExpr, message: &str| {
+        let err = g.filter(filter).err().expect("refused").to_string();
+        assert!(err.contains(message), "{err}");
+    };
+    refused(FilterExpr::And(vec![]), "`and` needs at least one operand");
+    refused(FilterExpr::Or(vec![]), "`or` needs at least one operand");
+    refused(
+        FilterExpr::Not(Box::new(FilterExpr::And(vec![]))),
+        "`and` needs at least one operand",
+    );
+    refused(
+        FilterExpr::And(vec![
+            FilterExpr::View(vec![]),
+            FilterExpr::View(vec![window(0, 5)]),
+        ]),
+        "a view filter needs at least one view",
+    );
+}
+
 /// A name, id or type has no time axis and does not depend on the node set,
 /// so a view written on a field term is kept for display and ignored when the
 /// filter runs: the term reads the field whether or not the view holds the node.

@@ -557,10 +557,11 @@ fn innermost_element(pt: &PropType) -> &PropType {
 /// the question. The members that remain are kept exactly as written; the
 /// runtime comparison handles mixed numeric widths by value. An unresolved
 /// LHS type keeps every member.
-pub fn comparable_set_values(lhs_pt: &PropType, values: Vec<Prop>) -> Vec<Prop> {
+pub fn comparable_set_values(lhs_pt: &PropType, values: &[Prop]) -> Vec<Prop> {
     values
-        .into_iter()
+        .iter()
         .filter(|v| lhs_pt.is_comparable_with(&v.dtype()))
+        .cloned()
         .collect()
 }
 

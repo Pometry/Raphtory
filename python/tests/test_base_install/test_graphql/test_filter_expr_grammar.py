@@ -335,3 +335,18 @@ def test_a_view_without_argument_is_named_by_kind():
             'does not contain the value "VALIDATE"',
         ):
             client.query(NODES, {"f": {"view": [{"kind": "VALIDATE"}]}})
+
+
+def test_empty_legs_are_refused():
+    """An `and`, `or` or view leg with nothing under it is refused wherever it
+    sits; in particular an empty `and`, and `not` of it, are not "everything"."""
+    window = {"view": [{"window": {"start": 0, "end": 5}}]}
+    with graphql_client(build()) as client:
+        for shape, message in [
+            ({"and": []}, "`and` needs at least one operand"),
+            ({"not": {"and": []}}, "`and` needs at least one operand"),
+            ({"or": []}, "`or` needs at least one operand"),
+            ({"and": [{"view": []}, window]}, "a view filter needs at least one view"),
+        ]:
+            with pytest.raises(Exception, match=message):
+                node_names(client, shape)

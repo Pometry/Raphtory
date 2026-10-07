@@ -29,7 +29,9 @@ use crate::{
             model::{
                 after_bounds,
                 and_filter::AndFilter,
-                answer::{all_of, any_of, combine, compose, Answer, FilterAnswer, Question},
+                answer::{
+                    all_of, any_of, combine, compose, needs_operand, Answer, FilterAnswer, Question,
+                },
                 at_bounds, before_bounds,
                 edge_expr::ops::{AndEdgeOp, EdgeExistsOp},
                 edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
@@ -497,8 +499,8 @@ impl FilterExpr {
     /// (nested `and`s count as top level); under `or` or `not` it has no meaning the
     /// engine can give it and is refused.
     pub fn compile(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-        let (views, predicates, saw_view) = self.split_top_views();
-        if saw_view && views.is_empty() {
+        let (views, predicates, saw_empty_view) = self.split_top_views();
+        if saw_empty_view {
             return Err(invalid("a view filter needs at least one view"));
         }
         if views.is_empty() {
@@ -518,30 +520,31 @@ impl FilterExpr {
 
     /// The view ops at the top of the filter, in order, and the predicates beside
     /// them. `and` nests flatten; anything else is a predicate. The flag says whether
-    /// a `View` node was seen at all, so an empty one can be told from none.
+    /// a view leg with no ops was seen anywhere, which is refused: it would be a leg
+    /// that does nothing.
     fn split_top_views(&self) -> (Vec<ViewOp>, Vec<&FilterExpr>, bool) {
         fn walk<'a>(
             filter: &'a FilterExpr,
             views: &mut Vec<ViewOp>,
             predicates: &mut Vec<&'a FilterExpr>,
-            saw_view: &mut bool,
+            saw_empty_view: &mut bool,
         ) {
             match filter {
                 FilterExpr::View(ops) => {
-                    *saw_view = true;
+                    *saw_empty_view |= ops.is_empty();
                     views.extend(ops.iter().cloned());
                 }
                 FilterExpr::And(items) => {
                     for item in items {
-                        walk(item, views, predicates, saw_view);
+                        walk(item, views, predicates, saw_empty_view);
                     }
                 }
                 other => predicates.push(other),
             }
         }
-        let (mut views, mut predicates, mut saw_view) = (Vec::new(), Vec::new(), false);
-        walk(self, &mut views, &mut predicates, &mut saw_view);
-        (views, predicates, saw_view)
+        let (mut views, mut predicates, mut saw_empty_view) = (Vec::new(), Vec::new(), false);
+        walk(self, &mut views, &mut predicates, &mut saw_empty_view);
+        (views, predicates, saw_empty_view)
     }
 }
 
@@ -640,6 +643,8 @@ impl FilterAnswer for FilterExpr {
                 Predicate::new(filter.0.clone()).answer(question, negated)
             }
             FilterExpr::View(_) => Err(view_below_top_level()),
+            FilterExpr::And(items) if items.is_empty() => Err(needs_operand("and")),
+            FilterExpr::Or(items) if items.is_empty() => Err(needs_operand("or")),
             FilterExpr::And(items) => all_of(
                 items.iter().map(|item| item.answer(question, negated)),
                 negated,

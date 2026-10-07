@@ -272,14 +272,12 @@ fn require_string_value(op: &str, v: &Value) -> Result<String, GraphError> {
 
 fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, GraphError> {
     if let Value::List(vs) = v {
-        let props = vs
+        let members = vs
             .iter()
             .cloned()
-            .map(Prop::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(PropertyFilterValue::Set(Arc::new(
-            props.into_iter().map(HashableProp::from).collect(),
-        )))
+            .map(|v| Prop::try_from(v).map(HashableProp::from))
+            .collect::<Result<_, _>>()?;
+        Ok(PropertyFilterValue::Set(Arc::new(members)))
     } else {
         Err(GraphError::InvalidGqlFilter(format!(
             "{op} requires a list value, got {v}"

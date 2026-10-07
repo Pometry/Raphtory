@@ -56,12 +56,11 @@ pub(crate) fn all_of(
     legs: impl IntoIterator<Item = Result<Option<Answer>, GraphError>>,
     negated: bool,
 ) -> Result<Option<Answer>, GraphError> {
-    let mut answers = legs
+    // A leg that leaves the question open is dropped; the first error wins.
+    let mut answers: Vec<Answer> = legs
         .into_iter()
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+        .filter_map(Result::transpose)
+        .collect::<Result<_, _>>()?;
     Ok(match answers.len() {
         0 => None,
         1 => answers.pop(),
@@ -99,14 +98,16 @@ fn or_of(left: Answer, right: Answer) -> Answer {
 /// Fold compiled operands pairwise, left to right. An empty list has no
 /// meaning either way (`and` of nothing is not "everything", `or` of nothing
 /// is not "nothing" the caller asked for), so it is refused.
+pub(crate) fn needs_operand(name: &str) -> GraphError {
+    GraphError::InvalidFilter(format!("`{name}` needs at least one operand"))
+}
+
 pub(crate) fn combine(
     mut compiled: impl Iterator<Item = Result<Answer, GraphError>>,
     name: &str,
     join: impl Fn(Answer, Answer) -> Answer,
 ) -> Result<Answer, GraphError> {
-    let first = compiled.next().ok_or_else(|| {
-        GraphError::InvalidFilter(format!("`{name}` needs at least one operand"))
-    })??;
+    let first = compiled.next().ok_or_else(|| needs_operand(name))??;
     compiled.try_fold(first, |acc, next| Ok(join(acc, next?)))
 }
 

@@ -206,15 +206,12 @@ pub(crate) struct TemporalEdgePropOp<G> {
 
 impl<G: GraphView> TemporalEdgePropOp<G> {
     fn history(&self, edge: EdgeEntryRef, at: EdgeAt) -> Option<Prop> {
-        let vals: Vec<Prop> = match edge_reads::shown(&self.graph, edge, at) {
-            Some(at) => edge_reads::temporal_hist(&self.graph, edge, at, self.prop_id)
-                .map(|(_, v)| v)
-                .collect(),
-            None => Vec::new(),
-        };
-        // Every value in one property's history has the property's type, so
-        // the list always unifies.
-        Prop::list(vals).ok()
+        // A hidden edge reads an empty history. Every value in one property's
+        // history has the property's type, so the list always unifies.
+        let vals = edge_reads::shown(&self.graph, edge, at).map(|at| {
+            edge_reads::temporal_hist(&self.graph, edge, at, self.prop_id).map(|(_, v)| v)
+        });
+        Prop::list(vals.into_iter().flatten()).ok()
     }
 }
 

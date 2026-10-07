@@ -108,7 +108,7 @@ pub(crate) fn string_shape(
 /// list-valued side whose whole value no member can equal is tested element
 /// by element instead.
 pub(crate) fn set_shape(lhs: &PropType, values: &[Prop]) -> (PropType, Shape, Vec<Prop>) {
-    let whole = comparable_set_values(lhs, values.to_vec());
+    let whole = comparable_set_values(lhs, values);
     if let PropType::List(inner) = lhs {
         if whole.is_empty() && !values.is_empty() {
             let (out, _, members) = set_shape(inner, values);
