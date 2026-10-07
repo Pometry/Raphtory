@@ -53,5 +53,5 @@ rand.workspace = true
 raphtory = { workspace = true, features = ["io"] }
 
 [features]
-python = ["dep:pyo3", "dep:pyo3-arrow", "raphtory/python", "raphtory-api/python"]
+python = ["dep:pyo3", "dep:pyo3-arrow", "raphtory/python", "raphtory-api/python", "raphtory/vectors"]
 panic-on-drop = ["raphtory/panic-on-drop"]
