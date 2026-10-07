@@ -10,7 +10,7 @@ from __future__ import annotations
 ###############################################################################
 
 from typing import *
-from raphtory import Metadata, Prop, filter
+from raphtory import Nodes, Metadata, Prop, filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -29,8 +29,22 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['FilterExpr', 'Expr', 'PropertyExpr', 'Node', 'NodeFilter', 'Edge', 'EdgeFilter', 'EdgeEndpoint', 'ExplodedEdge', 'ExplodedEdgeFilter', 'Graph', 'GraphFilter']
-class FilterExpr(object): 
+__all__ = [
+    "FilterExpr",
+    "Expr",
+    "PropertyExpr",
+    "Node",
+    "NodeFilter",
+    "Edge",
+    "EdgeFilter",
+    "EdgeEndpoint",
+    "ExplodedEdge",
+    "ExplodedEdgeFilter",
+    "Graph",
+    "GraphFilter",
+]
+
+class FilterExpr(object):
     """
     A filter as a tree. The same tree runs locally, is sent to a server, and is
     what `repr` prints, so there is nothing to keep in step.
@@ -62,7 +76,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class Expr(object): 
+class Expr(object):
     """
     A value expression: a field, degree, property, metadata entry, an aggregate
     over one, or a yes/no built from them. Comparing it to a value or to another
@@ -189,7 +203,9 @@ class Expr(object):
             filter.Expr:
         """
 
-    def fuzzy_search(self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool) -> filter.Expr:
+    def fuzzy_search(
+        self, other: str | filter.Expr, levenshtein_distance: int, prefix_match: bool
+    ) -> filter.Expr:
         """
         Checks whether the string value is within a Levenshtein distance of the given text.
 
@@ -368,7 +384,7 @@ class Expr(object):
             filter.Expr:
         """
 
-class PropertyExpr(Expr): 
+class PropertyExpr(Expr):
     """A property term, which can switch to the property's history with `temporal()`."""
 
     def __repr__(self):
@@ -384,7 +400,7 @@ class PropertyExpr(Expr):
             filter.Expr:
         """
 
-class Node(object): 
+class Node(object):
     """
     Entry point for constructing node filter expressions.
 
@@ -479,6 +495,20 @@ class Node(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
+    def exclude_nodes(nodes: list[str | int]) -> filter.NodeFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.NodeFilter:
@@ -649,6 +679,44 @@ class Node(object):
         """
 
     @staticmethod
+    def subgraph(nodes: list[str | int]) -> filter.NodeFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
+    def subgraph_node_types(node_types: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
+    def valid() -> filter.NodeFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to the given time window.
@@ -663,7 +731,7 @@ class Node(object):
             filter.NodeFilter:
         """
 
-class NodeFilter(object): 
+class NodeFilter(object):
     """
     A node filter scoped to a view.
 
@@ -753,6 +821,19 @@ class NodeFilter(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    def exclude_nodes(self, nodes: list[str | int]) -> filter.NodeFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.NodeFilter:
@@ -907,6 +988,41 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
+    def subgraph(self, nodes: list[str | int]) -> filter.NodeFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    def subgraph_node_types(self, node_types: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    def valid(self) -> filter.NodeFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to the given time window.
@@ -921,7 +1037,7 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
-class Edge(object): 
+class Edge(object):
     """
     Entry point for constructing edge filter expressions.
 
@@ -1003,6 +1119,20 @@ class Edge(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_nodes(nodes: list[str | int]) -> filter.EdgeFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.EdgeFilter:
@@ -1160,6 +1290,44 @@ class Edge(object):
         """
 
     @staticmethod
+    def subgraph(nodes: list[str | int]) -> filter.EdgeFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
+    def subgraph_node_types(node_types: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
+    def valid() -> filter.EdgeFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to the given time window.
@@ -1172,7 +1340,7 @@ class Edge(object):
             filter.EdgeFilter:
         """
 
-class EdgeFilter(object): 
+class EdgeFilter(object):
     """
     An edge filter scoped to a view.
 
@@ -1250,6 +1418,19 @@ class EdgeFilter(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    def exclude_nodes(self, nodes: list[str | int]) -> filter.EdgeFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.EdgeFilter:
@@ -1392,6 +1573,41 @@ class EdgeFilter(object):
             filter.EdgeEndpoint:
         """
 
+    def subgraph(self, nodes: list[str | int]) -> filter.EdgeFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    def subgraph_node_types(self, node_types: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    def valid(self) -> filter.EdgeFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to the given time window.
@@ -1404,7 +1620,7 @@ class EdgeFilter(object):
             filter.EdgeFilter:
         """
 
-class EdgeEndpoint(object): 
+class EdgeEndpoint(object):
     """
     Entry point for filtering an edge endpoint (source or destination).
 
@@ -1467,7 +1683,7 @@ class EdgeEndpoint(object):
             filter.PropertyExpr:
         """
 
-class ExplodedEdge(object): 
+class ExplodedEdge(object):
     """
     Entry point for constructing exploded-edge filter expressions.
 
@@ -1539,6 +1755,20 @@ class ExplodedEdge(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_nodes(nodes: list[str | int]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1691,6 +1921,44 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
+    def subgraph(nodes: list[str | int]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def subgraph_node_types(node_types: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def valid() -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to the given time window.
@@ -1705,7 +1973,7 @@ class ExplodedEdge(object):
             filter.ExplodedEdgeFilter:
         """
 
-class ExplodedEdgeFilter(object): 
+class ExplodedEdgeFilter(object):
     """
     An exploded-edge filter scoped to a view.
 
@@ -1776,6 +2044,19 @@ class ExplodedEdgeFilter(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def exclude_nodes(self, nodes: list[str | int]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1914,6 +2195,41 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
+    def subgraph(self, nodes: list[str | int]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def subgraph_node_types(self, node_types: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def valid(self) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to the given time window.
@@ -1928,7 +2244,7 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
-class Graph(object): 
+class Graph(object):
     """
     Entry point for graph-level view filters.
 
@@ -2000,6 +2316,20 @@ class Graph(object):
 
         Arguments:
             layers (list[str]): Layer names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def exclude_nodes(nodes: list[str | int]) -> filter.GraphFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
 
         Returns:
             filter.GraphFilter:
@@ -2088,6 +2418,44 @@ class Graph(object):
         """
 
     @staticmethod
+    def subgraph(nodes: list[str | int]) -> filter.GraphFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def subgraph_node_types(node_types: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def valid() -> filter.GraphFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to events within a time window.
@@ -2102,7 +2470,7 @@ class Graph(object):
             filter.GraphFilter:
         """
 
-class GraphFilter(FilterExpr): 
+class GraphFilter(FilterExpr):
     """
     A graph-level view scope.
 
@@ -2178,6 +2546,19 @@ class GraphFilter(FilterExpr):
             filter.GraphFilter:
         """
 
+    def exclude_nodes(self, nodes: list[str | int]) -> filter.GraphFilter:
+        """
+        Reads through a view of every node except the given ones, with their edges.
+
+        An id the view does not hold changes nothing.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
     def latest(self) -> filter.GraphFilter:
         """
         Evaluates filters against the latest available state of the graph.
@@ -2248,6 +2629,41 @@ class GraphFilter(FilterExpr):
     def snapshot_latest(self) -> filter.GraphFilter:
         """
         Evaluates filters against the most recent snapshot of the graph.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def subgraph(self, nodes: list[str | int]) -> filter.GraphFilter:
+        """
+        Reads through a view of the given nodes and the edges between them.
+
+        An id the view does not hold is skipped.
+
+        Arguments:
+            nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def subgraph_node_types(self, node_types: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of the nodes of the given types and the edges between them.
+
+        Arguments:
+            node_types (list[str]): Node types.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def valid(self) -> filter.GraphFilter:
+        """
+        Reads through a view of the edges that are valid in the current view.
+
+        On a persistent graph an edge is valid when its last update is an addition;
+        on an event graph when it has at least one addition. Nodes are untouched.
 
         Returns:
             filter.GraphFilter:

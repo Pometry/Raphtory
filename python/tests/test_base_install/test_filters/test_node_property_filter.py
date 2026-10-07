@@ -7,20 +7,28 @@ import re
 # The whole refusal of a filter that compares a list-like value (a temporal
 # history, or per-snapshot sums) without saying whether any or every element
 # must match.
-ONE_ANSWER_PER_ELEMENT = "^" + re.escape(
-    "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
-    "temporal property gives one per element (List<Bool>); add any() or all() "
-    "to say whether any or every element must match"
-) + "$"
+ONE_ANSWER_PER_ELEMENT = (
+    "^"
+    + re.escape(
+        "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+        "temporal property gives one per element (List<Bool>); add any() or all() "
+        "to say whether any or every element must match"
+    )
+    + "$"
+)
 
 # The whole refusal of any()/all() written after a test that gives a single
 # yes/no answer. A property's type is only known once the filter meets a
 # graph, so these are refused when the filter is applied.
-QUALIFIER_ON_ONE_ANSWER = "^" + re.escape(
-    "Invalid filter: any()/all() need one yes/no answer per element, which "
-    "comparing a list or temporal property gives; this expression gives a "
-    "single yes/no answer, so drop the any()/all()"
-) + "$"
+QUALIFIER_ON_ONE_ANSWER = (
+    "^"
+    + re.escape(
+        "Invalid filter: any()/all() need one yes/no answer per element, which "
+        "comparing a list or temporal property gives; this expression gives a "
+        "single yes/no answer, so drop the any()/all()"
+    )
+    + "$"
+)
 
 
 @with_variants(init_graph)
