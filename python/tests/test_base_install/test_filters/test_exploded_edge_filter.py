@@ -172,18 +172,21 @@ def test_with_edge_node_filter(GraphClass):
     weight_e3 = filter.ExplodedEdge.property("weight") == 3
     name_filter = filter.Node.name() == "2"
 
+    # An `or` across kinds is the union of what each leg keeps: the updates
+    # with weight 3, plus the edges with both ends among the nodes named "2",
+    # of which there are none. It is not everything.
     actual = [
         (edge.src.name, edge.dst.name)
         for edge in g.filter(weight_e3 | name_filter).edges.explode()
     ]
-    expected = [("1", "2"), ("1", "2"), ("1", "2"), ("1", "3"), ("1", "3"), ("1", "3")]
+    expected = [("1", "2"), ("1", "3")]
     assert sorted(actual) == sorted(expected)
 
     actual = [
         (edge.src.name, edge.dst.name)
         for edge in g.filter(name_filter | weight_e3).edges.explode()
     ]
-    expected = [("1", "2"), ("1", "2"), ("1", "2"), ("1", "3"), ("1", "3"), ("1", "3")]
+    expected = [("1", "2"), ("1", "3")]
     assert sorted(actual) == sorted(expected)
 
     actual = [

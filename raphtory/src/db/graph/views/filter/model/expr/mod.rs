@@ -310,7 +310,8 @@ pub type ExplodedEdgeExpr = Expr<ExplodedEdgeLeaf>;
 /// the direct answers question by question: `name == "b" | name == "c"` keeps
 /// the edge b→c, `Not` of a node predicate keeps the nodes that fail it and the
 /// edges between them, `Not(And(node, edge))` negates each answer, and an `Or`
-/// with a leg that leaves a question open leaves it open.
+/// between a node predicate and an edge predicate keeps every node and the
+/// edges either leg keeps: the union of the two.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterExpr {

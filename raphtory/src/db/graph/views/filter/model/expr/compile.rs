@@ -30,7 +30,8 @@ use crate::{
                 after_bounds,
                 and_filter::AndFilter,
                 answer::{
-                    all_of, any_of, combine, compose, needs_operand, Answer, FilterAnswer, Question,
+                    all_of, any_of, combine, compose, edges_of_nodes, needs_operand, Answer,
+                    FilterAnswer, Question,
                 },
                 at_bounds, before_bounds,
                 edge_expr::ops::{AndEdgeOp, EdgeExistsOp},
@@ -491,6 +492,38 @@ impl<L: Leaf> Expr<L> {
 // ── filters ──────────────────────────────────────────────────────────────────
 
 impl FilterExpr {
+    /// The `or` of legs of different kinds is the union of what each keeps: an edge
+    /// leg keeps every node, which no union can narrow, so the node question is
+    /// open; a node leg keeps the edges whose ends it keeps both, so for the edge
+    /// question each node leg is closed to those edges and the `or` unions them with
+    /// the edge legs' edges. Legs of one kind are left to `any_of` as they are, so
+    /// `name == "b" | name == "c"` still keeps the edge b→c through its node answer.
+    /// Negated, the `or` is an `and` of the opposites and nothing is closed.
+    fn or_answer(
+        items: &[FilterExpr],
+        question: Question,
+        negated: bool,
+    ) -> Result<Option<Answer>, GraphError> {
+        let direct = items
+            .iter()
+            .map(|item| item.answer(question, negated))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mixed = direct.iter().any(Option::is_some) && direct.iter().any(Option::is_none);
+        if negated || !mixed {
+            return any_of(direct.into_iter().map(Ok), negated);
+        }
+        match question {
+            Question::Nodes => Ok(None),
+            Question::Edges => any_of(
+                items.iter().zip(direct).map(|(item, answer)| match answer {
+                    Some(answer) => Ok(Some(answer)),
+                    None => Ok(item.answer(Question::Nodes, false)?.map(edges_of_nodes)),
+                }),
+                false,
+            ),
+        }
+    }
+
     /// The erased, applicable form of this filter.
     ///
     /// A view (`View`) applies first: the graph is seen through it and the other
@@ -625,7 +658,7 @@ impl CreateFilter for Viewed {
 
 /// A tree answers the two questions node by node, with the same rule as the
 /// typed combinators: a leaf answers its own entity's question, `and` drops
-/// legs that leave the question open, `or` needs every leg, and `not` asks
+/// legs that leave the question open, `or` unions what its legs keep, and `not` asks
 /// for the opposite answer. A view has no answer below the top level.
 impl FilterAnswer for FilterExpr {
     fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
@@ -649,10 +682,7 @@ impl FilterAnswer for FilterExpr {
                 items.iter().map(|item| item.answer(question, negated)),
                 negated,
             ),
-            FilterExpr::Or(items) => any_of(
-                items.iter().map(|item| item.answer(question, negated)),
-                negated,
-            ),
+            FilterExpr::Or(items) => Self::or_answer(items, question, negated),
             FilterExpr::Not(inner) => inner.answer(question, !negated),
         }
     }

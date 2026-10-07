@@ -306,7 +306,9 @@ def test_combinations_follow_set_algebra():
                     )
                 )
             else:
-                cases.append((f"{a} | {b}", atoms[a] | atoms[b], every))
+                # An `or` across kinds is the union of what each leg keeps: the
+                # edge leg's edges plus the edges with both ends in the node leg.
+                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
                 cases.append(
                     (
                         f"~({a} & {b})",

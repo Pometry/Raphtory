@@ -400,6 +400,9 @@ EDGE_ENDPOINT_EXPRS = {
 COMBINATOR_EXPRS = {
     "comb.and": lambda: (f.Node.property("score") > 5) & (f.Node.node_type() == "user"),
     "comb.or": lambda: (f.Node.name() == "iso") | (f.Node.node_type() == "admin"),
+    # a node OR an edge predicate: every node, and the edges either leg keeps
+    "comb.mixed_or": lambda: (f.Node.name() == "iso")
+    | (f.Edge.property("weight") > 3.0),
     "comb.not": lambda: ~(f.Node.node_type() == "admin"),
     "comb.not_and": lambda: ~(
         (f.Node.property("score") > 5) & (f.Node.node_type() == "user")
@@ -739,11 +742,6 @@ _UNIVERSAL_EXPRS = {
     "universal.edge.valid": (
         lambda: f.Edge.valid().is_active(),
         "as above, read through the view by an edge term",
-    ),
-    "universal.mixed_or": (
-        lambda: (f.Node.name() == "iso") | (f.Edge.property("weight") > 3.0),
-        "a node OR an edge predicate: each branch leaves the other entity "
-        "type unconstrained, so the disjunction admits everything",
     ),
 }
 

@@ -19,6 +19,7 @@ use crate::{
             view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
+            edge_expr_filtered_graph::EdgeExprFilteredGraph,
             model::{
                 and_filter::AndFilter, edge_expr::ops::EdgeExistsOp, graph_filter::GraphFilter,
                 or_filter::OrFilter, DynCreateFilter, EntityMarker,
@@ -115,15 +116,87 @@ pub(crate) fn combine(
 /// edge answer side by side, one of them alone, or the unfiltered graph when
 /// nothing constrains either.
 pub fn compose<F: FilterAnswer + ?Sized>(filter: &F) -> Result<Answer, GraphError> {
-    let nodes = filter
-        .answer(Question::Nodes, false)?
-        .map(|nodes| Arc::new(NodeAnswer(nodes)) as Answer);
+    let nodes = filter.answer(Question::Nodes, false)?.map(closed_edges);
     let edges = filter.answer(Question::Edges, false)?;
     Ok(match (nodes, edges) {
         (Some(nodes), Some(edges)) => and_of(nodes, edges),
         (Some(answer), None) | (None, Some(answer)) => answer,
         (None, None) => Arc::new(GraphFilter),
     })
+}
+
+/// A node answer as a filter on both questions: the nodes it keeps and, through
+/// them, the edges whose ends it keeps both.
+pub(crate) fn closed_edges(nodes: Answer) -> Answer {
+    Arc::new(NodeAnswer(nodes))
+}
+
+/// A node answer's edges alone: the edges whose ends it keeps both, with every
+/// node kept. This is the node leg of an `or` for the edge question, where the
+/// edges have to be decided edge by edge, since the other leg may keep nodes
+/// this one drops.
+pub(crate) fn edges_of_nodes(nodes: Answer) -> Answer {
+    Arc::new(EdgesOfNodes(nodes))
+}
+
+/// The edges whose ends a node answer keeps both, as an edge filter.
+fn edges_of<'graph, G: GraphView + 'graph>(
+    nodes: &Answer,
+    graph: G,
+) -> Result<DynEdgeFilter<'graph>, GraphError> {
+    let node_filter = nodes.create_dyn_node_filter(graph.clone().into_dyn_graph_arc())?;
+    Ok(Arc::new(EdgeExistsOp::new(NodeFilteredGraph::new(
+        graph,
+        node_filter,
+    ))))
+}
+
+#[derive(Clone)]
+struct EdgesOfNodes(Answer);
+
+impl CreateFilter for EdgesOfNodes {
+    type FilteredGraph<'graph, G>
+        = DynGraphArc<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type NodeFilter<'graph, G>
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    type EdgeFilter<'graph, G>
+        = DynEdgeFilter<'graph>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+
+    fn create_graph_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        let edges = edges_of(&self.0, graph.clone())?;
+        Ok(Arc::new(EdgeExprFilteredGraph::new(
+            graph.into_dyn_graph_arc(),
+            edges,
+        )))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Err(GraphError::NotNodeFilter)
+    }
+
+    fn create_edge_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
+        edges_of(&self.0, graph)
+    }
 }
 
 /// The node answer as a filter: the nodes its node test keeps, and the edges
@@ -170,12 +243,7 @@ impl CreateFilter for NodeAnswer {
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        let nodes = self
-            .0
-            .create_dyn_node_filter(graph.clone().into_dyn_graph_arc())?;
-        Ok(Arc::new(EdgeExistsOp::new(NodeFilteredGraph::new(
-            graph, nodes,
-        ))))
+        edges_of(&self.0, graph)
     }
 }
 

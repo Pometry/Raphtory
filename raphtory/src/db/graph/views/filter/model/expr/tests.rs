@@ -5,6 +5,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::EdgeFilter,
+                exploded_edge_filter::ExplodedEdgeFilter,
                 graph_filter::GraphFilter,
                 node_expr::Compiled,
                 node_filter::{NodeFilter, NodeFilterFactory},
@@ -22,7 +23,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{properties::prop::IntoProp, GID},
-    storage::timeindex::EventTime,
+    storage::timeindex::{AsTime, EventTime},
     Direction,
 };
 use std::sync::Arc;
@@ -750,10 +751,12 @@ fn filters_answer_the_node_and_edge_questions_separately() {
             &["alice->bob"],
         ),
         (
-            "or(node, edge): both questions left open",
+            // the union of what each keeps: every node, and the edges either leg
+            // keeps (none between alice and herself, and carol->dave by weight)
+            "or(node, edge): the union of what each leg keeps",
             FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
             &all_nodes,
-            &all_edges,
+            &["carol->dave"],
         ),
         (
             "not(or(node, edge)): still open",
@@ -762,13 +765,14 @@ fn filters_answer_the_node_and_edge_questions_separately() {
             &all_edges,
         ),
         (
-            "and(node, or(node, edge)): the open or drops out",
+            // the or keeps carol->dave only, which the node leg's ends then drop
+            "and(node, or(node, edge)): the or's edges count",
             FilterExpr::And(vec![
                 score_gt(1.5),
                 FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
             ]),
             &["alice", "bob"],
-            &["alice->bob"],
+            &[],
         ),
     ];
     let base = g.filter(score_gt(1.5)).unwrap().into_dynamic();
@@ -946,15 +950,17 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
         "or: filter"
     );
 
+    // the union of what each leg keeps: no edge has both ends at b, so only
+    // the edge leg's b->c
     let or_node_edge = name_is("b").or(w_gt_1());
     assert_eq!(
         selected_edges(&g, &or_node_edge),
-        ["a->b", "b->c"],
+        ["b->c"],
         "or(node, edge): edges.select"
     );
     assert_eq!(
         edge_ids(&g.filter(or_node_edge.clone()).unwrap()),
-        ["a->b", "b->c"],
+        ["b->c"],
         "or(node, edge): filter"
     );
 
@@ -977,6 +983,63 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
     );
     let names: Vec<String> = g.nodes().select(not_or).unwrap().name().collect();
     assert_eq!(names, ["a"], "not(or): nodes.select");
+}
+
+/// An `or` between a node predicate and an edge predicate is the union of what
+/// each keeps: every node, since an edge predicate keeps every node, and the
+/// edges either leg keeps, where the node leg keeps the edges with both ends
+/// inside its nodes. It is not "everything".
+#[test]
+fn a_mixed_or_is_the_union_of_what_its_legs_keep() {
+    // a→b w=3 · b→c w=7 · c→d w=1 · a→a w=1; every node added on its own too,
+    // so a node with every edge hidden still exists (#2821)
+    let g = Graph::new();
+    for name in ["a", "b", "c", "d"] {
+        g.add_node(0, name, NO_PROPS, None, None).unwrap();
+    }
+    g.add_edge(1, "a", "b", [("w", 3i64)], None).unwrap();
+    g.add_edge(2, "b", "c", [("w", 7i64)], None).unwrap();
+    g.add_edge(3, "c", "d", [("w", 1i64)], None).unwrap();
+    g.add_edge(4, "a", "a", [("w", 1i64)], None).unwrap();
+    let heavy = EdgeFilter.property("w").ge(5i64);
+    let named_a = NodeFilter.name().eq("a");
+    let union = g
+        .filter(FilterExpr::Or(vec![
+            named_a.clone().into(),
+            heavy.clone().into(),
+        ]))
+        .unwrap();
+    let mut nodes: Vec<String> = union.nodes().name().collect();
+    nodes.sort();
+    assert_eq!(nodes, ["a", "b", "c", "d"]);
+    let mut edges: Vec<(String, String)> = union
+        .edges()
+        .iter()
+        .map(|e| (e.src().name(), e.dst().name()))
+        .collect();
+    edges.sort();
+    // b→c passes the edge leg; a→a has both ends inside the node leg's nodes
+    assert_eq!(edges, [("a".into(), "a".into()), ("b".into(), "c".into())]);
+    // the edge leg alone keeps every node and one edge
+    assert_eq!(g.filter(heavy).unwrap().edges().len(), 1);
+
+    // with an exploded-edge leg the union is decided update by update: b→c's
+    // update by weight, a→a's because both ends are inside the node leg
+    let heavy_update = ExplodedEdgeFilter.property("w").eq(7i64);
+    let union = g
+        .filter(FilterExpr::Or(vec![named_a.into(), heavy_update.into()]))
+        .unwrap();
+    let mut updates: Vec<(String, String, i64)> = union
+        .edges()
+        .explode()
+        .iter()
+        .map(|e| (e.src().name(), e.dst().name(), e.time().unwrap().t()))
+        .collect();
+    updates.sort();
+    assert_eq!(
+        updates,
+        [("a".into(), "a".into(), 4), ("b".into(), "c".into(), 2)]
+    );
 }
 
 /// An `and`, `or` or view leg with nothing under it is refused wherever it
