@@ -64,7 +64,7 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::{Graph, NodeStateOps, PropUnwrap},
+    prelude::Graph,
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
