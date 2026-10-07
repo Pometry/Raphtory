@@ -917,6 +917,10 @@ impl Prop {
         )?))
     }
 
+    pub fn list_unchecked<P: Into<Prop>, I: IntoIterator<Item = P>>(vals: I) -> Prop {
+        Self::list(vals).unwrap_or_else(|e| panic!("Failed to construct list {e}"))
+    }
+
     /// Consume a numeric prop into a `BigDecimal` — exact for integers and existing decimals, the
     /// nearest decimal for floats. `None` for non-numerics (and non-finite floats).
     fn into_big_decimal(self) -> Result<BigDecimal, Prop> {
