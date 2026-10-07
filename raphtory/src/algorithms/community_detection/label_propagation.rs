@@ -12,6 +12,7 @@ use crate::{
 };
 use rand::Rng;
 use raphtory_api::core::{entities::VID, utils::hashing::calculate_hash, Direction};
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -355,7 +356,7 @@ where
                     }
 
                     collect_nbors(vid, nbors);
-                    let node_key = calculate_hash(&(tie_seed, vid.index())); // tie_rank's 1st arg
+                    let node_key = calculate_hash(&(tie_seed, locked.node_id(vid))); // tie_rank's 1st arg
                     let mut best_slot = prev_slot;
                     let mut best_count = 0u32;
                     let mut best_rank = 0u64;
