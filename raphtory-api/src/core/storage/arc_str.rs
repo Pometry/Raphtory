@@ -9,6 +9,7 @@ use std::{
 };
 
 #[derive(Clone, Debug, Eq, Ord, Hash, Default, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ArcStr(pub Arc<str>);
 
 impl Display for ArcStr {
