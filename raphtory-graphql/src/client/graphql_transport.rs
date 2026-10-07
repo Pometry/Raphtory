@@ -3968,6 +3968,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_u64_property_above_i64_max() {
+        let check = |p: Prop| async move {
+            let tmp_dir = tempdir().unwrap();
+            let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
+                .await
+                .unwrap();
+            let running = server.start_with_port(0).await.unwrap();
+            let url = Url::parse(&format!("http://localhost:{}", running.port())).unwrap();
+            let client = RemoteClient::new(url, None);
+            client.new_graph("test", GqlGraphType::Event).await.unwrap();
+            let rg = client.remote_graph("test".into());
+            rg.add_node(0, 0, [("big", p.clone())], None, None)
+                .await
+                .unwrap();
+
+            let remote_node = rg.node(0).await.unwrap().unwrap();
+            let prop = remote_node.properties().get("big").await.unwrap().unwrap();
+            assert_eq!(prop, p);
+
+            running.stop().await;
+            running.wait().await.unwrap();
+        };
+        check(Prop::U64(u64::MAX)).await;
+        check(Prop::I64(i64::MAX)).await;
+    }
+
+    #[tokio::test]
     async fn test_properties() {
         let tmp_dir = tempdir().unwrap();
         let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, Args::default())
