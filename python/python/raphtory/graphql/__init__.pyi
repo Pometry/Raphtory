@@ -30,13 +30,13 @@ import pyvis  # type: ignore
 from raphtory.iterables import *
 
 __all__ = [
-    "RemoteExplodedEdges",
-    "RemoteNestedExplodedEdges",
     "GraphServer",
     "RunningGraphServer",
     "RaphtoryClient",
     "RemoteGraph",
     "RemoteEdge",
+    "RemoteExplodedEdges",
+    "RemoteNestedExplodedEdges",
     "RemoteNode",
     "RemoteNodes",
     "RemotePathFromNode",
@@ -1319,20 +1319,20 @@ class RemoteEdge(object):
 
     def explode(self) -> RemoteExplodedEdges:
         """
-        Fan out this edge into one entry per event — returns a `RemoteEdges`
+        Fan out this edge into one entry per event — returns a `RemoteExplodedEdges`
         with each member a single-event edge instance. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: one entry per event of this edge.
+            RemoteExplodedEdges: one entry per event of this edge.
         """
 
     def explode_layers(self) -> RemoteExplodedEdges:
         """
-        Fan out this edge into one entry per layer — returns a `RemoteEdges`
+        Fan out this edge into one entry per layer — returns a `RemoteExplodedEdges`
         with each member a single-layer edge instance. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: one entry per layer of this edge.
+            RemoteExplodedEdges: one entry per layer of this edge.
         """
 
     def filter(self, filter: filter.FilterExpr) -> RemoteEdge:
@@ -1613,6 +1613,891 @@ class RemoteEdge(object):
 
         Returns:
             RemoteEdge: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemoteExplodedEdges(object):
+    """A handle to a remote collection of exploded edges, one per update of the edges it came from, as returned by `explode()` and `explode_layers()`. Selecting with `[]` asks its question of each exploded edge."""
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemoteExplodedEdges:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteExplodedEdges:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteExplodedEdges: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteExplodedEdges:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[RemoteEdge]:
+        """
+        Materialize this collection as a list of `RemoteEdge` handles.
+
+        Fires one RPC (to fetch each edge's `(src, dst)` pair); each returned
+        edge is rebased under the view chain that produced this collection.
+
+        Returns:
+          list[RemoteEdge]: one handle per edge in the collection.
+        """
+
+    def default_layer(self) -> RemoteExplodedEdges:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to the default layer.
+        """
+
+    @property
+    def dst(self) -> RemotePathFromNode:
+        """
+        The destination node of each edge in this collection, as a flat
+        `RemotePathFromNode`. Mirrors the local `Edges.dst`. Property — lazy;
+        attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromNode: the destination nodes, in collection order.
+        """
+
+    @property
+    def earliest_time(self) -> list[Optional[EventTime]]:
+        """
+        The earliest event time of each edge in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the earliest times, in collection order.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteExplodedEdges:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteExplodedEdges: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteExplodedEdges:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteExplodedEdges: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteExplodedEdges:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteExplodedEdges: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteExplodedEdges:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteExplodedEdges: a new view with those valid layers excluded.
+        """
+
+    def explode(self) -> RemoteExplodedEdges:
+        """
+        Fan out this collection into one entry per event. Lazy — no RPC.
+
+        Returns:
+            RemoteExplodedEdges: a new collection with one entry per event.
+        """
+
+    def explode_layers(self) -> RemoteExplodedEdges:
+        """
+        Fan out this collection into one entry per layer per edge. Lazy — no RPC.
+
+        Returns:
+            RemoteExplodedEdges: a new collection with one entry per layer per edge.
+        """
+
+    def filter(self, filter: filter.FilterExpr) -> RemoteExplodedEdges:
+        """
+        Filter this collection by a filter expression. **The filter
+        propagates**: it applies to the current collection's membership *and*
+        to downstream traversals from the matching edges. For a
+        narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+
+        Arguments:
+            filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteExplodedEdges: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[tuple[str | int, str | int]]:
+        """
+        The `(src, dst)` id pair of each edge in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[tuple[str | int, str | int]]: the id pairs, in collection
+          order — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
+        """
+
+    def is_active(self) -> list[bool]:
+        """
+        Whether each edge is active (has an event) in the current view. Method
+        — mirrors the local `Edges.is_active`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def is_deleted(self) -> list[bool]:
+        """
+        Whether each edge has been deleted at the current time. Method —
+        mirrors the local `Edges.is_deleted`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def is_self_loop(self) -> list[bool]:
+        """
+        Whether each edge is a self-loop (`src == dst`). Method — mirrors the
+        local `Edges.is_self_loop`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def is_valid(self) -> list[bool]:
+        """
+        Whether each edge is valid (not deleted) at the current time. Method —
+        mirrors the local `Edges.is_valid`. Fires one RPC.
+
+        Returns:
+          list[bool]: one flag per edge, in collection order.
+        """
+
+    def latest(self) -> RemoteExplodedEdges:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteExplodedEdges: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[Optional[EventTime]]:
+        """
+        The latest event time of each edge in this collection. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the latest times, in collection order.
+        """
+
+    def layer(self, name: str) -> RemoteExplodedEdges:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to that layer.
+        """
+
+    @property
+    def layer_name(self) -> list[str]:
+        """
+        The single layer name of each edge in this collection. Only valid once
+        the edges have been exploded via `.explode()` / `.explode_layers()`;
+        raises otherwise. Property — attribute access fires one RPC.
+
+        Returns:
+          list[str]: the layer name per edge, in collection order.
+        """
+
+    @property
+    def layer_names(self) -> list[list[str]]:
+        """
+        The layer names of each edge in this collection. Property — attribute
+        access fires one RPC.
+
+        Returns:
+          list[list[str]]: the layer names per edge, in collection order.
+        """
+
+    def layers(self, names: list[str]) -> RemoteExplodedEdges:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this collection as a columnar view. Each
+        accessor returns one value per edge. Lazy — no RPC.
+
+        Returns:
+            RemoteMetadataView: the columnar metadata view of this collection.
+        """
+
+    @property
+    def nbr(self) -> RemotePathFromNode:
+        """
+        The node at the other end of each edge (destination for out-edges,
+        source for in-edges), as a flat `RemotePathFromNode`. Mirrors the local
+        `Edges.nbr`. Property — lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromNode: the other-end nodes, in collection order.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this collection as a columnar view. Each accessor
+        returns one value per edge. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the columnar properties view of this collection.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteExplodedEdges:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteExplodedEdges: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteExplodedEdges:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteExplodedEdges: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteExplodedEdges:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteExplodedEdges: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteExplodedEdges:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteExplodedEdges: a new view snapshotted at the latest time.
+        """
+
+    def sorted(self, sort_bys: list[EdgeSortBy]) -> RemoteExplodedEdges:
+        """
+        Reorder this collection by an ordered list of sort keys. Multi-key
+        sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
+
+        Arguments:
+            sort_bys (list[EdgeSortBy]): the ordered sort keys.
+
+        Returns:
+            RemoteExplodedEdges: a new collection in the sorted order.
+        """
+
+    @property
+    def src(self) -> RemotePathFromNode:
+        """
+        The source node of each edge in this collection, as a flat
+        `RemotePathFromNode`. Mirrors the local `Edges.src`. Property — lazy;
+        attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromNode: the source nodes, in collection order.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    @property
+    def time(self) -> list[Optional[EventTime]]:
+        """
+        The event time of each edge in this collection. Only valid once the
+        edges have been exploded via `.explode()`; raises otherwise. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[Optional[EventTime]]: the event times, in collection order.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteExplodedEdges:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteExplodedEdges:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteExplodedEdges: a new view restricted to the window.
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+        The size of the window covered by this view (`end - start`), or `None`
+        if the view is unbounded. Property — attribute access fires one RPC.
+
+        Returns:
+            Optional[int]: the size of the window, or `None` if the view is unbounded.
+        """
+
+class RemoteNestedExplodedEdges(object):
+    """A handle to a nested collection of exploded edges, one list per source node, as returned by `explode()` and `explode_layers()` on `RemoteNestedEdges`."""
+
+    def __bool__(self):
+        """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def after(self, time: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        Restrict to events strictly after the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly after this time are kept.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to events after that time.
+        """
+
+    def at(self, time: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        View including all events at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to view.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view of that time.
+        """
+
+    def before(self, time: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        Restrict to events strictly before the given time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): only events strictly before this time are kept.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to events before that time.
+        """
+
+    def collect(self) -> list[list[RemoteEdge]]:
+        """
+        Materialize this collection as a nested list of `RemoteEdge` handles —
+        one inner list per source node. Fires one RPC. Each returned edge is
+        rebased under the same view chain that produced this collection.
+
+        Returns:
+          list[list[RemoteEdge]]: the incident edges grouped per source node.
+        """
+
+    def default_layer(self) -> RemoteNestedExplodedEdges:
+        """
+        Restrict to the default layer. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to the default layer.
+        """
+
+    @property
+    def dst(self) -> RemotePathFromGraph:
+        """
+        The destination node of each edge, grouped per source node, as a nested
+        `RemotePathFromGraph`. Mirrors the local `NestedEdges.dst`. Property —
+        lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromGraph: the destination nodes, grouped per source node.
+        """
+
+    @property
+    def earliest_time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The earliest event time of each edge, grouped per source node.
+        Property — attribute access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: earliest times, grouped per source node.
+        """
+
+    @property
+    def end(self) -> OptionalEventTime:
+        """
+        View end bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view end bound, or empty if unbounded.
+        """
+
+    def exclude_layer(self, name: str) -> RemoteNestedExplodedEdges:
+        """
+        Exclude a specific layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer to exclude.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view with that layer excluded.
+        """
+
+    def exclude_layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
+        """
+        Exclude the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers to exclude.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view with those layers excluded.
+        """
+
+    def exclude_valid_layer(self, name: str) -> RemoteNestedExplodedEdges:
+        """
+        Exclude a specific valid layer from the view. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the valid layer to exclude.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view with that valid layer excluded.
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
+        """
+        Exclude the given set of valid layers from the view. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers to exclude.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view with those valid layers excluded.
+        """
+
+    def explode(self) -> RemoteNestedExplodedEdges:
+        """
+        Fan out each source's edges into one entry per event. Mirrors the local
+        `NestedEdges.explode`. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new collection with one entry per event, grouped per source
+                node.
+        """
+
+    def explode_layers(self) -> RemoteNestedExplodedEdges:
+        """
+        Fan out each source's edges into one entry per layer per edge. Mirrors
+        the local `NestedEdges.explode_layers`. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new collection with one entry per layer per edge, grouped
+                per source node.
+        """
+
+    def filter(self, filter: filter.FilterExpr) -> RemoteNestedExplodedEdges:
+        """
+        Filter this collection by an edge filter. **Propagates** to downstream
+        traversals from the matching edges. Lazy — no RPC.
+
+        Arguments:
+            filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new collection with the filter applied.
+
+        Raises:
+            ValueError: if the filter has no server-side form because it reads
+                in-process state (`by_state_column`).
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+        Check if this view has a layer named `name`. Fires one RPC.
+
+        Arguments:
+            name (str): the name of the layer to check.
+
+        Returns:
+            bool: True if the layer is present.
+        """
+
+    @property
+    def id(self) -> list[list[tuple[str | int, str | int]]]:
+        """
+        The `(src, dst)` id pair of each edge, grouped per source node.
+        Property — attribute access fires one RPC.
+
+        Returns:
+          list[list[tuple[str | int, str | int]]]: id pairs grouped per
+          source node — endpoint ids are strings for string-indexed graphs,
+          integers for integer-indexed ones.
+        """
+
+    def is_active(self) -> list[list[bool]]:
+        """
+        Whether each edge is active (has an event) in the current view, grouped
+        per source node. Method — mirrors the local `NestedEdges.is_active`.
+        Fires one RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def is_deleted(self) -> list[list[bool]]:
+        """
+        Whether each edge has been deleted at the current time, grouped per
+        source node. Method — mirrors the local `NestedEdges.is_deleted`. Fires
+        one RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def is_self_loop(self) -> list[list[bool]]:
+        """
+        Whether each edge is a self-loop (`src == dst`), grouped per source
+        node. Method — mirrors the local `NestedEdges.is_self_loop`. Fires one
+        RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def is_valid(self) -> list[list[bool]]:
+        """
+        Whether each edge is valid (not deleted) at the current time, grouped
+        per source node. Method — mirrors the local `NestedEdges.is_valid`.
+        Fires one RPC.
+
+        Returns:
+          list[list[bool]]: one flag per edge, grouped per source node.
+        """
+
+    def latest(self) -> RemoteNestedExplodedEdges:
+        """
+        Latest state. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view of the latest state.
+        """
+
+    @property
+    def latest_time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The latest event time of each edge, grouped per source node. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: latest times, grouped per source node.
+        """
+
+    def layer(self, name: str) -> RemoteNestedExplodedEdges:
+        """
+        Restrict to a single named layer. Lazy — no RPC.
+
+        Arguments:
+            name (str): the name of the layer.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to that layer.
+        """
+
+    @property
+    def layer_name(self) -> list[list[str]]:
+        """
+        The single layer name of each edge, grouped per source node. Only valid
+        once the edges have been exploded; raises otherwise. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[str]]: layer name per edge, grouped per source node.
+        """
+
+    @property
+    def layer_names(self) -> list[list[list[str]]]:
+        """
+        The layer names of each edge, grouped per source node. Property —
+        attribute access fires one RPC.
+
+        Returns:
+          list[list[list[str]]]: layer names per edge, grouped per source node.
+        """
+
+    def layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
+        """
+        Restrict to the given set of layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the layers.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to those layers.
+        """
+
+    @property
+    def metadata(self) -> RemoteMetadataView:
+        """
+        The non-temporal metadata of this collection as a nested columnar view.
+        Each accessor returns one value per edge, grouped per source. Lazy —
+        no RPC.
+
+        Returns:
+            RemoteMetadataView: the nested columnar metadata view of this collection.
+        """
+
+    @property
+    def nbr(self) -> RemotePathFromGraph:
+        """
+        The node at the other end of each edge (destination for out-edges,
+        source for in-edges), grouped per source node, as a nested
+        `RemotePathFromGraph`. Mirrors the local `NestedEdges.nbr`. Property —
+        lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromGraph: the other-end nodes, grouped per source node.
+        """
+
+    @property
+    def properties(self) -> RemotePropertiesView:
+        """
+        The properties of this collection as a nested columnar view. Each
+        accessor returns one value per edge, grouped per source. Lazy — no RPC.
+
+        Returns:
+            RemotePropertiesView: the nested columnar properties view of this collection.
+        """
+
+    def shrink_end(self, end: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        Shrink the end of the current window. Lazy — no RPC.
+
+        Arguments:
+            end (TimeInput): the new exclusive end of the window.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view with the window end shrunk.
+        """
+
+    def shrink_start(self, start: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        Shrink the start of the current window. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): the new inclusive start of the window.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view with the window start shrunk.
+        """
+
+    def snapshot_at(self, time: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        Snapshot at a specific time. Lazy — no RPC.
+
+        Arguments:
+            time (TimeInput): the time to snapshot at.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view snapshotted at that time.
+        """
+
+    def snapshot_latest(self) -> RemoteNestedExplodedEdges:
+        """
+        Snapshot at the latest time. Lazy — no RPC.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view snapshotted at the latest time.
+        """
+
+    @property
+    def src(self) -> RemotePathFromGraph:
+        """
+        The source node of each edge, grouped per source node, as a nested
+        `RemotePathFromGraph`. Mirrors the local `NestedEdges.src`. Property —
+        lazy; attribute access fires no RPC.
+
+        Returns:
+          RemotePathFromGraph: the source nodes, grouped per source node.
+        """
+
+    @property
+    def start(self) -> OptionalEventTime:
+        """
+        View start bound for this collection — `None` if unbounded. Property —
+        attribute access fires one RPC.
+
+        Returns:
+            OptionalEventTime: the view start bound, or empty if unbounded.
+        """
+
+    @property
+    def time(self) -> list[list[Optional[EventTime]]]:
+        """
+        The event time of each edge, grouped per source node. Only valid once
+        the edges have been exploded; raises otherwise. Property — attribute
+        access fires one RPC.
+
+        Returns:
+          list[list[Optional[EventTime]]]: event times, grouped per source node.
+        """
+
+    def valid_layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
+        """
+        Restrict to the given set of valid layers. Lazy — no RPC.
+
+        Arguments:
+            names (list[str]): the names of the valid layers.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to those valid layers.
+        """
+
+    def window(self, start: TimeInput, end: TimeInput) -> RemoteNestedExplodedEdges:
+        """
+        Time-window this handle. Lazy — no RPC.
+
+        Arguments:
+            start (TimeInput): inclusive start of the window.
+            end (TimeInput): exclusive end of the window.
+
+        Returns:
+            RemoteNestedExplodedEdges: a new view restricted to the window.
         """
 
     @property
@@ -3506,18 +4391,7 @@ class RemotePathFromGraph(object):
         """
 
 class RemoteEdges(object):
-    """
-    A handle to a remote collection of edges.
-
-    Returned by [RemoteGraph.edges][raphtory.graphql.RemoteGraph.edges] and by
-    [RemoteNode.edges][raphtory.graphql.RemoteNode.edges] /
-    [RemoteNode.in_edges][raphtory.graphql.RemoteNode.in_edges] /
-    [RemoteNode.out_edges][raphtory.graphql.RemoteNode.out_edges].
-
-    Edges are identified by `(src, dst)` pairs rather than a single-string id;
-    the `.id` accessor returns those `(src, dst)` pairs. Terminals include
-    `count()` and `collect()`.
-    """
+    """A handle to a remote collection of edges.  Returned by [RemoteGraph.edges][raphtory.graphql.RemoteGraph.edges] and by [RemoteNode.edges][raphtory.graphql.RemoteNode.edges] / [RemoteNode.in_edges][raphtory.graphql.RemoteNode.in_edges] / [RemoteNode.out_edges][raphtory.graphql.RemoteNode.out_edges].  Edges are identified by `(src, dst)` pairs rather than a single-string id; the `.id` accessor returns those `(src, dst)` pairs. Terminals include `count()` and `collect()`."""
 
     def __bool__(self):
         """True if self else False"""
@@ -3663,7 +4537,7 @@ class RemoteEdges(object):
         Fan out this collection into one entry per event. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: a new collection with one entry per event.
+            RemoteExplodedEdges: a new collection with one entry per event.
         """
 
     def explode_layers(self) -> RemoteExplodedEdges:
@@ -3671,7 +4545,7 @@ class RemoteEdges(object):
         Fan out this collection into one entry per layer per edge. Lazy — no RPC.
 
         Returns:
-            RemoteEdges: a new collection with one entry per layer per edge.
+            RemoteExplodedEdges: a new collection with one entry per layer per edge.
         """
 
     def filter(self, filter: filter.FilterExpr) -> RemoteEdges:
@@ -3961,466 +4835,8 @@ class RemoteEdges(object):
             Optional[int]: the size of the window, or `None` if the view is unbounded.
         """
 
-class RemoteExplodedEdges(object):
-    """A handle to a remote collection of exploded edges, one per update of the edges it came from, as returned by `explode()` and `explode_layers()`. Selecting with `[]` asks its question of each exploded edge."""
-
-    def __bool__(self):
-        """True if self else False"""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def after(self, time: TimeInput) -> RemoteExplodedEdges:
-        """
-        Restrict to events strictly after the given time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): only events strictly after this time are kept.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to events after that time.
-        """
-
-    def at(self, time: TimeInput) -> RemoteExplodedEdges:
-        """
-        View including all events at a specific time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): the time to view.
-
-        Returns:
-            RemoteExplodedEdges: a new view of that time.
-        """
-
-    def before(self, time: TimeInput) -> RemoteExplodedEdges:
-        """
-        Restrict to events strictly before the given time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): only events strictly before this time are kept.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to events before that time.
-        """
-
-    def collect(self) -> list[RemoteEdge]:
-        """
-        Materialize this collection as a list of `RemoteEdge` handles.
-
-        Fires one RPC (to fetch each edge's `(src, dst)` pair); each returned
-        edge is rebased under the view chain that produced this collection.
-
-        Returns:
-          list[RemoteEdge]: one handle per edge in the collection.
-        """
-
-    def default_layer(self) -> RemoteExplodedEdges:
-        """
-        Restrict to the default layer. Lazy — no RPC.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to the default layer.
-        """
-
-    @property
-    def dst(self) -> RemotePathFromNode:
-        """
-        The destination node of each edge in this collection, as a flat
-        `RemotePathFromNode`. Mirrors the local `Edges.dst`. Property — lazy;
-        attribute access fires no RPC.
-
-        Returns:
-          RemotePathFromNode: the destination nodes, in collection order.
-        """
-
-    @property
-    def earliest_time(self) -> list[Optional[EventTime]]:
-        """
-        The earliest event time of each edge in this collection. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[Optional[EventTime]]: the earliest times, in collection order.
-        """
-
-    @property
-    def end(self) -> OptionalEventTime:
-        """
-        View end bound for this collection — `None` if unbounded. Property —
-        attribute access fires one RPC.
-
-        Returns:
-            OptionalEventTime: the view end bound, or empty if unbounded.
-        """
-
-    def exclude_layer(self, name: str) -> RemoteExplodedEdges:
-        """
-        Exclude a specific layer. Lazy — no RPC.
-
-        Arguments:
-            name (str): the name of the layer to exclude.
-
-        Returns:
-            RemoteExplodedEdges: a new view with that layer excluded.
-        """
-
-    def exclude_layers(self, names: list[str]) -> RemoteExplodedEdges:
-        """
-        Exclude the given set of layers. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the layers to exclude.
-
-        Returns:
-            RemoteExplodedEdges: a new view with those layers excluded.
-        """
-
-    def exclude_valid_layer(self, name: str) -> RemoteExplodedEdges:
-        """
-        Exclude a specific valid layer from the view. Lazy — no RPC.
-
-        Arguments:
-            name (str): the name of the valid layer to exclude.
-
-        Returns:
-            RemoteExplodedEdges: a new view with that valid layer excluded.
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> RemoteExplodedEdges:
-        """
-        Exclude the given set of valid layers from the view. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the valid layers to exclude.
-
-        Returns:
-            RemoteExplodedEdges: a new view with those valid layers excluded.
-        """
-
-    def explode(self) -> RemoteExplodedEdges:
-        """
-        Fan out this collection into one entry per event. Lazy — no RPC.
-
-        Returns:
-            RemoteExplodedEdges: a new collection with one entry per event.
-        """
-
-    def explode_layers(self) -> RemoteExplodedEdges:
-        """
-        Fan out this collection into one entry per layer per edge. Lazy — no RPC.
-
-        Returns:
-            RemoteExplodedEdges: a new collection with one entry per layer per edge.
-        """
-
-    def filter(self, filter: filter.FilterExpr) -> RemoteExplodedEdges:
-        """
-        Filter this collection by a filter expression. **The filter
-        propagates**: it applies to the current collection's membership *and*
-        to downstream traversals from the matching edges. For a
-        narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
-
-        Arguments:
-            filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
-
-        Returns:
-            RemoteExplodedEdges: a new collection with the filter applied.
-
-        Raises:
-            ValueError: if the filter has no server-side form because it reads
-                in-process state (`by_state_column`).
-        """
-
-    def has_layer(self, name: str) -> bool:
-        """
-        Check if this view has a layer named `name`. Fires one RPC.
-
-        Arguments:
-            name (str): the name of the layer to check.
-
-        Returns:
-            bool: True if the layer is present.
-        """
-
-    @property
-    def id(self) -> list[tuple[str | int, str | int]]:
-        """
-        The `(src, dst)` id pair of each edge in this collection. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[tuple[str | int, str | int]]: the id pairs, in collection
-          order — endpoint ids are strings for string-indexed graphs,
-          integers for integer-indexed ones.
-        """
-
-    def is_active(self) -> list[bool]:
-        """
-        Whether each edge is active (has an event) in the current view. Method
-        — mirrors the local `Edges.is_active`. Fires one RPC.
-
-        Returns:
-          list[bool]: one flag per edge, in collection order.
-        """
-
-    def is_deleted(self) -> list[bool]:
-        """
-        Whether each edge has been deleted at the current time. Method —
-        mirrors the local `Edges.is_deleted`. Fires one RPC.
-
-        Returns:
-          list[bool]: one flag per edge, in collection order.
-        """
-
-    def is_self_loop(self) -> list[bool]:
-        """
-        Whether each edge is a self-loop (`src == dst`). Method — mirrors the
-        local `Edges.is_self_loop`. Fires one RPC.
-
-        Returns:
-          list[bool]: one flag per edge, in collection order.
-        """
-
-    def is_valid(self) -> list[bool]:
-        """
-        Whether each edge is valid (not deleted) at the current time. Method —
-        mirrors the local `Edges.is_valid`. Fires one RPC.
-
-        Returns:
-          list[bool]: one flag per edge, in collection order.
-        """
-
-    def latest(self) -> RemoteExplodedEdges:
-        """
-        Latest state. Lazy — no RPC.
-
-        Returns:
-            RemoteExplodedEdges: a new view of the latest state.
-        """
-
-    @property
-    def latest_time(self) -> list[Optional[EventTime]]:
-        """
-        The latest event time of each edge in this collection. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[Optional[EventTime]]: the latest times, in collection order.
-        """
-
-    def layer(self, name: str) -> RemoteExplodedEdges:
-        """
-        Restrict to a single named layer. Lazy — no RPC.
-
-        Arguments:
-            name (str): the name of the layer.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to that layer.
-        """
-
-    @property
-    def layer_name(self) -> list[str]:
-        """
-        The single layer name of each edge in this collection. Only valid once
-        the edges have been exploded via `.explode()` / `.explode_layers()`;
-        raises otherwise. Property — attribute access fires one RPC.
-
-        Returns:
-          list[str]: the layer name per edge, in collection order.
-        """
-
-    @property
-    def layer_names(self) -> list[list[str]]:
-        """
-        The layer names of each edge in this collection. Property — attribute
-        access fires one RPC.
-
-        Returns:
-          list[list[str]]: the layer names per edge, in collection order.
-        """
-
-    def layers(self, names: list[str]) -> RemoteExplodedEdges:
-        """
-        Restrict to the given set of layers. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the layers.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to those layers.
-        """
-
-    @property
-    def metadata(self) -> RemoteMetadataView:
-        """
-        The non-temporal metadata of this collection as a columnar view. Each
-        accessor returns one value per edge. Lazy — no RPC.
-
-        Returns:
-            RemoteMetadataView: the columnar metadata view of this collection.
-        """
-
-    @property
-    def nbr(self) -> RemotePathFromNode:
-        """
-        The node at the other end of each edge (destination for out-edges,
-        source for in-edges), as a flat `RemotePathFromNode`. Mirrors the local
-        `Edges.nbr`. Property — lazy; attribute access fires no RPC.
-
-        Returns:
-          RemotePathFromNode: the other-end nodes, in collection order.
-        """
-
-    @property
-    def properties(self) -> RemotePropertiesView:
-        """
-        The properties of this collection as a columnar view. Each accessor
-        returns one value per edge. Lazy — no RPC.
-
-        Returns:
-            RemotePropertiesView: the columnar properties view of this collection.
-        """
-
-    def shrink_end(self, end: TimeInput) -> RemoteExplodedEdges:
-        """
-        Shrink the end of the current window. Lazy — no RPC.
-
-        Arguments:
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteExplodedEdges: a new view with the window end shrunk.
-        """
-
-    def shrink_start(self, start: TimeInput) -> RemoteExplodedEdges:
-        """
-        Shrink the start of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-
-        Returns:
-            RemoteExplodedEdges: a new view with the window start shrunk.
-        """
-
-    def snapshot_at(self, time: TimeInput) -> RemoteExplodedEdges:
-        """
-        Snapshot at a specific time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): the time to snapshot at.
-
-        Returns:
-            RemoteExplodedEdges: a new view snapshotted at that time.
-        """
-
-    def snapshot_latest(self) -> RemoteExplodedEdges:
-        """
-        Snapshot at the latest time. Lazy — no RPC.
-
-        Returns:
-            RemoteExplodedEdges: a new view snapshotted at the latest time.
-        """
-
-    def sorted(self, sort_bys: list[EdgeSortBy]) -> RemoteExplodedEdges:
-        """
-        Reorder this collection by an ordered list of sort keys. Multi-key
-        sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
-
-        Arguments:
-            sort_bys (list[EdgeSortBy]): the ordered sort keys.
-
-        Returns:
-            RemoteExplodedEdges: a new collection in the sorted order.
-        """
-
-    @property
-    def src(self) -> RemotePathFromNode:
-        """
-        The source node of each edge in this collection, as a flat
-        `RemotePathFromNode`. Mirrors the local `Edges.src`. Property — lazy;
-        attribute access fires no RPC.
-
-        Returns:
-          RemotePathFromNode: the source nodes, in collection order.
-        """
-
-    @property
-    def start(self) -> OptionalEventTime:
-        """
-        View start bound for this collection — `None` if unbounded. Property —
-        attribute access fires one RPC.
-
-        Returns:
-            OptionalEventTime: the view start bound, or empty if unbounded.
-        """
-
-    @property
-    def time(self) -> list[Optional[EventTime]]:
-        """
-        The event time of each edge in this collection. Only valid once the
-        edges have been exploded via `.explode()`; raises otherwise. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[Optional[EventTime]]: the event times, in collection order.
-        """
-
-    def valid_layers(self, names: list[str]) -> RemoteExplodedEdges:
-        """
-        Restrict to the given set of valid layers. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the valid layers.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to those valid layers.
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> RemoteExplodedEdges:
-        """
-        Time-window this handle. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): inclusive start of the window.
-            end (TimeInput): exclusive end of the window.
-
-        Returns:
-            RemoteExplodedEdges: a new view restricted to the window.
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-        The size of the window covered by this view (`end - start`), or `None`
-        if the view is unbounded. Property — attribute access fires one RPC.
-
-        Returns:
-            Optional[int]: the size of the window, or `None` if the view is unbounded.
-        """
-
 class RemoteNestedEdges(object):
-    """
-    A handle to a nested edges collection.
-
-    Produced by [RemoteNodes.edges][raphtory.graphql.RemoteNodes.edges] /
-    [RemoteNodes.in_edges][raphtory.graphql.RemoteNodes.in_edges] /
-    [RemoteNodes.out_edges][raphtory.graphql.RemoteNodes.out_edges].
-
-    Distinct from `RemoteEdges` because it is **nested** — the server type
-    (`GqlNestedEdges`) groups results per source node. `collect()` returns
-    `list[list[RemoteEdge]]`, and `count()` is the number of source edge
-    collections. Edges are identified by `(src, dst)` pairs rather than a
-    single string id; the `.id` accessor returns those pairs, nested per
-    source node.
-    """
+    """A handle to a nested edges collection.  Produced by [RemoteNodes.edges][raphtory.graphql.RemoteNodes.edges] / [RemoteNodes.in_edges][raphtory.graphql.RemoteNodes.in_edges] / [RemoteNodes.out_edges][raphtory.graphql.RemoteNodes.out_edges].  Distinct from `RemoteEdges` because it is **nested** — the server type (`GqlNestedEdges`) groups results per source node. `collect()` returns `list[list[RemoteEdge]]`, and `count()` is the number of source edge collections. Edges are identified by `(src, dst)` pairs rather than a single string id; the `.id` accessor returns those pairs, nested per source node."""
 
     def __bool__(self):
         """True if self else False"""
@@ -4566,7 +4982,7 @@ class RemoteNestedEdges(object):
         `NestedEdges.explode`. Lazy — no RPC.
 
         Returns:
-            RemoteNestedEdges: a new collection with one entry per event, grouped per source
+            RemoteNestedExplodedEdges: a new collection with one entry per event, grouped per source
                 node.
         """
 
@@ -4576,7 +4992,7 @@ class RemoteNestedEdges(object):
         the local `NestedEdges.explode_layers`. Lazy — no RPC.
 
         Returns:
-            RemoteNestedEdges: a new collection with one entry per layer per edge, grouped
+            RemoteNestedExplodedEdges: a new collection with one entry per layer per edge, grouped
                 per source node.
         """
 
@@ -4847,446 +5263,6 @@ class RemoteNestedEdges(object):
 
         Returns:
             RemoteNestedEdges: a new view restricted to the window.
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-        The size of the window covered by this view (`end - start`), or `None`
-        if the view is unbounded. Property — attribute access fires one RPC.
-
-        Returns:
-            Optional[int]: the size of the window, or `None` if the view is unbounded.
-        """
-
-class RemoteNestedExplodedEdges(object):
-    """A handle to a nested collection of exploded edges, one list per source node, as returned by `explode()` and `explode_layers()` on `RemoteNestedEdges`."""
-
-    def __bool__(self):
-        """True if self else False"""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def after(self, time: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        Restrict to events strictly after the given time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): only events strictly after this time are kept.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to events after that time.
-        """
-
-    def at(self, time: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        View including all events at a specific time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): the time to view.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view of that time.
-        """
-
-    def before(self, time: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        Restrict to events strictly before the given time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): only events strictly before this time are kept.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to events before that time.
-        """
-
-    def collect(self) -> list[list[RemoteEdge]]:
-        """
-        Materialize this collection as a nested list of `RemoteEdge` handles —
-        one inner list per source node. Fires one RPC. Each returned edge is
-        rebased under the same view chain that produced this collection.
-
-        Returns:
-          list[list[RemoteEdge]]: the incident edges grouped per source node.
-        """
-
-    def default_layer(self) -> RemoteNestedExplodedEdges:
-        """
-        Restrict to the default layer. Lazy — no RPC.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to the default layer.
-        """
-
-    @property
-    def dst(self) -> RemotePathFromGraph:
-        """
-        The destination node of each edge, grouped per source node, as a nested
-        `RemotePathFromGraph`. Mirrors the local `NestedEdges.dst`. Property —
-        lazy; attribute access fires no RPC.
-
-        Returns:
-          RemotePathFromGraph: the destination nodes, grouped per source node.
-        """
-
-    @property
-    def earliest_time(self) -> list[list[Optional[EventTime]]]:
-        """
-        The earliest event time of each edge, grouped per source node.
-        Property — attribute access fires one RPC.
-
-        Returns:
-          list[list[Optional[EventTime]]]: earliest times, grouped per source node.
-        """
-
-    @property
-    def end(self) -> OptionalEventTime:
-        """
-        View end bound for this collection — `None` if unbounded. Property —
-        attribute access fires one RPC.
-
-        Returns:
-            OptionalEventTime: the view end bound, or empty if unbounded.
-        """
-
-    def exclude_layer(self, name: str) -> RemoteNestedExplodedEdges:
-        """
-        Exclude a specific layer. Lazy — no RPC.
-
-        Arguments:
-            name (str): the name of the layer to exclude.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view with that layer excluded.
-        """
-
-    def exclude_layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
-        """
-        Exclude the given set of layers. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the layers to exclude.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view with those layers excluded.
-        """
-
-    def exclude_valid_layer(self, name: str) -> RemoteNestedExplodedEdges:
-        """
-        Exclude a specific valid layer from the view. Lazy — no RPC.
-
-        Arguments:
-            name (str): the name of the valid layer to exclude.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view with that valid layer excluded.
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
-        """
-        Exclude the given set of valid layers from the view. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the valid layers to exclude.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view with those valid layers excluded.
-        """
-
-    def explode(self) -> RemoteNestedExplodedEdges:
-        """
-        Fan out each source's edges into one entry per event. Mirrors the local
-        `NestedEdges.explode`. Lazy — no RPC.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new collection with one entry per event, grouped per source
-                node.
-        """
-
-    def explode_layers(self) -> RemoteNestedExplodedEdges:
-        """
-        Fan out each source's edges into one entry per layer per edge. Mirrors
-        the local `NestedEdges.explode_layers`. Lazy — no RPC.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new collection with one entry per layer per edge, grouped
-                per source node.
-        """
-
-    def filter(self, filter: filter.FilterExpr) -> RemoteNestedExplodedEdges:
-        """
-        Filter this collection by an edge filter. **Propagates** to downstream
-        traversals from the matching edges. Lazy — no RPC.
-
-        Arguments:
-            filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new collection with the filter applied.
-
-        Raises:
-            ValueError: if the filter has no server-side form because it reads
-                in-process state (`by_state_column`).
-        """
-
-    def has_layer(self, name: str) -> bool:
-        """
-        Check if this view has a layer named `name`. Fires one RPC.
-
-        Arguments:
-            name (str): the name of the layer to check.
-
-        Returns:
-            bool: True if the layer is present.
-        """
-
-    @property
-    def id(self) -> list[list[tuple[str | int, str | int]]]:
-        """
-        The `(src, dst)` id pair of each edge, grouped per source node.
-        Property — attribute access fires one RPC.
-
-        Returns:
-          list[list[tuple[str | int, str | int]]]: id pairs grouped per
-          source node — endpoint ids are strings for string-indexed graphs,
-          integers for integer-indexed ones.
-        """
-
-    def is_active(self) -> list[list[bool]]:
-        """
-        Whether each edge is active (has an event) in the current view, grouped
-        per source node. Method — mirrors the local `NestedEdges.is_active`.
-        Fires one RPC.
-
-        Returns:
-          list[list[bool]]: one flag per edge, grouped per source node.
-        """
-
-    def is_deleted(self) -> list[list[bool]]:
-        """
-        Whether each edge has been deleted at the current time, grouped per
-        source node. Method — mirrors the local `NestedEdges.is_deleted`. Fires
-        one RPC.
-
-        Returns:
-          list[list[bool]]: one flag per edge, grouped per source node.
-        """
-
-    def is_self_loop(self) -> list[list[bool]]:
-        """
-        Whether each edge is a self-loop (`src == dst`), grouped per source
-        node. Method — mirrors the local `NestedEdges.is_self_loop`. Fires one
-        RPC.
-
-        Returns:
-          list[list[bool]]: one flag per edge, grouped per source node.
-        """
-
-    def is_valid(self) -> list[list[bool]]:
-        """
-        Whether each edge is valid (not deleted) at the current time, grouped
-        per source node. Method — mirrors the local `NestedEdges.is_valid`.
-        Fires one RPC.
-
-        Returns:
-          list[list[bool]]: one flag per edge, grouped per source node.
-        """
-
-    def latest(self) -> RemoteNestedExplodedEdges:
-        """
-        Latest state. Lazy — no RPC.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view of the latest state.
-        """
-
-    @property
-    def latest_time(self) -> list[list[Optional[EventTime]]]:
-        """
-        The latest event time of each edge, grouped per source node. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[list[Optional[EventTime]]]: latest times, grouped per source node.
-        """
-
-    def layer(self, name: str) -> RemoteNestedExplodedEdges:
-        """
-        Restrict to a single named layer. Lazy — no RPC.
-
-        Arguments:
-            name (str): the name of the layer.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to that layer.
-        """
-
-    @property
-    def layer_name(self) -> list[list[str]]:
-        """
-        The single layer name of each edge, grouped per source node. Only valid
-        once the edges have been exploded; raises otherwise. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[list[str]]: layer name per edge, grouped per source node.
-        """
-
-    @property
-    def layer_names(self) -> list[list[list[str]]]:
-        """
-        The layer names of each edge, grouped per source node. Property —
-        attribute access fires one RPC.
-
-        Returns:
-          list[list[list[str]]]: layer names per edge, grouped per source node.
-        """
-
-    def layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
-        """
-        Restrict to the given set of layers. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the layers.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to those layers.
-        """
-
-    @property
-    def metadata(self) -> RemoteMetadataView:
-        """
-        The non-temporal metadata of this collection as a nested columnar view.
-        Each accessor returns one value per edge, grouped per source. Lazy —
-        no RPC.
-
-        Returns:
-            RemoteMetadataView: the nested columnar metadata view of this collection.
-        """
-
-    @property
-    def nbr(self) -> RemotePathFromGraph:
-        """
-        The node at the other end of each edge (destination for out-edges,
-        source for in-edges), grouped per source node, as a nested
-        `RemotePathFromGraph`. Mirrors the local `NestedEdges.nbr`. Property —
-        lazy; attribute access fires no RPC.
-
-        Returns:
-          RemotePathFromGraph: the other-end nodes, grouped per source node.
-        """
-
-    @property
-    def properties(self) -> RemotePropertiesView:
-        """
-        The properties of this collection as a nested columnar view. Each
-        accessor returns one value per edge, grouped per source. Lazy — no RPC.
-
-        Returns:
-            RemotePropertiesView: the nested columnar properties view of this collection.
-        """
-
-    def shrink_end(self, end: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        Shrink the end of the current window. Lazy — no RPC.
-
-        Arguments:
-            end (TimeInput): the new exclusive end of the window.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view with the window end shrunk.
-        """
-
-    def shrink_start(self, start: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        Shrink the start of the current window. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): the new inclusive start of the window.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view with the window start shrunk.
-        """
-
-    def snapshot_at(self, time: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        Snapshot at a specific time. Lazy — no RPC.
-
-        Arguments:
-            time (TimeInput): the time to snapshot at.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view snapshotted at that time.
-        """
-
-    def snapshot_latest(self) -> RemoteNestedExplodedEdges:
-        """
-        Snapshot at the latest time. Lazy — no RPC.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view snapshotted at the latest time.
-        """
-
-    @property
-    def src(self) -> RemotePathFromGraph:
-        """
-        The source node of each edge, grouped per source node, as a nested
-        `RemotePathFromGraph`. Mirrors the local `NestedEdges.src`. Property —
-        lazy; attribute access fires no RPC.
-
-        Returns:
-          RemotePathFromGraph: the source nodes, grouped per source node.
-        """
-
-    @property
-    def start(self) -> OptionalEventTime:
-        """
-        View start bound for this collection — `None` if unbounded. Property —
-        attribute access fires one RPC.
-
-        Returns:
-            OptionalEventTime: the view start bound, or empty if unbounded.
-        """
-
-    @property
-    def time(self) -> list[list[Optional[EventTime]]]:
-        """
-        The event time of each edge, grouped per source node. Only valid once
-        the edges have been exploded; raises otherwise. Property — attribute
-        access fires one RPC.
-
-        Returns:
-          list[list[Optional[EventTime]]]: event times, grouped per source node.
-        """
-
-    def valid_layers(self, names: list[str]) -> RemoteNestedExplodedEdges:
-        """
-        Restrict to the given set of valid layers. Lazy — no RPC.
-
-        Arguments:
-            names (list[str]): the names of the valid layers.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to those valid layers.
-        """
-
-    def window(self, start: TimeInput, end: TimeInput) -> RemoteNestedExplodedEdges:
-        """
-        Time-window this handle. Lazy — no RPC.
-
-        Arguments:
-            start (TimeInput): inclusive start of the window.
-            end (TimeInput): exclusive end of the window.
-
-        Returns:
-            RemoteNestedExplodedEdges: a new view restricted to the window.
         """
 
     @property

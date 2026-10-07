@@ -34,8 +34,6 @@ import pyvis  # type: ignore
 from raphtory.iterables import *
 
 __all__ = [
-    "ExplodedEdges",
-    "NestedExplodedEdges",
     "GraphView",
     "Graph",
     "PersistentGraph",
@@ -46,7 +44,9 @@ __all__ = [
     "MutableNode",
     "Edge",
     "Edges",
+    "ExplodedEdges",
     "NestedEdges",
+    "NestedExplodedEdges",
     "MutableEdge",
     "SortByTime",
     "NodeSortBy",
@@ -4445,7 +4445,7 @@ class Edge(object):
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            ExplodedEdges:
         """
 
     def explode_layers(self) -> ExplodedEdges:
@@ -4453,7 +4453,7 @@ class Edge(object):
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            ExplodedEdges:
         """
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edge:
@@ -4915,7 +4915,7 @@ class Edges(object):
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            ExplodedEdges:
         """
 
     def explode_layers(self) -> ExplodedEdges:
@@ -4923,7 +4923,7 @@ class Edges(object):
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            ExplodedEdges:
         """
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> Edges:
@@ -5766,6 +5766,8 @@ class ExplodedEdges(object):
         """
 
 class NestedEdges(object):
+    """A list of edges per node."""
+
     def __bool__(self):
         """True if self else False"""
 
@@ -5935,7 +5937,7 @@ class NestedEdges(object):
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Edges:
+            NestedExplodedEdges:
         """
 
     def explode_layers(self) -> NestedExplodedEdges:
@@ -5943,7 +5945,7 @@ class NestedEdges(object):
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Edges:
+            NestedExplodedEdges:
         """
 
     def filter(self, filter: filter.FilterExpr | filter.Expr) -> NestedEdges:
