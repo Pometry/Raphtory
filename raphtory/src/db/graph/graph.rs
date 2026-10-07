@@ -53,6 +53,14 @@ pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
+impl From<Storage> for Graph {
+    fn from(inner: Storage) -> Self {
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+}
+
 impl From<Arc<Storage>> for Graph {
     fn from(inner: Arc<Storage>) -> Self {
         Self { inner }
@@ -244,10 +252,6 @@ impl Graph {
                 args,
             )?),
         })
-    }
-
-    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
-        Self { inner }
     }
 
     /// Return a read-only handle to this graph. Mutations on the returned

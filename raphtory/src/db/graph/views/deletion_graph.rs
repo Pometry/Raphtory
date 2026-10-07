@@ -250,7 +250,7 @@ impl PersistentGraph {
     }
 
     pub fn event_graph(&self) -> Graph {
-        Graph::from_storage(self.0.clone())
+        Graph::from(self.0.clone())
     }
 
     pub fn persistent_graph(&self) -> PersistentGraph {
