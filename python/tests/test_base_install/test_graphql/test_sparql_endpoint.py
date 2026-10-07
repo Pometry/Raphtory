@@ -163,6 +163,44 @@ def test_time_travel_with_default_graph_uri(endpoint):
     assert results == json.loads(people().snapshot_at(3).sparql(KNOWS, format="json"))
 
 
+def knows_as_of(t):
+    """`KNOWS` on the graph as of `t`, with `FROM <raphtory:asof:t>`."""
+    return KNOWS.replace("SELECT ?s ?o", f"SELECT ?s ?o FROM <raphtory:asof:{t}>")
+
+
+def test_time_travel_with_asof_parameter(endpoint):
+    for method in [SPARQLWrapper.GET, SPARQLWrapper.POST]:
+        sparql = wrapper(endpoint, KNOWS, SPARQLWrapper.JSON)
+        sparql.setMethod(method)
+        sparql.addParameter("asof", "3")
+        results = sparql.query().convert()
+        from_query = wrapper(endpoint, knows_as_of(3), SPARQLWrapper.JSON)
+        assert results == from_query.query().convert()
+        assert results == json.loads(
+            people().snapshot_at(3).sparql(KNOWS, format="json")
+        )
+
+
+def test_time_travel_with_asof_in_the_endpoint_url(endpoint):
+    def csv_rows(url):
+        request = urllib.request.Request(url, headers={"Accept": "text/csv"})
+        with urllib.request.urlopen(request) as response:
+            return response.read().decode()
+
+    for asof in ["3", "1970-01-01T00:00:00.003Z"]:
+        url = endpoint + "?" + urllib.parse.urlencode({"asof": asof})
+        as_of = csv_rows(url + "&" + urllib.parse.urlencode({"query": KNOWS}))
+        from_query = endpoint + "?" + urllib.parse.urlencode({"query": knows_as_of(3)})
+        assert as_of == csv_rows(from_query)
+        assert as_of == people().snapshot_at(3).sparql(KNOWS, format="csv")
+    # an invalid time is refused
+    url = endpoint + "?" + urllib.parse.urlencode({"asof": "soon", "query": KNOWS})
+    with pytest.raises(urllib.error.HTTPError) as error:
+        csv_rows(url)
+    assert error.value.code == 400
+    assert "invalid `asof`" in error.value.read().decode()
+
+
 def test_rdflib_sparqlstore(endpoint):
     store = SPARQLStore(query_endpoint=endpoint)
     # without an IRI identifier, so rdflib sends no `default-graph-uri`

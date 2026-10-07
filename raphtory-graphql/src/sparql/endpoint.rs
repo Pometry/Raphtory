@@ -1,9 +1,10 @@
 //! The SPARQL 1.1 Protocol endpoint: `/sparql/<graph path>` answers SPARQL queries on a graph.
 //!
-//! A query runs as the GraphQL query `graph(path:, graphType:) { sparql(query:) }` with the
-//! caller's credentials, so it gets the same permission checks, access filters and limits. The
-//! [`ProtocolCall`] in the request data carries the negotiated formats and dataset to the
-//! `sparql` field and the serialized results back.
+//! A query runs as the GraphQL query `graph(path:, graphType:) { sparql(query:) }` (with
+//! `before(time: T + 1)` in between for `asof=T`) with the caller's credentials, so it gets the same
+//! permission checks, access filters and limits. The [`ProtocolCall`] in the request data
+//! carries the negotiated formats and dataset to the `sparql` field and the serialized results
+//! back.
 use crate::{
     auth::{Access, AuthenticatedGraphQL, Roles, TokenClaimValues},
     config::concurrency_config::ConcurrencyConfig,
@@ -31,6 +32,7 @@ use raphtory::{
         VALID_TO, VALID_TO_TIME,
     },
 };
+use raphtory_api::core::{storage::timeindex::AsTime, utils::time::TryIntoTime};
 use serde_json::json;
 use std::{
     collections::HashSet,
@@ -405,6 +407,7 @@ struct Params {
     default_graphs: Vec<String>,
     named_graphs: Vec<String>,
     graph_type: Option<String>,
+    asof: Option<String>,
 }
 
 impl Params {
@@ -425,6 +428,7 @@ impl Params {
             "default-graph-uri" => self.default_graphs.push(value),
             "named-graph-uri" => self.named_graphs.push(value),
             "graph_type" => once(&mut self.graph_type, value)?,
+            "asof" => once(&mut self.asof, value)?,
             // other parameters (such as the `format` and `output` of some clients) are ignored
             _ => {}
         }
@@ -481,6 +485,36 @@ impl Params {
             Some(_) => Err(text(
                 StatusCode::BAD_REQUEST,
                 "invalid `graph_type`: expected `event` or `persistent`",
+            )),
+        }
+    }
+
+    /// The time of `asof` in epoch milliseconds, parsed as in `<raphtory:asof:T>`.
+    ///
+    /// Parameters are form-encoded, where `+` stands for a space, so the `+` of a timezone offset
+    /// pasted as is into a URL (`?asof=2024-01-01T00:00:00+01:00`) arrives as a space. A time that
+    /// does not parse is therefore read again with its last space as `+`.
+    fn asof(&self) -> Result<Option<i64>, Failure> {
+        let Some(time) = self.asof.as_deref() else {
+            return Ok(None);
+        };
+        let parse = |time: &str| match time.parse::<i64>() {
+            Ok(at) => Some(at),
+            Err(_) => time.try_into_time().ok().map(|at| at.t()),
+        };
+        let with_plus = || {
+            let (before, after) = time.rsplit_once(' ')?;
+            parse(&format!("{before}+{after}"))
+        };
+        match parse(time).or_else(with_plus) {
+            Some(at) => Ok(Some(at)),
+            None => Err(text(
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "invalid `asof`: cannot parse \"{time}\" as a time: expected epoch \
+                     milliseconds or a date-time such as 2024-01-01, 2024-01-01T00:00:00 or \
+                     2024-01-01T00:00:00Z"
+                ),
             )),
         }
     }
@@ -550,6 +584,12 @@ impl<E: Executor> Endpoint for SparqlEndpoint<E> {
 const QUERY: &str = "query SparqlProtocol($path: String!, $graphType: GraphType, $query: String!) \
     { graph(path: $path, graphType: $graphType) { sparql(query: $query) } }";
 
+/// The GraphQL query a protocol request with `asof=T` runs: on the history up to and including
+/// `T`, so the triples as of `T`, with the time graphs of earlier times.
+const QUERY_AS_OF: &str = "query SparqlProtocol($path: String!, $graphType: GraphType, \
+    $end: TimeInput!, $query: String!) { graph(path: $path, graphType: $graphType) \
+    { before(time: $end) { sparql(query: $query) } } }";
+
 /// The GraphQL query that checks that the caller can read the graph of a request.
 const LOOKUP: &str = "query SparqlService($path: String!, $graphType: GraphType) \
     { graph(path: $path, graphType: $graphType) { path } }";
@@ -618,6 +658,7 @@ impl<E: Executor> SparqlEndpoint<E> {
                 return Err(text(StatusCode::BAD_REQUEST, "the request has no `query`"));
             }
             let graph_type = params.graph_type()?;
+            params.asof()?;
             return self
                 .describe(&req, &path, graph_type, accept.as_deref(), caller)
                 .await;
@@ -625,6 +666,7 @@ impl<E: Executor> SparqlEndpoint<E> {
         check_query(config, &query).map_err(|error| Failure::from(&error))?;
         let dataset = params.dataset()?;
         let graph_type = params.graph_type()?;
+        let asof = params.asof()?;
         let formats = Formats::negotiate(accept.as_deref());
         if formats.is_empty() {
             return Err(text(
@@ -642,12 +684,19 @@ impl<E: Executor> SparqlEndpoint<E> {
             dataset,
             results: Mutex::new(None),
         });
-        let variables = json!({
+        let mut variables = json!({
             "path": path,
             "graphType": graph_type.map(|graph_type| graph_type.as_gql()),
             "query": query,
         });
-        let request = graphql_request(QUERY, variables, caller).data(call.clone());
+        let document = match asof {
+            Some(asof) => {
+                variables["end"] = json!(asof.saturating_add(1));
+                QUERY_AS_OF
+            }
+            None => QUERY,
+        };
+        let request = graphql_request(document, variables, caller).data(call.clone());
         let response = self.graphql.execute_read(request, true).await?;
         if let Some((body, media_type)) = call.results.lock().unwrap().take() {
             return Ok(Response::builder().content_type(media_type).body(body));

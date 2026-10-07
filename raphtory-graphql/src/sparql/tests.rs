@@ -738,6 +738,294 @@ async fn graph_type_reads_the_graph_as_events_or_persistent() {
     );
 }
 
+/// `KNOWS` on the default graph as of `t`.
+fn knows_from(t: &str) -> String {
+    format!(
+        "PREFIX ex: <http://ex/> SELECT ?s ?o FROM <raphtory:asof:{t}> {{ ?s ex:knows ?o }} \
+         ORDER BY ?s ?o"
+    )
+}
+
+#[tokio::test]
+async fn asof_queries_the_graph_as_of_a_time() {
+    let server = Server::default().await;
+    // as `FROM <raphtory:asof:T>`, before, between and after the retraction
+    for t in ["0", "3", "6", "9"] {
+        let from = rows(&server.select(&knows_from(t)).await.json());
+        let reply = server.get(&[("query", KNOWS), ("asof", t)], None).await;
+        assert_eq!(rows(&reply.json()), from, "asof={t}");
+    }
+    // the forms of a time
+    for (t, expected) in [
+        ("3", AS_OF_3),
+        ("1970-01-01T00:00:00.003Z", AS_OF_3),
+        ("1970-01-01T00:00:00.003", AS_OF_3),
+        ("1970-01-01", &[]),
+        ("1970-01-02", NOW),
+    ] {
+        let reply = server.get(&[("query", KNOWS), ("asof", t)], None).await;
+        assert_eq!(rows(&reply.json()), pairs(expected), "asof={t}");
+    }
+    // a timezone offset in a URL, its `+` encoded as `%2B` or written as is (so read as a space)
+    for (asof, expected) in [
+        ("1970-01-01T01:00:00.003%2B01:00", AS_OF_3),
+        ("1970-01-01T01:00:00.003+01:00", AS_OF_3),
+        ("Thu,%2001%20Jan%201970%2001:00:01%20+0100", NOW),
+    ] {
+        let uri = format!("/sparql/pg?asof={asof}&query={}", url_encode(KNOWS));
+        let reply = server
+            .send(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri(uri.parse().unwrap())
+                    .finish(),
+            )
+            .await;
+        assert_eq!(rows(&reply.json()), pairs(expected), "asof={asof}");
+    }
+    // in a form, in the URL of a form and in the URL of a query body
+    let reply = server
+        .post(
+            &[],
+            "application/x-www-form-urlencoded",
+            form(&[("query", KNOWS), ("asof", "3")]),
+            None,
+        )
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    let reply = server
+        .post(
+            &[("asof", "3")],
+            "application/x-www-form-urlencoded",
+            form(&[("query", KNOWS)]),
+            None,
+        )
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    let reply = server
+        .post(&[("asof", "3")], "application/sparql-query", KNOWS, None)
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    // other formats
+    let reply = server
+        .get(
+            &[("query", KNOWN_BY), ("asof", "3")],
+            Some("application/n-triples"),
+        )
+        .await;
+    assert_eq!(
+        triples(&reply.ok("application/n-triples"), RdfFormat::NTriples),
+        triples(
+            &local(&knows_from_construct("3"), RdfFormat::NTriples),
+            RdfFormat::NTriples
+        )
+    );
+
+    // an event graph sees every triple asserted up to the time
+    let reply = server
+        .get_from("eg", &[("query", KNOWS), ("asof", "3")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    let reply = server
+        .get_from("eg", &[("query", KNOWS), ("asof", "9")], None)
+        .await;
+    assert_eq!(
+        rows(&reply.json()),
+        pairs(&[("alice", "bob"), ("bob", "carol"), ("dave", "alice")])
+    );
+    let reply = server
+        .get(
+            &[("query", KNOWS), ("asof", "9"), ("graph_type", "event")],
+            None,
+        )
+        .await;
+    assert_eq!(
+        rows(&reply.json()),
+        pairs(&[("alice", "bob"), ("bob", "carol"), ("dave", "alice")])
+    );
+}
+
+/// `KNOWN_BY` on the default graph as of `t`.
+fn knows_from_construct(t: &str) -> String {
+    format!(
+        "PREFIX ex: <http://ex/> CONSTRUCT {{ ?o ex:knownBy ?s }} FROM <raphtory:asof:{t}> \
+         WHERE {{ ?s ex:knows ?o }}"
+    )
+}
+
+#[tokio::test]
+async fn asof_is_the_present_of_the_query() {
+    let server = Server::default().await;
+    // `alice knows bob` held from 1 until its retraction at 5
+    let interval = |at: &str| {
+        format!(
+            "PREFIX ex: <http://ex/> \
+             SELECT (raphtory:validFromTime(ex:alice, ex:knows, ex:bob{at}) AS ?from) \
+                    (raphtory:validToTime(ex:alice, ex:knows, ex:bob{at}) AS ?to) {{}}"
+        )
+    };
+    let present = interval("");
+    let at_4 = interval(", raphtory:asof:4");
+    // asked for 4 on the full history, the run ends at the retraction
+    assert_eq!(rows(&server.select(&at_4).await.json()), [["1", "5"]]);
+    // while as of 4, without a reference time, the functions answer for 4, before the
+    // retraction: the run is still open
+    let reply = server
+        .get(&[("query", present.as_str()), ("asof", "4")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), [["1", ""]]);
+    let reply = server
+        .get(&[("query", at_4.as_str()), ("asof", "4")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), [["1", ""]]);
+    // now the triple no longer holds
+    assert_eq!(rows(&server.select(&present).await.json()), [["", ""]]);
+    // an earlier reference time is in the history as of 4, which ends before the retraction
+    let at_3 = interval(", raphtory:asof:3");
+    assert_eq!(rows(&server.select(&at_3).await.json()), [["1", "5"]]);
+    let reply = server
+        .get(&[("query", at_3.as_str()), ("asof", "4")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), [["1", ""]]);
+    // a later one is not
+    let at_6 = interval(", raphtory:asof:6");
+    let reply = server
+        .get(&[("query", at_6.as_str()), ("asof", "4")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), [["", ""]]);
+
+    // time graphs and the dataset parameters see the history up to `asof`
+    let graphs = "SELECT ?g (COUNT(*) AS ?n) { GRAPH ?g { ?s <http://ex/knows> ?o } } \
+                  GROUP BY ?g ORDER BY ?g";
+    let both = [
+        ("named-graph-uri", "raphtory:asof:3"),
+        ("named-graph-uri", "raphtory:asof:9"),
+    ];
+    let mut params = vec![("query", graphs), ("asof", "9")];
+    params.extend(both);
+    let reply = server.get(&params, None).await;
+    assert_eq!(
+        rows(&reply.json()),
+        [["raphtory:asof:3", "2"], ["raphtory:asof:9", "2"]]
+    );
+    let reply = server.get_from("eg", &params, None).await;
+    assert_eq!(
+        rows(&reply.json()),
+        [["raphtory:asof:3", "2"], ["raphtory:asof:9", "3"]]
+    );
+    let in_query = "PREFIX ex: <http://ex/> \
+        SELECT ?s ?o { GRAPH <raphtory:asof:3> { ?s ex:knows ?o } } ORDER BY ?s ?o";
+    let reply = server
+        .get_from("eg", &[("query", in_query), ("asof", "9")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    let reply = server
+        .get(&[("query", in_query), ("asof", "9")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    let reply = server
+        .get(&[("query", in_query), ("asof", "2")], None)
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(&[]));
+    let reply = server
+        .get(
+            &[
+                ("query", KNOWS),
+                ("asof", "3"),
+                ("default-graph-uri", "raphtory:asof:3"),
+            ],
+            None,
+        )
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    for graph in ["pg", "eg"] {
+        let reply = server
+            .get_from(
+                graph,
+                &[
+                    ("query", KNOWS),
+                    ("asof", "9"),
+                    ("default-graph-uri", "raphtory:asof:3"),
+                ],
+                None,
+            )
+            .await;
+        assert_eq!(rows(&reply.json()), pairs(AS_OF_3), "{graph}");
+    }
+}
+
+#[tokio::test]
+async fn invalid_asof_is_refused() {
+    let server = Server::default().await;
+    // the last also with its space read as `+`
+    for t in ["foo", "", "2024-13-01", "3.5", "2024-01-01T00:00:00 junk"] {
+        let error = server
+            .get(&[("query", KNOWS), ("asof", t)], None)
+            .await
+            .error(StatusCode::BAD_REQUEST);
+        assert!(
+            error.starts_with(&format!("invalid `asof`: cannot parse \"{t}\" as a time")),
+            "{error}"
+        );
+        // also by the service description
+        let error = server
+            .get(&[("asof", t)], None)
+            .await
+            .error(StatusCode::BAD_REQUEST);
+        assert!(error.starts_with("invalid `asof`"), "{error}");
+    }
+    server
+        .get(&[("asof", "2024-01-01")], None)
+        .await
+        .ok("text/turtle");
+    let error = server
+        .get(&[("query", KNOWS), ("asof", "3"), ("asof", "3")], None)
+        .await
+        .error(StatusCode::BAD_REQUEST);
+    assert_eq!(error, "the request has more than one `asof`");
+    let error = server
+        .post(
+            &[("asof", "3")],
+            "application/x-www-form-urlencoded",
+            form(&[("query", KNOWS), ("asof", "4")]),
+            None,
+        )
+        .await
+        .error(StatusCode::BAD_REQUEST);
+    assert_eq!(error, "the request has more than one `asof`");
+}
+
+#[tokio::test]
+async fn asof_keeps_permissions_and_access_filters() {
+    let server = Server::as_user(read_with(json!({
+        "filter": { "node": { "name": { "where": { "ne": { "str": "http://ex/carol" } } } } }
+    })))
+    .await;
+    let reply = server.get(&[("query", KNOWS), ("asof", "3")], None).await;
+    assert_eq!(rows(&reply.json()), pairs(&[("alice", "bob")]));
+    let refused = server.select(SINCE).await.error(StatusCode::BAD_REQUEST);
+    let error = server
+        .get(&[("query", SINCE), ("asof", "3")], None)
+        .await
+        .error(StatusCode::BAD_REQUEST);
+    assert_eq!(error, refused);
+
+    let server = Server::as_user(GraphPermission::Read { filter: None }).await;
+    let reply = server.get(&[("query", SINCE), ("asof", "3")], None).await;
+    assert_eq!(rows(&reply.json()), [["1"]]);
+
+    let server = Server::as_user(GraphPermission::Introspect).await;
+    for params in [&[("query", KNOWS), ("asof", "3")][..], &[("asof", "3")]] {
+        let error = server.get(params, None).await.error(StatusCode::NOT_FOUND);
+        assert_eq!(error, "Graph 'pg' does not exist");
+        let error = server
+            .get_from("ns/inner%20graph", params, None)
+            .await
+            .error(StatusCode::NOT_FOUND);
+        assert_eq!(error, "Graph 'ns/inner graph' does not exist");
+    }
+}
+
 #[tokio::test]
 async fn graphs_in_namespaces() {
     let server = Server::default().await;

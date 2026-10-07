@@ -86,10 +86,10 @@ The endpoint answers the query operation of the SPARQL 1.1 Protocol in its three
 | `POST` with `Content-Type: application/x-www-form-urlencoded` | form field `query` | form fields (or URL parameters) |
 | `POST` with `Content-Type: application/sparql-query` | the request body | URL parameters |
 
-The other parameters are `default-graph-uri` and `named-graph-uri` (see [time travel](#time-travel)) and `graph_type`;
-parameters the endpoint does not know, such as the `format` and `output` that some clients add, are ignored. A `GET`
-without a query returns the [SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/) of the
-endpoint, as RDF (Turtle by default): its URL, the query language, the result formats and the
+The other parameters are `default-graph-uri` and `named-graph-uri`, and the Raphtory parameters `graph_type` and
+`asof` (see [graph type and time travel](#graph-type-and-time-travel)); parameters the endpoint does not know, such as
+the `format` and `output` that some clients add, are ignored. A `GET` without a query returns the
+[SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/) of the endpoint, as RDF (Turtle by default): its URL, the query language, the result formats and the
 [temporal functions](3_time-travel.md#since-when-validity-functions). Like a query, it needs a graph the caller can read,
 and is a 404 otherwise, so a mistyped endpoint URL does not look live. The endpoint answers `OPTIONS` requests, including
 the preflight requests of browsers, so query editors served from other sites can use it.
@@ -128,22 +128,20 @@ A query sees the triples of the graph as the [`sparql` field](5_graphql.md) of `
 the current state, on an event graph every triple asserted (retractions are ignored). The parameter `graph_type=event` or
 `graph_type=persistent` reads the graph the other way, as `graphType` does in GraphQL.
 
-The time graphs `<raphtory:asof:T>` work as in Python: `GRAPH <raphtory:asof:T> { ... }` in a query matches the triples
-as of `T`. The protocol's dataset parameters can name them too. `default-graph-uri=raphtory:asof:T` makes the graph as of
-`T` the default graph, so any query, including one written for the current state, runs on the past:
+The parameter `asof=T` runs the query on the graph as it was at time `T`: on the history up to and including `T`, as
+`before(time: T + 1)` does in GraphQL. On a persistent graph the query sees the triples that held at `T`, and on an
+event graph every triple asserted at or before `T`. `T` is written as in a [time graph](3_time-travel.md#comparing-times-in-one-query): epoch
+milliseconds or a date-time such as `2023-01-01`, `2023-01-01T09:30:00` or `2023-01-01T09:30:00Z` (UTC unless it has a
+timezone). In a URL a `+` normally stands for a space, but the `+` of a timezone offset can be written as is, as in
+`?asof=2023-01-01T09:30:00+01:00`, or as `%2B`. Any query, including one written for the current state, then runs on the
+past, and since the parameter can be part of the endpoint URL, so can every query of a query editor:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
 with GraphServer(work_dir).start() as server:
-    endpoint = f"http://localhost:{server.port()}/sparql/people"
-    form = urllib.parse.urlencode(
-        {"query": employers, "default-graph-uri": "raphtory:asof:2023-01-01"}
-    )
-    request = urllib.request.Request(
-        endpoint,
-        data=form.encode(),
-        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/csv"},
-    )
+    endpoint = f"http://localhost:{server.port()}/sparql/people?asof=2023-01-01"
+    url = endpoint + "&" + urllib.parse.urlencode({"query": employers})
+    request = urllib.request.Request(url, headers={"Accept": "text/csv"})
     with urllib.request.urlopen(request) as response:
         early_2023 = response.read().decode()
 print(early_2023)
@@ -162,11 +160,44 @@ assert early_2023 == g.snapshot_at("2023-01-01").sparql(employers, format="csv")
     http://example.org/bob,http://example.org/acme
     ```
 
+`T` is the present of the query: the [validity functions](3_time-travel.md#since-when-validity-functions) without a
+reference time answer for `T`, so `raphtory:validTo` of a triple that held at `T` is unbound even if it was retracted
+later.
+
+The time graphs `<raphtory:asof:T>` work as in Python: `GRAPH <raphtory:asof:T> { ... }` in a query matches the triples
+as of `T`. The protocol's dataset parameters can name them too. `default-graph-uri=raphtory:asof:T` makes the graph as of
+`T` the default graph, which is another way to run a query on the past:
+
+/// tab | :fontawesome-brands-python: Python
+```{.python continuation}
+with GraphServer(work_dir).start() as server:
+    endpoint = f"http://localhost:{server.port()}/sparql/people"
+    form = urllib.parse.urlencode(
+        {"query": employers, "default-graph-uri": "raphtory:asof:2023-01-01"}
+    )
+    request = urllib.request.Request(
+        endpoint,
+        data=form.encode(),
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/csv"},
+    )
+    with urllib.request.urlopen(request) as response:
+        from_default_graph = response.read().decode()
+```
+///
+
+```{.python continuation hide}
+assert from_default_graph == early_2023
+```
+
 `named-graph-uri` lists the named graphs that `GRAPH ?g { ... }` visits; both parameters can be repeated (several
 default graphs are concatenated, as with several `FROM` clauses, and a graph named twice counts once). As the protocol
 requires, the two parameters replace the dataset of the query: its `FROM` and `FROM NAMED` clauses are ignored, and with
 only `default-graph-uri` there are no named graphs, so `GRAPH` patterns match nothing. The parameters can only name time graphs: any other IRI fails with
 status 400.
+
+With `asof=T`, the time graphs see the same history: `<raphtory:asof:T2>` for an earlier `T2` matches the triples as of
+`T2`, so a query can still compare times up to `T`, and the time graph of a later time is empty (see
+[comparing times in one query](3_time-travel.md#comparing-times-in-one-query)).
 
 ## Access and limits
 
@@ -186,7 +217,7 @@ Errors have a plain-text body with the same message as the GraphQL error, and th
 
 | Status | When |
 |---|---|
-| 400 Bad Request | a syntax or evaluation error, a query that is too long or has too many triple patterns, a dataset IRI that is not a time graph, an invalid `graph_type`, a missing or repeated `query` |
+| 400 Bad Request | a syntax or evaluation error, a query that is too long or has too many triple patterns, a dataset IRI that is not a time graph, an invalid `graph_type`, a missing or repeated `query`, an invalid or repeated `asof` |
 | 401 Unauthorized | no valid token when the server requires one for reads |
 | 404 Not Found | the graph does not exist or the caller cannot read it |
 | 405 Method Not Allowed | a method other than `GET`, `POST` and `OPTIONS` |
@@ -200,8 +231,9 @@ Errors have a plain-text body with the same message as the GraphQL error, and th
 ## Clients
 
 **YASGUI** and other query editors: enter the endpoint URL, such as `http://localhost:1736/sparql/people`. For time
-travel in YASGUI, put `FROM <raphtory:asof:T>` in the query, or add `default-graph-uri` under the endpoint's extra
-arguments: YASGUI 4.6's own "default graphs" setting is not sent.
+travel, add `asof` to the endpoint URL, as in `http://localhost:1736/sparql/people?asof=2023-01-01`: every query of the
+editor then runs on the graph as of that time. YASGUI 4.6's own "default graphs" setting is not sent; a
+`FROM <raphtory:asof:T>` in the query and `default-graph-uri` under the endpoint's extra arguments work too.
 
 **curl**:
 
@@ -211,7 +243,7 @@ curl -H 'Accept: text/csv' --data-urlencode 'query=SELECT * { ?s ?p ?o } LIMIT 1
   http://localhost:1736/sparql/people
 # CONSTRUCT as Turtle, as of the start of 2023
 curl -H 'Accept: text/turtle' --data-urlencode 'query=CONSTRUCT WHERE { ?s ?p ?o }' \
-  --data-urlencode 'default-graph-uri=raphtory:asof:2023-01-01' http://localhost:1736/sparql/people
+  'http://localhost:1736/sparql/people?asof=2023-01-01'
 # the query as the body
 curl -H 'Content-Type: application/sparql-query' --data 'ASK { ?s ?p ?o }' http://localhost:1736/sparql/people
 # the service description
@@ -227,7 +259,7 @@ from SPARQLWrapper import JSON, SPARQLWrapper
 sparql = SPARQLWrapper("http://localhost:1736/sparql/people")
 sparql.setQuery("SELECT ?s ?o WHERE { ?s <http://example.org/worksFor> ?o }")
 sparql.setReturnFormat(JSON)
-sparql.addDefaultGraph("raphtory:asof:2023-01-01")  # optional: as of a time
+sparql.addParameter("asof", "2023-01-01")  # optional: as of a time
 for row in sparql.query().convert()["results"]["bindings"]:
     print(row["s"]["value"], row["o"]["value"])
 ```
