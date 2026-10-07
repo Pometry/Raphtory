@@ -23,6 +23,7 @@ use ahash::RandomState;
 use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use itertools::Itertools;
+use ouroboros::self_referencing;
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{
     iter::{
@@ -662,54 +663,154 @@ impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
     }
 }
 
-/// Positions into a [`Index::Roaring`] bitmap. The bitmap is shared, so its own iterator, which
-/// borrows it, cannot be kept here; each key is found by position instead.
-// TODO: one `select` per key walks the bitmap's containers each time.
-#[derive(Clone)]
-pub struct RoaringIndexIntoIter<K> {
+/// Walks a [`Index::Roaring`] bitmap it owns with the bitmap's own iterator.
+/// `range` is the positions not yet yielded from either end.
+#[self_referencing]
+struct RoaringIter {
+    keys: Arc<RoaringTreemap>,
     range: Range<usize>,
-    index: Arc<RoaringTreemap>,
+    #[borrows(keys)]
+    #[covariant]
+    iter: roaring::treemap::Iter<'this>,
+}
+
+impl RoaringIter {
+    /// A walk over the keys at positions `range`.
+    fn over(keys: Arc<RoaringTreemap>, range: Range<usize>) -> Self {
+        let (start, end) = (range.start, range.end);
+        RoaringIterBuilder {
+            keys,
+            range,
+            iter_builder: |keys| {
+                let mut iter = keys.iter();
+                if start > 0 && start < end {
+                    if let Some(first) = keys.select(start as u64) {
+                        iter.advance_to(first);
+                    }
+                }
+                if end < keys.len() as usize && start < end {
+                    if let Some(last) = keys.select(end as u64 - 1) {
+                        iter.advance_back_to(last);
+                    }
+                }
+                iter
+            },
+        }
+        .build()
+    }
+}
+
+impl Iterator for RoaringIter {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<u64> {
+        self.with_mut(|walk| {
+            walk.range.next()?;
+            walk.iter.next()
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.borrow_range().size_hint()
+    }
+
+    /// Faster than repeatedly calling next on the iterator.
+    fn nth(&mut self, n: usize) -> Option<u64> {
+        if n == 0 {
+            return self.next();
+        }
+        self.with_mut(|walk| {
+            let at = walk.range.nth(n)?;
+            walk.iter.advance_to(walk.keys.select(at as u64)?);
+            walk.iter.next()
+        })
+    }
+}
+
+impl DoubleEndedIterator for RoaringIter {
+    fn next_back(&mut self) -> Option<u64> {
+        self.with_mut(|walk| {
+            walk.range.next_back()?;
+            walk.iter.next_back()
+        })
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<u64> {
+        if n == 0 {
+            return self.next_back();
+        }
+        self.with_mut(|walk| {
+            let at = walk.range.nth_back(n)?;
+            walk.iter.advance_back_to(walk.keys.select(at as u64)?);
+            walk.iter.next_back()
+        })
+    }
+}
+
+/// The keys of a [`Index::Roaring`] bitmap.
+pub struct RoaringIndexIntoIter<K> {
+    walk: RoaringIter,
     _key: PhantomData<K>,
+}
+
+impl<K> RoaringIndexIntoIter<K> {
+    fn new(keys: Arc<RoaringTreemap>) -> Self {
+        let len = keys.len() as usize;
+        Self {
+            walk: RoaringIter::over(keys, 0..len),
+            _key: PhantomData,
+        }
+    }
+}
+
+impl<K> Clone for RoaringIndexIntoIter<K> {
+    fn clone(&self) -> Self {
+        Self {
+            walk: RoaringIter::over(
+                self.walk.borrow_keys().clone(),
+                self.walk.borrow_range().clone(),
+            ),
+            _key: PhantomData,
+        }
+    }
 }
 
 impl<K: From<usize>> Iterator for RoaringIndexIntoIter<K> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let i = self.range.next()?;
-        roaring_select(&self.index, i)
+        self.walk.next().map(from_roaring)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.range.size_hint()
+        self.walk.size_hint()
     }
 
     fn count(self) -> usize
     where
         Self: Sized,
     {
-        self.range.count()
+        self.walk.borrow_range().len()
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        let i = self.range.nth(n)?;
-        roaring_select(&self.index, i)
+        self.walk.nth(n).map(from_roaring)
     }
 }
 
 impl<K: From<usize>> DoubleEndedIterator for RoaringIndexIntoIter<K> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let i = self.range.next_back()?;
-        roaring_select(&self.index, i)
+        self.walk.next_back().map(from_roaring)
     }
 
     fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
-        let i = self.range.nth_back(n)?;
-        roaring_select(&self.index, i)
+        self.walk.nth_back(n).map(from_roaring)
     }
 }
 
 impl<K: From<usize>> ExactSizeIterator for RoaringIndexIntoIter<K> {}
+
+impl<K: From<usize>> std::iter::FusedIterator for RoaringIndexIntoIter<K> {}
 
 #[derive(Clone, Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
 pub enum IndexIntoIter<K> {
@@ -734,11 +835,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IntoIterator
                 range: 0..keys.len(),
                 index: keys,
             }),
-            Index::Roaring { keys, .. } => IndexIntoIter::Roaring(RoaringIndexIntoIter {
-                range: 0..keys.len() as usize,
-                index: keys,
-                _key: PhantomData,
-            }),
+            Index::Roaring { keys, .. } => IndexIntoIter::Roaring(RoaringIndexIntoIter::new(keys)),
         }
     }
 }
@@ -1192,6 +1289,31 @@ mod index_subset_test {
             prop_assert_eq!(sorted(&a).is_subset(&roaring(&b)), want, "sorted/roaring");
             prop_assert_eq!(roaring(&a).is_subset(&partial(&b)), want, "roaring/partial");
             prop_assert_eq!(partial(&a).is_subset(&roaring(&b)), want, "partial/roaring");
+        }
+
+        /// Walking and jumping a bitmap's owned iterator from both ends, and cloning it part way,
+        /// must match a plain list. Keys span several containers so jumps cross them.
+        #[test]
+        fn roaring_owned_iteration_agrees_with_a_list(
+            a in proptest::collection::vec(0usize..300_000, 0..60),
+            steps in proptest::collection::vec((any::<bool>(), 0usize..8), 0..30),
+        ) {
+            let IndexIntoIter::Roaring(mut iter) = roaring(&a).into_iter() else {
+                unreachable!("a bitmap index walks as a bitmap")
+            };
+            let mut reference = sorted(&a).iter().collect::<Vec<_>>().into_iter();
+            for (from_back, n) in steps {
+                let (got, want) = if from_back {
+                    (iter.nth_back(n), reference.nth_back(n))
+                } else {
+                    (iter.nth(n), reference.nth(n))
+                };
+                prop_assert_eq!(got, want);
+                prop_assert_eq!(iter.len(), reference.len());
+                prop_assert_eq!(iter.clone().collect::<Vec<_>>(), reference.clone().collect::<Vec<_>>());
+                prop_assert_eq!(iter.clone().rev().collect::<Vec<_>>(), reference.clone().rev().collect::<Vec<_>>());
+            }
+            prop_assert_eq!(iter.collect::<Vec<_>>(), reference.collect::<Vec<_>>());
         }
 
         /// A bitmap index must behave exactly like a sorted one over the same keys: same
