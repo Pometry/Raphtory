@@ -436,6 +436,9 @@ def test_all_property_types(GraphClass):
         ),
         (filter.ExplodedEdge.property("meta").is_some(), 6),
         (filter.ExplodedEdge.property("meta").is_none(), 0),
+        # set membership drops a member the property can never equal, so a map
+        # whose shared key `level` is a string is simply not present
+        (filter.ExplodedEdge.property("meta").is_in([{"level": "two"}]), 0),
         (
             filter.ExplodedEdge.property("meta").is_not_in(
                 [2, 4, {"location": "SF", "level": 2}, {"contract": True}]
@@ -786,6 +789,11 @@ def test_all_property_types(GraphClass):
             lambda: filter.ExplodedEdge.property("meta").not_contains(3),
             "cannot be compared with Str",
         ),  # a string constant never compares with a non-string property
+        (
+            lambda: filter.ExplodedEdge.property("meta") == {"location": 1},
+            "cannot be compared with",
+        ),  # maps compare only when the keys they share have comparable types:
+        # meta's location is a string, so a map with a numeric location is refused
     ]
 
     for i, (make_expr, message) in enumerate(wrong_types):

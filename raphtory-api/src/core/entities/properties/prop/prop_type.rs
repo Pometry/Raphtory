@@ -216,7 +216,8 @@ impl PropType {
     ///
     /// Numbers compare by value whatever their width, so every numeric type is
     /// comparable with every other. Lists are comparable when their elements
-    /// are; two maps always are, since a declared map type is the union of the
+    /// are, and maps when every key they share is: a key only one side has
+    /// does not get in the way, since a declared map type is the union of the
     /// shapes its values take. Anything else must be the same type. An
     /// unresolved side is comparable with everything.
     pub fn is_comparable_with(&self, other: &PropType) -> bool {
@@ -224,7 +225,12 @@ impl PropType {
             (PropType::Empty, _) | (_, PropType::Empty) => true,
             (l, r) if l.is_numeric() && r.is_numeric() => true,
             (PropType::List(l), PropType::List(r)) => l.is_comparable_with(r),
-            (PropType::Map(_), PropType::Map(_)) => true,
+            (PropType::Map(l), PropType::Map(r)) => {
+                let (fewer, more) = if l.len() <= r.len() { (l, r) } else { (r, l) };
+                fewer
+                    .iter()
+                    .all(|(k, t)| more.get(k).is_none_or(|o| t.is_comparable_with(o)))
+            }
             (l, r) => l == r,
         }
     }
@@ -618,6 +624,14 @@ mod test {
                 PropType::map([("a", PropType::I64)]),
                 PropType::map([("b", PropType::Str)]),
             ),
+            (
+                PropType::map([("a", PropType::I64), ("b", PropType::Str)]),
+                PropType::map([("a", PropType::F64)]),
+            ),
+            (
+                PropType::map([("a", list(PropType::Empty))]),
+                PropType::map([("a", list(PropType::Str))]),
+            ),
         ];
         for (l, r) in comparable {
             assert!(l.is_comparable_with(&r), "{l} vs {r}");
@@ -631,6 +645,14 @@ mod test {
             (PropType::I64, list(PropType::I64)),
             (list(PropType::I64), list(PropType::Str)),
             (PropType::map([("a", PropType::I64)]), PropType::Str),
+            (
+                PropType::map([("a", PropType::I64)]),
+                PropType::map([("a", PropType::Str)]),
+            ),
+            (
+                PropType::map([("a", PropType::I64), ("b", list(PropType::I64))]),
+                PropType::map([("b", list(PropType::Str))]),
+            ),
         ];
         for (l, r) in incomparable {
             assert!(!l.is_comparable_with(&r), "{l} vs {r}");
