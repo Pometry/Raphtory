@@ -3,15 +3,16 @@
 //! A filtered graph answers two questions, which nodes stay and which edges
 //! stay, and every filter answers both: a node predicate answers the first
 //! directly and the second by "both ends stayed", an edge predicate the
-//! reverse. `and`, `or` and `not` combine the direct answers question by
-//! question, so `name == "b" | name == "c"` keeps the edge b→c, `not` never
-//! flips an answer the filter did not give, and an `or` across kinds is the
-//! union of what its legs keep.
+//! reverse, and a view leg answers both with "exists in the view". `and`,
+//! `or` and `not` combine the direct answers question by question, so
+//! `name == "b" | name == "c"` keeps the edge b→c, `not` never flips an
+//! answer the filter did not give, and an `or` across kinds is the union of
+//! what its legs keep.
 //!
 //! [`FilterExpr::split`] applies that rule as a rewrite of the tree, with no
-//! graph at hand. The result is the view the graph is seen through, one node
-//! expression and one edge question: the data the value compiler already
-//! takes, so the rule lives here and the compiler stays a compiler.
+//! graph at hand. The result is the view legs the graph is seen through, one
+//! answer per question: the data the value compiler already takes, so the
+//! rule lives here and the compiler stays a compiler.
 
 use super::{EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, Expr, FilterExpr, NodeExpr, ViewOp};
 use crate::errors::GraphError;
@@ -24,32 +25,54 @@ pub(crate) struct SplitFilter {
     /// node or edge filter asks that the entity exist in each.
     pub(crate) views: Vec<Vec<ViewOp>>,
     /// Which nodes stay; `None` leaves every node.
-    pub(crate) nodes: Option<NodeExpr>,
+    pub(crate) nodes: Option<Question<NodeExpr>>,
     /// Which edges stay, beyond the edges whose ends both stayed; `None`
     /// leaves the question open.
-    pub(crate) edges: Option<EdgeQuestion>,
+    pub(crate) edges: Option<Question<EdgePredicate>>,
 }
 
-/// The edge question's answer. A predicate on edges and one on exploded edges
+/// One question's answer: predicates on the question's entity, the entity's
+/// existence in a view, and `and` / `or` between them. Negation sits inside
+/// the leaves.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Question<P> {
+    Predicate(P),
+    /// The entity exists in the view, or does not when `negated`: what a
+    /// view leg means on a node or edge collection. A filtered graph cannot
+    /// answer this below the top level.
+    Exists {
+        views: Vec<ViewOp>,
+        negated: bool,
+    },
+    And(Vec<Question<P>>),
+    Or(Vec<Question<P>>),
+}
+
+/// A predicate on the edge question. One on edges and one on exploded edges
 /// decide different things, an edge or one update of it, and are applied by
 /// different filtered graphs, so legs of the two kinds combine as filters
 /// where legs of one kind combine as one expression.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum EdgeQuestion {
+pub(crate) enum EdgePredicate {
     Edge(EdgeExpr),
     Exploded(ExplodedEdgeExpr),
-    And(Vec<EdgeQuestion>),
-    Or(Vec<EdgeQuestion>),
+}
+
+impl<P: Fold> Question<P> {
+    /// This answer and another, both required.
+    pub(crate) fn and(self, other: Self) -> Self {
+        Self::join(vec![self, other], Junction::And)
+    }
 }
 
 /// The direct answers one leg gives to the two questions.
 struct Answers {
-    nodes: Option<NodeExpr>,
-    edges: Option<EdgeQuestion>,
+    nodes: Option<Question<NodeExpr>>,
+    edges: Option<Question<EdgePredicate>>,
 }
 
 #[derive(Clone, Copy)]
-enum Junction {
+pub(crate) enum Junction {
     And,
     Or,
 }
@@ -66,41 +89,78 @@ impl Junction {
     }
 }
 
-/// An answer that can take other answers to the same question beside it.
-trait Join: Sized {
-    fn join(legs: Vec<Self>, how: Junction) -> Self;
+/// Predicates that may fold into one expression. `Err` hands the legs back
+/// when they cannot, so they combine as filters instead.
+pub(crate) trait Fold: Sized {
+    fn fold(legs: Vec<Self>, how: Junction) -> Result<Self, Vec<Self>>;
 }
 
-impl<L> Join for Expr<L> {
-    fn join(legs: Vec<Self>, how: Junction) -> Self {
-        match how {
-            Junction::And => Expr::And(legs),
-            Junction::Or => Expr::Or(legs),
+impl<L> Fold for Expr<L> {
+    fn fold(mut legs: Vec<Self>, how: Junction) -> Result<Self, Vec<Self>> {
+        match legs.len() {
+            0 => Err(legs),
+            1 => Ok(legs.pop().expect("one leg")),
+            _ => Ok(match how {
+                Junction::And => Expr::And(legs),
+                Junction::Or => Expr::Or(legs),
+            }),
         }
     }
 }
 
-impl Join for EdgeQuestion {
-    fn join(legs: Vec<Self>, how: Junction) -> Self {
+impl Fold for EdgePredicate {
+    fn fold(legs: Vec<Self>, how: Junction) -> Result<Self, Vec<Self>> {
         let edges = legs
             .iter()
             .map(|leg| match leg {
-                EdgeQuestion::Edge(e) => Some(e.clone()),
+                EdgePredicate::Edge(e) => Some(e.clone()),
                 _ => None,
             })
             .collect::<Option<Vec<_>>>();
         let exploded = legs
             .iter()
             .map(|leg| match leg {
-                EdgeQuestion::Exploded(e) => Some(e.clone()),
+                EdgePredicate::Exploded(e) => Some(e.clone()),
                 _ => None,
             })
             .collect::<Option<Vec<_>>>();
-        match (edges, exploded, how) {
-            (Some(edges), _, how) => EdgeQuestion::Edge(Expr::join(edges, how)),
-            (_, Some(exploded), how) => EdgeQuestion::Exploded(Expr::join(exploded, how)),
-            (None, None, Junction::And) => EdgeQuestion::And(legs),
-            (None, None, Junction::Or) => EdgeQuestion::Or(legs),
+        match (edges, exploded) {
+            (Some(edges), _) => Expr::fold(edges, how)
+                .map(EdgePredicate::Edge)
+                .map_err(|_| legs),
+            (_, Some(exploded)) => Expr::fold(exploded, how)
+                .map(EdgePredicate::Exploded)
+                .map_err(|_| legs),
+            (None, None) => Err(legs),
+        }
+    }
+}
+
+/// An answer that can take other answers to the same question beside it.
+trait Join: Sized {
+    fn join(legs: Vec<Self>, how: Junction) -> Self;
+}
+
+impl<P: Fold> Join for Question<P> {
+    fn join(legs: Vec<Self>, how: Junction) -> Self {
+        // predicates of one kind are one expression; everything else combines
+        // as filters beside it
+        let mut predicates = Vec::new();
+        let mut others = Vec::new();
+        for leg in legs {
+            match leg {
+                Question::Predicate(p) => predicates.push(p),
+                other => others.push(other),
+            }
+        }
+        match P::fold(predicates, how) {
+            Ok(p) => others.push(Question::Predicate(p)),
+            Err(ps) => others.extend(ps.into_iter().map(Question::Predicate)),
+        }
+        match (others.len(), how) {
+            (1, _) => others.pop().expect("one leg"),
+            (_, Junction::And) => Question::And(others),
+            (_, Junction::Or) => Question::Or(others),
         }
     }
 }
@@ -154,31 +214,41 @@ fn any_of(legs: Vec<Answers>, negated: bool) -> Answers {
 fn or_of(legs: Vec<Answers>, negated: bool) -> Answers {
     let mixed =
         |answered: fn(&Answers) -> bool| legs.iter().any(answered) && !legs.iter().all(answered);
-    if negated || !(mixed(|a| a.nodes.is_some()) || mixed(|a| a.edges.is_some())) {
-        return any_of(legs, negated);
+    if negated {
+        return any_of(legs, true);
     }
-    let edges = legs
-        .into_iter()
-        .map(|a| a.edges.or_else(|| a.nodes.map(closed_edges)));
-    Answers {
-        nodes: None,
-        edges: every(edges, Junction::Or),
-    }
+    // a leg that leaves the node question open keeps every node
+    let nodes = if mixed(|a| a.nodes.is_some()) {
+        None
+    } else {
+        every(legs.iter().map(|a| a.nodes.clone()), Junction::Or)
+    };
+    // a leg that leaves the edge question open keeps the edges whose ends it keeps
+    let edges = if mixed(|a| a.edges.is_some()) {
+        every(
+            legs.into_iter()
+                .map(|a| a.edges.or_else(|| a.nodes.map(closed_edges))),
+            Junction::Or,
+        )
+    } else {
+        every(legs.into_iter().map(|a| a.edges), Junction::Or)
+    };
+    Answers { nodes, edges }
 }
 
-impl EdgeQuestion {
-    /// This answer and another, both required.
-    pub(crate) fn and(self, other: EdgeQuestion) -> EdgeQuestion {
-        Self::join(vec![self, other], Junction::And)
+/// The edges a node answer keeps: those whose ends it keeps both. A view leg
+/// answers the edge question itself, so its node answer closes to that same
+/// answer: the edge's existence in the view stands for its ends'.
+pub(crate) fn closed_edges(nodes: Question<NodeExpr>) -> Question<EdgePredicate> {
+    match nodes {
+        Question::Predicate(nodes) => Question::Predicate(EdgePredicate::Edge(Expr::And(vec![
+            Expr::Term(EdgeLeaf::Src(Box::new(nodes.clone()))),
+            Expr::Term(EdgeLeaf::Dst(Box::new(nodes))),
+        ]))),
+        Question::Exists { views, negated } => Question::Exists { views, negated },
+        Question::And(legs) => Question::And(legs.into_iter().map(closed_edges).collect()),
+        Question::Or(legs) => Question::Or(legs.into_iter().map(closed_edges).collect()),
     }
-}
-
-/// The edges a node answer keeps: those whose ends it keeps both.
-pub(crate) fn closed_edges(nodes: NodeExpr) -> EdgeQuestion {
-    EdgeQuestion::Edge(Expr::And(vec![
-        Expr::Term(EdgeLeaf::Src(Box::new(nodes.clone()))),
-        Expr::Term(EdgeLeaf::Dst(Box::new(nodes))),
-    ]))
 }
 
 /// A yes/no expression as the answer to its entity's question, or the
@@ -204,7 +274,11 @@ fn needs_view() -> GraphError {
     GraphError::invalid_filter("a view filter needs at least one view")
 }
 
-fn view_below_top_level() -> GraphError {
+/// A filtered graph is seen through a view; there is no graph that is seen
+/// through "this view or that predicate", nor one seen through "not this
+/// view", so on that path a view stands alone or beside the other legs of
+/// the top-level `and`.
+pub(crate) fn view_below_top_level() -> GraphError {
     GraphError::invalid_filter(
         "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
          not under `or` or `not`",
@@ -214,14 +288,14 @@ fn view_below_top_level() -> GraphError {
 impl FilterExpr {
     /// This filter sorted by question.
     ///
-    /// A view (`View`) stands alone or is a leg of the top-level `and`
-    /// (nested `and`s count as top level); under `or` or `not` it has no
-    /// meaning the engine can give it and is refused. What a view leg means
-    /// depends on what the filter is applied to: a filtered graph is seen
-    /// through it first and the other legs run inside it, the way
-    /// `graph.window(..).filter(expr)` does, while a node or edge filter
-    /// asks that the entity exist in the view and runs the other legs on the
-    /// collection's own graph, so there `and` is just `and`.
+    /// What a view leg means depends on what the filter is applied to. A
+    /// filtered graph is seen through the view legs of the top-level `and`
+    /// first and the other legs run inside it, the way
+    /// `graph.window(..).filter(expr)` does; a view anywhere else has no
+    /// graph to produce and is refused there. A node or edge filter asks that
+    /// the entity exist in the view and runs the other legs on the
+    /// collection's own graph, so there a view is a test like any other and
+    /// combines with `and`, `or` and `not`.
     pub(crate) fn split(&self) -> Result<SplitFilter, GraphError> {
         let (views, predicates) = self.top_views()?;
         let legs = predicates
@@ -267,26 +341,41 @@ impl FilterExpr {
     }
 
     /// The direct answers of this leg, or the opposite answers when negated.
-    /// A leaf answers its own entity's question; `and`, `or` and `not`
-    /// combine their legs' answers question by question.
+    /// A leaf answers its own entity's question, a view leg answers both
+    /// with the entity's existence in it; `and`, `or` and `not` combine
+    /// their legs' answers question by question.
     fn answers(&self, negated: bool) -> Result<Answers, GraphError> {
         let legs = |items: &[FilterExpr]| -> Result<Vec<Answers>, GraphError> {
             items.iter().map(|item| item.answers(negated)).collect()
         };
         Ok(match self {
             FilterExpr::Node(expr) => Answers {
-                nodes: Some(predicate(expr, negated)?),
+                nodes: Some(Question::Predicate(predicate(expr, negated)?)),
                 edges: None,
             },
             FilterExpr::Edge(expr) => Answers {
                 nodes: None,
-                edges: Some(EdgeQuestion::Edge(predicate(expr, negated)?)),
+                edges: Some(Question::Predicate(EdgePredicate::Edge(predicate(
+                    expr, negated,
+                )?))),
             },
             FilterExpr::ExplodedEdge(expr) => Answers {
                 nodes: None,
-                edges: Some(EdgeQuestion::Exploded(predicate(expr, negated)?)),
+                edges: Some(Question::Predicate(EdgePredicate::Exploded(predicate(
+                    expr, negated,
+                )?))),
             },
-            FilterExpr::View(_) => return Err(view_below_top_level()),
+            FilterExpr::View(ops) if ops.is_empty() => return Err(needs_view()),
+            FilterExpr::View(ops) => Answers {
+                nodes: Some(Question::Exists {
+                    views: ops.clone(),
+                    negated,
+                }),
+                edges: Some(Question::Exists {
+                    views: ops.clone(),
+                    negated,
+                }),
+            },
             FilterExpr::And(items) if items.is_empty() => return Err(needs_operand("and")),
             FilterExpr::Or(items) if items.is_empty() => return Err(needs_operand("or")),
             FilterExpr::And(items) => all_of(legs(items)?, negated),

@@ -35,7 +35,7 @@ mod tests;
 
 pub use builder::{Chain, EdgeEndpoint, EdgeKind, IntoExpr, PropertyTerm};
 pub use compile::Leaf;
-pub(crate) use split::{EdgeQuestion, SplitFilter};
+pub(crate) use split::{EdgePredicate, Question, SplitFilter};
 pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory, ValueTest};
 
 use super::{

@@ -89,19 +89,19 @@ def test_node_collection_combinations_follow_set_algebra():
         every = frozenset(graph.nodes.name)
         cases = []
         views = {"window", "before", "layer"}
-        # A view composes with `&` only; under `|` or `~` it is refused where it is written.
-        # On `nodes[]` a view leg is an existence test, so `view & X` is set algebra there;
-        # on `filter()` the view applies first and `X` runs inside it (pinned below).
+        # On `nodes[]` a view leg is an existence test, so it follows set algebra under `&`,
+        # `|` and `~`. On `filter()` the view applies first and `X` runs inside it (pinned
+        # below), and `|` or `~` on a view is refused.
         select_only = set()
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
-            if a in views or b in views:
-                select_only.add(f"{a} & {b}")
-                continue
             cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
+            if a in views or b in views:
+                select_only.update({f"{a} & {b}", f"{a} | {b}"})
         for a in atoms:
-            if a not in views:
-                cases.append((f"~{a}", ~atoms[a], every - single[a]))
+            cases.append((f"~{a}", ~atoms[a], every - single[a]))
+            if a in views:
+                select_only.add(f"~{a}")
 
         mismatches = []
         for label, expr, want in cases:
@@ -137,9 +137,10 @@ def test_node_collection_combinations_follow_set_algebra():
         assert frozenset(
             graph.filter(atoms["window"] & atoms["layer"]).nodes.name
         ) == frozenset(graph.window(3, 12).layer("work").nodes.name)
-        with pytest.raises(TypeError, match="view"):
-            ~atoms["window"]
-        with pytest.raises(TypeError, match="view"):
-            atoms["name"] | atoms["window"]
+        # `|` and `~` on a view: a plain test on `nodes[]`, refused on `filter()`
+        assert frozenset(graph.nodes[~atoms["window"]].name) == every - single["window"]
+        for expr in (~atoms["window"], atoms["name"] | atoms["window"]):
+            with pytest.raises(Exception, match="view"):
+                graph.filter(expr)
 
     return check

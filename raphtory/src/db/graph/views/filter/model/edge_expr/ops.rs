@@ -569,6 +569,40 @@ impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for AndEdgeOp<L,
     }
 }
 
+/// The opposite of a yes/no edge op.
+#[derive(Debug, Clone)]
+pub struct NotEdgeOp<T>(pub(crate) T);
+
+impl<T: EdgeOp<Output = bool>> EdgeOp for NotEdgeOp<T> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
+        !self.0.apply(storage, edge)
+    }
+
+    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
+        !self.0.apply_layer(storage, edge, layer)
+    }
+
+    fn apply_exploded(
+        &self,
+        storage: &GraphStorage,
+        edge: EdgeEntryRef,
+        layer: LayerId,
+        t: EventTime,
+    ) -> bool {
+        !self.0.apply_exploded(storage, edge, layer, t)
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
+
+    fn const_value(&self) -> Option<bool> {
+        self.0.const_value().map(|v| !v)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct OrEdgeOp<L, R> {
     pub(crate) left: L,

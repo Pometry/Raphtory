@@ -103,16 +103,6 @@ def _has_view(a, b):
     return a in VIEWS or b in VIEWS
 
 
-def _or_is_refused(a, b):
-    # A view under `|` has no meaning the engine can give it, so it is refused when written
-    # (`test_a_view_under_or_or_not_is_refused`).
-    return a in VIEWS or b in VIEWS
-
-
-def _not_is_refused(a):
-    return a in VIEWS
-
-
 def _ids(collection):
     return frozenset(e.id for e in collection)
 
@@ -266,8 +256,10 @@ def test_combinations_follow_set_algebra():
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             if _has_view(a, b):
-                select_only.add(f"{a} & {b}")
-            if _or_is_refused(a, b):
+                # on `edges[]` a view leg is an existence test, so `|` on it is a union
+                # too; on `filter()` a view under `|` is refused
+                select_only.update({f"{a} & {b}", f"{a} | {b}"})
+                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
                 continue
             if _kind(a) == _kind(b) == "node":
                 # Node predicates combine on nodes first: an edge stays when both
@@ -321,7 +313,10 @@ def test_combinations_follow_set_algebra():
                 )
                 cases.append((f"~({a} | {b})", ~(atoms[a] | atoms[b]), every))
         for a in atoms:
-            if not _not_is_refused(a):
+            if a in VIEWS:
+                select_only.add(f"~{a}")
+                cases.append((f"~{a}", ~atoms[a], every - single[a]))
+            else:
                 cases.append((f"~{a}", ~atoms[a], negated[a]))
         cases.append(
             (
@@ -512,21 +507,35 @@ def test_a_view_leg_is_an_existence_test_on_select():
 
 
 @with_variants(_init)
-def test_a_view_under_or_or_not_is_refused():
-    """A view applies to the whole filter, so it composes with `&` only. Under `|` or `~` the
-    engine has no meaning to give it, and the expression is refused where it is written.
+def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
+    """On `edges[]` a view leg is an existence test, so `|` and `~` on it have their plain
+    set meanings. On `filter()` there is no graph that is "layered or heavy", nor one that
+    is "not layered", so the same filters are refused there, when applied.
     """
 
     def check(graph):
-        atoms = _atoms()
-        for label, build in {
-            "edge_prop | layer": lambda: atoms["edge_prop"] | atoms["layer"],
-            "~layer": lambda: ~atoms["layer"],
-            "~(edge_prop & layer)": lambda: ~(atoms["edge_prop"] & atoms["layer"]),
-            "(edge_prop & layer) | src": lambda: (atoms["edge_prop"] & atoms["layer"])
-            | atoms["src"],
-        }.items():
-            with pytest.raises(TypeError, match="view"):
-                build()
+        atoms, single = _atoms(), _singles(graph)
+        every = _ids(graph.edges)
+        cases = {
+            "edge_prop | layer": (
+                atoms["edge_prop"] | atoms["layer"],
+                single["edge_prop"] | single["layer"],
+            ),
+            "~layer": (~atoms["layer"], every - single["layer"]),
+            "(edge_prop & layer) | src": (
+                (atoms["edge_prop"] & atoms["layer"]) | atoms["src"],
+                (single["edge_prop"] & single["layer"]) | single["src"],
+            ),
+        }
+        for label, (expr, want) in cases.items():
+            assert _ids(graph.edges[expr]) == want, label
+            with pytest.raises(Exception, match="view"):
+                graph.filter(expr)
+        # a negated composite follows the two-question rule rather than set algebra;
+        # it runs on the collection and is refused on the graph like the rest
+        composite = ~(atoms["edge_prop"] & atoms["layer"])
+        graph.edges[composite]
+        with pytest.raises(Exception, match="view"):
+            graph.filter(composite)
 
     return check

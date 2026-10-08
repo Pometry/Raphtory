@@ -424,11 +424,10 @@ fn a_view_leg_restricts_the_whole_filter() {
     assert_eq!(edges(&g, &f), ["alice->bob"]);
     assert_eq!(f.to_string(), "VIEW(WINDOW[0..5] . LATEST)");
     assert!(FilterExpr::View(vec![]).split().is_err());
-    // Under `or` or `not` a view has no meaning the engine can give it.
-    assert!(FilterExpr::Or(vec![win.clone(), score_gt_4.clone()])
-        .split()
-        .is_err());
-    assert!(FilterExpr::Not(Box::new(win.clone())).split().is_err());
+    // Under `or` or `not` a view has no graph to produce.
+    let or = FilterExpr::Or(vec![win.clone(), score_gt_4.clone()]);
+    assert!(error(&g, &or).contains("view"));
+    assert!(error(&g, &FilterExpr::Not(Box::new(win.clone()))).contains("view"));
     assert!(f.has_view() && !score_gt_4.has_view());
 }
 
@@ -489,6 +488,52 @@ fn a_view_leg_in_a_select_is_an_existence_test() {
     );
     let active = EdgeFilter.window(5, 10).is_active();
     assert_eq!(selected(g.edges().select(active).unwrap()), ["c->d"]);
+}
+
+/// On a collection a view leg is a test like any other, so it takes `or`
+/// and `not`: "exists in the view", "does not exist in it". The same filters
+/// have no graph to produce and are refused on `graph.filter`.
+#[test]
+fn a_view_under_or_or_not_is_a_test_on_a_collection() {
+    fn selected<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<String> {
+        let mut ids: Vec<String> = edges
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect();
+        ids.sort();
+        ids
+    }
+    let g = graph();
+    // eve has nothing after 0, so she alone is outside [5, 8)
+    let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(5, 8)])));
+    let mut names: Vec<String> = g.nodes().select(outside.clone()).unwrap().name().collect();
+    names.sort();
+    assert_eq!(names, ["eve"]);
+    assert!(error(&g, &outside).contains("view"));
+    // bob is active in [7, 8) and alice's score is 9: either keeps a node
+    let either = FilterExpr::Or(vec![
+        FilterExpr::View(vec![window(7, 8)]),
+        node(cmp(BinaryOp::Gt, prop("score"), c(8.0))),
+    ]);
+    let mut names: Vec<String> = g.nodes().select(either.clone()).unwrap().name().collect();
+    names.sort();
+    assert_eq!(names, ["alice", "bob"]);
+    assert!(error(&g, &either).contains("view"));
+    // carol→dave is the one edge with nothing before 3
+    let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(0, 3)])));
+    assert_eq!(
+        selected(g.edges().select(outside).unwrap()),
+        ["carol->dave"]
+    );
+    // the test is existence: on a persistent graph an edge alive through the
+    // window exists in it, so `not` keeps nothing, where `not active` keeps it
+    let g = PersistentGraph::new();
+    g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+    g.add_edge(7, "c", "d", NO_PROPS, None).unwrap();
+    let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(5, 10)])));
+    assert!(selected(g.edges().select(outside).unwrap()).is_empty());
+    let inactive = EdgeFilter.window(5, 10).is_active().not();
+    assert_eq!(selected(g.edges().select(inactive).unwrap()), ["a->b"]);
 }
 
 #[test]
@@ -920,9 +965,9 @@ fn not_over_an_exploded_predicate_keeps_the_other_instances() {
     );
 }
 
-/// A view under `not` is refused, before and after the push-down.
+/// On a graph a view under `not` is refused, before and after the push-down.
 #[test]
-fn a_view_under_not_is_refused_inside_a_composite_too() {
+fn a_view_under_not_is_refused_on_a_graph_inside_a_composite_too() {
     let g = graph();
     let win = FilterExpr::View(vec![window(0, 5)]);
     let pred = node(cmp(BinaryOp::Gt, prop("score"), c(1.5)));

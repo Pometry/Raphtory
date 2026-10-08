@@ -78,16 +78,12 @@ impl PyFilterExpr {
         PyFilterExpr(FilterExpr::And(vec![self.0.clone(), other.into_filter()]))
     }
 
-    fn __or__(&self, other: ExprOrFilter) -> PyResult<Self> {
-        let other = other.into_filter();
-        no_view(&self.0)?;
-        no_view(&other)?;
-        Ok(PyFilterExpr(FilterExpr::Or(vec![self.0.clone(), other])))
+    fn __or__(&self, other: ExprOrFilter) -> Self {
+        PyFilterExpr(FilterExpr::Or(vec![self.0.clone(), other.into_filter()]))
     }
 
-    fn __invert__(&self) -> PyResult<Self> {
-        no_view(&self.0)?;
-        Ok(PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone()))))
+    fn __invert__(&self) -> Self {
+        PyFilterExpr(FilterExpr::Not(Box::new(self.0.clone())))
     }
 
     /// The Python expression that builds this filter, module-qualified, so
@@ -95,18 +91,6 @@ impl PyFilterExpr {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
         repr::filter(py, &self.0)
     }
-}
-
-/// A view applies to the whole filter, so it can be `&`-ed with predicates or applied
-/// alone, but has no meaning under `|` or `~`. Refused where it is written, as the
-/// engine would refuse it when applied.
-pub(crate) fn no_view(filter: &FilterExpr) -> PyResult<()> {
-    if filter.has_view() {
-        return Err(PyTypeError::new_err(
-            "a view (filter.Graph...) applies to the whole filter: combine it with `&` or apply it alone, not with `|` or `~`",
-        ));
-    }
-    Ok(())
 }
 
 impl CreateFilter for PyFilterExpr {

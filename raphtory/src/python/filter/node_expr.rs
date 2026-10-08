@@ -15,7 +15,7 @@ use crate::{
     errors::GraphError,
     python::{
         filter::{
-            filter_expr::{no_view, ExprOrFilter, PyFilterExpr},
+            filter_expr::{ExprOrFilter, PyFilterExpr},
             repr,
         },
         graph::node_state::PyOutputNodeState,
@@ -291,7 +291,6 @@ impl PyExpr {
         let filter = if all {
             FilterExpr::And(vec![mine, other])
         } else {
-            no_view(&other)?;
             FilterExpr::Or(vec![mine, other])
         };
         PyFilterExpr(filter).into_bound_py_any(py)
