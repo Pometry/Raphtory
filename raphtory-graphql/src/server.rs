@@ -69,6 +69,7 @@ use {
 
 use crate::plugin::server::PluginRegistrationError;
 pub use config::ConfigError;
+use poem::listener::TcpAcceptor;
 
 pub const DEFAULT_PORT: u16 = 1736;
 
@@ -121,7 +122,6 @@ type SchemaDataInjector = Arc<
 >;
 
 /// A struct for defining and running a Raphtory GraphQL server
-#[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     work_dir: PathBuf,
@@ -255,9 +255,12 @@ impl GraphServer {
 
     /// Start the server on the default port and return a handle to it.
     /// If the default port is in use,
-    pub async fn start(&self) -> IoResult<RunningGraphServer> {
-        match self.start_with_port(DEFAULT_PORT).await {
-            Ok(server) => Ok(server),
+    pub async fn start(self) -> IoResult<RunningGraphServer> {
+        match TcpListener::bind(format!("0.0.0.0:{DEFAULT_PORT}"))
+            .into_acceptor()
+            .await
+        {
+            Ok(acceptor) => self.start_with_acceptor(acceptor).await,
             Err(err) => {
                 if matches!(err.kind(), ErrorKind::AddrInUse) {
                     warn!("Default port {DEFAULT_PORT} already in use, retrying with port=0");
@@ -270,11 +273,13 @@ impl GraphServer {
     }
 
     /// Start the server on the given port and return a handle to it.
-    pub async fn start_with_port(&self, port: u16) -> IoResult<RunningGraphServer> {
+    pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
         let acceptor = TcpListener::bind(format!("0.0.0.0:{port}"))
             .into_acceptor()
             .await?;
-
+        self.start_with_acceptor(acceptor).await
+    }
+    async fn start_with_acceptor(self, acceptor: TcpAcceptor) -> IoResult<RunningGraphServer> {
         // Setup opentelemetry tracing and logging providers.
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
@@ -302,7 +307,7 @@ impl GraphServer {
             }
         };
 
-        let work_dir = self.work_dir();
+        let work_dir = self.work_dir().to_path_buf();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
@@ -342,12 +347,12 @@ impl GraphServer {
         })
     }
 
-    pub async fn build_schema(&self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
+    pub async fn build_schema(self, tracer: Option<Tracer>) -> Result<Schema, ServerError> {
         let schema_cfg = &self.config.schema;
 
         let mut schema_builder = App::create_schema_with_plugins(&self.schema_plugins)
-            .data(self.data.clone())
-            .data(self.config.concurrency.clone());
+            .data(self.data)
+            .data(self.config.concurrency);
 
         for inject in &self.schema_data {
             schema_builder = inject(schema_builder);
@@ -380,22 +385,24 @@ impl GraphServer {
     }
 
     pub(crate) async fn generate_endpoint(
-        &self,
+        self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let config = self.config.clone();
+        let key_resolver = self.key_resolver.clone();
         let schema = self.build_schema(tracer).await?;
         let graphql = Arc::new(AuthenticatedGraphQL::new(
             schema,
-            self.config.clone(),
-            self.key_resolver.clone(),
+            config.clone(),
+            key_resolver,
         ));
 
         let app = Route::new()
             .nest(
                 "/",
                 PublicFilesEndpoint::new(
-                    self.config.public_dir.clone(),
-                    self.config.schema.disable_ui,
+                    config.public_dir.clone(),
+                    config.schema.disable_ui,
                     graphql.clone(),
                 ),
             )
@@ -404,7 +411,7 @@ impl GraphServer {
         #[cfg(feature = "rdf")]
         let app = app.at(
             "/sparql/*path",
-            crate::sparql::endpoint::SparqlEndpoint::new(graphql, self.config.concurrency.clone()),
+            crate::sparql::endpoint::SparqlEndpoint::new(graphql, config.concurrency.clone()),
         );
         let app = app
             .with(Cors::new())

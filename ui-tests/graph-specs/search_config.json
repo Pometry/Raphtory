@@ -1,0 +1,68 @@
+{
+    "graphType": "EVENT",
+    "nodes": [
+        {
+            "time": 0,
+            "name": "Account0",
+            "nodeType": "Account",
+            "properties": {
+                "balance": 100,
+                "country": "UK",
+                "secret": "hidden"
+            }
+        },
+        {
+            "time": 1,
+            "name": "Account1",
+            "nodeType": "Account",
+            "properties": {
+                "balance": 200,
+                "country": "ES",
+                "secret": "hidden"
+            }
+        },
+        {
+            "time": 2,
+            "name": "Transaction0",
+            "nodeType": "Transaction",
+            "properties": {
+                "amount": 50,
+                "currency": "GBP"
+            }
+        },
+        {
+            "time": 3,
+            "name": "Tag0",
+            "nodeType": "Tag",
+            "properties": {
+                "label": "vip"
+            }
+        }
+    ],
+    "edges": [
+        {
+            "time": 2,
+            "src": "Account0",
+            "dst": "Transaction0",
+            "layer": "sends"
+        },
+        {
+            "time": 3,
+            "src": "Transaction0",
+            "dst": "Account1",
+            "layer": "receives"
+        },
+        {
+            "time": 3,
+            "src": "Tag0",
+            "dst": "Account0",
+            "layer": "tags"
+        }
+    ],
+    "metadata": {
+        "_ui_node_type_search_properties": {
+            "Account": ["country", "balance"],
+            "Tag": []
+        }
+    }
+}

@@ -991,7 +991,7 @@ class Graph(GraphView):
             MutableNode: The added node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -1067,7 +1067,7 @@ class Graph(GraphView):
             MutableNode: The created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
@@ -1788,7 +1788,7 @@ class PersistentGraph(GraphView):
             None: This function does not return a value, if the operation is successful.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -1862,7 +1862,7 @@ class PersistentGraph(GraphView):
           MutableNode: the newly created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
