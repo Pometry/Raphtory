@@ -4,7 +4,10 @@ use crate::db::graph::views::filter::model::{
     },
     FilterOperator, InternalPropertyFilterBuilder,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::prop::{prop_hashable::HashableProp, Prop},
+    storage::arc_str::ArcStr,
+};
 use std::sync::Arc;
 
 pub trait PropertyFilterOps: InternalPropertyFilterBuilder {
@@ -94,7 +97,9 @@ impl<T: ?Sized + InternalPropertyFilterBuilder> PropertyFilterOps for T {
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> Self::Filter {
         let filter = PropertyFilterInput {
             prop_ref: self.property_ref(),
-            prop_value: PropertyFilterValue::Set(Arc::new(values.into_iter().collect())),
+            prop_value: PropertyFilterValue::Set(Arc::new(
+                values.into_iter().map(HashableProp::from).collect(),
+            )),
             operator: FilterOperator::IsIn,
             ops: self.ops().to_vec(),
         };
@@ -104,7 +109,9 @@ impl<T: ?Sized + InternalPropertyFilterBuilder> PropertyFilterOps for T {
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> Self::Filter {
         let filter = PropertyFilterInput {
             prop_ref: self.property_ref(),
-            prop_value: PropertyFilterValue::Set(Arc::new(values.into_iter().collect())),
+            prop_value: PropertyFilterValue::Set(Arc::new(
+                values.into_iter().map(HashableProp::from).collect(),
+            )),
             operator: FilterOperator::IsNotIn,
             ops: self.ops().to_vec(),
         };

@@ -21,7 +21,6 @@ use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMa
 use raphtory_api::core::entities::properties::prop::{arrow_dtype_from_prop_type, Prop, PropType};
 use std::{
     collections::HashMap,
-    ffi::OsStr,
     fs,
     fs::File,
     ops::Deref,
@@ -29,6 +28,10 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(feature = "python")]
+use std::ffi::OsStr;
+
+#[cfg(feature = "python")]
 pub(crate) fn is_parquet_path(path: &PathBuf) -> Result<bool, std::io::Error> {
     if path.is_dir() {
         Ok(fs::read_dir(path)?.any(|entry| {

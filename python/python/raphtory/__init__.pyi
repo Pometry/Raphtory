@@ -674,14 +674,24 @@ class GraphView(object):
         """
         Create a VectorisedGraph from the current graph.
 
+        Every node and edge is rendered into a text document by a template, and the document is what gets embedded.
+
         Args:
           model (VectorCache): Cache wrapping the embedding model used to embed documents.
-          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
-          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          nodes (bool | str): True to embed nodes with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each node with. Defaults to True.
+          edges (bool | str): True to embed edges with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each edge with. Defaults to True.
           verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
           VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+
+        Note:
+          A template string is rendered as it is, so a bare word such as `"description"` becomes the literal document `description` for every entity; to embed a property, interpolate it: `"{{ properties.description }}"`.
+
+          A node template can use `name`, `node_type`, `properties`, `metadata` and `temporal_properties` (a mapping from property name to a list of `(time, value)` pairs). An edge template can use `src` and `dst` (each with the node variables above, e.g. `src.name`), `history` (the update times), `layers`, `properties`, `metadata` and `temporal_properties`. A `datetimeformat` filter formats a timestamp, as in `{{ time|datetimeformat }}`.
+
+        Example:
+          >>> vg = g.vectorise(cache, nodes="{{ name }} is a {{ node_type }}", edges="{{ src.name }} -> {{ dst.name }}: {{ properties.description }}")
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
@@ -711,11 +721,13 @@ class Graph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
-        config (Config, optional): The configuration options for the graph
+        config (dict[str, Any], optional): The configuration options for the graph
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls,
+        path: Optional[str | PathLike] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -785,7 +797,7 @@ class Graph(GraphView):
             MutableNode: The added node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -861,7 +873,7 @@ class Graph(GraphView):
             MutableNode: The created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
@@ -1128,22 +1140,22 @@ class Graph(GraphView):
     @staticmethod
     def load(
         path: str | PathLike,
-        config: Optional[Config] = None,
-        read_only: Optional[bool] = False,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
     ) -> Graph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
-                                       (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-                                        Multiple processes can hold a read-only handle to the same
-                                        graph directory concurrently. Mutating the returned graph will fail.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
-            Graph: the graph
+            Graph: the graph loaded from path
         """
 
     def load_edge_metadata(
@@ -1442,12 +1454,14 @@ class PersistentGraph(GraphView):
 
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
-        config (Config, optional): Storage/config overrides. Defaults to None.
+        config (dict[str, Any], optional): Storage/config overrides. Defaults to None.
 
     """
 
     def __new__(
-        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+        cls,
+        path: Optional[str | PathLike] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -1517,7 +1531,7 @@ class PersistentGraph(GraphView):
             None: This function does not return a value, if the operation is successful.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -1591,7 +1605,7 @@ class PersistentGraph(GraphView):
           MutableNode: the newly created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
@@ -1841,22 +1855,22 @@ class PersistentGraph(GraphView):
     @staticmethod
     def load(
         path: str | PathLike,
-        config: Optional[Config] = None,
-        read_only: Optional[bool] = False,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
     ) -> PersistentGraph:
         """
         Load a disk graph from path
 
         Arguments:
             path (str | PathLike): the path of the graph folder
-            config (Config, optional): specify a new config to override the values saved for the graph
-                                       (note that the page sizes cannot be overridden and are ignored)
-            read_only (bool, optional): open as a read-only snapshot. Defaults to False.
-                                        Multiple processes can hold a read-only handle to the same
-                                        graph directory concurrently. Mutating the returned graph will fail.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
-            PersistentGraph: the graph
+            PersistentGraph: the graph loaded from path
         """
 
     def load_edge_deletions(

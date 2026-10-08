@@ -3,7 +3,10 @@ use itertools::Itertools;
 use proptest::{proptest, sample::subsequence};
 use raphtory::{
     algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
-    db::graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    db::{
+        api::state::Index,
+        graph::{assertions::assert_graph_equal, views::deletion_graph::PersistentGraph},
+    },
     prelude::*,
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
@@ -11,6 +14,7 @@ use raphtory_tests::{
     test_storage,
     utils::{build_graph, build_graph_strat},
 };
+use rayon::prelude::ParallelIterator;
 use serde_json::json;
 use std::collections::BTreeSet;
 
@@ -160,7 +164,7 @@ fn materialize_proptest_failure() {
     let graph = Graph::from(build_graph(&graph_f));
     let subgraph = graph.subgraph([1]);
     let nodes = subgraph.default_layer().nodes().id().collect_vec();
-    dbg!(nodes);
+    assert!(nodes.is_empty());
     assert_eq!(subgraph.default_layer().count_nodes(), 0);
     assert_eq!(subgraph.count_edges(), 1);
     let materialised = subgraph.materialize().unwrap();

@@ -1,4 +1,8 @@
-use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
+use crate::model::graph::{
+    node_id::GqlNodeId,
+    property::{GqlU64, Value},
+    timeindex::GqlTimeInput,
+};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -41,7 +45,10 @@ use raphtory::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, Layer, GID},
+    entities::{
+        properties::prop::{prop_hashable::HashableProp, Prop},
+        Layer, GID,
+    },
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
     Direction,
@@ -1518,7 +1525,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
             .map(Prop::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PropertyFilterValue::Set(Arc::new(
-            props.into_iter().collect(),
+            props.into_iter().map(HashableProp::from).collect(),
         )))
     } else {
         Err(GraphError::InvalidGqlFilter(format!(
@@ -1529,7 +1536,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
 
 fn parse_node_id_scalar(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     match v {
-        Value::U64(i) => Ok(FilterValue::ID(GID::U64(*i))),
+        Value::U64(i) => Ok(FilterValue::ID(GID::U64(i.0))),
         Value::Str(s) => Ok(FilterValue::ID(GID::Str(s.clone()))),
         other => Err(GraphError::InvalidGqlFilter(format!(
             "{op} requires int or str, got {other}"
@@ -1556,7 +1563,7 @@ fn parse_node_id_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     if all_u64 {
         for v in vs {
             if let Value::U64(i) = v {
-                set.insert(GID::U64(*i));
+                set.insert(GID::U64(i.0));
             }
         }
     } else {
@@ -2546,13 +2553,13 @@ fn filter_value_to_value(v: &FilterValue) -> Result<Value, GraphError> {
             Value::List(strs.iter().map(|s| Value::Str(s.clone())).collect())
         }
         FilterValue::ID(GID::Str(s)) => Value::Str(s.clone()),
-        FilterValue::ID(GID::U64(u)) => Value::U64(*u),
+        FilterValue::ID(GID::U64(u)) => Value::U64(GqlU64(*u)),
         FilterValue::IDSet(gids) => {
             let items: Vec<Value> = gids
                 .iter()
                 .map(|g| match g {
                     GID::Str(s) => Value::Str(s.clone()),
-                    GID::U64(u) => Value::U64(*u),
+                    GID::U64(u) => Value::U64(GqlU64(*u)),
                 })
                 .collect();
             Value::List(items)
@@ -2569,7 +2576,10 @@ fn prop_filter_value_to_value(v: &PropertyFilterValue) -> Result<Value, GraphErr
         PropertyFilterValue::Single(p) => Value::try_from(p),
         PropertyFilterValue::Set(ps) => {
             // Set semantics — element order is irrelevant on the wire.
-            let items: Vec<Value> = ps.iter().map(Value::try_from).collect::<Result<_, _>>()?;
+            let items: Vec<Value> = ps
+                .iter()
+                .map(|v| Value::try_from(&v.0))
+                .collect::<Result<_, _>>()?;
             Ok(Value::List(items))
         }
         PropertyFilterValue::None => Err(GraphError::InvalidGqlFilter(

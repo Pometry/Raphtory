@@ -205,9 +205,21 @@ type Algorithms {
 		"""
 		iterCount: Int,
 		"""
+		Seed for the tie-break draw. If unset, seeded from the OS.
+		"""
+		seed: Int,
+		"""
 		Number of threads to use. Defaults to all available.
 		"""
-		threads: Int
+		threads: Int,
+		"""
+		Relative-improvement threshold used to track convergence. Defaults to 3e-4.
+		"""
+		relTol: Float,
+		"""
+		Stop after this many iterations without progress. Defaults to 10.
+		"""
+		patience: Int
 	): NodeState!
 	"""
 	Returns the weighted shortest path from `source` to each of `targets` (Dijkstra).
@@ -7501,6 +7513,14 @@ the event_id explicitly.
 scalar TimeInput
 
 """
+64 bit unsigned integer, accepting the full `0..=18446744073709551615` range.
+
+Accepts a JSON number, or a decimal string for clients that can't represent
+large integers exactly (e.g. JavaScript beyond 2^53).
+"""
+scalar UInt64
+
+"""
 A multipart file upload
 """
 scalar Upload
@@ -7521,7 +7541,7 @@ input Value @oneOf {
 	"""
 	64 bit unsigned integer.
 	"""
-	u64: Int
+	u64: UInt64
 	"""
 	32 bit signed integer.
 	"""
@@ -7835,3 +7855,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

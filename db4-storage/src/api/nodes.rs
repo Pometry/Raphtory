@@ -39,7 +39,10 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
-use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::prop_hashable::HashableProp},
+};
 use raphtory_itertools::FastMergeExt;
 use rayon::prelude::*;
 
@@ -49,7 +52,7 @@ use rayon::prelude::*;
 #[derive(Debug, Clone, Copy)]
 pub enum PropPredicate<'a> {
     Eq(&'a Prop),
-    In(&'a std::collections::HashSet<Prop>),
+    In(&'a HashSet<HashableProp>),
     Lt(&'a Prop),
     Le(&'a Prop),
     Gt(&'a Prop),

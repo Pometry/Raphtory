@@ -1,13 +1,17 @@
 use crate::{
-    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
-    db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
+    algorithms::{dynamics::temporal::epidemics::SeedError, pathing::all_paths::AllPathsError},
+    core::storage::lazy_vec::IllegalSet,
+    db::graph::views::filter::model::filter_operator::FilterOperator,
+    prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
+        properties::prop::{
+            InvalidPropertyTypeErr, PropError, PropType, PropTypeError, PropTypeParseError,
+        },
         GidType, GID, VID,
     },
     storage::{graph_folder::GraphFolderError, timeindex::TimeError},
@@ -37,7 +41,6 @@ use zip::result::ZipError;
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
 
-use crate::algorithms::pathing::all_paths::AllPathsError;
 #[cfg(any(feature = "vectors", feature = "io"))]
 use tempfile::PersistError;
 
@@ -83,17 +86,23 @@ pub enum LoadError {
     InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(DataType),
+    #[error(
+        "Only integer columns (uint64, uint32, int64, int32) are supported for event_id, got {0:?}"
+    )]
+    InvalidSecondaryIndexType(DataType),
+    #[error("event_id values must be non-negative, got {0}")]
+    NegativeSecondaryIndex(i64),
     #[error("Error during parsing of time string: {source}")]
     ParseTime {
         #[from]
         source: ParseTimeError,
     },
-    #[error("Missing value for src id")]
-    MissingSrcError,
-    #[error("Missing value for dst id")]
-    MissingDstError,
-    #[error("Missing value for node id")]
-    MissingNodeError,
+    #[error("Invalid src id column: {0}")]
+    InvalidSrcError(InvalidGIDError),
+    #[error("Invalid dst id column: {0}")]
+    InvalidDstError(InvalidGIDError),
+    #[error("Invalid node id column: {0}")]
+    InvalidNodeError(InvalidGIDError),
     #[error("Missing value for timestamp")]
     MissingTimeError,
     #[error("Missing value for secondary index")]
@@ -110,6 +119,14 @@ pub enum LoadError {
     },
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidGIDError {
+    #[error("value missing")]
+    Missing,
+    #[error("negative value")]
+    Negative,
 }
 
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
@@ -136,6 +153,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     PropError(#[from] PropError),
+
+    #[error(transparent)]
+    PropTypeError(#[from] PropTypeError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
@@ -203,11 +223,8 @@ pub enum GraphError {
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),
 
-    #[error(transparent)]
-    AllPathsError(#[from] AllPathsError),
-
-    #[error("Node Type Error {0}")]
-    NodeTypeError(String),
+    #[error("Node type '{0}' does not exist")]
+    NodeTypeMissingError(String),
 
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
@@ -223,6 +240,9 @@ pub enum GraphError {
 
     #[error("Metadata {0} does not exist")]
     MetadataMissingError(String),
+
+    #[error(transparent)]
+    AllPathsError(#[from] AllPathsError),
 
     // wasm
     #[error(transparent)]

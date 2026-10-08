@@ -1,6 +1,9 @@
 mod io_tests {
-    use arrow::array::builder::{
-        ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+    use arrow::array::{
+        builder::{
+            ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
+        },
+        ArrayRef, Int32Array, Int64Array,
     };
     use itertools::Itertools;
     use proptest::proptest;
@@ -8,7 +11,8 @@ mod io_tests {
         arrow_loader::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                edges::{load_edges_from_df_prefetch, ColumnNames},
+                edge_props::load_edges_metadata_from_df,
+                edges::{load_edges_from_df, load_edges_from_df_prefetch, ColumnNames},
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -25,6 +29,7 @@ mod io_tests {
     use raphtory_tests::utils::{
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
+    use std::sync::Arc;
 
     fn build_df(
         chunk_size: usize,
@@ -238,6 +243,136 @@ mod io_tests {
             chunks: chunks.into_iter(),
             num_rows: Some(nodes.len()),
         }
+    }
+
+    fn check_invalid_node_ids(chunk: DFChunk) {
+        // nodes
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_nodes_from_df(
+            df,
+            "time",
+            None,
+            "node_id",
+            &[],
+            &[],
+            None,
+            None,
+            None,
+            &g,
+            true,
+            None,
+            None,
+            None
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        // node_meta
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_node_props_from_df(
+            df,
+            "node_id",
+            None,
+            None,
+            None,
+            None,
+            &["time"],
+            None,
+            &g,
+            false,
+            None,
+            None,
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        // edges
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_edges_metadata_from_df(
+            df,
+            ColumnNames {
+                time: "time",
+                secondary_index: None,
+                src: "node_id",
+                dst: "node_id",
+                edge_id: None,
+                layer_col: None,
+                layer_id_col: None,
+            },
+            true,
+            &[],
+            None,
+            None,
+            &g,
+        )
+        .is_err());
+        assert!(g.is_empty());
+
+        //edge updates
+        let df = DFView {
+            names: vec!["node_id".to_owned(), "time".to_owned()],
+            chunks: vec![Ok(chunk.clone())].into_iter(),
+            num_rows: Some(2),
+        };
+        let g = Graph::new();
+        assert!(load_edges_from_df(
+            df,
+            ColumnNames {
+                time: "time",
+                secondary_index: None,
+                src: "node_id",
+                dst: "node_id",
+                edge_id: None,
+                layer_col: None,
+                layer_id_col: None,
+            },
+            true,
+            &[],
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .is_err());
+        assert!(g.is_empty());
+    }
+
+    #[test]
+    fn test_negative_i64_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int64Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+
+        check_invalid_node_ids(chunk);
+    }
+
+    #[test]
+    fn test_negative_i32_ids_error() {
+        let node_ids: ArrayRef = Arc::new(Int32Array::from(vec![1, -1]));
+        let times: ArrayRef = Arc::new(Int64Array::from(vec![0, 0]));
+        let chunk = DFChunk {
+            chunk: vec![node_ids, times],
+        };
+
+        check_invalid_node_ids(chunk);
     }
 
     #[test]
@@ -779,6 +914,79 @@ mod io_tests {
         ];
         assert_eq!(result, expected);
     }
+    #[test]
+    fn failed_edge_metadata_load_leaves_no_phantom_node() {
+        use raphtory::arrow_loader::df_loaders::edge_props::load_edges_metadata_from_df as load_edge_metadata_from_df;
+
+        let g = Graph::new();
+        g.add_edge(1, 1u64, 2u64, NO_PROPS, None).unwrap();
+
+        // the second row names nodes the graph has never seen
+        let rows = vec![
+            (1u64, 2u64, 0i64, "kept".to_owned(), 1i64),
+            (7u64, 8u64, 0i64, "dropped".to_owned(), 2i64),
+        ];
+        let err = load_edge_metadata_from_df(
+            build_df(10, &rows),
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &["str_prop"],
+            None,
+            None,
+            &g,
+        )
+        .err()
+        .expect("an unknown endpoint must fail the load");
+        assert!(
+            matches!(err, GraphError::NodeMissingError(_)),
+            "expected NodeMissingError, got {err:?}"
+        );
+        assert!(err.to_string().contains("does not exist"), "{err}");
+
+        // nothing was created and nothing was applied
+        assert_eq!(g.count_nodes(), 2);
+        assert!(!g.has_node(7u64));
+        assert!(!g.has_node(8u64));
+        // reading every node name used to panic on the phantom node
+        let mut names = g.nodes().name().collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(names, vec!["1", "2"]);
+        assert_eq!(g.edge(1u64, 2u64).unwrap().metadata().get("str_prop"), None);
+    }
+
+    #[test]
+    fn node_metadata_for_an_unknown_node_is_an_error() {
+        let g = Graph::new();
+        g.add_node(1, 1u64, NO_PROPS, None, None).unwrap();
+
+        let rows = vec![
+            (1u64, 1i64, 0u64, "kept", 1i64, "T"),
+            (9u64, 1i64, 0u64, "dropped", 2i64, "T"),
+        ];
+        let err = load_node_props_from_df(
+            build_nodes_df_with_secondary_index(10, &rows),
+            "node_id",
+            None,
+            None,
+            None,
+            None,
+            &["str_prop"],
+            None,
+            &g,
+            false,
+            None,
+            None,
+        )
+        .err()
+        .expect("an unknown node must fail the load");
+        assert!(
+            matches!(err, GraphError::NodeMissingError(_)),
+            "expected NodeMissingError, got {err:?}"
+        );
+        assert_eq!(g.count_nodes(), 1);
+        assert!(!g.has_node(9u64));
+        assert_eq!(g.node(1u64).unwrap().metadata().get("str_prop"), None);
+    }
 }
 
 mod parquet_tests {
@@ -842,7 +1050,8 @@ mod parquet_tests {
                                                     BigDecimal::from_str("13e-13").unwrap(),
                                                 ),
                                             ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                         Prop::List(
                                             vec![
@@ -856,7 +1065,8 @@ mod parquet_tests {
                                                     .unwrap(),
                                                 ),
                                             ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                         Prop::List(
                                             vec![
@@ -915,10 +1125,12 @@ mod parquet_tests {
                                             .unwrap(),
                                     ),
                                 ]
-                                            .into(),
+                                            .try_into()
+                                            .unwrap(),
                                         ),
                                     ]
-                                    .into(),
+                                    .try_into()
+                                    .unwrap(),
                                 ),
                             )],
                         )],
@@ -1001,7 +1213,7 @@ mod parquet_tests {
                         ("three".to_string(), Prop::I64(3)),
                         (
                             "four".to_string(),
-                            Prop::List(vec![Prop::I32(1), Prop::I32(2)].into()),
+                            Prop::List(vec![Prop::I32(1), Prop::I32(2)].try_into().unwrap()),
                         ),
                     ],
                     Some("b"),
@@ -1013,7 +1225,10 @@ mod parquet_tests {
                     vec![
                         ("three".to_string(), Prop::I64(3)),
                         ("one".to_string(), Prop::DTime(dt)),
-                        ("five".to_string(), Prop::List(vec![Prop::str("a")].into())),
+                        (
+                            "five".to_string(),
+                            Prop::List(vec![Prop::str("a")].try_into().unwrap()),
+                        ),
                     ],
                     Some("a"),
                 ),
@@ -1030,14 +1245,17 @@ mod parquet_tests {
                     0,
                     1,
                     12,
-                    vec![("a".to_string(), Prop::List(vec![].into()))],
+                    vec![("a".to_string(), Prop::List(vec![].try_into().unwrap()))],
                     None::<String>,
                 ),
                 (
                     1,
                     2,
                     12,
-                    vec![("a".to_string(), Prop::List(vec![Prop::str("aa")].into()))],
+                    vec![(
+                        "a".to_string(),
+                        Prop::List(vec![Prop::str("aa")].try_into().unwrap()),
+                    )],
                     None::<String>,
                 ),
             ]
@@ -1055,7 +1273,10 @@ mod parquet_tests {
                 0,
                 0,
                 0,
-                vec![("a".to_string(), Prop::List(vec![Prop::DTime(dt)].into()))],
+                vec![(
+                    "a".to_string(),
+                    Prop::List(vec![Prop::DTime(dt)].try_into().unwrap()),
+                )],
                 None::<String>,
             )]
             .into(),
@@ -1142,7 +1363,8 @@ mod parquet_tests {
                                     Prop::map([("n", Prop::I64(23))]),
                                     Prop::map([("b", Prop::F64(0.2))]),
                                 ]
-                                .into(),
+                                .try_into()
+                                .unwrap(),
                             ),
                         )],
                     },
@@ -1296,10 +1518,8 @@ mod parquet_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let graph_f = edges.into();
         let g = Graph::from(build_graph(&graph_f));
-        dbg!(&g);
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None, Args::default()).unwrap();
-        dbg!(&g2);
         assert_eq!(g2.valid_layers("b").count_edges(), 1);
         assert_eq!(g2.valid_layers("a").count_edges(), 1);
 

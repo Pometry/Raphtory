@@ -1,7 +1,9 @@
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
+use proptest::{
+    arbitrary::any, prelude::Strategy, prop_assert, prop_assert_eq, proptest, sample::subsequence,
+};
 use raphtory::{
     algorithms::{
         centrality::{degree_centrality::degree_centrality, pagerank::page_rank},
@@ -26,7 +28,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{LayerId, GID, VID},
+    entities::{properties::prop::prop_hashable::HashableProp, LayerId, GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::{AsTime, EventTime},
@@ -1754,7 +1756,7 @@ fn node_properties() -> Result<(), GraphError> {
         6,
         3,
         [
-            ("list_prop", vec![1.1, 2.2, 3.3].into_prop_list()),
+            ("list_prop", vec![1.1, 2.2, 3.3].into_prop_list().unwrap()),
             ("cost_b", Prop::F64(76.0)),
         ],
         Some("b"),
@@ -1940,6 +1942,7 @@ fn check_node_edge_history_count() {
 }
 
 use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use raphtory_tests::utils::{prop, prop_type};
 
 #[test]
 fn check_edge_history_on_multiple_shards() {
@@ -2068,8 +2071,10 @@ fn test_graph_metadata_proptest() {
 fn test_graph_metadata() {
     let g = Graph::new();
 
-    let as_props: Vec<(&str, Prop)> =
-        vec![("mylist", Prop::list(vec![Prop::I64(1), Prop::I64(2)]))];
+    let as_props: Vec<(&str, Prop)> = vec![(
+        "mylist",
+        Prop::list(vec![Prop::I64(1), Prop::I64(2)]).unwrap(),
+    )];
 
     g.add_metadata(as_props.clone()).unwrap();
 
@@ -3629,7 +3634,9 @@ fn test_indexed_proptest() {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
         let nodes = graph.nodes().id_filter(nodes);
-        assert_eq!(nodes.id(), expected_node_ids);
+        let mut actual = nodes.id().collect_vec();
+        actual.sort();
+        assert_eq!(actual, expected_node_ids);
     })
 }
 
@@ -3898,4 +3905,58 @@ fn test_group_by() {
             expected_subgraphs[v].deref()
         );
     }
+}
+
+#[test]
+fn hashing_proptest() {
+    proptest!(|(a in prop_type(3).prop_flat_map(|dt| prop(&dt).prop_map(HashableProp)), b in prop_type(3).prop_flat_map(|dt| prop(&dt).prop_map(HashableProp)))| {
+            let mut set = HashSet::new();
+            set.insert(a.clone());
+            assert!(set.contains(&a));
+            if a == b {
+                assert!(set.contains(&b));
+            } else {
+                assert!(!set.contains(&b));
+            }
+        } )
+}
+
+#[test]
+fn count_temporal_edges_counts_distinct_updates_not_replays() {
+    let g = Graph::new();
+    let rows = [(1, "a", "b", 10usize), (2, "b", "c", 11), (3, "c", "d", 12)];
+    for (t, src, dst, event_id) in rows {
+        g.add_edge(EventTime::new(t, event_id), src, dst, NO_PROPS, None)
+            .unwrap();
+    }
+    let exploded = |g: &Graph| g.edges().explode().iter().count();
+    assert_eq!(g.count_temporal_edges(), 3);
+    assert_eq!(exploded(&g), 3);
+
+    // replay the same (timestamp, event_id) updates: the graph deduplicates them, so the
+    // count must not grow, on the plain graph and on every view of it
+    for (t, src, dst, event_id) in rows {
+        g.add_edge(EventTime::new(t, event_id), src, dst, NO_PROPS, None)
+            .unwrap();
+    }
+    assert_eq!(exploded(&g), 3);
+    assert_eq!(g.count_temporal_edges(), 3);
+    assert_eq!(g.window(0, 10).count_temporal_edges(), 3);
+    assert_eq!(g.subgraph(["a", "b", "c", "d"]).count_temporal_edges(), 3);
+    assert_eq!(g.materialize().unwrap().count_temporal_edges(), 3);
+
+    // five writes of one update to one edge are one temporal edge
+    let h = Graph::new();
+    for _ in 0..5 {
+        h.add_edge(EventTime::new(1, 7), "a", "b", NO_PROPS, None)
+            .unwrap();
+    }
+    assert_eq!(h.count_temporal_edges(), 1);
+    assert_eq!(h.edge("a", "b").unwrap().history().len(), 1);
+
+    // a distinct event id at the same timestamp is a distinct update
+    h.add_edge(EventTime::new(1, 8), "a", "b", NO_PROPS, None)
+        .unwrap();
+    assert_eq!(h.count_temporal_edges(), 2);
+    assert_eq!(exploded(&h), 2);
 }

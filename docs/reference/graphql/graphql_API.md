@@ -1215,11 +1215,38 @@ Number of iterations to run. Defaults to 20.
 </td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">seed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the tie-break draw. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" align="right" valign="top">threads</td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
 Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">relTol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Relative-improvement threshold used to track convergence. Defaults to 3e-4.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">patience</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Stop after this many iterations without progress. Defaults to 10.
 
 </td>
 </tr>
@@ -1255,7 +1282,7 @@ Target node ids.
 <td valign="top"><a href="#string">String</a></td>
 <td>
 
-Edge property to use as weight. If unset, all edges have weight 1.
+Edge property to use as weight.
 
 </td>
 </tr>
@@ -1265,6 +1292,15 @@ Edge property to use as weight. If unset, all edges have weight 1.
 <td>
 
 Edge direction to follow. Defaults to BOTH.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">defaultWeight</td>
+<td valign="top"><a href="#value">Value</a></td>
+<td>
+
+Weight for edges that do not have a weight. Used if `weight` is not specified or the edge does not have a value for that property. Defaults to 1.
 
 </td>
 </tr>
@@ -6580,6 +6616,11 @@ later builds reuse; omit it to keep the saved one.
 <tr>
 <td colspan="2" align="right" valign="top">props</td>
 <td valign="top">[<a href="#string">String</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">indexGid</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>

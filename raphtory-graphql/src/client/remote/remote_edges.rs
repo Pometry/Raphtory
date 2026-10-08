@@ -6,10 +6,9 @@ use crate::{
         remote_edge::RemoteEdge,
         remote_path_from_node::RemotePathFromNode,
         transport::{
-            expect_bool, expect_bool_list, expect_edge_list, expect_exploded_edge_list,
-            expect_exploded_layers_edge_list, expect_i64, expect_nested_string_list,
-            expect_optional_event_time, expect_optional_event_time_list, expect_optional_i64,
-            expect_string_list, Transport,
+            expect_edge_list, expect_exploded_edge_list, expect_exploded_layers_edge_list,
+            expect_optional_event_time, expect_optional_event_time_list, expect_optional_typed,
+            expect_tagged_nested_typed_list, expect_tagged_typed_list, expect_typed, Transport,
         },
         ClientError,
     },
@@ -210,7 +209,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::Count {
             input: self.expr.clone(),
         });
-        expect_i64(self.transport.execute(&op).await?, "count")
+        expect_typed(self.transport.execute(&op).await?, "count")
     }
 
     /// Terminal: whether this view contains a layer named `name`. Fires one RPC.
@@ -219,7 +218,7 @@ impl RemoteEdges {
             input: self.expr.clone(),
             name: name.to_string(),
         });
-        expect_bool(self.transport.execute(&op).await?, "hasLayer")
+        expect_typed(self.transport.execute(&op).await?, "hasLayer")
     }
 
     /// Columnar accessor: each edge's `(src, dst)` id pair — mirrors the local
@@ -237,7 +236,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionLayerNames {
             input: self.expr.clone(),
         });
-        expect_nested_string_list(self.transport.execute(&op).await?, "layerNames")
+        expect_tagged_nested_typed_list(self.transport.execute(&op).await?, "layerNames")
     }
 
     /// Columnar accessor: each edge's single layer name — mirrors the local
@@ -247,7 +246,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionLayerName {
             input: self.expr.clone(),
         });
-        expect_string_list(self.transport.execute(&op).await?, "layerName")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "layerName")
     }
 
     /// Columnar accessor: each edge's earliest event time — mirrors the local
@@ -256,7 +255,11 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionEarliestTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "earliestTime")
+        expect_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "earliestTime",
+            "earliestTime",
+        )
     }
 
     /// Columnar accessor: each edge's latest event time — mirrors the local
@@ -265,7 +268,11 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionLatestTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "latestTime")
+        expect_optional_event_time_list(
+            self.transport.execute(&op).await?,
+            "latestTime",
+            "latestTime",
+        )
     }
 
     /// Columnar accessor: each edge's event time — mirrors the local
@@ -275,7 +282,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionTime {
             input: self.expr.clone(),
         });
-        expect_optional_event_time_list(self.transport.execute(&op).await?, "time")
+        expect_optional_event_time_list(self.transport.execute(&op).await?, "time", "time")
     }
 
     /// Columnar accessor: whether each edge is active (has an event) in the
@@ -284,7 +291,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionIsActive {
             input: self.expr.clone(),
         });
-        expect_bool_list(self.transport.execute(&op).await?, "isActive")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "isActive")
     }
 
     /// Columnar accessor: whether each edge is valid (not deleted) at the
@@ -293,7 +300,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionIsValid {
             input: self.expr.clone(),
         });
-        expect_bool_list(self.transport.execute(&op).await?, "isValid")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "isValid")
     }
 
     /// Columnar accessor: whether each edge has been deleted at the current
@@ -302,7 +309,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionIsDeleted {
             input: self.expr.clone(),
         });
-        expect_bool_list(self.transport.execute(&op).await?, "isDeleted")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "isDeleted")
     }
 
     /// Columnar accessor: whether each edge is a self-loop (`src == dst`) —
@@ -311,7 +318,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::CollectionIsSelfLoop {
             input: self.expr.clone(),
         });
-        expect_bool_list(self.transport.execute(&op).await?, "isSelfLoop")
+        expect_tagged_typed_list(self.transport.execute(&op).await?, "isSelfLoop")
     }
 
     /// The non-temporal metadata of this collection as a columnar view —
@@ -344,7 +351,7 @@ impl RemoteEdges {
         let op = Op::Read(ReadExpr::WindowSize {
             input: self.expr.clone(),
         });
-        expect_optional_i64(self.transport.execute(&op).await?, "windowSize")
+        expect_optional_typed(self.transport.execute(&op).await?, "windowSize")
     }
 
     /// Terminal: view start bound for this collection — `None` if unbounded.

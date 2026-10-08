@@ -23,7 +23,7 @@ use crate::{
             entry::{MemNodeEntry, MemNodeRef},
             segment::NodeSegmentView,
         },
-        node_type_index::NodeTypeIndexView,
+        node_type_index::{MemNodeTypeEntry, NodeTypeIndexView},
     },
 };
 use parking_lot::RwLock;
@@ -74,6 +74,7 @@ pub type GraphPropEntry<'a> = MemGraphPropEntry<'a>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 pub type GraphPropEntryRef<'a> = MemGraphPropRef<'a>;
+pub type NodeTypeEntry = MemNodeTypeEntry;
 
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
@@ -90,7 +91,8 @@ pub mod error {
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
     use raphtory_api::core::{
-        entities::properties::prop::PropError, storage::graph_folder::GraphFolderError,
+        entities::properties::prop::{PropError, PropTypeError},
+        storage::graph_folder::GraphFolderError,
         utils::time::ParseTimeError,
     };
     use raphtory_core::entities::properties::props::MetadataError;
@@ -113,6 +115,8 @@ pub mod error {
         #[error(transparent)]
         PropError(#[from] PropError),
         #[error(transparent)]
+        PropTypeError(#[from] PropTypeError),
+        #[error(transparent)]
         MetadataError(#[from] MetadataError),
         #[error("Empty Graph: {0}")]
         EmptyGraphDir(PathBuf),
@@ -132,6 +136,9 @@ pub mod error {
 
         #[error("Failed to vacuum storage")]
         VacuumError,
+
+        #[error("Read only graph")]
+        ReadOnlyGraphError,
 
         #[error("Disk storage not supported")]
         DiskStorageNotSupported,
