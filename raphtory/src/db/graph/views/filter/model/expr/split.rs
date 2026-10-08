@@ -257,7 +257,8 @@ impl FilterExpr {
                 }
             }
         }
-        let (mut views, mut predicates) = (Vec::new(), Vec::new());
+        let mut views = Vec::new();
+        let mut predicates = Vec::new();
         walk(self, &mut views, &mut predicates)?;
         Ok((views, predicates))
     }
