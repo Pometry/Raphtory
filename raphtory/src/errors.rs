@@ -431,6 +431,11 @@ impl From<InvalidNodeId> for GraphError {
 }
 
 impl GraphError {
+    /// A filter the engine can give no meaning to.
+    pub fn invalid_filter(msg: impl Into<String>) -> Self {
+        GraphError::InvalidFilter(msg.into())
+    }
+
     pub fn no_default_layer<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let valid_layers = graph.unique_layers().join(", ");
         GraphError::NoDefaultLayer { valid_layers }

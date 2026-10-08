@@ -322,9 +322,7 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> + Clone {
         V: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
     {
-        Ok(FilterExpr::Opaque(OpaqueFilter::new(
-            state.bool_col_filter(col)?,
-        )))
+        Ok(OpaqueFilter::new(state.bool_col_filter(col)?).into_filter())
     }
 }
 

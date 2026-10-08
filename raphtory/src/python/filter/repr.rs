@@ -142,7 +142,6 @@ fn render_filter(py: Python<'_>, filter: &FilterExpr) -> PyResult<Rendered> {
             " | ",
         )?,
         FilterExpr::Not(e) => Rendered::unary(format!("~{}", render_filter(py, e)?.atom())),
-        FilterExpr::Opaque(_) => Rendered::chain("<a filter with no Python form>".to_owned()),
     })
 }
 
@@ -237,6 +236,7 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
             " | ",
         )?,
         Expr::Not(e) => Rendered::unary(format!("~{}", render(py, e, entity)?.atom())),
+        Expr::Opaque(_) => Rendered::chain("<a filter with no Python form>".to_owned()),
     })
 }
 

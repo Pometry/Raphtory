@@ -29,18 +29,12 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            view::{
-                internal::{DynGraphArc, IntoDynGraphArc},
-                BoxableGraphView,
-            },
+            view::{internal::IntoDynGraphArc, BoxableGraphView},
         },
         graph::views::{
-            filter::{
-                model::{
-                    layered_filter::Layered,
-                    node_expr::{NodeMetaOp, NodePropOp},
-                },
-                DynEdgeFilter,
+            filter::model::{
+                layered_filter::Layered,
+                node_expr::{NodeMetaOp, NodePropOp},
             },
             layer_graph::LayeredGraph,
         },
@@ -53,8 +47,6 @@ use raphtory_api::core::{
 };
 use std::{ops::Deref, sync::Arc};
 
-pub mod and_filter;
-pub mod answer;
 pub mod edge_expr;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
@@ -71,7 +63,6 @@ pub mod layered_filter;
 pub mod node_expr;
 pub mod node_filter;
 pub mod node_state_filter;
-pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
 pub mod subgraph_filter;
@@ -80,96 +71,6 @@ pub mod windowed_filter;
 pub use expr::builder::{
     ComposableFilter, EdgeViewFilterOps, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
 };
-
-pub trait DynCreateFilter: Send + Sync + 'static {
-    fn create_dyn_graph_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynGraphArc<'graph>, GraphError>;
-
-    fn create_dyn_node_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
-
-    fn create_dyn_edge_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynEdgeFilter<'graph>, GraphError>;
-}
-
-impl<T> DynCreateFilter for T
-where
-    T: CombinedFilter,
-{
-    fn create_dyn_graph_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        Ok(self
-            .clone()
-            .create_graph_filter(graph)?
-            .into_dyn_graph_arc())
-    }
-
-    fn create_dyn_node_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_node_filter(graph)?))
-    }
-
-    fn create_dyn_edge_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynEdgeFilter<'graph>, GraphError> {
-        Ok(Arc::new(self.clone().create_edge_filter(graph)?))
-    }
-}
-
-impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
-    type FilteredGraph<'graph, G>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type EdgeFilter<'graph, G>
-        = DynEdgeFilter<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_graph_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.deref()
-            .create_dyn_graph_filter(graph.into_dyn_graph_arc())
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        self.deref()
-            .create_dyn_node_filter(graph.into_dyn_graph_arc())
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        self.deref()
-            .create_dyn_edge_filter(graph.into_dyn_graph_arc())
-    }
-}
 
 #[derive(Copy, Clone)]
 pub enum EntityMarker {
@@ -439,8 +340,6 @@ impl<T: CreateView> CreateView for Layered<T> {
     }
 }
 
-pub type DynFilter = Arc<dyn DynCreateFilter>;
-
 /// Reject ordering operators on a type that has no ordering.
 ///
 /// An unresolved type (`PropType::Empty`) passes; the check runs again once
@@ -564,7 +463,3 @@ pub fn comparable_set_values(lhs_pt: &PropType, values: &[Prop]) -> Vec<Prop> {
         .cloned()
         .collect()
 }
-
-pub trait CombinedFilter: CreateFilter + Clone + Send + Sync + 'static {}
-
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CombinedFilter for T {}

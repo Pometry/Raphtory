@@ -202,6 +202,7 @@ impl<L: Display> Display for Expr<L> {
             Expr::And(items) => joined(f, items, " AND "),
             Expr::Or(items) => joined(f, items, " OR "),
             Expr::Not(e) => write!(f, "NOT({e})"),
+            Expr::Opaque(_) => write!(f, "OPAQUE"),
         }
     }
 }
@@ -235,7 +236,6 @@ impl Display for FilterExpr {
             FilterExpr::And(items) => joined(f, items, " AND "),
             FilterExpr::Or(items) => joined(f, items, " OR "),
             FilterExpr::Not(e) => write!(f, "NOT({e})"),
-            FilterExpr::Opaque(_) => write!(f, "OPAQUE"),
         }
     }
 }

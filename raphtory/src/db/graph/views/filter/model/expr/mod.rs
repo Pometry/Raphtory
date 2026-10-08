@@ -28,12 +28,14 @@
 pub mod builder;
 mod compile;
 mod display;
+mod split;
 pub(crate) mod stream;
 #[cfg(test)]
 mod tests;
 
 pub use builder::{Chain, EdgeEndpoint, EdgeKind, IntoExpr, PropertyTerm};
 pub use compile::Leaf;
+pub(crate) use split::{EdgeQuestion, SplitFilter};
 pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory, ValueTest};
 
 use super::{
@@ -137,6 +139,16 @@ impl OpaqueFilter {
     pub fn entity(&self) -> EntityMarker {
         self.0.dyn_entity()
     }
+
+    /// The filter this expression is: a predicate on its own entity.
+    pub fn into_filter(self) -> FilterExpr {
+        match self.entity() {
+            EntityMarker::Edge => FilterExpr::Edge(Expr::Opaque(self)),
+            EntityMarker::ExplodedEdge => FilterExpr::ExplodedEdge(Expr::Opaque(self)),
+            // a constant is refused where the predicate is built
+            EntityMarker::Node | EntityMarker::Const => FilterExpr::Node(Expr::Opaque(self)),
+        }
+    }
 }
 
 impl fmt::Debug for OpaqueFilter {
@@ -185,6 +197,9 @@ pub enum Expr<L> {
     And(Vec<Expr<L>>),
     Or(Vec<Expr<L>>),
     Not(Box<Expr<L>>),
+    /// A yes/no expression built in this process (a node-state column) that
+    /// has no wire form: it runs where it was built and cannot be sent anywhere.
+    Opaque(OpaqueFilter),
     /// A term the entity offers; see [`NodeLeaf`], [`EdgeLeaf`], [`ExplodedEdgeLeaf`].
     /// Serialised as the leaf itself, so the term's name is the key.
     #[serde(untagged)]
@@ -324,9 +339,6 @@ pub enum FilterExpr {
     Or(Vec<FilterExpr>),
     /// The filter that keeps what the inner one drops, one question at a time.
     Not(Box<FilterExpr>),
-    /// A yes/no expression built in this process (a node-state column) that
-    /// has no wire form: it runs where it was built and cannot be sent anywhere.
-    Opaque(OpaqueFilter),
 }
 
 impl FilterExpr {
@@ -346,10 +358,6 @@ impl FilterExpr {
     pub fn tests_edges(&self) -> bool {
         match self {
             FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => true,
-            FilterExpr::Opaque(filter) => matches!(
-                filter.entity(),
-                EntityMarker::Edge | EntityMarker::ExplodedEdge
-            ),
             FilterExpr::Node(_) | FilterExpr::View(_) => false,
             FilterExpr::And(items) | FilterExpr::Or(items) => items.iter().any(Self::tests_edges),
             FilterExpr::Not(inner) => inner.tests_edges(),

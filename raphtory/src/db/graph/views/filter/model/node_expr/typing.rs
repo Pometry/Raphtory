@@ -20,10 +20,6 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::{prop_hashable::HashableProp, Prop, PropType};
 use std::collections::HashSet;
 
-fn invalid(msg: impl Into<String>) -> GraphError {
-    GraphError::InvalidFilter(msg.into())
-}
-
 /// How a two-sided test evaluates: on the whole values, or once per element
 /// of a list-valued side.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -139,15 +135,15 @@ pub(crate) fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
         PropType::List(elem) if matches!(**elem, PropType::Bool) || is_elementwise_bool(elem) => {
             Ok((**elem).clone())
         }
-        PropType::Bool => Err(invalid(format!(
+        PropType::Bool => Err(GraphError::invalid_filter(format!(
             "{QUALIFIER_NEEDS}; this expression gives a single yes/no answer, so drop the \
              any()/all()"
         ))),
-        PropType::List(_) => Err(invalid(format!(
+        PropType::List(_) => Err(GraphError::invalid_filter(format!(
             "{QUALIFIER_NEEDS}; this expression gives the list itself ({inner}), so compare it \
              first and put any()/all() after the comparison"
         ))),
-        other => Err(invalid(format!(
+        other => Err(GraphError::invalid_filter(format!(
             "{QUALIFIER_NEEDS}; this expression gives a single {other}, so compare it without \
              any()/all()"
         ))),
@@ -179,12 +175,14 @@ pub(crate) fn is_known(pt: &PropType) -> bool {
 pub(crate) fn require_bool(pt: &PropType, what: &str) -> Result<(), GraphError> {
     match pt {
         PropType::Bool => Ok(()),
-        elementwise if is_elementwise_bool(elementwise) => Err(invalid(format!(
-            "{what} needs one yes/no answer, but comparing a list or temporal property gives \
+        elementwise if is_elementwise_bool(elementwise) => {
+            Err(GraphError::invalid_filter(format!(
+                "{what} needs one yes/no answer, but comparing a list or temporal property gives \
              one per element ({pt}); add any() or all() to say whether any or every element \
              must match"
-        ))),
-        other => Err(invalid(format!(
+            )))
+        }
+        other => Err(GraphError::invalid_filter(format!(
             "{what} needs a yes/no answer, but this expression has type {other}"
         ))),
     }

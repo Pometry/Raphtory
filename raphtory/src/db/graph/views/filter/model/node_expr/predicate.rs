@@ -21,7 +21,6 @@ use crate::{
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
             model::{
-                answer::{question_of, Answer, FilterAnswer, Question},
                 edge_expr::{
                     ops::{EdgeExistsOp, TruthyEdgeOp},
                     EdgeOp,
@@ -29,7 +28,6 @@ use crate::{
                 expr::{DynCreateHistory, ValueTest},
                 filter_operator::{BinaryOp, StringOp},
                 node_expr::{
-                    filters::NotExpr,
                     ops::{gid_for_id_lookup, DomainNodeOp},
                     typing::{require_bool, truthy},
                     CreateOp, EntityExpr,
@@ -52,10 +50,6 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::graph::graph::{NodePropPredicate, NodePropSemantics};
 use std::{collections::HashSet, sync::Arc};
-
-fn invalid(msg: impl Into<String>) -> GraphError {
-    GraphError::InvalidFilter(msg.into())
-}
 
 /// A yes/no expression as a filter on its entity. It is the one typed value
 /// that implements `CreateFilter`: a value expression becomes a filter when a
@@ -184,7 +178,9 @@ impl<E: CreateOp> CreateFilter for Predicate<E> {
                 let filter = self.edge_filter(graph.clone())?;
                 Arc::new(ExplodedEdgeExprFilteredGraph::new(graph, filter))
             }
-            EntityMarker::Const => return Err(invalid("a constant is not a filter")),
+            EntityMarker::Const => {
+                return Err(GraphError::invalid_filter("a constant is not a filter"))
+            }
         })
     }
 
@@ -209,23 +205,8 @@ impl<E: CreateOp> CreateFilter for Predicate<E> {
             EntityMarker::Node | EntityMarker::ExplodedEdge => Ok(Arc::new(EdgeExistsOp::new(
                 self.create_graph_filter(graph)?,
             ))),
-            EntityMarker::Const => Err(invalid("a constant is not a filter")),
+            EntityMarker::Const => Err(GraphError::invalid_filter("a constant is not a filter")),
         }
-    }
-}
-
-/// A predicate answers the question of its own entity, and leaves the other
-/// open. Negated, it is the predicate on the opposite yes/no.
-impl<E: CreateOp> FilterAnswer for Predicate<E> {
-    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
-        if question_of(self.entity_marker())? != question {
-            return Ok(None);
-        }
-        Ok(Some(if negated {
-            Arc::new(Predicate::new(NotExpr(self.inner.clone())))
-        } else {
-            Arc::new(self.clone())
-        }))
     }
 }
 
@@ -474,7 +455,7 @@ mod tests {
             graph::views::filter::model::{
                 node_expr::{BinaryCmpExpr, DynCreateOp},
                 node_filter::{NodeFilter, NodeFilterFactory},
-                DynCreateFilter, EntityExprFilterOps,
+                EntityExprFilterOps,
             },
         },
         prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS},
@@ -551,7 +532,7 @@ mod tests {
             rhs,
             EntityMarker::Node,
         ));
-        let predicate: Arc<dyn DynCreateFilter> = Arc::new(Predicate::new(cmp));
+        let predicate = Predicate::new(cmp);
 
         let base: DynGraphArc<'static> = Arc::new(g.clone());
         let op = predicate.create_node_filter(base.clone()).unwrap();

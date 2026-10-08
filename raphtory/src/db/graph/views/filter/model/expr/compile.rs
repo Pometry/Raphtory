@@ -10,7 +10,8 @@
 //! answers, and where a view applies.
 
 use super::{
-    builder::Chain, Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp,
+    builder::Chain, split::closed_edges, Agg, EdgeLeaf, EdgeQuestion, ExplodedEdgeLeaf, Expr,
+    Field, FilterExpr, NodeExpr, NodeLeaf, SplitFilter, ViewOp,
 };
 use crate::{
     db::{
@@ -23,18 +24,13 @@ use crate::{
                 },
                 NodeOp,
             },
-            view::internal::{DynGraphArc, GraphView},
+            view::internal::{DynGraphArc, GraphView, IntoDynGraphArc},
         },
         graph::views::filter::{
+            and_filtered_graph::AndFilteredGraph,
             model::{
-                after_bounds,
-                and_filter::AndFilter,
-                answer::{
-                    all_of, any_of, combine, compose, edges_of_nodes, needs_operand, Answer,
-                    FilterAnswer, Question,
-                },
-                at_bounds, before_bounds,
-                edge_expr::ops::{AndEdgeOp, EdgeExistsOp},
+                after_bounds, at_bounds, before_bounds,
+                edge_expr::ops::{AndEdgeOp, EdgeExistsOp, OrEdgeOp},
                 edge_filter::{EdgeEndpointWrapper, EdgeFilter, Endpoint},
                 exploded_edge_filter::ExplodedEdgeFilter,
                 filter_operator::{SetOp, UnaryOp},
@@ -56,9 +52,10 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 subgraph_filter::{ExcludeNodes, Subgraph, SubgraphNodeTypes, Valid},
                 windowed_filter::{ShrinkEnd, ShrinkStart, Windowed},
-                CreateView, DynCreateFilter, DynCreateView, EntityMarker, MetadataExpr,
-                PropertyExpr,
+                CreateView, DynCreateView, EntityMarker, MetadataExpr, PropertyExpr,
             },
+            node_filtered_graph::NodeFilteredGraph,
+            or_filtered_graph::OrFilteredGraph,
             CreateFilter, DynEdgeFilter,
         },
     },
@@ -66,10 +63,6 @@ use crate::{
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt::Debug, sync::Arc};
-
-fn invalid(msg: impl Into<String>) -> GraphError {
-    GraphError::InvalidFilter(msg.into())
-}
 
 // ── leaves ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +96,7 @@ impl<L: Leaf> Expr<L> {
     /// the views the terms already carry.
     pub fn push_view(&mut self, op: ViewOp) {
         match self {
-            Expr::Const(_) => {}
+            Expr::Const(_) | Expr::Opaque(_) => {}
             Expr::Term(leaf) => leaf.push_view(op),
             Expr::Agg(_, e)
             | Expr::IsSome(e)
@@ -417,6 +410,7 @@ impl<L: Leaf> Expr<L> {
         let entity = L::ENTITY;
         Ok(match self {
             Expr::Const(value) => Arc::new(value.clone()),
+            Expr::Opaque(filter) => filter.0.clone(),
             Expr::Term(leaf) => leaf.compile()?,
             Expr::Agg(agg, inner) => {
                 let op = inner.compile_value()?;
@@ -491,123 +485,100 @@ impl<L: Leaf> Expr<L> {
 
 // ── filters ──────────────────────────────────────────────────────────────────
 
-impl FilterExpr {
-    /// The `or` of legs of different kinds is the union of what each keeps: an edge
-    /// leg keeps every node, which no union can narrow, so the node question is
-    /// open; a node leg keeps the edges whose ends it keeps both, so for the edge
-    /// question each node leg is closed to those edges and the `or` unions them with
-    /// the edge legs' edges. Legs of one kind are left to `any_of` as they are, so
-    /// `name == "b" | name == "c"` still keeps the edge b→c through its node answer.
-    /// Negated, the `or` is an `and` of the opposites and nothing is closed.
-    fn or_answer(
-        items: &[FilterExpr],
-        question: Question,
-        negated: bool,
-    ) -> Result<Option<Answer>, GraphError> {
-        let direct = items
-            .iter()
-            .map(|item| item.answer(question, negated))
-            .collect::<Result<Vec<_>, _>>()?;
-        let mixed = direct.iter().any(Option::is_some) && direct.iter().any(Option::is_none);
-        if negated || !mixed {
-            return any_of(direct.into_iter().map(Ok), negated);
-        }
-        match question {
-            Question::Nodes => Ok(None),
-            Question::Edges => any_of(
-                items.iter().zip(direct).map(|(item, answer)| match answer {
-                    Some(answer) => Ok(Some(answer)),
-                    None => Ok(item.answer(Question::Nodes, false)?.map(edges_of_nodes)),
-                }),
-                false,
-            ),
-        }
-    }
-
-    /// The erased, applicable form of this filter.
-    ///
-    /// A view (`View`) applies first: the graph is seen through it and the other
-    /// legs run inside it, terms included, the way `graph.window(..).filter(expr)`
-    /// does. A view therefore stands alone or is a leg of the top-level `and`
-    /// (nested `and`s count as top level); under `or` or `not` it has no meaning the
-    /// engine can give it and is refused.
-    pub fn compile(&self) -> Result<Arc<dyn DynCreateFilter>, GraphError> {
-        let (views, predicates, saw_empty_view) = self.split_top_views();
-        if saw_empty_view {
-            return Err(invalid("a view filter needs at least one view"));
-        }
-        if views.is_empty() {
-            return compose(self);
-        }
-        let inner: Arc<dyn DynCreateFilter> = if predicates.is_empty() {
-            Arc::new(GraphFilter)
-        } else {
-            combine(
-                predicates.iter().map(|p| compose(*p)),
-                "and",
-                |left, right| Arc::new(AndFilter { left, right }),
-            )?
-        };
-        Ok(Arc::new(Viewed { views, inner }))
-    }
-
-    /// The view ops at the top of the filter, in order, and the predicates beside
-    /// them. `and` nests flatten; anything else is a predicate. The flag says whether
-    /// a view leg with no ops was seen anywhere, which is refused: it would be a leg
-    /// that does nothing.
-    fn split_top_views(&self) -> (Vec<ViewOp>, Vec<&FilterExpr>, bool) {
-        fn walk<'a>(
-            filter: &'a FilterExpr,
-            views: &mut Vec<ViewOp>,
-            predicates: &mut Vec<&'a FilterExpr>,
-            saw_empty_view: &mut bool,
-        ) {
-            match filter {
-                FilterExpr::View(ops) => {
-                    *saw_empty_view |= ops.is_empty();
-                    views.extend(ops.iter().cloned());
-                }
-                FilterExpr::And(items) => {
-                    for item in items {
-                        walk(item, views, predicates, saw_empty_view);
-                    }
-                }
-                other => predicates.push(other),
-            }
-        }
-        let (mut views, mut predicates, mut saw_empty_view) = (Vec::new(), Vec::new(), false);
-        walk(self, &mut views, &mut predicates, &mut saw_empty_view);
-        (views, predicates, saw_empty_view)
-    }
-}
-
-fn view_below_top_level() -> GraphError {
-    invalid(
-        "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
-         not under `or` or `not`",
-    )
-}
-
-/// A filter applied inside a view: the graph is seen through `views` first and
-/// `inner` runs on that graph, terms included, so `and: [view, pred]` is
-/// `graph.view(..).filter(pred)`. As a per-node or per-edge predicate it also asks
-/// that the entity exist in the view, the way the filtered graph would.
-#[derive(Clone)]
-struct Viewed {
-    views: Vec<ViewOp>,
-    inner: Arc<dyn DynCreateFilter>,
-}
-
-impl Viewed {
-    fn view<'graph, G: GraphView + 'graph>(
+impl SplitFilter {
+    /// The graph seen through the filter's view, erased so every part of the
+    /// filter builds over the one `Arc`.
+    fn viewed<'graph, G: GraphView + 'graph>(
         &self,
         graph: G,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
-        view_chain(Arc::new(GraphFilter), &self.views).create_view(graph)
+        if self.views.is_empty() {
+            Ok(graph.into_dyn_graph_arc())
+        } else {
+            view_chain(Arc::new(GraphFilter), &self.views).create_view(graph)
+        }
     }
 }
 
-impl CreateFilter for Viewed {
+/// A yes/no node expression as the node filter it is.
+fn node_filter<'graph>(
+    expr: &NodeExpr,
+    graph: DynGraphArc<'graph>,
+) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
+    Predicate::new(expr.compile_value()?).create_node_filter(graph)
+}
+
+impl EdgeQuestion {
+    /// The graph that keeps the edges this answer keeps.
+    fn create_graph_filter<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
+        match self {
+            EdgeQuestion::Edge(e) => Predicate::new(e.compile_value()?).create_graph_filter(graph),
+            EdgeQuestion::Exploded(e) => {
+                Predicate::new(e.compile_value()?).create_graph_filter(graph)
+            }
+            EdgeQuestion::And(legs) => {
+                Self::fold(legs, &graph, Self::create_graph_filter, |l, r| {
+                    AndFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc()
+                })
+            }
+            EdgeQuestion::Or(legs) => {
+                Self::fold(legs, &graph, Self::create_graph_filter, |l, r| {
+                    OrFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc()
+                })
+            }
+        }
+    }
+
+    /// The per-edge test for the edges this answer keeps.
+    fn create_edge_filter<'graph>(
+        &self,
+        graph: DynGraphArc<'graph>,
+    ) -> Result<DynEdgeFilter<'graph>, GraphError> {
+        match self {
+            EdgeQuestion::Edge(e) => Predicate::new(e.compile_value()?).create_edge_filter(graph),
+            EdgeQuestion::Exploded(e) => {
+                Predicate::new(e.compile_value()?).create_edge_filter(graph)
+            }
+            EdgeQuestion::And(legs) => {
+                Self::fold(legs, &graph, Self::create_edge_filter, |l, r| {
+                    Arc::new(AndEdgeOp { left: l, right: r })
+                })
+            }
+            EdgeQuestion::Or(legs) => Self::fold(legs, &graph, Self::create_edge_filter, |l, r| {
+                Arc::new(OrEdgeOp { left: l, right: r })
+            }),
+        }
+    }
+
+    /// The legs built one by one over the same graph and joined pairwise,
+    /// left to right.
+    fn fold<'graph, T>(
+        legs: &[EdgeQuestion],
+        graph: &DynGraphArc<'graph>,
+        build: impl Fn(&EdgeQuestion, DynGraphArc<'graph>) -> Result<T, GraphError>,
+        join: impl Fn(T, T) -> T,
+    ) -> Result<T, GraphError> {
+        let Some((first, rest)) = legs.split_first() else {
+            return Err(GraphError::invalid_filter(
+                "an edge answer needs at least one leg",
+            ));
+        };
+        rest.iter()
+            .try_fold(build(first, graph.clone())?, |acc, leg| {
+                Ok(join(acc, build(leg, graph.clone())?))
+            })
+    }
+}
+
+/// The filter a split filter is: the graph seen through its view, then its
+/// node answer and its edge answer side by side, one of them alone, or the
+/// viewed graph when nothing constrains either. As a per-node or per-edge
+/// test it asks that the entity exist in the view and pass the answers, the
+/// way the filtered graph would.
+impl CreateFilter for SplitFilter {
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
     where
@@ -630,65 +601,73 @@ impl CreateFilter for Viewed {
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        let viewed = self.view(graph)?;
-        self.inner.create_dyn_graph_filter(viewed)
+        let graph = self.viewed(graph)?;
+        let nodes = self
+            .nodes
+            .map(|nodes| -> Result<DynGraphArc<'graph>, GraphError> {
+                let filter = node_filter(&nodes, graph.clone())?;
+                Ok(NodeFilteredGraph::new(graph.clone(), filter).into_dyn_graph_arc())
+            })
+            .transpose()?;
+        let edges = self
+            .edges
+            .map(|edges| edges.create_graph_filter(graph.clone()))
+            .transpose()?;
+        Ok(match (nodes, edges) {
+            (Some(nodes), Some(edges)) => {
+                AndFilteredGraph::new(graph, nodes, edges).into_dyn_graph_arc()
+            }
+            (Some(answer), None) | (None, Some(answer)) => answer,
+            (None, None) => graph,
+        })
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let viewed = self.view(graph)?;
-        let inside = self.inner.create_dyn_node_filter(viewed.clone())?;
-        Ok(Arc::new(NodeExistsOp::new(viewed).and(inside)))
+        if self.edges.is_some() {
+            return Err(GraphError::NotNodeFilter);
+        }
+        let graph = self.viewed(graph)?;
+        let Some(nodes) = self.nodes else {
+            return Ok(Arc::new(NodeExistsOp::new(graph)));
+        };
+        let inside = node_filter(&nodes, graph.clone())?;
+        Ok(if self.views.is_empty() {
+            inside
+        } else {
+            Arc::new(NodeExistsOp::new(graph).and(inside))
+        })
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        let viewed = self.view(graph)?;
-        let inside = self.inner.create_dyn_edge_filter(viewed.clone())?;
-        Ok(Arc::new(AndEdgeOp {
-            left: EdgeExistsOp::new(viewed),
-            right: inside,
-        }))
+        let graph = self.viewed(graph)?;
+        let answer = match (self.nodes.map(closed_edges), self.edges) {
+            (Some(nodes), Some(edges)) => Some(nodes.and(edges)),
+            (Some(answer), None) | (None, Some(answer)) => Some(answer),
+            (None, None) => None,
+        };
+        let Some(answer) = answer else {
+            return Ok(Arc::new(EdgeExistsOp::new(graph)));
+        };
+        let inside = answer.create_edge_filter(graph.clone())?;
+        Ok(if self.views.is_empty() {
+            inside
+        } else {
+            Arc::new(AndEdgeOp {
+                left: EdgeExistsOp::new(graph),
+                right: inside,
+            })
+        })
     }
 }
 
-/// A tree answers the two questions node by node, with the same rule as the
-/// typed combinators: a leaf answers its own entity's question, `and` drops
-/// legs that leave the question open, `or` unions what its legs keep, and `not` asks
-/// for the opposite answer. A view has no answer below the top level.
-impl FilterAnswer for FilterExpr {
-    fn answer(&self, question: Question, negated: bool) -> Result<Option<Answer>, GraphError> {
-        match self {
-            FilterExpr::Node(expr) => {
-                Predicate::new(expr.compile_value()?).answer(question, negated)
-            }
-            FilterExpr::Edge(expr) => {
-                Predicate::new(expr.compile_value()?).answer(question, negated)
-            }
-            FilterExpr::ExplodedEdge(expr) => {
-                Predicate::new(expr.compile_value()?).answer(question, negated)
-            }
-            FilterExpr::Opaque(filter) => {
-                Predicate::new(filter.0.clone()).answer(question, negated)
-            }
-            FilterExpr::View(_) => Err(view_below_top_level()),
-            FilterExpr::And(items) if items.is_empty() => Err(needs_operand("and")),
-            FilterExpr::Or(items) if items.is_empty() => Err(needs_operand("or")),
-            FilterExpr::And(items) => all_of(
-                items.iter().map(|item| item.answer(question, negated)),
-                negated,
-            ),
-            FilterExpr::Or(items) => Self::or_answer(items, question, negated),
-            FilterExpr::Not(inner) => inner.answer(question, !negated),
-        }
-    }
-}
-
-/// A tree is a filter in its own right: applying it compiles it first.
+/// A tree is a filter in its own right: applying it splits it by question
+/// first.
 impl CreateFilter for FilterExpr {
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
@@ -712,12 +691,12 @@ impl CreateFilter for FilterExpr {
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.compile()?.create_graph_filter(graph)
+        self.split()?.create_graph_filter(graph)
     }
 
     /// An edge test says nothing about which nodes belong in a node
     /// collection, so a filter that tests edges anywhere is refused here,
-    /// whatever it compiles to.
+    /// whatever it splits into.
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -725,14 +704,14 @@ impl CreateFilter for FilterExpr {
         if self.tests_edges() {
             return Err(GraphError::NotNodeFilter);
         }
-        self.compile()?.create_node_filter(graph)
+        self.split()?.create_node_filter(graph)
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        self.compile()?.create_edge_filter(graph)
+        self.split()?.create_edge_filter(graph)
     }
 }
 

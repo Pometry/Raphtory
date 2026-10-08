@@ -31,6 +31,12 @@ pub struct OrFilteredGraph<G, L, R> {
     pub(crate) right: R,
 }
 
+impl<G, L, R> OrFilteredGraph<G, L, R> {
+    pub fn new(graph: G, left: L, right: R) -> Self {
+        Self { graph, left, right }
+    }
+}
+
 impl<G, L, R> Base for OrFilteredGraph<G, L, R> {
     type Base = G;
 

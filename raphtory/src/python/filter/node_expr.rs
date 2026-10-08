@@ -984,7 +984,7 @@ impl PyNodeFilter {
     fn by_state_column(&self, state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
         let op = NodeStateBoolColOp::new(&state.inner, &col)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyFilterExpr(FilterExpr::Opaque(OpaqueFilter::new(op))))
+        Ok(PyFilterExpr(OpaqueFilter::new(op).into_filter()))
     }
 }
 

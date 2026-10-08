@@ -1487,6 +1487,7 @@ pub trait EntityInput: Sized {
         };
         let shape = match e {
             expr::Expr::Const(p) => ExprShape::Const(value(p)?),
+            expr::Expr::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
             expr::Expr::Term(leaf) => ExprShape::Read(<Self::Read as Term>::from_leaf(leaf)?),
             expr::Expr::Agg(op, e) => ExprShape::Agg {
                 op: (*op).into(),
@@ -1674,7 +1675,6 @@ impl TryFrom<&expr::FilterExpr> for GqlFilter {
     fn try_from(filter: &expr::FilterExpr) -> Result<Self, Self::Error> {
         use expr::FilterExpr as F;
         Ok(match filter {
-            F::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
             F::Node(e) => GqlFilter::Node(NodeExpr::from_tree(e)?),
             F::Edge(e) => GqlFilter::Edge(EdgeExpr::from_tree(e)?),
             F::ExplodedEdge(e) => GqlFilter::ExplodedEdge(ExplodedEdgeExpr::from_tree(e)?),
@@ -2228,13 +2228,14 @@ mod tests {
 
     #[test]
     fn an_opaque_filter_has_no_wire_form() {
-        let opaque = F::Opaque(expr::OpaqueFilter::new(
+        let opaque = expr::OpaqueFilter::new(
             NodeFilter
                 .property("score")
                 .is_some()
                 .compile_value()
                 .unwrap(),
-        ));
+        )
+        .into_filter();
         let err = GqlFilter::try_from(&opaque).unwrap_err();
         assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
     }

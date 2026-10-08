@@ -45,10 +45,6 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
 use std::sync::Arc;
 
-fn invalid(msg: impl Into<String>) -> GraphError {
-    GraphError::InvalidFilter(msg.into())
-}
-
 // ── comparison ───────────────────────────────────────────────────────────────
 
 /// Two values compared with a [`BinaryOp`]; either side may be a constant.
@@ -293,7 +289,7 @@ impl<E: CreateOp> UnaryExpr<E> {
         if self.expr.nullable() {
             return Ok(());
         }
-        Err(invalid(format!(
+        Err(GraphError::invalid_filter(format!(
             "{}() is not valid on an expression that always has a value",
             self.op
         )))
@@ -528,8 +524,8 @@ impl<E: CreateOp> CreateOp for AllExpr<E> {
 
 // ── and / or / not of yes/no values ──────────────────────────────────────────
 
-/// `and` of yes/no values of one entity. Built from a filter tree; a typed
-/// `and` of two filters is an [`AndFilter`](super::super::and_filter::AndFilter).
+/// `and` of yes/no values of one entity, as a filter tree's `and` of legs
+/// that answer the same question compiles.
 #[derive(Clone)]
 pub struct AndExpr<E> {
     pub items: Vec<E>,
@@ -547,6 +543,12 @@ impl<E: EntityExpr> EntityExpr for AndExpr<E> {
 }
 
 impl<E: CreateOp> CreateOp for AndExpr<E> {
+    /// Any leg's candidates are a superset of the matches, so the first leg
+    /// that can narrow does.
+    fn pushdown(&self) -> Option<Pushdown> {
+        self.items.iter().find_map(CreateOp::pushdown)
+    }
+
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
@@ -611,7 +613,9 @@ fn bool_node_ops<'g, E: CreateOp, G: GraphView + 'g>(
     name: &str,
 ) -> Result<Vec<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>>, GraphError> {
     if items.is_empty() {
-        return Err(invalid(format!("`{name}` needs at least one operand")));
+        return Err(GraphError::invalid_filter(format!(
+            "`{name}` needs at least one operand"
+        )));
     }
     items
         .iter()
@@ -629,7 +633,9 @@ fn bool_edge_ops<'g, E: CreateOp, G: GraphView + 'g>(
     name: &str,
 ) -> Result<Vec<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>>, GraphError> {
     if items.is_empty() {
-        return Err(invalid(format!("`{name}` needs at least one operand")));
+        return Err(GraphError::invalid_filter(format!(
+            "`{name}` needs at least one operand"
+        )));
     }
     items
         .iter()

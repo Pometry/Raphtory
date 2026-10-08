@@ -9,8 +9,8 @@ use crate::{
                 graph_filter::GraphFilter,
                 node_expr::Compiled,
                 node_filter::{NodeFilter, NodeFilterFactory},
-                ComposableFilter, DynCreateFilter, EdgeViewFilterOps, EntityAggOps,
-                EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
+                ComposableFilter, EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps,
+                PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -26,7 +26,6 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     Direction,
 };
-use std::sync::Arc;
 
 /// alice.score 3@0 7@2 9@6 · bob.score 5@1 2@7 · carol none · dave.score 1@2 1@3
 /// eve.scores [1,2]@0 [5,5]@1
@@ -418,12 +417,12 @@ fn a_view_leg_restricts_the_whole_filter() {
     let f = FilterExpr::View(vec![window(0, 5), ViewOp::Latest]);
     assert_eq!(edges(&g, &f), ["alice->bob"]);
     assert_eq!(f.to_string(), "VIEW(WINDOW[0..5] . LATEST)");
-    assert!(FilterExpr::View(vec![]).compile().is_err());
+    assert!(FilterExpr::View(vec![]).split().is_err());
     // Under `or` or `not` a view has no meaning the engine can give it.
     assert!(FilterExpr::Or(vec![win.clone(), score_gt_4.clone()])
-        .compile()
+        .split()
         .is_err());
-    assert!(FilterExpr::Not(Box::new(win.clone())).compile().is_err());
+    assert!(FilterExpr::Not(Box::new(win.clone())).split().is_err());
     assert!(f.has_view() && !score_gt_4.has_view());
 }
 
@@ -509,9 +508,7 @@ fn numeric_aggregates_refuse_values_that_are_not_numbers() {
 
 #[test]
 fn an_opaque_filter_refuses_to_serialise() {
-    let f = FilterExpr::Opaque(OpaqueFilter::new(
-        NodeFilter.property("tag").is_some().compiled(),
-    ));
+    let f = OpaqueFilter::new(NodeFilter.property("tag").is_some().compiled()).into_filter();
     let err = serde_json::to_string(&f).unwrap_err().to_string();
     assert!(err.contains(OPAQUE_FILTER_ERROR));
 }
@@ -533,8 +530,8 @@ fn before_and_at_agree_with_the_graph_views() {
         ids
     }
     let view = |op: ViewOp| FilterExpr::View(vec![op]);
-    let typed = |f: Chain<EdgeLeaf>| Arc::new(f.is_active()) as Arc<dyn DynCreateFilter>;
-    fn applied(g: &Graph, filter: Arc<dyn DynCreateFilter>) -> Vec<String> {
+    let typed = |f: Chain<EdgeLeaf>| FilterExpr::from(f.is_active());
+    fn applied(g: &Graph, filter: FilterExpr) -> Vec<String> {
         let mut ids: Vec<String> = g
             .filter(filter)
             .unwrap()
@@ -1077,74 +1074,76 @@ fn a_view_on_a_field_term_is_ignored() {
     let g = Graph::new();
     g.add_node(1, "early", NO_PROPS, None, None).unwrap();
     g.add_node(7, "late", NO_PROPS, Some("kind"), None).unwrap();
-    let filtered = |f: &dyn Fn() -> Arc<dyn DynCreateFilter>| {
+    let filtered = |f: &dyn Fn() -> FilterExpr| {
         let mut n: Vec<String> = g.filter(f()).unwrap().nodes().name().collect();
         n.sort();
         n
     };
-    let selected = |f: &dyn Fn() -> Arc<dyn DynCreateFilter>| {
+    let selected = |f: &dyn Fn() -> FilterExpr| {
         let mut n: Vec<String> = g.nodes().select(f()).unwrap().name().collect();
         n.sort();
         n
     };
     let win = || NodeFilter.window(0, 5);
-    let cases: Vec<(&str, Box<dyn Fn() -> Arc<dyn DynCreateFilter>>, &[&str])> = vec![
+    let cases: Vec<(&str, Box<dyn Fn() -> FilterExpr>, &[&str])> = vec![
         (
             "window name == late",
-            Box::new(move || Arc::new(win().name().eq("late"))),
+            Box::new(move || FilterExpr::from(win().name().eq("late"))),
             &["late"],
         ),
         (
             "window name == early",
-            Box::new(move || Arc::new(win().name().eq("early"))),
+            Box::new(move || FilterExpr::from(win().name().eq("early"))),
             &["early"],
         ),
         (
             "window id == late",
-            Box::new(move || Arc::new(win().id().eq("late"))),
+            Box::new(move || FilterExpr::from(win().id().eq("late"))),
             &["late"],
         ),
         (
             "window node_type == kind",
-            Box::new(move || Arc::new(win().node_type().eq("kind"))),
+            Box::new(move || FilterExpr::from(win().node_type().eq("kind"))),
             &["late"],
         ),
         (
             "window node_type == _default",
-            Box::new(move || Arc::new(win().node_type().eq("_default"))),
+            Box::new(move || FilterExpr::from(win().node_type().eq("_default"))),
             &["early"],
         ),
         (
             "name == late",
-            Box::new(|| Arc::new(NodeFilter.name().eq("late"))),
+            Box::new(|| FilterExpr::from(NodeFilter.name().eq("late"))),
             &["late"],
         ),
         (
             "exclude_nodes name == late",
-            Box::new(|| Arc::new(NodeFilter.exclude_nodes(["late"]).name().eq("late"))),
+            Box::new(|| FilterExpr::from(NodeFilter.exclude_nodes(["late"]).name().eq("late"))),
             &["late"],
         ),
         (
             "subgraph name == early",
-            Box::new(|| Arc::new(NodeFilter.subgraph(["late"]).name().eq("early"))),
+            Box::new(|| FilterExpr::from(NodeFilter.subgraph(["late"]).name().eq("early"))),
             &["early"],
         ),
         (
             "subgraph_node_types name == early",
-            Box::new(|| Arc::new(NodeFilter.subgraph_node_types(["kind"]).name().eq("early"))),
+            Box::new(|| {
+                FilterExpr::from(NodeFilter.subgraph_node_types(["kind"]).name().eq("early"))
+            }),
             &["early"],
         ),
         (
             "tree: window name == late",
             Box::new(|| {
-                Arc::new(node(cmp(
+                node(cmp(
                     BinaryOp::Eq,
                     Expr::Term(NodeLeaf::Field {
                         views: vec![window(0, 5)],
                         field: Field::Name,
                     }),
                     c("late"),
-                )))
+                ))
             }),
             &["late"],
         ),
