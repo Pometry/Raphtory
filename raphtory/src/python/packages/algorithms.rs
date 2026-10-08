@@ -10,7 +10,10 @@ use crate::{
             pagerank::page_rank,
         },
         community_detection::{
-            belief_propagation::belief_propagation as belief_propagation_rs,
+            belief_propagation::{
+                belief_propagation as belief_propagation_rs,
+                belief_propagation_probe_convergence as belief_propagation_probe_convergence_rs,
+            },
             label_propagation::label_propagation as label_propagation_rs,
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
         },
@@ -853,6 +856,32 @@ pub fn belief_propagation(
         threads,
     )?;
     Ok(result.to_output_nodestate())
+}
+
+/// Estimates the spectral radius of the belief propagation update at decay `c`.
+///
+/// Arguments:
+///     graph (GraphView): A reference to the graph
+///     seeds (dict[NodeInput, list[tuple[int, float]]]): The same seeds as `belief_propagation`.
+///     c (float): Decay per hop, in (0, 1).
+///     epsilon (float, optional): Evidence floor. Defaults to 1e-8: it should be small so the probe reaches the dense core.
+///     max_iter (int, optional): Maximum sweeps. Defaults to 30.
+///     threads (int, optional): Number of threads to use
+///
+/// Returns:
+///     float | None: The estimate rho, or None if the probe died out before any valid sweep.
+///
+#[pyfunction]
+#[pyo3[signature = (graph, seeds, c, epsilon=None, max_iter=None, threads=None)]]
+pub fn belief_propagation_probe_convergence(
+    graph: &PyGraphView,
+    seeds: HashMap<PyNodeRef, Vec<(usize, f64)>>,
+    c: f64,
+    epsilon: Option<f64>,
+    max_iter: Option<usize>,
+    threads: Option<usize>,
+) -> Result<Option<f64>, GraphError> {
+    belief_propagation_probe_convergence_rs(&graph.graph, seeds, c, epsilon, max_iter, threads)
 }
 
 /// Determines which nodes are in the k-core for a given value of k

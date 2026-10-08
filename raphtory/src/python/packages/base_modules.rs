@@ -224,6 +224,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         balance,
         label_propagation,
         belief_propagation,
+        belief_propagation_probe_convergence,
         k_core,
         temporal_SEIR,
         louvain,
