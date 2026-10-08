@@ -61,6 +61,64 @@ jobs:
           RUSTFLAGS: -Awarnings
         run: |
           cargo hack check --workspace --all-targets --each-feature
+  # Runs the W3C SPARQL/Turtle and SHACL conformance suites (git submodules under
+  # raphtory-rdf-tests/test-suites/), which the jobs above skip because they check out without submodules.
+  w3c-conformance:
+    if: ${{ !inputs.skip_tests }}
+    name: "W3C conformance tests"
+    runs-on: "${{ matrix.os }}"
+    env:
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Only public repositories are fetched, and nothing is pushed.
+          persist-credentials: false
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Free up space (ubuntu)
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rust version
+        run: rustc --version --verbose
+      - uses: Swatinem/rust-cache@v2
+        name: Cargo cache
+        with:
+          cache-all-crates: true
+      # --checkout (in the make target) works whatever `update` strategy .gitmodules sets.
+      - name: Check out the W3C test suites
+        run: make w3c-tests-init
+      # Without the suites the tests skip and pass: fail here instead if any file they read is missing.
+      - name: Check the W3C test suites are present
+        run: |
+          for file in \
+            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql10/manifest-evaluation.ttl \
+            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql10/manifest-syntax.ttl \
+            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql11/manifest-sparql11-query.ttl \
+            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql11/manifest-sparql11-results.ttl \
+            raphtory-rdf-tests/test-suites/rdf-tests/rdf/rdf11/rdf-turtle/manifest.ttl \
+            raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/manifest.ttl \
+            raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/core/manifest.ttl \
+            raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/sparql/manifest.ttl \
+            raphtory-rdf-tests/test-suites/data-shapes/shacl12-test-suite/tests/core/property/singleLine-001.ttl
+          do
+            test -f "$file" || { echo "::error::missing W3C test suite file $file"; exit 1; }
+          done
+      - name: Run the W3C conformance tests
+        env:
+          RUSTFLAGS: -Awarnings
+        run: make rust-test-rdf-w3c rust-test-shacl-w3c
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"

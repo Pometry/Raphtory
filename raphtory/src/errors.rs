@@ -283,6 +283,10 @@ pub enum GraphError {
     #[error("The schema of the vector DB is invalid")]
     InvalidVectorDbSchema,
 
+    #[cfg(feature = "rdf")]
+    #[error(transparent)]
+    Rdf(#[from] crate::rdf::RdfError),
+
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {

@@ -1,0 +1,43 @@
+# The shapes of the GitHub graph built by scripts/build_github_graph.py, as SHACL.
+# `make validate` checks the graph against them now, as of the start of each year, and on the event
+# view of the graph, which ignores retractions.
+
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix gh:   <http://example.org/gh/> .
+
+gh:DeveloperShape a sh:NodeShape ;
+    sh:targetClass gh:Developer ;
+    sh:nodeKind sh:IRI ;
+    sh:property [ sh:path rdfs:label ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path gh:reviewed ; sh:class gh:PullRequest ] ;
+    sh:property [ sh:path gh:approved ; sh:class gh:PullRequest ] .
+
+gh:PullRequestShape a sh:NodeShape ;
+    sh:targetClass gh:PullRequest ;
+    sh:nodeKind sh:IRI ;
+    sh:property [ sh:path gh:title ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path gh:author ; sh:minCount 1 ; sh:maxCount 1 ; sh:class gh:Developer ] ;
+    # one state at a time: merging or closing retracts gh:Open
+    sh:property [ sh:path gh:state ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( gh:Open gh:Merged gh:Closed ) ] ;
+    sh:property [ sh:path gh:mergedBy ; sh:maxCount 1 ; sh:class gh:Developer ] ;
+    sh:property [ sh:path gh:additions ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 0 ] ;
+    sh:property [ sh:path gh:deletions ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 0 ] ;
+    sh:property [ sh:path gh:label ; sh:class gh:Label ] ;
+    # the issues a pull request closes can belong to another repository, so they need not be in the graph
+    sh:property [ sh:path gh:closes ; sh:nodeKind sh:IRI ] .
+
+gh:IssueShape a sh:NodeShape ;
+    sh:targetClass gh:Issue ;
+    sh:nodeKind sh:IRI ;
+    sh:property [ sh:path gh:title ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path gh:author ; sh:minCount 1 ; sh:maxCount 1 ; sh:class gh:Developer ] ;
+    sh:property [ sh:path gh:state ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( gh:Open gh:Closed ) ] ;
+    sh:property [ sh:path gh:label ; sh:class gh:Label ] ;
+    sh:property [ sh:path gh:assignee ; sh:class gh:Developer ] .
+
+gh:LabelShape a sh:NodeShape ;
+    sh:targetClass gh:Label ;
+    sh:nodeKind sh:IRI ;
+    sh:property [ sh:path rdfs:label ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .

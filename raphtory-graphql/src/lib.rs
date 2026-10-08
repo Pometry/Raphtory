@@ -28,6 +28,8 @@ mod paths;
 pub mod rayon;
 mod routes;
 pub mod server;
+#[cfg(feature = "rdf")]
+mod sparql;
 pub mod url_encode;
 
 #[cfg(all(feature = "python", not(doctest)))]

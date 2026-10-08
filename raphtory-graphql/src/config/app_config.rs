@@ -155,6 +155,18 @@ impl AppConfigBuilder {
         if let Some(max_page_size) = server_args.max_page_size {
             builder.with_max_page_size(Some(max_page_size));
         }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_query_length) = server_args.max_sparql_query_length {
+            builder.with_max_sparql_query_length(Some(max_sparql_query_length));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(sparql_timeout) = server_args.sparql_timeout {
+            builder.with_sparql_timeout(Some(sparql_timeout));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_triple_patterns) = server_args.max_sparql_triple_patterns {
+            builder.with_max_sparql_triple_patterns(Some(max_sparql_triple_patterns));
+        }
         if let Some(max_query_depth) = server_args.max_query_depth {
             builder.with_max_query_depth(Some(max_query_depth));
         }
@@ -382,6 +394,34 @@ impl AppConfigBuilder {
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlQueryLength => {
+                                self.with_max_sparql_query_length(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::SparqlTimeout => {
+                                let seconds: Option<f64> = Deserialize::deserialize(value)
+                                    .map_err(|e| invalid_value([path, sub_path], e))?;
+                                if let Some(seconds) = seconds {
+                                    crate::config::concurrency_config::sparql_timeout_duration(
+                                        seconds,
+                                    )
+                                    .map_err(|e| {
+                                        invalid_value([path, sub_path], ConfigError::Message(e))
+                                    })?;
+                                }
+                                self.with_sparql_timeout(seconds);
+                            }
+                            #[cfg(feature = "rdf")]
+                            ConcurrencyConfigFieldName::MaxSparqlTriplePatterns => {
+                                self.with_max_sparql_triple_patterns(
+                                    Deserialize::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
+                            }
                         }
                     }
                 }
@@ -589,6 +629,32 @@ impl AppConfigBuilder {
 
     pub fn with_max_page_size(&mut self, max_page_size: Option<usize>) -> &mut Self {
         self.config.concurrency.max_page_size = max_page_size;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_query_length(
+        &mut self,
+        max_sparql_query_length: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_sparql_query_length = max_sparql_query_length;
+        self
+    }
+
+    /// Sets the SPARQL time limit in seconds (`None`: unlimited). An invalid value (negative or
+    /// not finite) makes every SPARQL query fail.
+    #[cfg(feature = "rdf")]
+    pub fn with_sparql_timeout(&mut self, sparql_timeout: Option<f64>) -> &mut Self {
+        self.config.concurrency.sparql_timeout = sparql_timeout;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_triple_patterns(
+        &mut self,
+        max_sparql_triple_patterns: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_sparql_triple_patterns = max_sparql_triple_patterns;
         self
     }
 

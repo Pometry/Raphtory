@@ -1,0 +1,53 @@
+# Benchmarks for raphtory's RDF support (see the Makefile). The `rdf` feature is off by default so that
+# workspace builds do not turn on raphtory/rdf.
+
+[package]
+name = "raphtory-rdf-bench"
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+criterion = { workspace = true }
+raphtory = { workspace = true }
+oxigraph = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+zip = { workspace = true, optional = true }
+bzip2 = { workspace = true, optional = true }
+csv = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+
+[features]
+rdf = [
+    "raphtory/rdf",
+    "dep:oxigraph",
+    "dep:flate2",
+    "dep:zip",
+    "dep:bzip2",
+    "dep:csv",
+    "dep:regex",
+]
+
+[[bench]]
+name = "load"
+harness = false
+required-features = ["rdf"]
+
+# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b.
+[[bench]]
+name = "temporal"
+harness = false
+required-features = ["rdf"]
+
+# BSBM and Sparqloscope, read from $RAPHTORY_RDF_DATA/bsbm.
+[[bench]]
+name = "sparql"
+harness = false
+required-features = ["rdf"]
+
+# The Gene Ontology, read from $RAPHTORY_RDF_DATA/go.
+[[bench]]
+name = "go"
+harness = false
+required-features = ["rdf"]

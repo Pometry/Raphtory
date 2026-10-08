@@ -384,13 +384,18 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))
     }
 
-    async fn generate_endpoint(
+    pub(crate) async fn generate_endpoint(
         self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
         let config = self.config.clone();
         let key_resolver = self.key_resolver.clone();
         let schema = self.build_schema(tracer).await?;
+        let graphql = Arc::new(AuthenticatedGraphQL::new(
+            schema,
+            config.clone(),
+            key_resolver,
+        ));
 
         let app = Route::new()
             .nest(
@@ -398,11 +403,17 @@ impl GraphServer {
                 PublicFilesEndpoint::new(
                     config.public_dir.clone(),
                     config.schema.disable_ui,
-                    AuthenticatedGraphQL::new(schema, config, key_resolver),
+                    graphql.clone(),
                 ),
             )
             .at("/health", get(health))
-            .at("/version", get(version))
+            .at("/version", get(version));
+        #[cfg(feature = "rdf")]
+        let app = app.at(
+            "/sparql/*path",
+            crate::sparql::endpoint::SparqlEndpoint::new(graphql, config.concurrency.clone()),
+        );
+        let app = app
             .with(Cors::new())
             .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)

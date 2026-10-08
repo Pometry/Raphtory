@@ -1,0 +1,70 @@
+# Conformance and correctness tests for raphtory's RDF support (separate crate so the W3C suites and the
+# benchmark data stay out of the raphtory crate). The features are off by default so that workspace builds
+# do not turn on raphtory/rdf.
+
+[package]
+name = "raphtory-rdf-tests"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+categories.workspace = true
+publish = false
+
+[dependencies]
+raphtory = { workspace = true, features = ["panic-on-drop"] }
+tempfile.workspace = true
+rayon.workspace = true
+oxigraph = { workspace = true, optional = true }
+spargebra = { workspace = true, optional = true }
+spareval = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+zip = { workspace = true, optional = true }
+bzip2 = { workspace = true, optional = true }
+csv = { workspace = true, optional = true }
+bigdecimal = { workspace = true, optional = true }
+
+[features]
+rdf = [
+    "raphtory/rdf",
+    "dep:oxigraph",
+    "dep:spargebra",
+    "dep:spareval",
+    "dep:flate2",
+    "dep:zip",
+    "dep:bzip2",
+    "dep:csv",
+    "dep:bigdecimal",
+]
+shacl = ["rdf", "raphtory/shacl"]
+
+# The W3C SPARQL and Turtle test suites (test-suites/rdf-tests, or RAPHTORY_RDF_TESTS).
+[[test]]
+name = "sparql_w3c"
+required-features = ["rdf"]
+
+# The W3C SHACL test suite (test-suites/data-shapes, or RAPHTORY_SHACL_TESTS).
+[[test]]
+name = "shacl_w3c"
+required-features = ["shacl"]
+
+# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b (`make -C rdf-bench bear-b-fetch`).
+[[test]]
+name = "bear"
+required-features = ["rdf"]
+
+# BSBM and Sparqloscope, read from $RAPHTORY_RDF_DATA/bsbm (`make -C rdf-bench bsbm-fetch`).
+[[test]]
+name = "bsbm"
+required-features = ["rdf"]
+
+# The Gene Ontology, read from $RAPHTORY_RDF_DATA/go (`make -C rdf-bench go-fetch`).
+[[test]]
+name = "go"
+required-features = ["rdf"]

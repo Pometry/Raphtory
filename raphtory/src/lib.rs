@@ -99,6 +99,9 @@ pub mod graph_loader;
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
+#[cfg(feature = "rdf")]
+pub mod rdf;
+
 #[cfg(feature = "io")]
 pub mod io;
 
@@ -166,6 +169,9 @@ pub mod prelude {
         parquet::{ParquetDecoder, ParquetEncoder},
         StableDecode, StableEncode,
     };
+
+    #[cfg(feature = "rdf")]
+    pub use crate::rdf::{RdfMutationOps, RdfViewOps};
 }
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};

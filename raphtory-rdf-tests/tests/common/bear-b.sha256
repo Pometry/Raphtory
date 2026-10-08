@@ -1,0 +1,17 @@
+4b10744308b39d08549e1a1d6fa4a3094ed8d38ef0fe97f4c9d12ef2dfff82be  ./Queries/joins.zip
+4c69fb8ea365c6b64c2e54959831a0c7dfc0f237157b081b21ac02e4a5f9ee05  ./Queries/p/p.txt
+b4f13ceb488b15270cfa835be7079d543f15d21327b6ad8d93c74682caee0c9e  ./Queries/po/po.txt
+4a3a8f0ac5ec48d80447f081c69682821ac616783fb4dd6213f4d9b42d26899a  ./datasets/day/CB/alldata.CB.nt.tar.gz
+4b0c86fe949456be252e6d5a1f8aeb8950b927e3710e243262169ba8c0ffdcf7  ./datasets/hour/CB/alldata.CB.nt.tar.gz
+302d5e9fbb086c6e406fbd8739e64c54c6ebf566b15e462dd27b34d4054cb8e7  ./datasets/instant/CB/alldata.CB.nt.tar.gz
+7786e12e53d0689cee324024b430d4e5e01ad5eee7aef792238982f9d5e2471b  ./results/day/p/diff-p-queries.zip
+7f73fbcf850e991db4dde0b38a759b598b00dced7714291f8c4302d3b640c491  ./results/day/p/mat-p-queries.zip
+7bb1b62dbbe268416d4a3e0f4c3160a97e27a7d8d52be185ba66d1ec23732968  ./results/day/p/ver-p-queries.zip
+a857f845cb2f4ce072e5398dd5e78371ffaaf327eb6ab468f2295d86b671080e  ./results/day/po/diff-po-queries.zip
+e2b39ccd69e7503a5f673c0e687c51be733d978b8d993feccbfd21f5601ffc2c  ./results/day/po/mat-po-queries.zip
+624c07a99d6eaa1bf9c7f4964e1717863618a63c4c980ee1647a888d00373eb7  ./results/day/po/ver-po-queries.zip
+227138a3192e322293d9625c03044b263b70e90533198e468efc0d5cac04e39a  ./results/day/solutionsJoinQuery.zip
+ac432e054f0ac973ee852be432cb2b6e4a84fff034ed83c202772d4e1134c6bd  ./results/hour/p/diff-p-queries.zip
+5d64fc88247966b63bfe62438b20107234d1709046b1d1a110de40b8c64f0520  ./results/hour/po/diff-po-queries.zip
+aa28e85f2959c1e78de14b976f4e4e080ffb4e4ee8f8c9ce07b3b3b8f83d9b28  ./results/hour/po/mat-po-queries.zip
+22df3a2152e11ed2ed3310f80997a2d2f97353fb2a49b1b6836c4ae83f96539c  ./results/hour/po/ver-po-queries.zip

@@ -13,6 +13,10 @@ license.workspace = true
 readme.workspace = true
 homepage.workspace = true
 
+# also document the `rdf` and `shacl` features on docs.rs
+[package.metadata.docs.rs]
+features = ["rdf", "shacl"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 raphtory-api.workspace = true
@@ -95,6 +99,17 @@ tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 pythonize = { workspace = true, optional = true }
 
+# rdf optional dependencies
+oxigraph = { workspace = true, optional = true }
+spareval = { workspace = true, optional = true }
+spargebra = { workspace = true, optional = true }
+oxiri = { workspace = true, optional = true }
+# shacl optional dependencies
+shacl = { workspace = true, optional = true }
+rudof_rdf = { workspace = true, optional = true }
+prefixmap = { workspace = true, optional = true }
+rudof_iri = { workspace = true, optional = true }
+
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -164,6 +179,12 @@ python = [
     "raphtory-core/python",
     "kdam/notebook",
 ]
+
+# RDF import/export and SPARQL queries over graph views (via oxigraph)
+rdf = ["dep:oxigraph", "dep:spareval", "dep:spargebra", "dep:oxiri"]
+# SHACL validation of graph views (via rudof's `shacl` crate). It also turns on RDF 1.2 and
+# SPARQL 1.2 for the whole build, and oxigraph's HTTP client (SERVICE calls are still refused).
+shacl = ["rdf", "dep:shacl", "dep:rudof_rdf", "dep:prefixmap", "dep:rudof_iri"]
 
 panic-on-drop = [
     "storage/panic-on-drop"

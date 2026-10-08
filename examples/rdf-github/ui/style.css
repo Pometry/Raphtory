@@ -1,0 +1,5 @@
+body { margin: 0; font-family: system-ui, sans-serif; background: #fff; color: #222; }
+header { padding: 10px 16px; border-bottom: 1px solid #ddd; font-size: 14px; }
+header a { margin-right: 12px; }
+code { background: #f3f3f3; padding: 1px 4px; border-radius: 3px; }
+main { max-width: 760px; padding: 0 16px; line-height: 1.5; }

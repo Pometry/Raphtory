@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub history in SPARQL</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@matdata/yasgui@6.5.0/build/yasgui.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><a href="index.html">Examples</a> GitHub history as temporal RDF: <code id="endpoint"></code></header>
+<div id="yasgui"></div>
+<script src="https://cdn.jsdelivr.net/npm/@matdata/yasgui@6.5.0/build/yasgui.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@matdata/yasgui-graph-plugin@1.6.2/dist/yasgui-graph-plugin.min.js"></script>
+<script src="yasgui-tabs.js"></script>
+<script>
+const PREFIXES = `PREFIX gh: <http://example.org/gh/>
+PREFIX dev: <https://github.com/>
+PREFIX raphtory: <raphtory:>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+`;
+openYasgui("github", PREFIXES, [
+  ["Who reviews whom", "Graph", `# reviewer -> author, over the whole history
+CONSTRUCT { ?reviewer gh:reviews ?author }
+WHERE { ?reviewer gh:reviewed ?pr . ?pr gh:author ?author }`],
+
+  ["Last 90 days", "Graph", `# Pull requests opened in the last 90 days (validFrom: when the triple was asserted),
+# with their authors and reviewers and the issues they close
+CONSTRUCT {
+  ?pr gh:author ?dev .
+  ?reviewer gh:reviewed ?pr .
+  ?pr gh:closes ?issue .
+  ?issue gh:author ?reporter .
+}
+WHERE {
+  ?pr a gh:PullRequest ; gh:author ?dev .
+  FILTER(raphtory:validFrom(?pr, gh:author, ?dev) >= NOW() - "P90D"^^xsd:dayTimeDuration)
+  OPTIONAL { ?reviewer gh:reviewed ?pr }
+  OPTIONAL { ?pr gh:closes ?issue OPTIONAL { ?issue gh:author ?reporter } }
+}`],
+
+  ["Open pull requests", "Graph", `CONSTRUCT { ?pr gh:author ?dev . ?reviewer gh:reviewed ?pr }
+WHERE {
+  ?pr a gh:PullRequest ; gh:state gh:Open ; gh:author ?dev .
+  OPTIONAL { ?reviewer gh:reviewed ?pr }
+}`],
+
+  ["Open on 1 June 2024", "Graph", `# The same query as "Open pull requests": this tab's endpoint URL ends in ?asof=2024-06-01
+CONSTRUCT { ?pr gh:author ?dev . ?reviewer gh:reviewed ?pr }
+WHERE {
+  ?pr a gh:PullRequest ; gh:state gh:Open ; gh:author ?dev .
+  OPTIONAL { ?reviewer gh:reviewed ?pr }
+}`, "?asof=2024-06-01"],
+
+  ["What happened to them", "Table", `# Pull requests open on 1 June 2024 and their state now, with when it changed
+SELECT ?pr ?title ?state ?since WHERE {
+  GRAPH <raphtory:asof:2024-06-01> { ?pr a gh:PullRequest ; gh:state gh:Open }
+  ?pr gh:title ?title ; gh:state ?state .
+  BIND(raphtory:validFrom(?pr, gh:state, ?state) AS ?since)
+}
+ORDER BY ?since`],
+
+  ["Issues closed by pull requests", "Graph", `# reporter -> issue <- pull request <- author, for pull requests merged in the last year
+CONSTRUCT { ?dev gh:authored ?pr . ?pr gh:closes ?issue . ?reporter gh:reported ?issue }
+WHERE {
+  ?pr gh:closes ?issue ; gh:state gh:Merged ; gh:author ?dev .
+  FILTER(raphtory:validFrom(?pr, gh:state, gh:Merged) >= NOW() - "P365D"^^xsd:dayTimeDuration)
+  OPTIONAL { ?issue gh:author ?reporter }
+}`],
+
+  ["Open issues by assignee", "Graph", `CONSTRUCT { ?dev gh:assignedTo ?issue }
+WHERE { ?issue a gh:Issue ; gh:state gh:Open ; gh:assignee ?dev }`],
+
+  ["Largest merged pull requests", "Table", `SELECT ?pr ?title ?additions ?deletions WHERE {
+  ?pr gh:state gh:Merged ; gh:title ?title ; gh:additions ?additions ; gh:deletions ?deletions .
+}
+ORDER BY DESC(?additions + ?deletions)
+LIMIT 20`],
+
+  ["Top authors", "Table", `SELECT ?login (COUNT(?pr) AS ?pullRequests) WHERE {
+  ?pr a gh:PullRequest ; gh:author ?dev .
+  ?dev rdfs:label ?login .
+}
+GROUP BY ?login
+ORDER BY DESC(?pullRequests)
+LIMIT 20`],
+
+  ["Merged per year", "Table", `SELECT ?year (COUNT(*) AS ?merged) WHERE {
+  ?pr gh:state gh:Merged .
+  BIND(YEAR(raphtory:validFrom(?pr, gh:state, gh:Merged)) AS ?year)
+}
+GROUP BY ?year
+ORDER BY ?year`],
+]);
+</script>
+</body>
+</html>

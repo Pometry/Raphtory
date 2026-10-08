@@ -98,7 +98,15 @@ class GraphServer(object):
                                    reject batched GraphQL requests), `max_batch_size` (int, cap
                                    on the number of queries in a batched request; null for
                                    unlimited), `disable_lists` (bool, disable bulk `list`
-                                   endpoints so clients must use `page`), `max_page_size` (int)
+                                   endpoints so clients must use `page`), `max_page_size` (int),
+                                   `max_sparql_query_length` (int, maximum length in bytes of a
+                                   SPARQL query; null for unlimited), `sparql_timeout` (float,
+                                   seconds before a SPARQL query is stopped, also when its
+                                   client has disconnected; default 30, null for unlimited),
+                                   `max_sparql_triple_patterns` (int, maximum number of triple
+                                   patterns of a SPARQL query; default 100, null for unlimited)
+                                   (the last three need the `rdf` feature, which the Python
+                                   package has)
                                  * `schema`: `max_query_depth` (int), `max_query_complexity`
                                    (int, based on the number of fields selected),
                                    `max_recursive_depth` (int, safety limit against stack

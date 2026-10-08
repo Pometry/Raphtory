@@ -130,6 +130,15 @@ nav:
           - user-guide/export/1_intro.md
           - user-guide/export/2_dataframes.md
           - user-guide/export/3_networkx.md
+      - RDF and SPARQL:
+          - user-guide/rdf/0_dummy_index.md
+          - user-guide/rdf/1_intro.md
+          - user-guide/rdf/2_sparql.md
+          - user-guide/rdf/3_time-travel.md
+          - user-guide/rdf/4_limitations.md
+          - user-guide/rdf/5_graphql.md
+          - user-guide/rdf/6_shacl.md
+          - user-guide/rdf/7_sparql_endpoint.md
       - Making GraphQL queries:
           - user-guide/graphql/0_dummy_index.md
           - user-guide/graphql/1_intro.md

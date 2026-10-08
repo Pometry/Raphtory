@@ -69,6 +69,53 @@ rust-check:
 rust-test-all: rust-check
 	cargo nextest run --all
 
+# RDF tests (raphtory-rdf-tests) and benchmarks (rdf-bench/Makefile). The W3C suites are git submodules of
+# raphtory-rdf-tests; RAPHTORY_RDF_TESTS and RAPHTORY_SHACL_TESTS point the tests at another checkout.
+W3C_SUITES := raphtory-rdf-tests/test-suites/rdf-tests raphtory-rdf-tests/test-suites/data-shapes
+
+w3c-tests-init:
+	git submodule update --init --checkout $(W3C_SUITES)
+
+rust-test-rdf-w3c: w3c-tests-init
+	cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test sparql_w3c -- --nocapture --test-threads=1
+
+# Also runs the SPARQL and Turtle suites on the shacl build, which turns on RDF 1.2 and SPARQL 1.2 for the whole
+# build as the Python package does (rust-test-rdf-w3c covers the build with rdf alone).
+rust-test-shacl-w3c: w3c-tests-init
+	cargo test --profile build-fast -p raphtory-rdf-tests --features shacl --test shacl_w3c -- --nocapture
+	cargo test --profile build-fast -p raphtory-rdf-tests --features shacl --test sparql_w3c -- --nocapture --test-threads=1
+
+# The BEAR-B, BSBM and GO data is downloaded to RDF_DATA_DIR by rdf-bench/Makefile.
+RDF_DATA_DIR ?= $(HOME)/.cache/raphtory-rdf
+override RDF_DATA_DIR := $(abspath $(RDF_DATA_DIR))
+
+bear-b-fetch bsbm-fetch go-fetch:
+	$(MAKE) -C rdf-bench $@ RDF_DATA_DIR=$(RDF_DATA_DIR)
+
+# RAPHTORY_BEAR_FULL=1 checks every version of day and hour (slow).
+rust-test-rdf-bear: bear-b-fetch
+	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test bear -- --nocapture
+
+# RAPHTORY_BSBM_FULL=1 checks every distinct query at 5,000 products too (slow).
+rust-test-rdf-bsbm: bsbm-fetch
+	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test bsbm -- --nocapture
+
+# RAPHTORY_GO_FULL=1 runs the single-release queries as of every release (slow).
+rust-test-rdf-go: go-fetch
+	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test go -- --nocapture
+
+bench-rdf-load:
+	$(MAKE) -C rdf-bench bench-load
+
+bench-rdf-temporal:
+	$(MAKE) -C rdf-bench bench-temporal RDF_DATA_DIR=$(RDF_DATA_DIR)
+
+bench-rdf-sparql:
+	$(MAKE) -C rdf-bench bench-sparql RDF_DATA_DIR=$(RDF_DATA_DIR)
+
+bench-rdf-go:
+	$(MAKE) -C rdf-bench bench-go RDF_DATA_DIR=$(RDF_DATA_DIR)
+
 
 ##########
 # Python #

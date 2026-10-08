@@ -42,6 +42,8 @@ use raphtory_api::core::entities::properties::prop::PropType;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tracing::{error, warn};
 
+#[cfg(feature = "rdf")]
+pub use crate::model::graph::sparql::GqlGraphSparql;
 #[cfg(feature = "vectors")]
 pub use crate::model::graph::vectorised_graph::VectorQuery;
 use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
@@ -781,6 +783,7 @@ pub struct App(
     QueryRoot,
     MutRoot,
     #[cfg(feature = "vectors")] VectorQuery<'static>,
+    #[cfg(feature = "rdf")] GqlGraphSparql<'static>,
     Mut,
     Plugins,
 );

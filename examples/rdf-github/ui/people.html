@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>People graph in SPARQL</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@matdata/yasgui@6.5.0/build/yasgui.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><a href="index.html">Examples</a> People and companies over time: <code id="endpoint"></code></header>
+<div id="yasgui"></div>
+<script src="https://cdn.jsdelivr.net/npm/@matdata/yasgui@6.5.0/build/yasgui.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@matdata/yasgui-graph-plugin@1.6.2/dist/yasgui-graph-plugin.min.js"></script>
+<script src="yasgui-tabs.js"></script>
+<script>
+const PREFIXES = `PREFIX ex: <http://example.org/>
+PREFIX raphtory: <raphtory:>
+
+`;
+const NOW = `SELECT ?person ?name ?company WHERE {
+  ?person ex:worksFor ?company ;
+          ex:name ?name .
+}
+ORDER BY ?person`;
+openYasgui("people", PREFIXES, [
+  ["Who works where", "Table", NOW],
+  ["As of 2022", "Table", "# The same query: this tab's endpoint URL ends in ?asof=2022-01-01\n" + NOW, "?asof=2022-01-01"],
+  ["Who moved?", "Table", `# Two times in one query: GRAPH <raphtory:asof:T> matches the triples as of T
+SELECT ?person ?then ?now WHERE {
+  GRAPH raphtory:asof:2022-01-01 { ?person ex:worksFor ?then }
+  ?person ex:worksFor ?now .
+  FILTER(?then != ?now)
+}`],
+  ["Since when?", "Table", `SELECT ?person ?company ?since WHERE {
+  ?person ex:worksFor ?company .
+  BIND(raphtory:validFrom(?person, ex:worksFor, ?company) AS ?since)
+}
+ORDER BY ?since`],
+  ["Same email, two IRIs", "Table", `# Literals are nodes, so a shared value is a join (and a path in the graph)
+SELECT ?a ?b ?email WHERE {
+  ?a ex:email ?email .
+  ?b ex:email ?email .
+  FILTER(STR(?a) < STR(?b))
+}`],
+  ["Whole graph", "Graph", `CONSTRUCT WHERE { ?s ?p ?o }`],
+  ["Whole graph in 2022", "Graph", `# this tab's endpoint URL ends in ?asof=2022-01-01
+CONSTRUCT WHERE { ?s ?p ?o }`, "?asof=2022-01-01"],
+]);
+</script>
+</body>
+</html>

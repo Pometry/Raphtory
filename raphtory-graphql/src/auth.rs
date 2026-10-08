@@ -177,6 +177,55 @@ impl<E> AuthenticatedGraphQL<E> {
             key_resolver,
         }
     }
+
+    /// The caller's access, roles and token claims, read from the `Authorization` header of
+    /// `req`. Fails with 401 when reads require a valid token and `req` has none.
+    pub(crate) async fn authenticate(
+        &self,
+        req: &Request,
+    ) -> Result<(Access, Roles, TokenClaimValues)> {
+        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
+        let auth = &self.config.auth;
+        let (access, roles, claim_values) = match &self.key_resolver {
+            // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
+            Some(resolver) => {
+                let claims = match req.header(AUTHORIZATION) {
+                    Some(header) => {
+                        extract_claims(
+                            header,
+                            resolver.as_ref(),
+                            auth.audience.as_deref(),
+                            auth.issuer.as_deref(),
+                            auth.role_claim.as_deref(),
+                        )
+                        .await
+                    }
+                    None => None,
+                };
+                match claims {
+                    Some((access, roles, other)) => {
+                        debug!(roles = ?roles, "JWT validated successfully");
+                        (access, Roles(roles), TokenClaimValues(other))
+                    }
+                    None => {
+                        if auth.require_auth_for_reads {
+                            warn!(
+                                "Request missing valid JWT — rejecting (require_auth_for_reads=true)"
+                            );
+                            return Err(Unauthorized(AuthError::RequireRead));
+                        } else {
+                            debug!(
+                                "No valid JWT but require_auth_for_reads=false — granting read access"
+                            );
+                            (Access::Ro, Roles::default(), TokenClaimValues::default())
+                        }
+                    }
+                }
+            }
+        };
+        Ok((access, roles, claim_values))
+    }
 }
 
 impl<E> AuthenticatedGraphQL<E>
@@ -206,6 +255,25 @@ where
         } else {
             Ok(self.execute(req).await)
         }
+    }
+
+    /// Executes a read query the way `call` does: holding the read side of the `exclusive_writes`
+    /// lock and, for a `heavy` query, a `heavy_query_limit` slot.
+    #[cfg(feature = "rdf")]
+    pub(crate) async fn execute_read(
+        &self,
+        request: async_graphql::Request,
+        heavy: bool,
+    ) -> Result<async_graphql::Response> {
+        let _guard = match &self.lock {
+            Some(lock) => Some(lock.read().await),
+            None => None,
+        };
+        let _permit = match &self.semaphore {
+            Some(semaphore) if heavy => Some(semaphore.acquire().await.map_err(TooManyRequests)?),
+            _ => None,
+        };
+        Ok(self.executor.execute(request).await)
     }
 }
 
@@ -239,42 +307,7 @@ where
     type Output = Response;
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
-        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let auth = &self.config.auth;
-        let (access, roles, claim_values) = match &self.key_resolver {
-            // if auth is not setup, we give write access to all requests
-            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
-            Some(resolver) => {
-                let claims = match req.header(AUTHORIZATION) {
-                    Some(header) => {
-                        extract_claims(
-                            header,
-                            resolver.as_ref(),
-                            auth.audience.as_deref(),
-                            auth.issuer.as_deref(),
-                            auth.role_claim.as_deref(),
-                        )
-                        .await
-                    }
-                    None => None,
-                };
-                match claims {
-                    Some((access, roles, other)) => {
-                        debug!(roles = ?roles, "JWT validated successfully");
-                        (access, Roles(roles), TokenClaimValues(other))
-                    }
-                    None => {
-                        if auth.require_auth_for_reads {
-                            warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
-                            return Err(Unauthorized(AuthError::RequireRead));
-                        } else {
-                            debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (Access::Ro, Roles::default(), TokenClaimValues::default())
-                        }
-                    }
-                }
-            }
-        };
+        let (access, roles, claim_values) = self.authenticate(&req).await?;
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -355,6 +388,8 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
         || query.contains("algorithm")
+        // the `sparql` field (feature `rdf`) runs a whole SPARQL query
+        || (cfg!(feature = "rdf") && query.contains("sparql"))
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),
@@ -608,5 +643,23 @@ mod tests {
             effective_roles(&c, None),
             vec!["b".to_string(), "a".to_string(), "c".to_string()]
         );
+    }
+
+    #[cfg(feature = "rdf")]
+    #[test]
+    fn sparql_queries_are_heavy() {
+        assert!(is_query_heavy(
+            r#"{ graph(path: "g") { sparql(query: "SELECT * { ?s ?p ?o }") } }"#
+        ));
+        assert!(!is_query_heavy(r#"{ graph(path: "g") { countNodes } }"#));
+    }
+
+    /// Without the `rdf` feature the word `sparql` does not make a query heavy.
+    #[cfg(not(feature = "rdf"))]
+    #[test]
+    fn sparql_is_not_heavy_without_rdf() {
+        assert!(!is_query_heavy(
+            r#"{ graph(path: "sparql") { countNodes } }"#
+        ));
     }
 }

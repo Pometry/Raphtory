@@ -1,0 +1,21 @@
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix rel: <http://example.org/rel/> .
+@prefix ex: <http://example.org/people/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:alice a foaf:Person ;
+    foaf:name "Alice"@en ;
+    foaf:age 42 ;
+    foaf:knows ex:bob, ex:carol ;
+    foaf:mbox <mailto:alice@example.org> ;
+    rel:worksWith ex:bob .
+
+ex:bob a foaf:Person ;
+    foaf:name "Bob" ;
+    foaf:age "42"^^xsd:integer ;
+    foaf:knows ex:alice .
+
+ex:carol a foaf:Person ;
+    foaf:name "Carol"@EN ;
+    foaf:age 37 ;
+    foaf:homepage <http://carol.example.org/> .

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raphtory RDF example</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><strong>Raphtory RDF example</strong></header>
+<main>
+<p>YASGUI query editors, preloaded with example queries, on the SPARQL endpoints of the Raphtory server
+<code id="server"></code>:</p>
+<ul>
+  <li><a href="github.html">github</a>: the pull requests, reviews and issues of a GitHub repository</li>
+  <li><a href="people.html">people</a>: a small knowledge graph of people and the companies they work for</li>
+</ul>
+<p>Each tab shows a table or a graph of its results (switch with the buttons above the results). Add
+<code>?asof=2024-01-01</code> to an endpoint URL to run every query of that tab on the graph as it was on that
+date.</p>
+</main>
+<script>
+const server = new URLSearchParams(location.search).get("server") || "http://localhost:1736";
+document.getElementById("server").textContent = server;
+for (const link of document.querySelectorAll("main a")) link.search = location.search;
+</script>
+</body>
+</html>

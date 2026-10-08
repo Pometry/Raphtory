@@ -28,6 +28,14 @@ fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Er
     serde_json::from_str(input)
 }
 
+/// A `--sparql-timeout` in seconds: a finite number, at least 0.
+#[cfg(feature = "rdf")]
+fn parse_sparql_timeout(input: &str) -> Result<f64, String> {
+    let seconds: f64 = input.trim().parse().map_err(|e| format!("{e}"))?;
+    crate::config::concurrency_config::sparql_timeout_duration(seconds)?;
+    Ok(seconds)
+}
+
 macro_rules! help_with_default {
     ($help:expr, $default:expr) => {
         format!("{} Default: '{}'", $help, $default)
@@ -159,6 +167,31 @@ pub struct ConfigArgs {
         help = "Maximum page size enforced on paged collection queries. Caps the `limit` argument of `page` so clients can't circumvent `disable_lists` by requesting huge pages."
     )]
     pub(crate) max_page_size: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SPARQL_QUERY_LENGTH",
+        help = help_with_default!("Maximum length in bytes of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Longer queries are rejected before they are parsed.", crate::config::concurrency_config::DEFAULT_MAX_SPARQL_QUERY_LENGTH)
+    )]
+    pub(crate) max_sparql_query_length: Option<usize>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_SPARQL_TIMEOUT",
+        value_parser = parse_sparql_timeout,
+        help = help_with_default!("Time limit in seconds of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Longer queries are stopped and return an error. A query whose client disconnects runs on until this limit.", crate::config::concurrency_config::DEFAULT_SPARQL_TIMEOUT)
+    )]
+    pub(crate) sparql_timeout: Option<f64>,
+
+    #[cfg(feature = "rdf")]
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS",
+        help = help_with_default!("Maximum number of triple patterns of a SPARQL query (the `sparql` field or the `/sparql` endpoint) (each pattern, property path step, BIND and (... AS ?v) of SELECT or GROUP BY counts one, and each VALUES block one plus one per variable and per 100 rows). Larger queries are rejected before they are planned.", crate::config::concurrency_config::DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS)
+    )]
+    pub(crate) max_sparql_triple_patterns: Option<usize>,
 
     #[arg(
         long,

@@ -325,6 +325,13 @@ python dictionary object.
 {'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
 ```
 
+### SPARQL queries
+
+The `sparql` field of a graph runs a [SPARQL](https://www.w3.org/TR/sparql11-query/) query on the RDF triples of the
+graph view and returns the results as one string, such as SPARQL Results JSON. See
+[SPARQL in GraphQL](../rdf/5_graphql.md) for how to use it, and [RDF and SPARQL](../rdf/1_intro.md) for how a graph maps
+to RDF triples.
+
 ## Mutation requests
 
 You can also mutate your graph. This can be done both in the GraphQL IDE and in Python.
