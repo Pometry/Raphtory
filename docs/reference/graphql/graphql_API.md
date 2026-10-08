@@ -15675,7 +15675,7 @@ Properties.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.u64">u64</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#uint64">UInt64</a></td>
 <td>
 
 64 bit unsigned integer.
@@ -16256,6 +16256,13 @@ Internally wraps `InputTime` so write paths (`addNode`, `addEdge`,
 `addProperties`, etc.) can preserve auto-increment of `event_id` when only
 a timestamp is given. Pass the object form `{timestamp, eventId}` to lock
 the event_id explicitly.
+
+### UInt64
+
+64 bit unsigned integer, accepting the full `0..=18446744073709551615` range.
+
+Accepts a JSON number, or a decimal string for clients that can't represent
+large integers exactly (e.g. JavaScript beyond 2^53).
 
 ### Upload
 
