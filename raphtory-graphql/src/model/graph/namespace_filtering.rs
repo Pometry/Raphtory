@@ -198,7 +198,7 @@ fn lower_case_value(value: &Value) -> Value {
         Value::NDTime(v) => Value::NDTime(v.clone()),
         Value::Decimal(v) => Value::Decimal(v.clone()),
         Value::Var(v) => Value::Var(v.clone()),
-        Value::Claim(v) => Value::Var(v.clone()),
+        Value::Claim(v) => Value::Claim(v.clone()),
     }
 }
 

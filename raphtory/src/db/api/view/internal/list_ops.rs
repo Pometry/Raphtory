@@ -105,9 +105,9 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             (List::List { elems }, List::NodeTypeIdx { types })
             | (List::NodeTypeIdx { types }, List::List { elems }) => List::List {
                 elems: match elems {
-                    Index::Sorted { keys, .. } => Index::from_sorted(
-                        keys.iter()
-                            .copied()
+                    Index::Sorted { .. } | Index::Roaring { .. } => Index::from_sorted(
+                        elems
+                            .iter()
                             .filter(|k| has_node_type(g, types, *k))
                             .collect(),
                         false,
