@@ -1,4 +1,8 @@
-use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
+use crate::model::graph::{
+    node_id::GqlNodeId,
+    property::{GqlU64, Value},
+    timeindex::GqlTimeInput,
+};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -1532,7 +1536,7 @@ fn require_prop_list_value(op: &str, v: &Value) -> Result<PropertyFilterValue, G
 
 fn parse_node_id_scalar(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     match v {
-        Value::U64(i) => Ok(FilterValue::ID(GID::U64(*i))),
+        Value::U64(i) => Ok(FilterValue::ID(GID::U64(i.0))),
         Value::Str(s) => Ok(FilterValue::ID(GID::Str(s.clone()))),
         other => Err(GraphError::InvalidGqlFilter(format!(
             "{op} requires int or str, got {other}"
@@ -1559,7 +1563,7 @@ fn parse_node_id_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
     if all_u64 {
         for v in vs {
             if let Value::U64(i) = v {
-                set.insert(GID::U64(*i));
+                set.insert(GID::U64(i.0));
             }
         }
     } else {
@@ -2549,13 +2553,13 @@ fn filter_value_to_value(v: &FilterValue) -> Result<Value, GraphError> {
             Value::List(strs.iter().map(|s| Value::Str(s.clone())).collect())
         }
         FilterValue::ID(GID::Str(s)) => Value::Str(s.clone()),
-        FilterValue::ID(GID::U64(u)) => Value::U64(*u),
+        FilterValue::ID(GID::U64(u)) => Value::U64(GqlU64(*u)),
         FilterValue::IDSet(gids) => {
             let items: Vec<Value> = gids
                 .iter()
                 .map(|g| match g {
                     GID::Str(s) => Value::Str(s.clone()),
-                    GID::U64(u) => Value::U64(*u),
+                    GID::U64(u) => Value::U64(GqlU64(*u)),
                 })
                 .collect();
             Value::List(items)
