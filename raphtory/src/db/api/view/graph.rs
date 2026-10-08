@@ -4,7 +4,7 @@ use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edge_props::load_edges_metadata_from_df as load_edge_props_from_df,
             edges::{load_edges_from_df, ColumnNames},
             load_edge_deletions_from_df, load_graph_props_from_df,
             nodes::{load_node_props_from_df, load_nodes_from_df},

@@ -246,8 +246,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let src_col = df.node_col(src_index)?;
         let dst_col = df.node_col(dst_index)?;
         if resolve_nodes {
-            src_col.validate(graph, LoadError::MissingSrcError)?;
-            dst_col.validate(graph, LoadError::MissingDstError)?;
+            src_col.validate(graph, LoadError::InvalidSrcError)?;
+            dst_col.validate(graph, LoadError::InvalidDstError)?;
         }
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_id_values = layer_id_index

@@ -269,7 +269,7 @@ mod test {
     #[test]
     fn complex_props_meta_writer() {
         let meta = Meta::default();
-        let prop_list_map = Prop::list([Prop::map([("a", 1)]), Prop::map([("b", 2f64)])]);
+        let prop_list_map = Prop::list([Prop::map([("a", 1)]), Prop::map([("b", 2f64)])]).unwrap();
         let props = vec![("a", prop_list_map.clone())];
 
         let writer = PropsMetaWriter::temporal(&meta, props.into_iter()).unwrap();

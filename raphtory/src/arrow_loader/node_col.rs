@@ -1,6 +1,10 @@
 use std::any::Any;
 
-use crate::{arrow_loader::dataframe::DFChunk, errors::LoadError, prelude::AdditionOps};
+use crate::{
+    arrow_loader::dataframe::DFChunk,
+    errors::{InvalidGIDError, LoadError},
+    prelude::AdditionOps,
+};
 use arrow::{
     array::{
         Array, AsArray, Int32Array, Int64Array, LargeStringArray, StringArray, StringViewArray,
@@ -16,51 +20,65 @@ use rayon::prelude::{IndexedParallelIterator, *};
 use storage::utils::Iter4;
 
 trait NodeColOps: Send + Sync {
-    fn has_missing_values(&self) -> bool {
-        self.null_count() != 0
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
+        if i < self.len() {
+            // safety: bounds checked
+            Some(unsafe { self.get_unchecked(i) })
+        } else {
+            None
+        }
     }
-    fn get(&self, i: usize) -> Option<GidRef<'_>>;
+
+    /// safety: Should be safe to call when index `i` is within bounds, i.e., 0 <= i < self.len()
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_>;
 
     fn dtype(&self) -> GidType;
-
-    fn null_count(&self) -> usize;
 
     fn len(&self) -> usize;
 
     fn as_any(&self) -> &dyn Any;
+
+    /// column contains only valid values (i.e., no negative integers or nulls)
+    fn validate(&self) -> Result<(), InvalidGIDError>;
 }
 
 impl NodeColOps for Int32Array {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        self.values().get(i).map(|v| GidRef::U64(*v as u64))
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::U64(self.value_unchecked(i) as u64)
     }
 
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
-    }
+
     fn len(&self) -> usize {
         Array::len(self)
     }
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        if self.values().iter().any(|v| *v < 0) {
+            return Err(InvalidGIDError::Negative);
+        }
+        Ok(())
     }
 }
 
 impl NodeColOps for Int64Array {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        self.values().get(i).map(|v| GidRef::U64(*v as u64))
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::U64(self.value_unchecked(i) as u64)
     }
 
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
-    }
+
     fn len(&self) -> usize {
         Array::len(self)
     }
@@ -68,26 +86,31 @@ impl NodeColOps for Int64Array {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        if self.values().iter().any(|v| *v < 0) {
+            return Err(InvalidGIDError::Negative);
+        }
+        Ok(())
+    }
 }
 
 impl NodeColOps for StringArray {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        if i >= Array::len(self) {
-            None
-        } else {
-            // safety: bounds checked above
-            unsafe {
-                let value = self.value_unchecked(i);
-                Some(GidRef::Str(value))
-            }
-        }
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::Str(self.value_unchecked(i))
     }
 
     fn dtype(&self) -> GidType {
         GidType::Str
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -99,23 +122,18 @@ impl NodeColOps for StringArray {
 }
 
 impl NodeColOps for LargeStringArray {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        if i >= Array::len(self) {
-            None
-        } else {
-            // safety: bounds checked above
-            unsafe {
-                let value = self.value_unchecked(i);
-                Some(GidRef::Str(value))
-            }
-        }
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::Str(self.value_unchecked(i))
     }
 
     fn dtype(&self) -> GidType {
         GidType::Str
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
 
     fn len(&self) -> usize {
@@ -128,23 +146,18 @@ impl NodeColOps for LargeStringArray {
 }
 
 impl NodeColOps for StringViewArray {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        if i >= Array::len(self) {
-            None
-        } else {
-            // safety: bounds checked above
-            unsafe {
-                let value = self.value_unchecked(i);
-                Some(GidRef::Str(value))
-            }
-        }
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::Str(self.value_unchecked(i))
     }
 
     fn dtype(&self) -> GidType {
         GidType::Str
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -156,15 +169,18 @@ impl NodeColOps for StringViewArray {
 }
 
 impl NodeColOps for UInt32Array {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        self.values().get(i).map(|v| GidRef::U64(*v as u64))
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::U64(self.value_unchecked(i) as u64)
     }
 
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -176,15 +192,18 @@ impl NodeColOps for UInt32Array {
 }
 
 impl NodeColOps for UInt64Array {
-    fn get(&self, i: usize) -> Option<GidRef<'_>> {
-        self.values().get(i).map(|v| GidRef::U64(*v))
+    unsafe fn get_unchecked(&self, i: usize) -> GidRef<'_> {
+        GidRef::U64(self.value_unchecked(i))
     }
 
     fn dtype(&self) -> GidType {
         GidType::U64
     }
-    fn null_count(&self) -> usize {
-        Array::null_count(self)
+    fn validate(&self) -> Result<(), InvalidGIDError> {
+        if Array::null_count(self) > 0 {
+            return Err(InvalidGIDError::Missing);
+        }
+        Ok(())
     }
     fn len(&self) -> usize {
         Array::len(self)
@@ -236,8 +255,11 @@ impl<'a> TryFrom<&'a dyn Array> for NodeCol {
 }
 
 impl NodeCol {
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<GidRef<'_>>> + '_ {
-        (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = GidRef<'_>> + '_ {
+        // safety: iterator values are within bounds
+        (0..self.0.len())
+            .into_par_iter()
+            .map(|i| unsafe { self.0.get_unchecked(i) })
     }
 
     pub fn iter(&self) -> impl Iterator<Item = GidRef<'_>> + '_ {
@@ -279,7 +301,7 @@ impl NodeCol {
     pub fn validate(
         &self,
         graph: &impl AdditionOps,
-        node_missing_error: LoadError,
+        node_missing_error: impl Fn(InvalidGIDError) -> LoadError,
     ) -> Result<(), LoadError> {
         if let Some(existing) = graph.id_type().filter(|&id_type| id_type != self.0.dtype()) {
             return Err(LoadError::NodeIdTypeError {
@@ -287,9 +309,7 @@ impl NodeCol {
                 new: self.0.dtype(),
             });
         }
-        if self.0.has_missing_values() {
-            return Err(node_missing_error);
-        }
+        self.0.validate().map_err(node_missing_error)?;
         Ok(())
     }
 

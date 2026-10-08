@@ -766,13 +766,6 @@ impl ValidGraphPaths for ValidGraphFolder {
 }
 
 impl ValidGraphFolder {
-    fn with_internal_errors<V>(
-        &self,
-        map: impl FnOnce() -> Result<V, InternalPathValidationError>,
-    ) -> Result<V, PathValidationError> {
-        map().with_path(self.local_path())
-    }
-
     pub fn graph_folder(&self) -> &GraphFolder {
         &self.global_path
     }
