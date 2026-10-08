@@ -3003,8 +3003,8 @@ mod tests {
     use super::*;
     use crate::{
         client::{
-            Column, RemoteEdgeSchema, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema,
-            RemotePropertySchema, RemotePropertyTuple,
+            Column, RemoteGraphSchema, RemoteLayerSchema, RemoteNodeSchema, RemotePropertySchema,
+            RemotePropertyTuple,
         },
         data::GqlGraphType,
         model::graph::{
@@ -4311,19 +4311,15 @@ mod tests {
                 }],
                 layers: vec![RemoteLayerSchema {
                     name: "_default".to_string(),
-                    edges: vec![RemoteEdgeSchema {
-                        src_type: "None".to_string(),
-                        dst_type: "None".to_string(),
-                        properties: vec![RemotePropertySchema {
-                            key: "test".to_string(),
-                            property_type: PropType::I64,
-                            variants: vec!["2".to_string()],
-                        }],
-                        metadata: vec![RemotePropertySchema {
-                            key: "meta".to_string(),
-                            property_type: PropType::Bool,
-                            variants: vec!["false".to_string()],
-                        }],
+                    properties: vec![RemotePropertySchema {
+                        key: "test".to_string(),
+                        property_type: PropType::I64,
+                        variants: vec!["2".to_string()],
+                    }],
+                    metadata: vec![RemotePropertySchema {
+                        key: "meta".to_string(),
+                        property_type: PropType::Bool,
+                        variants: vec!["false".to_string()],
                     }],
                 }],
             }
