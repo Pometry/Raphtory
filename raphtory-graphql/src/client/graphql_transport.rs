@@ -9,7 +9,7 @@ use crate::{
         op::{
             AddEdge, AddEdgeMetadata, AddEdgeUpdates, AddEdges, AddGraphMetadata, AddGraphProperty,
             AddNode, AddNodeMetadata, AddNodeUpdates, AddNodes, CreateNode, DeleteEdge,
-            DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, Op, ReadExpr, SetNodeType,
+            DeleteEdgeAtTime, EdgeSortBy, InputTime, NodeSortBy, list_or_page_key, Op, PageArgs, ReadExpr, SetNodeType,
             SortByTime, UpdateEdgeMetadata, UpdateGraphMetadata, UpdateNodeMetadata, ViewOp,
             WriteOp,
         },
@@ -624,6 +624,28 @@ fn render_read(
         format!("query({}) {{ {} {} }}", vars.decls, body, closes)
     };
     Ok((query, vars.vars))
+}
+
+
+/// Render a collection list terminal: the `list` field, or `page(...)` when
+/// paged, wrapping `selection`.
+///
+/// Both spellings return the same element type and open ONE net brace, so
+/// every caller's `read_depth` and decode are unaffected by which one is used.
+fn render_list_or_page(
+    page: &Option<PageArgs>,
+    selection: &str,
+    out: &mut String,
+) -> std::fmt::Result {
+    use std::fmt::Write;
+    match page {
+        None => write!(out, " {{ list {{ {selection} }}"),
+        Some(p) => write!(
+            out,
+            " {{ page({}) {{ {selection} }}",
+            render_page_args(p.limit, p.offset, p.page_index)
+        ),
+    }
 }
 
 /// Render the argument list for a `page` / `page_rev` server field:
@@ -1497,9 +1519,9 @@ fn render_read_into(
         // Typed per-node ids: the columnar `ids` field is `[String!]!` (the
         // server stringifies), so the id is read from each node object
         // instead — `Node.id` is the typed `NodeId` scalar.
-        ReadExpr::Ids { input } => {
+        ReadExpr::Ids { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { id }");
+            render_list_or_page(page, "id", out)?;
         }
         // `PathFromGraph.ids` is a columnar `[[String]]` field computed in ONE
         // server-side `blocking_compute` (vs `list { ids }`, which resolves one
@@ -1559,9 +1581,9 @@ fn render_read_into(
         // Compound structured terminal: renders as `list { src { name } dst { name } }`.
         // The `list` field opens ONE brace that gets closed by the outer `read_depth`;
         // the inner `src { name }` / `dst { name }` groups are self-balanced.
-        ReadExpr::EdgesList { input } => {
+        ReadExpr::EdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { src { id } dst { id } }");
+            render_list_or_page(page, "src { id } dst { id }", out)?;
         }
         // `NestedEdges.list` returns `[Edges!]!` — one object per source node.
         // We render `list { list { src { name } dst { name } } }` and read each
@@ -1569,33 +1591,31 @@ fn render_read_into(
         // client-side. The outer `list` field opens ONE net brace (closed by
         // the outer `read_depth`); the inner `list { src { name } dst { name } }`
         // group is self-balanced. Mirrors `EdgesList`, one level deeper.
-        ReadExpr::NestedEdgesList { input } => {
+        ReadExpr::NestedEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { src { id } dst { id } } }");
+            render_list_or_page(page, "list { src { id } dst { id } }", out)?;
         }
         // Exploded-collection variant of `EdgesList`: adds each member's
         // event identity (`time { timestamp eventId }`, `layerName`) so
         // handles can be pinned from ONE response. Same brace accounting —
         // the outer `list` opens one net brace, inner groups self-balance.
-        ReadExpr::ExplodedEdgesList { input } => {
+        ReadExpr::ExplodedEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { src { id } dst { id } time { timestamp eventId } layerName }");
+            render_list_or_page(page, "src { id } dst { id } time { timestamp eventId } layerName", out)?;
         }
         // Nested variant of `ExplodedEdgesList` — mirrors `NestedEdgesList`.
-        ReadExpr::NestedExplodedEdgesList { input } => {
+        ReadExpr::NestedExplodedEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(
-                " { list { list { src { id } dst { id } time { timestamp eventId } layerName } }",
-            );
+            render_list_or_page(page, "list { src { id } dst { id } time { timestamp eventId } layerName }", out)?;
         }
         // Layer-exploded members — `(src, dst, layer)` per member (no time).
-        ReadExpr::ExplodedLayersEdgesList { input } => {
+        ReadExpr::ExplodedLayersEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { src { id } dst { id } layerName }");
+            render_list_or_page(page, "src { id } dst { id } layerName", out)?;
         }
-        ReadExpr::NestedExplodedLayersEdgesList { input } => {
+        ReadExpr::NestedExplodedLayersEdgesList { input, page } => {
             render_read_into(input, vars, out)?;
-            out.push_str(" { list { list { src { id } dst { id } layerName } }");
+            render_list_or_page(page, "list { src { id } dst { id } layerName }", out)?;
         }
         // Columnar accessors — FLAT collections render `list { <field> }`.
         ReadExpr::CollectionNames { input } => {
@@ -1932,7 +1952,7 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::TemporalPropertyMax { input }
         | ReadExpr::TemporalPropertyMedian { input }
         | ReadExpr::Schema { input }
-        | ReadExpr::Ids { input }
+        | ReadExpr::Ids { input, .. }
         | ReadExpr::NestedIds { input }
         | ReadExpr::SourceIds { input }
         | ReadExpr::CollectionDegree { input }
@@ -1944,12 +1964,12 @@ fn read_depth(expr: &ReadExpr) -> usize {
         | ReadExpr::NestedOutDegree { input }
         | ReadExpr::NestedEdgeHistoryCount { input }
         | ReadExpr::Count { input }
-        | ReadExpr::EdgesList { input }
-        | ReadExpr::NestedEdgesList { input }
-        | ReadExpr::ExplodedEdgesList { input }
-        | ReadExpr::NestedExplodedEdgesList { input }
-        | ReadExpr::ExplodedLayersEdgesList { input }
-        | ReadExpr::NestedExplodedLayersEdgesList { input }
+        | ReadExpr::EdgesList { input, .. }
+        | ReadExpr::NestedEdgesList { input, .. }
+        | ReadExpr::ExplodedEdgesList { input, .. }
+        | ReadExpr::NestedExplodedEdgesList { input, .. }
+        | ReadExpr::ExplodedLayersEdgesList { input, .. }
+        | ReadExpr::NestedExplodedLayersEdgesList { input, .. }
         | ReadExpr::EdgeEvent { input, .. }
         | ReadExpr::EdgeLayerEvent { input, .. }
         | ReadExpr::CollectionNames { input }
@@ -2316,9 +2336,9 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("schema");
             }
-            ReadExpr::Ids { input } => {
+            ReadExpr::Ids { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
             ReadExpr::NestedIds { input } => {
                 go(input, out);
@@ -2368,29 +2388,29 @@ fn build_json_path(expr: &ReadExpr) -> Vec<&'static str> {
                 go(input, out);
                 out.push("count");
             }
-            ReadExpr::EdgesList { input } => {
+            ReadExpr::EdgesList { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
-            ReadExpr::NestedEdgesList { input } => {
+            ReadExpr::NestedEdgesList { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
-            ReadExpr::ExplodedEdgesList { input } => {
+            ReadExpr::ExplodedEdgesList { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
-            ReadExpr::NestedExplodedEdgesList { input } => {
+            ReadExpr::NestedExplodedEdgesList { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
-            ReadExpr::ExplodedLayersEdgesList { input } => {
+            ReadExpr::ExplodedLayersEdgesList { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
-            ReadExpr::NestedExplodedLayersEdgesList { input } => {
+            ReadExpr::NestedExplodedLayersEdgesList { input, page } => {
                 go(input, out);
-                out.push("list");
+                out.push(list_or_page_key(page));
             }
             ReadExpr::EdgeEvent { input, .. } => {
                 go(input, out);
@@ -2853,7 +2873,7 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::TemporalPropertyMax { input }
         | ReadExpr::TemporalPropertyMedian { input }
         | ReadExpr::Schema { input }
-        | ReadExpr::Ids { input }
+        | ReadExpr::Ids { input, .. }
         | ReadExpr::NestedIds { input }
         | ReadExpr::SourceIds { input }
         | ReadExpr::CollectionDegree { input }
@@ -2865,12 +2885,12 @@ fn child_input(expr: &ReadExpr) -> Option<&ReadExpr> {
         | ReadExpr::NestedOutDegree { input }
         | ReadExpr::NestedEdgeHistoryCount { input }
         | ReadExpr::Count { input }
-        | ReadExpr::EdgesList { input }
-        | ReadExpr::NestedEdgesList { input }
-        | ReadExpr::ExplodedEdgesList { input }
-        | ReadExpr::NestedExplodedEdgesList { input }
-        | ReadExpr::ExplodedLayersEdgesList { input }
-        | ReadExpr::NestedExplodedLayersEdgesList { input }
+        | ReadExpr::EdgesList { input, .. }
+        | ReadExpr::NestedEdgesList { input, .. }
+        | ReadExpr::ExplodedEdgesList { input, .. }
+        | ReadExpr::NestedExplodedEdgesList { input, .. }
+        | ReadExpr::ExplodedLayersEdgesList { input, .. }
+        | ReadExpr::NestedExplodedLayersEdgesList { input, .. }
         | ReadExpr::EdgeEvent { input, .. }
         | ReadExpr::EdgeLayerEvent { input, .. }
         | ReadExpr::CollectionNames { input }

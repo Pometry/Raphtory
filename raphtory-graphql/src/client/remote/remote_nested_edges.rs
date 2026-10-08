@@ -1,7 +1,7 @@
 use super::view_ops::remote_view_ops;
 use crate::{
     client::{
-        op::{EdgePin, Fanout, HandleCtx, HandleOp, InputTime, Op, ReadExpr, ViewOp},
+        op::{EdgePin, Fanout, HandleCtx, HandleOp, InputTime, Op, PageArgs, ReadExpr, ViewOp, list_or_page_key},
         remote_collection_metadata::{RemoteMetadataView, RemotePropertiesView},
         remote_edge::RemoteEdge,
         remote_path_from_graph::RemotePathFromGraph,
@@ -238,6 +238,7 @@ impl RemoteNestedEdges {
     pub async fn id(&self) -> Result<Vec<Vec<(GID, GID)>>, ClientError> {
         let op = Op::Read(ReadExpr::NestedEdgesList {
             input: self.expr.clone(),
+            page: None,
         });
         expect_nested_edge_list(self.transport.execute(&op).await?, "list")
     }
@@ -390,12 +391,47 @@ impl RemoteNestedEdges {
     /// pinned to its layer via the server's `eventLayer` field (so
     /// `.layer_name()` resolves and `.time()` is unavailable, matching local).
     pub async fn collect(&self) -> Result<Vec<Vec<RemoteEdge>>, ClientError> {
+        self.collect_page(None).await
+    }
+
+    /// One page of this collection as a `Vec<Vec<RemoteEdge>>` — the bounded
+    /// counterpart of `collect()`, materialized identically. At most `limit`
+    /// members, starting `page_index * limit + offset` in; both `offset` and
+    /// `page_index` default to 0 server-side. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Paging is not a snapshot: each page is its own traversal, so concurrent
+    /// writes can shift members between pages.
+    pub async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<Vec<RemoteEdge>>, ClientError> {
+        self.collect_page(Some(PageArgs {
+            limit,
+            offset,
+            page_index,
+        }))
+        .await
+    }
+
+    /// Shared worker for `collect()` and `page()`: identical materialization,
+    /// differing only in whether the server's `list` or `page(...)` field is read.
+    async fn collect_page(
+        &self,
+        page: Option<PageArgs>,
+    ) -> Result<Vec<Vec<RemoteEdge>>, ClientError> {
         match self.ctx.fanout() {
             None => {
                 let op = Op::Read(ReadExpr::NestedEdgesList {
                     input: self.expr.clone(),
+                    page: page.clone(),
                 });
-                let nested = expect_nested_edge_list(self.transport.execute(&op).await?, "list")?;
+                let nested = expect_nested_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
                 Ok(nested
                     .into_iter()
                     .map(|row| {
@@ -417,9 +453,10 @@ impl RemoteNestedEdges {
             Some(Fanout::Events) => {
                 let op = Op::Read(ReadExpr::NestedExplodedEdgesList {
                     input: self.expr.clone(),
+                    page: page.clone(),
                 });
                 let nested =
-                    expect_nested_exploded_edge_list(self.transport.execute(&op).await?, "list")?;
+                    expect_nested_exploded_edge_list(self.transport.execute(&op).await?, list_or_page_key(&page))?;
                 Ok(nested
                     .into_iter()
                     .map(|row| {
@@ -449,6 +486,7 @@ impl RemoteNestedEdges {
             Some(Fanout::Layers) => {
                 let op = Op::Read(ReadExpr::NestedExplodedLayersEdgesList {
                     input: self.expr.clone(),
+                    page: page.clone(),
                 });
                 let nested = expect_nested_exploded_layers_edge_list(
                     self.transport.execute(&op).await?,

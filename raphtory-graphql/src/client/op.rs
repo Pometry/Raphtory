@@ -426,8 +426,11 @@ pub enum ReadExpr {
     WindowSize { input: Arc<ReadExpr> },
 
     // ============ Collection terminals (on Nodes/Edges collections) ============
-    /// Terminal on a Nodes collection: list of member ids — `Vec<String>`.
-    Ids { input: Arc<ReadExpr> },
+    /// Terminal on a Nodes collection: member ids — `Vec<String>`.
+    Ids {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
     /// Terminal on a `PathFromGraph` collection: the nested list of member ids
     /// — `Vec<Vec<String>>` (one inner list per source node). Renders the
     /// columnar `ids` field (whole nested result in one server-side compute,
@@ -555,7 +558,10 @@ pub enum ReadExpr {
     /// wire — each outer element is a 2-element inner list `[src, dst]`.
     /// Distinct from `Ids` (nodes) because edges have no single-string id;
     /// they're identified by the pair.
-    EdgesList { input: Arc<ReadExpr> },
+    EdgesList {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
     /// Terminal on a `NestedEdges` collection: the nested list of (src, dst)
     /// pairs — one inner list per source node. Renders
     /// `list { list { src { name } dst { name } } }`: `NestedEdges.list` is
@@ -563,7 +569,10 @@ pub enum ReadExpr {
     /// Parsed as `Prop::List(Prop::List(Prop::List(Prop::Str, Prop::Str)))`
     /// (outer = per source, middle = that source's edges, inner = `[src, dst]`).
     /// Mirrors `EdgesList`, one level deeper.
-    NestedEdgesList { input: Arc<ReadExpr> },
+    NestedEdgesList {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
     /// Terminal on an *exploded* `Edges` collection: each member's full event
     /// identity, fetched in ONE RPC so the handle pins can't skew against a
     /// concurrent write. Renders
@@ -572,19 +581,31 @@ pub enum ReadExpr {
     /// member: `[src, dst, timestamp, event_id, layer_name]` (`Str, Str, I64,
     /// I64, Str`). Used by `collect()` on exploded collections to build
     /// `EdgeEvent`-pinned handles.
-    ExplodedEdgesList { input: Arc<ReadExpr> },
+    ExplodedEdgesList {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
     /// Terminal on an exploded `NestedEdges` collection: the nested variant of
     /// `ExplodedEdgesList` — one inner list per source node. Renders
     /// `list { list { src { name } dst { name } time { timestamp eventId } layerName } }`.
-    NestedExplodedEdgesList { input: Arc<ReadExpr> },
+    NestedExplodedEdgesList {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
     /// Terminal on a layer-exploded `Edges` collection: one `(src, dst, layer)`
     /// per member. Renders `list { src { name } dst { name } layerName }`. Used
     /// by `collect()` to pin each layer instance (no time — `explodeLayers`
     /// members have a layer but not a single event time).
-    ExplodedLayersEdgesList { input: Arc<ReadExpr> },
+    ExplodedLayersEdgesList {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
     /// Nested variant of `ExplodedLayersEdgesList` — one inner list per source
     /// node. Renders `list { list { src { name } dst { name } layerName } }`.
-    NestedExplodedLayersEdgesList { input: Arc<ReadExpr> },
+    NestedExplodedLayersEdgesList {
+        input: Arc<ReadExpr>,
+        page: Option<PageArgs>,
+    },
 
     // ============ Columnar accessors on collections (via `list { field }`) ============
     // Each renders `list { <field> }` on a flat collection (`Nodes` /
@@ -1093,6 +1114,34 @@ fn rebase_at_source(
         return Some((inner, in_source_segment));
     }
     Some((Arc::new(rebuild(inner)), in_source_segment && !is_traversal))
+}
+
+/// Paging arguments for a collection list terminal.
+///
+/// Every collection that can be listed can also be paged: the server exposes
+/// `list` and `page(limit:, offset:, pageIndex:)` as sibling fields returning
+/// the same element type. So paging is a property of the list terminal rather
+/// than a node of its own — `None` renders `list`, `Some` renders `page(...)`,
+/// and the decode is identical either way.
+///
+/// Worth preferring on a large collection: it bounds the response, and the
+/// server can be configured to reject `list`/`ids` outright (`disable_lists`),
+/// where paging is the only way to read members at all.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PageArgs {
+    pub limit: usize,
+    /// Extra members to skip on top of `page_index` paging. `None` = 0.
+    pub offset: Option<usize>,
+    /// Zero-based page number, multiplied by `limit`. `None` = 0.
+    pub page_index: Option<usize>,
+}
+
+/// The response key a list terminal lands under — `page` when paged, else `list`.
+pub fn list_or_page_key(page: &Option<PageArgs>) -> &'static str {
+    match page {
+        None => "list",
+        Some(_) => "page",
+    }
 }
 
 /// Sort keys for `SortedNodes`/`SortedEdges` are the server's own input types,
