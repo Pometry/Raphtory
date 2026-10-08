@@ -45,3 +45,9 @@ required-features = ["rdf"]
 name = "sparql"
 harness = false
 required-features = ["rdf"]
+
+# The Gene Ontology, read from $RAPHTORY_RDF_DATA/go.
+[[bench]]
+name = "go"
+harness = false
+required-features = ["rdf"]

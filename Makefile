@@ -85,11 +85,11 @@ rust-test-shacl-w3c: w3c-tests-init
 	cargo test --profile build-fast -p raphtory-rdf-tests --features shacl --test shacl_w3c -- --nocapture
 	cargo test --profile build-fast -p raphtory-rdf-tests --features shacl --test sparql_w3c -- --nocapture --test-threads=1
 
-# The BEAR-B and BSBM data is downloaded to RDF_DATA_DIR by rdf-bench/Makefile.
+# The BEAR-B, BSBM and GO data is downloaded to RDF_DATA_DIR by rdf-bench/Makefile.
 RDF_DATA_DIR ?= $(HOME)/.cache/raphtory-rdf
 override RDF_DATA_DIR := $(abspath $(RDF_DATA_DIR))
 
-bear-b-fetch bsbm-fetch:
+bear-b-fetch bsbm-fetch go-fetch:
 	$(MAKE) -C rdf-bench $@ RDF_DATA_DIR=$(RDF_DATA_DIR)
 
 # RAPHTORY_BEAR_FULL=1 checks every version of day and hour (slow).
@@ -100,6 +100,10 @@ rust-test-rdf-bear: bear-b-fetch
 rust-test-rdf-bsbm: bsbm-fetch
 	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test bsbm -- --nocapture
 
+# RAPHTORY_GO_FULL=1 runs the single-release queries as of every release (slow).
+rust-test-rdf-go: go-fetch
+	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test go -- --nocapture
+
 bench-rdf-load:
 	$(MAKE) -C rdf-bench bench-load
 
@@ -108,6 +112,9 @@ bench-rdf-temporal:
 
 bench-rdf-sparql:
 	$(MAKE) -C rdf-bench bench-sparql RDF_DATA_DIR=$(RDF_DATA_DIR)
+
+bench-rdf-go:
+	$(MAKE) -C rdf-bench bench-go RDF_DATA_DIR=$(RDF_DATA_DIR)
 
 
 ##########

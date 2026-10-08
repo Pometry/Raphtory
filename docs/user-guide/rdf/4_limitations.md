@@ -460,6 +460,198 @@ What the numbers show:
   58 s on the dataset, but 0.26 s on Raphtory. BI templates 1 and 4 at 5,000 products take 1.0 and 1.2 times as long
   as on the Store, and 0.5 to 0.6 times as long as on the dataset.
 
+## Ontology benchmark (Gene Ontology)
+
+The [Gene Ontology](https://geneontology.org/docs/download-ontology/) (GO) describes what genes do. It has about
+52,000 terms (13,900 of them obsolete) in three namespaces (biological process, molecular function and cellular
+component). Terms are linked by `is_a` (`rdfs:subClassOf`) and by relations such as `part_of` and `regulates`. GO is
+published as `go.owl`, OWL in RDF/XML: about 130 MB and 1.45 million triples per release, over 51 predicates. The
+benchmark uses the 13 releases from 2024-06-17 to 2026-08-05 (the current one). They are downloaded from
+`https://release.geneontology.org/<date>/ontology/go.owl` (1.7 GB in all) and checked against the checksums in
+`raphtory-rdf-tests/tests/common/go.sha256`. A release's date is that of its archive directory. Two directories hold
+an earlier build: by its `owl:versionIRI`, 2026-06-19 holds the 2026-06-15 release and 2026-08-05 the 2026-07-26 one.
+
+**Blank nodes are skolemized.** 185,000 to 191,000 nodes of each release are blank nodes. They are axiom annotations
+(an `owl:Axiom` with `owl:annotatedSource`, `owl:annotatedProperty` and `owl:annotatedTarget`, 132,000 of them),
+restrictions such as `part_of some mitochondrion` (25,500), and the classes and RDF lists of logical definitions. Every
+parse gives them new labels, and `load_rdf` renames them too, so two releases cannot be compared or retracted triple
+by triple. The harness therefore replaces every blank node with an IRI under `http://example.org/.well-known/genid/`,
+made from a hash of what the node is:
+
+- an axiom, from the triple it annotates;
+- a node with one parent (a restriction or a list node), from its parent's IRI, the predicate that links them and its
+  own content;
+- any other node, from its content.
+
+An axiom or restriction that does not change keeps its IRI from one release to the next: 99.0% to 99.9% of the IRIs
+of a release are in the release before. Both engines are given the same skolemized triples. After skolemization
+`isBlank()` matches nothing, so queries leave these IRIs out with
+`FILTER(!STRSTARTS(STR(?x), "http://example.org/.well-known/genid/"))`, or by joining on `rdfs:label` or
+`a owl:Class`.
+
+**Versions.** Raphtory loads the first release into a `PersistentGraph` at its date. It loads each later release as
+its changes at its date: the triples the release removed are retracted, and those it added are asserted. A change is
+0.2% to 3.5% of a release (2,997 triples removed and 3,148 added in the current one), so the 13 releases take
+1,675,597 written triples. The changes are computed by the harness, outside Raphtory: it parses and skolemizes every
+release and diffs each against the one before. "The release of date `D`" is `snapshot_at(D)`, or the time graph
+`<raphtory:asof:D>` in a query. The Store holds each release in its own named graph, the usual way to keep versions
+in a triple store: 18,606,705 quads.
+
+`make rust-test-rdf-go` checks Raphtory against the Store. The results must agree as multisets of rows, in order for
+`ORDER BY`, and as sets of triples for `DESCRIBE`. Graph IRIs are compared by their release date. The test checks:
+
+- **the current release**, loaded with `load_rdf()`: its numbers of triples, nodes and layers, and the 26 queries
+  below;
+- **the versions**: the size of every release and of every change, which are pinned. As of each release date,
+  Raphtory and the release's graph hold that many triples. For the first, middle and last release they hold the same
+  triples. The 14 queries across releases, and the 26 queries as of the first, middle and last two releases
+  (`RAPHTORY_GO_FULL=1` runs them as of every release);
+- **the skolemization**: reading the current release again gives the same triples, and between consecutive
+  releases every axiom or restriction whose content did not change keeps its IRI and its triples.
+
+Everything agrees, including `raphtory:validFrom` against the same answer computed over the named graphs, and with
+`RAPHTORY_GO_FULL=1` (352 queries). No difference has to be allowed. Every `ORDER BY` in the query set is a total
+order, because with ties a `LIMIT` keeps different rows on different engines. The test takes about 4 minutes in the
+`build-fast` profile (13 s to read, skolemize and diff the releases, 67 s to load the Store) and about 6.6 GB of
+memory.
+
+`make bench-rdf-go` measures the same work on Raphtory, oxigraph's in-memory `Store` and, for the current release
+only, spareval over an in-memory RDF dataset. The figures below come from one run of the release build on an Apple
+M4 Pro laptop (14 cores, 24 GB), which took 13 minutes. Memory is the heap growth while loading, counted by the
+benchmark's allocator, and does not include the input document. Each engine loads the 13 releases twice and the
+faster load is shown; the other loads are timed once.
+
+The laptop was swapping during the run (14 GB of swap in use). Raphtory's times barely change between runs, but the
+Store's slow cases on the 13-release Store do: two single runs of V08 took 12.8 s and 8.7 s, and of V13 4.5 s and
+9.0 s. Treat the 13-release Store figures (its load, the two tables of queries across and as of releases, and the
+ratios built on them) as indicative until they are measured on a machine that does not swap.
+
+| Loading                                        | Time   | Triples per second | Heap kept (peak) |
+|------------------------------------------------|--------|--------------------|------------------|
+| Current release, `go.owl` (RDF/XML): Raphtory  | 3.4 s  | 425,000            | 1.39 GB (1.42)   |
+| ... the Store                                  | 2.0 s  | 739,000            | 0.61 GB (0.83)   |
+| Current release, skolemized N-Triples: Raphtory| 2.6 s  | 556,000            | 1.40 GB (1.40)   |
+| ... the Store                                  | 1.9 s  | 777,000            | 0.65 GB (0.84)   |
+| ... the dataset                                | 4.2 s  | 346,000            | 1.56 GB (1.56)   |
+| 13 releases: Raphtory, first release + changes | 3.0 s  | 559,000            | 1.68 GB (1.68)   |
+| 13 releases: the Store, a graph per release    | 36 s   | 510,000 quads      | 6.42 GB (6.66)   |
+
+The 13-release loads start from skolemized triples. Parsing and skolemizing the 13 `go.owl` files takes 8.8 s (four
+releases at a time), and diffing them, which only Raphtory needs, 4.1 s. From the files to a loaded engine the
+versions therefore take 15.9 s on Raphtory (8.8 + 4.1 + 3.0) and 45 s on the Store (8.8 + 36). A Store that never
+joins across releases does not need skolemized blank nodes and can load each `go.owl` as published, at about 2 s per
+release or more.
+
+The queries are typical uses of GO. `GO:0005739` is mitochondrion, `GO:0008150` biological process and `GO:0006915`
+apoptotic process. Each figure is criterion's mean time of one query. A query whose first run takes more than 1 s is
+timed by the best of two or three single runs (marked `*`).
+
+| Current release (ms per query)                             | Raphtory | Store | Dataset | Raphtory / Store |
+|------------------------------------------------------------|----------|-------|---------|------------------|
+| S01 label of a term                                        | 0.017    | 0.010 | 0.010   | 1.7              |
+| S02 term by label                                          | 0.017    | 0.010 | 0.010   | 1.7              |
+| S03 term by OBO id                                         | 0.017    | 0.010 | 0.010   | 1.8              |
+| S04 literal annotations of a term                          | 0.043    | 0.016 | 0.016   | 2.6              |
+| S05 definition and its references (an axiom)               | 0.033    | 0.022 | 0.022   | 1.5              |
+| S06 synonym text search (`CONTAINS`)                       | 86       | 34    | 30      | 2.5              |
+| S07 label prefix search (`STRSTARTS`)                      | 65       | 25    | 21      | 2.6              |
+| S08 definition text search                                 | 83       | 23    | 20      | 3.7              |
+| S09 `is_a` ancestors with labels (`subClassOf+`)           | 0.038    | 0.020 | 0.023   | 1.9              |
+| S10 `is_a` descendants of biological process (23,973)      | 31       | 32    | 34      | 1.0              |
+| S11 `is_a` descendants of apoptotic process                | 0.076    | 0.037 | 0.049   | 2.0              |
+| S12 direct `part_of` children (through restrictions)       | 3.5      | 3.5   | 9.3     | 1.0              |
+| S13 ancestors over `is_a` and restrictions                 | 0.058    | 0.033 | 0.040   | 1.8              |
+| S14 descendants over `is_a` and restrictions               | 0.41     | 0.16  | 0.26    | 2.5              |
+| S15 restrictions per property                              | 66       | 53    | 76      | 1.2              |
+| S16 regulators of apoptosis                                | 63       | 30    | 70      | 2.1              |
+| S17 genus of logical definitions                           | 22       | 11    | 22      | 1.9              |
+| S18 obsolete terms (`owl:deprecated true`)                 | 3.8      | 1.9   | 1.7     | 2.0              |
+| S19 obsolete terms with a replacement                      | 11       | 9.5   | 24      | 1.2              |
+| S20 terms per namespace                                    | 17       | 11    | 10      | 1.6              |
+| S21 cross-reference prefixes (top 20)                      | 65       | 51    | 108     | 1.3              |
+| S22 classes with the most `is_a` children (top 10)         | 146      | 115   | 108     | 1.3              |
+| S23 terms of a GO slim                                     | 0.26     | 0.11  | 0.15    | 2.4              |
+| S24 all triples (`COUNT(*)`)                               | 718      | 110   | 263     | 6.5              |
+| S25 triples per predicate                                  | 746      | 147   | 303     | 5.1              |
+| S26 `DESCRIBE` a term                                      | 0.040    | 0.013 | 0.013   | 3.0              |
+| Geometric mean                                             |          |       |         | 2.0 (1.5 against the dataset) |
+
+The queries across releases name the graphs of the releases: `<raphtory:asof:D>` on Raphtory and the release's
+named graph on the Store. V05 and V09 count the labels of terms only; the `owl:Axiom` annotations of Reactome
+cross-references also carry `rdfs:label`. V08 and V13 ask since when obsolete terms have been obsolete. On Raphtory
+that is `raphtory:validFrom(?c, owl:deprecated, true)`. On the Store it is the earliest release from which the triple
+is in every later release's graph.
+
+| Across the 13 releases (ms per query)                      | Raphtory | Store  | Raphtory / Store |
+|------------------------------------------------------------|----------|--------|------------------|
+| V01 a label in every release (`FROM NAMED`, 13 graphs)     | 0.039    | 0.054  | 0.72             |
+| V02 classes per release                                    | 605      | 2,200* | 0.28             |
+| V03 new terms in the last release (`FILTER NOT EXISTS`)    | 70       | 311    | 0.22             |
+| V04 terms obsoleted in the last release                    | 15       | 74     | 0.20             |
+| V05 term labels changed since the first release (5,518)    | 156      | 1,380* | 0.11             |
+| V06 new `is_a` links in the last release                   | 110      | 1,310  | 0.08             |
+| V07 a term's triples in every release                      | 0.37     | 0.13   | 2.9              |
+| V08 since when the 13,894 obsolete terms are obsolete      | 59       | 8,700* | 0.01             |
+| V09 term labels added per release                          | 861      | 2,430* | 0.35             |
+| V10 terms per namespace as of the middle release (`FROM`)  | 24       | 90     | 0.27             |
+| V11 `is_a` ancestors as of the first release (`GRAPH`)     | 0.042    | 0.061  | 0.69             |
+| V12 `is_a` descendants of biological process, first release| 47       | 463    | 0.10             |
+| V13 obsoleted terms per release                            | 59       | 4,480* | 0.01             |
+| V14 triples per release                                    | 16,990*  | 3,030* | 5.6              |
+| Geometric mean                                             |          |        | 0.22             |
+
+The 26 queries of the current release were also run as of the first (2024-06-17), middle (2025-07-22) and last
+release, on the versions: `FROM <raphtory:asof:D>` on Raphtory and `FROM` the release's graph on the Store.
+
+| As of a release (ms per query, 3 releases)                 | Raphtory       | Store            | Raphtory / Store |
+|------------------------------------------------------------|----------------|------------------|------------------|
+| Lookups of one term (S01 to S05, S26)                      | 0.019 to 0.054 | 0.010 to 0.028   | 1.3 to 3.1       |
+| Text searches (S06 to S08)                                 | 71 to 97       | 1,280* to 1,470* | 0.05 to 0.08     |
+| Paths and restrictions (S09 to S14, S16, S17)              | 0.042 to 99    | 0.060 to 1,780*  | 0.05 to 0.70     |
+| Aggregates (S15, S18 to S23)                               | 0.31 to 182    | 3.9 to 2,250*    | 0.03 to 0.24     |
+| Whole-graph counts (S24, S25)                              | 1,220* to 1,270*| 111 to 162      | 7.7 to 11        |
+| Geometric mean, by release                                 |                |                  | 0.31, 0.31, 0.31 |
+
+What the numbers show:
+
+- **Raphtory stores the versions in little more than one release.** It writes the 13 releases in 3.0 s and holds
+  them in 1.68 GB, 1.2 times the memory of the current release alone: each change is stored once, as edge events. The
+  Store copies every release into its graph, which takes 36 s and 6.4 GB, 10 times its memory for one release. The
+  changes Raphtory loads are computed outside it, though: counting the diff (4.1 s), from the `go.owl` files to a
+  loaded engine takes 15.9 s on Raphtory against 45 s on the Store, not 3.0 s against 36 s.
+- **On one release, Raphtory takes about twice the Store's time.** Lookups of one term take 17 to 43 µs against 10
+  to 22 µs, mostly the fixed cost of a query. Joins through restrictions and deep `is_a` closures (S10, S12, S15,
+  S19) cost about the same on both. Text filters cost 2.5 to 3.7 times as much, and the whole-graph counts 5.1 to 6.5
+  times (see the BSBM results: every value a filter or the result needs is turned from a node name back into a term).
+  Against the dataset the geometric mean is 1.5.
+- **Time travel costs Raphtory little.** A query as of a past release takes 1.1 to 1.7 times its time on a graph that
+  holds only the current release. The Store finds quads through one list per term (subject, predicate, object or
+  graph) and checks the other terms of each quad. A pattern with a known predicate in one release therefore walks
+  that predicate's quads in all 13 graphs: apart from lookups of one term and whole-graph counts, its queries as of a
+  release take 3 to 63 times as long as on a Store with one release, and the text searches 38 to 63 times, steadily
+  from run to run. As of a release, Raphtory is faster than the Store for everything but lookups of one term and
+  whole-graph counts (geometric mean 0.31; indicative, see above).
+- **Questions about change are where versions in one graph help most.** "Since when" (V08, V13) reads the history of
+  each matching edge and takes 59 ms, where the Store needs seconds to compare 13 graphs. Diffs between two releases
+  (V03 to V06) take 15 to 156 ms against 74 ms to 1.4 s. Listing a term's triples in every release (V07) is the
+  exception among the selective queries: 0.37 ms against 0.13 ms. The Store's figures here are indicative (see
+  above).
+- **Whole-graph scans per release are slow.** Counting the triples of every release (V14) takes 17 s, against 3.0 s
+  on the Store, and a whole-graph count as of one release takes 1.2 s: every edge is read and checked against the
+  release's time.
+
+Things to know when querying GO:
+
+- `rdfs:subClassOf/owl:someValuesFrom` follows every restriction, whatever its property (`part_of`, `regulates`,
+  `has_part` and so on), because a property path cannot test `owl:onProperty`. Use a pattern instead
+  (`?c rdfs:subClassOf ?r . ?r owl:onProperty obo:BFO_0000050 ; owl:someValuesFrom ?x`) when only one property
+  should count, as in S12 and S16.
+- Filter the skolem IRIs out of a path's results (as S13 does) rather than joining with `?anc a owl:Class`. With the
+  join the planner starts from all 52,000 classes, which takes 1.4 s on Raphtory and 0.6 s on the Store instead of
+  0.06 ms.
+- Make every `ORDER BY` with a `LIMIT` a total order (S21 and S22 sort on the count, then on the key), or tied rows
+  differ between engines and between runs.
+
 ```{.python hide}
 import pytest
 from raphtory import Graph, PersistentGraph

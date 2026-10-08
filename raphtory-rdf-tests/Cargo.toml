@@ -63,3 +63,8 @@ required-features = ["rdf"]
 [[test]]
 name = "bsbm"
 required-features = ["rdf"]
+
+# The Gene Ontology, read from $RAPHTORY_RDF_DATA/go (`make -C rdf-bench go-fetch`).
+[[test]]
+name = "go"
+required-features = ["rdf"]
