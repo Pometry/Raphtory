@@ -1,11 +1,12 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::Endpoint,
-        expr::{EdgeLeaf, Expr, Field, Leaf, NodeExpr, NodeLeaf, ViewOp},
+        edge_filter::{EdgeFilter, Endpoint},
+        expr::{Chain, EdgeEndpoint, EdgeLeaf},
+        EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
     },
     python::{
         filter::{
-            node_expr::{PyExpr, PyPropertyExpr, Typed},
+            node_expr::{PyExpr, PyPropertyExpr},
             repr,
         },
         types::iterable::FromIterable,
@@ -25,53 +26,18 @@ use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 ///     Edge.dst().name().starts_with("user:")
 ///     Edge.src().property("country") == "UK"
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
-pub struct PyEdgeEndpoint {
-    views: Vec<ViewOp>,
-    endpoint: Endpoint,
-}
-
-impl PyEdgeEndpoint {
-    /// A node expression evaluated on the node at this end of the edge. The
-    /// edge's views scope that node term.
-    fn through(&self, inner: NodeExpr) -> EdgeLeaf {
-        match self.endpoint {
-            Endpoint::Src => EdgeLeaf::Src(Box::new(inner)),
-            Endpoint::Dst => EdgeLeaf::Dst(Box::new(inner)),
-        }
-    }
-
-    fn term(&self, leaf: NodeLeaf) -> PyExpr {
-        PyExpr(Typed::Edge(Expr::Term(self.through(Expr::Term(leaf)))))
-    }
-
-    fn field(&self, field: Field) -> PyExpr {
-        self.term(NodeLeaf::Field {
-            views: self.views.clone(),
-            field,
-        })
-    }
-
-    fn property_term(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr::new(|temporal| {
-            Typed::Edge(Expr::Term(self.through(Expr::Term(NodeLeaf::property(
-                self.views.clone(),
-                name.clone(),
-                temporal,
-            )))))
-        })
-    }
-}
+pub struct PyEdgeEndpoint(EdgeEndpoint);
 
 #[pymethods]
 impl PyEdgeEndpoint {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        let end = match self.endpoint {
+        let end = match self.0.endpoint() {
             Endpoint::Src => "src",
             Endpoint::Dst => "dst",
         };
         Ok(format!(
             "{}.{end}()",
-            repr::factory(py, "Edge", &self.views)?
+            repr::factory(py, "Edge", self.0.views())?
         ))
     }
 
@@ -80,7 +46,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
-        self.field(Field::Id)
+        PyExpr(self.0.id().into())
     }
 
     /// Selects the endpoint node name field for filtering.
@@ -88,7 +54,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
-        self.field(Field::Name)
+        PyExpr(self.0.name().into())
     }
 
     /// Selects the endpoint node type field for filtering.
@@ -96,7 +62,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
-        self.field(Field::NodeType)
+        PyExpr(self.0.node_type().into())
     }
 
     /// Filters an endpoint node property by name.
@@ -107,7 +73,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_term(name)
+        self.0.property(name).into()
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -118,33 +84,13 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.term(NodeLeaf::metadata(self.views.clone(), name))
+        PyExpr(self.0.metadata(name).into())
     }
 }
 
 impl PyEdgeFilter {
     pub(crate) fn root() -> Self {
-        PyEdgeFilter(Vec::new())
-    }
-
-    fn with_view(&self, view: ViewOp) -> Self {
-        let mut views = self.0.clone();
-        views.push(view);
-        PyEdgeFilter(views)
-    }
-
-    fn term(&self, leaf: EdgeLeaf) -> PyExpr {
-        PyExpr(Typed::Edge(Expr::Term(leaf)))
-    }
-
-    fn property_term(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr::new(|temporal| {
-            Typed::Edge(Expr::Term(EdgeLeaf::property(
-                self.0.clone(),
-                name.clone(),
-                temporal,
-            )))
-        })
+        PyEdgeFilter(EdgeFilter.into())
     }
 }
 
@@ -154,12 +100,12 @@ impl PyEdgeFilter {
 /// `Edge.layer(...)`, ...); its endpoint, property and structural predicates
 /// evaluate within that view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "EdgeFilter", module = "raphtory.filter")]
-pub struct PyEdgeFilter(pub(crate) Vec<ViewOp>);
+pub struct PyEdgeFilter(pub(crate) Chain<EdgeLeaf>);
 
 #[pymethods]
 impl PyEdgeFilter {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "Edge", &self.0)
+        repr::factory(py, "Edge", self.0.views())
     }
 
     /// Selects the edge **source endpoint** for filtering.
@@ -167,10 +113,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn src(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint {
-            views: self.0.clone(),
-            endpoint: Endpoint::Src,
-        }
+        PyEdgeEndpoint(self.0.src())
     }
 
     /// Selects the edge **destination endpoint** for filtering.
@@ -178,10 +121,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn dst(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint {
-            views: self.0.clone(),
-            endpoint: Endpoint::Dst,
-        }
+        PyEdgeEndpoint(self.0.dst())
     }
 
     /// Filters an edge property by name.
@@ -192,7 +132,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_term(name)
+        self.0.property(name).into()
     }
 
     /// Filters an edge metadata field by name.
@@ -203,7 +143,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.term(EdgeLeaf::metadata(self.0.clone(), name))
+        PyExpr(self.0.metadata(name).into())
     }
 
     /// Restricts edge evaluation to the given time window.
@@ -215,7 +155,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::Window { start, end })
+        Self(self.0.clone().window(start, end))
     }
 
     /// Restricts edge evaluation to a single point in time.
@@ -226,7 +166,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn at(&self, time: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::At(time))
+        Self(self.0.clone().at(time))
     }
 
     /// Restricts edge evaluation to times strictly after the given time.
@@ -237,7 +177,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn after(&self, time: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::After(time))
+        Self(self.0.clone().after(time))
     }
 
     /// Restricts edge evaluation to times strictly before the given time.
@@ -248,7 +188,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn before(&self, time: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::Before(time))
+        Self(self.0.clone().before(time))
     }
 
     /// Evaluates edge predicates against the latest available edge state.
@@ -256,7 +196,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn latest(&self) -> PyEdgeFilter {
-        self.with_view(ViewOp::Latest)
+        Self(self.0.clone().latest())
     }
 
     /// Evaluates edge predicates against a snapshot of the graph at a given time.
@@ -267,7 +207,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn snapshot_at(&self, time: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::SnapshotAt(time))
+        Self(self.0.clone().snapshot_at(time))
     }
 
     /// Evaluates edge predicates against the most recent snapshot of the graph.
@@ -275,7 +215,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn snapshot_latest(&self) -> PyEdgeFilter {
-        self.with_view(ViewOp::SnapshotLatest)
+        Self(self.0.clone().snapshot_latest())
     }
 
     /// Restricts evaluation to edges belonging to the given layer.
@@ -286,7 +226,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn layer(&self, layer: String) -> PyEdgeFilter {
-        self.with_view(ViewOp::Layers(vec![layer]))
+        Self(self.0.clone().layer(layer))
     }
 
     /// Restricts evaluation to edges belonging to any of the given layers.
@@ -297,7 +237,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        self.with_view(ViewOp::Layers(layers.into()))
+        Self(self.0.clone().layer(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -305,7 +245,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn default_layer(&self) -> PyEdgeFilter {
-        self.with_view(ViewOp::DefaultLayer)
+        Self(self.0.clone().default_layer())
     }
 
     /// Reads through a view of every layer except the given one.
@@ -316,7 +256,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_layer(&self, layer: String) -> PyEdgeFilter {
-        self.with_view(ViewOp::ExcludeLayers(vec![layer]))
+        Self(self.0.clone().exclude_layer(layer))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -327,7 +267,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        self.with_view(ViewOp::ExcludeLayers(layers.into()))
+        Self(self.0.clone().exclude_layers(layers))
     }
 
     /// Moves the start of the current window to `start` when that is later.
@@ -340,7 +280,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn shrink_start(&self, start: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::ShrinkStart(start))
+        Self(self.0.clone().shrink_start(start))
     }
 
     /// Moves the end of the current window to `end` when that is earlier.
@@ -353,7 +293,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn shrink_end(&self, end: EventTime) -> PyEdgeFilter {
-        self.with_view(ViewOp::ShrinkEnd(end))
+        Self(self.0.clone().shrink_end(end))
     }
 
     /// Reads through a view of every node except the given ones, with their edges.
@@ -366,7 +306,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_nodes(&self, nodes: FromIterable<GID>) -> PyEdgeFilter {
-        self.with_view(ViewOp::ExcludeNodes(nodes.into()))
+        Self(self.0.clone().exclude_nodes(nodes))
     }
 
     /// Reads through a view of the given nodes and the edges between them.
@@ -379,7 +319,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn subgraph(&self, nodes: FromIterable<GID>) -> PyEdgeFilter {
-        self.with_view(ViewOp::Subgraph(nodes.into()))
+        Self(self.0.clone().subgraph(nodes))
     }
 
     /// Reads through a view of the nodes of the given types and the edges between them.
@@ -390,7 +330,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn subgraph_node_types(&self, node_types: FromIterable<String>) -> PyEdgeFilter {
-        self.with_view(ViewOp::SubgraphNodeTypes(node_types.into()))
+        Self(self.0.clone().subgraph_node_types(node_types))
     }
 
     /// Reads through a view of the edges that are valid in the current view.
@@ -401,7 +341,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn valid(&self) -> PyEdgeFilter {
-        self.with_view(ViewOp::Valid)
+        Self(self.0.clone().valid())
     }
 
     /// Matches edges that have at least one event in the current view.
@@ -409,9 +349,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        self.term(EdgeLeaf::IsActive {
-            views: self.0.clone(),
-        })
+        PyExpr(self.0.is_active().into())
     }
 
     /// Matches edges that are structurally valid in the current view.
@@ -419,9 +357,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_valid(&self) -> PyExpr {
-        self.term(EdgeLeaf::IsValid {
-            views: self.0.clone(),
-        })
+        PyExpr(self.0.is_valid().into())
     }
 
     /// Matches edges that have been deleted.
@@ -429,9 +365,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_deleted(&self) -> PyExpr {
-        self.term(EdgeLeaf::IsDeleted {
-            views: self.0.clone(),
-        })
+        PyExpr(self.0.is_deleted().into())
     }
 
     /// Matches edges that are self-loops (source == destination).
@@ -439,9 +373,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_self_loop(&self) -> PyExpr {
-        self.term(EdgeLeaf::IsSelfLoop {
-            views: self.0.clone(),
-        })
+        PyExpr(self.0.is_self_loop().into())
     }
 }
 

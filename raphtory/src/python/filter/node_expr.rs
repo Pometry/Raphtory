@@ -1,16 +1,17 @@
 use crate::{
     db::graph::views::filter::model::{
         expr::{
-            Agg, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field, FilterExpr,
-            Leaf, NodeExpr, NodeLeaf, OpaqueFilter, ViewOp,
+            builder::{EntityAggOps, NodeFilterFactory},
+            Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, FilterExpr, Leaf,
+            NodeExpr, NodeLeaf, PropertyTerm,
         },
         filter_operator::{BinaryOp, StringOp},
         node_expr::{
             typing::{is_known, qualified_type},
             DynCreateOp,
         },
-        node_state_filter::NodeStateBoolColOp,
-        validate_const_comparable,
+        node_filter::NodeFilter,
+        validate_const_comparable, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
     },
     errors::GraphError,
     python::{
@@ -33,7 +34,6 @@ use raphtory_api::core::{
         GID,
     },
     storage::timeindex::EventTime,
-    Direction,
 };
 use std::sync::Arc;
 
@@ -96,15 +96,6 @@ impl Typed {
         }
     }
 
-    /// A constant standing on the other side of this expression.
-    fn constant(&self, value: Prop) -> Typed {
-        match self {
-            Typed::Node(_) => Typed::Node(Expr::Const(value)),
-            Typed::Edge(_) => Typed::Edge(Expr::Const(value)),
-            Typed::ExplodedEdge(_) => Typed::ExplodedEdge(Expr::Const(value)),
-        }
-    }
-
     /// The filter this yes/no expression is, on its entity.
     pub(crate) fn into_filter(self) -> FilterExpr {
         match self {
@@ -112,6 +103,24 @@ impl Typed {
             Typed::Edge(e) => EdgeLeaf::filter(e),
             Typed::ExplodedEdge(e) => ExplodedEdgeLeaf::filter(e),
         }
+    }
+}
+
+impl From<NodeExpr> for Typed {
+    fn from(expr: NodeExpr) -> Self {
+        Typed::Node(expr)
+    }
+}
+
+impl From<EdgeExpr> for Typed {
+    fn from(expr: EdgeExpr) -> Self {
+        Typed::Edge(expr)
+    }
+}
+
+impl From<ExplodedEdgeExpr> for Typed {
+    fn from(expr: ExplodedEdgeExpr) -> Self {
+        Typed::ExplodedEdge(expr)
     }
 }
 
@@ -145,12 +154,15 @@ pub struct PyPropertyExpr {
     history: Typed,
 }
 
-impl PyPropertyExpr {
-    /// Both forms of the property term, built by `term(temporal)`.
-    pub(crate) fn new(term: impl Fn(bool) -> Typed) -> Self {
+/// Both forms of the property term, as the Rust builder made them.
+impl<L: Leaf> From<PropertyTerm<L>> for PyPropertyExpr
+where
+    Typed: From<Expr<L>>,
+{
+    fn from(term: PropertyTerm<L>) -> Self {
         PyPropertyExpr {
-            latest: term(false),
-            history: term(true),
+            history: term.temporal().into(),
+            latest: Expr::from(term).into(),
         }
     }
 }
@@ -217,55 +229,36 @@ fn check_str_value(v: &Prop) -> PyResult<()> {
 
 impl PyExpr {
     fn compare(&self, op: BinaryOp, other: ExprOrValue) -> PyResult<PyExpr> {
-        let rhs = match other {
-            ExprOrValue::Expr(e) => e.0,
+        match other {
+            ExprOrValue::Expr(e) => {
+                Ok(PyExpr(zip_typed!(self.0.clone(), e.0, |l, r| l.cmp(op, r))?))
+            }
             ExprOrValue::Value(v) => {
                 check_value(&self.0, &v)?;
-                self.0.constant(v)
+                Ok(PyExpr(map_typed!(self.0.clone(), |e| e.cmp(op, v))))
             }
-        };
-        Ok(PyExpr(zip_typed!(self.0.clone(), rhs, |l, r| Expr::Cmp(
-            op,
-            Box::new(l),
-            Box::new(r)
-        ))?))
+        }
     }
 
     fn string_op(&self, op: StringOp, other: ExprOrValue) -> PyResult<PyExpr> {
-        let rhs = match other {
-            ExprOrValue::Expr(e) => e.0,
+        match other {
+            ExprOrValue::Expr(e) => Ok(PyExpr(
+                zip_typed!(self.0.clone(), e.0, |l, r| l.string(op, r))?
+            )),
             ExprOrValue::Value(v) => {
                 check_str_value(&v)?;
-                self.0.constant(v)
+                Ok(PyExpr(map_typed!(self.0.clone(), |e| e.string(op, v))))
             }
-        };
-        Ok(PyExpr(zip_typed!(self.0.clone(), rhs, |l, r| Expr::Str(
-            op.clone(),
-            Box::new(l),
-            Box::new(r)
-        ))?))
-    }
-
-    fn membership(&self, values: FromIterable<Prop>, negated: bool) -> PyExpr {
-        let values: Vec<Prop> = values.into();
-        PyExpr(map_typed!(self.0.clone(), |e| Expr::In {
-            expr: Box::new(e),
-            values: values.clone(),
-            negated,
-        }))
+        }
     }
 
     fn presence(&self, none: bool, name: &str) -> PyResult<PyExpr> {
         check_nullable(&self.0, name)?;
         Ok(PyExpr(map_typed!(self.0.clone(), |e| if none {
-            Expr::IsNone(Box::new(e))
+            e.is_none()
         } else {
-            Expr::IsSome(Box::new(e))
+            e.is_some()
         })))
-    }
-
-    fn agg(&self, agg: Agg) -> PyExpr {
-        PyExpr(map_typed!(self.0.clone(), |e| Expr::Agg(agg, Box::new(e))))
     }
 
     /// `&` / `|` with another expression of the same entity stays an
@@ -466,7 +459,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn is_in(&self, values: FromIterable<Prop>) -> PyExpr {
-        self.membership(values, false)
+        PyExpr(map_typed!(self.0.clone(), |e| e.is_in(values)))
     }
 
     /// Checks whether the value is **not** contained within the given values.
@@ -477,7 +470,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyExpr {
-        self.membership(values, true)
+        PyExpr(map_typed!(self.0.clone(), |e| e.is_not_in(values)))
     }
 
     /// Checks whether the value is present.
@@ -504,9 +497,7 @@ impl PyExpr {
     ///     filter.Expr:
     fn any(&self) -> PyResult<PyExpr> {
         check_qualifiable(&self.0)?;
-        Ok(PyExpr(map_typed!(self.0.clone(), |e| Expr::Any(Box::new(
-            e
-        )))))
+        Ok(PyExpr(map_typed!(self.0.clone(), |e| e.any())))
     }
 
     /// Requires that **all** elements match. Follows a comparison against a
@@ -517,9 +508,7 @@ impl PyExpr {
     ///     filter.Expr:
     fn all(&self) -> PyResult<PyExpr> {
         check_qualifiable(&self.0)?;
-        Ok(PyExpr(map_typed!(self.0.clone(), |e| Expr::All(Box::new(
-            e
-        )))))
+        Ok(PyExpr(map_typed!(self.0.clone(), |e| e.all())))
     }
 
     /// Sums the elements when the value is numeric and list-like.
@@ -527,7 +516,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn sum(&self) -> PyExpr {
-        self.agg(Agg::Sum)
+        PyExpr(map_typed!(self.0.clone(), |e| e.sum()))
     }
 
     /// Averages the elements when the value is numeric and list-like.
@@ -535,7 +524,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn avg(&self) -> PyExpr {
-        self.agg(Agg::Avg)
+        PyExpr(map_typed!(self.0.clone(), |e| e.avg()))
     }
 
     /// Selects the minimum element when the value is list-like.
@@ -543,7 +532,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn min(&self) -> PyExpr {
-        self.agg(Agg::Min)
+        PyExpr(map_typed!(self.0.clone(), |e| e.min()))
     }
 
     /// Selects the maximum element when the value is list-like.
@@ -551,7 +540,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn max(&self) -> PyExpr {
-        self.agg(Agg::Max)
+        PyExpr(map_typed!(self.0.clone(), |e| e.max()))
     }
 
     /// Selects the first element of each innermost list. On the history of a
@@ -561,7 +550,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn first(&self) -> PyExpr {
-        self.agg(Agg::First)
+        PyExpr(map_typed!(self.0.clone(), |e| e.first()))
     }
 
     /// Selects the last element of each innermost list. On the history of a
@@ -571,7 +560,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn last(&self) -> PyExpr {
-        self.agg(Agg::Last)
+        PyExpr(map_typed!(self.0.clone(), |e| e.last()))
     }
 
     /// Selects the number of elements of each innermost list.
@@ -579,7 +568,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn len(&self) -> PyExpr {
-        self.agg(Agg::Len)
+        PyExpr(map_typed!(self.0.clone(), |e| e.len()))
     }
 
     /// The earliest update of a temporal history, whatever its type: on a
@@ -588,7 +577,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn earliest(&self) -> PyExpr {
-        self.agg(Agg::Earliest)
+        PyExpr(map_typed!(self.0.clone(), |e| e.earliest()))
     }
 
     /// The latest update of a temporal history, whatever its type: on a
@@ -597,7 +586,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn latest(&self) -> PyExpr {
-        self.agg(Agg::Latest)
+        PyExpr(map_typed!(self.0.clone(), |e| e.latest()))
     }
 
     fn __and__<'py>(&self, py: Python<'py>, other: ExprOrFilter) -> PyResult<Bound<'py, PyAny>> {
@@ -642,52 +631,18 @@ impl PyPropertyExpr {
 /// `Node.latest()`, ...); its field and property methods evaluate within that
 /// view, and its own view methods narrow it further.
 #[pyclass(frozen, name = "NodeFilter", module = "raphtory.filter")]
-pub struct PyNodeFilter(pub(crate) Vec<ViewOp>);
+pub struct PyNodeFilter(pub(crate) Chain<NodeLeaf>);
 
 impl PyNodeFilter {
     pub(crate) fn root() -> Self {
-        PyNodeFilter(Vec::new())
-    }
-
-    fn with_view(&self, view: ViewOp) -> Self {
-        let mut views = self.0.clone();
-        views.push(view);
-        PyNodeFilter(views)
-    }
-
-    fn term(&self, leaf: NodeLeaf) -> PyExpr {
-        PyExpr(Typed::Node(Expr::Term(leaf)))
-    }
-
-    fn field(&self, field: Field) -> PyExpr {
-        self.term(NodeLeaf::Field {
-            views: self.0.clone(),
-            field,
-        })
-    }
-
-    fn degree_term(&self, direction: Direction) -> PyExpr {
-        self.term(NodeLeaf::Degree {
-            views: self.0.clone(),
-            direction,
-        })
-    }
-
-    fn property_term(&self, name: String) -> PyPropertyExpr {
-        PyPropertyExpr::new(|temporal| {
-            Typed::Node(Expr::Term(NodeLeaf::property(
-                self.0.clone(),
-                name.clone(),
-                temporal,
-            )))
-        })
+        PyNodeFilter(NodeFilter.into())
     }
 }
 
 #[pymethods]
 impl PyNodeFilter {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "Node", &self.0)
+        repr::factory(py, "Node", self.0.views())
     }
 
     /// Selects the node ID field for filtering.
@@ -695,7 +650,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
-        self.field(Field::Id)
+        PyExpr(self.0.id().into())
     }
 
     /// Selects the node name field for filtering.
@@ -703,7 +658,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
-        self.field(Field::Name)
+        PyExpr(self.0.name().into())
     }
 
     /// Selects the node type field for filtering.
@@ -711,7 +666,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
-        self.field(Field::NodeType)
+        PyExpr(self.0.node_type().into())
     }
 
     /// Selects incoming node degree for filtering.
@@ -719,7 +674,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn in_degree(&self) -> PyExpr {
-        self.degree_term(Direction::IN)
+        PyExpr(self.0.in_degree().into())
     }
 
     /// Selects total node degree for filtering.
@@ -727,7 +682,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn degree(&self) -> PyExpr {
-        self.degree_term(Direction::BOTH)
+        PyExpr(self.0.degree().into())
     }
 
     /// Selects outgoing node degree for filtering.
@@ -735,7 +690,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn out_degree(&self) -> PyExpr {
-        self.degree_term(Direction::OUT)
+        PyExpr(self.0.out_degree().into())
     }
 
     /// Filters a node property by name.
@@ -748,7 +703,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.property_term(name)
+        self.0.property(name).into()
     }
 
     /// Filters a node metadata field by name.
@@ -761,7 +716,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        self.term(NodeLeaf::metadata(self.0.clone(), name))
+        PyExpr(self.0.metadata(name).into())
     }
 
     /// Restricts node evaluation to the given time window.
@@ -775,7 +730,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::Window { start, end })
+        Self(self.0.clone().window(start, end))
     }
 
     /// Restricts node evaluation to a single point in time.
@@ -786,7 +741,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn at(&self, time: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::At(time))
+        Self(self.0.clone().at(time))
     }
 
     /// Restricts node evaluation to times strictly after the given time.
@@ -797,7 +752,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn after(&self, time: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::After(time))
+        Self(self.0.clone().after(time))
     }
 
     /// Restricts node evaluation to times strictly before the given time.
@@ -808,7 +763,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn before(&self, time: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::Before(time))
+        Self(self.0.clone().before(time))
     }
 
     /// Evaluates filters against the latest available state of each node.
@@ -816,7 +771,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn latest(&self) -> PyNodeFilter {
-        self.with_view(ViewOp::Latest)
+        Self(self.0.clone().latest())
     }
 
     /// Evaluates filters against a snapshot of the graph at a given time.
@@ -827,7 +782,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn snapshot_at(&self, time: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::SnapshotAt(time))
+        Self(self.0.clone().snapshot_at(time))
     }
 
     /// Evaluates filters against the most recent snapshot of the graph.
@@ -835,7 +790,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn snapshot_latest(&self) -> PyNodeFilter {
-        self.with_view(ViewOp::SnapshotLatest)
+        Self(self.0.clone().snapshot_latest())
     }
 
     /// Reads through a view of the given layer.
@@ -846,7 +801,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn layer(&self, layer: String) -> PyNodeFilter {
-        self.with_view(ViewOp::Layers(vec![layer]))
+        Self(self.0.clone().layer(layer))
     }
 
     /// Restricts evaluation to nodes belonging to any of the given layers.
@@ -857,7 +812,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        self.with_view(ViewOp::Layers(layers.into()))
+        Self(self.0.clone().layer(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -865,7 +820,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn default_layer(&self) -> PyNodeFilter {
-        self.with_view(ViewOp::DefaultLayer)
+        Self(self.0.clone().default_layer())
     }
 
     /// Reads through a view of every layer except the given one.
@@ -876,7 +831,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_layer(&self, layer: String) -> PyNodeFilter {
-        self.with_view(ViewOp::ExcludeLayers(vec![layer]))
+        Self(self.0.clone().exclude_layer(layer))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -887,7 +842,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        self.with_view(ViewOp::ExcludeLayers(layers.into()))
+        Self(self.0.clone().exclude_layers(layers))
     }
 
     /// Moves the start of the current window to `start` when that is later.
@@ -900,7 +855,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn shrink_start(&self, start: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::ShrinkStart(start))
+        Self(self.0.clone().shrink_start(start))
     }
 
     /// Moves the end of the current window to `end` when that is earlier.
@@ -913,7 +868,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn shrink_end(&self, end: EventTime) -> PyNodeFilter {
-        self.with_view(ViewOp::ShrinkEnd(end))
+        Self(self.0.clone().shrink_end(end))
     }
 
     /// Reads through a view of every node except the given ones, with their edges.
@@ -926,7 +881,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_nodes(&self, nodes: FromIterable<GID>) -> PyNodeFilter {
-        self.with_view(ViewOp::ExcludeNodes(nodes.into()))
+        Self(self.0.clone().exclude_nodes(nodes))
     }
 
     /// Reads through a view of the given nodes and the edges between them.
@@ -939,7 +894,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn subgraph(&self, nodes: FromIterable<GID>) -> PyNodeFilter {
-        self.with_view(ViewOp::Subgraph(nodes.into()))
+        Self(self.0.clone().subgraph(nodes))
     }
 
     /// Reads through a view of the nodes of the given types and the edges between them.
@@ -950,7 +905,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn subgraph_node_types(&self, node_types: FromIterable<String>) -> PyNodeFilter {
-        self.with_view(ViewOp::SubgraphNodeTypes(node_types.into()))
+        Self(self.0.clone().subgraph_node_types(node_types))
     }
 
     /// Reads through a view of the edges that are valid in the current view.
@@ -961,7 +916,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn valid(&self) -> PyNodeFilter {
-        self.with_view(ViewOp::Valid)
+        Self(self.0.clone().valid())
     }
 
     /// Matches nodes that have at least one event in the current view.
@@ -969,7 +924,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        self.term(NodeLeaf::is_active(self.0.clone()))
+        PyExpr(self.0.is_active().into())
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.
@@ -981,9 +936,9 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.FilterExpr:
     fn by_state_column(&self, state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
-        let op = NodeStateBoolColOp::new(&state.inner, &col)
+        let filter = NodeFilter::by_column(&state.inner, &col)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(PyFilterExpr(OpaqueFilter::new(op).into_filter()))
+        Ok(PyFilterExpr(filter))
     }
 }
 

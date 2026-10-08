@@ -1,5 +1,9 @@
 use crate::{
-    db::graph::views::filter::model::expr::{FilterExpr, ViewOp},
+    db::graph::views::filter::model::{
+        expr::{Chain, FilterExpr},
+        graph_filter::GraphFilter,
+        ViewWrapOps,
+    },
     python::{
         filter::{filter_expr::PyFilterExpr, repr},
         types::iterable::FromIterable,
@@ -20,24 +24,18 @@ use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
     extends = PyFilterExpr,
     frozen
 )]
-pub struct PyGraphFilter(pub(crate) Vec<ViewOp>);
+pub struct PyGraphFilter(pub(crate) Chain<()>);
 
 impl PyGraphFilter {
     pub(crate) fn root() -> Self {
-        PyGraphFilter(Vec::new())
-    }
-
-    fn with_view(&self, view: ViewOp) -> Self {
-        let mut ops = self.0.clone();
-        ops.push(view);
-        PyGraphFilter(ops)
+        PyGraphFilter(GraphFilter.into())
     }
 }
 
 #[pymethods]
 impl PyGraphFilter {
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "Graph", &self.0)
+        repr::factory(py, "Graph", self.0.views())
     }
 
     /// Restricts evaluation to events within a time window.
@@ -51,7 +49,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn window(&self, start: EventTime, end: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::Window { start, end })
+        Self(self.0.clone().window(start, end))
     }
 
     /// Restricts evaluation to a single point in time.
@@ -62,7 +60,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn at(&self, time: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::At(time))
+        Self(self.0.clone().at(time))
     }
 
     /// Restricts evaluation to times strictly after the given time.
@@ -73,7 +71,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn after(&self, time: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::After(time))
+        Self(self.0.clone().after(time))
     }
 
     /// Restricts evaluation to times strictly before the given time.
@@ -84,7 +82,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn before(&self, time: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::Before(time))
+        Self(self.0.clone().before(time))
     }
 
     /// Evaluates filters against the latest available state of the graph.
@@ -92,7 +90,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn latest(&self) -> PyGraphFilter {
-        self.with_view(ViewOp::Latest)
+        Self(self.0.clone().latest())
     }
 
     /// Evaluates filters against a snapshot of the graph at a given time.
@@ -103,7 +101,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn snapshot_at(&self, time: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::SnapshotAt(time))
+        Self(self.0.clone().snapshot_at(time))
     }
 
     /// Evaluates filters against the most recent snapshot of the graph.
@@ -111,7 +109,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn snapshot_latest(&self) -> PyGraphFilter {
-        self.with_view(ViewOp::SnapshotLatest)
+        Self(self.0.clone().snapshot_latest())
     }
 
     /// Restricts evaluation to a single layer.
@@ -122,7 +120,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn layer(&self, layer: String) -> PyGraphFilter {
-        self.with_view(ViewOp::Layers(vec![layer]))
+        Self(self.0.clone().layer(layer))
     }
 
     /// Restricts evaluation to any of the given layers.
@@ -133,7 +131,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        self.with_view(ViewOp::Layers(layers.into()))
+        Self(self.0.clone().layer(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -141,7 +139,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn default_layer(&self) -> PyGraphFilter {
-        self.with_view(ViewOp::DefaultLayer)
+        Self(self.0.clone().default_layer())
     }
 
     /// Reads through a view of every layer except the given one.
@@ -152,7 +150,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_layer(&self, layer: String) -> PyGraphFilter {
-        self.with_view(ViewOp::ExcludeLayers(vec![layer]))
+        Self(self.0.clone().exclude_layer(layer))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -163,7 +161,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        self.with_view(ViewOp::ExcludeLayers(layers.into()))
+        Self(self.0.clone().exclude_layers(layers))
     }
 
     /// Moves the start of the current window to `start` when that is later.
@@ -176,7 +174,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn shrink_start(&self, start: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::ShrinkStart(start))
+        Self(self.0.clone().shrink_start(start))
     }
 
     /// Moves the end of the current window to `end` when that is earlier.
@@ -189,7 +187,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn shrink_end(&self, end: EventTime) -> PyGraphFilter {
-        self.with_view(ViewOp::ShrinkEnd(end))
+        Self(self.0.clone().shrink_end(end))
     }
 
     /// Reads through a view of every node except the given ones, with their edges.
@@ -202,7 +200,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_nodes(&self, nodes: FromIterable<GID>) -> PyGraphFilter {
-        self.with_view(ViewOp::ExcludeNodes(nodes.into()))
+        Self(self.0.clone().exclude_nodes(nodes))
     }
 
     /// Reads through a view of the given nodes and the edges between them.
@@ -215,7 +213,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn subgraph(&self, nodes: FromIterable<GID>) -> PyGraphFilter {
-        self.with_view(ViewOp::Subgraph(nodes.into()))
+        Self(self.0.clone().subgraph(nodes))
     }
 
     /// Reads through a view of the nodes of the given types and the edges between them.
@@ -226,7 +224,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn subgraph_node_types(&self, node_types: FromIterable<String>) -> PyGraphFilter {
-        self.with_view(ViewOp::SubgraphNodeTypes(node_types.into()))
+        Self(self.0.clone().subgraph_node_types(node_types))
     }
 
     /// Reads through a view of the edges that are valid in the current view.
@@ -237,7 +235,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn valid(&self) -> PyGraphFilter {
-        self.with_view(ViewOp::Valid)
+        Self(self.0.clone().valid())
     }
 }
 
@@ -475,7 +473,7 @@ impl<'py> IntoPyObject<'py> for PyGraphFilter {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let parent = PyFilterExpr(FilterExpr::View(self.0.clone()));
+        let parent = PyFilterExpr(FilterExpr::from(self.0.clone()));
         Bound::new(py, (self, parent))
     }
 }

@@ -434,6 +434,16 @@ impl Chain<EdgeLeaf> {
 }
 
 impl EdgeEndpoint {
+    /// The views of the edge chain this end was taken from, innermost first.
+    pub fn views(&self) -> &[ViewOp] {
+        &self.views
+    }
+
+    /// Which end of the edge this is.
+    pub fn endpoint(&self) -> Endpoint {
+        self.endpoint
+    }
+
     /// A node term, evaluated on the node at this end of the edge.
     fn through(&self, inner: Expr<NodeLeaf>) -> Expr<EdgeLeaf> {
         let inner = Box::new(inner);
