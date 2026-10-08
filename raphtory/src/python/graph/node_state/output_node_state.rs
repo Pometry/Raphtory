@@ -30,7 +30,7 @@ use pyo3::{
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
     Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
-use raphtory_api::core::entities::properties::prop::PropUntagged;
+use raphtory_api::core::entities::properties::prop::PropExact;
 use std::{collections::HashMap, sync::Arc};
 
 #[pyclass(name = "OutputNodeState", module = "raphtory.node_state", frozen)]
@@ -84,7 +84,7 @@ impl PyOutputNodeState {
                         self.inner
                             .get_by_node(node_ref)
                             .map(|l_value| {
-                                let l_value = convert_prop_map::<PropUntagged, Prop>(l_value);
+                                let l_value = convert_prop_map::<PropExact, Prop>(l_value);
                                 if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
                                     l_value_py.eq(value).unwrap_or(false)
                                 } else {
@@ -387,7 +387,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, DynamicGraph> {
         }
 
         if let Ok(prop) = obj.extract::<Option<Prop>>() {
-            return Ok(NodeStateOutput::Prop(prop.map(PropUntagged::from)));
+            return Ok(NodeStateOutput::Prop(prop.map(PropExact)));
         }
 
         Err(PyTypeError::new_err("Invalid type conversion"))

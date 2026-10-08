@@ -151,11 +151,21 @@ impl PartialEq<Prop> for PropUntagged {
 
 /// Preserves the exact numeric width reported by the deserializer, unlike untagged
 /// deserialization which coerces (e.g. f32 -> f64) and narrows in-range integers.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PropExact(pub Prop);
 
 impl From<PropExact> for Prop {
     fn from(p: PropExact) -> Self {
         p.0
+    }
+}
+
+impl Serialize for PropExact {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        SerdeArrowProp(&self.0).serialize(serializer)
     }
 }
 
@@ -905,6 +915,10 @@ impl Prop {
         Ok(Prop::List(PropArray::try_from(
             vals.into_iter().map_into().collect::<Vec<_>>(),
         )?))
+    }
+
+    pub fn list_unchecked<P: Into<Prop>, I: IntoIterator<Item = P>>(vals: I) -> Prop {
+        Self::list(vals).unwrap_or_else(|e| panic!("Failed to construct list {e}"))
     }
 
     /// Consume a numeric prop into a `BigDecimal` — exact for integers and existing decimals, the
