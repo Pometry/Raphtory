@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::{GenericNodeState, Index, TypedNodeState},
             view::{
-                internal::{filtered_node::FilteredNodeStorageOps, InternalLayerOps},
+                internal::{filtered_node::FilteredNodeStorageOps, FilterOps, InternalLayerOps},
                 Filter, StaticGraphViewOps,
             },
         },
@@ -254,6 +254,18 @@ fn trace_summary(window: &VecDeque<Sweep>) -> String {
         trend(first.3 as f64, last.3 as f64),
         trend(first.4, last.4),
     )
+}
+
+/// The index of `g`'s nodes. A trusted view gets `Index::for_graph`'s storage index; any other
+/// view (layered, windowed, cached) is scanned in parallel instead of node by node.
+fn node_index<G: StaticGraphViewOps>(g: &G) -> Index<VID> {
+    if g.node_list_trusted() {
+        Index::for_graph(g.clone())
+    } else {
+        let mut vids: Vec<VID> = g.nodes().par_iter().map(|node| node.node).collect();
+        vids.par_sort_unstable();
+        Index::from_sorted(vids, false)
+    }
 }
 
 /// Builds the adjacency both [`belief_propagation`] and [`belief_propagation_probe_convergence`]
@@ -506,7 +518,7 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
     // the adjacency. A node whose only edges are self-loops drops out of the filtered view, but
     // it stays here, with no neighbours.
     let seeds = seeds.into_seed_beliefs(g)?;
-    let index = Index::for_graph(g.clone());
+    let index = node_index(g);
     let n = index.len();
     let (labels, seeds_by_slot) = compact_seeds(seeds, &index, epsilon)?;
 
@@ -665,7 +677,7 @@ pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps>(
     validate_params(c, epsilon, epsilon, 1)?;
 
     let seeds = seeds.into_seed_beliefs(g)?;
-    let index = Index::for_graph(g.clone());
+    let index = node_index(g);
     let n = index.len();
 
     let (_, seeds_by_slot) = compact_seeds(seeds, &index, epsilon)?;
