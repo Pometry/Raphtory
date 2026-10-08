@@ -157,7 +157,7 @@ jobs:
           cd ui-tests
           UI_BASE_URL="http://localhost:$RAPHTORY_PORT" GRAPHQL_URL="http://localhost:$RAPHTORY_PORT" npx playwright test --project ${{ matrix.browser }} --shard=${{ matrix.shard }}/${{ env.NUM_SHARDS }}
       - name: Upload UI Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.browser }}-py-${{ matrix.python }}-shard-${{ matrix.shard }}
