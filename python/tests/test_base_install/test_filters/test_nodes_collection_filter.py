@@ -89,12 +89,15 @@ def test_node_collection_combinations_follow_set_algebra():
         every = frozenset(graph.nodes.name)
         cases = []
         views = {"window", "before", "layer"}
-        # A view composes with `&` only, and `view & X` is `graph.<view>().filter(X)` rather
-        # than set algebra (pinned below); under `|` or `~` a view is refused where it is written.
+        # A view composes with `&` only; under `|` or `~` it is refused where it is written.
+        # On `nodes[]` a view leg is an existence test, so `view & X` is set algebra there;
+        # on `filter()` the view applies first and `X` runs inside it (pinned below).
+        select_only = set()
         for a, b in combinations(atoms, 2):
-            if a in views or b in views:
-                continue
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
+            if a in views or b in views:
+                select_only.add(f"{a} & {b}")
+                continue
             cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
         for a in atoms:
             if a not in views:
@@ -104,10 +107,15 @@ def test_node_collection_combinations_follow_set_algebra():
         for label, expr, want in cases:
             if frozenset(graph.nodes[expr].name) != want:
                 mismatches.append(f"[nodes[]] {label}")
-            if frozenset(graph.filter(expr).nodes.name) != want:
+            if (
+                label not in select_only
+                and frozenset(graph.filter(expr).nodes.name) != want
+            ):
                 mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
-        # `view & X`: the view first, then `X` inside it.
+        # `view & X` on `filter()`: the view first, then `X` inside it. On `nodes[]` the
+        # view is one test among the others: c exists in the window through the edge at
+        # 10, and its score of 30 is read on the graph, so `window & prop` keeps b and c.
         view_ref = {
             "window": graph.window(3, 12),
             "before": graph.before(12),
@@ -115,13 +123,17 @@ def test_node_collection_combinations_follow_set_algebra():
         }
         for v, viewed in view_ref.items():
             for name in ("name", "prop"):
-                want = frozenset(viewed.nodes[atoms[name]].name)
+                inside = frozenset(viewed.nodes[atoms[name]].name)
                 assert (
-                    frozenset(graph.nodes[atoms[v] & atoms[name]].name) == want
+                    frozenset(graph.filter(atoms[v] & atoms[name]).nodes.name) == inside
                 ), f"{v} & {name}"
+                exists_and = frozenset(viewed.nodes.name) & frozenset(
+                    graph.nodes[atoms[name]].name
+                )
                 assert (
-                    frozenset(graph.filter(atoms[v] & atoms[name]).nodes.name) == want
+                    frozenset(graph.nodes[atoms[v] & atoms[name]].name) == exists_and
                 ), f"{v} & {name}"
+        assert sorted(graph.nodes[atoms["window"] & atoms["prop"]].name) == ["b", "c"]
         assert frozenset(
             graph.filter(atoms["window"] & atoms["layer"]).nodes.name
         ) == frozenset(graph.window(3, 12).layer("work").nodes.name)

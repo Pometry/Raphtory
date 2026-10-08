@@ -96,9 +96,10 @@ def _kind(name):
     return "view" if name in VIEWS else ("node" if name in NODE_KIND else "edge")
 
 
-def _view_applies_first_under_and(a, b):
-    # `view & X` is not set algebra: the view applies first and `X` runs inside it
-    # (`test_a_view_applies_first_under_and`), so it has no set-derived expectation here.
+def _has_view(a, b):
+    # On `filter()` a view leg is not set algebra: the view applies first and `X` runs
+    # inside it (`test_a_view_applies_first_under_and_on_filter`). On `edges[]` it is an
+    # existence test like any other leg (`test_a_view_leg_is_an_existence_test_on_select`).
     return a in VIEWS or b in VIEWS
 
 
@@ -261,9 +262,11 @@ def test_combinations_follow_set_algebra():
         node_sets = _node_sets(graph)
         every = _ids(graph.edges)
         cases = []
+        select_only = set()
         for a, b in combinations(atoms, 2):
-            if not _view_applies_first_under_and(a, b):
-                cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
+            cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
+            if _has_view(a, b):
+                select_only.add(f"{a} & {b}")
             if _or_is_refused(a, b):
                 continue
             if _kind(a) == _kind(b) == "node":
@@ -329,10 +332,11 @@ def test_combinations_follow_set_algebra():
         )
         mismatches = []
         for label, expr, want in cases:
-            for path, got in (
-                ("edges[]", _ids(graph.edges[expr])),
-                ("filter()", _ids(graph.filter(expr).edges)),
-            ):
+            paths = [("edges[]", lambda: _ids(graph.edges[expr]))]
+            if label not in select_only:
+                paths.append(("filter()", lambda: _ids(graph.filter(expr).edges)))
+            for path, read in paths:
+                got = read()
                 if got != want:
                     mismatches.append(
                         f"[{path}] {label}: got {sorted(got)} want {sorted(want)}"
@@ -441,9 +445,9 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 
 @with_variants(_init)
-def test_a_view_applies_first_under_and():
-    """`view & X` means `graph.<view>().filter(X)`: the view is applied first and `X` is
-    evaluated inside it, on both the subscript and the `filter()` path. Two views chain.
+def test_a_view_applies_first_under_and_on_filter():
+    """On `filter()`, `view & X` means `graph.<view>().filter(X)`: the view is applied
+    first and `X` is evaluated inside it. Two views chain.
     """
 
     def check(graph):
@@ -454,14 +458,11 @@ def test_a_view_applies_first_under_and():
                 if name in VIEWS:
                     continue
                 want = _ids(viewed.edges[atom])
-                for path, got in (
-                    ("edges[]", _ids(graph.edges[atoms[v] & atom])),
-                    ("filter()", _ids(graph.filter(atoms[v] & atom).edges)),
-                ):
-                    if got != want:
-                        mismatches.append(
-                            f"[{path}] {v} & {name}: got {sorted(got)} want {sorted(want)}"
-                        )
+                got = _ids(graph.filter(atoms[v] & atom).edges)
+                if got != want:
+                    mismatches.append(
+                        f"[filter()] {v} & {name}: got {sorted(got)} want {sorted(want)}"
+                    )
         # Two views: the second applies inside the first.
         want = _ids(graph.window(3, 12).layers(["work"]).edges)
         got = _ids(graph.filter(atoms["window"] & atoms["layer"]).edges)
@@ -469,6 +470,42 @@ def test_a_view_applies_first_under_and():
             mismatches.append(
                 f"[filter()] window & layer: got {sorted(got)} want {sorted(want)}"
             )
+        assert not mismatches, "\n".join(mismatches)
+
+    return check
+
+
+@with_variants(_init)
+def test_a_view_leg_is_an_existence_test_on_select():
+    """On `edges[]`, a view leg asks "does the edge exist in that view?" and every other
+    leg reads the collection's own graph, so `view & X` is the intersection of the two
+    answers. The view does not scope `X`: `window(3, 12) & score > 15` keeps b->c, whose
+    endpoints only get those scores at 10 and 15, where inside the window c has none.
+    """
+
+    def check(graph):
+        atoms, views = _atoms(), _view_references(graph)
+        mismatches = []
+        for v, viewed in views.items():
+            for name, atom in atoms.items():
+                if name in VIEWS:
+                    continue
+                want = _ids(viewed.edges) & _ids(graph.edges[atom])
+                got = _ids(graph.edges[atoms[v] & atom])
+                if got != want:
+                    mismatches.append(
+                        f"[edges[]] {v} & {name}: got {sorted(got)} want {sorted(want)}"
+                    )
+        # each view leg is its own existence test; they do not chain into one view
+        want = _ids(graph.window(3, 12).edges) & _ids(graph.layers(["work"]).edges)
+        got = _ids(graph.edges[atoms["window"] & atoms["layer"]])
+        if got != want:
+            mismatches.append(
+                f"[edges[]] window & layer: got {sorted(got)} want {sorted(want)}"
+            )
+        assert graph.edges[atoms["window"] & atoms["node_prop"]].id.collect() == [
+            ("b", "c")
+        ]
         assert not mismatches, "\n".join(mismatches)
 
     return check

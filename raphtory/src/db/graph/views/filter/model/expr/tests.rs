@@ -2,17 +2,23 @@ use super::*;
 use crate::{
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic, Select},
-        graph::views::filter::{
-            model::{
-                edge_filter::EdgeFilter,
-                exploded_edge_filter::ExplodedEdgeFilter,
-                graph_filter::GraphFilter,
-                node_expr::Compiled,
-                node_filter::{NodeFilter, NodeFilterFactory},
-                ComposableFilter, EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps,
-                PropertyExprFactory, ViewWrapOps,
+        graph::{
+            edges::Edges,
+            views::{
+                deletion_graph::PersistentGraph,
+                filter::{
+                    model::{
+                        edge_filter::EdgeFilter,
+                        exploded_edge_filter::ExplodedEdgeFilter,
+                        graph_filter::GraphFilter,
+                        node_expr::Compiled,
+                        node_filter::{NodeFilter, NodeFilterFactory},
+                        ComposableFilter, EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps,
+                        PropertyExprFactory, ViewWrapOps,
+                    },
+                    CreateFilter,
+                },
             },
-            CreateFilter,
         },
     },
     errors::GraphError,
@@ -424,6 +430,65 @@ fn a_view_leg_restricts_the_whole_filter() {
         .is_err());
     assert!(FilterExpr::Not(Box::new(win.clone())).split().is_err());
     assert!(f.has_view() && !score_gt_4.has_view());
+}
+
+/// On a node or edge collection a view leg is one more test, "exists in the
+/// view", and the other legs read the collection's own graph; only a filtered
+/// graph is seen through the view first. So `window(0,5) & window(5,8).score
+/// > 6` selects alice, whose score is 9 at 6, while the same filter applied to
+/// the graph windows it to [0,5) first and the inner window finds nothing.
+#[test]
+fn a_view_leg_in_a_select_is_an_existence_test() {
+    fn selected<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<String> {
+        let mut ids: Vec<String> = edges
+            .iter()
+            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+            .collect();
+        ids.sort();
+        ids
+    }
+    let g = graph();
+    let in_window = |start, end, e: NodeExpr| {
+        let mut e = e;
+        e.push_view(window(start, end));
+        e
+    };
+    let score_after_5 = node(cmp(BinaryOp::Gt, in_window(5, 8, prop("score")), c(6.0)));
+    let f = FilterExpr::And(vec![
+        FilterExpr::View(vec![window(0, 5)]),
+        FilterExpr::View(vec![ViewOp::Layers(vec!["knows".into()])]),
+        score_after_5,
+    ]);
+    let mut names: Vec<String> = g.nodes().select(f.clone()).unwrap().name().collect();
+    names.sort();
+    assert_eq!(names, ["alice"]);
+    assert!(nodes(&g, &f).is_empty());
+
+    // the same on edges: alice→bob exists in [0,3) and its weight in [3,5) is 2
+    let mut w = edge_prop("w");
+    w.push_view(window(3, 5));
+    let f = FilterExpr::And(vec![
+        FilterExpr::View(vec![window(0, 3)]),
+        FilterExpr::Edge(cmp(BinaryOp::Gt, w, Expr::Const(1i64.into()))),
+    ]);
+    assert_eq!(
+        selected(g.edges().select(f.clone()).unwrap()),
+        ["alice->bob"]
+    );
+    assert!(edges(&g, &f).is_empty());
+
+    // the test is existence, not activity: on a persistent graph an edge that
+    // is alive in the window exists there without an update in it
+    let g = PersistentGraph::new();
+    g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+    g.add_edge(7, "c", "d", NO_PROPS, None).unwrap();
+    let in_window = FilterExpr::View(vec![window(5, 10)]);
+    assert_eq!(
+        selected(g.edges().select(in_window).unwrap()),
+        ["a->b", "c->d"]
+    );
+    let active = EdgeFilter.window(5, 10).is_active();
+    assert_eq!(selected(g.edges().select(active).unwrap()), ["c->d"]);
 }
 
 #[test]

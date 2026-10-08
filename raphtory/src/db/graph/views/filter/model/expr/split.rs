@@ -19,9 +19,10 @@ use crate::errors::GraphError;
 /// A filter with its legs sorted by the question they answer.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct SplitFilter {
-    /// The view the graph is seen through before anything else: the view
-    /// legs of the top-level `and`, in the order written.
-    pub(crate) views: Vec<ViewOp>,
+    /// The view legs of the top-level `and`, in the order written, one list
+    /// per leg. A filtered graph is seen through all of them, chained; a
+    /// node or edge filter asks that the entity exist in each.
+    pub(crate) views: Vec<Vec<ViewOp>>,
     /// Which nodes stay; `None` leaves every node.
     pub(crate) nodes: Option<NodeExpr>,
     /// Which edges stay, beyond the edges whose ends both stayed; `None`
@@ -213,12 +214,14 @@ fn view_below_top_level() -> GraphError {
 impl FilterExpr {
     /// This filter sorted by question.
     ///
-    /// A view (`View`) applies first: the graph is seen through it and the
-    /// other legs run inside it, terms included, the way
-    /// `graph.window(..).filter(expr)` does. A view therefore stands alone or
-    /// is a leg of the top-level `and` (nested `and`s count as top level);
-    /// under `or` or `not` it has no meaning the engine can give it and is
-    /// refused.
+    /// A view (`View`) stands alone or is a leg of the top-level `and`
+    /// (nested `and`s count as top level); under `or` or `not` it has no
+    /// meaning the engine can give it and is refused. What a view leg means
+    /// depends on what the filter is applied to: a filtered graph is seen
+    /// through it first and the other legs run inside it, the way
+    /// `graph.window(..).filter(expr)` does, while a node or edge filter
+    /// asks that the entity exist in the view and runs the other legs on the
+    /// collection's own graph, so there `and` is just `and`.
     pub(crate) fn split(&self) -> Result<SplitFilter, GraphError> {
         let (views, predicates) = self.top_views()?;
         let legs = predicates
@@ -233,18 +236,18 @@ impl FilterExpr {
         })
     }
 
-    /// The view ops at the top of the filter, in order, and the predicates
+    /// The view legs at the top of the filter, in order, and the predicates
     /// beside them. `and` nests flatten; anything else is a predicate.
-    fn top_views(&self) -> Result<(Vec<ViewOp>, Vec<&FilterExpr>), GraphError> {
+    fn top_views(&self) -> Result<(Vec<Vec<ViewOp>>, Vec<&FilterExpr>), GraphError> {
         fn walk<'a>(
             filter: &'a FilterExpr,
-            views: &mut Vec<ViewOp>,
+            views: &mut Vec<Vec<ViewOp>>,
             predicates: &mut Vec<&'a FilterExpr>,
         ) -> Result<(), GraphError> {
             match filter {
                 FilterExpr::View(ops) if ops.is_empty() => Err(needs_view()),
                 FilterExpr::View(ops) => {
-                    views.extend(ops.iter().cloned());
+                    views.push(ops.clone());
                     Ok(())
                 }
                 FilterExpr::And(items) if items.is_empty() => Err(needs_operand("and")),

@@ -486,8 +486,8 @@ impl<L: Leaf> Expr<L> {
 // ── filters ──────────────────────────────────────────────────────────────────
 
 impl SplitFilter {
-    /// The graph seen through the filter's view, erased so every part of the
-    /// filter builds over the one `Arc`.
+    /// The graph seen through every view leg in turn, erased so every part
+    /// of the filter builds over the one `Arc`.
     fn viewed<'graph, G: GraphView + 'graph>(
         &self,
         graph: G,
@@ -495,8 +495,20 @@ impl SplitFilter {
         if self.views.is_empty() {
             Ok(graph.into_dyn_graph_arc())
         } else {
-            view_chain(Arc::new(GraphFilter), &self.views).create_view(graph)
+            view_chain(Arc::new(GraphFilter), &self.views.concat()).create_view(graph)
         }
+    }
+
+    /// The graph seen through each view leg on its own, for the existence
+    /// tests a node or edge filter asks.
+    fn each_view<'graph>(
+        &self,
+        graph: &DynGraphArc<'graph>,
+    ) -> Result<Vec<DynGraphArc<'graph>>, GraphError> {
+        self.views
+            .iter()
+            .map(|leg| view_chain(Arc::new(GraphFilter), leg).create_view(graph.clone()))
+            .collect()
     }
 }
 
@@ -573,11 +585,11 @@ impl EdgeQuestion {
     }
 }
 
-/// The filter a split filter is: the graph seen through its view, then its
-/// node answer and its edge answer side by side, one of them alone, or the
-/// viewed graph when nothing constrains either. As a per-node or per-edge
-/// test it asks that the entity exist in the view and pass the answers, the
-/// way the filtered graph would.
+/// The filter a split filter is: the graph seen through its view legs, then
+/// its node answer and its edge answer side by side, one of them alone, or
+/// the viewed graph when nothing constrains either. As a per-node or per-edge
+/// test it asks that the entity exist in each view leg and pass the answers
+/// on the collection's own graph: there a view leg is a test like any other.
 impl CreateFilter for SplitFilter {
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
@@ -629,40 +641,40 @@ impl CreateFilter for SplitFilter {
         if self.edges.is_some() {
             return Err(GraphError::NotNodeFilter);
         }
-        let graph = self.viewed(graph)?;
-        let Some(nodes) = self.nodes else {
-            return Ok(Arc::new(NodeExistsOp::new(graph)));
+        let graph = graph.into_dyn_graph_arc();
+        let views = self.each_view(&graph)?;
+        let test: Arc<dyn NodeOp<Output = bool> + 'graph> = match &self.nodes {
+            Some(nodes) => node_filter(nodes, graph.clone())?,
+            None if views.is_empty() => return Ok(Arc::new(NodeExistsOp::new(graph))),
+            None => Arc::new(NodeExistsOp::new(graph)),
         };
-        let inside = node_filter(&nodes, graph.clone())?;
-        Ok(if self.views.is_empty() {
-            inside
-        } else {
-            Arc::new(NodeExistsOp::new(graph).and(inside))
-        })
+        Ok(views.into_iter().rev().fold(test, |test, view| {
+            Arc::new(NodeExistsOp::new(view).and(test))
+        }))
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        let graph = self.viewed(graph)?;
+        let graph = graph.into_dyn_graph_arc();
+        let views = self.each_view(&graph)?;
         let answer = match (self.nodes.map(closed_edges), self.edges) {
             (Some(nodes), Some(edges)) => Some(nodes.and(edges)),
             (Some(answer), None) | (None, Some(answer)) => Some(answer),
             (None, None) => None,
         };
-        let Some(answer) = answer else {
-            return Ok(Arc::new(EdgeExistsOp::new(graph)));
+        let test: DynEdgeFilter<'graph> = match answer {
+            Some(answer) => answer.create_edge_filter(graph.clone())?,
+            None if views.is_empty() => return Ok(Arc::new(EdgeExistsOp::new(graph))),
+            None => Arc::new(EdgeExistsOp::new(graph)),
         };
-        let inside = answer.create_edge_filter(graph.clone())?;
-        Ok(if self.views.is_empty() {
-            inside
-        } else {
+        Ok(views.into_iter().rev().fold(test, |test, view| {
             Arc::new(AndEdgeOp {
-                left: EdgeExistsOp::new(graph),
-                right: inside,
+                left: EdgeExistsOp::new(view),
+                right: test,
             })
-        })
+        }))
     }
 }
 

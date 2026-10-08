@@ -115,8 +115,10 @@ assert sorted(n.name for n in g.filter(either).nodes) == ["alice", "carol"]
 `collection[f]` keeps the items of the collection on its left that pass `f`, and asks the question
 once per item: once per edge on `g.edges`, once per exploded edge on `g.edges.explode()`. The
 kind of `f` does not change that. A view used this way, `g.edges[filter.Graph.window(0, 5)]`, keeps
-the edges active in the window, and exploding them afterwards lists all of their updates; to see
+the edges that exist in the window, and exploding them afterwards lists all of their updates; to see
 only the updates inside the window, put the window on the graph: `g.window(0, 5).edges.explode()`.
+Beside other legs, `g.edges[filter.Graph.window(0, 5) & f]`, the view is one test among the others:
+the edges that exist in the window and pass `f` on `g` itself.
 
 ## Reading through a view
 
@@ -232,6 +234,7 @@ assert [(e.src.name, e.dst.name) for e in g.filter(in_works).edges] == [("bob", 
 | `graph.filter(expr)` | a graph view with only the matching nodes, or only the matching edges. A node filter keeps the edges between the remaining nodes; an edge filter keeps every node. |
 | `graph.filter(filter.Graph.window(0, 2))` | the graph seen through the view; the same as `graph.window(0, 2)` |
 | `graph.filter(filter.Graph.window(0, 2) & expr)` | the view first, then `expr` inside it: the same as `graph.window(0, 2).filter(expr)`. A view can be combined with `&` but not with `\|` or `~` |
+| `graph.nodes[filter.Graph.window(0, 2) & expr]` | the nodes that exist in the window and match `expr` on the graph itself. On a collection a view leg is a test like any other, so `&` here is plain intersection and `expr` is not read inside the window |
 | `graph.nodes.filter(expr)` | every node stays, but each node's edges and neighbours are narrowed to the ones that match |
 | `node.filter(expr)` | the node with its edges and neighbours narrowed the same way |
 
