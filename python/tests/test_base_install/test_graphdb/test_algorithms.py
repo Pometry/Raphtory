@@ -370,7 +370,7 @@ def test_weighted_page_rank():
         ("4", 0.07837),
     ]:
         assert (
-            abs(actual[node]["pagerank_score"] - expected) < 1e-5
+                abs(actual[node]["pagerank_score"] - expected) < 1e-5
         ), f"node {node}: {actual[node]} != {expected}"
 
 
@@ -386,8 +386,8 @@ def test_weighted_page_rank_none_matches_unweighted():
     weighted = algorithms.pagerank(g, iter_count=1000, weight="weight")
     for node in ["1", "2", "3", "4"]:
         assert (
-            abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
-            < 1e-5
+                abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
+                < 1e-5
         ), f"node {node} differs"
 
 
@@ -610,7 +610,7 @@ def test_balance_uses_decimal_weights_by_value():
 
     out = algorithms.balance(g, "w", "out")
     assert (
-        out["a"]["balance"] == -6.5
+            out["a"]["balance"] == -6.5
     )  # -(2.5 + 4.0), not the -2.0 of a 1.0-per-edge fallback
 
     inn = algorithms.balance(g, "w", "in")
@@ -667,8 +667,8 @@ def test_label_propagation_algorithm():
     ]
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
-    seed = [5] * 32
-    labels = algorithms.label_propagation(g, 10, seed)
+    labels = algorithms.label_propagation(g, 10, 3)
+    print(labels.groups(["community_id"]))
     groups = sorted(sorted(v.id) for _, v in labels.groups(["community_id"]))
     expected = [["B1", "B2", "B3", "B4", "B5", "G"], ["R1", "R2", "R3"]]
     assert groups == expected
@@ -850,7 +850,7 @@ def test_fast_rp():
         )
 
         assert (
-            within_group < outside_group
+                within_group < outside_group
         )  # nearest neighbour in the embedding space should be in the same component
 
 
@@ -866,9 +866,9 @@ def test_local_clustering_coefficient_batch_without_v_matches_explicit_list():
         g, ["a", "b", "c", "isolated"]
     )
     for implicit in (
-        algorithms.local_clustering_coefficient_batch(g),
-        algorithms.local_clustering_coefficient_batch(g, []),
-        algorithms.local_clustering_coefficient_batch(g, None),
+            algorithms.local_clustering_coefficient_batch(g),
+            algorithms.local_clustering_coefficient_batch(g, []),
+            algorithms.local_clustering_coefficient_batch(g, None),
     ):
         assert len(implicit) == 4
         # reading the result back used to panic on a fabricated node id

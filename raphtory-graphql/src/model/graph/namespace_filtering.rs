@@ -725,6 +725,7 @@ pub(crate) async fn sort_graphs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::graph::property::GqlU64;
     use raphtory_api::core::storage::arc_str::ArcStr;
 
     fn str_prop(s: &str) -> Prop {
@@ -1184,7 +1185,7 @@ mod tests {
     fn numeric_field_conditions_compare_numerically() {
         // The regression this guards: node/edge counts arrive as integers, so
         // `gt 9` must not read "10" as less than "9" the way a string would.
-        let cond = PropCondition::Gt(Value::U64(9));
+        let cond = PropCondition::Gt(Value::U64(GqlU64(9)));
         assert!(condition_matches("nodeCount", &cond, Some(&Prop::U64(10))).unwrap());
         assert!(!condition_matches("nodeCount", &cond, Some(&Prop::U64(2))).unwrap());
     }
@@ -1209,8 +1210,8 @@ mod tests {
     #[test]
     fn between_maps_onto_an_and_of_bounds() {
         let cond = PropCondition::And(vec![
-            PropCondition::Ge(Value::U64(10)),
-            PropCondition::Le(Value::U64(20)),
+            PropCondition::Ge(Value::U64(GqlU64(10))),
+            PropCondition::Le(Value::U64(GqlU64(20))),
         ]);
         assert!(condition_matches("edgeCount", &cond, Some(&Prop::U64(10))).unwrap());
         assert!(condition_matches("edgeCount", &cond, Some(&Prop::U64(20))).unwrap());

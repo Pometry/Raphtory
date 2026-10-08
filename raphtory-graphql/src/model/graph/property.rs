@@ -20,7 +20,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropMap, Prop, PropMap, PropType},
+    entities::properties::prop::{IntoPropMap, Prop, PropArray, PropMap, PropType},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
@@ -36,6 +36,52 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+
+// `Int` can't be used for `u64`: async-graphql validates every `Int` input with
+// the first integer type registered (`i32`, which only checks `is_i64`), so
+// values above `i64::MAX` are rejected before `u64` parsing runs.
+
+/// 64 bit unsigned integer, accepting the full `0..=18446744073709551615` range.
+///
+/// Accepts a JSON number, or a decimal string for clients that can't represent
+/// large integers exactly (e.g. JavaScript beyond 2^53).
+#[derive(Scalar, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[graphql(name = "UInt64")]
+#[serde(transparent)]
+pub struct GqlU64(pub u64);
+
+impl ScalarValue for GqlU64 {
+    fn from_value(value: GqlValue) -> Result<Self, Error> {
+        match value {
+            GqlValue::Number(n) => n.as_u64().map(GqlU64).ok_or_else(|| {
+                Error::new("UInt64 must be an integer in 0..=18446744073709551615.")
+            }),
+            GqlValue::String(s) => s
+                .parse()
+                .map(GqlU64)
+                .map_err(|_| Error::new("UInt64 must be an integer in 0..=18446744073709551615.")),
+            _ => Err(Error::new(
+                "Expected UInt64 as a non-negative Int or a decimal String.",
+            )),
+        }
+    }
+
+    fn to_value(&self) -> GqlValue {
+        GqlValue::Number(Number::from(self.0))
+    }
+}
+
+impl Display for GqlU64 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl From<u64> for GqlU64 {
+    fn from(value: u64) -> Self {
+        GqlU64(value)
+    }
+}
 
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -109,7 +155,7 @@ pub enum Value {
     /// 32 bit unsigned integer.
     U32(u32),
     /// 64 bit unsigned integer.
-    U64(u64),
+    U64(GqlU64),
     /// 32 bit signed integer.
     I32(i32),
     /// 64 bit signed integer.
@@ -235,7 +281,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
         Value::U8(n) => Ok(Prop::U8(n)),
         Value::U16(n) => Ok(Prop::U16(n)),
         Value::U32(n) => Ok(Prop::U32(n)),
-        Value::U64(n) => Ok(Prop::U64(n)),
+        Value::U64(n) => Ok(Prop::U64(n.0)),
         Value::I32(n) => Ok(Prop::I32(n)),
         Value::I64(n) => Ok(Prop::I64(n)),
         Value::F32(n) => Ok(Prop::F32(n)),
@@ -249,7 +295,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
                 .into_iter()
                 .map(value_to_prop)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(Prop::List(prop_list.into()))
+            Ok(Prop::List(PropArray::try_from(prop_list)?))
         }
         Value::Object(object) => {
             let prop_map: PropMap = object
@@ -296,7 +342,7 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
         Prop::U8(v) => Value::U8(*v),
         Prop::U16(v) => Value::U16(*v),
         Prop::U32(v) => Value::U32(*v),
-        Prop::U64(v) => Value::U64(*v),
+        Prop::U64(v) => Value::U64(GqlU64(*v)),
         Prop::I32(v) => Value::I32(*v),
         Prop::I64(v) => Value::I64(*v),
         Prop::F32(v) if !v.is_finite() => Value::F32Special(SpecialFloat::of(*v as f64)),
@@ -389,12 +435,11 @@ pub(crate) fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
             .collect::<Result<Vec<(String, Prop)>, Error>>()?
             .into_prop_map()),
         GqlValue::String(s) => Ok(Prop::Str(s.into())),
-        GqlValue::List(arr) => Ok(Prop::List(
+        GqlValue::List(arr) => Ok(Prop::List(PropArray::try_from(
             arr.into_iter()
                 .map(gql_to_prop)
-                .collect::<Result<Vec<Prop>, Error>>()?
-                .into(),
-        )),
+                .collect::<Result<Vec<Prop>, Error>>()?,
+        )?)),
         _ => Err(Error::new("Unable to convert")),
     }
 }

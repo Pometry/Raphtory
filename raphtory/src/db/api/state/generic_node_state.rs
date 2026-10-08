@@ -39,7 +39,7 @@ use parquet::{
 use raphtory_api::core::entities::{
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{Prop, PropUntagged, PropUnwrap},
+        prop::{Prop, PropExact, PropUnwrap},
     },
     LayerIds,
 };
@@ -59,7 +59,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
 #[cfg(feature = "datafusion")]
 use {
     arrow::row::{RowConverter, SortField},
@@ -106,7 +105,7 @@ pub enum MergePriority {
 pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>> {
     Node(NodeView<'graph, G>),
     Nodes(Nodes<'graph, G, G>),
-    Prop(Option<PropUntagged>),
+    Prop(Option<PropExact>),
 }
 
 // This exists because GenericNodeStates have a data structure (node_cols) exposing which columns contain nodes.
@@ -119,7 +118,7 @@ pub enum NodeStateOutputType {
 
 // Rows of TypedNodeStates containing references to nodes are first deserialized into this type,
 // a map of column names to generic values.
-pub type PropMap = IndexMap<String, Option<PropUntagged>>;
+pub type PropMap = IndexMap<String, Option<PropExact>>;
 
 pub fn convert_prop_map<A, B>(map: IndexMap<String, Option<A>>) -> IndexMap<String, Option<B>>
 where
@@ -840,21 +839,19 @@ impl<
             return Ok(vec![].into());
         }
 
-        let mut group_values = new_group_values(self.state.values().schema(), &GroupOrdering::None)
+        let schema = self.state.values().schema_ref();
+        let mut group_arrays = Vec::with_capacity(cols.len());
+        let mut fields = Vec::with_capacity(cols.len());
+
+        for name in cols.iter() {
+            let idx = schema.index_of(name)?;
+            group_arrays.push(self.state.values().column(idx).clone());
+            fields.push(schema.fields()[idx].clone());
+        }
+
+        let mut group_values = new_group_values(Schema::new(fields).into(), &GroupOrdering::None)
             .map_err(|e| ArrowError::ParseError(e.to_string()))
             .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
-        let group_arrays: Vec<ArrayRef> = cols
-            .iter()
-            .map(|name| {
-                let idx = self
-                    .state
-                    .values()
-                    .schema()
-                    .index_of(name)
-                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
-                Ok(self.state.values().column(idx).clone())
-            })
-            .collect::<Result<_, GraphError>>()?;
 
         // Intern groups: assigns group_idx to each row
         let mut group_indices = vec![0usize; num_rows];
@@ -961,7 +958,7 @@ impl<'graph, T: Clone + Sync + Send + 'graph, G: GraphViewOps<'graph>>
             && rows
                 .into_par_iter()
                 .zip(other.par_iter())
-                .all(|(a, b)| convert_prop_map::<PropUntagged, Prop>(a) == *b)
+                .all(|(a, b)| convert_prop_map::<PropExact, Prop>(a) == *b)
     }
 }
 

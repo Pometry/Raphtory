@@ -37,6 +37,7 @@ use zip::result::ZipError;
 #[cfg(feature = "vectors")]
 use crate::vectors::embeddings::EmbeddingError;
 
+use raphtory_api::core::entities::properties::prop::PropTypeError;
 #[cfg(any(feature = "vectors", feature = "io"))]
 use tempfile::PersistError;
 
@@ -93,12 +94,12 @@ pub enum LoadError {
         #[from]
         source: ParseTimeError,
     },
-    #[error("Missing value for src id")]
-    MissingSrcError,
-    #[error("Missing value for dst id")]
-    MissingDstError,
-    #[error("Missing value for node id")]
-    MissingNodeError,
+    #[error("Invalid src id column: {0}")]
+    InvalidSrcError(InvalidGIDError),
+    #[error("Invalid dst id column: {0}")]
+    InvalidDstError(InvalidGIDError),
+    #[error("Invalid node id column: {0}")]
+    InvalidNodeError(InvalidGIDError),
     #[error("Missing value for timestamp")]
     MissingTimeError,
     #[error("Missing value for secondary index")]
@@ -115,6 +116,14 @@ pub enum LoadError {
     },
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidGIDError {
+    #[error("value missing")]
+    Missing,
+    #[error("negative value")]
+    Negative,
 }
 
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
@@ -141,6 +150,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     PropError(#[from] PropError),
+
+    #[error(transparent)]
+    PropTypeError(#[from] PropTypeError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
