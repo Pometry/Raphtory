@@ -39,7 +39,7 @@ class PyReprTest(TestCase):
         expected_out = "Edge(source=A, target=B, earliest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=1), properties={greeting: yo}, layer(s)=[layer 1, layer 2])"
         self.assertEqual(repr(G.edge("A", "B")), expected_out)
 
-        expected_out = "ExplodedEdges(Edge(source=A, target=B, earliest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), latest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), properties={greeting: howdy}, layer(s)=[layer 1]), Edge(source=A, target=B, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=1), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=1), properties={greeting: yo}, layer(s)=[layer 2]))"
+        expected_out = "Edges(Edge(source=A, target=B, earliest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), latest_time=EventTime(t=1, dt=1970-01-01T00:00:00.001+00:00, event_id=0), properties={greeting: howdy}, layer(s)=[layer 1]), Edge(source=A, target=B, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=1), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=1), properties={greeting: yo}, layer(s)=[layer 2]))"
         self.assertEqual(repr(G.edge("A", "B").explode()), expected_out)
 
     # event graph with one layer and one non-layer

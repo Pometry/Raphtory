@@ -1,5 +1,5 @@
 from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
-from raphtory import filter, Prop, ExplodedEdges, NestedExplodedEdges
+from raphtory import filter, Prop, Edges, NestedEdges
 from filters_setup import init_graph, init_graph3, create_test_graph2
 from utils import with_variants
 import pytest
@@ -1329,10 +1329,10 @@ def test_select_asks_about_the_items_of_the_collection():
         assert list(graph.edges.explode()[latest_is_4].properties["p2"]) == [4]
 
         # exploding gives a collection of exploded edges, selecting keeps the kind
-        assert isinstance(graph.edges.explode(), ExplodedEdges)
-        assert isinstance(graph.edge("1", "2").explode(), ExplodedEdges)
-        assert isinstance(graph.edges.explode()[latest_is_4], ExplodedEdges)
-        assert isinstance(graph.nodes.edges.explode(), NestedExplodedEdges)
+        assert isinstance(graph.edges.explode(), Edges)
+        assert isinstance(graph.edge("1", "2").explode(), Edges)
+        assert isinstance(graph.edges.explode()[latest_is_4], Edges)
+        assert isinstance(graph.nodes.edges.explode(), NestedEdges)
 
     return check
 

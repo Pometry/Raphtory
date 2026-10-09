@@ -37,17 +37,17 @@ print(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}") == "At time 6: Nodes() ExplodedEdges()"
+assert str(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}") == "At time 6: Nodes() Edges()"
 ```
 
 !!! Output
 
     ```output
-    At time 0: Nodes() ExplodedEdges()
-    At time 2: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=3, event_id=0), layer(s)=[_default]))
-    At time 3: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=4, event_id=0), layer(s)=[_default]))
-    At time 5: Nodes() ExplodedEdges()
-    At time 6: Nodes() ExplodedEdges()
+    At time 0: Nodes() Edges()
+    At time 2: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=3, event_id=0), layer(s)=[_default]))
+    At time 3: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=4, event_id=0), layer(s)=[_default]))
+    At time 5: Nodes() Edges()
+    At time 6: Nodes() Edges()
     ```
 
 As we can see, the edge's presence in the graph is _inclusive_ of the timestamp at which it was added, but _exclusive_ of the timestamp at which it was deleted. Equivalently, it is present on a interval \\(1 \leq t < 5 \subseteq \mathbb{Z}\\). The earliest and latest times for each edge is adjusted to the time bound in the query.
@@ -84,17 +84,17 @@ print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1), layer(s)=[_default]))"
+assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1), layer(s)=[_default]))"
 ```
 
 !!! Output
 
 ```output
-Before time 1: Nodes() ExplodedEdges()
-Before time 2: Nodes() ExplodedEdges()
-Before time 3: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=3, dt=1970-01-01T00:00:00.003+00:00, event_id=0), layer(s)=[_default]))
-Before time 5: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=0), layer(s)=[_default]))
-Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1), layer(s)=[_default]))
+Before time 1: Nodes() Edges()
+Before time 2: Nodes() Edges()
+Before time 3: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=3, dt=1970-01-01T00:00:00.003+00:00, event_id=0), layer(s)=[_default]))
+Before time 5: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=0), layer(s)=[_default]))
+Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1), layer(s)=[_default]))
 ```
 
 Here we see that the `before(T)` bound is exclusive of the end point \\(T\\), creating an intersection between the time interval \\(-\infty < t < T\\) and \\(2 \leq t < 5\\) where \\(T\\) is the argument of `before`.
@@ -127,17 +127,17 @@ print(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}") == "After time 6: Nodes() ExplodedEdges()"
+assert str(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}") == "After time 6: Nodes() Edges()"
 ```
 
 !!! Output
 
     ```output
-    After time 1: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
-    After time 2: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
-    After time 3: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=4, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=4, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=4, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
-    After time 5: Nodes() ExplodedEdges()
-    After time 6: Nodes() ExplodedEdges()
+    After time 1: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
+    After time 2: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
+    After time 3: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=4, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=4, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=4, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
+    After time 5: Nodes() Edges()
+    After time 6: Nodes() Edges()
     ```
 
 `after(T)` is also exclusive of the starting point \\(T\\).
@@ -173,18 +173,18 @@ print(f"Window 6,10: {G.window(6, 10).nodes} {G.window(6, 10).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}") == "Window 6,10: Nodes() ExplodedEdges()"
+assert str(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}") == "Window 6,10: Nodes() Edges()"
 ```
 
 !!! Output
 
     ```output
-    Window 0,2: Nodes() ExplodedEdges()
-    Window 0,4: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=4, event_id=0), layer(s)=[_default]))
-    Window 3,4: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=4, event_id=0), layer(s)=[_default]))
-    Window 5,8: Nodes() ExplodedEdges()
-    Window 1,8: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) ExplodedEdges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
-    Window 6,10: Nodes() ExplodedEdges()
+    Window 0,2: Nodes() Edges()
+    Window 0,4: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=4, event_id=0), layer(s)=[_default]))
+    Window 3,4: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=3, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=3, event_id=0), latest_time=EventTime(timestamp=4, event_id=0), layer(s)=[_default]))
+    Window 5,8: Nodes() Edges()
+    Window 1,8: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
+    Window 6,10: Nodes() Edges()
     ```
 
 A `window(T1, T2)` creates a half-open interval \\(T_1 \leq t < T_2\\) intersecting the edge's active time ( \\(2 \leq t < 5 \\) in this case). When the window is completely inside the edge active time and when the edge's active time is strictly inside the window. In both cases, the edge is treated as present in the graph.

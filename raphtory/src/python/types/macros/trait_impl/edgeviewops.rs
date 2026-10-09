@@ -8,7 +8,7 @@
 /// * name: The name of the object that appears in the docstring
 /// * exploded: The name of the python class `explode()` and `explode_layers()` return
 macro_rules! impl_edgeviewops {
-    ($obj:ident, $field:ident, $base_type:ty, $name:literal, $exploded:literal) => {
+    ($obj:ident, $field:ident, $base_type:ty, $name:literal, $returns:literal) => {
         impl_timeops!($obj, $field, $base_type, $name);
         impl_filter_ops!($obj<$base_type>, $field, $name);
         impl_layerops!($obj, $field, $base_type, $name);
@@ -46,7 +46,7 @@ macro_rules! impl_edgeviewops {
             /// Explodes returns an edge object for each update within the original edge.
             ///
             /// Returns:
-            #[doc = concat!("    ", $exploded, ":")]
+            #[doc = concat!("    ", $returns, ":")]
             fn explode(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
@@ -56,7 +56,7 @@ macro_rules! impl_edgeviewops {
             /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
             ///
             /// Returns:
-            #[doc = concat!("    ", $exploded, ":")]
+            #[doc = concat!("    ", $returns, ":")]
             fn explode_layers(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
