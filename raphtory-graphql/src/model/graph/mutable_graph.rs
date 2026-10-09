@@ -944,13 +944,11 @@ impl GqlMutableEdge {
 mod tests {
     use super::*;
     use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
-    use raphtory::{
-        db::api::{storage::storage::Args, view::MaterializedGraph},
-        vectors::{
-            custom::{serve_custom_embedding, EmbeddingServer},
-            storage::OpenAIEmbeddings,
-            template::DocumentTemplate,
-        },
+    use raphtory::db::api::{storage::storage::Args, view::MaterializedGraph};
+    use raphtory_vectors::{
+        custom::{serve_custom_embedding, EmbeddingServer},
+        storage::OpenAIEmbeddings,
+        template::DocumentTemplate,
     };
     use std::path::Path;
     use tempfile::TempDir;

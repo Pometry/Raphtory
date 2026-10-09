@@ -26,13 +26,14 @@ raphtory-graphql = { workspace = true, features = [
     "python",
 ] }
 auth = { workspace = true }
+raphtory-vectors = { workspace = true, optional = true, features = ["python"] }
 
 
 [features]
 default = ["datafusion", "vectors"]
 datafusion = ["raphtory/datafusion"]
 # search = ["raphtory/search", "raphtory-graphql/search"]
-vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
+vectors = ["dep:raphtory-vectors", "raphtory-graphql/vectors"]
 test = ["raphtory/panic-on-drop"]
 
 

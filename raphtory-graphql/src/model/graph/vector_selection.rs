@@ -4,11 +4,8 @@ use super::{
 };
 use crate::{model::graph::vectorised_graph::IntoWindowTuple, rayon::blocking_compute};
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    errors::GraphResult,
-    vectors::{vector_selection::VectorSelection, Embedding},
-};
+use raphtory::{db::api::view::MaterializedGraph, errors::GraphResult};
+use raphtory_vectors::{vector_selection::VectorSelection, Embedding};
 
 #[derive(InputObject)]
 pub struct InputEdge {
@@ -178,6 +175,6 @@ impl GqlVectorSelection {
     }
 
     async fn embed_text(&self, text: String) -> GraphResult<Embedding> {
-        self.0.get_vectorised_graph().embed_text(text).await
+        Ok(self.0.get_vectorised_graph().embed_text(text).await?)
     }
 }
