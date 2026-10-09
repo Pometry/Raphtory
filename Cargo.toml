@@ -89,7 +89,7 @@ pyo3-build-config = "0.29.0"
 pyo3-arrow = { package = "raphtory-pyo3-arrow", version = "0.19.0" }
 numpy = "0.29.0"
 itertools = "0.15.0"
-rand = "0.9.4"
+rand = "0.10.2"
 quick_cache = "0.7.0"
 rayon = "1.12.0"
 roaring = "0.11.4"
