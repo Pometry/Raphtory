@@ -430,36 +430,6 @@ impl ValidGraphPaths for ValidWriteableGraphFolder {
 }
 
 impl ValidWriteableGraphFolder {
-    fn new(
-        work_dir_write_guard: WorkDirWriteGuard,
-        valid_path: NewPath,
-        graph_name: &str,
-    ) -> Result<Self, PathValidationError> {
-        let is_new = valid_path.is_new();
-        let graph_folder = GraphFolder::from(valid_path.path);
-        if !is_new {
-            if !graph_folder.is_reserved() {
-                return Err(PathValidationError::InternalError {
-                    graph: graph_name.to_string(),
-                    error: InternalPathValidationError::GraphIsNamespace,
-                });
-            }
-        }
-        let data_path =
-            graph_folder
-                .init_swap()
-                .map_err(|error| PathValidationError::InternalError {
-                    graph: graph_name.to_string(),
-                    error: error.into(),
-                })?;
-        Ok(Self {
-            work_dir_write_guard,
-            global_path: data_path,
-            dirty_marker: valid_path.cleanup,
-            local_path: graph_name.to_string(),
-        })
-    }
-
     pub(crate) fn try_new(
         work_dir_write_guard: WorkDirWriteGuard,
         relative_path: &str,
@@ -470,11 +440,13 @@ impl ValidWriteableGraphFolder {
                 error,
             },
         )?;
+
         if path.cleanup.is_none() {
             return Err(PathValidationError::GraphExistsError(
                 relative_path.to_string(),
             ));
         }
+
         Self::new(work_dir_write_guard, path, relative_path)
     }
 
@@ -484,45 +456,70 @@ impl ValidWriteableGraphFolder {
     ) -> Result<Self, PathValidationError> {
         let path = create_valid_path(work_dir_write_guard.to_path_buf(), relative_path)
             .with_path(relative_path)?;
+
         Self::new(work_dir_write_guard, path, relative_path)
     }
 
-    /// write graph data to folder (returns a flag to indicate if the graph should be considered dirty)
-    fn write_graph_data_inner(
-        &self,
-        graph: MaterializedGraph,
-        args: Args,
-    ) -> Result<(bool, MaterializedGraph), InternalPathValidationError> {
-        let is_dirty = if Extension::disk_storage_enabled() {
-            let graph_path = self.graph_folder().graph_path()?;
-            if graph
-                .disk_storage_path()
-                .is_some_and(|path| path == &graph_path)
-            {
-                let meta = Metadata {
-                    path: self.global_path.relative_graph_path()?,
-                    meta: build_graph_metadata(&graph),
-                };
-                self.global_path.write_metadata(meta)?;
-                (true, graph)
-            } else {
-                let new_graph = graph.materialize_at_with_config(self.graph_folder(), args)?;
-                (true, new_graph)
-            }
-        } else {
-            replace_graph_in_folder(&self.global_path.data_path()?, graph.clone())?;
-            (false, graph)
-        };
-        Ok(is_dirty)
+    fn new(
+        work_dir_write_guard: WorkDirWriteGuard,
+        valid_path: NewPath,
+        graph_name: &str,
+    ) -> Result<Self, PathValidationError> {
+        let is_new = valid_path.is_new();
+        let graph_folder = GraphFolder::from(valid_path.path);
+
+        if !is_new && !graph_folder.is_reserved() {
+            return Err(PathValidationError::InternalError {
+                graph: graph_name.to_string(),
+                error: InternalPathValidationError::GraphIsNamespace,
+            });
+        }
+
+        let data_path = graph_folder.init_swap().with_path(graph_name)?;
+
+        Ok(Self {
+            work_dir_write_guard,
+            global_path: data_path,
+            dirty_marker: valid_path.cleanup,
+            local_path: graph_name.to_string(),
+        })
     }
 
+    /// write graph data to folder (returns a flag to indicate if the graph should be considered dirty)
     pub fn write_graph_data(
         &self,
         graph: MaterializedGraph,
         args: Args,
     ) -> Result<(bool, MaterializedGraph), PathValidationError> {
-        self.write_graph_data_inner(graph, args)
-            .with_path(self.local_path())
+        self.with_internal_errors(|| -> Result<_, InternalPathValidationError> {
+            let is_dirty = if Extension::disk_storage_enabled() {
+                let graph_path = self.graph_folder().graph_path()?;
+
+                if graph
+                    .disk_storage_path()
+                    .is_some_and(|path| path == &graph_path)
+                {
+                    let meta = Metadata {
+                        path: self.global_path.relative_graph_path()?,
+                        meta: build_graph_metadata(&graph),
+                    };
+
+                    self.global_path.write_metadata(meta)?;
+
+                    (true, graph)
+                } else {
+                    let new_graph = graph.materialize_at_with_config(self.graph_folder(), args)?;
+
+                    (true, new_graph)
+                }
+            } else {
+                replace_graph_in_folder(&self.global_path.data_path()?, graph.clone())?;
+
+                (false, graph)
+            };
+
+            Ok(is_dirty)
+        })
     }
 
     pub fn read_graph(&self, args: Args) -> Result<MaterializedGraph, PathValidationError> {
@@ -646,15 +643,17 @@ pub enum PathValidationError {
 
 pub trait WithPath {
     type Value;
-    fn with_path<S: Into<String>>(self, graph: S) -> Result<Self::Value, PathValidationError>;
+    fn with_path(self, graph: impl Into<String>) -> Result<Self::Value, PathValidationError>;
 }
 
 impl<V, E: Into<InternalPathValidationError>> WithPath for Result<V, E> {
     type Value = V;
-    fn with_path<S: Into<String>>(self, graph: S) -> Result<V, PathValidationError> {
+
+    fn with_path(self, graph: impl Into<String>) -> Result<V, PathValidationError> {
         self.map_err(move |error| {
             let error = error.into();
             let graph = graph.into();
+
             match error {
                 InternalPathValidationError::InvalidPath(reason) => {
                     PathValidationError::InvalidPath { graph, reason }

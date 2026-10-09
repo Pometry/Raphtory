@@ -222,7 +222,7 @@ pub struct RelativePath {
 pub trait GraphPaths {
     fn root(&self) -> &Path;
 
-    fn root_meta_path(&self) -> PathBuf {
+    fn root_raph_path(&self) -> PathBuf {
         self.root().join(ROOT_RAPH_PATH)
     }
 
@@ -331,7 +331,7 @@ pub trait GraphPaths {
         let data_path = self.relative_data_path()?;
         fs::create_dir(self.root().join(&data_path))?;
         fs::write(
-            self.root_meta_path(),
+            self.root_raph_path(),
             serde_json::to_string(&RelativePath { path: data_path })?,
         )?;
 
@@ -343,7 +343,7 @@ pub trait GraphPaths {
     }
 
     fn created(&self) -> Result<i64, GraphFolderError> {
-        Ok(self.root_meta_path().metadata()?.created()?.to_millis()?)
+        Ok(self.root_raph_path().metadata()?.created()?.to_millis()?)
     }
 
     fn last_updated(&self) -> Result<i64, GraphFolderError> {

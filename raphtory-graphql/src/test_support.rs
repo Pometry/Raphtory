@@ -68,7 +68,7 @@ pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_
 }
 
 /// Assert that `path` is an existing directory that is NOT a graph folder
-/// (no `ROOT_META_PATH`) and contains no leftover `DIRTY_PATH` marker.
+/// (no `ROOT_RAPH_PATH`) and contains no leftover `DIRTY_PATH` marker.
 pub(crate) fn assert_is_namespace_dir(path: &Path) {
     assert!(path.is_dir(), "expected directory at {:?}", path);
     assert!(
