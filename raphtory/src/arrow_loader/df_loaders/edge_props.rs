@@ -111,7 +111,7 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
                     .map(|array| array.values().as_ref())
             })
             .transpose()?;
-        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
+        let (layer_col_resolved, _) = layer.resolve_layer(layer_id_values, graph, false)?;
 
         // Metadata can only be attached to an edge that exists, so its endpoints must exist too:
         // look the ids up, never create them. Resolving the whole chunk before taking the write

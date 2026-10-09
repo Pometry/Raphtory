@@ -339,12 +339,9 @@ pub fn assert_nodes_equal_layer<
         "mismatched number of nodes{layer_tag}",
     );
 
-    nodes1
-        .into_par_iter()
-        .zip_eq(nodes2.into_par_iter())
-        .for_each(|(n1, n2)| {
-            assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps)
-        });
+    for (n1, n2) in nodes1.into_iter().zip(nodes2) {
+        assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps)
+    }
 }
 
 #[track_caller]

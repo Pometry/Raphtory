@@ -420,7 +420,10 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
+        let prune_view = view.clone();
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            // skip layers we know don't have any edges with the property
+            .filter(move |&layer_id| prune_view.edge_layer_has_temporal_prop(layer_id, prop_id))
             .map(move |layer_id| {
                 (
                     layer_id,

@@ -128,7 +128,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
         };
         let props = [(NODE_ID_PROP_ID, gid)];
         self.nw
-            .update_c_props_inner(pos, STATIC_GRAPH_LAYER_ID, props, |layer_id| {
+            .update_c_props_inner(pos, STATIC_GRAPH_LAYER_ID, props, false, |layer_id| {
                 Self::update_layer_count(layer_id, &mut self.layers);
             });
     }

@@ -5,7 +5,7 @@
 //! tree is small — realistic graphs have a bounded set of node types and
 //! layers — and users always want the full descriptor at once.
 //!
-//! The five types here are pure data (no `expr` / `base_graph` fields, no
+//! The four types here are pure data (no `expr` / `base_graph` fields, no
 //! transport handle). They're built from a single response payload by
 //! walking the nested `Prop::Map` / `Prop::List` tree that
 //! `parse_read` decoded.
@@ -27,22 +27,13 @@ pub struct RemotePropertySchema {
     pub variants: Vec<String>,
 }
 
-/// Schema for edges between a specific `(src_type, dst_type)` pair within
-/// one layer.
-#[derive(Clone, Debug, PartialEq)]
-pub struct RemoteEdgeSchema {
-    pub src_type: String,
-    pub dst_type: String,
-    pub properties: Vec<RemotePropertySchema>,
-    pub metadata: Vec<RemotePropertySchema>,
-}
-
-/// Schema for a single edge layer — its name and the per `(srcType, dstType)`
-/// edge schemas observed within it.
+/// Schema for a single edge layer — its name and the property and metadata
+/// keys observed on edges in it, with their types.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RemoteLayerSchema {
     pub name: String,
-    pub edges: Vec<RemoteEdgeSchema>,
+    pub properties: Vec<RemotePropertySchema>,
+    pub metadata: Vec<RemotePropertySchema>,
 }
 
 /// Schema for nodes of a specific type — its property and metadata keys
@@ -101,20 +92,6 @@ impl RemoteLayerSchema {
         let mut map = expect_map(value, "layerSchema")?;
         Ok(Self {
             name: expect_typed(extract_element(&mut map, "name")?, "layerSchema.name")?,
-            edges: expect_list(extract_element(&mut map, "edges")?, "layerSchema.edges")?
-                .into_iter()
-                .map(RemoteEdgeSchema::from_query)
-                .collect::<Result<_, _>>()?,
-        })
-    }
-}
-
-impl RemoteEdgeSchema {
-    fn from_query(value: serde_json::Value) -> Result<Self, ClientError> {
-        let mut map = expect_map(value, "edgeSchema")?;
-        Ok(Self {
-            src_type: expect_typed(extract_element(&mut map, "srcType")?, "edgeSchema.srcType")?,
-            dst_type: expect_typed(extract_element(&mut map, "dstType")?, "edgeSchema.dstType")?,
             properties: decode_property_schemas(extract_element(&mut map, "properties")?)?,
             metadata: decode_property_schemas(extract_element(&mut map, "metadata")?)?,
         })

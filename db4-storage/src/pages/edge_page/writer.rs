@@ -14,7 +14,7 @@ use raphtory_api::core::entities::{
         prop::{AsPropRef, Prop},
     },
 };
-use raphtory_core::storage::timeindex::{AsTime, EventTime};
+use raphtory_core::storage::timeindex::AsTime;
 use std::ops::DerefMut;
 
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.graph_stats.update_time(t.t());
         if self
             .writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props)
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props, true)
             && !self.segment.immut_has_edge(edge_pos, layer_id)
         {
             // edge is new to this writer and also the immutable part of the segment
@@ -108,66 +108,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         edge_pos
     }
 
-    pub fn bulk_add_edge<P: AsPropRef>(
-        &mut self,
-        t: EventTime,
-        edge_pos: LocalPOS,
-        src: VID,
-        dst: VID,
-        edge_exists: bool,
-        layer_id: LayerId,
-        c_props: impl IntoIterator<Item = (usize, P)>,
-        t_props: impl IntoIterator<Item = (usize, P)>,
-    ) {
-        if !edge_exists
-            && self
-                .writer
-                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
-        {
-            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
-        }
-
-        if self
-            .writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props)
-            && !self.segment.immut_has_edge(edge_pos, layer_id)
-        {
-            self.increment_layer_num_edges(layer_id);
-        }
-
-        self.graph_stats.update_time(t.t());
-
-        self.writer
-            .update_const_properties(edge_pos, src, dst, layer_id, c_props);
-    }
-
-    pub fn bulk_delete_edge(
-        &mut self,
-        t: EventTime,
-        edge_pos: LocalPOS,
-        src: VID,
-        dst: VID,
-        exists: bool,
-        layer_id: LayerId,
-    ) {
-        if !exists
-            && self
-                .writer
-                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
-        {
-            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
-        }
-
-        self.graph_stats.update_time(t.t());
-        if self
-            .writer
-            .delete_edge_internal(t, edge_pos, src, dst, layer_id)
-            && !self.segment.immut_has_edge(edge_pos, layer_id)
-        {
-            self.increment_layer_num_edges(layer_id);
-        }
-    }
-
     pub fn segment_id(&self) -> usize {
         self.segment.segment_id()
     }
@@ -208,7 +148,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
             self.increment_layer_num_edges(layer_id);
         }
         self.writer
-            .update_const_properties(edge_pos, src, dst, layer_id, props);
+            .update_const_properties(edge_pos, src, dst, layer_id, props, true);
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
