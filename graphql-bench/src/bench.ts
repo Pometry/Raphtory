@@ -366,7 +366,7 @@ export function heavyNameScan() {
             node: {
               str: {
                 op: "CONTAINS",
-                lhs: { read: { field: "NAME" } },
+                lhs: { read: { field: { name: "NAME" } } },
                 rhs: { const: { str: "99999" } },
               },
             },
