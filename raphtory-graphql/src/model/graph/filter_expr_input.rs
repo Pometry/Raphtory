@@ -874,72 +874,105 @@ pub struct NodeAggregate {
     pub expr: Wrapped<NodeExpr>,
 }
 
-impl EntityInput for NodeExpr {
-    type Leaf = NodeLeaf;
-    type Read = NodeRead;
+/// Stamps `EntityInput` for one entity: the field moves between an entity's
+/// expression enum and the shape every entity shares. The conversion itself is
+/// written once, in `EntityInput::into_tree` / `from_tree`.
+macro_rules! entity_input {
+    (
+        $expr:ident,
+        leaf: $leaf:ident,
+        read: $read:ident,
+        agg: $agg:ident,
+        cmp: $cmp:ident,
+        str: $str:ident,
+        members: $members:ident,
+        presence: $presence:ident,
+        quantified: $quantified:ident $(,)?
+    ) => {
+        impl EntityInput for $expr {
+            type Leaf = $leaf;
+            type Read = $read;
 
-    fn into_shape(self) -> ExprShape<Self> {
-        match self {
-            NodeExpr::Const(v) => ExprShape::Const(v),
-            NodeExpr::Read(read) => ExprShape::Read(read),
-            NodeExpr::Agg(NodeAggregate { op, expr }) => ExprShape::Agg { op, expr },
-            NodeExpr::Cmp(NodeComparison { op, lhs, rhs }) => ExprShape::Cmp { op, lhs, rhs },
-            NodeExpr::Str(NodeStringTest {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            }) => ExprShape::Str {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            },
-            NodeExpr::IsIn(NodeMembership { expr, values }) => ExprShape::IsIn { expr, values },
-            NodeExpr::IsNotIn(NodeMembership { expr, values }) => {
-                ExprShape::IsNotIn { expr, values }
+            fn into_shape(self) -> ExprShape<Self> {
+                match self {
+                    $expr::Const(v) => ExprShape::Const(v),
+                    $expr::Read(read) => ExprShape::Read(read),
+                    $expr::Agg($agg { op, expr }) => ExprShape::Agg { op, expr },
+                    $expr::Cmp($cmp { op, lhs, rhs }) => ExprShape::Cmp { op, lhs, rhs },
+                    $expr::Str($str {
+                        op,
+                        lhs,
+                        rhs,
+                        levenshtein_distance,
+                        prefix_match,
+                    }) => ExprShape::Str {
+                        op,
+                        lhs,
+                        rhs,
+                        levenshtein_distance,
+                        prefix_match,
+                    },
+                    $expr::IsIn($members { expr, values }) => ExprShape::IsIn { expr, values },
+                    $expr::IsNotIn($members { expr, values }) => {
+                        ExprShape::IsNotIn { expr, values }
+                    }
+                    $expr::Presence($presence { op, expr }) => ExprShape::Presence { op, expr },
+                    $expr::Quantified($quantified { op, expr }) => {
+                        ExprShape::Quantified { op, expr }
+                    }
+                    $expr::And(items) => ExprShape::And(items),
+                    $expr::Or(items) => ExprShape::Or(items),
+                    $expr::Not(e) => ExprShape::Not(e),
+                }
             }
-            NodeExpr::Presence(NodePresence { op, expr }) => ExprShape::Presence { op, expr },
-            NodeExpr::Quantified(NodeQuantified { op, expr }) => ExprShape::Quantified { op, expr },
-            NodeExpr::And(items) => ExprShape::And(items),
-            NodeExpr::Or(items) => ExprShape::Or(items),
-            NodeExpr::Not(e) => ExprShape::Not(e),
-        }
-    }
 
-    fn from_shape(shape: ExprShape<Self>) -> Self {
-        match shape {
-            ExprShape::Const(v) => NodeExpr::Const(v),
-            ExprShape::Read(read) => NodeExpr::Read(read),
-            ExprShape::Agg { op, expr } => NodeExpr::Agg(NodeAggregate { op, expr }),
-            ExprShape::Cmp { op, lhs, rhs } => NodeExpr::Cmp(NodeComparison { op, lhs, rhs }),
-            ExprShape::Str {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            } => NodeExpr::Str(NodeStringTest {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            }),
-            ExprShape::IsIn { expr, values } => NodeExpr::IsIn(NodeMembership { expr, values }),
-            ExprShape::IsNotIn { expr, values } => {
-                NodeExpr::IsNotIn(NodeMembership { expr, values })
+            fn from_shape(shape: ExprShape<Self>) -> Self {
+                match shape {
+                    ExprShape::Const(v) => $expr::Const(v),
+                    ExprShape::Read(read) => $expr::Read(read),
+                    ExprShape::Agg { op, expr } => $expr::Agg($agg { op, expr }),
+                    ExprShape::Cmp { op, lhs, rhs } => $expr::Cmp($cmp { op, lhs, rhs }),
+                    ExprShape::Str {
+                        op,
+                        lhs,
+                        rhs,
+                        levenshtein_distance,
+                        prefix_match,
+                    } => $expr::Str($str {
+                        op,
+                        lhs,
+                        rhs,
+                        levenshtein_distance,
+                        prefix_match,
+                    }),
+                    ExprShape::IsIn { expr, values } => $expr::IsIn($members { expr, values }),
+                    ExprShape::IsNotIn { expr, values } => {
+                        $expr::IsNotIn($members { expr, values })
+                    }
+                    ExprShape::Presence { op, expr } => $expr::Presence($presence { op, expr }),
+                    ExprShape::Quantified { op, expr } => {
+                        $expr::Quantified($quantified { op, expr })
+                    }
+                    ExprShape::And(items) => $expr::And(items),
+                    ExprShape::Or(items) => $expr::Or(items),
+                    ExprShape::Not(e) => $expr::Not(e),
+                }
             }
-            ExprShape::Presence { op, expr } => NodeExpr::Presence(NodePresence { op, expr }),
-            ExprShape::Quantified { op, expr } => NodeExpr::Quantified(NodeQuantified { op, expr }),
-            ExprShape::And(items) => NodeExpr::And(items),
-            ExprShape::Or(items) => NodeExpr::Or(items),
-            ExprShape::Not(e) => NodeExpr::Not(e),
         }
-    }
+    };
 }
+
+entity_input!(
+    NodeExpr,
+    leaf: NodeLeaf,
+    read: NodeRead,
+    agg: NodeAggregate,
+    cmp: NodeComparison,
+    str: NodeStringTest,
+    members: NodeMembership,
+    presence: NodePresence,
+    quantified: NodeQuantified,
+);
 
 // ── edge expressions ─────────────────────────────────────────────────────────
 
@@ -1049,72 +1082,17 @@ pub struct EdgeAggregate {
     pub expr: Wrapped<EdgeExpr>,
 }
 
-impl EntityInput for EdgeExpr {
-    type Leaf = EdgeLeaf;
-    type Read = EdgeRead;
-
-    fn into_shape(self) -> ExprShape<Self> {
-        match self {
-            EdgeExpr::Const(v) => ExprShape::Const(v),
-            EdgeExpr::Read(read) => ExprShape::Read(read),
-            EdgeExpr::Agg(EdgeAggregate { op, expr }) => ExprShape::Agg { op, expr },
-            EdgeExpr::Cmp(EdgeComparison { op, lhs, rhs }) => ExprShape::Cmp { op, lhs, rhs },
-            EdgeExpr::Str(EdgeStringTest {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            }) => ExprShape::Str {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            },
-            EdgeExpr::IsIn(EdgeMembership { expr, values }) => ExprShape::IsIn { expr, values },
-            EdgeExpr::IsNotIn(EdgeMembership { expr, values }) => {
-                ExprShape::IsNotIn { expr, values }
-            }
-            EdgeExpr::Presence(EdgePresence { op, expr }) => ExprShape::Presence { op, expr },
-            EdgeExpr::Quantified(EdgeQuantified { op, expr }) => ExprShape::Quantified { op, expr },
-            EdgeExpr::And(items) => ExprShape::And(items),
-            EdgeExpr::Or(items) => ExprShape::Or(items),
-            EdgeExpr::Not(e) => ExprShape::Not(e),
-        }
-    }
-
-    fn from_shape(shape: ExprShape<Self>) -> Self {
-        match shape {
-            ExprShape::Const(v) => EdgeExpr::Const(v),
-            ExprShape::Read(read) => EdgeExpr::Read(read),
-            ExprShape::Agg { op, expr } => EdgeExpr::Agg(EdgeAggregate { op, expr }),
-            ExprShape::Cmp { op, lhs, rhs } => EdgeExpr::Cmp(EdgeComparison { op, lhs, rhs }),
-            ExprShape::Str {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            } => EdgeExpr::Str(EdgeStringTest {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            }),
-            ExprShape::IsIn { expr, values } => EdgeExpr::IsIn(EdgeMembership { expr, values }),
-            ExprShape::IsNotIn { expr, values } => {
-                EdgeExpr::IsNotIn(EdgeMembership { expr, values })
-            }
-            ExprShape::Presence { op, expr } => EdgeExpr::Presence(EdgePresence { op, expr }),
-            ExprShape::Quantified { op, expr } => EdgeExpr::Quantified(EdgeQuantified { op, expr }),
-            ExprShape::And(items) => EdgeExpr::And(items),
-            ExprShape::Or(items) => EdgeExpr::Or(items),
-            ExprShape::Not(e) => EdgeExpr::Not(e),
-        }
-    }
-}
+entity_input!(
+    EdgeExpr,
+    leaf: EdgeLeaf,
+    read: EdgeRead,
+    agg: EdgeAggregate,
+    cmp: EdgeComparison,
+    str: EdgeStringTest,
+    members: EdgeMembership,
+    presence: EdgePresence,
+    quantified: EdgeQuantified,
+);
 
 // ── exploded-edge expressions ────────────────────────────────────────────────
 
@@ -1224,92 +1202,17 @@ pub struct ExplodedEdgeAggregate {
     pub expr: Wrapped<ExplodedEdgeExpr>,
 }
 
-impl EntityInput for ExplodedEdgeExpr {
-    type Leaf = ExplodedEdgeLeaf;
-    type Read = ExplodedEdgeRead;
-
-    fn into_shape(self) -> ExprShape<Self> {
-        match self {
-            ExplodedEdgeExpr::Const(v) => ExprShape::Const(v),
-            ExplodedEdgeExpr::Read(read) => ExprShape::Read(read),
-            ExplodedEdgeExpr::Agg(ExplodedEdgeAggregate { op, expr }) => {
-                ExprShape::Agg { op, expr }
-            }
-            ExplodedEdgeExpr::Cmp(ExplodedEdgeComparison { op, lhs, rhs }) => {
-                ExprShape::Cmp { op, lhs, rhs }
-            }
-            ExplodedEdgeExpr::Str(ExplodedEdgeStringTest {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            }) => ExprShape::Str {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            },
-            ExplodedEdgeExpr::IsIn(ExplodedEdgeMembership { expr, values }) => {
-                ExprShape::IsIn { expr, values }
-            }
-            ExplodedEdgeExpr::IsNotIn(ExplodedEdgeMembership { expr, values }) => {
-                ExprShape::IsNotIn { expr, values }
-            }
-            ExplodedEdgeExpr::Presence(ExplodedEdgePresence { op, expr }) => {
-                ExprShape::Presence { op, expr }
-            }
-            ExplodedEdgeExpr::Quantified(ExplodedEdgeQuantified { op, expr }) => {
-                ExprShape::Quantified { op, expr }
-            }
-            ExplodedEdgeExpr::And(items) => ExprShape::And(items),
-            ExplodedEdgeExpr::Or(items) => ExprShape::Or(items),
-            ExplodedEdgeExpr::Not(e) => ExprShape::Not(e),
-        }
-    }
-
-    fn from_shape(shape: ExprShape<Self>) -> Self {
-        match shape {
-            ExprShape::Const(v) => ExplodedEdgeExpr::Const(v),
-            ExprShape::Read(read) => ExplodedEdgeExpr::Read(read),
-            ExprShape::Agg { op, expr } => {
-                ExplodedEdgeExpr::Agg(ExplodedEdgeAggregate { op, expr })
-            }
-            ExprShape::Cmp { op, lhs, rhs } => {
-                ExplodedEdgeExpr::Cmp(ExplodedEdgeComparison { op, lhs, rhs })
-            }
-            ExprShape::Str {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            } => ExplodedEdgeExpr::Str(ExplodedEdgeStringTest {
-                op,
-                lhs,
-                rhs,
-                levenshtein_distance,
-                prefix_match,
-            }),
-            ExprShape::IsIn { expr, values } => {
-                ExplodedEdgeExpr::IsIn(ExplodedEdgeMembership { expr, values })
-            }
-            ExprShape::IsNotIn { expr, values } => {
-                ExplodedEdgeExpr::IsNotIn(ExplodedEdgeMembership { expr, values })
-            }
-            ExprShape::Presence { op, expr } => {
-                ExplodedEdgeExpr::Presence(ExplodedEdgePresence { op, expr })
-            }
-            ExprShape::Quantified { op, expr } => {
-                ExplodedEdgeExpr::Quantified(ExplodedEdgeQuantified { op, expr })
-            }
-            ExprShape::And(items) => ExplodedEdgeExpr::And(items),
-            ExprShape::Or(items) => ExplodedEdgeExpr::Or(items),
-            ExprShape::Not(e) => ExplodedEdgeExpr::Not(e),
-        }
-    }
-}
+entity_input!(
+    ExplodedEdgeExpr,
+    leaf: ExplodedEdgeLeaf,
+    read: ExplodedEdgeRead,
+    agg: ExplodedEdgeAggregate,
+    cmp: ExplodedEdgeComparison,
+    str: ExplodedEdgeStringTest,
+    members: ExplodedEdgeMembership,
+    presence: ExplodedEdgePresence,
+    quantified: ExplodedEdgeQuantified,
+);
 
 // ── the conversion, written once for every entity ────────────────────────────
 
