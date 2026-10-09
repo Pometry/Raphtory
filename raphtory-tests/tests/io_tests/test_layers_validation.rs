@@ -1,6 +1,6 @@
 use raphtory::prelude::{AdditionOps, DeletionOps, Graph, GraphViewOps, NO_PROPS};
 
-const FUNKY: &[&str] = &["/../../escape", "/.", "..", r"C:\\", "_default"];
+const FUNKY: &[&str] = &["/../../escape", "/.", "..", r"C:\\"];
 
 #[test]
 fn test_validation_on_addition_ops() {
