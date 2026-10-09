@@ -31,8 +31,8 @@ async function searchAndPinNodes(page: Page, names: string[]) {
     await expect(pinnedTab).toBeVisible();
     await pinnedTab.click();
 
-    await expect(page.getByRole('button', { name: 'Unpin all items' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Open all items in a new graph' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unpin all' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open in new graph' })).toBeVisible();
     const pinnedRows = page.getByRole('table').locator('tbody tr');
     await expect(pinnedRows).toHaveCount(Math.min(8, names.length));
 }
@@ -184,7 +184,7 @@ test('Unpin all nodes from pinned tab', async ({ page }) => {
     await searchAndPinNodes(page, ['Pedro', 'Hamza']);
     await expect(page.getByRole('tab', { name: 'Pinned' })).toBeVisible();
     const unpinAllButton = page.getByRole('button', {
-        name: 'Unpin all items',
+        name: 'Unpin all',
         exact: true,
     });
     await expect(unpinAllButton).toBeVisible();
@@ -192,7 +192,7 @@ test('Unpin all nodes from pinned tab', async ({ page }) => {
     await expect(page.getByRole('tab', { name: 'Pinned' })).toBeHidden();
     await expect(
         page.getByRole('button', {
-            name: 'Unpin all items',
+            name: 'Unpin all',
             exact: true,
         }),
     ).toBeHidden();
@@ -226,7 +226,7 @@ test('View information in right hand side panel and open in graph view button in
 test('Open all items to new graph button on pinned tab', async ({ page }) => {
     await searchAndPinNodes(page, ['Pedro']);
     const attachAllButton = page.getByRole('button', {
-        name: 'Open all items in a new graph',
+        name: 'Open in new graph',
         exact: true,
     });
     await expect(attachAllButton).toBeVisible();
@@ -427,4 +427,46 @@ test('Condition value shows dropdown for few variants and text field for many', 
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(page.getByText('Start Your Search')).toBeHidden();
     await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(1);
+});
+
+// The search_config fixture sets _ui_node_type_search_properties to
+// { Account: ['country', 'balance'], Tag: [] } — Account also has a `secret`
+// property, and Transaction is left unconfigured. The Account list is
+// deliberately out of order: the key is an allowlist, the menu stays sorted.
+test('Filter field menu honours the configured search properties per node type', async ({
+    page,
+}) => {
+    test.setTimeout(60000);
+
+    const fieldMenuItems = async (): Promise<string[]> => {
+        await page.getByRole('button', { name: 'Add' }).click();
+        const items = await page.getByRole('menuitem').allInnerTexts();
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.MuiMenu-root')).toBeHidden();
+        return items;
+    };
+
+    // Configured: only the allowlisted properties, so `secret` is not offered.
+    await searchForEntity(
+        page,
+        { type: 'node', nodeType: 'Account', graph: 'search_config' },
+        { search: false },
+    );
+    expect(await fieldMenuItems()).toEqual(['ID', 'balance', 'country']);
+
+    // Unconfigured: every schema property.
+    await searchForEntity(
+        page,
+        { type: 'node', nodeType: 'Transaction', graph: 'search_config' },
+        { search: false },
+    );
+    expect(await fieldMenuItems()).toEqual(['ID', 'amount', 'currency']);
+
+    // Configured empty: ID only, which stays available for every type.
+    await searchForEntity(
+        page,
+        { type: 'node', nodeType: 'Tag', graph: 'search_config' },
+        { search: false },
+    );
+    expect(await fieldMenuItems()).toEqual(['ID']);
 });
