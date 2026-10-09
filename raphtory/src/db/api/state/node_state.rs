@@ -645,12 +645,14 @@ impl<K: From<usize>> RoaringProducer<K> {
 
 impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
     type Item = (usize, K);
-    /// Collected because we can't borrow the shared bitmap. Only adapters that need the iterator
-    /// itself (such as `zip`, `chunks`, ...) use this; the rest go through `fold_with`.
-    type IntoIter = std::vec::IntoIter<(usize, K)>;
+    /// Only adapters that need the iterator itself (such as `zip` or `chunks`) use this; the rest
+    /// go through `fold_with`.
+    type IntoIter = std::iter::Zip<Range<usize>, RoaringIndexIntoIter<K>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.walk().collect::<Vec<_>>().into_iter()
+        self.range
+            .clone()
+            .zip(RoaringIndexIntoIter::over(self.keys, self.range))
     }
 
     /// Rayon finishes each piece here, where we can borrow the bitmap so nothing is collected.
@@ -681,6 +683,9 @@ impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
 struct RoaringIter {
     keys: Arc<RoaringTreemap>,
     range: Range<usize>,
+    /// Whether the back of `iter` is at `range.end` yet; it is moved there lazily since iteration
+    /// from the front never needs it.
+    back_seeked: bool,
     #[borrows(keys)]
     #[covariant]
     iter: roaring::treemap::Iter<'this>,
@@ -690,6 +695,7 @@ impl RoaringIter {
     fn over(keys: Arc<RoaringTreemap>, range: Range<usize>) -> Self {
         let (start, end) = (range.start, range.end);
         RoaringIterBuilder {
+            back_seeked: end >= keys.len() as usize,
             keys,
             range,
             iter_builder: |keys| {
@@ -697,11 +703,6 @@ impl RoaringIter {
                 if start > 0 && start < end {
                     if let Some(first) = keys.select(start as u64) {
                         iter.advance_to(first);
-                    }
-                }
-                if end < keys.len() as usize && start < end {
-                    if let Some(last) = keys.select(end as u64 - 1) {
-                        iter.advance_back_to(last);
                     }
                 }
                 iter
@@ -741,6 +742,13 @@ impl Iterator for RoaringIter {
 impl DoubleEndedIterator for RoaringIter {
     fn next_back(&mut self) -> Option<u64> {
         self.with_mut(|walk| {
+            if !*walk.back_seeked {
+                *walk.back_seeked = true;
+                let last = walk.range.end.checked_sub(1);
+                if let Some(last) = last.and_then(|last| walk.keys.select(last as u64)) {
+                    walk.iter.advance_back_to(last);
+                }
+            }
             walk.range.next_back()?;
             walk.iter.next_back()
         })
@@ -751,6 +759,7 @@ impl DoubleEndedIterator for RoaringIter {
             return self.next_back();
         }
         self.with_mut(|walk| {
+            *walk.back_seeked = true;
             let at = walk.range.nth_back(n)?;
             walk.iter.advance_back_to(walk.keys.select(at as u64)?);
             walk.iter.next_back()
@@ -767,8 +776,13 @@ pub struct RoaringIndexIntoIter<K> {
 impl<K> RoaringIndexIntoIter<K> {
     fn new(keys: Arc<RoaringTreemap>) -> Self {
         let len = keys.len() as usize;
+        Self::over(keys, 0..len)
+    }
+
+    /// The keys at positions `range`.
+    fn over(keys: Arc<RoaringTreemap>, range: Range<usize>) -> Self {
         Self {
-            walk: RoaringIter::over(keys, 0..len),
+            walk: RoaringIter::over(keys, range),
             _key: PhantomData,
         }
     }
