@@ -53,14 +53,17 @@ impl<'a> UnlockedEdges<'a> {
         self,
         layer_ids: &'a LayerIds,
     ) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> + 'a {
-        match layer_ids {
-            LayerIds::None => Iter4::I(rayon::iter::empty()),
-            LayerIds::All => Iter4::J(self.par_iter_layer(STATIC_GRAPH_LAYER_ID)),
-            LayerIds::One(layer_id) => Iter4::K(self.par_iter_layer(*layer_id)),
-            LayerIds::Multiple(multiple) => Iter4::L(
-                self.par_iter_layer(STATIC_GRAPH_LAYER_ID)
-                    .filter(|edge| edge.as_ref().has_layers(multiple)),
-            ),
-        }
+        // One concrete pipeline for every `LayerIds` variant (rather than an `Iter4` of
+        // per-variant pipelines) so downstream rayon consumers are only compiled once.
+        let (layer_id, multiple) = match layer_ids {
+            LayerIds::None => (None, None),
+            LayerIds::All => (Some(STATIC_GRAPH_LAYER_ID), None),
+            LayerIds::One(layer_id) => (Some(*layer_id), None),
+            LayerIds::Multiple(multiple) => (Some(STATIC_GRAPH_LAYER_ID), Some(multiple)),
+        };
+        layer_id
+            .into_par_iter()
+            .flat_map(move |layer_id| self.par_iter_layer(layer_id))
+            .filter(move |edge| multiple.is_none_or(|multiple| edge.as_ref().has_layers(multiple)))
     }
 }

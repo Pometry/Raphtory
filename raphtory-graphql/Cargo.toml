@@ -18,6 +18,7 @@ raphtory = { workspace = true, features = [
 ] }
 tempfile = { workspace = true }
 raphtory-api = { workspace = true }
+raphtory-vectors = { workspace = true, optional = true }
 raphtory-storage = { workspace = true }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
@@ -80,7 +81,7 @@ quote = "1"
 
 [features]
 default = []
-vectors = ["raphtory/vectors"]
+vectors = ["dep:raphtory-vectors"]
 integration-test = ["opentelemetry_sdk/testing"]
-python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
-panic-on-drop = ["raphtory/panic-on-drop"]
+python = ["dep:pyo3", "dep:pythonize", "raphtory/python", "raphtory-vectors?/python"]
+panic-on-drop = ["raphtory/panic-on-drop", "raphtory-vectors?/panic-on-drop"]
