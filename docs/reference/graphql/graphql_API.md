@@ -998,10 +998,10 @@ Returns the in component (all nodes that can reach it following out-edges) of ev
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 
 </td>
 </tr>
@@ -1025,10 +1025,10 @@ Returns the out component (all reachable nodes following out-edges) of every nod
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 
 </td>
 </tr>
@@ -1061,10 +1061,10 @@ Node id.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 
 </td>
 </tr>
@@ -1088,10 +1088,10 @@ Node id.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional composite filter (node, edge, and graph-view); the algorithm runs on the resulting view.
+Optional filter expression (node/edge predicates, graph views, or and/or/not combinations); the algorithm runs on the resulting view.
 
 </td>
 </tr>
@@ -2548,24 +2548,6 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edge.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#edge">Edge</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in given order.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#edgeviewcollection">EdgeViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edge.earliesttime">earliestTime</strong></td>
 <td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
@@ -2840,7 +2822,7 @@ metadata / history are restricted to the matching subset.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -3041,9 +3023,7 @@ endpoints are disabled; use `page` for paginated access instead.
 
 ### Edges
 
-A lazy collection of edges from a graph view. Supports the usual view
-transforms (window, layer, filter, ...), plus edge-specific ones like
-`explode` and `explodeLayers`, pagination, and sorting.
+A lazy collection of edges from a graph view. Supports the usual view transforms (window, layer, filter, ...), plus edge-specific ones like `explode` and `explodeLayers`, pagination, and sorting. `select` and `filter` on the collection returned by `explode` ask their question of each exploded edge.
 
 <table>
 <thead>
@@ -3367,24 +3347,6 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edges.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#edges">Edges</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in order given.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#edgesviewcollection">EdgesViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="edges.explode">explode</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
@@ -3524,7 +3486,11 @@ collection `metadata.keys()`.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+The number of items in the collection.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.page">page</strong></td>
@@ -3589,7 +3555,7 @@ Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting everything to a specific week:
 
 ```text
-edges { filter(expr: {window: {start: 1234, end: 5678}}) {
+edges { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
 list { src { neighbours { list { name } } } }   # neighbours still windowed
 } }
 ```
@@ -3600,7 +3566,7 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -3620,9 +3586,9 @@ edges, then the neighbours of their endpoints on Tuesday, then *those*
 neighbours on Wednesday:
 
 ```text
-edges { select(expr: {window: {...monday...}}) {
-list { src { select(expr: {window: {...tuesday...}}) {
-neighbours { select(expr: {window: {...wednesday...}}) {
+edges { select(expr: {view: [{window: {...monday...}}]}) {
+list { src { select(expr: {view: [{window: {...tuesday...}}]}) {
+neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
 neighbours { list { name } }
 } }
 } } }
@@ -3635,7 +3601,7 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -3647,9 +3613,7 @@ Filter expression: node/edge predicates, graph views, or and/or/not combinations
 
 ### EdgesWindowSet
 
-A lazy sequence of per-window edge collections, produced by
-`edges.rolling` / `edges.expanding`. Each entry is an `Edges` collection
-as it exists in that window.
+A lazy sequence of per-window edge collections, produced by `edges.rolling` / `edges.expanding`. Each entry is an `Edges` collection as it exists in that window.
 
 <table>
 <thead>
@@ -4451,10 +4415,10 @@ All nodes in this view, optionally narrowed by a filter.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional node filter (by name, property, type, etc.). If omitted, every node in the view is returned.
+Optional filter expression made of node predicates, graph views, or and/or/not combinations (and is an intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned.
 
 </td>
 </tr>
@@ -4497,10 +4461,10 @@ All edges in this view, optionally narrowed by a filter.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional edge filter (by property, layer, src/dst, etc.). If omitted, every edge in the view is returned.
+Optional filter expression made of edge predicates (including src/dst terms), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned.
 
 </td>
 </tr>
@@ -4628,30 +4592,10 @@ expression and narrows nodes, edges, and their properties to what matches.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graph.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
-<td>
-
-Apply a list of view operations in the given order and return the
-resulting graph view. Lets callers compose multiple view transforms
-(window, layer, filter, snapshot, ...) in a single call.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#graphviewcollection">GraphViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant applied to the running result.
+Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently and the results intersected. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter.
 
 </td>
 </tr>
@@ -6917,11 +6861,7 @@ Sort keys for the graphs, applied in order before paging.
 
 ### NestedEdges
 
-A nested collection of edges anchored to a source collection — the result of
-collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`.
-Each source node yields its own list of incident edges, so results are
-shaped as a list of per-source edge collections. Supports the usual view
-transforms (window, layer, filter, ...).
+A nested collection of edges anchored to a source collection — the result of collection-level traversals like `nodes.edges`, `inEdges`, or `outEdges`. Each source node yields its own list of incident edges, so results are shaped as a list of per-source edge collections. Supports the usual view transforms (window, layer, filter, ...).
 
 <table>
 <thead>
@@ -7168,24 +7108,6 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nestededges.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#nestededges">NestedEdges</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in order given.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#edgesviewcollection">EdgesViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nestededges.start">start</strong></td>
 <td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
@@ -7306,7 +7228,11 @@ collection `metadata.keys()`.
 <tr>
 <td colspan="2" valign="top"><strong id="nestededges.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+The number of source nodes, one edge collection each.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nestededges.page">page</strong></td>
@@ -7376,7 +7302,7 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -7397,7 +7323,7 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -7752,16 +7678,6 @@ Proposed new end (TimeInput); ignored if it would widen the window.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="node.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#nodeviewcollection">NodeViewCollection</a>!]!</td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="node.earliesttime">earliestTime</strong></td>
 <td valign="top"><a href="#eventtime">EventTime</a>!</td>
 <td>
@@ -7924,8 +7840,8 @@ Returns the number edges with this node as the destination.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Nodes that can reach this one via out-edges. `select` is a general filter expression — a node
-filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+Nodes that can reach this one via out-edges. `select` is a filter expression — node and edge
+predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
 steps through. The returned nodes are on the full graph so their other-layer neighbours stay
 queryable.
 
@@ -7933,7 +7849,7 @@ queryable.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -7941,8 +7857,8 @@ queryable.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Nodes reachable from this one via out-edges. `select` is a general filter expression — a node
-filter, an edge filter, or a graph (layer/window) filter — scoping which nodes/edges the walk
+Nodes reachable from this one via out-edges. `select` is a filter expression — node and edge
+predicates, views, and their `and`/`or`/`not` combinations — scoping which nodes/edges the walk
 steps through. The returned nodes are on the full (unfiltered) graph, so their other-layer
 neighbours remain queryable.
 
@@ -7950,7 +7866,7 @@ neighbours remain queryable.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -7964,7 +7880,7 @@ Returns all connected edges.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -7978,7 +7894,7 @@ Returns outgoing edges.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -7992,7 +7908,7 @@ Returns incoming edges.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -8006,7 +7922,7 @@ Returns neighbouring nodes.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -8020,7 +7936,7 @@ Returns the number of neighbours that have at least one in-going edge to this no
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -8034,7 +7950,7 @@ Returns the number of neighbours that have at least one out-going edge from this
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -8044,7 +7960,7 @@ Returns the number of neighbours that have at least one out-going edge from this
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -9116,26 +9032,6 @@ Node-type names to keep.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodes.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td>
-
-Apply a list of views in the given order and return the resulting nodes
-collection. Lets callers compose window, layer, filter, and snapshot
-operations in a single call.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#nodesviewcollection">NodesViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, etc.) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="nodes.sorted">sorted</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
@@ -9333,7 +9229,7 @@ Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting everything to a specific week:
 
 ```text
-nodes { filter(expr: {window: {start: 1234, end: 5678}}) {
+nodes { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
 list { neighbours { list { name } } }   # neighbours still windowed
 } }
 ```
@@ -9344,7 +9240,7 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -9364,9 +9260,9 @@ active on Monday, then their neighbours active on Tuesday, then *those*
 neighbours active on Wednesday:
 
 ```text
-nodes { select(expr: {window: {...monday...}}) {
-list { neighbours { select(expr: {window: {...tuesday...}}) {
-list { neighbours { select(expr: {window: {...wednesday...}}) {
+nodes { select(expr: {view: [{window: {...monday...}}]}) {
+list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
+list { neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
 list { name }
 } } }
 } } }
@@ -9379,7 +9275,7 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
@@ -9397,7 +9293,7 @@ Returns the neighbouring nodes of each node in the collection.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -9411,7 +9307,7 @@ Returns the in-neighbours of each node in the collection.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -9425,7 +9321,7 @@ Returns the out-neighbours of each node in the collection.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -9439,7 +9335,7 @@ Returns the incident edges (both directions) of each node in the collection.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -9453,7 +9349,7 @@ Returns the incoming edges of each node in the collection.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -9467,7 +9363,7 @@ Returns the outgoing edges of each node in the collection.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -10009,24 +9905,6 @@ Columnar `outDegree`. Fast-path for `list { outDegree }`.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromgraph.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in given order.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.filter">filter</strong></td>
 <td valign="top"><a href="#pathfromgraph">PathFromGraph</a>!</td>
 <td>
@@ -10041,7 +9919,7 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -10062,7 +9940,7 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
@@ -10081,7 +9959,7 @@ path (both directions), as a nested `PathFromGraph`.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -10096,7 +9974,7 @@ path, as a nested `PathFromGraph`.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -10111,7 +9989,7 @@ path, as a nested `PathFromGraph`.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -10669,24 +10547,6 @@ server when bulk list endpoints are disabled.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="pathfromnode.applyviews">applyViews</strong></td>
-<td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td>
-
-Takes a specified selection of views and applies them in given order.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">views</td>
-<td valign="top">[<a href="#pathfromnodeviewcollection">PathFromNodeViewCollection</a>!]!</td>
-<td>
-
-Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result.
-
-</td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.filter">filter</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
@@ -10699,7 +10559,7 @@ Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting the whole traversal to a specific week:
 
 ```text
-node(name: "A") { neighbours { filter(expr: {window: {...week...}}) {
+node(name: "A") { neighbours { filter(expr: {view: [{window: {...week...}}]}) {
 list { neighbours { list { name } } }   # further hops still windowed
 } } }
 ```
@@ -10710,7 +10570,7 @@ Contrast with `select`, which applies here and is not carried through.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
@@ -10729,8 +10589,8 @@ Useful when each hop needs a different scope. E.g. neighbours active on
 Monday, then *their* neighbours active on Tuesday:
 
 ```text
-node(name: "A") { neighbours { select(expr: {window: {...monday...}}) {
-list { neighbours { select(expr: {window: {...tuesday...}}) {
+node(name: "A") { neighbours { select(expr: {view: [{window: {...monday...}}]}) {
+list { neighbours { select(expr: {view: [{window: {...tuesday...}}]}) {
 list { name }
 } } }
 } } }
@@ -10742,7 +10602,7 @@ Contrast with `filter`, which persists the scope through subsequent ops.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a>!</td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a>!</td>
 <td>
 
 Filter expression: node predicates, graph views, or and/or/not combinations (and = intersection). Expressions that test edges are rejected.
@@ -10761,7 +10621,7 @@ Returns the neighbouring nodes reachable one further hop from this path
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -10776,7 +10636,7 @@ flat `PathFromNode`.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -10791,7 +10651,7 @@ flat `PathFromNode`.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td></td>
 </tr>
 <tr>
@@ -11831,30 +11691,6 @@ Optional `{start, end}` to restrict matches to edges active in that interval.
 
 ## Inputs
 
-### DegreeFilterNew
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="degreefilternew.direction">direction</strong></td>
-<td valign="top"><a href="#degreedirection">DegreeDirection</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="degreefilternew.where">where</strong></td>
-<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 ### EdgeAddition
 
 <table>
@@ -11910,36 +11746,9 @@ Metadata.
 </tbody>
 </table>
 
-### EdgeFilter
+### EdgeAggregate
 
-GraphQL input type for filtering edges.
-
-`EdgeFilter` represents a composable boolean expression evaluated
-against edges in a graph. Filters can target:
-
-- edge **endpoints** (source / destination nodes),
-- edge **properties** and **metadata**,
-- **temporal scope** (windows, snapshots, latest),
-- **layer membership**,
-- and **structural edge state** (active, valid, deleted, self-loop).
-
-Filters can be combined recursively using logical operators
-(`And`, `Or`, `Not`).
-
-Examples (GraphQL):
-```graphql
-{
-edges(filter: {
-And: [
-{ IsActive: true },
-{ Property: { name: "weight", gt: 0.5 } }
-]
-}) {
-src
-dst
-}
-}
-```
+A list reduced to one value.
 
 <table>
 <thead>
@@ -11951,245 +11760,29 @@ dst
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgefilter.src">src</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td colspan="2" valign="top"><strong id="edgeaggregate.op">op</strong></td>
+<td valign="top"><a href="#aggop">AggOp</a>!</td>
 <td>
 
-Applies a filter to the **source node** of the edge.
-
-The nested `NodeFilter` is evaluated against the source endpoint.
-
-Example:
-`{ Src: { Name: { contains: "alice" } } }`
+The reduction.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgefilter.dst">dst</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td colspan="2" valign="top"><strong id="edgeaggregate.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
-Applies a filter to the **destination node** of the edge.
-
-The nested `NodeFilter` is evaluated against the destination endpoint.
-
-Example:
-`{ Dst: { Id: { eq: 42 } } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.property">property</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
-<td>
-
-Filters an edge **property** by name and value.
-
-Applies to static or temporal properties depending on context.
-
-Example:
-`{ Property: { name: "weight", gt: 0.5 } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.metadata">metadata</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
-<td>
-
-Filters an edge **metadata field**.
-
-Metadata is shared across all temporal versions of an edge.
-
-Example:
-`{ Metadata: { name: "source", eq: "imported" } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
-<td>
-
-Filters a **temporal edge property**.
-
-Used when the property value varies over time and must be
-evaluated within a temporal context.
-
-Example:
-`{ TemporalProperty: { name: "status", eq: "active" } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.and">and</strong></td>
-<td valign="top">[<a href="#edgefilter">EdgeFilter</a>!]</td>
-<td>
-
-Logical **AND** over multiple edge filters.
-
-All nested filters must evaluate to `true`.
-
-Example:
-`{ And: [ { IsActive: true }, { IsValid: true } ] }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.or">or</strong></td>
-<td valign="top">[<a href="#edgefilter">EdgeFilter</a>!]</td>
-<td>
-
-Logical **OR** over multiple edge filters.
-
-At least one nested filter must evaluate to `true`.
-
-Example:
-`{ Or: [ { IsDeleted: true }, { IsSelfLoop: true } ] }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.not">not</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td>
-
-Logical **NOT** over a nested edge filter.
-
-Negates the result of the wrapped filter.
-
-Example:
-`{ Not: { IsDeleted: true } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.window">window</strong></td>
-<td valign="top"><a href="#edgewindowexpr">EdgeWindowExpr</a></td>
-<td>
-
-Restricts edge evaluation to a **time window**.
-
-The window is inclusive of `start` and exclusive of `end`.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.at">at</strong></td>
-<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td>
-
-Restricts edge evaluation to a **single point in time**.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.before">before</strong></td>
-<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td>
-
-Restricts edge evaluation to times **strictly before** a given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.after">after</strong></td>
-<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td>
-
-Restricts edge evaluation to times **strictly after** a given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.latest">latest</strong></td>
-<td valign="top"><a href="#edgeunaryexpr">EdgeUnaryExpr</a></td>
-<td>
-
-Evaluates edge predicates against the **latest available state**.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td>
-
-Evaluates edge predicates against a **snapshot** of the graph
-at a specific time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#edgeunaryexpr">EdgeUnaryExpr</a></td>
-<td>
-
-Evaluates edge predicates against the **most recent snapshot**
-of the graph.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.layers">layers</strong></td>
-<td valign="top"><a href="#edgelayersexpr">EdgeLayersExpr</a></td>
-<td>
-
-Restricts evaluation to edges belonging to one or more **layers**.
-
-Example:
-`{ Layers: { values: ["fire_nation", "air_nomads"] } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.isactive">isActive</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches edges that have at least one event in the current view/window.
-
-When `true`, only active edges are matched.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.isvalid">isValid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches edges that are structurally valid (i.e. not deleted)
-in the current view/window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.isdeleted">isDeleted</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches edges that have been deleted in the current view/window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgefilter.isselfloop">isSelfLoop</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches edges that are **self-loops**
-(source node == destination node).
+The list; the innermost list when lists nest.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### EdgeLayersExpr
+### EdgeComparison
 
-Restricts edge evaluation to one or more layers and applies a nested `EdgeFilter`.
-
-Used by `GqlEdgeFilter::Layers`.
+Two values compared.
 
 <table>
 <thead>
@@ -12201,20 +11794,360 @@ Used by `GqlEdgeFilter::Layers`.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgelayersexpr.names">names</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
+<td colspan="2" valign="top"><strong id="edgecomparison.op">op</strong></td>
+<td valign="top"><a href="#cmpop">CmpOp</a>!</td>
 <td>
 
-Layer names to include.
+How they compare.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgelayersexpr.expr">expr</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="edgecomparison.lhs">lhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
-Filter evaluated within the layer-restricted view.
+The left side.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgecomparison.rhs">rhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The right side.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeExpr
+
+A value or a yes/no on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.const">const</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
+<td>
+
+A literal.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.read">read</strong></td>
+<td valign="top"><a href="#edgeread">EdgeRead</a></td>
+<td>
+
+One term of the edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.agg">agg</strong></td>
+<td valign="top"><a href="#edgeaggregate">EdgeAggregate</a></td>
+<td>
+
+A list reduced to one value.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.cmp">cmp</strong></td>
+<td valign="top"><a href="#edgecomparison">EdgeComparison</a></td>
+<td>
+
+Two values compared.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.str">str</strong></td>
+<td valign="top"><a href="#edgestringtest">EdgeStringTest</a></td>
+<td>
+
+One string tested against another.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isin">isIn</strong></td>
+<td valign="top"><a href="#edgemembership">EdgeMembership</a></td>
+<td>
+
+`expr` is one of `values`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#edgemembership">EdgeMembership</a></td>
+<td>
+
+`expr` is none of `values`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.presence">presence</strong></td>
+<td valign="top"><a href="#edgepresence">EdgePresence</a></td>
+<td>
+
+Whether a value is there.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.quantified">quantified</strong></td>
+<td valign="top"><a href="#edgequantified">EdgeQuantified</a></td>
+<td>
+
+An element-wise yes/no over a list, made one.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.and">and</strong></td>
+<td valign="top">[<a href="#edgeexpr">EdgeExpr</a>!]</td>
+<td>
+
+Every yes/no inside holds.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.or">or</strong></td>
+<td valign="top">[<a href="#edgeexpr">EdgeExpr</a>!]</td>
+<td>
+
+Any yes/no inside holds.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeexpr.not">not</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td>
+
+The yes/no inside does not hold.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeFieldRead
+
+A built-in edge or exploded-edge term.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefieldread.name">name</strong></td>
+<td valign="top"><a href="#edgefield">EdgeField</a>!</td>
+<td>
+
+The built-in term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefieldread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views the term is read through, in order; none when absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeMembership
+
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgemembership.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The value to look for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgemembership.values">values</strong></td>
+<td valign="top"><a href="#value">Value</a>!</td>
+<td>
+
+The values it may be one of.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgePresence
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgepresence.op">op</strong></td>
+<td valign="top"><a href="#presenceop">PresenceOp</a>!</td>
+<td>
+
+Present or absent.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgepresence.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeQuantified
+
+An element-wise yes/no over a list, made one yes/no.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgequantified.op">op</strong></td>
+<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td>
+
+Any element or every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgequantified.expr">expr</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
+<td>
+
+The element-wise yes/no.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EdgeRead
+
+One edge term, read through optional views. Name exactly one of
+`property`, `temporalProperty`, `metadata`, `field`, `src` or `dst`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.property">property</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.metadata">metadata</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.field">field</strong></td>
+<td valign="top"><a href="#edgefieldread">EdgeFieldRead</a></td>
+<td>
+
+A built-in edge term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.src">src</strong></td>
+<td valign="top"><a href="#endpointread">EndpointRead</a></td>
+<td>
+
+A node expression evaluated on the edge's source node.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgeread.dst">dst</strong></td>
+<td valign="top"><a href="#endpointread">EndpointRead</a></td>
+<td>
+
+A node expression evaluated on the edge's destination node.
 
 </td>
 </tr>
@@ -12293,11 +12226,9 @@ Property
 </tbody>
 </table>
 
-### EdgeTimeExpr
+### EdgeStringTest
 
-Restricts edge evaluation to a single time bound and applies a nested `EdgeFilter`.
-
-Used by `At`, `Before`, and `After` edge filters.
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
 
 <table>
 <thead>
@@ -12309,374 +12240,47 @@ Used by `At`, `Before`, and `After` edge filters.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgetimeexpr.time">time</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td colspan="2" valign="top"><strong id="edgestringtest.op">op</strong></td>
+<td valign="top"><a href="#strop">StrOp</a>!</td>
 <td>
 
-Reference time for the operation.
+The test.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgetimeexpr.expr">expr</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="edgestringtest.lhs">lhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
-Filter evaluated within the restricted time scope.
+The string tested.
 
 </td>
 </tr>
-</tbody>
-</table>
-
-### EdgeUnaryExpr
-
-Applies a unary edge-view operation and then evaluates a nested `EdgeFilter`.
-
-Used by `Latest` and `SnapshotLatest` edge filters.
-
-<table>
-<thead>
 <tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeunaryexpr.expr">expr</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="edgestringtest.rhs">rhs</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
-Filter evaluated after applying the unary operation.
+The string it is tested against.
 
 </td>
 </tr>
-</tbody>
-</table>
-
-### EdgeViewCollection
-
-<table>
-<thead>
 <tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
+<td colspan="2" valign="top"><strong id="edgestringtest.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+`FUZZY` only: the largest edit distance that still matches.
+
+</td>
 </tr>
-</thead>
-<tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.defaultlayer">defaultLayer</strong></td>
+<td colspan="2" valign="top"><strong id="edgestringtest.prefixmatch">prefixMatch</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeviewcollection.edgefilter">edgeFilter</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td>
-
-Edge filter
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### EdgeWindowExpr
-
-Restricts edge evaluation to a time window and applies a nested `EdgeFilter`.
-
-Used by `GqlEdgeFilter::Window`.
-
-The window is inclusive of `start` and exclusive of `end`.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="edgewindowexpr.start">start</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Window start time (inclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgewindowexpr.end">end</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Window end time (exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgewindowexpr.expr">expr</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td>
-
-Filter evaluated within the restricted window.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### EdgesViewCollection
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgesviewcollection.edgefilter">edgeFilter</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td>
-
-Edge filter
+`FUZZY` only: whether a match on a prefix counts.
 
 </td>
 </tr>
@@ -12706,19 +12310,9 @@ OpenAI embedding models or compatible providers
 </tbody>
 </table>
 
-### ExplodedEdgeFilter
+### EndpointRead
 
-GraphQL input type for filtering **exploded edges** — edge views where each
-temporal event is an individually addressable edge instance, rather than
-one aggregated edge across time.
-
-Predicates are evaluated **per event**: a property condition keeps the
-individual updates that match it (and the edges carrying them), where the
-plain `EdgeFilter` evaluates one aggregated value per edge.
-
-Filters can target edge endpoints, properties/metadata, temporal scope,
-layer membership, and structural edge state, and can be combined
-recursively with `And`/`Or`/`Not` — mirroring `EdgeFilter`.
+A node expression evaluated on one endpoint of an edge.
 
 <table>
 <thead>
@@ -12730,212 +12324,30 @@ recursively with `And`/`Or`/`Not` — mirroring `EdgeFilter`.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.src">src</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td colspan="2" valign="top"><strong id="endpointread.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-Applies a filter to the **source node** of the exploded edge.
+The node expression.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.dst">dst</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td colspan="2" valign="top"><strong id="endpointread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
 <td>
 
-Applies a filter to the **destination node** of the exploded edge.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.property">property</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
-<td>
-
-Filters an exploded-edge **property** by name and value, evaluated
-per event.
-
-Example:
-`{ Property: { name: "weight", gt: 0.5 } }`
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.metadata">metadata</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
-<td>
-
-Filters an exploded-edge **metadata field**.
-
-Metadata is shared across all temporal versions of an edge.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
-<td>
-
-Filters a **temporal exploded-edge property**, evaluated within a
-temporal context per event.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.and">and</strong></td>
-<td valign="top">[<a href="#explodededgefilter">ExplodedEdgeFilter</a>!]</td>
-<td>
-
-Logical **AND** over multiple exploded-edge filters.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.or">or</strong></td>
-<td valign="top">[<a href="#explodededgefilter">ExplodedEdgeFilter</a>!]</td>
-<td>
-
-Logical **OR** over multiple exploded-edge filters.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.not">not</strong></td>
-<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
-<td>
-
-Logical **NOT** over a nested exploded-edge filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.window">window</strong></td>
-<td valign="top"><a href="#explodededgewindowexpr">ExplodedEdgeWindowExpr</a></td>
-<td>
-
-Restricts exploded-edge evaluation to a **time window**
-(inclusive start, exclusive end).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.at">at</strong></td>
-<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
-<td>
-
-Restricts exploded-edge evaluation to a **single point in time**.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.before">before</strong></td>
-<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
-<td>
-
-Restricts exploded-edge evaluation to times **strictly before** a
-given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.after">after</strong></td>
-<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
-<td>
-
-Restricts exploded-edge evaluation to times **strictly after** a
-given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.latest">latest</strong></td>
-<td valign="top"><a href="#explodededgeunaryexpr">ExplodedEdgeUnaryExpr</a></td>
-<td>
-
-Evaluates exploded-edge predicates against the **latest available
-state**.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#explodededgetimeexpr">ExplodedEdgeTimeExpr</a></td>
-<td>
-
-Evaluates exploded-edge predicates against a **snapshot** of the graph
-at a specific time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#explodededgeunaryexpr">ExplodedEdgeUnaryExpr</a></td>
-<td>
-
-Evaluates exploded-edge predicates against the **most recent
-snapshot** of the graph.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.layers">layers</strong></td>
-<td valign="top"><a href="#explodededgelayersexpr">ExplodedEdgeLayersExpr</a></td>
-<td>
-
-Restricts evaluation to exploded edges belonging to one or more
-**layers**.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.isactive">isActive</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches exploded edges that have at least one event in the current
-view/window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.isvalid">isValid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches exploded edges that are structurally valid (i.e. not deleted)
-in the current view/window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.isdeleted">isDeleted</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches exploded edges that have been deleted in the current
-view/window.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgefilter.isselfloop">isSelfLoop</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches exploded edges that are **self-loops**
-(source node == destination node).
+Views the term is read through, in order; none when absent. They scope
+every node term inside `expr`.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### ExplodedEdgeLayersExpr
+### ExplodedEdgeAggregate
 
-Restricts exploded-edge evaluation to one or more layers and applies a
-nested `ExplodedEdgeFilter`.
-
-Used by `GqlExplodedEdgeFilter::Layers`.
+A list reduced to one value.
 
 <table>
 <thead>
@@ -12947,32 +12359,29 @@ Used by `GqlExplodedEdgeFilter::Layers`.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgelayersexpr.names">names</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
+<td colspan="2" valign="top"><strong id="explodededgeaggregate.op">op</strong></td>
+<td valign="top"><a href="#aggop">AggOp</a>!</td>
 <td>
 
-Layer names to include.
+The reduction.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgelayersexpr.expr">expr</strong></td>
-<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgeaggregate.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
-Filter evaluated within the layer-restricted view.
+The list; the innermost list when lists nest.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### ExplodedEdgeTimeExpr
+### ExplodedEdgeComparison
 
-Restricts exploded-edge evaluation to a single time bound and applies a
-nested `ExplodedEdgeFilter`.
-
-Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
+Two values compared.
 
 <table>
 <thead>
@@ -12984,32 +12393,38 @@ Used by `At`, `Before`, `After`, and `SnapshotAt` exploded-edge filters.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgetimeexpr.time">time</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgecomparison.op">op</strong></td>
+<td valign="top"><a href="#cmpop">CmpOp</a>!</td>
 <td>
 
-Reference time for the operation.
+How they compare.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgetimeexpr.expr">expr</strong></td>
-<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgecomparison.lhs">lhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
-Filter evaluated within the restricted time scope.
+The left side.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgecomparison.rhs">rhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The right side.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### ExplodedEdgeUnaryExpr
+### ExplodedEdgeExpr
 
-Applies a unary edge-view operation and then evaluates a nested
-`ExplodedEdgeFilter`.
-
-Used by `Latest` and `SnapshotLatest` exploded-edge filters.
+A value or a yes/no on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 
 <table>
 <thead>
@@ -13021,25 +12436,119 @@ Used by `Latest` and `SnapshotLatest` exploded-edge filters.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeunaryexpr.expr">expr</strong></td>
-<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.const">const</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
 <td>
 
-Filter evaluated after applying the unary operation.
+A literal.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.read">read</strong></td>
+<td valign="top"><a href="#explodededgeread">ExplodedEdgeRead</a></td>
+<td>
+
+One term of the exploded edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.agg">agg</strong></td>
+<td valign="top"><a href="#explodededgeaggregate">ExplodedEdgeAggregate</a></td>
+<td>
+
+A list reduced to one value.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.cmp">cmp</strong></td>
+<td valign="top"><a href="#explodededgecomparison">ExplodedEdgeComparison</a></td>
+<td>
+
+Two values compared.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.str">str</strong></td>
+<td valign="top"><a href="#explodededgestringtest">ExplodedEdgeStringTest</a></td>
+<td>
+
+One string tested against another.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isin">isIn</strong></td>
+<td valign="top"><a href="#explodededgemembership">ExplodedEdgeMembership</a></td>
+<td>
+
+`expr` is one of `values`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#explodededgemembership">ExplodedEdgeMembership</a></td>
+<td>
+
+`expr` is none of `values`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.presence">presence</strong></td>
+<td valign="top"><a href="#explodededgepresence">ExplodedEdgePresence</a></td>
+<td>
+
+Whether a value is there.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.quantified">quantified</strong></td>
+<td valign="top"><a href="#explodededgequantified">ExplodedEdgeQuantified</a></td>
+<td>
+
+An element-wise yes/no over a list, made one.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.and">and</strong></td>
+<td valign="top">[<a href="#explodededgeexpr">ExplodedEdgeExpr</a>!]</td>
+<td>
+
+Every yes/no inside holds.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.or">or</strong></td>
+<td valign="top">[<a href="#explodededgeexpr">ExplodedEdgeExpr</a>!]</td>
+<td>
+
+Any yes/no inside holds.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.not">not</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td>
+
+The yes/no inside does not hold.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### ExplodedEdgeWindowExpr
+### ExplodedEdgeMembership
 
-Restricts exploded-edge evaluation to a time window and applies a nested
-`ExplodedEdgeFilter`.
-
-Used by `GqlExplodedEdgeFilter::Window`.
-
-The window is inclusive of `start` and exclusive of `end`.
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 
 <table>
 <thead>
@@ -13051,29 +12560,284 @@ The window is inclusive of `start` and exclusive of `end`.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgewindowexpr.start">start</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgemembership.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
-Window start time (inclusive).
+The value to look for.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgewindowexpr.end">end</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgemembership.values">values</strong></td>
+<td valign="top"><a href="#value">Value</a>!</td>
 <td>
 
-Window end time (exclusive).
+The values it may be one of.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgePresence
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgepresence.op">op</strong></td>
+<td valign="top"><a href="#presenceop">PresenceOp</a>!</td>
+<td>
+
+Present or absent.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgewindowexpr.expr">expr</strong></td>
-<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgepresence.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
-Filter evaluated within the restricted window.
+The value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeQuantified
+
+An element-wise yes/no over a list, made one yes/no.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgequantified.op">op</strong></td>
+<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td>
+
+Any element or every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgequantified.expr">expr</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The element-wise yes/no.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeRead
+
+One exploded-edge term (one update of an edge), read through optional
+views. Name exactly one of `property`, `temporalProperty`, `metadata` or
+`field`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.property">property</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.metadata">metadata</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgeread.field">field</strong></td>
+<td valign="top"><a href="#edgefieldread">EdgeFieldRead</a></td>
+<td>
+
+A built-in edge term.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ExplodedEdgeStringTest
+
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.op">op</strong></td>
+<td valign="top"><a href="#strop">StrOp</a>!</td>
+<td>
+
+The test.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.lhs">lhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The string tested.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.rhs">rhs</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
+<td>
+
+The string it is tested against.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+`FUZZY` only: the largest edit distance that still matches.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="explodededgestringtest.prefixmatch">prefixMatch</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+`FUZZY` only: whether a match on a prefix counts.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### FilterExpr
+
+The filter itself: a yes/no over one kind of entity, a view, or a combination.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.node">node</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td>
+
+A yes/no over nodes.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.edge">edge</strong></td>
+<td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
+<td>
+
+A yes/no over edges.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.explodededge">explodedEdge</strong></td>
+<td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
+<td>
+
+A yes/no over exploded edges, one per update of an edge.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.view">view</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+A graph-level view with no predicate: the result is the view.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.and">and</strong></td>
+<td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
+<td>
+
+Every leg holds. A view leg applies first and the others run inside it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.or">or</strong></td>
+<td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
+<td>
+
+Any leg holds. Node legs combine on nodes and edge legs on edges; a leg
+of the other kind leaves that side unconstrained. No view legs.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="filterexpr.not">not</strong></td>
+<td valign="top"><a href="#filterexpr">FilterExpr</a></td>
+<td>
+
+The filter that keeps what the inner one drops: a negated node filter
+keeps the nodes that fail it and the edges between them. No views.
 
 </td>
 </tr>
@@ -13119,605 +12883,6 @@ Maximum Levenshtein edit distance for a match.
 <td>
 
 Whether a prefix match within the distance also passes.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GqlFilter
-
-A general filter expression — a node filter (`node`), an edge filter (`edge`), a graph/view
-filter (`graph`, e.g. a layer or window restriction), or an `and`/`or` combination of these
-(which may mix kinds). Used where an operation accepts any filter, such as scoping a component
-walk.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.node">node</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td>
-
-Filter by node properties, fields, or temporal state.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.edge">edge</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td>
-
-Filter by edge properties, source/destination, or temporal state.
-(Persisted filters may use the legacy `edge` key.)
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.explodededge">explodedEdge</strong></td>
-<td valign="top"><a href="#explodededgefilter">ExplodedEdgeFilter</a></td>
-<td>
-
-Filter exploded edges — per-event edge instances — by properties,
-endpoints, or temporal state, evaluated per event.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.graph">graph</strong></td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td>
-
-Apply a graph-level view (window, snapshot, layer restriction, …).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.and">and</strong></td>
-<td valign="top">[<a href="#gqlfilter">GqlFilter</a>!]</td>
-<td>
-
-All sub-filters must pass (intersection).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.or">or</strong></td>
-<td valign="top">[<a href="#gqlfilter">GqlFilter</a>!]</td>
-<td>
-
-At least one sub-filter must pass (union).
-Cross-type sub-filters (e.g. `node` and `edge` together) produce a
-proper graph union: a node is visible if it matches the node filter or
-has a visible edge, and an edge is visible if it matches the edge
-filter or both its endpoints are visible.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.not">not</strong></td>
-<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
-<td>
-
-Inverts the nested filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.window">window</strong></td>
-<td valign="top"><a href="#graphwindowexpr">GraphWindowExpr</a></td>
-<td>
-
-Restrict evaluation to a time window (inclusive start, exclusive end).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.at">at</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Restrict evaluation to a single point in time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.before">before</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Restrict evaluation to times strictly before the given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.after">after</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Restrict evaluation to times strictly after the given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.latest">latest</strong></td>
-<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
-<td>
-
-Evaluate against the latest available state.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Evaluate against a snapshot of the graph at a given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
-<td>
-
-Evaluate against the most recent snapshot of the graph.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="gqlfilter.layers">layers</strong></td>
-<td valign="top"><a href="#graphlayersexpr">GraphLayersExpr</a></td>
-<td>
-
-Restrict evaluation to one or more layers.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GraphFilter
-
-GraphQL input type for restricting a graph view.
-
-`GraphFilter` controls the **evaluation scope** for subsequent node/edge filters:
-- time windows (`Window`)
-- time points (`At`)
-- open-ended ranges (`Before`, `After`)
-- latest evaluation (`Latest`)
-- snapshots (`SnapshotAt`, `SnapshotLatest`)
-- layer membership (`Layers`)
-
-These filters can be nested via the `expr` field on the corresponding
-`*Expr` input objects to form pipelines.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.window">window</strong></td>
-<td valign="top"><a href="#graphwindowexpr">GraphWindowExpr</a></td>
-<td>
-
-Restrict evaluation to a time window (inclusive start, exclusive end).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.at">at</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Restrict evaluation to a single point in time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.before">before</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Restrict evaluation to times strictly before the given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.after">after</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Restrict evaluation to times strictly after the given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.latest">latest</strong></td>
-<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
-<td>
-
-Evaluate against the latest available state.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td>
-
-Evaluate against a snapshot of the graph at a given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
-<td>
-
-Evaluate against the most recent snapshot of the graph.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphfilter.layers">layers</strong></td>
-<td valign="top"><a href="#graphlayersexpr">GraphLayersExpr</a></td>
-<td>
-
-Restrict evaluation to one or more layers.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GraphLayersExpr
-
-Graph view restriction by layer membership, optionally chaining another `GraphFilter`.
-
-Used by `GqlGraphFilter::Layers`.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphlayersexpr.names">names</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td>
-
-Layer names to include.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphlayersexpr.expr">expr</strong></td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td>
-
-Optional nested filter applied after the layer restriction.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GraphTimeExpr
-
-Graph view restriction to a single time bound, optionally chaining another `GraphFilter`.
-
-Used by `At`, `Before`, and `After` graph filters.
-
-Example:
-`{ At: { time: 5, expr: { Layers: { names: ["L1"] } } } }`
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphtimeexpr.time">time</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Reference time for the operation.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphtimeexpr.expr">expr</strong></td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td>
-
-Optional nested filter applied after the time restriction.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GraphUnaryExpr
-
-Graph view restriction that takes only a nested expression.
-
-Used for unary view operations like `Latest` and `SnapshotLatest`.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphunaryexpr.expr">expr</strong></td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td>
-
-Optional nested filter applied after the unary operation.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GraphViewCollection
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.subgraph">subgraph</strong></td>
-<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
-<td>
-
-Subgraph nodes.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.subgraphnodetypes">subgraphNodeTypes</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-Subgraph node types.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.excludenodes">excludeNodes</strong></td>
-<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
-<td>
-
-List of excluded nodes.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.valid">valid</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Valid state.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.nodefilter">nodeFilter</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td>
-
-Node filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphviewcollection.edgefilter">edgeFilter</strong></td>
-<td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td>
-
-Edge filter.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### GraphWindowExpr
-
-Graph view restriction to a time window, optionally chaining another `GraphFilter`.
-
-Used by `GqlGraphFilter::Window`.
-
-- `start` and `end` define the window (inclusive start, exclusive end).
-- `expr` optionally nests another graph filter to apply *within* this window.
-
-Example (GraphQL):
-```graphql
-{ Window: { start: 0, end: 10, expr: { Layers: { names: ["A"] } } } }
-```
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="graphwindowexpr.start">start</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Window start time (inclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphwindowexpr.end">end</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Window end time (exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="graphwindowexpr.expr">expr</strong></td>
-<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td>
-
-Optional nested filter applied after the window restriction.
 
 </td>
 </tr>
@@ -13793,8 +12958,7 @@ Metadata key to test.
 <td valign="top"><a href="#propcondition">PropCondition</a>!</td>
 <td>
 
-Condition applied to the value, using the same grammar as property
-filters elsewhere in the schema. Names, paths and metadata strings are
+Condition applied to the value. Names, paths and metadata strings are
 tested as strings; counts and timestamps as integers.
 
 </td>
@@ -13834,7 +12998,7 @@ and the string-encoded temporal/decimal values are unaffected.
 
 Narrows a namespace's graph listing.
 
-Composes the same way as the graph/node/edge filters: leaves test one
+Composes like a filter expression: leaves test one
 attribute or metadata key, and `and` / `or` / `not` combine them.
 
 <table>
@@ -13936,6 +13100,40 @@ isn't alphabetical.
 <td>
 
 Reverse this key's direction (default ascending).
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NamedRead
+
+A term named by a string: a property or a metadata entry.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namedread.name">name</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The property or metadata name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namedread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views the term is read through, in order; none when absent.
 
 </td>
 </tr>
@@ -14097,15 +13295,9 @@ Layer.
 </tbody>
 </table>
 
-### NodeFieldCondition
+### NodeAggregate
 
-Boolean expression over a built-in node field (ID, name, or type).
-
-This is used by `NodeFieldWhere.where_` when filtering a specific
-built-in field.
-
-Supports comparisons, string predicates, and set membership.
-(Presence checks and aggregations are handled via property filters instead.)
+A list reduced to one value.
 
 <table>
 <thead>
@@ -14117,130 +13309,29 @@ Supports comparisons, string predicates, and set membership.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.eq">eq</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
+<td colspan="2" valign="top"><strong id="nodeaggregate.op">op</strong></td>
+<td valign="top"><a href="#aggop">AggOp</a>!</td>
 <td>
 
-Equality.
+The reduction.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.ne">ne</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
+<td colspan="2" valign="top"><strong id="nodeaggregate.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-Inequality.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.gt">gt</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Greater-than.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.ge">ge</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Greater-than-or-equal.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.lt">lt</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Less-than.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.le">le</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Less-than-or-equal.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.startswith">startsWith</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-String prefix match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.endswith">endsWith</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-String suffix match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.contains">contains</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Substring match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.notcontains">notContains</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Negated substring match.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.fuzzysearch">fuzzySearch</strong></td>
-<td valign="top"><a href="#fuzzysearchexpr">FuzzySearchExpr</a></td>
-<td>
-
-Fuzzy string match (Levenshtein distance, optional prefix matching).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.isin">isIn</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Set membership.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefieldcondition.isnotin">isNotIn</strong></td>
-<td valign="top"><a href="#value">Value</a></td>
-<td>
-
-Negated set membership.
+The list; the innermost list when lists nest.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### NodeFieldWhere
+### NodeComparison
 
-A condition on one specific built-in field — the payload of the per-field
-filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
-`{ nodeType: { where: ... } }`).
+Two values compared.
 
 <table>
 <thead>
@@ -14252,35 +13343,38 @@ filter variants (`{ id: { where: ... } }`, `{ name: { where: ... } }`,
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefieldwhere.where">where</strong></td>
-<td valign="top"><a href="#nodefieldcondition">NodeFieldCondition</a>!</td>
+<td colspan="2" valign="top"><strong id="nodecomparison.op">op</strong></td>
+<td valign="top"><a href="#cmpop">CmpOp</a>!</td>
 <td>
 
-Condition applied to the field.
+How they compare.
 
-Exposed as `where` in GraphQL.
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodecomparison.lhs">lhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The left side.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodecomparison.rhs">rhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The right side.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### NodeFilter
+### NodeExpr
 
-GraphQL input type for filtering nodes.
-
-`NodeFilter` represents a composable boolean expression evaluated
-against nodes in a graph. Filters can target:
-
-- built-in node fields (`Id` / `Name` / `NodeType`),
-- node properties and metadata,
-- temporal properties,
-- temporal scope (windows, snapshots, latest),
-- and layer membership,
-- plus node state predicates (e.g. `IsActive`).
-
-Filters can be combined recursively using logical operators
-(`And`, `Or`, `Not`).
+A value or a yes/no on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
 
 <table>
 <thead>
@@ -14292,191 +13386,119 @@ Filters can be combined recursively using logical operators
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.id">id</strong></td>
-<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.const">const</strong></td>
+<td valign="top"><a href="#value">Value</a></td>
 <td>
 
-Filters the node id: `{ id: { where: ... } }`.
+A literal.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.name">name</strong></td>
-<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.read">read</strong></td>
+<td valign="top"><a href="#noderead">NodeRead</a></td>
 <td>
 
-Filters the node name: `{ name: { where: ... } }`.
+One term of the node.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.nodetype">nodeType</strong></td>
-<td valign="top"><a href="#nodefieldwhere">NodeFieldWhere</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.agg">agg</strong></td>
+<td valign="top"><a href="#nodeaggregate">NodeAggregate</a></td>
 <td>
 
-Filters the node type: `{ nodeType: { where: ... } }`.
+A list reduced to one value.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.property">property</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.cmp">cmp</strong></td>
+<td valign="top"><a href="#nodecomparison">NodeComparison</a></td>
 <td>
 
-Filters a node property by name and condition.
+Two values compared.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.degree">degree</strong></td>
-<td valign="top"><a href="#degreefilternew">DegreeFilterNew</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.str">str</strong></td>
+<td valign="top"><a href="#nodestringtest">NodeStringTest</a></td>
 <td>
 
-Filters a node's degree (in, out, or total) by a condition.
+One string tested against another.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.metadata">metadata</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.isin">isIn</strong></td>
+<td valign="top"><a href="#nodemembership">NodeMembership</a></td>
 <td>
 
-Filters a node metadata field by name and condition.
-
-Metadata is shared across all temporal versions of a node.
+`expr` is one of `values`.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.isnotin">isNotIn</strong></td>
+<td valign="top"><a href="#nodemembership">NodeMembership</a></td>
 <td>
 
-Filters a temporal node property by name and condition.
-
-Used when the property value varies over time and must be evaluated
-within a temporal context.
+`expr` is none of `values`.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.and">and</strong></td>
-<td valign="top">[<a href="#nodefilter">NodeFilter</a>!]</td>
+<td colspan="2" valign="top"><strong id="nodeexpr.presence">presence</strong></td>
+<td valign="top"><a href="#nodepresence">NodePresence</a></td>
 <td>
 
-Logical AND over multiple node filters.
+Whether a value is there.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.or">or</strong></td>
-<td valign="top">[<a href="#nodefilter">NodeFilter</a>!]</td>
+<td colspan="2" valign="top"><strong id="nodeexpr.quantified">quantified</strong></td>
+<td valign="top"><a href="#nodequantified">NodeQuantified</a></td>
 <td>
 
-Logical OR over multiple node filters.
+An element-wise yes/no over a list, made one.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.not">not</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.and">and</strong></td>
+<td valign="top">[<a href="#nodeexpr">NodeExpr</a>!]</td>
 <td>
 
-Logical NOT over a nested node filter.
+Every yes/no inside holds.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.window">window</strong></td>
-<td valign="top"><a href="#nodewindowexpr">NodeWindowExpr</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.or">or</strong></td>
+<td valign="top">[<a href="#nodeexpr">NodeExpr</a>!]</td>
 <td>
 
-Restricts evaluation to a time window (inclusive start, exclusive end).
+Any yes/no inside holds.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodefilter.at">at</strong></td>
-<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.not">not</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
 <td>
 
-Restricts evaluation to a single point in time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.before">before</strong></td>
-<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td>
-
-Restricts evaluation to times strictly before the given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.after">after</strong></td>
-<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td>
-
-Restricts evaluation to times strictly after the given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.latest">latest</strong></td>
-<td valign="top"><a href="#nodeunaryexpr">NodeUnaryExpr</a></td>
-<td>
-
-Evaluates predicates against the latest available node state.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td>
-
-Evaluates predicates against a snapshot of the graph at a given time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#nodeunaryexpr">NodeUnaryExpr</a></td>
-<td>
-
-Evaluates predicates against the most recent snapshot of the graph.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.layers">layers</strong></td>
-<td valign="top"><a href="#nodelayersexpr">NodeLayersExpr</a></td>
-<td>
-
-Restricts evaluation to nodes belonging to one or more layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodefilter.isactive">isActive</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Matches nodes that have at least one event in the current view/window.
-
-When `true`, only active nodes are matched.
+The yes/no inside does not hold.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-### NodeLayersExpr
+### NodeFieldRead
 
-Restricts node evaluation to one or more layers and applies a nested `NodeFilter`.
-
-Used by `GqlNodeFilter::Layers`.
+A built-in node term.
 
 <table>
 <thead>
@@ -14488,20 +13510,175 @@ Used by `GqlNodeFilter::Layers`.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodelayersexpr.names">names</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
+<td colspan="2" valign="top"><strong id="nodefieldread.name">name</strong></td>
+<td valign="top"><a href="#nodefield">NodeField</a>!</td>
 <td>
 
-Layer names to include.
+The built-in term.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodelayersexpr.expr">expr</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="nodefieldread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
 <td>
 
-Filter evaluated within the layer-restricted view.
+Views the term is read through, in order; none when absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeMembership
+
+A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodemembership.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The value to look for.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodemembership.values">values</strong></td>
+<td valign="top"><a href="#value">Value</a>!</td>
+<td>
+
+The values it may be one of.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodePresence
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodepresence.op">op</strong></td>
+<td valign="top"><a href="#presenceop">PresenceOp</a>!</td>
+<td>
+
+Present or absent.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodepresence.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The value.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeQuantified
+
+An element-wise yes/no over a list, made one yes/no.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodequantified.op">op</strong></td>
+<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td>
+
+Any element or every element.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodequantified.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The element-wise yes/no.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### NodeRead
+
+One node term, read through optional views. Name exactly one of
+`property`, `temporalProperty`, `metadata` or `field`.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.property">property</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+The latest value of a property.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.temporalproperty">temporalProperty</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+The history of a property, as a list.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.metadata">metadata</strong></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
+<td>
+
+A metadata entry.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="noderead.field">field</strong></td>
+<td valign="top"><a href="#nodefieldread">NodeFieldRead</a></td>
+<td>
+
+A built-in node term.
 
 </td>
 </tr>
@@ -14576,11 +13753,9 @@ Property
 </tbody>
 </table>
 
-### NodeTimeExpr
+### NodeStringTest
 
-Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
-
-Used by `At`, `Before`, and `After` node filters.
+One string tested against another. `levenshteinDistance` and `prefixMatch` are required with `FUZZY` and refused with every other test.
 
 <table>
 <thead>
@@ -14592,383 +13767,47 @@ Used by `At`, `Before`, and `After` node filters.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodetimeexpr.time">time</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td colspan="2" valign="top"><strong id="nodestringtest.op">op</strong></td>
+<td valign="top"><a href="#strop">StrOp</a>!</td>
 <td>
 
-Reference time for the operation.
+The test.
 
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodetimeexpr.expr">expr</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="nodestringtest.lhs">lhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-Filter evaluated within the restricted time scope.
+The string tested.
 
 </td>
 </tr>
-</tbody>
-</table>
-
-### NodeUnaryExpr
-
-Applies a unary node-view operation and then evaluates a nested `NodeFilter`.
-
-Used by `Latest` and `SnapshotLatest` node filters.
-
-<table>
-<thead>
 <tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeunaryexpr.expr">expr</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
+<td colspan="2" valign="top"><strong id="nodestringtest.rhs">rhs</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-Filter evaluated after applying the unary operation.
+The string it is tested against.
 
 </td>
 </tr>
-</tbody>
-</table>
-
-### NodeViewCollection
-
-<table>
-<thead>
 <tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
+<td colspan="2" valign="top"><strong id="nodestringtest.levenshteindistance">levenshteinDistance</strong></td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+`FUZZY` only: the largest edit distance that still matches.
+
+</td>
 </tr>
-</thead>
-<tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.defaultlayer">defaultLayer</strong></td>
+<td colspan="2" valign="top"><strong id="nodestringtest.prefixmatch">prefixMatch</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodeviewcollection.nodefilter">nodeFilter</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td>
-
-Node filter.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### NodeWindowExpr
-
-Restricts node evaluation to a time window and applies a nested `NodeFilter`.
-
-Used by `GqlNodeFilter::Window`.
-
-The window is inclusive of `start` and exclusive of `end`.
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="nodewindowexpr.start">start</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Window start time (inclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodewindowexpr.end">end</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td>
-
-Window end time (exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodewindowexpr.expr">expr</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td>
-
-Filter evaluated within the restricted window.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### NodesViewCollection
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.defaultlayer">defaultLayer</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Contains only the default layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-View at the latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Snapshot at latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of included layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single excluded layer.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Snapshot at specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.nodefilter">nodeFilter</strong></td>
-<td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td>
-
-Node filter.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="nodesviewcollection.typefilter">typeFilter</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of types.
+`FUZZY` only: whether a match on a prefix counts.
 
 </td>
 </tr>
@@ -15046,134 +13885,12 @@ Value.
 </tbody>
 </table>
 
-### PathFromNodeViewCollection
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.latest">latest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotlatest">snapshotLatest</strong></td>
-<td valign="top"><a href="#boolean">Boolean</a></td>
-<td>
-
-Latest snapshot.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotat">snapshotAt</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.layers">layers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayers">excludeLayers</strong></td>
-<td valign="top">[<a href="#string">String</a>!]</td>
-<td>
-
-List of excluded layers.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Single layer to exclude.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.window">window</strong></td>
-<td valign="top"><a href="#window">Window</a></td>
-<td>
-
-Window between a start and end time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.at">at</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View at a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.before">before</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View before a specified time (end exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.after">after</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-View after a specified time (start exclusive).
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkstart">shrinkStart</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window start to a specified time.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkend">shrinkEnd</strong></td>
-<td valign="top"><a href="#timeinput">TimeInput</a></td>
-<td>
-
-Set the window end to a specified time.
-
-</td>
-</tr>
-</tbody>
-</table>
-
 ### PropCondition
 
 Boolean expression over a property value.
 
-`PropCondition` is used inside `PropertyFilterNew.where` to describe
-how a property’s value should be matched.
+`PropCondition` is the `where` of a namespace metagraph filter: how one
+graph-level metadata value, or a graph field, should be matched.
 
 It supports:
 - comparisons (`Eq`, `Gt`, `Le`, …),
@@ -15441,54 +14158,6 @@ Applies the nested condition to the **maximum** element of a list-like property.
 <td>
 
 Applies the nested condition to the **length** of a list-like property.
-
-</td>
-</tr>
-</tbody>
-</table>
-
-### PropertyFilterNew
-
-Filters an entity property or metadata field by name and condition.
-
-This input is used by both node and edge filters when targeting
-a specific property key (or metadata key) and applying a `PropCondition`.
-
-Fields:
-- `name`: The property key to query.
-- `where_`: The condition to apply to that property’s value.
-
-Example (GraphQL):
-```graphql
-{ Property: { name: "weight", where: { Gt: 0.5 } } }
-```
-
-<table>
-<thead>
-<tr>
-<th colspan="2" align="left">Field</th>
-<th align="left">Type</th>
-<th align="left">Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2" valign="top"><strong id="propertyfilternew.name">name</strong></td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Property (or metadata) key.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="propertyfilternew.where">where</strong></td>
-<td valign="top"><a href="#propcondition">PropCondition</a>!</td>
-<td>
-
-Condition applied to the property value.
-
-Exposed as `where` in GraphQL.
 
 </td>
 </tr>
@@ -15860,6 +14529,174 @@ Exclusive upper bound of the search window.
 </tbody>
 </table>
 
+### ViewOp
+
+One view restriction, applied in list order.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.window">window</strong></td>
+<td valign="top"><a href="#window">Window</a></td>
+<td>
+
+Between `start` (inclusive) and `end` (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.at">at</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+At one time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.after">after</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+Strictly after a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.before">before</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+Strictly before a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.kind">kind</strong></td>
+<td valign="top"><a href="#viewkind">ViewKind</a></td>
+<td>
+
+A view that takes no argument: `LATEST`, `SNAPSHOT_LATEST`, `VALID` or
+`DEFAULT_LAYER`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+Everything up to and including a time; written `snapshotAt: t`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.layers">layers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Only the named layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludelayers">excludeLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Every layer except the named ones.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Every layer except the named one; the same view as `excludeLayers`
+with one name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.validlayers">validLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Only the named layers; a name the graph does not have is ignored,
+where `layers` rejects it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludevalidlayers">excludeValidLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Every layer except the named ones; a name the graph does not have is
+ignored, where `excludeLayers` rejects it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+The window's start moved to a time when that is later; the window only
+ever narrows.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a></td>
+<td>
+
+The window's end moved to a time when that is earlier; the window only
+ever narrows.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludenodes">excludeNodes</strong></td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Every node except the named ones, with their edges; an id the view does
+not hold changes nothing.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.subgraph">subgraph</strong></td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]</td>
+<td>
+
+Only the named nodes and the edges between them; an id the view does
+not hold is skipped.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.subgraphnodetypes">subgraphNodeTypes</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Only the nodes of the named types and the edges between them.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### Window
 
 <table>
@@ -15928,6 +14765,93 @@ Time.
 
 ## Enums
 
+### AggOp
+
+How the values of a list are reduced to one.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>SUM</strong></td>
+<td>
+
+The sum of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>AVG</strong></td>
+<td>
+
+The mean of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>MIN</strong></td>
+<td>
+
+The smallest element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>MAX</strong></td>
+<td>
+
+The largest element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>FIRST</strong></td>
+<td>
+
+The first element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LAST</strong></td>
+<td>
+
+The last element of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LEN</strong></td>
+<td>
+
+The number of elements of the innermost list.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>EARLIEST</strong></td>
+<td>
+
+The earliest update of a temporal history.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LATEST</strong></td>
+<td>
+
+The latest update of a temporal history.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### AlignmentUnit
 
 Alignment unit used to align window boundaries.
@@ -15979,21 +14903,9 @@ Alignment unit used to align window boundaries.
 </tbody>
 </table>
 
-### DegreeDirection
+### CmpOp
 
-Filters nodes by computed degree with a directional scope.
-
-`DegreeFilterNew` lets callers filter on:
-- inbound degree (`IN`),
-- outbound degree (`OUT`),
-- or total degree (`BOTH`).
-
-The selected degree is compared using the `where` condition.
-
-Example (GraphQL):
-```graphql
-{ Degree: { direction: BOTH, where: { Gt: 10 } } }
-```
+How two values compare.
 
 <table>
 <thead>
@@ -16004,16 +14916,52 @@ Example (GraphQL):
 </thead>
 <tbody>
 <tr>
-<td valign="top"><strong>IN</strong></td>
-<td></td>
+<td valign="top"><strong>EQ</strong></td>
+<td>
+
+`lhs == rhs`.
+
+</td>
 </tr>
 <tr>
-<td valign="top"><strong>OUT</strong></td>
-<td></td>
+<td valign="top"><strong>NE</strong></td>
+<td>
+
+`lhs != rhs`.
+
+</td>
 </tr>
 <tr>
-<td valign="top"><strong>BOTH</strong></td>
-<td></td>
+<td valign="top"><strong>LT</strong></td>
+<td>
+
+`lhs < rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>LE</strong></td>
+<td>
+
+`lhs <= rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>GT</strong></td>
+<td>
+
+`lhs > rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>GE</strong></td>
+<td>
+
+`lhs >= rhs`.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -16041,6 +14989,54 @@ Edge direction to follow during traversal.
 <tr>
 <td valign="top"><strong>BOTH</strong></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### EdgeField
+
+A built-in edge term that takes no argument; exploded edges have the same.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>IS_ACTIVE</strong></td>
+<td>
+
+Whether the edge is active.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_VALID</strong></td>
+<td>
+
+Whether the edge is valid (on a persistent graph, its last update is an
+addition).
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_DELETED</strong></td>
+<td>
+
+Whether the edge is deleted.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_SELF_LOOP</strong></td>
+<td>
+
+Whether the edge is a self loop.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -16139,6 +15135,139 @@ Number of edges.
 </tbody>
 </table>
 
+### NodeField
+
+A built-in node term that takes no argument.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>NAME</strong></td>
+<td>
+
+The node's name.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>ID</strong></td>
+<td>
+
+The node's id.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>NODE_TYPE</strong></td>
+<td>
+
+The node's type.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>DEGREE</strong></td>
+<td>
+
+The number of edges at the node, in and out.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IN_DEGREE</strong></td>
+<td>
+
+The number of edges into the node.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>OUT_DEGREE</strong></td>
+<td>
+
+The number of edges out of the node.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_ACTIVE</strong></td>
+<td>
+
+Whether the node is active.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### PresenceOp
+
+Whether a value is there.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>IS_SOME</strong></td>
+<td>
+
+The value is present.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>IS_NONE</strong></td>
+<td>
+
+The value is absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### Quantifier
+
+How an element-wise yes/no over a list becomes one yes/no.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>ANY</strong></td>
+<td>
+
+Holds when the yes/no inside holds for any element.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>ALL</strong></td>
+<td>
+
+Holds when the yes/no inside holds for every element.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### SortByTime
 
 <table>
@@ -16194,6 +15323,110 @@ explicitly rather than silently coercing them to `null`.
 <tr>
 <td valign="top"><strong>NEG_INFINITY</strong></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+### StrOp
+
+How one string is tested against another.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>STARTS_WITH</strong></td>
+<td>
+
+The string `lhs` starts with the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>ENDS_WITH</strong></td>
+<td>
+
+The string `lhs` ends with the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>CONTAINS</strong></td>
+<td>
+
+The string `lhs` contains the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>NOT_CONTAINS</strong></td>
+<td>
+
+The string `lhs` does not contain the string `rhs`.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>FUZZY</strong></td>
+<td>
+
+The string `lhs` is within `levenshteinDistance` edits of `rhs`,
+optionally matching by prefix; the only test that takes those two.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### ViewKind
+
+A view that takes no argument.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>LATEST</strong></td>
+<td>
+
+At the latest time.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>SNAPSHOT_LATEST</strong></td>
+<td>
+
+Everything up to and including the latest time.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>VALID</strong></td>
+<td>
+
+Only the edges that are valid in the view (on a persistent graph, whose
+last update is an addition).
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>DEFAULT_LAYER</strong></td>
+<td>
+
+Only the default layer.
+
+</td>
 </tr>
 </tbody>
 </table>

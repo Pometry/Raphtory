@@ -13,10 +13,20 @@ def test_graph_node_sort_by_nothing(graph):
     query = """{
       graph(path: "g") {
         nodes(select: {
-          id: { 
-            where: { eq: { u64: 1 } }
-          }
-        }) {
+                        node: {
+                          cmp: {
+                            op: EQ
+                            lhs: {
+                              read: { field: { name: ID } }
+                            }
+                            rhs: {
+                              const: {
+                                u64: 1
+                              }
+                            }
+                          }
+                        }
+                      }) {
           list {
             name
             degree

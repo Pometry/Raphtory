@@ -16,7 +16,7 @@ macro_rules! impl_filter_ops {
             /// Return a filtered view that only includes nodes and edges that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (filter.FilterExpr): The filter to apply to the nodes and edges.
+            ///     filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]

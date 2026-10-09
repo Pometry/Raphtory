@@ -17,7 +17,6 @@ mod db_api_view_internal_materialize;
 mod db_graph_nodes;
 mod db_graph_path;
 mod db_graph_views_deletion_graph;
-mod db_graph_views_filter_model_exploded_edge_filter;
 mod db_graph_views_property_redacted_graph;
 mod db_task;
 mod errors;

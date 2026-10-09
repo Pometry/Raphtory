@@ -1,4 +1,5 @@
 from raphtory import Graph, PersistentGraph
+from raphtory import filter
 from io import StringIO
 import unittest
 from unittest import TestCase
@@ -62,3 +63,103 @@ class PyReprTest(TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FilterExprReprTest(TestCase):
+    """`repr` is the Python that builds the expression, module-qualified, so
+    `eval` rebuilds it after `import raphtory`."""
+
+    def test_repr_is_the_python_that_builds_the_expression(self):
+        expr = filter.Node.window(0, 5).property("score") > 4
+        self.assertEqual(
+            repr(expr), "raphtory.filter.Node.window(0, 5).property('score') > 4"
+        )
+
+    def test_repr_shows_temporal_ops_and_combinators(self):
+        expr = (filter.Node.property("score").temporal().sum() > 10) & ~(
+            filter.Node.name() == "carol"
+        )
+        self.assertEqual(
+            repr(expr),
+            "(raphtory.filter.Node.property('score').temporal().sum() > 10)"
+            " & ~(raphtory.filter.Node.name() == 'carol')",
+        )
+
+    def test_repr_shows_layer_exclusion_default_layer_and_shrinks(self):
+        expr = (
+            filter.Graph.default_layer()
+            .exclude_layer("a")
+            .exclude_layers(["b", "c"])
+            .shrink_start(2)
+            .shrink_end(9)
+        )
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Graph.default_layer().exclude_layer('a')"
+            ".exclude_layers(['b', 'c']).shrink_start(2).shrink_end(9)",
+        )
+
+    def test_repr_shows_valid_layers_and_exclude_valid_layers(self):
+        expr = filter.Graph.valid_layers(["a"]).exclude_valid_layers(["b", "c"])
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Graph.valid_layers(['a'])"
+            ".exclude_valid_layers(['b', 'c'])",
+        )
+
+    def test_repr_shows_node_set_views_and_valid(self):
+        expr = (
+            filter.Graph.exclude_nodes(["a", 7])
+            .subgraph([1, "b"])
+            .subgraph_node_types(["person", "org"])
+            .valid()
+        )
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Graph.exclude_nodes(['a', 7]).subgraph([1, 'b'])"
+            ".subgraph_node_types(['person', 'org']).valid()",
+        )
+
+    def test_repr_shows_expressions_on_both_sides(self):
+        expr = filter.Node.degree() > filter.Node.in_degree()
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Node.degree() > raphtory.filter.Node.in_degree()",
+        )
+
+    def test_repr_round_trips_through_eval(self):
+        import raphtory
+
+        cases = [
+            filter.Node.window(0, 5).property("score") > 4,
+            filter.Node.property("p").temporal().starts_with("Go").all(),
+            filter.Node.layer("work").property("p").is_in(["a", "b", 3])
+            | filter.Node.metadata("m").is_some(),
+            (filter.Node.name() == "a")
+            & (filter.Node.name() == "b")
+            & (filter.Node.name() == "c"),
+            filter.Edge.window(1, 4).src().property("p").temporal().len() >= 2,
+            filter.Edge.dst().name().fuzzy_search("bob", 1, True),
+            filter.Edge.is_valid() & filter.Edge.layers(["a", "b"]).is_active(),
+            filter.ExplodedEdge.property("p") == 3.5,
+            filter.Graph.window(0, 5).latest(),
+            filter.Graph.window(0, 5) & (filter.Node.name() != "x"),
+            filter.Node.property("s") == "it's",
+            filter.Node.window((3, 2), 9).is_active(),
+            filter.Node.property("p"),
+            filter.Edge.at(3).src(),
+            filter.Graph.default_layer().exclude_layer("a"),
+            filter.Graph.exclude_layers(["a", "b"]).shrink_start(2).shrink_end(9),
+            filter.Node.shrink_start(2).exclude_layer("a").property("p") > 1,
+            filter.Edge.window(1, 9).shrink_end((5, 1)).default_layer().is_active(),
+            filter.ExplodedEdge.exclude_layers(["a", "b"]).property("p") == 3.5,
+            filter.Graph.valid_layers(["a", "nope"]).exclude_valid_layers(["b"]),
+            filter.Edge.exclude_valid_layers(["a"]).is_active(),
+            filter.Graph.exclude_nodes(["a", 7]).valid(),
+            filter.Node.subgraph([1, "it's"]).degree() > 0,
+            filter.Edge.subgraph_node_types(["t"]).valid().is_active(),
+            filter.ExplodedEdge.exclude_nodes([]).property("p") == 3.5,
+        ]
+        for expr in cases:
+            text = repr(expr)
+            self.assertEqual(repr(eval(text, {"raphtory": raphtory})), text)

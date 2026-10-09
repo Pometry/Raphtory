@@ -3,7 +3,7 @@ use crate::{
         graph::{
             collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
-            filtering::{EdgesViewCollection, GqlFilter},
+            filter_expr_input::GqlFilter,
             path_from_node::GqlPathFromNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
@@ -19,30 +19,28 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, Filter, Select},
-        graph::{edges::Edges, views::filter::model::DynFilter},
+        graph::edges::{DynEdgeItem, Edges},
     },
     errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::utils::time::IntoTime;
 
-/// A lazy collection of edges from a graph view. Supports the usual view
-/// transforms (window, layer, filter, ...), plus edge-specific ones like
-/// `explode` and `explodeLayers`, pagination, and sorting.
+/// A lazy collection of edges from a graph view. Supports the usual view transforms (window, layer, filter, ...), plus edge-specific ones like `explode` and `explodeLayers`, pagination, and sorting. `select` and `filter` on the collection returned by `explode` ask their question of each exploded edge.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
 pub struct GqlEdges {
-    pub(crate) ee: Edges<'static, DynamicGraph>,
+    pub(crate) ee: Edges<'static, DynamicGraph, DynEdgeItem>,
 }
 
 impl GqlEdges {
-    fn update<E: Into<Edges<'static, DynamicGraph>>>(&self, edges: E) -> Self {
+    fn update<E: Into<Edges<'static, DynamicGraph, DynEdgeItem>>>(&self, edges: E) -> Self {
         Self::new(edges)
     }
 }
 
 impl GqlEdges {
-    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph>>>(edges: E) -> Self {
+    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph, DynEdgeItem>>>(edges: E) -> Self {
         Self { ee: edges.into() }
     }
 
@@ -242,74 +240,18 @@ impl GqlEdges {
         self.update(self.ee.shrink_end(end.into_time()))
     }
 
-    /// Takes a specified selection of views and applies them in order given.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
-        )]
-        views: Vec<EdgesViewCollection>,
-    ) -> Result<GqlEdges, GraphError> {
-        let mut return_view: GqlEdges = self.update(self.ee.clone());
-        for view in views {
-            return_view = match view {
-                EdgesViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                EdgesViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                EdgesViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
-                EdgesViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                EdgesViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                EdgesViewCollection::At(at) => return_view.at(at).await,
-                EdgesViewCollection::Before(time) => return_view.before(time).await,
-                EdgesViewCollection::After(time) => return_view.after(time).await,
-                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgesViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edge(filter)).await?
-                }
-            }
-        }
-
-        Ok(return_view)
-    }
-
     /// Expand each edge into one edge per update: if `A->B` has three updates, it
     /// becomes three `A->B` entries each at a distinct timestamp. Use this to
     /// iterate per-event rather than per-edge.
-    pub async fn explode(&self) -> Self {
-        self.update(self.ee.explode())
+    pub async fn explode(&self) -> GqlEdges {
+        GqlEdges::new(self.ee.explode())
     }
 
     /// Returns an edge object for each layer within the original edge.
     ///
     /// Each new edge object contains only updates from the respective layers.
-    pub async fn explode_layers(&self) -> Self {
-        self.update(self.ee.explode_layers())
+    pub async fn explode_layers(&self) -> GqlEdges {
+        GqlEdges::new(self.ee.explode_layers())
     }
 
     /// Sort the edges. Multiple criteria are applied lexicographically (ties
@@ -425,6 +367,7 @@ impl GqlEdges {
         .await
     }
 
+    /// The number of items in the collection.
     pub async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.len()).await
@@ -472,7 +415,7 @@ impl GqlEdges {
     /// E.g. restricting everything to a specific week:
     ///
     /// ```text
-    /// edges { filter(expr: {window: {start: 1234, end: 5678}}) {
+    /// edges { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
     ///   list { src { neighbours { list { name } } } }   # neighbours still windowed
     /// } }
     /// ```
@@ -488,8 +431,7 @@ impl GqlEdges {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.ee.filter(filter)?;
+            let filtered = self_clone.ee.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -503,9 +445,9 @@ impl GqlEdges {
     /// neighbours on Wednesday:
     ///
     /// ```text
-    /// edges { select(expr: {window: {...monday...}}) {
-    ///   list { src { select(expr: {window: {...tuesday...}}) {
-    ///     neighbours { select(expr: {window: {...wednesday...}}) {
+    /// edges { select(expr: {view: [{window: {...monday...}}]}) {
+    ///   list { src { select(expr: {view: [{window: {...tuesday...}}]}) {
+    ///     neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
     ///       neighbours { list { name } }
     ///     } }
     ///   } } }

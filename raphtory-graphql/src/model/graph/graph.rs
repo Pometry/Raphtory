@@ -6,7 +6,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{GqlEdgeFilter, GqlFilter, GqlNodeFilter, GraphViewCollection},
+            filter_expr_input::GqlFilter,
             node::GqlNode,
             node_id::GqlNodeId,
             nodes::GqlNodes,
@@ -33,22 +33,14 @@ use raphtory::{
             filter_ops::Select, DynamicGraph, Filter, IntoDynamic, NodeViewOps, StaticGraphViewOps,
             TimeOps,
         },
-        graph::{
-            node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynFilter,
-            },
-        },
+        graph::node::NodeView,
     },
     errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{
-    collections::HashSet,
-    convert::{Into, TryInto},
-};
+use std::{collections::HashSet, convert::Into};
 
 /// A view of a Raphtory graph. Every field here returns either data from the
 /// view or a derived view (`window`, `layer`, `at`, `filter`, ...) that you can
@@ -540,19 +532,14 @@ impl GqlGraph {
     pub async fn nodes(
         &self,
         #[graphql(
-            desc = "Optional node filter (by name, property, type, etc.). If omitted, every node in the view is returned."
+            desc = "Optional filter expression made of node predicates, graph views, or and/or/not combinations (and is an intersection). Expressions that test edges are rejected. If omitted, every node in the view is returned."
         )]
-        select: Option<GqlNodeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlNodes> {
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
-            let nf: CompositeNodeFilter = sel.try_into()?;
-            let narrowed = blocking_compute({
-                let nn_clone = nn.clone();
-                move || nn_clone.select(nf)
-            })
-            .await?;
+            let narrowed = blocking_compute(move || nn.select(sel)).await?;
             return Ok(GqlNodes::new(narrowed));
         }
 
@@ -574,15 +561,14 @@ impl GqlGraph {
     pub async fn edges<'a>(
         &self,
         #[graphql(
-            desc = "Optional edge filter (by property, layer, src/dst, etc.). If omitted, every edge in the view is returned."
+            desc = "Optional filter expression made of edge predicates (including src/dst terms), graph views, or and/or/not combinations (and is an intersection). If omitted, every edge in the view is returned."
         )]
-        select: Option<GqlEdgeFilter>,
+        select: Option<GqlFilter>,
     ) -> Result<GqlEdges> {
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
-            let ef: CompositeEdgeFilter = sel.try_into()?;
-            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            let narrowed = blocking_compute(move || base.select(sel)).await?;
             return Ok(GqlEdges::new(narrowed));
         }
 
@@ -722,7 +708,7 @@ impl GqlGraph {
     pub async fn filter(
         &self,
         #[graphql(
-            desc = "Optional filter expression: node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection: each leg is evaluated independently and the results intersect — to evaluate a predicate *inside* a view, scope the predicate itself (e.g. a windowed property condition). If omitted, applies the identity filter."
+            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently and the results intersected. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {
@@ -731,84 +717,12 @@ impl GqlGraph {
             let Some(expr) = expr else {
                 return Ok(self_clone.clone());
             };
-            let filter: DynFilter = expr.try_into()?;
-            let filtered_graph = self_clone.graph.filter(filter)?;
+            let filtered_graph = self_clone.graph.filter(expr)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),
             ))
         })
         .await
-    }
-
-    /// Apply a list of view operations in the given order and return the
-    /// resulting graph view. Lets callers compose multiple view transforms
-    /// (window, layer, filter, snapshot, ...) in a single call.
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant applied to the running result."
-        )]
-        views: Vec<GraphViewCollection>,
-    ) -> Result<GqlGraph, GraphError> {
-        let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());
-        for view in views {
-            return_view = match view {
-                GraphViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::Layers(layers) => return_view.layers(layers).await,
-                GraphViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                GraphViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-                GraphViewCollection::Subgraph(nodes) => return_view.subgraph(nodes).await,
-                GraphViewCollection::SubgraphNodeTypes(node_types) => {
-                    return_view.subgraph_node_types(node_types).await
-                }
-                GraphViewCollection::ExcludeNodes(nodes) => return_view.exclude_nodes(nodes).await,
-                GraphViewCollection::Valid(apply) => {
-                    if apply {
-                        return_view.valid().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                GraphViewCollection::At(at) => return_view.at(at).await,
-                GraphViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                GraphViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                GraphViewCollection::Before(before) => return_view.before(before).await,
-                GraphViewCollection::After(after) => return_view.after(after).await,
-                GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
-                GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Node(filter))).await?
-                }
-                GraphViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(Some(GqlFilter::Edge(filter))).await?
-                }
-            };
-        }
-        Ok(return_view)
     }
 }

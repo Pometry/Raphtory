@@ -1,34 +1,12 @@
 use crate::{
     db::{
-        api::view::internal::GraphView,
-        graph::views::{
-            filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    node_filter::builders::{
-                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
-                    },
-                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, FilterTree, GraphViewOp,
-                    InternalPropertyFilterBuilder, InternalPropertyFilterFactory,
-                    InternalViewWrapOps, NodeViewFilterOps, Op, PropertyRef,
-                    TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
-                },
-                CreateFilter,
-            },
-            layer_graph::LayeredGraph,
-        },
+        api::view::internal::{GraphView, Static},
+        graph::views::{filter::model::CreateView, layer_graph::LayeredGraph},
     },
     errors::GraphError,
     prelude::LayerOps,
 };
-use raphtory_api::core::{entities::Layer, storage::timeindex::EventTime};
+use raphtory_api::core::entities::Layer;
 use std::{fmt, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,9 +15,27 @@ pub struct Layered<M> {
     pub inner: M,
 }
 
+impl<M> Static for Layered<M> {}
+
 impl<M: Display> Display for Layered<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "LAYER[{:?}]({})", self.layer, self.inner)
+        write!(f, "LAYER[{}]({})", layer_label(&self.layer), self.inner)
+    }
+}
+
+/// The layer selection as a reader would write it: the names themselves,
+/// `*` for every layer, `none` for no layer.
+pub(crate) fn layer_label(layer: &Layer) -> String {
+    match layer {
+        Layer::All => "*".to_string(),
+        Layer::None => "none".to_string(),
+        Layer::Default => "_default".to_string(),
+        Layer::One(name) => name.to_string(),
+        Layer::Multiple(names) => names
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
     }
 }
 
@@ -58,209 +54,172 @@ impl<M> Layered<M> {
     }
 }
 
-impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
-    type Window = Layered<T::Window>;
+/// Every layer but the named ones, as `exclude_layers` gives it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExcludeLayers<M> {
+    pub layer: Layer,
+    pub inner: M,
+}
 
-    fn bounds(&self) -> (EventTime, EventTime) {
-        self.inner.bounds()
-    }
+impl<M> Static for ExcludeLayers<M> {}
 
-    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
-        Layered::new(self.layer, self.inner.build_window(start, end))
+impl<M: Display> Display for ExcludeLayers<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "EXCLUDE_LAYER[{}]({})",
+            layer_label(&self.layer),
+            self.inner
+        )
     }
 }
 
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Layered<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Layered<T> {
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Layered<T> {
-    type Filter = Layered<T::Filter>;
-    type ExprBuilder = Layered<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
-    fn try_as_filter_tree(&self) -> Result<FilterTree, GraphError> {
-        // Single-kind inners keep their composite form (the wrapper becomes a
-        // windowed/layered/... composite variant); only graph-level view
-        // chains export as `View` ops. Anything else (a view wrapping a
-        // mixed-kind tree) has no wire representation yet.
-        if let Ok(f) = self.try_as_composite_node_filter() {
-            return Ok(FilterTree::Node(f));
+impl<M> ExcludeLayers<M> {
+    #[inline]
+    pub fn new(layer: Layer, entity: M) -> Self {
+        Self {
+            layer,
+            inner: entity,
         }
-        if let Ok(f) = self.try_as_composite_edge_filter() {
-            return Ok(FilterTree::Edge(f));
+    }
+
+    #[inline]
+    pub fn from_layers<L: Into<Layer>>(layer: L, entity: M) -> Self {
+        Self::new(layer.into(), entity)
+    }
+}
+
+/// The named layers, as `valid_layers` gives it: a name the graph does not have is ignored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidLayers<M> {
+    pub layer: Layer,
+    pub inner: M,
+}
+
+impl<M> Static for ValidLayers<M> {}
+
+impl<M: Display> Display for ValidLayers<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "VALID_LAYER[{}]({})",
+            layer_label(&self.layer),
+            self.inner
+        )
+    }
+}
+
+impl<M> ValidLayers<M> {
+    #[inline]
+    pub fn new<L: Into<Layer>>(layer: L, entity: M) -> Self {
+        Self {
+            layer: layer.into(),
+            inner: entity,
         }
-        if let Ok(f) = self.try_as_composite_exploded_edge_filter() {
-            return Ok(FilterTree::ExplodedEdge(f));
+    }
+}
+
+/// Every layer but the named ones, as `exclude_valid_layers` gives it: a name the graph does not have is ignored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExcludeValidLayers<M> {
+    pub layer: Layer,
+    pub inner: M,
+}
+
+impl<M> Static for ExcludeValidLayers<M> {}
+
+impl<M: Display> Display for ExcludeValidLayers<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "EXCLUDE_VALID_LAYER[{}]({})",
+            layer_label(&self.layer),
+            self.inner
+        )
+    }
+}
+
+impl<M> ExcludeValidLayers<M> {
+    #[inline]
+    pub fn new<L: Into<Layer>>(layer: L, entity: M) -> Self {
+        Self {
+            layer: layer.into(),
+            inner: entity,
         }
-        let FilterTree::View(ops) = self.inner.try_as_filter_tree()? else {
-            return Err(GraphError::NotSupported);
-        };
-        let mut chain = vec![GraphViewOp::Layers(self.layer.clone())];
-        chain.extend(ops);
-        Ok(FilterTree::View(chain))
     }
+}
 
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_node_filter()?;
-        let filter = CompositeNodeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
+/// The default layer alone, as `default_layer` gives it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DefaultLayer<M> {
+    pub inner: M,
+}
+
+impl<M> Static for DefaultLayer<M> {}
+
+impl<M: Display> Display for DefaultLayer<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DEFAULT_LAYER({})", self.inner)
     }
+}
 
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_edge_filter()?;
-        let filter = CompositeEdgeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
+impl<M> DefaultLayer<M> {
+    #[inline]
+    pub fn new(entity: M) -> Self {
+        Self { inner: entity }
     }
+}
 
-    fn try_as_composite_exploded_edge_filter(
+// ── expr-layer view construction ──
+
+impl<T: CreateView> CreateView for ExcludeLayers<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
         &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        let filter = self.inner.try_as_composite_exploded_edge_filter()?;
-        let filter = CompositeExplodedEdgeFilter::Layered(Box::new(self.wrap(filter)));
-        Ok(filter)
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        let inner = self.inner.create_view(view)?;
+        inner.exclude_layers(self.layer.clone())
     }
 }
 
-impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T> {
-    type EntityFiltered<'graph, G, F>
-        = T::EntityFiltered<'graph, G, F>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
+impl<T: CreateView> CreateView for DefaultLayer<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
 
-    type NodeFilter<'graph, G, F>
-        = T::NodeFilter<'graph, G, F>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
-
-    type FilteredGraph<'graph, G>
-        = LayeredGraph<T::FilteredGraph<'graph, G>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G, F>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph,
-    {
-        self.inner.create_filter(graph, filtered)
-    }
-
-    fn create_node_filter<'graph, G, F>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
-    where
-        G: GraphView + 'graph,
-        F: GraphView + 'graph,
-    {
-        self.inner.create_node_filter(graph, filtered)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+    fn create_view<'graph, G: GraphView + 'graph>(
         &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner
-            .filter_graph_view(graph)?
-            .layers(self.layer.clone())
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        let inner = self.inner.create_view(view)?;
+        Ok(inner.default_layer())
     }
 }
 
-impl<T: ComposableFilter> ComposableFilter for Layered<T> {}
+impl<T: CreateView> CreateView for ValidLayers<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
 
-impl<M> Wrap for Layered<M> {
-    type Wrapped<T> = Layered<T>;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        Layered::new(self.layer.clone(), value)
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(self
+            .inner
+            .create_view(view)?
+            .valid_layers(self.layer.clone()))
     }
 }
 
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Layered<T> {
-    type Entity = T::Entity;
-    type PropertyBuilder = Layered<T::PropertyBuilder>;
-    type MetadataBuilder = Layered<T::MetadataBuilder>;
+impl<T: CreateView> CreateView for ExcludeValidLayers<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
 
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Layered<T> {}
-
-impl<U: NodeViewFilterOps> NodeViewFilterOps for Layered<U> {
-    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.wrap(self.inner.is_active())
-    }
-}
-
-impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Layered<U> {
-    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(self
+            .inner
+            .create_view(view)?
+            .exclude_valid_layers(self.layer.clone()))
     }
 }

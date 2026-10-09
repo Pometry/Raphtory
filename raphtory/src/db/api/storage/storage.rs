@@ -1,7 +1,9 @@
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::api::view::{
-        internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+        internal::{
+            InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps, Static,
+        },
         Base, InheritViewOps,
     },
     errors::{into_graph_err, GraphError},
@@ -206,6 +208,8 @@ impl InheritNodeHistoryFilter for Storage {}
 impl InheritEdgeHistoryFilter for Storage {}
 
 impl InheritViewOps for Storage {}
+
+impl Static for Storage {}
 
 #[derive(Clone)]
 pub struct StorageWriteSession<'a> {

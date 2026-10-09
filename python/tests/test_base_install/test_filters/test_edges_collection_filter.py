@@ -1,13 +1,18 @@
 """Edge-collection filtering across every filter type and combination.
 
 Singles are checked against the graph-level filter and the chained-view references. Combinations
-are checked against set algebra over the single-filter results (`&` = intersection, `|` = union,
-`~` = complement), which is how node collections already behave. The combination classes that are
-known broken on edges are pinned by `test_broken_combination_classes_are_still_broken` — when a fix
-lands, that test fails and the class moves into the working set by deleting its rule below.
+are checked against set algebra over the single-filter results, question by question: a filter
+answers "which nodes stay" and "which edges stay", a node predicate answers the second by "both
+ends stayed", and `&`, `|`, `~` combine the direct answers. Within one kind that is plain set
+algebra (`~` of an edge predicate keeps the other edges; `~` of a node predicate keeps the nodes
+that fail it and the edges between them; `~(a & b)` is `~a | ~b`, `~(a | b)` is `~a & ~b`).
+Across kinds, `&` intersects, `~(a & b)` negates each answer, and `|` leaves both questions open
+(every edge), as the graph filter has always done; that last reading is inherited, not chosen here.
 """
 
 from itertools import combinations
+
+import pytest
 
 from raphtory import filter
 from utils import with_variants
@@ -16,15 +21,38 @@ Graph = filter.Graph
 Node = filter.Node
 Edge = filter.Edge
 
-TIME_VIEWS = {"before", "after", "window", "at", "latest", "snap_at", "snap_latest"}
-VIEWS = TIME_VIEWS | {"layer", "layers2"}
+TIME_VIEWS = {
+    "before",
+    "after",
+    "window",
+    "at",
+    "latest",
+    "snap_at",
+    "snap_latest",
+    "shrink_start",
+    "shrink_end",
+    "shrunk_window",
+}
+VIEWS = TIME_VIEWS | {
+    "layer",
+    "layers2",
+    "default_layer",
+    "exclude_layer",
+    "exclude_layers2",
+    "valid_layers",
+    "exclude_valid_layers",
+    "exclude_nodes",
+    "subgraph",
+    "subgraph_node_types",
+    "valid",
+}
 NODE_KIND = {"node_prop", "node_name"}
 
 
 def _init(graph):
-    graph.add_node(5, "a", {"score": 10})
-    graph.add_node(10, "b", {"score": 20})
-    graph.add_node(15, "c", {"score": 30})
+    graph.add_node(5, "a", {"score": 10}, node_type="person")
+    graph.add_node(10, "b", {"score": 20}, node_type="person")
+    graph.add_node(15, "c", {"score": 30}, node_type="org")
     graph.add_edge(5, "a", "b", {"weight": 3}, layer="work")
     graph.add_edge(10, "b", "c", {"weight": 8}, layer="work")
     graph.add_edge(15, "c", "a", {"weight": 20}, layer="friends")
@@ -49,6 +77,18 @@ def _atoms():
         "latest": Graph.latest(),
         "snap_at": Graph.snapshot_at(10),
         "snap_latest": Graph.snapshot_latest(),
+        "default_layer": Graph.default_layer(),
+        "exclude_layer": Graph.exclude_layer("work"),
+        "exclude_layers2": Graph.exclude_layers(["work", "friends"]),
+        "valid_layers": Graph.valid_layers(["work", "nope"]),
+        "exclude_valid_layers": Graph.exclude_valid_layers(["work", "nope"]),
+        "shrink_start": Graph.shrink_start(8),
+        "shrink_end": Graph.shrink_end(12),
+        "shrunk_window": Graph.window(3, 20).shrink_start(8).shrink_end(12),
+        "exclude_nodes": Graph.exclude_nodes(["c", "nope"]),
+        "subgraph": Graph.subgraph(["a", "b", "d"]),
+        "subgraph_node_types": Graph.subgraph_node_types(["person"]),
+        "valid": Graph.valid(),
         "is_valid": Edge.is_valid(),
         "is_deleted": Edge.is_deleted(),
         "is_active": Edge.is_active(),
@@ -60,27 +100,11 @@ def _kind(name):
     return "view" if name in VIEWS else ("node" if name in NODE_KIND else "edge")
 
 
-def _and_is_broken(a, b):
-    # A time view combined with anything via `and` is silently ignored.
-    return a in TIME_VIEWS or b in TIME_VIEWS
-
-
-def _or_is_broken(a, b):
-    # An `or` involving any graph view, or mixing edge- and node-kind operands, returns every edge.
-    return a in VIEWS or b in VIEWS or _kind(a) != _kind(b)
-
-
-def _not_is_broken(a):
-    # `~view` returns every edge; `~node-filter` distributes the negation into the endpoints
-    # instead of complementing the matching edge set.
-    return a in VIEWS or a in NODE_KIND
-
-
-def _not_composite_is_broken(a, b):
-    # `~(A & B)` and `~(A | B)`: negating a *composite* reaches the same wrappers
-    # through the negation, so `~(A & view)` degenerates to `~A` and loses the
-    # view entirely. Only a composite of two edge predicates survives.
-    return _kind(a) != "edge" or _kind(b) != "edge"
+def _has_view(a, b):
+    # On `filter()` a view leg is not set algebra: the view applies first and `X` runs
+    # inside it (`test_a_view_applies_first_under_and_on_filter`). On `edges[]` it is an
+    # existence test like any other leg (`test_a_view_leg_is_an_existence_test_on_select`).
+    return a in VIEWS or b in VIEWS
 
 
 def _ids(collection):
@@ -99,6 +123,18 @@ def _view_references(graph):
         "latest": graph.latest(),
         "snap_at": graph.snapshot_at(10),
         "snap_latest": graph.snapshot_latest(),
+        "default_layer": graph.default_layer(),
+        "exclude_layer": graph.exclude_layer("work"),
+        "exclude_layers2": graph.exclude_layers(["work", "friends"]),
+        "valid_layers": graph.valid_layers(["work", "nope"]),
+        "exclude_valid_layers": graph.exclude_valid_layers(["work", "nope"]),
+        "shrink_start": graph.shrink_start(8),
+        "shrink_end": graph.shrink_end(12),
+        "shrunk_window": graph.window(3, 20).shrink_start(8).shrink_end(12),
+        "exclude_nodes": graph.exclude_nodes(["c", "nope"]),
+        "subgraph": graph.subgraph(["a", "b", "d"]),
+        "subgraph_node_types": graph.subgraph_node_types(["person"]),
+        "valid": graph.valid(),
     }
 
 
@@ -121,6 +157,18 @@ def _both_endpoints(graph, names):
     }
 
 
+def _all_names(graph):
+    return {node.name for node in graph.nodes}
+
+
+def _node_sets(graph):
+    """The node set each node-kind atom keeps."""
+    return {
+        "node_prop": _node_scores(graph, 15),
+        "node_name": {"b", "c"},
+    }
+
+
 def _predicate_references(graph):
     return {
         "edge_prop": {
@@ -128,8 +176,8 @@ def _predicate_references(graph):
         },
         "src": {e.id for e in graph.edges if e.src.name == "a"},
         "dst": {e.id for e in graph.edges if e.dst.name == "c"},
-        "node_prop": _both_endpoints(graph, _node_scores(graph, 15)),
-        "node_name": _both_endpoints(graph, {"b", "c"}),
+        "node_prop": _both_endpoints(graph, _node_sets(graph)["node_prop"]),
+        "node_name": _both_endpoints(graph, _node_sets(graph)["node_name"]),
         "is_valid": {e.id for e in graph.edges if e.is_valid()},
         "is_deleted": {e.id for e in graph.edges if e.is_deleted()},
         "is_active": {e.id for e in graph.edges if e.is_active()},
@@ -157,45 +205,28 @@ def _singles(graph):
     return singles
 
 
-def _assert_discriminating(graph, single, names):
-    """Reject reference sets that cannot tell a right answer from a wrong one.
-
-    The set-algebra expectations below are derived from single-filter results, so
-    a single filter that selects everything (or nothing) makes the derived
-    expectation degenerate: `EVERYTHING & X == X` is equally consistent with a
-    correct `and` and with one that dropped a term. That is not hypothetical —
-    on a build where a single view filter fails open, every `view & pred`
-    expectation collapses onto the predicate alone, so a broken combination
-    matches its expectation and the pins below would report it as fixed.
-
-    Asserting up front that each baseline is a proper subset keeps the pins
-    honest wherever this file is run, instead of only on a build where the
-    singles happen to be correct.
-    """
+def _negations(graph, single):
+    """What `~atom` selects on edges: the other edges for an edge predicate; for a node
+    predicate, the edges between the nodes that fail it."""
     every = _ids(graph.edges)
-    for name in names:
-        assert single[name], f"baseline edges[{name}] selects nothing on this build"
-        assert single[name] != every, (
-            f"baseline edges[{name}] selects every edge on this build, so any "
-            f"expectation derived from it cannot discriminate"
-        )
+    node_sets = _node_sets(graph)
+    negated = {}
+    for name, ids in single.items():
+        if name in VIEWS:
+            continue
+        if name in NODE_KIND:
+            outside = _all_names(graph) - node_sets[name]
+            negated[name] = frozenset(_both_endpoints(graph, outside))
+        else:
+            negated[name] = every - ids
+    return negated
 
 
 @with_variants(_init)
 def test_single_filters_match_graph_filter_and_chained_views():
     def check(graph):
         atoms, mismatches = _atoms(), []
-        view_ref = {
-            "layer": graph.layers(["work"]),
-            "layers2": graph.layers(["work", "friends"]),
-            "before": graph.before(10),
-            "after": graph.after(8),
-            "window": graph.window(3, 12),
-            "at": graph.at(10),
-            "latest": graph.latest(),
-            "snap_at": graph.snapshot_at(10),
-            "snap_latest": graph.snapshot_latest(),
-        }
+        view_ref = _view_references(graph)
         for name, expr in atoms.items():
             got = _ids(graph.edges[expr])
             if got != _ids(graph.filter(expr).edges):
@@ -203,6 +234,41 @@ def test_single_filters_match_graph_filter_and_chained_views():
             if name in view_ref and got != _ids(view_ref[name].edges):
                 mismatches.append(f"{name}: edges[] vs chained view")
         assert not mismatches, mismatches
+
+    return check
+
+
+@with_variants(_init)
+def test_valid_layers_ignore_an_unknown_layer_where_layers_raises():
+    """`valid_layers` / `exclude_valid_layers` skip a name the graph does not have;
+    `layers` / `exclude_layers` raise on it. There is no layer "nope".
+
+    ```text
+                   5    10   12   15   20
+    a→b  [work]    ●                   ✕
+    b→c  [work]         ●
+    d→d  [_default]          ●
+    c→a  [friends]                ●
+    ```
+    """
+
+    def check(graph):
+        work = _ids(graph.layers(["work"]).edges)
+        not_work = _ids(graph.exclude_layers(["work"]).edges)
+        assert work == {("a", "b"), ("b", "c")}
+        assert not_work == {("d", "d"), ("c", "a")}
+        valid = Graph.valid_layers(["work", "nope"])
+        exclude_valid = Graph.exclude_valid_layers(["work", "nope"])
+        assert _ids(graph.filter(valid).edges) == work
+        assert _ids(graph.edges[valid]) == work
+        assert _ids(graph.filter(exclude_valid).edges) == not_work
+        assert _ids(graph.edges[exclude_valid]) == not_work
+        for strict in (
+            Graph.layers(["work", "nope"]),
+            Graph.exclude_layers(["work", "nope"]),
+        ):
+            with pytest.raises(Exception, match="nope"):
+                graph.filter(strict)
 
     return check
 
@@ -220,34 +286,79 @@ def test_edge_collection_time_view_actually_narrows():
 
 
 @with_variants(_init)
-def test_working_combinations_follow_set_algebra():
+def test_combinations_follow_set_algebra():
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
+        negated = _negations(graph, single)
+        node_sets = _node_sets(graph)
         every = _ids(graph.edges)
         cases = []
+        select_only = set()
         for a, b in combinations(atoms, 2):
-            if not _and_is_broken(a, b):
-                cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
-            if not _or_is_broken(a, b):
+            cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
+            if _has_view(a, b):
+                # on `edges[]` a view leg is an existence test, so `|` on it is a union
+                # too; on `filter()` a view under `|` is refused
+                select_only.update({f"{a} & {b}", f"{a} | {b}"})
                 cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
-            if not _not_composite_is_broken(a, b):
+                continue
+            if _kind(a) == _kind(b) == "node":
+                # Node predicates combine on nodes first: an edge stays when both
+                # ends pass `a or b`, which is more than the union of the two
+                # both-ends sets (an edge whose ends pass different legs stays).
+                either = node_sets[a] | node_sets[b]
+                both = node_sets[a] & node_sets[b]
+                cases.append(
+                    (f"{a} | {b}", atoms[a] | atoms[b], _both_endpoints(graph, either))
+                )
                 cases.append(
                     (
                         f"~({a} & {b})",
                         ~(atoms[a] & atoms[b]),
-                        every - (single[a] & single[b]),
+                        _both_endpoints(graph, _all_names(graph) - both),
                     )
                 )
                 cases.append(
                     (
                         f"~({a} | {b})",
                         ~(atoms[a] | atoms[b]),
-                        every - (single[a] | single[b]),
+                        negated[a] & negated[b],
                     )
                 )
+            elif _kind(a) == _kind(b):
+                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
+                cases.append(
+                    (
+                        f"~({a} & {b})",
+                        ~(atoms[a] & atoms[b]),
+                        negated[a] | negated[b],
+                    )
+                )
+                cases.append(
+                    (
+                        f"~({a} | {b})",
+                        ~(atoms[a] | atoms[b]),
+                        negated[a] & negated[b],
+                    )
+                )
+            else:
+                # An `or` across kinds is the union of what each leg keeps: the
+                # edge leg's edges plus the edges with both ends in the node leg.
+                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
+                cases.append(
+                    (
+                        f"~({a} & {b})",
+                        ~(atoms[a] & atoms[b]),
+                        negated[a] & negated[b],
+                    )
+                )
+                cases.append((f"~({a} | {b})", ~(atoms[a] | atoms[b]), every))
         for a in atoms:
-            if not _not_is_broken(a):
+            if a in VIEWS:
+                select_only.add(f"~{a}")
                 cases.append((f"~{a}", ~atoms[a], every - single[a]))
+            else:
+                cases.append((f"~{a}", ~atoms[a], negated[a]))
         cases.append(
             (
                 "layer & (edge_prop | src)",
@@ -257,10 +368,11 @@ def test_working_combinations_follow_set_algebra():
         )
         mismatches = []
         for label, expr, want in cases:
-            for path, got in (
-                ("edges[]", _ids(graph.edges[expr])),
-                ("filter()", _ids(graph.filter(expr).edges)),
-            ):
+            paths = [("edges[]", lambda: _ids(graph.edges[expr]))]
+            if label not in select_only:
+                paths.append(("filter()", lambda: _ids(graph.filter(expr).edges)))
+            for path, read in paths:
+                got = read()
                 if got != want:
                     mismatches.append(
                         f"[{path}] {label}: got {sorted(got)} want {sorted(want)}"
@@ -274,8 +386,7 @@ def test_working_combinations_follow_set_algebra():
 def test_nested_edge_collection_matches_the_graph_filter():
     def check(graph):
         atoms = _atoms()
-        # Node-kind filters fail open on the nested path — pinned in the broken-classes test.
-        working = {n: e for n, e in atoms.items() if n not in NODE_KIND}
+        working = dict(atoms)
         working["edge_prop & layer"] = atoms["edge_prop"] & atoms["layer"]
         working["edge_prop | src"] = atoms["edge_prop"] | atoms["src"]
         working["~edge_prop"] = ~atoms["edge_prop"]
@@ -293,6 +404,7 @@ def _subset(atoms):
     """A representative slice of the working shapes: one atom per family plus one composite each."""
     return {
         "edge_prop": atoms["edge_prop"],
+        "node_prop": atoms["node_prop"],
         "window": atoms["window"],
         "layer": atoms["layer"],
         "is_deleted": atoms["is_deleted"],
@@ -309,6 +421,7 @@ def test_single_node_edge_collection_selects_incident_edges():
         every = _ids(graph.edges)
         want_sets = {
             "edge_prop": single["edge_prop"],
+            "node_prop": single["node_prop"],
             "window": single["window"],
             "layer": single["layer"],
             "is_deleted": single["is_deleted"],
@@ -316,8 +429,6 @@ def test_single_node_edge_collection_selects_incident_edges():
             "edge_prop | dst": single["edge_prop"] | single["dst"],
             "~edge_prop": every - single["edge_prop"],
         }
-        # Node-kind filters fail open here too when the anchor node fails the predicate — pinned
-        # in the broken-classes test.
         exprs = _subset(atoms)
         for name in ("a", "b"):
             node = graph.node(name)
@@ -325,7 +436,13 @@ def test_single_node_edge_collection_selects_incident_edges():
             for label, expr in exprs.items():
                 got = _ids(node.edges[expr])
                 assert got == incident & want_sets[label], f"node {name}: {label}"
-                reference = _ids(graph.filter(expr).node(name).edges)
+                # A node filter the anchor itself fails leaves it with no edges.
+                filtered_node = graph.filter(expr).node(name)
+                reference = (
+                    _ids(filtered_node.edges)
+                    if filtered_node is not None
+                    else frozenset()
+                )
                 assert got == reference, f"node {name}: {label} vs graph filter"
 
     return check
@@ -338,6 +455,7 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
         every = _ids(graph.edges)
         want_sets = {
             "edge_prop": single["edge_prop"],
+            "node_prop": single["node_prop"],
             "window": single["window"],
             "layer": single["layer"],
             "is_deleted": single["is_deleted"],
@@ -363,70 +481,102 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 
 @with_variants(_init)
-def test_broken_combination_classes_are_still_broken():
-    """One discriminating representative per known-broken class. When a class is fixed this fails:
-    delete its `_*_is_broken` rule above so the combinations join the set-algebra test.
+def test_a_view_applies_first_under_and_on_filter():
+    """On `filter()`, `view & X` means `graph.<view>().filter(X)`: the view is applied
+    first and `X` is evaluated inside it. Two views chain.
+    """
+
+    def check(graph):
+        atoms, views = _atoms(), _view_references(graph)
+        mismatches = []
+        for v, viewed in views.items():
+            for name, atom in atoms.items():
+                if name in VIEWS:
+                    continue
+                want = _ids(viewed.edges[atom])
+                got = _ids(graph.filter(atoms[v] & atom).edges)
+                if got != want:
+                    mismatches.append(
+                        f"[filter()] {v} & {name}: got {sorted(got)} want {sorted(want)}"
+                    )
+        # Two views: the second applies inside the first.
+        want = _ids(graph.window(3, 12).layers(["work"]).edges)
+        got = _ids(graph.filter(atoms["window"] & atoms["layer"]).edges)
+        if got != want:
+            mismatches.append(
+                f"[filter()] window & layer: got {sorted(got)} want {sorted(want)}"
+            )
+        assert not mismatches, "\n".join(mismatches)
+
+    return check
+
+
+@with_variants(_init)
+def test_a_view_leg_is_an_existence_test_on_select():
+    """On `edges[]`, a view leg asks "does the edge exist in that view?" and every other
+    leg reads the collection's own graph, so `view & X` is the intersection of the two
+    answers. The view does not scope `X`: `window(3, 12) & score > 15` keeps b->c, whose
+    endpoints only get those scores at 10 and 15, where inside the window c has none.
+    """
+
+    def check(graph):
+        atoms, views = _atoms(), _view_references(graph)
+        mismatches = []
+        for v, viewed in views.items():
+            for name, atom in atoms.items():
+                if name in VIEWS:
+                    continue
+                want = _ids(viewed.edges) & _ids(graph.edges[atom])
+                got = _ids(graph.edges[atoms[v] & atom])
+                if got != want:
+                    mismatches.append(
+                        f"[edges[]] {v} & {name}: got {sorted(got)} want {sorted(want)}"
+                    )
+        # each view leg is its own existence test; they do not chain into one view
+        want = _ids(graph.window(3, 12).edges) & _ids(graph.layers(["work"]).edges)
+        got = _ids(graph.edges[atoms["window"] & atoms["layer"]])
+        if got != want:
+            mismatches.append(
+                f"[edges[]] window & layer: got {sorted(got)} want {sorted(want)}"
+            )
+        assert graph.edges[atoms["window"] & atoms["node_prop"]].id.collect() == [
+            ("b", "c")
+        ]
+        assert not mismatches, "\n".join(mismatches)
+
+    return check
+
+
+@with_variants(_init)
+def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
+    """On `edges[]` a view leg is an existence test, so `|` and `~` on it have their plain
+    set meanings. On `filter()` there is no graph that is "layered or heavy", nor one that
+    is "not layered", so the same filters are refused there, when applied.
     """
 
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         every = _ids(graph.edges)
-        _assert_discriminating(
-            graph,
-            single,
-            ["window", "layer", "edge_prop", "node_prop", "node_name"],
-        )
-        representatives = {
-            "and drops a time view": (
-                atoms["window"] & atoms["edge_prop"],
-                single["window"] & single["edge_prop"],
-            ),
-            "or with a view returns every edge": (
+        cases = {
+            "edge_prop | layer": (
                 atoms["edge_prop"] | atoms["layer"],
                 single["edge_prop"] | single["layer"],
             ),
-            "or of mixed kinds returns every edge": (
-                atoms["edge_prop"] | atoms["node_prop"],
-                single["edge_prop"] | single["node_prop"],
-            ),
-            "not of a view returns every edge": (
-                ~atoms["layer"],
-                every - single["layer"],
-            ),
-            "not of a node filter is not the complement": (
-                ~atoms["node_name"],
-                every - single["node_name"],
-            ),
-            # Negating a composite that contains a view: the pairwise rules
-            # above only ever negate a single atom, so these shapes need their
-            # own representatives.
-            "not of an and containing a view loses the view": (
-                ~(atoms["edge_prop"] & atoms["layer"]),
-                every - (single["edge_prop"] & single["layer"]),
-            ),
-            "not of an or containing a view returns every edge": (
-                ~(atoms["edge_prop"] | atoms["layer"]),
-                every - (single["edge_prop"] | single["layer"]),
+            "~layer": (~atoms["layer"], every - single["layer"]),
+            "(edge_prop & layer) | src": (
+                (atoms["edge_prop"] & atoms["layer"]) | atoms["src"],
+                (single["edge_prop"] & single["layer"]) | single["src"],
             ),
         }
-        fixed = []
-        for label, (expr, want) in representatives.items():
-            if (
-                _ids(graph.edges[expr]) == want
-                and _ids(graph.filter(expr).edges) == want
-            ):
-                fixed.append(label)
-        nested = sorted(
-            e.id for es in graph.nodes.edges[atoms["node_prop"]] for e in es
-        )
-        nested_ref = sorted(
-            e.id for es in graph.filter(atoms["node_prop"]).nodes.edges for e in es
-        )
-        per_node = _ids(graph.node("a").edges[atoms["node_prop"]])
-        if nested == nested_ref and per_node == frozenset():
-            fixed.append("per-node/nested edges with a node filter")
-        assert (
-            not fixed
-        ), f"now FIXED: {fixed} — move the class into the working set by deleting its rule"
+        for label, (expr, want) in cases.items():
+            assert _ids(graph.edges[expr]) == want, label
+            with pytest.raises(Exception, match="view"):
+                graph.filter(expr)
+        # a negated composite follows the two-question rule rather than set algebra;
+        # it runs on the collection and is refused on the graph like the rest
+        composite = ~(atoms["edge_prop"] & atoms["layer"])
+        graph.edges[composite]
+        with pytest.raises(Exception, match="view"):
+            graph.filter(composite)
 
     return check

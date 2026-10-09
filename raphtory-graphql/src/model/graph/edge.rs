@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         edges::GqlEdges,
-        filtering::{EdgeViewCollection, GqlFilter},
+        filter_expr_input::GqlFilter,
         history::GqlHistory,
         node::GqlNode,
         node_id::GqlNodeId,
@@ -17,7 +17,7 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
-        graph::{edge::EdgeView, views::filter::model::DynFilter},
+        graph::edge::EdgeView,
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
@@ -254,63 +254,6 @@ impl GqlEdge {
         self.ee.shrink_end(end.into_time()).into()
     }
 
-    /// Takes a specified selection of views and applies them in given order.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
-        )]
-        views: Vec<EdgeViewCollection>,
-    ) -> Result<GqlEdge, GraphError> {
-        let mut return_view: GqlEdge = self.ee.clone().into();
-        for view in views {
-            return_view = match view {
-                EdgeViewCollection::DefaultLayer(apply) => {
-                    if apply {
-                        return_view.default_layer().await
-                    } else {
-                        return_view
-                    }
-                }
-                EdgeViewCollection::Layers(layers) => return_view.layers(layers).await,
-
-                EdgeViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                EdgeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
-
-                EdgeViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                EdgeViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                EdgeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
-                EdgeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                EdgeViewCollection::At(at) => return_view.at(at).await,
-                EdgeViewCollection::Before(time) => return_view.before(time).await,
-                EdgeViewCollection::After(time) => return_view.after(time).await,
-                EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                EdgeViewCollection::EdgeFilter(filter) => {
-                    return_view.filter(GqlFilter::Edge(filter)).await?
-                }
-            }
-        }
-        Ok(return_view)
-    }
-
     /// Returns the earliest time of an edge.
     pub async fn earliest_time(&self) -> GqlEventTime {
         self.ee.earliest_time().into()
@@ -492,8 +435,7 @@ impl GqlEdge {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.ee.filter(filter)?;
+            let filtered = self_clone.ee.filter(expr)?;
             Ok(self_clone.update(filtered.into_dynamic()))
         })
         .await

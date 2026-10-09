@@ -30,12 +30,14 @@ impl GraphTransformer for LayeredGraphWindowTransformer {
 }
 
 pub mod test_nodes_filters_layer_graph {
-    use raphtory::db::graph::views::filter::model::property_filter::ops::PropertyFilterOps;
 
     use crate::filter_tests::test_layers::{
         LayeredGraphTransformer, LayeredGraphWindowTransformer,
     };
-    use raphtory::{db::graph::views::filter::model::PropertyFilterFactory, prelude::NodeFilter};
+    use raphtory::{
+        db::graph::views::filter::model::PropertyExprFactory,
+        prelude::{EntityExprFilterOps, NodeFilter},
+    };
 
     use crate::filter_tests::{init_graph, Edges, Nodes};
     use raphtory_tests::assertions::{assert_filter_nodes_results, TestVariants};
@@ -180,9 +182,7 @@ mod test_edges_filters_layer_graph {
         Edges, Nodes,
     };
     use raphtory::{
-        db::graph::views::filter::model::{
-            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-        },
+        db::graph::views::filter::model::{EntityExprFilterOps, PropertyExprFactory},
         prelude::EdgeFilter,
     };
     use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};

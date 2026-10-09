@@ -361,7 +361,17 @@ export function heavyNameScan() {
     graph: {
       __args: { path: "big" },
       nodes: {
-        __args: { select: { name: { where: { contains: { str: "99999" } } } } },
+        __args: {
+          select: {
+            node: {
+              str: {
+                op: "CONTAINS",
+                lhs: { read: { field: { name: "NAME" } } },
+                rhs: { const: { str: "99999" } },
+              },
+            },
+          },
+        },
         count: true,
       },
     },

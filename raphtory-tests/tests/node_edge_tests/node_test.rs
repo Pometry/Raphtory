@@ -1,9 +1,6 @@
 use raphtory::{
     core::storage::timeindex::AsTime,
-    db::{
-        api::view::Filter,
-        graph::views::filter::model::{NodeViewFilterOps, ViewWrapOps},
-    },
+    db::{api::view::Filter, graph::views::filter::model::ViewWrapOps},
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;

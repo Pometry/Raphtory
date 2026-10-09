@@ -1,20 +1,4 @@
-use crate::{
-    db::{
-        api::state::ops::{filter::NodeExistsOp, GraphView},
-        graph::views::{
-            filter::{
-                edge_filtered_graph::EdgeFilteredGraph,
-                model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
-                    CompositeExplodedEdgeFilter, CompositeNodeFilter, TryAsCompositeFilter,
-                },
-                CreateFilter,
-            },
-            valid_graph::ValidGraph,
-        },
-    },
-    errors::GraphError,
-};
+use crate::db::api::state::ops::GraphView;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,65 +10,35 @@ impl fmt::Display for IsValidEdge {
     }
 }
 
-impl CreateFilter for IsValidEdge {
-    type EntityFiltered<'graph, G, F>
-        = EdgeFilteredGraph<G, ValidGraph<F>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
+// ── expr layer: the predicate as a boolean expression over the eval view ──
 
-    type NodeFilter<'graph, G, F>
-        = NodeExistsOp<ValidGraph<F>>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph,
-        F: GraphView + 'graph;
+use crate::db::graph::views::filter::model::{
+    edge_expr::{ops::IsValidEdgePropOp, EdgeOp},
+    node_expr::{CreateOp, EntityExpr},
+    EntityMarker,
+};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType};
+use std::sync::Arc;
 
-    type FilteredGraph<'graph, G>
-        = G
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        Ok(EdgeFilteredGraph::new(graph, ValidGraph::new(filtered)))
+impl EntityExpr for IsValidEdge {
+    fn entity(&self) -> EntityMarker {
+        EntityMarker::Edge
     }
 
-    fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
-        self,
-        _graph: G,
-        filtered: F,
-    ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError> {
-        Ok(NodeExistsOp::new(ValidGraph::new(filtered)))
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
+    fn nullable(&self) -> bool {
+        false
     }
 }
 
-impl ComposableFilter for IsValidEdge {}
-
-impl TryAsCompositeFilter for IsValidEdge {
-    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
-    }
-
-    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge))
-    }
-
-    fn try_as_composite_exploded_edge_filter(
+impl CreateOp for IsValidEdge {
+    fn create_edge_op<'g, G: GraphView + 'g>(
         &self,
-    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsValidEdge(IsValidEdge))
+        graph: G,
+    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, crate::errors::GraphError> {
+        Ok(Arc::new(IsValidEdgePropOp { graph }))
     }
 }

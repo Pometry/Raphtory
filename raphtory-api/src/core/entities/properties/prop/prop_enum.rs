@@ -262,6 +262,12 @@ pub enum Prop {
     Decimal(BigDecimal),
 }
 
+impl From<usize> for Prop {
+    fn from(value: usize) -> Self {
+        Prop::U64(value as u64)
+    }
+}
+
 impl From<GidRef<'_>> for Prop {
     fn from(value: GidRef<'_>) -> Self {
         match value {
