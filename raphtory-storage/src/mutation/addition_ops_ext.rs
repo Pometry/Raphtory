@@ -10,7 +10,10 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+            meta::{
+                Meta, DEFAULT_LAYER_NAME, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID,
+                STATIC_GRAPH_LAYER_ID,
+            },
             prop::{Prop, PropType, PropUnwrap},
         },
         LayerId,
@@ -24,7 +27,10 @@ use raphtory_core::{
     },
     storage::timeindex::EventTime,
 };
-use std::sync::atomic::Ordering;
+use std::{
+    path::{Component, Path},
+    sync::atomic::Ordering,
+};
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -36,6 +42,28 @@ use storage::{
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
+
+fn is_valid_layer_name(name: Option<&str>) -> Result<(), MutationError> {
+    if let Some(name) = name {
+        if name.is_empty() {
+            return Err(MutationError::InvalidLayerName(name.to_string()));
+        }
+        let path = Path::new(name);
+        let mut components = path.components();
+        if let Some(first) = components.next() {
+            match first {
+                Component::Normal(_) => {}
+                _ => {
+                    return Err(MutationError::InvalidLayerName(name.to_string()));
+                }
+            }
+        }
+        if components.next().is_some() {
+            return Err(MutationError::InvalidLayerName(name.to_string()));
+        }
+    }
+    Ok(())
+}
 
 pub struct AtomicAddEdge<'a, EXT>
 where
@@ -231,6 +259,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
+        is_valid_layer_name(layer)?;
         let id = self.edge_meta().get_or_create_layer_id(layer);
         // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
         if id.is_new() {
