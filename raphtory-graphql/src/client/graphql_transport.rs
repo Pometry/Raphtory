@@ -3017,11 +3017,12 @@ mod tests {
     };
     use raphtory::{
         db::graph::views::filter::model::expr::FilterExpr,
+        errors::GraphError,
         prelude::{Args, NO_PROPS},
     };
     use raphtory_api::core::storage::timeindex::{AsTime, EventTime};
     use reqwest::Url;
-    use std::{collections::HashMap as Map, hash::Hash, str::FromStr, sync::Arc};
+    use std::{collections::HashMap as Map, error::Error, hash::Hash, str::FromStr, sync::Arc};
     use tempfile::tempdir;
     // ============ Unit tests for the read pipeline ============
 
@@ -3038,8 +3039,8 @@ mod tests {
     }
 
     /// The tree a client hands to `filter`, as python does.
-    fn tree(filter: GqlFilter) -> FilterExpr {
-        FilterExpr::try_from(filter).unwrap()
+    fn tree(filter: GqlFilter) -> Result<FilterExpr, GraphError> {
+        FilterExpr::try_from(filter)
     }
 
     #[test]
@@ -3646,7 +3647,7 @@ mod tests {
     /// f = score > 15. Local ground truth: membership [a, b, c];
     /// degrees a=2 (b, c both match), b=1 (a dropped), c=1 (a dropped).
     #[tokio::test]
-    async fn test_filtered_collect_matches_columnar_reads() {
+    async fn test_filtered_collect_matches_columnar_reads() -> Result<(), Box<dyn Error>> {
         use crate::{client::remote_client::RemoteClient, server::GraphServer};
         use reqwest::Url;
         use std::collections::HashMap as Map;
@@ -3680,7 +3681,7 @@ mod tests {
 
         // Membership: filter keeps every node addressable — including `a`,
         // which fails the filter itself.
-        let filtered = rg.nodes().filter(tree(score_gt_15.clone())).unwrap();
+        let filtered = rg.nodes().filter(tree(score_gt_15.clone())?).unwrap();
         let mut ids = filtered.id().await.unwrap();
         ids.sort();
         assert_eq!(
@@ -3737,7 +3738,7 @@ mod tests {
         );
 
         // select() narrows membership only — handles see the unfiltered graph.
-        let selected = rg.nodes().select(tree(score_gt_15.clone())).unwrap();
+        let selected = rg.nodes().select(tree(score_gt_15.clone())?).unwrap();
         let mut selected_ids = selected.id().await.unwrap();
         selected_ids.sort();
         assert_eq!(
@@ -3761,7 +3762,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap()
-            .filter(tree(score_gt_15))
+            .filter(tree(score_gt_15)?)
             .unwrap();
         let c_handles = b.neighbours().collect().await.unwrap();
         assert_eq!(c_handles.len(), 1);
@@ -3781,7 +3782,7 @@ mod tests {
                 "score".into(),
                 CmpOp::Gt,
                 GqlValue::I64(15),
-            )))
+            ))?)
             .unwrap();
         let rows = nested.edges().collect().await.unwrap();
         let ids_in_order = nested.id().await.unwrap();
@@ -3807,6 +3808,7 @@ mod tests {
         // panics under panic-on-drop builds.
         running.stop().await;
         running.wait().await.unwrap();
+        Ok(())
     }
 
     #[tokio::test]
