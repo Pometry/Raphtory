@@ -674,14 +674,24 @@ class GraphView(object):
         """
         Create a VectorisedGraph from the current graph.
 
+        Every node and edge is rendered into a text document by a template, and the document is what gets embedded.
+
         Args:
           model (VectorCache): Cache wrapping the embedding model used to embed documents.
-          nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
-          edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
+          nodes (bool | str): True to embed nodes with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each node with. Defaults to True.
+          edges (bool | str): True to embed edges with the default document template, False not to embed them, or a Jinja (minijinja) document template to render each edge with. Defaults to True.
           verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
           VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
+
+        Note:
+          A template string is rendered as it is, so a bare word such as `"description"` becomes the literal document `description` for every entity; to embed a property, interpolate it: `"{{ properties.description }}"`.
+
+          A node template can use `name`, `node_type`, `properties`, `metadata` and `temporal_properties` (a mapping from property name to a list of `(time, value)` pairs). An edge template can use `src` and `dst` (each with the node variables above, e.g. `src.name`), `history` (the update times), `layers`, `properties`, `metadata` and `temporal_properties`. A `datetimeformat` filter formats a timestamp, as in `{{ time|datetimeformat }}`.
+
+        Example:
+          >>> vg = g.vectorise(cache, nodes="{{ name }} is a {{ node_type }}", edges="{{ src.name }} -> {{ dst.name }}: {{ properties.description }}")
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> GraphView:
@@ -787,7 +797,7 @@ class Graph(GraphView):
             MutableNode: The added node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -863,7 +873,7 @@ class Graph(GraphView):
             MutableNode: The created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(
@@ -1162,6 +1172,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1179,6 +1190,7 @@ class Graph(GraphView):
             layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1204,6 +1216,7 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1224,6 +1237,7 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1257,6 +1271,7 @@ class Graph(GraphView):
             | dict[str, DataType | PropType | str]
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1273,6 +1288,7 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1299,6 +1315,7 @@ class Graph(GraphView):
         event_id: Optional[str] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1320,6 +1337,7 @@ class Graph(GraphView):
             event_id (str, optional): The column name for the secondary index. Defaults to None.
             layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+            batch_size (int, optional): Read parquet rows <batch_size> at a time. Only for parquet, ignored for other inputs
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1438,6 +1456,14 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def vacuum(self) -> None:
+        """
+        Trigger a compaction of the underlying storage segments if disk storage is enabled
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+        """
+
 class PersistentGraph(GraphView):
     """
     A temporal graph that allows edges and nodes to be deleted.
@@ -1521,7 +1547,7 @@ class PersistentGraph(GraphView):
             None: This function does not return a value, if the operation is successful.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names a node that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def add_properties(
@@ -1595,7 +1621,7 @@ class PersistentGraph(GraphView):
           MutableNode: the newly created node.
 
         Raises:
-            GraphError: If the operation fails.
+            GraphError: If the operation fails, or if a row names an edge, or an endpoint, that is not in the graph. A failed load leaves the graph unchanged.
         """
 
     def delete_edge(

@@ -58,6 +58,7 @@ pub(crate) fn convert_py_schema(
     }).transpose()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_nodes_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -107,6 +108,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -149,6 +151,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_node_metadata_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -188,6 +191,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -224,6 +228,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -290,6 +295,17 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     let py = data.py();
     is_jupyter(py);
 
+    // Ask for the row count BEFORE exporting the stream. A lazy producer such as a
+    // DuckDBPyRelation is drained by reading the stream which means that `len()` afterwards
+    // returns the wrong result.
+    let len_from_python: Option<usize> = if data.hasattr("__len__")? {
+        data.call_method0("__len__")
+            .ok()
+            .and_then(|len| len.extract().ok())
+    } else {
+        None
+    };
+
     let reader: PyRecordBatchReader = data.extract()?;
 
     let reader = reader.into_reader().map_err(|e| {
@@ -309,12 +325,6 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
             indices.push(idx);
         }
     }
-
-    let len_from_python: Option<usize> = if data.hasattr("__len__")? {
-        Some(data.call_method0("__len__")?.extract()?)
-    } else {
-        None
-    };
 
     let chunks = reader
         .into_iter()
@@ -467,8 +477,8 @@ fn collect_csv_paths(path: &PathBuf) -> Result<Vec<PathBuf>, GraphError> {
 }
 
 // Load from CSV files using arrow-csv
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_nodes_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
@@ -517,8 +527,8 @@ pub(crate) fn load_nodes_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
@@ -559,8 +569,8 @@ pub(crate) fn load_edges_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_node_metadata_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
@@ -599,8 +609,8 @@ pub(crate) fn load_node_metadata_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_metadata_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
@@ -637,8 +647,8 @@ pub(crate) fn load_edge_metadata_from_csv_path<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edge_deletions_from_csv_path<
-    'py,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,

@@ -164,7 +164,7 @@ fn materialize_proptest_failure() {
     let graph = Graph::from(build_graph(&graph_f));
     let subgraph = graph.subgraph([1]);
     let nodes = subgraph.default_layer().nodes().id().collect_vec();
-    dbg!(nodes);
+    assert!(nodes.is_empty());
     assert_eq!(subgraph.default_layer().count_nodes(), 0);
     assert_eq!(subgraph.count_edges(), 1);
     let materialised = subgraph.materialize().unwrap();
@@ -188,47 +188,4 @@ fn test_subgraph_only_deletion() {
     let expected = PersistentGraph::new();
     expected.resolve_layer(None).unwrap();
     assert_graph_equal(&sg, &expected);
-}
-
-#[test]
-fn test_indexed_nodes_respect_index() {
-    let graph = Graph::new();
-    for n in 0..6u64 {
-        graph.add_node(0, n, NO_PROPS, None, None).unwrap();
-    }
-    graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-    graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
-
-    for graph in [&graph.subgraph([0, 1, 2, 3, 4]), &graph.subgraph([0, 1, 2])] {
-        let nodes = graph.nodes();
-        let all = nodes.iter().map(|n| n.id()).collect_vec();
-
-        // Restrict to every other node of the view.
-        let picked = nodes.iter().step_by(2).map(|n| n.node).collect_vec();
-        let expected = nodes
-            .iter()
-            .step_by(2)
-            .map(|n| n.id())
-            .collect::<BTreeSet<_>>();
-        assert!(picked.len() < all.len(), "index should be a strict subset");
-
-        let indexed = nodes.indexed(Index::from_iter(picked));
-        assert_eq!(
-            indexed.iter().map(|n| n.id()).collect::<BTreeSet<_>>(),
-            expected
-        );
-        assert_eq!(
-            indexed.par_iter().map(|n| n.id()).collect::<BTreeSet<_>>(),
-            expected
-        );
-        assert_eq!(
-            indexed
-                .collect()
-                .iter()
-                .map(|n| n.id())
-                .collect::<BTreeSet<_>>(),
-            expected
-        );
-        assert_eq!(indexed.len(), expected.len());
-    }
 }

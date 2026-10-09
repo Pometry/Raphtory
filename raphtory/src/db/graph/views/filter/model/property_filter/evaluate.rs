@@ -1,5 +1,8 @@
 use crate::{db::graph::views::filter::model::Op, prelude::PropertyFilter};
-use raphtory_api::core::{entities::properties::prop::Prop, utils::generalised_reduce};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropArray},
+    utils::generalised_reduce,
+};
 
 enum ValueType {
     Seq(Vec<Prop>),
@@ -311,7 +314,9 @@ impl<M> PropertyFilter<M> {
         }
 
         if let Some(seq) = maybe_seq {
-            let full = Prop::List(seq.into());
+            let full = Prop::List(
+                PropArray::try_from(seq).expect("internal lists should have correct types"),
+            );
             self.operator
                 .apply_to_property(&self.prop_value, Some(&full))
         } else {

@@ -12,17 +12,14 @@ use async_graphql::Context;
 use dynamic_graphql::{
     ExpandObject, ExpandObjectFields, InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields,
 };
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    errors::GraphResult,
-    vectors::{
-        cache::CachedEmbeddingModel,
-        storage::OpenAIEmbeddings,
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-        vectorised_graph::VectorisedGraph,
-    },
-};
+use raphtory::{db::api::view::MaterializedGraph, errors::GraphResult};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
+use raphtory_vectors::{
+    cache::CachedEmbeddingModel,
+    storage::OpenAIEmbeddings,
+    template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    vectorised_graph::VectorisedGraph,
+};
 
 #[derive(InputObject, Debug, Clone, Default)]
 pub struct OpenAIConfig {
@@ -59,7 +56,7 @@ impl EmbeddingModel {
                     dim: None,
                 };
                 let vector_cache = data.vector_cache.resolve().await?;
-                vector_cache.openai(embeddings.into()).await
+                Ok(vector_cache.openai(embeddings.into()).await?)
             }
         }
     }

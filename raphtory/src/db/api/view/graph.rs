@@ -4,7 +4,7 @@ use crate::{
     arrow_loader::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edge_props::load_edges_metadata_from_df as load_edge_props_from_df,
             edges::{load_edges_from_df, ColumnNames},
             load_edge_deletions_from_df, load_graph_props_from_df,
             nodes::{load_node_props_from_df, load_nodes_from_df},
@@ -57,9 +57,9 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{any::Any, path::Path, sync::Arc};
 use storage::{
-    api::nodes::{NodeEntryOps, NodeRefOps},
+    api::{node_type_index::NodeTypeIndexOps, nodes::NodeRefOps},
     persist::strategy::PersistenceStrategy,
-    Config, Extension,
+    Extension,
 };
 
 /// This trait GraphViewOps defines operations for accessing
@@ -192,49 +192,6 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     let edges: Arc<
         dyn Fn(DynGraphArc<'graph>) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph,
     > = Arc::new(move |graph| match graph.trusted_node_list() {
-        (NodeList::List { elems }, list_trusted) => {
-            // The `node_edges` function below trusts the local node (it only filters
-            // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
-            // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
-            if list_trusted {
-                let graph = graph.clone();
-                let gs = if locked {
-                    graph.core_graph().lock()
-                } else {
-                    graph.core_graph().clone()
-                };
-                elems
-                    .clone()
-                    .into_iter()
-                    .flat_map(move |node| {
-                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
-                    })
-                    .into_dyn_boxed()
-            } else {
-                let gs = if locked {
-                    graph.core_graph().lock()
-                } else {
-                    graph.core_graph().clone()
-                };
-                let graph = graph.clone();
-                let graph_copy = graph.clone();
-                let gs_copy = gs.clone();
-                elems
-                    .clone()
-                    .into_iter()
-                    .filter(move |node| {
-                        // layer/window/edge filters are handled below, only explict node filters need to be handled here
-                        graph_copy.internal_filter_node(
-                            gs_copy.core_node(*node).as_ref(),
-                            graph_copy.layer_ids(),
-                        )
-                    })
-                    .flat_map(move |node| {
-                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
-                    })
-                    .into_dyn_boxed()
-            }
-        }
         (NodeList::All, _) => {
             let layer_ids = graph.layer_ids().clone();
             let graph = graph.clone();
@@ -255,6 +212,40 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
                 }
             })
             .into_dyn_boxed()
+        }
+        (node_list, list_trusted) => {
+            let graph = graph.clone();
+            let gs = if locked {
+                graph.core_graph().lock()
+            } else {
+                graph.core_graph().clone()
+            };
+            let nodes = node_list.nodes_iter(&gs);
+            // The `node_edges` function below trusts the local node (it only filters
+            // the remote endpoint of each edge). For an untrusted node list, — e.g. the intersection of an enumerable filter with a non-enumerable one,
+            // as produced by `AndFilteredGraph::node_list` — we need to explicitly filter the local node as well.
+            if list_trusted {
+                nodes
+                    .flat_map(move |node| {
+                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                    })
+                    .into_dyn_boxed()
+            } else {
+                let graph_copy = graph.clone();
+                let gs_copy = gs.clone();
+                nodes
+                    .filter(move |node| {
+                        // layer/window/edge filters are handled below, only explict node filters need to be handled here
+                        graph_copy.internal_filter_node(
+                            gs_copy.core_node(*node).as_ref(),
+                            graph_copy.layer_ids(),
+                        )
+                    })
+                    .flat_map(move |node| {
+                        node_edges(gs.clone(), graph.clone(), node, Direction::OUT)
+                    })
+                    .into_dyn_boxed()
+            }
         }
     });
     Edges::new(g.clone(), edges)
@@ -804,6 +795,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         if trusted {
             match node_list {
                 NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
+                NodeList::NodeTypeIdx { types } => {
+                    self.core_graph().node_type_index().entry(&types).len()
+                }
                 NodeList::List { elems } => elems.len(),
             }
         } else {
@@ -814,6 +808,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     .par_iter()
                     .filter(|node| self.filter_node(*node))
                     .count(),
+                node_list @ NodeList::NodeTypeIdx { .. } => {
+                    let nodes = self.core_nodes();
+                    node_list
+                        .nodes_par_iter(self.core_graph())
+                        .filter(|node| self.filter_node(nodes.node_entry(*node)))
+                        .count()
+                }
                 NodeList::List { elems } => {
                     let nodes = self.core_nodes();
                     elems

@@ -21,7 +21,10 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::entities::{
-    properties::{meta::NODE_ID_PROP_ID, prop::Prop},
+    properties::{
+        meta::{DEFAULT_NODE_TYPE_ID, NODE_ID_PROP_ID},
+        prop::Prop,
+    },
     VID,
 };
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
@@ -222,7 +225,7 @@ impl NodeOp for NodeNameFilterOp {
                 Some(candidates) => NodeList::List {
                     elems: Index::from_sorted(candidates.vids, candidates.exact),
                 }
-                .intersection(&NodeList::All),
+                .intersection(&NodeList::All, storage),
                 None => NodeList::All,
             },
         }
@@ -282,13 +285,13 @@ impl<G> NodePropertyFilterOp<G> {
                 Some(NodePropPredicate::In(values.as_ref()))
             }
             (FilterOperator::StartsWith, PropertyFilterValue::Single(Prop::Str(p))) => {
-                Some(NodePropPredicate::StartsWith(&**p))
+                Some(NodePropPredicate::StartsWith(p))
             }
             (FilterOperator::EndsWith, PropertyFilterValue::Single(Prop::Str(p))) => {
-                Some(NodePropPredicate::EndsWith(&**p))
+                Some(NodePropPredicate::EndsWith(p))
             }
             (FilterOperator::Contains, PropertyFilterValue::Single(Prop::Str(p))) => {
-                Some(NodePropPredicate::Contains(&**p))
+                Some(NodePropPredicate::Contains(p))
             }
             _ => None,
         }
@@ -339,7 +342,7 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
             let list = NodeList::List {
                 elems: Index::from_sorted(candidates.vids, candidates.exact),
             };
-            return list.intersection(&self.graph.node_list());
+            return list.intersection(&self.graph.node_list(), storage);
         }
         // No index could serve this filter, so it has not been applied to
         // anything: the inner list may be exact for the filters that built it,
@@ -396,6 +399,12 @@ pub struct OrOp<L, R> {
     pub(crate) right: R,
 }
 
+impl<L, R> OrOp<L, R> {
+    pub fn new(left: L, right: R) -> Self {
+        Self { left, right }
+    }
+}
+
 impl<L, R> NodeOp for OrOp<L, R>
 where
     L: NodeOp<Output = bool>,
@@ -411,7 +420,9 @@ where
         if matches!(self.const_value_in_domain(storage), Some(false)) {
             NodeList::empty()
         } else {
-            self.left.domain(storage).union(&self.right.domain(storage))
+            self.left
+                .domain(storage)
+                .union(&self.right.domain(storage), storage)
         }
     }
 
@@ -438,7 +449,7 @@ where
             && self
                 .right
                 .domain(storage)
-                .is_subset(&self.left.domain(storage))
+                .is_subset(&self.left.domain(storage), storage)
         {
             return Some(true);
         }
@@ -446,7 +457,7 @@ where
             && self
                 .left
                 .domain(storage)
-                .is_subset(&self.right.domain(storage))
+                .is_subset(&self.right.domain(storage), storage)
         {
             return Some(true);
         }
@@ -466,6 +477,12 @@ pub struct AndOp<L, R> {
     pub(crate) right: R,
 }
 
+impl<L, R> AndOp<L, R> {
+    pub fn new(left: L, right: R) -> Self {
+        Self { left, right }
+    }
+}
+
 impl<L, R> NodeOp for AndOp<L, R>
 where
     L: NodeOp<Output = bool>,
@@ -483,7 +500,7 @@ where
         } else {
             self.left
                 .domain(storage)
-                .intersection(&self.right.domain(storage))
+                .intersection(&self.right.domain(storage), storage)
         }
     }
 
@@ -549,34 +566,31 @@ impl NodeTypeFilterOp {
     }
 
     pub fn from_mask(mask: Arc<[bool]>, view: impl GraphView) -> Self {
-        Self {
-            mask,
-            index_backed: !view.core_graph().node_type_index().is_empty(),
-        }
+        // Nodes of the default type are not indexed, so a mask selecting it
+        // cannot be served from the index.
+        let selects_default = mask.get(DEFAULT_NODE_TYPE_ID).copied().unwrap_or(false);
+        let index_backed = !selects_default && !view.core_graph().node_type_index().is_empty();
+        Self { mask, index_backed }
     }
 }
 
 impl NodeOp for NodeTypeFilterOp {
     type Output = bool;
 
-    fn domain(&self, storage: &GraphStorage) -> NodeList {
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
         if !self.index_backed {
             // No index, switch to full scan.
             return NodeList::All;
         }
 
-        let type_ids: Vec<usize> = self
+        let types = self
             .mask
             .iter()
             .enumerate()
             .filter_map(|(type_id, keep)| keep.then_some(type_id))
             .collect();
 
-        let nodes = storage.node_type_index().nodes_of_type(&type_ids);
-
-        NodeList::List {
-            elems: nodes.into(),
-        }
+        NodeList::NodeTypeIdx { types }
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -591,158 +605,3 @@ impl NodeOp for NodeTypeFilterOp {
 }
 
 impl IntoDynNodeOp for NodeTypeFilterOp {}
-
-#[cfg(test)]
-mod test {
-    use super::{AndOp, OrOp};
-    use crate::{
-        db::api::{
-            state::ops::{Const, NodeFilterOp, NodeOp},
-            view::internal::NodeList,
-        },
-        prelude::Graph,
-    };
-    use raphtory_api::core::entities::VID;
-    use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-
-    #[test]
-    fn test_const() {
-        let c = Const(true);
-        assert!(!c.is_filtered());
-    }
-
-    /// A stub op with a configurable domain and `const_value` / `const_value_in_domain`, so the
-    /// combinators can be exercised over non-trivial domains without building a real filter.
-    #[derive(Clone)]
-    struct Stub {
-        cv: Option<bool>,
-        cvid: Option<bool>,
-        domain: NodeList,
-    }
-
-    impl NodeOp for Stub {
-        type Output = bool;
-
-        fn domain(&self, _storage: &GraphStorage) -> NodeList {
-            self.domain.clone()
-        }
-
-        fn apply(&self, _storage: &GraphStorage, _node: VID) -> bool {
-            true
-        }
-
-        fn const_value(&self) -> Option<bool> {
-            self.cv
-        }
-
-        fn const_value_in_domain(&self, _storage: &GraphStorage) -> Option<bool> {
-            self.cvid
-        }
-    }
-
-    fn list(vids: impl IntoIterator<Item = usize>) -> NodeList {
-        NodeList::List {
-            elems: vids.into_iter().map(VID).collect(),
-        }
-    }
-
-    /// Constant-true over a bounded domain but not globally — the profile of `name.is_in([...])`.
-    fn member(vids: impl IntoIterator<Item = usize>) -> Stub {
-        Stub {
-            cv: None,
-            cvid: Some(true),
-            domain: list(vids),
-        }
-    }
-
-    /// Domain-all and not constant over it — the profile of `node_type.is_in([...])`.
-    fn wide() -> Stub {
-        Stub {
-            cv: None,
-            cvid: None,
-            domain: NodeList::All,
-        }
-    }
-
-    /// Not constant, but with a bounded domain — the (currently hypothetical) shape the superset
-    /// case exists for.
-    fn bounded_wide(vids: impl IntoIterator<Item = usize>) -> Stub {
-        Stub {
-            cv: None,
-            cvid: None,
-            domain: list(vids),
-        }
-    }
-
-    #[test]
-    fn or_const_value_in_domain() {
-        let g = Graph::new();
-        let s = g.core_graph();
-
-        // Both branches constant-true over their domains: the union is covered.
-        let both = OrOp {
-            left: member([0, 1]),
-            right: member([2, 3]),
-        };
-        assert_eq!(both.const_value_in_domain(s), Some(true));
-
-        // A non-constant branch with domain `All` can match anywhere, so it is never covered.
-        let widened = OrOp {
-            left: wide(),
-            right: member([0, 1]),
-        };
-        assert_eq!(widened.const_value_in_domain(s), None);
-
-        let nested = OrOp {
-            left: wide(),
-            right: OrOp {
-                left: member([0, 1]),
-                right: member([2, 3]),
-            },
-        };
-        assert_eq!(nested.const_value_in_domain(s), None);
-
-        // A constant-true branch whose domain covers the other branch's is trusted even when that
-        // other branch is not constant (`true || false == true`)...
-        let covered = OrOp {
-            left: member([0, 1, 2]),
-            right: bounded_wide([0, 1]),
-        };
-        assert_eq!(covered.const_value_in_domain(s), Some(true));
-        // ...but not once the non-constant branch reaches past that domain.
-        let uncovered = OrOp {
-            left: member([0, 1, 2]),
-            right: bounded_wide([0, 3]),
-        };
-        assert_eq!(uncovered.const_value_in_domain(s), None);
-
-        // A globally-true branch has domain `All`, so it covers anything OR'd with it.
-        let global = Stub {
-            cv: Some(true),
-            cvid: Some(true),
-            domain: NodeList::All,
-        };
-        let global_or = OrOp {
-            left: global,
-            right: wide(),
-        };
-        assert_eq!(global_or.const_value(), Some(true));
-        assert_eq!(global_or.const_value_in_domain(s), Some(true));
-    }
-
-    #[test]
-    fn and_const_value_in_domain_is_the_conjunction() {
-        let g = Graph::new();
-        let s = g.core_graph();
-        let both = AndOp {
-            left: member([0, 1]),
-            right: member([0, 1]),
-        };
-        assert_eq!(both.const_value_in_domain(s), Some(true));
-        let mixed = AndOp {
-            left: member([0, 1]),
-            right: wide(),
-        };
-        assert_eq!(mixed.const_value_in_domain(s), None);
-    }
-}

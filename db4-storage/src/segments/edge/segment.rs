@@ -394,18 +394,6 @@ impl ArcLockedSegmentView {
             .flat_map(|layer| layer.filled_positions())
             .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
     }
-
-    fn edge_par_iter_layer<'a>(
-        &'a self,
-        layer_id: LayerId,
-    ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + 'a {
-        self.inner
-            .layers
-            .get(layer_id.0)
-            .into_par_iter()
-            .flat_map(|layer| layer.filled_positions_par())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
-    }
 }
 
 impl LockedESegment for ArcLockedSegmentView {
@@ -443,15 +431,20 @@ impl LockedESegment for ArcLockedSegmentView {
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + 'a {
-        match layer_ids {
-            LayerIds::None => Iter4::I(rayon::iter::empty()),
-            LayerIds::All => Iter4::J(self.edge_par_iter_layer(STATIC_GRAPH_LAYER_ID)),
-            LayerIds::One(layer_id) => Iter4::K(self.edge_par_iter_layer(*layer_id)),
-            LayerIds::Multiple(multiple) => Iter4::L(
-                self.edge_par_iter_layer(STATIC_GRAPH_LAYER_ID)
-                    .filter(|pos| pos.has_layers(multiple)),
-            ),
-        }
+        // One concrete pipeline for every `LayerIds` variant (rather than an `Iter4` of
+        // per-variant pipelines) so downstream rayon consumers are only compiled once.
+        let (layer_id, multiple) = match layer_ids {
+            LayerIds::None => (None, None),
+            LayerIds::All => (Some(STATIC_GRAPH_LAYER_ID), None),
+            LayerIds::One(layer_id) => (Some(*layer_id), None),
+            LayerIds::Multiple(multiple) => (Some(STATIC_GRAPH_LAYER_ID), Some(multiple)),
+        };
+        layer_id
+            .and_then(|layer_id| self.inner.layers.get(layer_id.0))
+            .into_par_iter()
+            .flat_map(|layer| layer.filled_positions_par())
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
+            .filter(move |pos| multiple.is_none_or(|multiple| pos.has_layers(multiple)))
     }
 
     fn num_edges(&self) -> u32 {
@@ -713,6 +706,37 @@ mod test {
 
         // Verify time length increased
         assert_eq!(segment.t_len(0), 3);
+
+        let est_size_before = segment.est_size();
+        // Replay an update that already exists, same (timestamp, event_id): the row is
+        // appended to the column store, so the physical count grows, but the TCell
+        // deduplicates it, so the distinct count must not.
+        segment.insert_edge_internal(
+            EventTime::new(3, 2),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            LayerId(0),
+            vec![(0, Prop::from("test3 again"))],
+        );
+        assert_eq!(segment.t_len(0), 3);
+
+        // make sure the estimated size increases
+        assert!(segment.est_size() > est_size_before);
+
+        let est_size_before = segment.est_size();
+        // a genuinely new event id at the same timestamp is a distinct update
+        segment.insert_edge_internal(
+            EventTime::new(3, 9),
+            LocalPOS(2),
+            VID(5),
+            VID(6),
+            LayerId(0),
+            vec![(0, Prop::from("test3 later"))],
+        );
+        assert_eq!(segment.t_len(0), 4);
+        // make sure the estimated size increases
+        assert!(segment.est_size() > est_size_before);
     }
 
     #[test]

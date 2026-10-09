@@ -1215,11 +1215,38 @@ Number of iterations to run. Defaults to 20.
 </td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">seed</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Seed for the tie-break draw. If unset, seeded from the OS.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" align="right" valign="top">threads</td>
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
 Number of threads to use. Defaults to all available.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">relTol</td>
+<td valign="top"><a href="#float">Float</a></td>
+<td>
+
+Relative-improvement threshold used to track convergence. Defaults to 3e-4.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">patience</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Stop after this many iterations without progress. Defaults to 10.
 
 </td>
 </tr>
@@ -15648,7 +15675,7 @@ Properties.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.u64">u64</strong></td>
-<td valign="top"><a href="#int">Int</a></td>
+<td valign="top"><a href="#uint64">UInt64</a></td>
 <td>
 
 64 bit unsigned integer.
@@ -16229,6 +16256,13 @@ Internally wraps `InputTime` so write paths (`addNode`, `addEdge`,
 `addProperties`, etc.) can preserve auto-increment of `event_id` when only
 a timestamp is given. Pass the object form `{timestamp, eventId}` to lock
 the event_id explicitly.
+
+### UInt64
+
+64 bit unsigned integer, accepting the full `0..=18446744073709551615` range.
+
+Accepts a JSON number, or a decimal string for clients that can't represent
+large integers exactly (e.g. JavaScript beyond 2^53).
 
 ### Upload
 

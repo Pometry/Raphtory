@@ -36,11 +36,18 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
+use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G, F = Const<bool>> {
     nodes: Nodes<'graph, G, GH, F>,
     pub(crate) op: Op,
+}
+
+impl<'graph, Op, G, GH, F> LazyNodeState<'graph, Op, G, GH, F> {
+    pub fn new(op: Op, nodes: Nodes<'graph, G, GH, F>) -> Self {
+        Self { nodes, op }
+    }
 }
 
 impl<
@@ -212,10 +219,6 @@ impl<
         F: NodeFilterOp + Clone + 'graph,
     > LazyNodeState<'graph, O, G, GH, F>
 {
-    pub(crate) fn new(op: O, nodes: Nodes<'graph, G, GH, F>) -> Self {
-        Self { nodes, op }
-    }
-
     pub fn collect<C: FromParallelIterator<O::Output>>(&self) -> C {
         self.par_iter_values().collect()
     }
@@ -692,6 +695,13 @@ impl<
                     .core_graph()
                     .node_state_index()
                     .global_index(index)?,
+                NodeList::NodeTypeIdx { types } => self
+                    .graph()
+                    .core_graph()
+                    .node_type_index()
+                    .entry(&types)
+                    .iter()
+                    .nth(index)?,
                 NodeList::List { elems } => elems.value(index)?,
             };
             let cg = self.graph().core_graph();
@@ -725,52 +735,5 @@ impl<
         Self::Graph: 'graph,
     {
         NodeState::new(graph, values.into(), Index::new(keys))
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{
-        db::api::{
-            state::{
-                lazy_node_state::LazyNodeState,
-                ops::{node::Degree, NodeOp},
-            },
-            view::IntoDynamic,
-        },
-        prelude::*,
-    };
-    use raphtory_api::core::{entities::VID, Direction};
-    use raphtory_storage::core_ops::CoreGraphOps;
-    use std::sync::Arc;
-
-    struct TestWrapper<Op: NodeOp>(Op);
-    #[test]
-    fn test_compile() {
-        let g = Graph::new();
-        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        let nodes = g.nodes();
-
-        assert_eq!(nodes.degree().collect_vec(), [1, 1]);
-        assert_eq!(nodes.after(1).degree().collect_vec(), [0, 0]);
-
-        let g_dyn = g.clone().into_dynamic();
-
-        let deg = Degree {
-            view: g_dyn,
-            dir: Direction::BOTH,
-        };
-        let arc_deg: Arc<dyn NodeOp<Output = usize>> = Arc::new(deg);
-
-        let node_state_dyn = LazyNodeState {
-            nodes: g.nodes(),
-            op: arc_deg.clone(),
-        };
-
-        let dyn_deg: Vec<_> = node_state_dyn.iter_values().collect();
-        assert_eq!(dyn_deg, [1, 1]);
-        assert_eq!(arc_deg.apply(g.core_graph(), VID(0)), 1);
-
-        let _test_struct = TestWrapper(arc_deg);
     }
 }

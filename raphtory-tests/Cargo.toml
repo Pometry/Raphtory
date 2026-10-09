@@ -34,6 +34,17 @@ arrow.workspace = true
 parquet.workspace = true
 tracing.workspace = true
 zip.workspace = true
+# used by the unit tests moved out of the raphtory crate (tests/lib_tests)
+csv.workspace = true
+tokio.workspace = true
+dotenvy.workspace = true
+streaming-stats.workspace = true
+indoc.workspace = true
+rand_distr.workspace = true
+regex.workspace = true
+bzip2.workspace = true
+flate2.workspace = true
+once_cell.workspace = true
 
 [features]
 # search = ["raphtory/search"]

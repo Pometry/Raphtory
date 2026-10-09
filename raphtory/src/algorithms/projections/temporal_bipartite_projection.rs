@@ -1,16 +1,15 @@
-use itertools::Itertools;
-use num_integer::average_floor;
-use raphtory_api::core::storage::timeindex::AsTime;
-
-extern crate num_integer;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
     },
+    errors::GraphError,
     prelude::*,
 };
+use itertools::Itertools;
+use num_integer::average_floor;
+use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(Clone)]
 struct Visitor {
@@ -22,29 +21,38 @@ struct Visitor {
 /// will make a connection between nodes n1 and n2 (of type A) at time (t1 + t2)/2 if they respectively have an edge at time t1, t2 with the same node of type B in G, and |t2-t1| < delta.
 ///
 /// # Arguments
-/// - `graph`: A directed raphtory graph
+/// - `graph`: A directed raphtory graph.
 /// - `delta`: Time period
 /// - `pivot_type`: node type to pivot over. If a bipartite graph has types A and B, and B is the pivot type, the new graph will consist of type A nodes.
 ///
 /// # Returns
 /// Projected (unipartite) temporal graph.
+
 pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,
-    pivot_type: String,
-) -> Graph {
+    pivot_type: &str,
+) -> Result<Graph, GraphError> {
     let new_graph = Graph::new();
     let nodes = graph.nodes();
-    let nodes = nodes
-        .iter()
-        .filter(|v| v.node_type().unwrap() == pivot_type);
-    for v in nodes {
-        populate_edges(graph, &new_graph, v, delta)
+    let pivot_type_id = graph
+        .node_meta()
+        .get_node_type_id(pivot_type)
+        .ok_or_else(|| GraphError::NodeTypeMissingError(pivot_type.to_string()))?;
+    for v in nodes.iter() {
+        if v.node_type_id() == pivot_type_id {
+            populate_edges(graph, &new_graph, v, delta)?;
+        }
     }
-    new_graph
+    Ok(new_graph)
 }
 
-fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph, v: V, delta: i64) {
+fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(
+    g: &G,
+    new_graph: &Graph,
+    v: V,
+    delta: i64,
+) -> Result<(), GraphError> {
     if let Some(vertex) = g.node(v) {
         // get vector of vertices which need connecting up
         let mut visitors = vertex
@@ -67,121 +75,10 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
             }
             for node in &to_process {
                 let new_time = average_floor(nb.time, node.time);
-                new_graph
-                    .add_edge(new_time, node.name.clone(), nb.name.clone(), NO_PROPS, None)
-                    .unwrap();
+                new_graph.add_edge(new_time, node.name.clone(), nb.name.clone(), NO_PROPS, None)?;
             }
             to_process.push(nb.clone());
         }
     }
-}
-
-#[cfg(test)]
-mod bipartite_graph_tests {
-    use super::temporal_bipartite_projection;
-    use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::*},
-            graph::graph::Graph,
-        },
-        prelude::NO_PROPS,
-    };
-    use raphtory_api::core::storage::timeindex::AsTime;
-
-    #[test]
-    fn small_delta_test() {
-        let g = Graph::new();
-        let vs = vec![
-            (1, "A", "1"),
-            (3, "A", "2"),
-            (3, "B", "2"),
-            (4, "C", "3"),
-            (6, "B", "3"),
-            (8, "A", "3"),
-            (10, "C", "4"),
-            (11, "B", "4"),
-        ];
-        for (t, src, dst) in &vs {
-            g.add_node(*t, *src, NO_PROPS, Some("Left"), None).unwrap();
-            g.add_node(*t, *dst, NO_PROPS, Some("Right"), None).unwrap();
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-        let new_graph = temporal_bipartite_projection(&g, 1, "Right".to_string());
-        assert!(new_graph.has_edge("A", "B"));
-        assert_eq!(
-            new_graph
-                .edge("A", "B")
-                .unwrap()
-                .latest_time()
-                .map(|t| t.t()),
-            Some(3)
-        );
-        assert!(new_graph.has_edge("C", "B"));
-        assert_eq!(
-            new_graph
-                .edge("C", "B")
-                .unwrap()
-                .latest_time()
-                .map(|t| t.t()),
-            Some(10)
-        );
-        assert!(!new_graph.has_edge("A", "C"));
-    }
-
-    #[test]
-    fn larger_delta_test() {
-        let g = Graph::new();
-        let vs = vec![
-            (1, "A", "1"),
-            (3, "A", "2"),
-            (3, "B", "2"),
-            (4, "C", "3"),
-            (6, "B", "3"),
-            (8, "A", "3"),
-            (10, "C", "4"),
-            (11, "B", "4"),
-        ];
-        for (t, src, dst) in &vs {
-            g.add_node(*t, *src, NO_PROPS, Some("Left"), None).unwrap();
-            g.add_node(*t, *dst, NO_PROPS, Some("Right"), None).unwrap();
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-        let new_graph = temporal_bipartite_projection(&g, 3, "Right".to_string());
-
-        assert!(new_graph.has_edge("A", "B"));
-        assert_eq!(
-            new_graph
-                .edge("A", "B")
-                .unwrap()
-                .earliest_time()
-                .map(|t| t.t()),
-            Some(3)
-        );
-        assert_eq!(
-            new_graph
-                .edge("B", "A")
-                .unwrap()
-                .latest_time()
-                .map(|t| t.t()),
-            Some(7)
-        );
-        assert!(new_graph.has_edge("C", "B"));
-        assert_eq!(
-            new_graph
-                .edge("C", "B")
-                .unwrap()
-                .earliest_time()
-                .map(|t| t.t()),
-            Some(5)
-        );
-        assert_eq!(
-            new_graph
-                .edge("C", "B")
-                .unwrap()
-                .latest_time()
-                .map(|t| t.t()),
-            Some(10)
-        );
-        assert!(!new_graph.has_edge("A", "C"));
-    }
+    Ok(())
 }

@@ -7,7 +7,9 @@ use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{InvalidPropertyTypeErr, PropError, PropType, PropTypeParseError},
+        properties::prop::{
+            InvalidPropertyTypeErr, PropError, PropType, PropTypeError, PropTypeParseError,
+        },
         GidType, GID, VID,
     },
     storage::{graph_folder::GraphFolderError, timeindex::TimeError},
@@ -34,10 +36,7 @@ use pyo3::PyErr;
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
-#[cfg(feature = "vectors")]
-use crate::vectors::embeddings::EmbeddingError;
-
-#[cfg(any(feature = "vectors", feature = "io"))]
+#[cfg(feature = "io")]
 use tempfile::PersistError;
 
 #[derive(thiserror::Error, Debug)]
@@ -82,17 +81,23 @@ pub enum LoadError {
     InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(DataType),
+    #[error(
+        "Only integer columns (uint64, uint32, int64, int32) are supported for event_id, got {0:?}"
+    )]
+    InvalidSecondaryIndexType(DataType),
+    #[error("event_id values must be non-negative, got {0}")]
+    NegativeSecondaryIndex(i64),
     #[error("Error during parsing of time string: {source}")]
     ParseTime {
         #[from]
         source: ParseTimeError,
     },
-    #[error("Missing value for src id")]
-    MissingSrcError,
-    #[error("Missing value for dst id")]
-    MissingDstError,
-    #[error("Missing value for node id")]
-    MissingNodeError,
+    #[error("Invalid src id column: {0}")]
+    InvalidSrcError(InvalidGIDError),
+    #[error("Invalid dst id column: {0}")]
+    InvalidDstError(InvalidGIDError),
+    #[error("Invalid node id column: {0}")]
+    InvalidNodeError(InvalidGIDError),
     #[error("Missing value for timestamp")]
     MissingTimeError,
     #[error("Missing value for secondary index")]
@@ -111,6 +116,14 @@ pub enum LoadError {
     Arrow(#[from] ArrowError),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidGIDError {
+    #[error("value missing")]
+    Missing,
+    #[error("negative value")]
+    Negative,
+}
+
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
     err.into()
 }
@@ -126,7 +139,7 @@ pub enum GraphError {
     #[error(transparent)]
     ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
-    #[cfg(any(feature = "io", feature = "vectors"))]
+    #[cfg(feature = "io")]
     #[error(transparent)]
     PersistError(#[from] PersistError),
 
@@ -135,6 +148,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     PropError(#[from] PropError),
+
+    #[error(transparent)]
+    PropTypeError(#[from] PropTypeError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
@@ -162,9 +178,6 @@ pub enum GraphError {
 
     #[error("Storage feature not enabled")]
     DiskGraphNotEnabled,
-
-    #[error("The stored template or embedding model differs from the one requested, so only entities missing from the index cannot be added; re-vectorise instead")]
-    VectorTemplateChanged,
 
     #[error("Valid view is not supported for event graph")]
     EventGraphNoValidView,
@@ -202,8 +215,8 @@ pub enum GraphError {
     #[error("Node {0} does not exist")]
     NodeMissingError(GID),
 
-    #[error("Node Type Error {0}")]
-    NodeTypeError(String),
+    #[error("Node type '{0}' does not exist")]
+    NodeTypeMissingError(String),
 
     #[error("No Edge between {src} and {dst}")]
     EdgeMissingError { src: GID, dst: GID },
@@ -249,22 +262,6 @@ pub enum GraphError {
     #[error("Invalid epidemic seeds: {0}")]
     SeedError(#[from] SeedError),
 
-    #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
-    HeedError(#[from] heed::Error),
-
-    #[cfg(feature = "vectors")]
-    #[error("Heed error: {0}")]
-    LanceDbError(#[from] lancedb::Error),
-
-    #[cfg(feature = "vectors")]
-    #[error("The path {0} does not contain a vector DB")]
-    VectorDbDoesntExist(String),
-
-    #[cfg(feature = "vectors")]
-    #[error("The schema of the vector DB is invalid")]
-    InvalidVectorDbSchema,
-
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
@@ -282,17 +279,6 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "vectors")]
-    #[error("Embedding operation failed")]
-    EmbeddingError {
-        #[from]
-        source: EmbeddingError,
-    },
-
-    #[cfg(feature = "vectors")]
-    #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
-    UnresolvedModel,
 
     #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names")]
     LayerNameAPIError,
@@ -484,23 +470,6 @@ impl From<StripPrefixError> for GraphError {
     fn from(source: StripPrefixError) -> Self {
         let location = Location::caller();
         GraphError::StripPrefixError { source, location }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::errors::GraphError;
-    use std::io;
-
-    #[test]
-    fn test_location_capture() {
-        fn inner() -> Result<(), GraphError> {
-            Err(io::Error::other(GraphError::IllegalSet("hi".to_string())))?;
-            Ok(())
-        }
-
-        let res = inner().err().unwrap();
-        println!("{}", res);
     }
 }
 
