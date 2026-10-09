@@ -55,15 +55,6 @@ use raphtory_api::python::{
     PyProp,
 };
 
-#[cfg(feature = "vectors")]
-use crate::python::{
-    packages::vectors::{
-        embedding_server, PyEmbeddingServer, PyOpenAIEmbeddings, PyRunningEmbeddingServer,
-        PyVectorCache, PyVectorSelection, PyVectorisedGraph,
-    },
-    types::wrappers::document::{PyDocument, PyEmbedding},
-};
-
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
     add_classes!(
@@ -257,24 +248,6 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         ba_preferential_attachment,
     );
     Ok(graph_gen_module)
-}
-
-#[cfg(feature = "vectors")]
-pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
-    let vectors_module = PyModule::new(py, "vectors")?;
-    add_classes!(
-        &vectors_module,
-        PyVectorisedGraph,
-        PyDocument,
-        PyEmbedding,
-        PyVectorSelection,
-        PyOpenAIEmbeddings,
-        PyVectorCache,
-        PyEmbeddingServer,
-        PyRunningEmbeddingServer,
-    );
-    add_functions!(&vectors_module, embedding_server);
-    Ok(vectors_module)
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;

@@ -16,3 +16,10 @@ runs:
       with:
         toolchain: ${{ steps.rust-version.outputs.version }}
         components: cargo,clippy,rust-docs,rust-src,rust-std,rustc,rustfmt
+    - name: Pin rust version
+      shell: bash
+      run: |
+        version="${{ steps.rust-version.outputs.version }}"
+        echo "RUSTUP_TOOLCHAIN=$version" >> "$GITHUB_ENV"
+        echo "RUST_VERSION=$version" >> "$GITHUB_ENV"
+        RUSTUP_TOOLCHAIN="$version" rustc --version
