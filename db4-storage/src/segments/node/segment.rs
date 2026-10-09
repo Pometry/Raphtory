@@ -116,23 +116,6 @@ impl MemNodeSegment {
         self.est_size += increment;
     }
 
-    pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<AdjEntry>> {
-        self.layers
-            .iter_mut()
-            .map(|head_guard| {
-                let mut old_head = SegmentContainer::new(
-                    head_guard.segment_id(),
-                    head_guard.max_page_len(),
-                    head_guard.meta().clone(),
-                );
-
-                std::mem::swap(&mut *head_guard, &mut old_head);
-
-                old_head
-            })
-            .collect::<Vec<_>>()
-    }
-
     pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<AdjEntry> {
         let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
@@ -564,9 +547,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         pos: LocalPOS,
         dst: impl Into<VID>,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemNodeSegment>,
+        head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        head_lock.get_out_edge(pos, dst.into(), layer_id)
+        head.get_out_edge(pos, dst.into(), layer_id)
     }
 
     fn get_inb_edge(
@@ -574,9 +557,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         pos: LocalPOS,
         src: impl Into<VID>,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemNodeSegment>,
+        head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        head_lock.get_inb_edge(pos, src.into(), layer_id)
+        head.get_inb_edge(pos, src.into(), layer_id)
     }
 
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {

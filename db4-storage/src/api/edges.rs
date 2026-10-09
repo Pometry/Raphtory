@@ -90,7 +90,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
 
     fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool;
@@ -99,7 +99,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;

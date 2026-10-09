@@ -44,7 +44,7 @@ where
 
     fn notify_write(
         &self,
-        head_lock: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
+        head: &mut RwLockWriteGuard<'_, MemGraphPropSegment>,
     ) -> Result<(), StorageError>;
 
     fn flush(&self) -> Result<(), StorageError> {

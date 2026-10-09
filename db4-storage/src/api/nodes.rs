@@ -237,7 +237,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         pos: LocalPOS,
         dst: impl Into<VID>,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemNodeSegment>,
+        head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
     fn get_inb_edge(
@@ -245,7 +245,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         pos: LocalPOS,
         src: impl Into<VID>,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemNodeSegment>,
+        head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
     fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;

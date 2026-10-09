@@ -102,24 +102,6 @@ impl MemEdgeSegment {
         self.layers[0].meta()
     }
 
-    pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<EdgeEntry>> {
-        let layers = self
-            .as_mut()
-            .iter_mut()
-            .map(|head_guard| {
-                let mut old_head = SegmentContainer::new(
-                    head_guard.segment_id(),
-                    head_guard.max_page_len(),
-                    head_guard.meta().clone(),
-                );
-                std::mem::swap(&mut *head_guard, &mut old_head);
-                old_head
-            })
-            .collect::<Vec<_>>();
-        self.est_size = 0; // Reset estimated size after swapping out layers
-        layers
-    }
-
     pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<EdgeEntry> {
         let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
@@ -562,9 +544,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
-        head_lock.has_edge(edge_pos, layer_id)
+        head.has_edge(edge_pos, layer_id)
     }
 
     fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: LayerId) -> bool {
@@ -575,9 +557,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        head_lock: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)> {
-        head_lock.get_edge(edge_pos, layer_id)
+        head.get_edge(edge_pos, layer_id)
     }
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a> {
@@ -585,12 +567,12 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>> {
-        let head_lock = self.head();
-        let layer = head_lock.as_ref().get(layer_id.0)?;
+        let head = self.head();
+        let layer = head.as_ref().get(layer_id.0)?;
 
         layer
             .has_item(edge_pos)
-            .then(|| MemEdgeEntry::new(edge_pos, head_lock, None))
+            .then(|| MemEdgeEntry::new(edge_pos, head, None))
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {

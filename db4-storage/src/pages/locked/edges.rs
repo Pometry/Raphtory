@@ -134,11 +134,9 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         let (segment_id, pos) = resolve_pos(elid.eid(), max_page_len);
 
         self.segments.get(segment_id).is_some_and(|locked_segment| {
-            let head_lock = locked_segment.head.deref();
+            let head = locked_segment.head.deref();
 
-            locked_segment
-                .segment
-                .has_edge(pos, elid.layer(), head_lock)
+            locked_segment.segment.has_edge(pos, elid.layer(), head)
         })
     }
 
