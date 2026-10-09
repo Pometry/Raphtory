@@ -171,12 +171,12 @@ def test_filter_nodes_for_property_starts_with():
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = (filter.Node.property("p10").temporal().starts_with("Pap")).any()
+        filter_expr = filter.Node.property("p10").temporal().starts_with("Pap").any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = (filter.Node.property("p10").temporal().starts_with("Cap")).any()
+        filter_expr = filter.Node.property("p10").temporal().starts_with("Cap").any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -198,7 +198,7 @@ def test_filter_nodes_for_property_starts_with():
         expected_ids = ["2"]
         assert result_ids == expected_ids
 
-        filter_expr = (filter.Node.property("p20").temporal().starts_with("Gold")).all()
+        filter_expr = filter.Node.property("p20").temporal().starts_with("Gold").all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "3", "4"]
         assert result_ids == expected_ids
@@ -219,7 +219,7 @@ def test_filter_nodes_for_property_ends_with():
         expected_ids = []
         assert result_ids == expected_ids
 
-        filter_expr = (filter.Node.property("p10").temporal().ends_with("lane")).any()
+        filter_expr = filter.Node.property("p10").temporal().ends_with("lane").any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
@@ -234,7 +234,7 @@ def test_filter_nodes_for_property_ends_with():
         expected_ids = ["3", "4"]
         assert result_ids == expected_ids
 
-        filter_expr = (filter.Node.property("p20").temporal().ends_with("ship")).all()
+        filter_expr = filter.Node.property("p20").temporal().ends_with("ship").all()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2"]
         assert result_ids == expected_ids
@@ -257,7 +257,7 @@ def test_filter_nodes_for_property_contains():
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = (filter.Node.property("p10").temporal().contains("Paper")).any()
+        filter_expr = filter.Node.property("p10").temporal().contains("Paper").any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
@@ -712,7 +712,7 @@ def test_filter_nodes_for_metadata_all():
 @with_variants(create_test_graph)
 def test_filter_nodes_for_property_any():
     def check(graph):
-        filter_expr = (filter.Node.property("prop8").is_in([3])).any()
+        filter_expr = filter.Node.property("prop8").is_in([3]).any()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a", "d"]
         assert result_ids == expected_ids
@@ -833,7 +833,7 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
         # Presence is a whole-value question; a qualifier has nothing to
         # collapse on a single yes/no.
-        filter_expr = (filter.Node.property("prop8").is_some()).any()
+        filter_expr = filter.Node.property("prop8").is_some().any()
         with pytest.raises(Exception, match=QUALIFIER_ON_ONE_ANSWER):
             graph.filter(filter_expr).nodes.id
         filter_expr = filter.Node.property("prop8").is_some()
@@ -1074,7 +1074,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
 @with_variants(init_graph)
 def test_prop_not_found_error():
     def check(graph):
-        filter_expr = (filter.Node.property("p").is_some()).any()
+        filter_expr = filter.Node.property("p").is_some().any()
         with pytest.raises(
             Exception,
             match=r"Property p does not exist",
