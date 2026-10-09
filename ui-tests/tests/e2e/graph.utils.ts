@@ -282,6 +282,11 @@ export async function selectLayout(page: Page, layoutName: string, layoutTimeout
     await waitForLayoutToFinish(page, undefined, layoutTimeout);
 }
 
+export async function clearSelection(page: Page) {
+    await page.getByRole('button', { name: 'Selection' }).click();
+    await page.getByRole('menuitem', { name: 'Clear current selection', exact: true }).click();
+}
+
 export async function changeTab(page: Page, tabName: string) {
     await page.getByRole('tab', { name: tabName, exact: true }).click();
     // This is to wait for the animation for changing tabs to finish
