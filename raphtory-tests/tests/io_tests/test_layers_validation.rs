@@ -12,3 +12,10 @@ fn test_validation_on_addition_ops() {
     }
     assert!(g.is_empty());
 }
+
+#[test]
+fn test_valid_layers() {
+    let g = Graph::new();
+    g.add_node(0, 0, NO_PROPS, None, Some("IS_PART_OF"))
+        .unwrap();
+}

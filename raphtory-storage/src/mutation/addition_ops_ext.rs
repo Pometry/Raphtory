@@ -53,10 +53,12 @@ fn is_valid_layer_name(name: Option<&str>) -> Result<(), MutationError> {
         }
         let path = Path::new(name);
         let mut components = path.components();
-        if let Some(first) = path.components().next() {
+        if let Some(first) = components.next() {
             match first {
                 Component::Normal(_) => {}
-                _ => return Err(MutationError::InvalidLayerName(name.to_string())),
+                _ => {
+                    return Err(MutationError::InvalidLayerName(name.to_string()));
+                }
             }
         }
         if components.next().is_some() {
