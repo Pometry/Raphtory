@@ -1,5 +1,5 @@
 name: Run Python test
-permissions: { }
+permissions: {}
 on:
   workflow_call:
     inputs:
@@ -22,14 +22,17 @@ jobs:
         run: |
           echo "python-versions=[\"3.11\",\"3.14.0\"]" >> $GITHUB_OUTPUT
   python-test:
+    env:
+      RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 3
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
     needs: select-strategy
     strategy:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        os: [ macos-latest, ubuntu-latest, windows-latest ]
-    runs-on: '${{ matrix.os }}'
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: "${{ matrix.os }}"
     steps:
       - uses: actions/checkout@v7
         name: Checkout
@@ -47,23 +50,37 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-          cache-all-crates: true
+          # Jobs building the same profile/features/RUSTFLAGS share one cache per OS
+          shared-key: python-build-fast
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-          cache: 'pip'
+          cache: "pip"
       - name: Install Python dependencies
         run: |
           echo "Installing test dependencies..."
           python -m pip install pytest tox
-          python -m pip install -e examples/netflow
           python -m pip install black
           echo "Installing linting dependencies from cache..."
           python -m pip install maturin mypy networkx pyvis pandas-stubs
+      # Build the wheel ourselves (same flags as tox's .pkg env) so the exact wheel under test can be shared with format.yml
+      - name: Build raphtory wheel
+        shell: bash
+        working-directory: python
+        run: |
+          maturin build --features test --profile build-fast --interpreter python --out dist
       - name: Run Python tests
+        shell: bash
+        working-directory: python
         run: |
-          cd python && tox run
-      - name: Run Python extension tests
-        run: |
-          cd examples/netflow/test && pytest .
+          tox run --installpkg "$(ls dist/*.whl)"
+      # Used by format.yml for stub and schema generation; the `test` feature only adds panic-on-drop, not API
+      - name: Upload wheel
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.14.0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-linux-py3.14
+          path: python/dist/*.whl
+          if-no-files-found: error
+          retention-days: 1

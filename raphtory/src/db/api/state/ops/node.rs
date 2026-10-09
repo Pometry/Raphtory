@@ -154,6 +154,12 @@ pub struct Degree<G> {
     pub(crate) view: G,
 }
 
+impl<G> Degree<G> {
+    pub fn new(view: G, dir: Direction) -> Self {
+        Self { dir, view }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DegreeStruct {
     degree: usize,

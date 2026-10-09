@@ -37,6 +37,52 @@ use std::{
     sync::Arc,
 };
 
+// `Int` can't be used for `u64`: async-graphql validates every `Int` input with
+// the first integer type registered (`i32`, which only checks `is_i64`), so
+// values above `i64::MAX` are rejected before `u64` parsing runs.
+
+/// 64 bit unsigned integer, accepting the full `0..=18446744073709551615` range.
+///
+/// Accepts a JSON number, or a decimal string for clients that can't represent
+/// large integers exactly (e.g. JavaScript beyond 2^53).
+#[derive(Scalar, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[graphql(name = "UInt64")]
+#[serde(transparent)]
+pub struct GqlU64(pub u64);
+
+impl ScalarValue for GqlU64 {
+    fn from_value(value: GqlValue) -> Result<Self, Error> {
+        match value {
+            GqlValue::Number(n) => n.as_u64().map(GqlU64).ok_or_else(|| {
+                Error::new("UInt64 must be an integer in 0..=18446744073709551615.")
+            }),
+            GqlValue::String(s) => s
+                .parse()
+                .map(GqlU64)
+                .map_err(|_| Error::new("UInt64 must be an integer in 0..=18446744073709551615.")),
+            _ => Err(Error::new(
+                "Expected UInt64 as a non-negative Int or a decimal String.",
+            )),
+        }
+    }
+
+    fn to_value(&self) -> GqlValue {
+        GqlValue::Number(Number::from(self.0))
+    }
+}
+
+impl Display for GqlU64 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl From<u64> for GqlU64 {
+    fn from(value: u64) -> Self {
+        GqlU64(value)
+    }
+}
+
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ObjectEntry {
@@ -109,7 +155,7 @@ pub enum Value {
     /// 32 bit unsigned integer.
     U32(u32),
     /// 64 bit unsigned integer.
-    U64(u64),
+    U64(GqlU64),
     /// 32 bit signed integer.
     I32(i32),
     /// 64 bit signed integer.
@@ -235,7 +281,7 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
         Value::U8(n) => Ok(Prop::U8(n)),
         Value::U16(n) => Ok(Prop::U16(n)),
         Value::U32(n) => Ok(Prop::U32(n)),
-        Value::U64(n) => Ok(Prop::U64(n)),
+        Value::U64(n) => Ok(Prop::U64(n.0)),
         Value::I32(n) => Ok(Prop::I32(n)),
         Value::I64(n) => Ok(Prop::I64(n)),
         Value::F32(n) => Ok(Prop::F32(n)),
@@ -294,7 +340,7 @@ fn prop_to_value(p: &Prop) -> Value {
         Prop::U8(v) => Value::U8(*v),
         Prop::U16(v) => Value::U16(*v),
         Prop::U32(v) => Value::U32(*v),
-        Prop::U64(v) => Value::U64(*v),
+        Prop::U64(v) => Value::U64(GqlU64(*v)),
         Prop::I32(v) => Value::I32(*v),
         Prop::I64(v) => Value::I64(*v),
         Prop::F32(v) if !v.is_finite() => Value::F32Special(SpecialFloat::of(*v as f64)),

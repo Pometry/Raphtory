@@ -4605,9 +4605,8 @@ mod test_node_property_filter_agg {
     use raphtory::{
         db::{
             api::view::StaticGraphViewOps,
-            graph::views::filter::{
-                model::{node_filter::NodeFilter, PropertyExprFactory},
-                CreateFilter,
+            graph::views::filter::model::{
+                expr::FilterExpr, node_filter::NodeFilter, PropertyExprFactory,
             },
         },
         prelude::{
@@ -4938,21 +4937,23 @@ mod test_node_property_filter_agg {
         graph
     }
 
-    fn apply_assertion(filter: impl CreateFilter + Clone, expected: &[&str]) {
+    #[track_caller]
+    fn apply_assertion(filter: impl Into<FilterExpr>, expected: &[&str]) {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected,
             All,
         );
     }
 
-    fn apply_assertion_err(filter: impl CreateFilter + Clone, expected: &str) {
+    #[track_caller]
+    fn apply_assertion_err(filter: impl Into<FilterExpr>, expected: &str) {
         assert_filter_nodes_err(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected,
             All,
         );

@@ -2,15 +2,19 @@ use raphtory::{
     db::{
         api::view::{
             filter_ops::{Filter, Select},
+            internal::DynGraphArc,
             StaticGraphViewOps,
         },
-        graph::views::{filter::CreateFilter, window_graph::WindowedGraph},
+        graph::views::{
+            filter::{model::expr::FilterExpr, CreateFilter},
+            window_graph::WindowedGraph,
+        },
     },
     errors::GraphError,
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps, TimeOps},
 };
 use raphtory_api::core::Direction;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 pub enum TestGraphVariants {
     Graph,
@@ -56,14 +60,21 @@ impl GraphTransformer for WindowGraphTransformer {
     }
 }
 
-pub trait ApplyFilter {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
+// The helpers below are called from hundreds of tests, each with its own graph and
+// filter types. Erasing both (graph -> `DynGraphArc`, filter -> `FilterExpr`) means the
+// filtered-graph view stack is compiled once here, not once per call site.
+fn erase_graph<G: StaticGraphViewOps>(graph: G) -> DynGraphArc<'static> {
+    Arc::new(graph)
 }
 
-pub struct FilterNodes<F: CreateFilter + Clone>(F);
+pub trait ApplyFilter {
+    fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String>;
+}
 
-impl<F: CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+pub struct FilterNodes(FilterExpr);
+
+impl ApplyFilter for FilterNodes {
+    fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
         let mut results = graph
             .filter(self.0.clone())
             .unwrap()
@@ -76,10 +87,10 @@ impl<F: CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     }
 }
 
-pub struct SelectNodes<F: CreateFilter + Clone>(F);
+pub struct SelectNodes(FilterExpr);
 
-impl<F: CreateFilter + Clone> ApplyFilter for SelectNodes<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+impl ApplyFilter for SelectNodes {
+    fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
         let mut results = graph
             .nodes()
             .select(self.0.clone())
@@ -92,10 +103,10 @@ impl<F: CreateFilter + Clone> ApplyFilter for SelectNodes<F> {
     }
 }
 
-pub struct FilterNeighbours<F: CreateFilter + Clone>(F, String, Direction);
+pub struct FilterNeighbours(FilterExpr, String, Direction);
 
-impl<F: CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+impl ApplyFilter for FilterNeighbours {
+    fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
         let filter_applied = graph
             .node(self.1.clone())
             .unwrap()
@@ -115,10 +126,10 @@ impl<F: CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
     }
 }
 
-pub struct FilterEdges<F: CreateFilter + Clone>(F);
+pub struct FilterEdges(FilterExpr);
 
-impl<F: CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+impl ApplyFilter for FilterEdges {
+    fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
         let mut results = graph
             .filter(self.0.clone())
             .unwrap()
@@ -131,10 +142,10 @@ impl<F: CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     }
 }
 
-pub struct SelectEdges<F: CreateFilter + Clone>(F);
+pub struct SelectEdges(FilterExpr);
 
-impl<F: CreateFilter + Clone> ApplyFilter for SelectEdges<F> {
-    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+impl ApplyFilter for SelectEdges {
+    fn apply(&self, graph: DynGraphArc<'static>) -> Vec<String> {
         let mut results = graph
             .edges()
             .select(self.0.clone())
@@ -151,7 +162,7 @@ impl<F: CreateFilter + Clone> ApplyFilter for SelectEdges<F> {
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -161,14 +172,14 @@ pub fn assert_filter_nodes_results(
         transform,
         expected,
         variants.into(),
-        FilterNodes(filter),
+        FilterNodes(filter.into()),
     )
 }
 
 pub fn assert_select_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -178,7 +189,7 @@ pub fn assert_select_nodes_results(
         transform,
         expected,
         variants.into(),
-        SelectNodes(filter),
+        SelectNodes(filter.into()),
     )
 }
 #[track_caller]
@@ -203,24 +214,25 @@ where
 pub fn assert_filter_nodes_err(
     init_graph: fn(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl Into<FilterExpr>,
     expected: &str,
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
     let graph = init_graph(Graph::new());
     let variants = variants.into();
+    let filter: FilterExpr = filter.into();
 
     for v in variants {
         match v {
             TestGraphVariants::Graph => {
-                let graph = transform.apply(graph.clone());
+                let graph = erase_graph(transform.apply(graph.clone()));
                 let res = graph.filter(filter.clone());
                 assert!(res.is_err(), "expected error, filter was accepted");
                 assert_filter_err_contains(res.err().unwrap(), expected);
             }
             TestGraphVariants::PersistentGraph => {
                 let base = graph.persistent_graph();
-                let graph = transform.apply(base);
+                let graph = erase_graph(transform.apply(base));
                 let res = graph.filter(filter.clone());
                 assert!(res.is_err(), "expected error, filter was accepted");
                 assert_filter_err_contains(res.err().unwrap(), expected);
@@ -235,7 +247,7 @@ pub fn assert_filter_neighbours_results(
     transform: impl GraphTransformer,
     node_name: impl AsRef<str>,
     direction: Direction,
-    filter: impl CreateFilter + Clone,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -245,7 +257,7 @@ pub fn assert_filter_neighbours_results(
         transform,
         expected,
         variants.into(),
-        FilterNeighbours(filter, node_name.as_ref().to_string(), direction),
+        FilterNeighbours(filter.into(), node_name.as_ref().to_string(), direction),
     )
 }
 
@@ -253,7 +265,7 @@ pub fn assert_filter_neighbours_results(
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -263,7 +275,7 @@ pub fn assert_filter_edges_results(
         transform,
         expected,
         variants.into(),
-        FilterEdges(filter),
+        FilterEdges(filter.into()),
     )
 }
 
@@ -271,7 +283,7 @@ pub fn assert_filter_edges_results(
 pub fn assert_select_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl CreateFilter + Clone,
+    filter: impl Into<FilterExpr>,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -281,7 +293,7 @@ pub fn assert_select_edges_results(
         transform,
         expected,
         variants.into(),
-        SelectEdges(filter),
+        SelectEdges(filter.into()),
     )
 }
 
@@ -301,14 +313,14 @@ fn assert_results(
         match v {
             TestGraphVariants::Graph => {
                 pre_transform(&graph);
-                let graph = transform.apply(graph.clone());
+                let graph = erase_graph(transform.apply(graph.clone()));
                 let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }
             TestGraphVariants::PersistentGraph => {
                 pre_transform(&graph);
                 let base = graph.persistent_graph();
-                let graph = transform.apply(base);
+                let graph = erase_graph(transform.apply(base));
                 let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }

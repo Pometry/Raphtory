@@ -51,7 +51,7 @@ use walkdir::WalkDir;
 #[cfg(feature = "vectors")]
 use {
     crate::model::graph::vectorised_graph::GqlVectorisedGraph,
-    raphtory::vectors::{
+    raphtory_vectors::{
         cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
         vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
@@ -199,7 +199,6 @@ pub struct DataInner {
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_args: Args,
     pub(crate) read_only: ReadOnlyGraphs,
-    pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
     pub(crate) allowed_parquet_paths: Vec<PathBuf>,
 }
 
@@ -300,7 +299,8 @@ impl WorkDirGuard {
 /// Outer data struct that wraps the inner data to make sure it is only dropped once
 #[derive(Clone)]
 pub struct Data {
-    inner: Arc<DataInner>,
+    pub inner: Arc<DataInner>,
+    pub auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
 impl Deref for Data {
@@ -340,9 +340,9 @@ impl Data {
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_args,
                 read_only: ReadOnlyGraphs::from_config(cache_configs),
-                auth_policy: None,
                 allowed_parquet_paths: configs.parquet.allowed_paths.clone(),
             }),
+            auth_policy: None,
         }
     }
 
@@ -357,9 +357,7 @@ impl Data {
     }
 
     pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
-        Arc::get_mut(&mut self.inner)
-            .expect("Data is not uniquely owned when setting auth_policy")
-            .auth_policy = Some(policy);
+        self.auth_policy = Some(policy)
     }
 
     /// Returns `Ok(())` if `path` is permitted by the parquet allowlist, otherwise an error
@@ -595,7 +593,7 @@ impl Data {
     ) -> Result<(), GQLError> {
         let template = template.clone();
         self.index_folder(folder, move |graph, path| async move {
-            graph.vectorise(model, template, Some(&path), true).await
+            Ok(graph.vectorise(model, template, Some(&path), true).await?)
         })
         .await
     }
@@ -611,7 +609,9 @@ impl Data {
     ) -> Result<(), GQLError> {
         let template = template.clone();
         self.index_folder(folder, move |graph, path| async move {
-            graph.vectorise_missing(model, template, &path, true).await
+            Ok(graph
+                .vectorise_missing(model, template, &path, true)
+                .await?)
         })
         .await
     }
@@ -1352,7 +1352,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_failed_vectorise_reports_and_keeps_the_index() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1449,7 +1449,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_vectorise_after_reading_a_reloaded_graph() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 
@@ -1540,7 +1540,7 @@ pub(crate) mod data_tests {
     #[tokio::test]
     async fn test_eviction_reloads_vectorised_graph() {
         use crate::paths::ExistingGraphFolder;
-        use raphtory::vectors::{
+        use raphtory_vectors::{
             custom::serve_custom_embedding, storage::OpenAIEmbeddings, template::DocumentTemplate,
         };
 

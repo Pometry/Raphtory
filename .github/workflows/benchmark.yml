@@ -14,13 +14,12 @@ on:
         default: false
         required: false
 
-
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   benchmark:
     if: ${{ !inputs.skip_tests }}
     name: Rust Benchmark
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
@@ -37,7 +36,7 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          cache-all-crates: true
+          shared-key: rust-bench
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
@@ -45,27 +44,27 @@ jobs:
       - name: Restore Cargo.lock to avoid dirty working tree
         run: git checkout -- Cargo.lock
       - name: Store benchmark results from master branch
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
-          tool: 'cargo'
+          tool: "cargo"
           output-file-path: benchmark-result.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
           auto-push: true
       - name: Compare benchmark results to master
-        if: github.ref != 'refs/heads/master'
+        if: github.ref_name != github.event.repository.default_branch
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
-          tool: 'cargo'
+          tool: "cargo"
           output-file-path: benchmark-result.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
