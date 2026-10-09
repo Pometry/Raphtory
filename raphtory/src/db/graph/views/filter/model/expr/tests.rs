@@ -1495,21 +1495,86 @@ fn default_layer_and_exclude_layers_agree_with_the_graph_views() {
 }
 
 #[test]
+fn valid_layers_and_exclude_valid_layers_agree_with_the_graph_views() {
+    let g = layered_graph().into_dynamic();
+    let names = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    let edges_through =
+        |ops: Vec<ViewOp>| edge_ids_of(&g.filter(FilterExpr::View(ops)).unwrap().into_dynamic());
+    // An unknown name is ignored: the known one is kept, or dropped.
+    agrees_with_core(&g, &[ViewOp::ValidLayers(names(&["x", "nope"]))], |g| {
+        Ok(g.valid_layers(vec!["x", "nope"]).into_dynamic())
+    });
+    assert_eq!(
+        edges_through(vec![ViewOp::ValidLayers(names(&["x", "nope"]))]),
+        ["a->b", "d->a"]
+    );
+    agrees_with_core(
+        &g,
+        &[ViewOp::ExcludeValidLayers(names(&["x", "nope"]))],
+        |g| Ok(g.exclude_valid_layers(vec!["x", "nope"]).into_dynamic()),
+    );
+    assert_eq!(
+        edges_through(vec![ViewOp::ExcludeValidLayers(names(&["x", "nope"]))]),
+        ["b->c", "c->d"]
+    );
+    // Only unknown names: no layer, or every layer.
+    agrees_with_core(&g, &[ViewOp::ValidLayers(names(&["nope"]))], |g| {
+        Ok(g.valid_layers("nope").into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::ExcludeValidLayers(names(&["nope"]))], |g| {
+        Ok(g.exclude_valid_layers("nope").into_dynamic())
+    });
+    // Composed with the strict ops and with time.
+    agrees_with_core(
+        &g,
+        &[
+            ViewOp::Layers(names(&["x", "y"])),
+            ViewOp::ExcludeValidLayers(names(&["y", "nope"])),
+            ViewOp::ShrinkEnd(t(6)),
+        ],
+        |g| {
+            Ok(g.layers(vec!["x", "y"])?
+                .exclude_valid_layers(vec!["y", "nope"])
+                .shrink_end(6)
+                .into_dynamic())
+        },
+    );
+    // The strict ops refuse the same names, as the graph views refuse them.
+    assert!(g.layers(vec!["x", "nope"]).is_err());
+    assert!(g
+        .filter(FilterExpr::View(vec![ViewOp::Layers(names(&[
+            "x", "nope"
+        ]))]))
+        .is_err());
+    assert!(g.exclude_layers(vec!["x", "nope"]).is_err());
+    assert!(g
+        .filter(FilterExpr::View(vec![ViewOp::ExcludeLayers(names(&[
+            "x", "nope"
+        ]))]))
+        .is_err());
+}
+
+#[test]
 fn the_new_views_display_and_round_trip_through_json() {
     let ops = vec![
         ViewOp::DefaultLayer,
         ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
+        ViewOp::ValidLayers(vec!["a".into(), "c".into()]),
+        ViewOp::ExcludeValidLayers(vec!["c".into()]),
         ViewOp::ShrinkStart(t(3)),
         ViewOp::ShrinkEnd(t(9)),
     ];
     let f = FilterExpr::View(ops.clone());
     assert_eq!(
         f.to_string(),
-        "VIEW(DEFAULT_LAYER . EXCLUDE_LAYER[a, b] . SHRINK_START[3] . SHRINK_END[9])"
+        "VIEW(DEFAULT_LAYER . EXCLUDE_LAYER[a, b] . VALID_LAYER[a, c] . \
+         EXCLUDE_VALID_LAYER[c] . SHRINK_START[3] . SHRINK_END[9])"
     );
     let json = serde_json::to_string(&f).unwrap();
     assert!(json.contains(r#""default_layer""#), "{json}");
     assert!(json.contains(r#""exclude_layers":["a","b"]"#), "{json}");
+    assert!(json.contains(r#""valid_layers":["a","c"]"#), "{json}");
+    assert!(json.contains(r#""exclude_valid_layers":["c"]"#), "{json}");
     assert!(json.contains(r#""shrink_start":"#), "{json}");
     let back: FilterExpr = serde_json::from_str(&json).unwrap();
     assert_eq!(back, f);
@@ -1517,6 +1582,8 @@ fn the_new_views_display_and_round_trip_through_json() {
     let built: FilterExpr = GraphFilter
         .default_layer()
         .exclude_layers(["a", "b"])
+        .valid_layers(["a", "c"])
+        .exclude_valid_layers(["c"])
         .shrink_start(3)
         .shrink_end(9)
         .into();

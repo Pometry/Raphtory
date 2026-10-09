@@ -39,6 +39,8 @@ VIEWS = TIME_VIEWS | {
     "default_layer",
     "exclude_layer",
     "exclude_layers2",
+    "valid_layers",
+    "exclude_valid_layers",
     "exclude_nodes",
     "subgraph",
     "subgraph_node_types",
@@ -78,6 +80,8 @@ def _atoms():
         "default_layer": Graph.default_layer(),
         "exclude_layer": Graph.exclude_layer("work"),
         "exclude_layers2": Graph.exclude_layers(["work", "friends"]),
+        "valid_layers": Graph.valid_layers(["work", "nope"]),
+        "exclude_valid_layers": Graph.exclude_valid_layers(["work", "nope"]),
         "shrink_start": Graph.shrink_start(8),
         "shrink_end": Graph.shrink_end(12),
         "shrunk_window": Graph.window(3, 20).shrink_start(8).shrink_end(12),
@@ -122,6 +126,8 @@ def _view_references(graph):
         "default_layer": graph.default_layer(),
         "exclude_layer": graph.exclude_layer("work"),
         "exclude_layers2": graph.exclude_layers(["work", "friends"]),
+        "valid_layers": graph.valid_layers(["work", "nope"]),
+        "exclude_valid_layers": graph.exclude_valid_layers(["work", "nope"]),
         "shrink_start": graph.shrink_start(8),
         "shrink_end": graph.shrink_end(12),
         "shrunk_window": graph.window(3, 20).shrink_start(8).shrink_end(12),
@@ -228,6 +234,41 @@ def test_single_filters_match_graph_filter_and_chained_views():
             if name in view_ref and got != _ids(view_ref[name].edges):
                 mismatches.append(f"{name}: edges[] vs chained view")
         assert not mismatches, mismatches
+
+    return check
+
+
+@with_variants(_init)
+def test_valid_layers_ignore_an_unknown_layer_where_layers_raises():
+    """`valid_layers` / `exclude_valid_layers` skip a name the graph does not have;
+    `layers` / `exclude_layers` raise on it. There is no layer "nope".
+
+    ```text
+                   5    10   12   15   20
+    a→b  [work]    ●                   ✕
+    b→c  [work]         ●
+    d→d  [_default]          ●
+    c→a  [friends]                ●
+    ```
+    """
+
+    def check(graph):
+        work = _ids(graph.layers(["work"]).edges)
+        not_work = _ids(graph.exclude_layers(["work"]).edges)
+        assert work == {("a", "b"), ("b", "c")}
+        assert not_work == {("d", "d"), ("c", "a")}
+        valid = Graph.valid_layers(["work", "nope"])
+        exclude_valid = Graph.exclude_valid_layers(["work", "nope"])
+        assert _ids(graph.filter(valid).edges) == work
+        assert _ids(graph.edges[valid]) == work
+        assert _ids(graph.filter(exclude_valid).edges) == not_work
+        assert _ids(graph.edges[exclude_valid]) == not_work
+        for strict in (
+            Graph.layers(["work", "nope"]),
+            Graph.exclude_layers(["work", "nope"]),
+        ):
+            with pytest.raises(Exception, match="nope"):
+                graph.filter(strict)
 
     return check
 

@@ -7306,6 +7306,16 @@ input ViewOp @oneOf {
 	"""
 	excludeLayer: String
 	"""
+	Only the named layers; a name the graph does not have is ignored,
+	where `layers` rejects it.
+	"""
+	validLayers: [String!]
+	"""
+	Every layer except the named ones; a name the graph does not have is
+	ignored, where `excludeLayers` rejects it.
+	"""
+	excludeValidLayers: [String!]
+	"""
 	The window's start moved to a time when that is later; the window only
 	ever narrows.
 	"""

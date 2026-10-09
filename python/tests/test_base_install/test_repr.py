@@ -99,6 +99,14 @@ class FilterExprReprTest(TestCase):
             ".exclude_layers(['b', 'c']).shrink_start(2).shrink_end(9)",
         )
 
+    def test_repr_shows_valid_layers_and_exclude_valid_layers(self):
+        expr = filter.Graph.valid_layers(["a"]).exclude_valid_layers(["b", "c"])
+        self.assertEqual(
+            repr(expr),
+            "raphtory.filter.Graph.valid_layers(['a'])"
+            ".exclude_valid_layers(['b', 'c'])",
+        )
+
     def test_repr_shows_node_set_views_and_valid(self):
         expr = (
             filter.Graph.exclude_nodes(["a", 7])
@@ -145,6 +153,8 @@ class FilterExprReprTest(TestCase):
             filter.Node.shrink_start(2).exclude_layer("a").property("p") > 1,
             filter.Edge.window(1, 9).shrink_end((5, 1)).default_layer().is_active(),
             filter.ExplodedEdge.exclude_layers(["a", "b"]).property("p") == 3.5,
+            filter.Graph.valid_layers(["a", "nope"]).exclude_valid_layers(["b"]),
+            filter.Edge.exclude_valid_layers(["a"]).is_active(),
             filter.Graph.exclude_nodes(["a", 7]).valid(),
             filter.Node.subgraph([1, "it's"]).degree() > 0,
             filter.Edge.subgraph_node_types(["t"]).valid().is_active(),

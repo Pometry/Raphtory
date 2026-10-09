@@ -26,10 +26,11 @@
 //! `read: { field: { name: NAME } }`,
 //! `read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } }`.
 //! A view is one of `window`, `at`, `after`, `before`, `snapshotAt`, `layers`,
-//! `excludeLayers` (or `excludeLayer` for one name), `shrinkStart`, `shrinkEnd`,
-//! `excludeNodes`, `subgraph`, `subgraphNodeTypes`, or a `kind` that takes no
-//! argument (`LATEST`, `SNAPSHOT_LATEST`, `VALID`, `DEFAULT_LAYER`), each the
-//! graph view of the same name applied to the view built so far.
+//! `excludeLayers` (or `excludeLayer` for one name), `validLayers`,
+//! `excludeValidLayers`, `shrinkStart`, `shrinkEnd`, `excludeNodes`,
+//! `subgraph`, `subgraphNodeTypes`, or a `kind` that takes no argument
+//! (`LATEST`, `SNAPSHOT_LATEST`, `VALID`, `DEFAULT_LAYER`), each the graph view
+//! of the same name applied to the view built so far.
 //!
 //! The serde form is the GraphQL spelling, so the JSON a stored grant holds and
 //! the variables a client sends are the same text as a GraphQL literal.
@@ -373,6 +374,12 @@ pub enum GqlViewOp {
     /// Every layer except the named one; the same view as `excludeLayers`
     /// with one name.
     ExcludeLayer(String),
+    /// Only the named layers; a name the graph does not have is ignored,
+    /// where `layers` rejects it.
+    ValidLayers(Vec<String>),
+    /// Every layer except the named ones; a name the graph does not have is
+    /// ignored, where `excludeLayers` rejects it.
+    ExcludeValidLayers(Vec<String>),
     /// The window's start moved to a time when that is later; the window only
     /// ever narrows.
     ShrinkStart(GqlTimeInput),
@@ -404,6 +411,8 @@ impl From<GqlViewOp> for ViewOp {
             GqlViewOp::Layers(names) => ViewOp::Layers(names),
             GqlViewOp::ExcludeLayers(names) => ViewOp::ExcludeLayers(names),
             GqlViewOp::ExcludeLayer(name) => ViewOp::ExcludeLayers(vec![name]),
+            GqlViewOp::ValidLayers(names) => ViewOp::ValidLayers(names),
+            GqlViewOp::ExcludeValidLayers(names) => ViewOp::ExcludeValidLayers(names),
             GqlViewOp::ShrinkStart(t) => ViewOp::ShrinkStart(t.into_time()),
             GqlViewOp::ShrinkEnd(t) => ViewOp::ShrinkEnd(t.into_time()),
             GqlViewOp::ExcludeNodes(ids) => {
@@ -439,6 +448,8 @@ impl From<&ViewOp> for GqlViewOp {
             ViewOp::Layers(names) => GqlViewOp::Layers(names.clone()),
             ViewOp::DefaultLayer => GqlViewOp::Kind(ViewKind::DefaultLayer),
             ViewOp::ExcludeLayers(names) => GqlViewOp::ExcludeLayers(names.clone()),
+            ViewOp::ValidLayers(names) => GqlViewOp::ValidLayers(names.clone()),
+            ViewOp::ExcludeValidLayers(names) => GqlViewOp::ExcludeValidLayers(names.clone()),
             ViewOp::ShrinkStart(t) => GqlViewOp::ShrinkStart(time(*t)),
             ViewOp::ShrinkEnd(t) => GqlViewOp::ShrinkEnd(time(*t)),
             ViewOp::ExcludeNodes(ids) => GqlViewOp::ExcludeNodes(node_ids(ids)),
@@ -1674,6 +1685,8 @@ mod tests {
             ViewOp::Layers(vec!["work".into()]),
             ViewOp::DefaultLayer,
             ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
+            ViewOp::ValidLayers(vec!["work".into(), "nope".into()]),
+            ViewOp::ExcludeValidLayers(vec!["a".into(), "nope".into()]),
             ViewOp::ShrinkStart(t(3)),
             ViewOp::ShrinkEnd(t(8)),
             ViewOp::ExcludeNodes(vec![GID::Str("a".into()), GID::U64(7)]),

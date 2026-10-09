@@ -89,6 +89,66 @@ impl<M> ExcludeLayers<M> {
     }
 }
 
+/// The named layers, as `valid_layers` gives it: a name the graph does not have is ignored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidLayers<M> {
+    pub layer: Layer,
+    pub inner: M,
+}
+
+impl<M> Static for ValidLayers<M> {}
+
+impl<M: Display> Display for ValidLayers<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "VALID_LAYER[{}]({})",
+            layer_label(&self.layer),
+            self.inner
+        )
+    }
+}
+
+impl<M> ValidLayers<M> {
+    #[inline]
+    pub fn new<L: Into<Layer>>(layer: L, entity: M) -> Self {
+        Self {
+            layer: layer.into(),
+            inner: entity,
+        }
+    }
+}
+
+/// Every layer but the named ones, as `exclude_valid_layers` gives it: a name the graph does not have is ignored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExcludeValidLayers<M> {
+    pub layer: Layer,
+    pub inner: M,
+}
+
+impl<M> Static for ExcludeValidLayers<M> {}
+
+impl<M: Display> Display for ExcludeValidLayers<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "EXCLUDE_VALID_LAYER[{}]({})",
+            layer_label(&self.layer),
+            self.inner
+        )
+    }
+}
+
+impl<M> ExcludeValidLayers<M> {
+    #[inline]
+    pub fn new<L: Into<Layer>>(layer: L, entity: M) -> Self {
+        Self {
+            layer: layer.into(),
+            inner: entity,
+        }
+    }
+}
+
 /// The default layer alone, as `default_layer` gives it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefaultLayer<M> {
@@ -133,5 +193,33 @@ impl<T: CreateView> CreateView for DefaultLayer<T> {
     ) -> Result<Self::View<'graph, G>, GraphError> {
         let inner = self.inner.create_view(view)?;
         Ok(inner.default_layer())
+    }
+}
+
+impl<T: CreateView> CreateView for ValidLayers<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(self
+            .inner
+            .create_view(view)?
+            .valid_layers(self.layer.clone()))
+    }
+}
+
+impl<T: CreateView> CreateView for ExcludeValidLayers<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(self
+            .inner
+            .create_view(view)?
+            .exclude_valid_layers(self.layer.clone()))
     }
 }

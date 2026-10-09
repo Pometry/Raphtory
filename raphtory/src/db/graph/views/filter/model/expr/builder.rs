@@ -170,6 +170,24 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
         self.into().push(Some(ViewOp::ExcludeLayers(names)))
     }
 
+    fn valid_layers<I, S>(self, layers: I) -> Chain<L>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let names = layers.into_iter().map(Into::into).collect();
+        self.into().push(Some(ViewOp::ValidLayers(names)))
+    }
+
+    fn exclude_valid_layers<I, S>(self, layers: I) -> Chain<L>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let names = layers.into_iter().map(Into::into).collect();
+        self.into().push(Some(ViewOp::ExcludeValidLayers(names)))
+    }
+
     fn shrink_start<T: IntoTime>(self, start: T) -> Chain<L> {
         self.into()
             .push(Some(ViewOp::ShrinkStart(start.into_time())))

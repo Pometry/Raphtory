@@ -543,6 +543,8 @@ function randomViewOps(rate: ViewRate): ViewOp[] {
   return [
     ...randomAppend<ViewOp>(rate.latest, { kind: "LATEST" }),
     ...randomAppend(rate.layer, { layers: [randomLayer()] }),
+    // a layer the graph does not have is ignored, not an error
+    ...randomAppend(rate.layer, { validLayers: [randomLayer(), "absent"] }),
     ...randomAppend(rate.window, { window: { start, end } }),
   ];
 }

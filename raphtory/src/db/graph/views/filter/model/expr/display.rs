@@ -33,6 +33,20 @@ impl Display for ViewOp {
                     layer_label(&Layer::from(names.clone()))
                 )
             }
+            ViewOp::ValidLayers(names) => {
+                write!(
+                    f,
+                    "VALID_LAYER[{}]",
+                    layer_label(&Layer::from(names.clone()))
+                )
+            }
+            ViewOp::ExcludeValidLayers(names) => {
+                write!(
+                    f,
+                    "EXCLUDE_VALID_LAYER[{}]",
+                    layer_label(&Layer::from(names.clone()))
+                )
+            }
             ViewOp::ShrinkStart(t) => write!(f, "SHRINK_START[{}]", t.t()),
             ViewOp::ShrinkEnd(t) => write!(f, "SHRINK_END[{}]", t.t()),
             ViewOp::ExcludeNodes(ids) => write!(f, "EXCLUDE_NODES[{}]", id_list(ids)),

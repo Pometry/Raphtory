@@ -252,6 +252,55 @@ def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
             assert edge_pairs(client, active) == local, views
 
 
+def test_valid_layers_ignore_unknown_names_where_layers_refuse_them():
+    """`validLayers` and `excludeValidLayers` are the graph's `valid_layers` and
+    `exclude_valid_layers`: a name the graph does not have ("nope") is ignored,
+    both as a whole-filter view and as the scope of an edge term, where
+    `layers` and `excludeLayers` refuse it.
+
+    ```text
+                     1    2    4    6
+    alice→bob [knows] ●         ●
+    bob→carol [works]      ●
+    carol→dave[knows]                ●
+    ```
+    """
+    g = build()
+    cases = [
+        (
+            [{"validLayers": ["works", "nope"]}],
+            g.valid_layers(["works", "nope"]),
+            f.Edge.valid_layers(["works", "nope"]),
+        ),
+        (
+            [{"excludeValidLayers": ["works", "nope"]}],
+            g.exclude_valid_layers(["works", "nope"]),
+            f.Edge.exclude_valid_layers(["works", "nope"]),
+        ),
+    ]
+    with graphql_client(g) as client:
+        assert edge_pairs(client, {"view": cases[0][0]}) == [("bob", "carol")]
+        assert edge_pairs(client, {"view": cases[1][0]}) == [
+            ("alice", "bob"),
+            ("carol", "dave"),
+        ]
+        for views, local_view, local_scope in cases:
+            want = sorted((e.src.name, e.dst.name) for e in local_view.edges)
+            assert edge_pairs(client, {"view": views}) == want, views
+            active = edge(read({"field": "IS_ACTIVE"}, views))
+            local = sorted(
+                (e.src.name, e.dst.name)
+                for e in g.filter(local_scope.is_active()).edges
+            )
+            assert edge_pairs(client, active) == local, views
+        for strict in (
+            [{"layers": ["works", "nope"]}],
+            [{"excludeLayers": ["works", "nope"]}],
+        ):
+            with pytest.raises(Exception, match="nope"):
+                edge_pairs(client, {"view": strict})
+
+
 def test_node_set_views_and_valid_read_as_the_graph_views():
     """`excludeNodes`, `subgraph`, `subgraphNodeTypes` and `kind: VALID` are the graph
     views of the same name applied to the view so far, both as a whole-filter

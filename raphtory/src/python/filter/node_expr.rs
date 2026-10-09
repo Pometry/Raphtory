@@ -845,6 +845,32 @@ impl PyNodeFilter {
         Self(self.0.clone().exclude_layers(layers))
     }
 
+    /// Reads through a view of the given layers.
+    ///
+    /// A layer name the graph does not have is ignored, where `layers` raises.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn valid_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
+        Self(self.0.clone().valid_layers(layers))
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// A layer name the graph does not have is ignored, where `exclude_layers` raises.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    fn exclude_valid_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
+        Self(self.0.clone().exclude_valid_layers(layers))
+    }
+
     /// Moves the start of the current window to `start` when that is later.
     ///
     /// The window only ever narrows: a start before the current one changes nothing.
@@ -1170,6 +1196,34 @@ impl PyNode {
     #[staticmethod]
     fn exclude_layers(layers: FromIterable<String>) -> PyNodeFilter {
         PyNodeFilter::root().exclude_layers(layers)
+    }
+
+    /// Reads through a view of the given layers.
+    ///
+    /// A layer name the graph does not have is ignored, where `layers` raises.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn valid_layers(layers: FromIterable<String>) -> PyNodeFilter {
+        PyNodeFilter::root().valid_layers(layers)
+    }
+
+    /// Reads through a view of every layer except the given ones.
+    ///
+    /// A layer name the graph does not have is ignored, where `exclude_layers` raises.
+    ///
+    /// Arguments:
+    ///     layers (list[str]): Layer names.
+    ///
+    /// Returns:
+    ///     filter.NodeFilter:
+    #[staticmethod]
+    fn exclude_valid_layers(layers: FromIterable<String>) -> PyNodeFilter {
+        PyNodeFilter::root().exclude_valid_layers(layers)
     }
 
     /// Moves the start of the current window to `start` when that is later.

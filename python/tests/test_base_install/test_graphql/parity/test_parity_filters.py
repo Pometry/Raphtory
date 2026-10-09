@@ -461,6 +461,10 @@ VIEW_EXPRS = {
     "view.default_layer": lambda: f.Graph.default_layer(),
     "view.exclude_layer": lambda: f.Graph.exclude_layer("knows"),
     "view.exclude_layers": lambda: f.Graph.exclude_layers(["knows", "likes"]),
+    "view.valid_layers": lambda: f.Graph.valid_layers(["knows", "nope"]),
+    "view.exclude_valid_layers": lambda: f.Graph.exclude_valid_layers(
+        ["knows", "nope"]
+    ),
     "view.shrink_start": lambda: f.Graph.shrink_start(5),
     "view.shrink_end": lambda: f.Graph.shrink_end(6),
     "view.chain_window_shrink": lambda: f.Graph.window(2, 10)
@@ -525,6 +529,10 @@ SCOPED_EXPRS = {
     > 2.0,
     "scoped.edge.metadata": lambda: f.Edge.layer("knows").metadata("kind") == "strong",
     "scoped.edge.exclude_layers": lambda: f.Edge.exclude_layers(["knows"]).property(
+        "weight"
+    )
+    > 2.0,
+    "scoped.edge.valid_layers": lambda: f.Edge.valid_layers(["knows", "nope"]).property(
         "weight"
     )
     > 2.0,

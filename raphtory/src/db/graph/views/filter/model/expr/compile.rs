@@ -43,7 +43,9 @@ use crate::{
                 is_self_loop_filter::IsSelfLoopEdge,
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
-                layered_filter::{DefaultLayer, ExcludeLayers, Layered},
+                layered_filter::{
+                    DefaultLayer, ExcludeLayers, ExcludeValidLayers, Layered, ValidLayers,
+                },
                 node_expr::{
                     AllExpr, AndExpr, AnyExpr, AvgExpr, BinaryCmpExpr, DegreeExpr, DynCreateOp,
                     EarliestExpr, FirstExpr, LastExpr, LatestExpr, LenExpr, MaxExpr, MinExpr,
@@ -135,6 +137,10 @@ fn view_chain(root: Arc<dyn DynCreateView>, views: &[ViewOp]) -> Arc<dyn DynCrea
         ViewOp::Layers(names) => Arc::new(Layered::from_layers(names.clone(), chain)),
         ViewOp::DefaultLayer => Arc::new(DefaultLayer::new(chain)),
         ViewOp::ExcludeLayers(names) => Arc::new(ExcludeLayers::from_layers(names.clone(), chain)),
+        ViewOp::ValidLayers(names) => Arc::new(ValidLayers::new(names.clone(), chain)),
+        ViewOp::ExcludeValidLayers(names) => {
+            Arc::new(ExcludeValidLayers::new(names.clone(), chain))
+        }
         ViewOp::ShrinkStart(t) => Arc::new(ShrinkStart::new(*t, chain)),
         ViewOp::ShrinkEnd(t) => Arc::new(ShrinkEnd::new(*t, chain)),
         ViewOp::ExcludeNodes(ids) => Arc::new(ExcludeNodes::new(ids.clone(), chain)),

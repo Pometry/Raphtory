@@ -14626,6 +14626,26 @@ with one name.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="viewop.validlayers">validLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Only the named layers; a name the graph does not have is ignored,
+where `layers` rejects it.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="viewop.excludevalidlayers">excludeValidLayers</strong></td>
+<td valign="top">[<a href="#string">String</a>!]</td>
+<td>
+
+Every layer except the named ones; a name the graph does not have is
+ignored, where `excludeLayers` rejects it.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="viewop.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a></td>
 <td>

@@ -404,18 +404,17 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
                 ViewOp::ExcludeLayers(names) => {
                     layer_call(py, "exclude_layer", "exclude_layers", names)?
                 }
+                ViewOp::ValidLayers(names) => format!(".valid_layers([{}])", py_strs(py, names)?),
+                ViewOp::ExcludeValidLayers(names) => {
+                    format!(".exclude_valid_layers([{}])", py_strs(py, names)?)
+                }
                 ViewOp::ShrinkStart(t) => format!(".shrink_start({})", time(t)),
                 ViewOp::ShrinkEnd(t) => format!(".shrink_end({})", time(t)),
                 ViewOp::ExcludeNodes(ids) => format!(".exclude_nodes([{}])", node_ids(py, ids)?),
                 ViewOp::Subgraph(ids) => format!(".subgraph([{}])", node_ids(py, ids)?),
-                ViewOp::SubgraphNodeTypes(types) => format!(
-                    ".subgraph_node_types([{}])",
-                    types
-                        .iter()
-                        .map(|t| py_str(py, t))
-                        .collect::<PyResult<Vec<_>>>()?
-                        .join(", ")
-                ),
+                ViewOp::SubgraphNodeTypes(types) => {
+                    format!(".subgraph_node_types([{}])", py_strs(py, types)?)
+                }
                 ViewOp::Valid => ".valid()".to_owned(),
             })
         })
@@ -428,15 +427,17 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
 fn layer_call(py: Python<'_>, one: &str, many: &str, names: &[String]) -> PyResult<String> {
     Ok(match names {
         [name] => format!(".{one}({})", py_str(py, name)?),
-        names => format!(
-            ".{many}([{}])",
-            names
-                .iter()
-                .map(|n| py_str(py, n))
-                .collect::<PyResult<Vec<_>>>()?
-                .join(", ")
-        ),
+        names => format!(".{many}([{}])", py_strs(py, names)?),
     })
+}
+
+/// Strings as a comma-separated run of Python literals.
+fn py_strs(py: Python<'_>, strs: &[String]) -> PyResult<String> {
+    Ok(strs
+        .iter()
+        .map(|s| py_str(py, s))
+        .collect::<PyResult<Vec<_>>>()?
+        .join(", "))
 }
 
 /// Node ids as Python literals: a name quoted, an integer id bare.

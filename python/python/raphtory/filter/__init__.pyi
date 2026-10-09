@@ -515,6 +515,20 @@ class Node(object):
         """
 
     @staticmethod
+    def exclude_valid_layers(layers: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
     def id() -> filter.Expr:
         """
         Selects the node ID field for filtering.
@@ -717,6 +731,20 @@ class Node(object):
         """
 
     @staticmethod
+    def valid_layers(layers: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to the given time window.
@@ -834,6 +862,19 @@ class NodeFilter(object):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
+    def exclude_valid_layers(self, layers: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.NodeFilter:
@@ -1023,6 +1064,19 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
+    def valid_layers(self, layers: list[str]) -> filter.NodeFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeFilter:
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> filter.NodeFilter:
         """
         Restricts node evaluation to the given time window.
@@ -1133,6 +1187,20 @@ class Edge(object):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_valid_layers(layers: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.EdgeFilter:
@@ -1328,6 +1396,20 @@ class Edge(object):
         """
 
     @staticmethod
+    def valid_layers(layers: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to the given time window.
@@ -1431,6 +1513,19 @@ class EdgeFilter(object):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
+    def exclude_valid_layers(self, layers: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.EdgeFilter:
@@ -1608,6 +1703,19 @@ class EdgeFilter(object):
             filter.EdgeFilter:
         """
 
+    def valid_layers(self, layers: list[str]) -> filter.EdgeFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeFilter:
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> filter.EdgeFilter:
         """
         Restricts edge evaluation to the given time window.
@@ -1769,6 +1877,20 @@ class ExplodedEdge(object):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
+    def exclude_valid_layers(layers: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -1959,6 +2081,20 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
+    def valid_layers(layers: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to the given time window.
@@ -2057,6 +2193,19 @@ class ExplodedEdgeFilter(object):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
+    def exclude_valid_layers(self, layers: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.ExplodedEdgeFilter:
@@ -2230,6 +2379,19 @@ class ExplodedEdgeFilter(object):
             filter.ExplodedEdgeFilter:
         """
 
+    def valid_layers(self, layers: list[str]) -> filter.ExplodedEdgeFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.ExplodedEdgeFilter:
+        """
+
     def window(self, start: TimeInput, end: TimeInput) -> filter.ExplodedEdgeFilter:
         """
         Restricts exploded edge evaluation to the given time window.
@@ -2330,6 +2492,20 @@ class Graph(object):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
+    def exclude_valid_layers(layers: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.GraphFilter:
@@ -2456,6 +2632,20 @@ class Graph(object):
         """
 
     @staticmethod
+    def valid_layers(layers: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    @staticmethod
     def window(start: TimeInput, end: TimeInput) -> filter.GraphFilter:
         """
         Restricts evaluation to events within a time window.
@@ -2554,6 +2744,19 @@ class GraphFilter(FilterExpr):
 
         Arguments:
             nodes (list[str | int]): Node ids or names.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def exclude_valid_layers(self, layers: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of every layer except the given ones.
+
+        A layer name the graph does not have is ignored, where `exclude_layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.GraphFilter:
@@ -2664,6 +2867,19 @@ class GraphFilter(FilterExpr):
 
         On a persistent graph an edge is valid when its last update is an addition;
         on an event graph when it has at least one addition. Nodes are untouched.
+
+        Returns:
+            filter.GraphFilter:
+        """
+
+    def valid_layers(self, layers: list[str]) -> filter.GraphFilter:
+        """
+        Reads through a view of the given layers.
+
+        A layer name the graph does not have is ignored, where `layers` raises.
+
+        Arguments:
+            layers (list[str]): Layer names.
 
         Returns:
             filter.GraphFilter:

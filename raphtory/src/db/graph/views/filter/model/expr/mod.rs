@@ -76,6 +76,12 @@ pub enum ViewOp {
     DefaultLayer,
     /// `exclude_layers(names)`; one name is `exclude_layer(name)`.
     ExcludeLayers(Vec<String>),
+    /// `valid_layers(names)`: the named layers; a name the graph does not
+    /// have is ignored, where `layers` errors on it.
+    ValidLayers(Vec<String>),
+    /// `exclude_valid_layers(names)`: every layer but the named ones; a name
+    /// the graph does not have is ignored, where `exclude_layers` errors on it.
+    ExcludeValidLayers(Vec<String>),
     /// `shrink_start(t)`: the later of `t` and the current start.
     ShrinkStart(EventTime),
     /// `shrink_end(t)`: the earlier of `t` and the current end.

@@ -136,7 +136,7 @@ assert [n.name for n in g.filter(early_high).nodes] == ["bob"]
 ```
 ///
 
-Five more views choose layers or trim a window. Each one does what the graph method of the same
+Seven more views choose layers or trim a window. Each one does what the graph method of the same
 name does to the view built so far. The *default layer* holds the updates added without a layer
 name.
 
@@ -145,6 +145,8 @@ name.
 | `.default_layer()` | the default layer only | `filter.Edge.default_layer().is_active()` |
 | `.exclude_layer(name)` | every layer except `name` | `filter.Edge.exclude_layer("knows").is_active()` |
 | `.exclude_layers([...])` | every layer except the ones listed | `filter.Node.exclude_layers(["knows", "works"]).degree() > 0` |
+| `.valid_layers([...])` | only the layers listed that the graph has | `filter.Edge.valid_layers(["works", "likes"]).is_active()` |
+| `.exclude_valid_layers([...])` | every layer except the ones listed that the graph has | `filter.Edge.exclude_valid_layers(["works", "likes"]).is_active()` |
 | `.shrink_start(t)` | the current window, with its start moved to `t` if `t` is later | `filter.Node.window(0, 3).shrink_start(2).property("score") > 4` |
 | `.shrink_end(t)` | the current window, with its end moved to `t` if `t` is earlier | `filter.Node.shrink_end(2).property("score") > 4` |
 
@@ -160,6 +162,21 @@ assert [(e.src.name, e.dst.name) for e in g.filter(not_knows).edges] == [("bob",
 
 late_high = filter.Node.window(0, 3).shrink_start(2).property("score") > 4
 assert [n.name for n in g.filter(late_high).nodes] == ["alice"]
+```
+///
+
+`.layers([...])` and `.exclude_layers([...])` refuse a layer name the graph does not have, so a
+filter written for graphs that may lack a layer would fail on some of them. `.valid_layers([...])`
+and `.exclude_valid_layers([...])` ignore such a name instead. This graph has no `likes` layer:
+
+/// tab | :fontawesome-brands-python: Python
+
+```{.python continuation}
+works = filter.Edge.valid_layers(["works", "likes"]).is_active()
+assert [(e.src.name, e.dst.name) for e in g.filter(works).edges] == [("bob", "carol")]
+
+not_works = filter.Edge.exclude_valid_layers(["works", "likes"]).is_active()
+assert [(e.src.name, e.dst.name) for e in g.filter(not_works).edges] == [("alice", "bob")]
 ```
 ///
 
