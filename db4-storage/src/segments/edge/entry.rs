@@ -3,7 +3,7 @@ use crate::{
     api::edges::{EdgeEntryOps, EdgeRefOps},
     generic_t_props::WithTProps,
     generic_time_ops::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
-    segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
+    segments::{additions::MemTimeCell, edge::segment::MemEdgeSegment},
 };
 use raphtory_api::core::entities::{LayerId, edges::edge_ref::Dir, properties::prop::Prop};
 use raphtory_core::{
@@ -77,7 +77,7 @@ impl<'a> MemEdgeRef<'a> {
 }
 
 impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
-    type TimeCell = MemAdditions<'a>;
+    type TimeCell = MemTimeCell<'a>;
 
     fn t_props_tc(
         self,
@@ -87,7 +87,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
         self.es
             .as_ref()
             .get(layer_id.0)
-            .map(|layer| MemAdditions::Props(layer.times_from_props(self.pos)))
+            .map(|layer| MemTimeCell::Props(layer.times_from_props(self.pos)))
             .into_iter()
             .map(move |t_props| {
                 range
@@ -115,7 +115,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
             .get(layer_id.0)
             .map(|layer| layer.deletions(self.pos))
             .unwrap_or(&TCell::Empty);
-        let t_cell = MemAdditions::Edges(deletions);
+        let t_cell = MemTimeCell::Deletions(deletions);
         std::iter::once(
             range
                 .map(|(start, end)| t_cell.range(start..end))

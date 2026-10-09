@@ -13,7 +13,7 @@ use raphtory_api::core::{
 use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorage};
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, ops::Range};
-use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
+use storage::{api::nodes::NodeEntryOps, EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 #[derive(Clone)]
 pub struct FilteredEdgeTimeIndex<'graph, G, TS> {

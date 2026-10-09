@@ -3,7 +3,7 @@ use crate::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
-                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
+                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed, ComposableFilter,
                 CompositeExplodedEdgeFilter, CompositeNodeFilter, FilterTree, InternalViewWrapOps,
                 TryAsCompositeFilter, Wrap,
             },
@@ -17,6 +17,7 @@ use raphtory_api::core::storage::timeindex::EventTime;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct GraphFilter;
 
+impl ComposableFilter for GraphFilter {}
 impl std::fmt::Display for GraphFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "GRAPH")

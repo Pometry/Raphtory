@@ -1,19 +1,14 @@
 use crate::{
-    db::{
-        api::view::internal::{
-            filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
-            filtered_node::NodeEdgeHistory,
-            time_semantics::{
-                event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
-                filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
-            },
-            EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
+    db::api::view::internal::{
+        filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+        time_semantics::{
+            event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        graph::views::layer_graph::LayeredGraph,
+        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
-use ahash::AHashSet;
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -22,13 +17,18 @@ use raphtory_api::core::{
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
+    Direction,
 };
-use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_ref::NodeStorageRef},
 };
 use std::{iter, ops::Range, sync::Arc};
-use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    generic_time_ops::LayerIter::WithStatic,
+    EdgeAdditions, EdgeDeletions, EdgeEntryRef,
+};
 
 fn alive_before<
     'a,
@@ -86,7 +86,7 @@ fn persisted_event<
     last_before(additions, deletions, t)
 }
 
-fn edge_alive_at_end<'graph, G: GraphViewOps<'graph>>(
+fn edge_alive_at_end<'graph, G: GraphView + 'graph>(
     e: EdgeEntryRef<'graph>,
     t: EventTime,
     view: G,
@@ -119,7 +119,7 @@ fn edge_deleted_at<'graph, G: GraphView + 'graph>(
     }
     active && deleted
 }
-fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
+fn edge_alive_at_start<'graph, G: GraphView + 'graph>(
     e: EdgeEntryRef<'graph>,
     t: EventTime,
     view: G,
@@ -135,25 +135,148 @@ fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
         })
 }
 
-fn node_has_valid_edges<'graph, G: GraphView>(
-    history: NodeEdgeHistory<'graph, G>,
-    t: EventTime,
+/// finds the last global deletion at or before the start of the window
+fn node_global_search_start(node: NodeStorageRef, start: EventTime) -> EventTime {
+    node.node_deletions(STATIC_GRAPH_LAYER_ID)
+        .range(EventTime::MIN..start.next_t())
+        .last()
+        .unwrap_or(EventTime::MIN)
+}
+
+/// finds the last deletion after global_search_start at or before the start of the window
+fn node_layer_search_start(
+    node: NodeStorageRef,
+    layer: LayerId,
+    start: EventTime,
+    global_search_start: EventTime,
+) -> EventTime {
+    node.node_deletions(layer)
+        .range(global_search_start..start.next_t())
+        .last()
+        .unwrap_or(global_search_start)
+}
+
+/// Important semantic decision: A node is not alive at the start of a window if the last event at
+/// `start.t()` was a deletion!
+///
+/// Only events after `global_search_start` are considered
+fn node_alive_at_window_start<G: GraphView>(
+    node: NodeStorageRef,
+    view: G,
+    start: EventTime,
+    global_search_start: EventTime,
 ) -> bool {
-    let mut deleted = AHashSet::new();
-    history
-        .range(EventTime::MIN..t.next())
-        .history_rev()
-        .any(|(_, e)| {
-            // scan backwards in time over filtered history and keep track of deletions
-            let eid = e.eid();
-            let layer = e.layer();
-            if e.is_deletion() {
-                deleted.insert((eid, layer));
-                false
-            } else {
-                !deleted.contains(&(eid, layer))
+    if global_search_start < start {
+        // check if node is alive at start due to node additions
+        if !node
+            .node_additions(STATIC_GRAPH_LAYER_ID)
+            .range(global_search_start..start.next())
+            .is_empty()
+        {
+            return true;
+        }
+        for (_, additions, deletions) in node.node_updates_iter(view.layer_ids()) {
+            let search_start = deletions
+                .range(global_search_start..start.next_t())
+                .last()
+                .unwrap_or(global_search_start);
+            if !additions.range(search_start..start.next_t()).is_empty() {
+                return true;
             }
-        })
+        }
+
+        // check if node is alive at start via edges
+        if node_has_valid_edges_before(
+            node,
+            &view,
+            view.layer_ids(),
+            start.next_t(),
+            global_search_start,
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn node_has_valid_edges_before<G: GraphView>(
+    node: NodeStorageRef,
+    view: G,
+    layers: &LayerIds,
+    t: EventTime,
+    search_start: EventTime,
+) -> bool {
+    let gs = view.core_graph();
+
+    node.edges_iter(layers, Direction::BOTH).any(|edge_ref| {
+        let edge = gs.core_edge(Either::Right(edge_ref));
+        let edge = edge.as_ref();
+        if view.internal_edge_filtered() && !view.internal_filter_edge(edge, layers) {
+            // edge is not part of the view
+            return false;
+        }
+        let neighbour = gs.core_node(edge_ref.remote());
+        if view.internal_nodes_filtered()
+            && !view.edge_filter_includes_node_filter()
+            && !view.internal_filter_node(neighbour.as_ref(), layers)
+        {
+            return false;
+        }
+        let search_start_global = neighbour
+            .as_ref()
+            .node_deletions(STATIC_GRAPH_LAYER_ID)
+            .range(search_start..t)
+            .last()
+            .unwrap_or(search_start)
+            .next();
+        let any_edge = edge
+            .updates_iter(view.layer_ids())
+            .any(|(layer, additions, deletions)| {
+                if !view.internal_filter_edge_layer(edge, layer) {
+                    // edge doesn't exist in this layer
+                    return false;
+                }
+                let search_start = search_start_global.max(
+                    neighbour
+                        .as_ref()
+                        .node_deletions(layer)
+                        .range(search_start_global..t)
+                        .last()
+                        .max(
+                            node.node_deletions(layer)
+                                .range(search_start_global..t)
+                                .last(),
+                        )
+                        .map_or(EventTime::MIN, |t| t.next()),
+                );
+                let Some(last_edge_addition) = additions.range(search_start..t).last() else {
+                    // no addition since the last deletion via nodes
+                    return false;
+                };
+
+                let last_edge_deletion = deletions.range(EventTime::MIN..t.next()).last();
+                if Some(last_edge_addition) < last_edge_deletion {
+                    // edge is currently deleted
+                    return false;
+                }
+
+                // filtered addition is equivalent to a deletion
+                if view.internal_exploded_edge_filtered()
+                    && !(view.edge_filter_includes_exploded_edge_filter()
+                        || view.edge_layer_filter_includes_exploded_edge_filter())
+                {
+                    if !view.internal_filter_exploded_edge(
+                        edge_ref.pid().with_layer(layer),
+                        last_edge_addition,
+                        layers,
+                    ) {
+                        return false;
+                    }
+                }
+                true
+            });
+        any_edge
+    })
 }
 
 fn merged_deletions<'a, G: GraphView + 'a>(
@@ -228,7 +351,7 @@ fn interior_window<'a>(
 pub struct PersistentSemantics;
 
 impl NodeTimeSemanticsOps for PersistentSemantics {
-    fn node_earliest_time<'graph, G: GraphViewOps<'graph>>(
+    fn node_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -236,7 +359,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.history(&view, view.layer_ids()).first()
     }
 
-    fn node_latest_time<'graph, G: GraphViewOps<'graph>>(
+    fn node_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -244,52 +367,41 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.history(&view, view.layer_ids()).last()
     }
 
-    fn node_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
     ) -> Option<EventTime> {
-        let history = node.history(&view, view.layer_ids());
-        let prop_earliest = history.prop_history().range(EventTime::MIN..w.end).first();
-
-        if let Some(prop_earliest) = prop_earliest {
-            if prop_earliest <= w.start {
-                return Some(w.start);
-            }
-        }
-
-        if node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t())) {
+        let global_search_start = node_global_search_start(node, w.start);
+        if node_alive_at_window_start(node, &view, w.start, global_search_start) {
             return Some(w.start);
         }
 
-        let edge_earliest = history
-            .edge_history()
-            .range(EventTime::start(w.start.t().saturating_add(1))..w.end)
-            .first();
-        prop_earliest.into_iter().chain(edge_earliest).min()
+        // if node is not alive at start, find earliest event of any kind in the window
+        // (note that a neighbour deletion can never be the earliest event as that would mean the
+        // node had a live edge at the start of the window which would be handled above)
+        node.history(&view, view.layer_ids())
+            .range(w.start.next_t()..w.end)
+            .first()
     }
 
-    fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
     ) -> Option<EventTime> {
+        let global_search_start = node_global_search_start(node, w.start);
+        let effective_window = w.start.max(global_search_start)..w.end;
+
         let history = node.history(&view, view.layer_ids());
-        history
-            .range(EventTime::start(w.start.t().saturating_add(1))..w.end)
-            .last()
-            .or_else(|| {
-                (history
-                    .prop_history()
-                    .active(EventTime::MIN..EventTime::start(w.start.t().saturating_add(1)))
-                    || node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t())))
-                .then_some(w.start)
-            })
+        history.range(effective_window).last().or_else(|| {
+            node_alive_at_window_start(node, &view, w.start, global_search_start).then_some(w.start)
+        })
     }
 
-    fn node_history<'graph, G: GraphViewOps<'graph>>(
+    fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -298,7 +410,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.history(view, layer_ids).iter()
     }
 
-    fn node_history_rev<'graph, G: GraphViewOps<'graph>>(
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -307,7 +419,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.history(view, layer_ids).iter_rev()
     }
 
-    fn node_history_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -317,7 +429,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.history(view, layer_ids).range(w).iter()
     }
 
-    fn node_history_window_rev<'graph, G: GraphViewOps<'graph>>(
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -332,7 +444,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> usize {
-        EventSemantics.node_edge_history_count(node, view)
+        node.edge_history(&view, view.layer_ids()).len()
     }
 
     fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
@@ -341,7 +453,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> usize {
-        EventSemantics.node_edge_history_count_window(node, view, w)
+        node.edge_history(&view, view.layer_ids()).range(w).len()
     }
 
     fn node_edge_history<'graph, G: GraphView + 'graph>(
@@ -350,7 +462,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        EventSemantics.node_edge_history(node, view, layer_ids)
+        node.edge_history(view, layer_ids).history()
     }
 
     fn node_edge_history_window<'graph, G: GraphView + 'graph>(
@@ -360,7 +472,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        EventSemantics.node_edge_history_window(node, view, layer_ids, w)
+        node.edge_history(view, layer_ids).range(w).history()
     }
 
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
@@ -369,7 +481,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        EventSemantics.node_edge_history_rev(node, view, layer_ids)
+        node.edge_history(view, layer_ids).history_rev()
     }
 
     fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
@@ -379,75 +491,60 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        EventSemantics.node_edge_history_rev_window(node, view, layer_ids, w)
+        node.edge_history(view, layer_ids).range(w).history_rev()
     }
 
-    fn node_updates<'graph, G: GraphViewOps<'graph>>(
+    fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        layer_ids: &'graph LayerIds,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows(prop_ids)
-            .map(|(t, l, row)| (t, LayerId(l), row))
+        node.t_prop_rows(None, prop_ids, layer_ids)
     }
 
-    fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        // make sure static graph layer is always visible, even if excluded from the view
-        let layers = view
-            .layer_ids()
-            .union(&LayerIds::One(STATIC_GRAPH_LAYER_ID));
-        let num_layers = node.num_layers();
-        let exact_layers = layers.into_iter(num_layers).filter(move |&layer_id| {
-            node.layer_ids_iter(&LayerIds::One(layer_id))
-                .next()
-                .is_some()
-        });
+        let global_search_start = node_global_search_start(node, w.start);
 
-        exact_layers.flat_map(move |layer_id| {
-            let mut rows = node
-                .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
-                .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
-                .collect_vec();
+        let layers_iter = node.layer_ids_iter(WithStatic(layer_ids));
+        layers_iter.flat_map(move |layer_id| {
+            let search_start =
+                node_layer_search_start(node, layer_id, w.start, global_search_start);
+            let rows_inside = node.t_prop_rows(Some(w.clone()), prop_ids.clone(), layer_id);
+            let needs_first_row = if search_start >= w.start {
+                false
+            } else {
+                node.node_additions(layer_id).active(search_start..w.start)
+            };
 
-            let has_prior_addition = node
-                .node_prop_additions(layer_id)
-                .range(EventTime::MIN..w.start)
-                .iter()
-                .next()
-                .is_some();
-            let start_t = w.start.t();
-            let next_t = EventTime::start(start_t.saturating_add(1));
-            let has_row_in_start_t = rows.iter().any(|(t, _, _)| t.t() == start_t);
+            let first_row = if needs_first_row {
+                let mut first_row = Vec::new();
+                for prop_id in prop_ids.iter() {
+                    let prop = node.t_prop(layer_id, *prop_id);
+                    if !prop.active(w.start..w.start.next_t()) {
+                        if let Some((_t, v)) = prop.last_before(w.start) {
+                            first_row.push((*prop_id, v));
+                        }
+                    }
+                }
+                Some((w.start, layer_id, first_row))
+            } else {
+                None
+            };
 
-            if has_prior_addition && !has_row_in_start_t {
-                let layer_view = LayeredGraph::new(view.clone(), LayerIds::One(layer_id));
-                let row = prop_ids
-                    .iter()
-                    .copied()
-                    .filter_map(|prop_id| {
-                        self.node_tprop_iter_window(node, layer_view.clone(), prop_id, w.clone())
-                            .find(|(t, _)| *t >= w.start && *t < next_t)
-                            .map(|(_, prop)| (prop_id, prop))
-                    })
-                    .collect::<Vec<_>>();
-                rows.push((w.start, layer_id.0, row));
-            }
-
-            rows.sort_unstable_by_key(|(t, _, _)| *t);
-            rows.into_iter()
-                .map(|(t, _, row)| (t, layer_id, row))
-                .collect_vec()
+            first_row.into_iter().chain(rows_inside)
         })
     }
 
-    fn node_valid<'graph, G: GraphViewOps<'graph>>(
+    fn node_valid<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -455,7 +552,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         !node.history(&view, view.layer_ids()).is_empty()
     }
 
-    fn node_valid_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_valid_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -466,84 +563,71 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             return false;
         }
         let history = node.history(&view, view.layer_ids());
-        history.prop_history().active(EventTime::MIN..w.end)
-            || history
-                .edge_history()
-                .active(EventTime::start(w.start.t().saturating_add(1))..w.end)
-            || node_has_valid_edges(history.edge_history(), EventTime::end(w.start.t()))
+        let search_start = node_global_search_start(node, w.start);
+        history.prop_history().active(search_start..w.end)
+            || history.edge_history().active(w.start.next_t()..w.end)
+            || node_has_valid_edges_before(
+                node,
+                &view,
+                view.layer_ids(),
+                w.start.next_t(),
+                search_start,
+            )
     }
 
-    fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
+    fn node_tprop_iter<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .map(|p| p.iter())
-            .kmerge_by(|(a, _), (b, _)| a <= b)
+        node.t_prop(WithStatic(layer_ids), prop_id).iter()
     }
 
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .map(|p| p.iter_rev())
-            .kmerge_by(|(a, _), (b, _)| a >= b)
+        node.t_prop(WithStatic(layer_ids), prop_id).iter_rev()
     }
 
-    fn node_tprop_iter_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
-        let first = tprops
-            .iter()
-            .copied()
-            .filter_map(|prop| {
-                if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
-                    None
-                } else {
-                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
-                }
-            })
-            .max_by_key(|(t, _)| *t);
-        let window_iter = tprops
-            .into_iter()
-            .map(move |prop| prop.iter_window(w.clone()))
-            .kmerge_by(|(a, _), (b, _)| a <= b);
+        let prop = node.t_prop(WithStatic(layer_ids), prop_id);
+        let first = if prop.active(w.start..w.start.next_t()) {
+            None
+        } else {
+            prop.last_before(w.start).map(|(_, v)| (w.start, v))
+        };
+        let window_iter = prop.iter_window(w);
         first.into_iter().chain(window_iter)
     }
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
-        let first = tprops
-            .iter()
-            .copied()
-            .filter_map(|prop| {
-                if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
-                    None
-                } else {
-                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
-                }
-            })
-            .max_by_key(|(t, _)| *t);
-        let window_iter_rev = tprops
-            .into_iter()
-            .map(move |prop| prop.iter_window_rev(w.clone()))
-            .kmerge_by(|(a, _), (b, _)| a >= b);
+        let prop = node.t_prop(WithStatic(layer_ids), prop_id);
+        let first = if prop.active(w.start..w.start.next_t()) {
+            None
+        } else {
+            prop.last_before(w.start).map(|(_, v)| (w.start, v))
+        };
+        let window_iter_rev = prop.iter_window_rev(w);
         window_iter_rev.chain(first)
     }
 
@@ -553,9 +637,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last())
-            .max_by_key(|(t, _)| *t)
+        node.t_prop(WithStatic(view.layer_ids()), prop_id).last()
     }
 
     fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
@@ -565,24 +647,35 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last_before(w.end))
+        let inner_start = w.start.next_t();
+        let global_search_start = node
+            .node_deletions(STATIC_GRAPH_LAYER_ID)
+            .range(EventTime::MIN..inner_start)
+            .last()
+            .unwrap_or(EventTime::MIN);
+        node.t_prop_iter_layers(WithStatic(view.layer_ids()), prop_id)
+            .filter_map(|(layer, prop)| {
+                let start = node
+                    .node_deletions(layer)
+                    .range(global_search_start..inner_start)
+                    .last()
+                    .unwrap_or(global_search_start);
+                prop.last_window(start..w.end)
+            })
             .max_by_key(|(t, _)| *t)
     }
 
-    fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
+    fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        node.tprop_iter_layers(view.layer_ids(), prop_id)
-            .filter_map(|prop| prop.last_before(t.next()))
-            .max_by_key(|(t, _)| *t)
+        self.node_tprop_last_window(node, view, prop_id, EventTime::MIN..t.next())
     }
 
-    fn node_tprop_last_at_window<'graph, G: GraphViewOps<'graph>>(
+    fn node_tprop_last_at_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
@@ -591,9 +684,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            node.tprop_iter_layers(view.layer_ids(), prop_id)
-                .filter_map(|prop| prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v)))
-                .max_by_key(|(t, _)| *t)
+            self.node_tprop_last_at(node, view, prop_id, t)
+                .map(|(t, v)| (t.max(w.start), v))
         } else {
             None
         }
@@ -706,7 +798,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_history<'graph, G: GraphViewOps<'graph>>(
+    fn edge_history<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeEntryRef<'graph>,
         view: G,
@@ -715,7 +807,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.edge_history(edge, view, layer_ids)
     }
 
-    fn edge_history_rev<'graph, G: GraphViewOps<'graph>>(
+    fn edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeEntryRef<'graph>,
         view: G,
@@ -724,7 +816,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.edge_history_rev(edge, view, layer_ids)
     }
 
-    fn edge_history_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_history_window<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeEntryRef<'graph>,
         view: G,
@@ -739,7 +831,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge()
     }
 
-    fn edge_history_window_rev<'graph, G: GraphViewOps<'graph>>(
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeEntryRef<'graph>,
         view: G,
@@ -754,7 +846,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge_by(|a, b| a >= b)
     }
 
-    fn edge_exploded_count<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_count<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeEntryRef,
         view: G,
@@ -762,7 +854,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.edge_exploded_count(edge, view)
     }
 
-    fn edge_exploded_count_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_count_window<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeEntryRef,
         view: G,
@@ -780,7 +872,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .sum()
     }
 
-    fn edge_exploded<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -789,7 +881,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.edge_exploded(e, view, layer_ids)
     }
 
-    fn edge_layers<'graph, G: GraphViewOps<'graph>>(
+    fn edge_layers<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -798,7 +890,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e.filtered_layer_ids_iter(view, layer_ids)
     }
 
-    fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
+    fn edge_window_exploded<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeEntryRef<'graph>,
         view: G,
@@ -823,7 +915,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_window_layers<'graph, G: GraphViewOps<'graph>>(
+    fn edge_window_layers<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -844,7 +936,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             })
     }
 
-    fn edge_earliest_time<'graph, G: GraphViewOps<'graph>>(
+    fn edge_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -858,7 +950,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .min()
     }
 
-    fn edge_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -882,7 +974,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_exploded_earliest_time<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -892,7 +984,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.edge_exploded_earliest_time(e, view, t, layer)
     }
 
-    fn edge_exploded_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -923,7 +1015,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_latest_time<'graph, G: GraphViewOps<'graph>>(
+    fn edge_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -937,7 +1029,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .max()
     }
 
-    fn edge_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -960,7 +1052,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_exploded_latest_time<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -978,7 +1070,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .or_else(|| view.latest_time_global().map(EventTime::end))
     }
 
-    fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -1010,7 +1102,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_deletion_history<'graph, G: GraphViewOps<'graph>>(
+    fn edge_deletion_history<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1026,7 +1118,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge()
     }
 
-    fn edge_deletion_history_rev<'graph, G: GraphViewOps<'graph>>(
+    fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1042,7 +1134,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
-    fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1062,7 +1154,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge()
     }
 
-    fn edge_deletion_history_window_rev<'graph, G: GraphViewOps<'graph>>(
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1082,7 +1174,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
-    fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_valid<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1090,7 +1182,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge_alive_at_end(e, EventTime::MAX, view)
     }
 
-    fn edge_is_valid_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_valid_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1104,7 +1196,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     /// - An edge is deleted if it is deleted in all layers
     /// - An edge that has no visible deletion event is not deleted (if it has no visible event at
     ///   all, it is neither deleted nor valid)
-    fn edge_is_deleted<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_deleted<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1117,7 +1209,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     /// - An edge is deleted if it is deleted in all layers
     /// - An edge that has no visible deletion event is not deleted (if it has no visible event at
     ///   all, it is neither deleted nor valid)
-    fn edge_is_deleted_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_deleted_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1126,7 +1218,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         edge_deleted_at(e, w.end, view)
     }
 
-    fn edge_is_active<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_active<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1137,7 +1229,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 .any(|(_, deletions)| !deletions.is_empty())
     }
 
-    fn edge_is_active_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_active_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1153,7 +1245,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             })
     }
 
-    fn edge_is_active_exploded<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_active_exploded<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1163,7 +1255,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.edge_is_active_exploded(e, view, t, layer)
     }
 
-    fn edge_is_active_exploded_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1175,7 +1267,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     }
 
     /// An exploded edge is valid if it is the last exploded view and the edge is not deleted (i.e., there are no additions or deletions for the edge after t in the layer)
-    fn edge_is_valid_exploded<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_valid_exploded<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1192,7 +1284,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     /// An exploded edge is valid in a window if it is the last exploded
     /// view in the window and is not deleted before the end of the window
     /// (i.e., there are no additions or deletions for the edge after t in the layer in the window)
-    fn edge_is_valid_exploded_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_is_valid_exploded_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1206,7 +1298,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 .active(t.next()..w.end)
     }
 
-    fn edge_exploded_deletion<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_deletion<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1230,7 +1322,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn edge_exploded_deletion_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_exploded_deletion_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1255,7 +1347,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn temporal_edge_prop_exploded<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_exploded<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1273,7 +1365,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(_, v)| v)
     }
 
-    fn temporal_edge_prop_exploded_last_at<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_exploded_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1296,7 +1388,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1313,7 +1405,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn temporal_edge_prop_last_at<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1355,7 +1447,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(_, v)| v)
     }
 
-    fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_last_at_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -1383,7 +1475,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn temporal_edge_prop_hist<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_hist<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1393,7 +1485,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.temporal_edge_prop_hist(e, view, layer_ids, prop_id)
     }
 
-    fn temporal_edge_prop_hist_rev<'graph, G: GraphViewOps<'graph>>(
+    fn temporal_edge_prop_hist_rev<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -1452,7 +1544,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
-    fn edge_metadata<'graph, G: GraphViewOps<'graph>>(
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
@@ -1466,7 +1558,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 
-    fn edge_metadata_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,

@@ -24,10 +24,7 @@ use raphtory_api::{
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps,
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_ref::NodeStorageRef},
 };
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
@@ -35,7 +32,7 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
-use storage::EdgeEntryRef;
+use storage::{api::nodes::NodeRefOps, EdgeEntryRef};
 
 #[derive(Clone)]
 pub struct CachedView<G> {

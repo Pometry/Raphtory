@@ -34,6 +34,7 @@ use raphtory_api::{
 };
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, sync::Arc};
+use storage::api::nodes::NodeEntryOps;
 
 /// Trait declaring the operations needed so that a type's History can be accessed using the `History` object
 pub trait InternalHistoryOps: Send + Sync {

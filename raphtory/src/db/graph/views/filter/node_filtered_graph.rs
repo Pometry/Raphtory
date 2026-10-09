@@ -13,10 +13,8 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
-use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
-    graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
+use storage::api::nodes::NodeRefOps;
 
 #[derive(Debug, Clone)]
 pub struct NodeFilteredGraph<G, F> {

@@ -1,27 +1,28 @@
 use crate::{
     db::api::view::internal::{
-        EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView,
+        EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{
-        edges::edge_ref::EdgeRef, layers::Multiple, properties::meta::STATIC_GRAPH_LAYER_ID,
-        LayerIds, ELID, VID,
-    },
+    entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
-use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
-use std::{ops::Range, sync::Arc};
-use storage::generic_time_ops::LayerIter;
+use raphtory_storage::core_ops::CoreGraphOps;
+use std::ops::Range;
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    generic_time_ops::LayerIter,
+};
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
     pub(crate) edge_history: storage::NodeEdgeAdditions<'a>,
     pub(crate) additions: storage::NodePropAdditions<'a>,
+    pub(crate) deletions: storage::NodeDeletions<'a>,
     pub(crate) view: G,
 }
 
@@ -37,6 +38,8 @@ pub struct NodePropHistory<'a, G> {
     pub(crate) view: G,
 }
 
+pub type NodeDeletionsHistory<'a> = storage::NodeDeletions<'a>;
+
 impl<'a, G: Clone> NodeHistory<'a, G> {
     pub fn edge_history(&self) -> NodeEdgeHistory<'a, G> {
         NodeEdgeHistory {
@@ -50,6 +53,10 @@ impl<'a, G: Clone> NodeHistory<'a, G> {
             additions: self.additions.clone(),
             view: self.view.clone(),
         }
+    }
+
+    pub fn deletions_history(&self) -> NodeDeletionsHistory<'a> {
+        self.deletions.clone()
     }
 }
 
@@ -186,77 +193,63 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.prop_history().active(w.clone()) || self.edge_history().active(w)
+        self.deletions_history().active(w.clone())
+            || self.prop_history().active(w.clone())
+            || self.edge_history().active(w)
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        self.prop_history().last().max(self.edge_history().last())
+        self.deletions_history()
+            .last()
+            .max(self.prop_history().last().max(self.edge_history().last()))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self {
         let edge_history = self.edge_history.range(w.clone());
-        let additions = self.additions.range(w);
+        let additions = self.additions.range(w.clone());
+        let deletions = self.deletions.range(w);
         let view = self.view.clone();
         NodeHistory {
             edge_history,
             additions,
+            deletions,
             view,
         }
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
-        self.prop_history().iter().merge(self.edge_history().iter())
+        self.prop_history()
+            .iter()
+            .merge(self.edge_history().iter())
+            .merge(self.deletions_history().iter())
     }
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
         self.prop_history()
             .iter_rev()
             .merge_by(self.edge_history().iter_rev(), |t1, t2| t1 >= t2)
+            .merge_by(self.deletions_history().iter_rev(), |t1, t2| t1 >= t2)
     }
 
     fn len(&self) -> usize {
-        self.prop_history().len() + self.edge_history().len()
+        self.prop_history().len() + self.edge_history().len() + self.deletions_history().len()
     }
 
     fn is_empty(&self) -> bool {
-        self.prop_history().is_empty() && self.edge_history().is_empty()
+        self.prop_history().is_empty()
+            && self.edge_history().is_empty()
+            && self.deletions_history().is_empty()
     }
 }
 
-/// Build a `LayerIter` that includes `STATIC_GRAPH_LAYER_ID` in addition to any explicitly
-/// requested layers. Nodes added without a specific layer are stored in STATIC_GRAPH_LAYER_ID
-/// and should be visible in every layer-restricted view.
-fn layer_ids_with_static(layer_ids: &LayerIds) -> LayerIter<'_> {
-    match layer_ids {
-        // All layers already includes STATIC
-        LayerIds::All => LayerIter::LayerRef(layer_ids),
-        // No layers + static = just static
-        LayerIds::None => LayerIter::One(STATIC_GRAPH_LAYER_ID),
-        LayerIds::One(id) => {
-            if *id == STATIC_GRAPH_LAYER_ID {
-                LayerIter::One(*id)
-            } else {
-                // Return both the static layer and the requested layer, sorted for binary search
-                let mut ids = [STATIC_GRAPH_LAYER_ID, *id];
-                ids.sort();
-                LayerIter::Multiple(Multiple(Arc::from(ids.as_slice())))
-            }
-        }
-        LayerIds::Multiple(ids) => {
-            if ids.contains(STATIC_GRAPH_LAYER_ID) {
-                LayerIter::LayerRef(layer_ids)
-            } else {
-                let mut combined: Vec<_> = std::iter::once(STATIC_GRAPH_LAYER_ID)
-                    .chain(ids.iter())
-                    .collect();
-                combined.sort();
-                LayerIter::Multiple(Multiple(Arc::from(combined.as_slice())))
-            }
-        }
-    }
-}
-
-pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
+pub trait FilteredNodeStorageOps<'a>:
+    NodeRefOps<
+    'a,
+    Additions = storage::NodePropAdditions<'a>,
+    EdgeAdditions = storage::NodeEdgeAdditions<'a>,
+    Deletions = storage::NodeDeletions<'a>,
+>
+{
     /// Get a filtered view of the update history of the node
     ///
     /// Note that this is an internal API that does not apply the window filtering!
@@ -264,11 +257,13 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         // Nodes added without a specific layer go to STATIC_GRAPH_LAYER_ID and should appear
         // active in any layer-restricted view. Nodes added with an explicit layer only appear
         // in that layer's view.
-        let additions = self.node_prop_additions(layer_ids_with_static(layer_ids));
-        let edge_history = self.node_edge_additions(layer_ids);
+        let additions = self.node_additions(LayerIter::WithStatic(layer_ids));
+        let edge_history = self.edge_additions(layer_ids);
+        let deletions = self.node_deletions(layer_ids);
         NodeHistory {
             edge_history,
             additions,
+            deletions,
             view,
         }
     }
@@ -308,6 +303,26 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         }
     }
 
+    /// Applies only the internal filters, no windowing, used for implementing time semantics
+    fn internal_filtered_edges_iter<G: GraphView + 'a>(
+        self,
+        view: &'a G,
+        layer_ids: &'a LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
+        let iter = self.edges_iter(layer_ids, dir);
+        match view.filter_state() {
+            FilterState::Neither | FilterState::Window => Either::Left(iter),
+            FilterState::Both
+            | FilterState::BothIndependent
+            | FilterState::Nodes
+            | FilterState::Edges => Either::Right(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.filter_edge_inner(gs.core_edge(Either::Right(*e)).as_ref())
+            })),
+        }
+    }
+
     fn filtered_neighbours_iter<G: GraphView + 'a>(
         self,
         view: &'a G,
@@ -320,4 +335,14 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     }
 }
 
-impl<'a, T: NodeStorageOps<'a>> FilteredNodeStorageOps<'a> for T {}
+impl<
+        'a,
+        T: NodeRefOps<
+            'a,
+            Additions = storage::NodePropAdditions<'a>,
+            EdgeAdditions = storage::NodeEdgeAdditions<'a>,
+            Deletions = storage::NodeDeletions<'a>,
+        >,
+    > FilteredNodeStorageOps<'a> for T
+{
+}

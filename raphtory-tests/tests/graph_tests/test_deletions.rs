@@ -188,6 +188,40 @@ fn materialize_window_proptest() {
 }
 
 #[test]
+fn test_materialize_addition_before_window() {
+    let g = PersistentGraph::new();
+    g.add_node(-1, 0, NO_PROPS, None, None).unwrap();
+    let gw = g.window(0, 1);
+    let updates = gw.node(0).unwrap().rows().collect_vec();
+    dbg!(updates);
+    let gwm = gw.materialize().unwrap();
+    assert_persistent_materialize_graph_equal(&gw, &gwm);
+}
+
+#[test]
+fn test_materialize_addition_before_and_after_window_layers() {
+    let g = PersistentGraph::new();
+    g.add_node(-1, 0, NO_PROPS, None, Some("1")).unwrap();
+    g.add_node(1, 1, NO_PROPS, None, Some("2")).unwrap();
+    let gw = g.window(0, 1);
+    let updates = gw.node(0).unwrap().rows().collect_vec();
+    dbg!(updates);
+    let gwm = gw.materialize().unwrap();
+    assert_persistent_materialize_graph_equal(&gw, &gwm);
+}
+
+#[test]
+fn test_materialize_edge_multilayer() {
+    let g = PersistentGraph::new();
+    g.add_edge(-1, 0, 0, NO_PROPS, Some("a")).unwrap();
+    g.add_edge(1, 0, 0, NO_PROPS, Some("b")).unwrap();
+    let gw = g.window(0, 1);
+    dbg!(gw.node(0).unwrap().rows().collect_vec());
+    let gwm = gw.materialize().unwrap();
+    assert_persistent_materialize_graph_equal(&gw, &gwm);
+}
+
+#[test]
 fn test_multilayer_window() {
     let g = PersistentGraph::new();
     g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();

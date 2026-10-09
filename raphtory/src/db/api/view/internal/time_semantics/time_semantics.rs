@@ -131,19 +131,21 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates(node, view, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates(node, view, layer_ids, prop_ids))
     }
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w, prop_ids))
+        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, layer_ids, w, prop_ids))
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(
@@ -158,38 +160,42 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter(node, view, prop_id))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter(node, view, layer_ids, prop_id))
     }
 
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter_rev(node, view, prop_id))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_rev(node, view, layer_ids, prop_id))
     }
 
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter_window(node, view, prop_id, w))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_window(node, view, layer_ids, prop_id, w))
     }
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_tprop_iter_window_rev(node, view, prop_id, w))
+        for_all_iter!(self, semantics => semantics.node_tprop_iter_window_rev(node, view, layer_ids, prop_id, w))
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(

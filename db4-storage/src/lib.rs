@@ -79,6 +79,8 @@ pub type NodeTypeEntry = MemNodeTypeEntry;
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
 
+pub type NodeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemNodeRef<'a>>>;
+
 pub type EdgeAdditions<'a> = GenericTimeOps<'a, AdditionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<'a>>>;
 

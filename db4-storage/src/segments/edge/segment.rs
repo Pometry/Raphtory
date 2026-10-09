@@ -230,7 +230,7 @@ impl MemEdgeSegment {
             .reserve_local_row(edge_pos, src, dst, layer_id)
             .into_inner_with_status();
         let props = self.layers[layer_id.0].properties_mut();
-        props.get_mut_entry(local_row).deletion_timestamp(t, None);
+        props.get_mut_entry(local_row).deletion_timestamp(t);
         let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
         is_new
