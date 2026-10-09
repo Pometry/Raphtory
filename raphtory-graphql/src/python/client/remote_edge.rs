@@ -2,7 +2,7 @@ use super::view_ops::py_remote_view_ops;
 use crate::{
     client::{op::input_time_from_parts, remote_edge::RemoteEdge, ClientError},
     python::client::{
-        remote_edges::{PyRemoteEdges, PyRemoteExplodedEdges},
+        remote_edges::PyRemoteEdges,
         remote_history::PyRemoteHistory,
         remote_metadata::{PyRemoteMetadata, PyRemoteProperties},
         remote_node::PyRemoteNode,
@@ -377,22 +377,22 @@ impl PyRemoteEdge {
         PyRemoteHistory::new(self.edge.deletions())
     }
 
-    /// Fan out this edge into one entry per event — returns a `RemoteExplodedEdges`
+    /// Fan out this edge into one entry per event — returns a `RemoteEdges`
     /// with each member a single-event edge instance. Lazy — no RPC.
     ///
     /// Returns:
-    ///     RemoteExplodedEdges: one entry per event of this edge.
-    pub fn explode(&self) -> PyRemoteExplodedEdges {
-        PyRemoteExplodedEdges::new(self.edge.explode())
+    ///     RemoteEdges: one entry per event of this edge.
+    pub fn explode(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edge.explode())
     }
 
-    /// Fan out this edge into one entry per layer — returns a `RemoteExplodedEdges`
+    /// Fan out this edge into one entry per layer — returns a `RemoteEdges`
     /// with each member a single-layer edge instance. Lazy — no RPC.
     ///
     /// Returns:
-    ///     RemoteExplodedEdges: one entry per layer of this edge.
-    pub fn explode_layers(&self) -> PyRemoteExplodedEdges {
-        PyRemoteExplodedEdges::new(self.edge.explode_layers())
+    ///     RemoteEdges: one entry per layer of this edge.
+    pub fn explode_layers(&self) -> PyRemoteEdges {
+        PyRemoteEdges::new(self.edge.explode_layers())
     }
 
     /// The non-temporal metadata container of this edge. Lazy — no RPC.

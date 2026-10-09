@@ -4134,9 +4134,9 @@ def test_mixed_kind_filter_expression_remote():
 def test_exploded_edges_select_per_item():
     """`[]` asks its question of the items of the collection it is called on,
     remotely as locally: once per edge on `edges`, once per exploded edge on
-    `edges.explode()`. Exploding returns the exploded classes."""
+    `edges.explode()`. Exploding returns the same collection classes."""
     from raphtory import Graph, filter
-    from raphtory.graphql import RemoteExplodedEdges, RemoteNestedExplodedEdges
+    from raphtory.graphql import RemoteEdges, RemoteNestedEdges
 
     def build(g):
         g.add_edge(1, "a", "b", properties={"w": 1}, layer="x")
@@ -4147,8 +4147,8 @@ def test_exploded_edges_select_per_item():
     local = build(Graph())
     with _remote_graph("g") as rg:
         build(rg)
-        assert isinstance(rg.edges.explode(), RemoteExplodedEdges)
-        assert isinstance(rg.nodes.edges.explode(), RemoteNestedExplodedEdges)
+        assert isinstance(rg.edges.explode(), RemoteEdges)
+        assert isinstance(rg.nodes.edges.explode(), RemoteNestedEdges)
         for expr in (
             filter.Graph.window(0, 5),
             filter.ExplodedEdge.property("w") == 7,
