@@ -61,8 +61,6 @@ pub enum MutationError {
     StorageError(#[from] StorageError),
     #[error("'{0}' is not a valid layer name")]
     InvalidLayerName(String),
-    #[error("'{DEFAULT_LAYER_NAME}' is reserved for the default layer")]
-    DefaultLayer,
 }
 
 pub trait InheritMutationOps: Base {}

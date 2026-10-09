@@ -45,9 +45,6 @@ use storage::{
 
 fn is_valid_layer_name(name: Option<&str>) -> Result<(), MutationError> {
     if let Some(name) = name {
-        if name == DEFAULT_LAYER_NAME {
-            return Err(MutationError::DefaultLayer);
-        }
         if name.is_empty() {
             return Err(MutationError::InvalidLayerName(name.to_string()));
         }
