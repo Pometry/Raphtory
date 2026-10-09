@@ -134,7 +134,9 @@ where
         }
     }
 
-    pub fn new_indexed(graph: G, nodes: Index<VID>) -> Self {
+    /// Create new Nodes from a node list. Note that the node list is not filtered here, weird
+    /// things might happen if it contains nodes that are not part of the graph view!
+    pub fn new_indexed(graph: G, nodes: NodeList) -> Self {
         let base_graph = graph.clone();
         Self {
             base_graph,

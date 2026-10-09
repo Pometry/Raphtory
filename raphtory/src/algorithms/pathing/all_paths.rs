@@ -1,6 +1,9 @@
 use crate::{
     algorithms::pathing::dijkstra::dijkstra_single_source_shortest_paths,
-    db::{api::view::StaticGraphViewOps, graph::nodes::Nodes},
+    db::{
+        api::view::{internal::NodeList, StaticGraphViewOps},
+        graph::nodes::Nodes,
+    },
     prelude::{GraphViewOps, NodeStateOps},
 };
 use ahash::{HashSet, HashSetExt};
@@ -211,6 +214,11 @@ impl<G: StaticGraphViewOps> Iterator for PathIterator<G, usize> {
             }
         };
         self.list_a.push(prev_path.clone());
-        Some(Nodes::new_indexed(self.graph.clone(), prev_path.0.into()))
+        Some(Nodes::new_indexed(
+            self.graph.clone(),
+            NodeList::List {
+                elems: prev_path.0.into(),
+            },
+        ))
     }
 }
