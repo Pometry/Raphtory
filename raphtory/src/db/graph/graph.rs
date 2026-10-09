@@ -30,7 +30,7 @@ use crate::{
 use raphtory_api::inherit::Base;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    mutation::InheritMutationOps, stage::Stage,
 };
 use rayon::prelude::*;
 use std::{
@@ -51,6 +51,14 @@ use {
 #[derive(Debug, Clone)]
 pub struct Graph {
     pub(crate) inner: Arc<Storage>,
+}
+
+impl From<Storage> for Graph {
+    fn from(inner: Storage) -> Self {
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
 }
 
 impl From<Arc<Storage>> for Graph {
@@ -246,10 +254,6 @@ impl Graph {
         })
     }
 
-    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
-        Self { inner }
-    }
-
     /// Return a read-only handle to this graph. Mutations on the returned
     /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
     /// `TemporalGraph` is shared — this is not a snapshot.
@@ -262,6 +266,10 @@ impl Graph {
         Self {
             inner: Arc::new(self.inner.read_only()),
         }
+    }
+
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {

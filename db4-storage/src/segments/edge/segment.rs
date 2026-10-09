@@ -30,7 +30,7 @@ use raphtory_core::{
 use rayon::prelude::*;
 use std::{
     ops::{Deref, DerefMut},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicU32, AtomicUsize, Ordering},
@@ -100,24 +100,6 @@ impl MemEdgeSegment {
 
     pub fn edge_meta(&self) -> &Arc<Meta> {
         self.layers[0].meta()
-    }
-
-    pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<EdgeEntry>> {
-        let layers = self
-            .as_mut()
-            .iter_mut()
-            .map(|head_guard| {
-                let mut old_head = SegmentContainer::new(
-                    head_guard.segment_id(),
-                    head_guard.max_page_len(),
-                    head_guard.meta().clone(),
-                );
-                std::mem::swap(&mut *head_guard, &mut old_head);
-                old_head
-            })
-            .collect::<Vec<_>>();
-        self.est_size = 0; // Reset estimated size after swapping out layers
-        layers
     }
 
     pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<EdgeEntry> {
@@ -333,10 +315,10 @@ impl MemEdgeSegment {
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
-    pub fn has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool {
+    pub fn has_edge(&self, pos: LocalPOS, layer_id: LayerId) -> bool {
         self.layers
             .get(layer_id.0)
-            .is_some_and(|layer| layer.has_item(edge_pos))
+            .is_some_and(|layer| layer.has_item(pos))
     }
 
     pub fn latest(&self) -> Option<EventTime> {
@@ -459,10 +441,6 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
-    fn extension(&self) -> &Self::Extension {
-        &self.ext
-    }
-
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
@@ -553,7 +531,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn notify_write(
         &self,
-        _head_lock: impl DerefMut<Target = MemEdgeSegment>,
+        _head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError> {
         Ok(())
     }
@@ -566,9 +544,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
-        locked_head.has_edge(edge_pos, layer_id)
+        head.has_edge(edge_pos, layer_id)
     }
 
     fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: LayerId) -> bool {
@@ -579,27 +557,22 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
+        head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)> {
-        locked_head.get_edge(edge_pos, layer_id)
+        head.get_edge(edge_pos, layer_id)
     }
 
     fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a> {
         MemEdgeEntry::new(edge_pos, self.head(), edge_ref)
     }
 
-    fn layer_entry<'a>(
-        &'a self,
-        edge_pos: LocalPOS,
-        layer_id: LayerId,
-        locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
-    ) -> Option<Self::Entry<'a>> {
-        locked_head.and_then(|locked_head| {
-            let layer = locked_head.as_ref().get(layer_id.0)?;
-            layer
-                .has_item(edge_pos)
-                .then(|| MemEdgeEntry::new(edge_pos, locked_head, None))
-        })
+    fn layer_entry<'a>(&'a self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<Self::Entry<'a>> {
+        let head = self.head();
+        let layer = head.as_ref().get(layer_id.0)?;
+
+        layer
+            .has_item(edge_pos)
+            .then(|| MemEdgeEntry::new(edge_pos, head, None))
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
@@ -609,10 +582,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         }
     }
 
-    fn vacuum(
-        &self,
-        _locked_head: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), StorageError> {
+    fn vacuum(&self, _head: impl DerefMut<Target = MemEdgeSegment>) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -620,7 +590,14 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         0
     }
 
-    fn flush(&self) -> Result<(), StorageError> {
+    fn flush_with_head(
+        &self,
+        _head: impl DerefMut<Target = MemEdgeSegment>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn copy_to(&self, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 

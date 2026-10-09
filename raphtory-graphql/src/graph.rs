@@ -100,6 +100,7 @@ impl GraphWithVectors {
         });
         future.await
     }
+
     /// Swap in a read-only handle for the graph. No-op with a warning if the inner
     /// state is unexpectedly shared (only call right after construction).
     pub(crate) fn into_read_only(self) -> Self {

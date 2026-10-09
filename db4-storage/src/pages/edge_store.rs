@@ -6,7 +6,7 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+        locked::edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
@@ -36,8 +36,8 @@ pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
 pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
-    free_pages: Box<[RwLock<usize>]>,
-    edges_path: Option<PathBuf>,
+    free_segments: Box<[RwLock<usize>]>,
+    path: Option<PathBuf>,
     prop_meta: Arc<Meta>,
     ext: EXT,
 }
@@ -45,7 +45,7 @@ pub struct EdgeStorageInner<ES, EXT> {
 #[derive(Debug)]
 pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     storage: Arc<EdgeStorageInner<ES, EXT>>,
-    locked_pages: Box<[ES::ArcLockedSegment]>,
+    segments: Box<[ES::ArcLockedSegment]>,
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
@@ -60,9 +60,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         e_id_ref: Either<EID, EdgeRef>,
     ) -> <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> {
         let e_id = e_id_ref.either(|eid| eid, |eref| eref.pid());
-        let (page_id, pos) = self.storage.resolve_pos(e_id);
-        let locked_page = &self.locked_pages[page_id];
-        locked_page.entry_ref(pos, e_id_ref.right())
+        let (segment_id, pos) = self.storage.resolve_pos(e_id);
+        let segment = &self.segments[segment_id];
+        segment.entry_ref(pos, e_id_ref.right())
     }
 
     pub fn iter<'a, 'b: 'a>(
@@ -71,9 +71,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     ) -> impl Iterator<
         Item = <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'a>,
     > + 'a {
-        self.locked_pages
+        self.segments
             .iter()
-            .flat_map(move |page| page.edge_iter(layer_ids))
+            .flat_map(move |segment| segment.edge_iter(layer_ids))
     }
 
     pub fn par_iter<'a, 'b: 'a>(
@@ -82,9 +82,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     ) -> impl ParallelIterator<
         Item = <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'a>,
     > + 'a {
-        self.locked_pages
+        self.segments
             .par_iter()
-            .flat_map(move |page| page.edge_par_iter(layer_ids))
+            .flat_map(move |segment| segment.edge_par_iter(layer_ids))
     }
 
     /// Returns an iterator over the segments of the edge store, where each segment is
@@ -92,13 +92,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn segmented_par_iter(
         &self,
     ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EID>)> + '_ {
-        self.locked_pages
+        self.segments
             .par_iter()
             .enumerate()
-            .map(move |(segment_id, page)| {
+            .map(move |(segment_id, segment)| {
                 (
                     segment_id,
-                    page.edge_iter(&LayerIds::All).map(|e| e.edge_id()),
+                    segment.edge_iter(&LayerIds::All).map(|e| e.edge_id()),
                 )
             })
     }
@@ -110,14 +110,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .storage
             .segments
             .iter()
-            .map(|(_, seg)| seg.num_edges())
+            .map(|(_, segment)| segment.num_edges())
             .max()
             .unwrap_or(0);
-        let max_seg_len = self.storage.max_page_len();
+
+        let max_segment_len = self.storage.max_page_len();
+
         row_group_par_iter(
-            max_seg_len as usize,
-            self.locked_pages.len(),
-            max_seg_len,
+            max_segment_len as usize,
+            self.segments.len(),
+            max_segment_len,
             max_actual_seg_len,
         )
         .map(|(row_group_id, iter)| {
@@ -134,7 +136,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn segment_counts(&self) -> SegmentCounts<EID> {
         SegmentCounts::new(
             self.storage.max_page_len(),
-            self.locked_pages.iter().map(|seg| seg.num_edges()),
+            self.segments.iter().map(|seg| seg.num_edges()),
         )
     }
 }
@@ -143,14 +145,15 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     EdgeStorageInner<ES, EXT>
 {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
-        let locked_pages = self
+        let segments = self
             .segments
             .iter()
             .map(|(_, segment)| segment.locked())
             .collect::<Box<_>>();
+
         ReadLockedEdgeStorage {
             storage: self.clone(),
-            locked_pages,
+            segments,
         }
     }
 
@@ -170,13 +173,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.segments.count()
     }
 
-    pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
-        let free_pages = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
+    pub fn new(
+        path: Option<PathBuf>,
+        edge_meta: Arc<Meta>,
+        ext: EXT,
+    ) -> Result<Self, StorageError> {
+        if let Some(path) = path.as_deref() {
+            std::fs::create_dir_all(path)?;
+        }
+
+        let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
-            free_pages: free_pages.try_into().unwrap(),
-            edges_path,
+            free_segments: free_segments.try_into().unwrap(),
+            path,
             prop_meta: edge_meta,
             ext,
         };
@@ -203,34 +214,34 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
             segment.set_dirty(true);
         }
-        empty
-    }
-
-    pub fn new(edges_path: Option<PathBuf>, ext: EXT) -> Self {
-        Self::new_with_meta(edges_path, Meta::new_for_edges().into(), ext)
-    }
-
-    pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
-        &self.segments
+        Ok(empty)
     }
 
     pub fn edges_path(&self) -> Option<&Path> {
-        self.edges_path.as_deref()
+        self.path.as_deref()
     }
 
     pub fn earliest(&self) -> Option<EventTime> {
-        Iterator::min(self.segments.iter().filter_map(|(_, page)| page.earliest()))
+        Iterator::min(
+            self.segments
+                .iter()
+                .filter_map(|(_, segment)| segment.earliest()),
+        )
         // see : https://github.com/rust-lang/rust-analyzer/issues/10653
     }
 
     pub fn latest(&self) -> Option<EventTime> {
-        Iterator::max(self.segments.iter().filter_map(|(_, page)| page.latest()))
+        Iterator::max(
+            self.segments
+                .iter()
+                .filter_map(|(_, segment)| segment.latest()),
+        )
     }
 
     pub fn t_len(&self, layer_id: usize) -> usize {
         self.segments
             .iter()
-            .map(|(_, page)| page.t_len(layer_id))
+            .map(|(_, segment)| segment.t_len(layer_id))
             .sum()
     }
 
@@ -238,7 +249,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn num_updates(&self) -> usize {
         self.segments()
             .iter()
-            .map(|(_, page)| page.num_updates())
+            .map(|(_, segment)| segment.num_updates())
             .sum()
     }
 
@@ -251,96 +262,98 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         resolve_pos(e_id, self.max_page_len())
     }
 
-    pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
-        let edges_path = edges_path.as_ref();
+    pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        let path = path.as_ref();
         let max_page_len = ext.config().max_edge_page_len();
-
         let meta = Arc::new(Meta::new_for_edges());
 
-        if !edges_path.exists() {
-            return Ok(Self::new(Some(edges_path.to_path_buf()), ext.clone()));
+        if !path.exists() {
+            return Self::new(Some(path.to_path_buf()), meta, ext.clone());
         }
 
-        let mut pages = std::fs::read_dir(edges_path)?
+        let mut segments = std::fs::read_dir(path)?
             .par_bridge()
-            .filter(|entry| {
-                entry
-                    .as_ref()
-                    .ok()
-                    .and_then(|entry| entry.file_type().ok().map(|ft| ft.is_dir()))
-                    .unwrap_or_default()
-            })
             .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let page_id = entry
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                let is_dir = match entry.file_type() {
+                    Ok(ft) => ft.is_dir(),
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                if !is_dir {
+                    return None;
+                }
+
+                // Ignore directories that aren't segments.
+                let segment_id = entry
                     .path()
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
-                let page = ES::load(page_id, max_page_len, meta.clone(), edges_path, ext.clone())
-                    .map(|page| (page_id, page));
 
-                Some(page)
+                Some(
+                    ES::load(segment_id, max_page_len, meta.clone(), path, ext.clone())
+                        .map(|segment| (segment_id, segment)),
+                )
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
 
-        if pages.is_empty() {
-            return Err(StorageError::EmptyGraphDir(edges_path.to_path_buf()));
-        }
+        let Some(max_segment) = segments.keys().copied().max() else {
+            // Empty directory, nothing to load.
+            return Self::new(Some(path.to_path_buf()), meta, ext.clone());
+        };
 
-        let max_page = Iterator::max(pages.keys().copied()).unwrap();
-
-        let pages: boxcar::Vec<Arc<ES>> = (0..=max_page)
-            .map(|page_id| {
-                let np = pages.remove(&page_id).unwrap_or_else(|| {
+        // Segments flush independently, so ids below max may be missing on disk.
+        let segments: boxcar::Vec<Arc<ES>> = (0..=max_segment)
+            .map(|segment_id| {
+                let segment = if let Some(segment) = segments.remove(&segment_id) {
+                    segment
+                } else {
                     ES::new(
-                        page_id,
+                        segment_id,
                         meta.clone(),
-                        Some(edges_path.to_path_buf()),
+                        Some(path.to_path_buf()),
                         ext.clone(),
                     )
-                });
-                Arc::new(np)
+                };
+
+                Arc::new(segment)
             })
             .collect::<boxcar::Vec<_>>();
 
-        let first_page = pages.iter().next().unwrap().1;
-        let first_p_id = first_page.segment_id();
-
-        if first_p_id != 0 {
-            return Err(StorageError::GenericFailure(format!(
-                "First page id is not 0 in {edges_path:?}"
-            )));
-        }
-
-        let mut free_pages = pages
+        let mut free_segments = segments
             .iter()
-            .filter_map(|(_, page)| {
-                let len = page.num_edges();
+            .filter_map(|(_, segment)| {
+                let len = segment.num_edges();
+
                 if len < max_page_len {
-                    Some(RwLock::new(page.segment_id()))
+                    Some(RwLock::new(segment.segment_id()))
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>();
 
-        let mut next_free_page = free_pages
+        let mut next_free_segment = free_segments
             .last()
-            .map(|page| *(page.read()))
+            .map(|segment| *(segment.read()))
             .map(|last| last + 1)
-            .unwrap_or_else(|| pages.count());
+            .unwrap_or_else(|| segments.count());
 
-        free_pages.resize_with(*N, || {
-            let lock = RwLock::new(next_free_page);
-            next_free_page += 1;
+        free_segments.resize_with(*N, || {
+            let lock = RwLock::new(next_free_segment);
+            next_free_segment += 1;
             lock
         });
 
         let mut layer_counts = vec![];
 
-        for (_, page) in pages.iter() {
-            for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(LayerId(layer_id)) as usize;
+        for (_, segment) in segments.iter() {
+            for layer_id in 0..segment.num_layers() {
+                let count = segment.layer_count(LayerId(layer_id)) as usize;
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
@@ -348,16 +361,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             }
         }
 
-        let earliest = pages
+        let earliest = segments
             .iter()
-            .filter_map(|(_, page)| page.earliest().filter(|t| t.t() != i64::MAX))
+            .filter_map(|(_, segment)| segment.earliest().filter(|t| t.t() != i64::MAX))
             .map(|t| t.t())
             .min()
             .unwrap_or(i64::MAX);
 
-        let latest = pages
+        let latest = segments
             .iter()
-            .filter_map(|(_, page)| page.latest().filter(|t| t.t() != i64::MIN))
+            .filter_map(|(_, segment)| segment.latest().filter(|t| t.t() != i64::MIN))
             .map(|t| t.t())
             .max()
             .unwrap_or(i64::MIN);
@@ -365,10 +378,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         let stats = GraphStats::load(layer_counts, earliest, latest);
 
         Ok(Self {
-            segments: pages,
-            edges_path: Some(edges_path.to_path_buf()),
+            segments,
+            path: Some(path.to_path_buf()),
             layer_counter: stats.into(),
-            free_pages: free_pages.into(),
+            free_segments: free_segments.into(),
             prop_meta: meta,
             ext,
         })
@@ -378,12 +391,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.get_or_create_segment(size - 1);
     }
 
-    pub fn push_new_page(&self) -> usize {
+    pub fn push_new_segment(&self) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             Arc::new(ES::new(
                 segment_id,
                 self.prop_meta.clone(),
-                self.edges_path.clone(),
+                self.path.clone(),
                 self.ext.clone(),
             ))
         });
@@ -427,7 +440,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                     Arc::new(ES::new(
                         segment_id,
                         self.prop_meta.clone(),
-                        self.edges_path.clone(),
+                        self.path.clone(),
                         self.ext.clone(),
                     ))
                 });
@@ -451,12 +464,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         self.ext.config().max_edge_page_len()
     }
 
-    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
-        WriteLockedEdgePages::new(
+    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgeSegments<'a, ES> {
+        WriteLockedEdgeSegments::new(
             self.segments
                 .iter()
                 .map(|(page_id, page)| {
-                    LockedEdgePage::new(
+                    LockedEdgeSegment::new(
                         page_id,
                         self.max_page_len(),
                         page.as_ref(),
@@ -466,6 +479,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
                 })
                 .collect(),
         )
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.segments.iter().any(|(_, segment)| segment.is_dirty())
     }
 
     /// Retrieve the segment for an edge given its EID
@@ -544,7 +561,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
         let slot_idx = num_edges % *N;
-        let maybe_free_page = self.free_pages[slot_idx..]
+        let maybe_free_segment = self.free_segments[slot_idx..]
             .iter()
             .cycle()
             .take(3)
@@ -560,18 +577,20 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             })
             .next();
 
-        if let Some((edge_page, writer)) = maybe_free_page {
+        if let Some((edge_page, writer)) = maybe_free_segment {
             EdgeWriter::new(&self.layer_counter, edge_page, writer)
         } else {
             // not lucky, go wait on your slot
             loop {
-                let mut slot = self.free_pages[slot_idx].write();
+                let mut slot = self.free_segments[slot_idx].write();
                 match self.segments.get(*slot).map(|page| (page, page.head_mut())) {
-                    Some((edge_page, writer)) if edge_page.num_edges() < self.max_page_len() => {
-                        return EdgeWriter::new(&self.layer_counter, edge_page, writer);
+                    Some((edge_segment, writer))
+                        if edge_segment.num_edges() < self.max_page_len() =>
+                    {
+                        return EdgeWriter::new(&self.layer_counter, edge_segment, writer);
                     }
                     _ => {
-                        *slot = self.push_new_page();
+                        *slot = self.push_new_segment();
                     }
                 }
             }
@@ -585,28 +604,29 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % *N;
-        let maybe_free_page = {
-            let lock_slot = self.free_pages[slot_idx].read_recursive();
-            let page_id = *lock_slot;
-            let page = self.segments.get(page_id);
-            page.and_then(|page| {
-                self.reserve_page_row(page)
-                    .map(|pos| (page.segment_id(), LocalPOS(pos)))
+        let maybe_free_segment = {
+            let lock_slot = self.free_segments[slot_idx].read_recursive();
+            let segment_id = *lock_slot;
+            let segment = self.segments.get(segment_id);
+
+            segment.and_then(|segment| {
+                self.reserve_page_row(segment)
+                    .map(|pos| (segment.segment_id(), LocalPOS(pos)))
             })
         };
 
-        if let Some(reserved_pos) = maybe_free_page {
+        if let Some(reserved_pos) = maybe_free_segment {
             reserved_pos
         } else {
             // not lucky, go wait on your slot
-            let mut slot = self.free_pages[slot_idx].write();
+            let mut slot = self.free_segments[slot_idx].write();
             loop {
-                if let Some(page) = self.segments.get(*slot)
-                    && let Some(pos) = self.reserve_page_row(page)
+                if let Some(segment) = self.segments.get(*slot)
+                    && let Some(pos) = self.reserve_page_row(segment)
                 {
-                    return (page.segment_id(), LocalPOS(pos));
+                    return (segment.segment_id(), LocalPOS(pos));
                 }
-                *slot = self.push_new_page();
+                *slot = self.push_new_segment();
             }
         }
     }
@@ -636,13 +656,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn par_iter(&self, layer: LayerId) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
-        self.par_iter_segments().flat_map(move |page| {
-            (0..page.num_edges())
+        self.par_iter_segments().flat_map(move |segment| {
+            (0..segment.num_edges())
                 .into_par_iter()
                 .map(LocalPOS)
-                .filter_map(move |local_edge| {
-                    page.layer_entry(local_edge, layer, Some(page.head()))
-                })
+                .filter_map(move |local_edge| segment.layer_entry(local_edge, layer))
         })
     }
 
@@ -651,9 +669,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         layer: LayerId,
     ) -> impl Iterator<Item = SegmentLockedEdgeEntry<ES, EXT>> + '_ {
         (0..self.segments.count())
-            .filter_map(move |page_id| self.segments.get(page_id))
-            .flat_map(move |page| {
-                let locked = Arc::new(page.locked());
+            .filter_map(move |segment_id| self.segments.get(segment_id))
+            .flat_map(move |segment| {
+                let locked = Arc::new(segment.locked());
+
                 (0..locked.num_edges())
                     .map(LocalPOS)
                     .map(move |pos| SegmentLockedEdgeEntry {
@@ -690,12 +709,23 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     pub fn segment_counts(&self) -> SegmentCounts<EID> {
         SegmentCounts::new(
             self.max_page_len(),
-            self.pages().iter().map(|(_, seg)| seg.num_edges()),
+            self.segments().iter().map(|(_, seg)| seg.num_edges()),
         )
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.par_iter_segments().try_for_each(|seg| seg.flush())
+        self.par_iter_segments()
+            .try_for_each(|segment| segment.flush())
+    }
+
+    /// Copy flushed data into `dst`.
+    pub fn copy_to(&self, dst: &Path) -> Result<(), StorageError> {
+        std::fs::create_dir_all(dst)?;
+
+        self.par_iter_segments().try_for_each(|segment| {
+            let segment_dst = dst.join(segment.segment_id().to_string());
+            segment.copy_to(&segment_dst)
+        })
     }
 }
 

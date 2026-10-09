@@ -20,7 +20,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
@@ -245,8 +245,12 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
+    }
+
     pub fn event_graph(&self) -> Graph {
-        Graph::from_storage(self.0.clone())
+        Graph::from(self.0.clone())
     }
 
     pub fn persistent_graph(&self) -> PersistentGraph {
@@ -303,6 +307,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+
     #[inline]
     fn window_filtered(&self) -> bool {
         false
