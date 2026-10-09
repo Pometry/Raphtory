@@ -17,7 +17,7 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { src: { read: { field: ID } } }
+                                          read: { src: { expr: { read: { field: { name: ID } } } } }
                                         }
                                         rhs: {
                                           const: {
@@ -66,7 +66,7 @@ def test_filter_edges_with_num_ids_for_node_id_eq_gql(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { src: { read: { field: ID } } }
+                                          read: { src: { expr: { read: { field: { name: ID } } } } }
                                         }
                                         rhs: {
                                           const: {
@@ -107,7 +107,7 @@ def test_edges_chained_selection_with_edge_filter(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { dst: { read: { field: ID } } }
+                               read: { dst: { expr: { read: { field: { name: ID } } } } }
                              }
                              rhs: {
                                const: {
@@ -122,7 +122,7 @@ def test_edges_chained_selection_with_edge_filter(graph):
                              cmp: {
                                op: GT
                                lhs: {
-                                 read: { property: "p2" }
+                                 read: { property: { name: "p2" } }
                                }
                                rhs: {
                                  const: {
@@ -164,13 +164,15 @@ def test_edges_filter_window_is_active(graph):
           select(expr: {
                          edge: {
                            read: {
-                             field: IS_ACTIVE
-                             views: [{
-                               window: {
-                                 start: 1
-                                 end: 4
-                               }
-                             }]
+                             field: {
+                               name: IS_ACTIVE
+                               views: [{
+                                 window: {
+                                   start: 1
+                                   end: 4
+                                 }
+                               }]
+                             }
                            }
                          }
                        }) {
@@ -225,13 +227,15 @@ def test_edges_filter_window_is_deleted(graph, expected_edges):
           select(expr: {
                          edge: {
                            read: {
-                             field: IS_DELETED
-                             views: [{
-                               window: {
-                                 start: 1
-                                 end: 5
-                               }
-                             }]
+                             field: {
+                               name: IS_DELETED
+                               views: [{
+                                 window: {
+                                   start: 1
+                                   end: 5
+                                 }
+                               }]
+                             }
                            }
                          }
                        }) {

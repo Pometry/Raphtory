@@ -11947,6 +11947,40 @@ The yes/no inside does not hold.
 </tbody>
 </table>
 
+### EdgeFieldRead
+
+A built-in edge or exploded-edge term.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefieldread.name">name</strong></td>
+<td valign="top"><a href="#edgefield">EdgeField</a>!</td>
+<td>
+
+The built-in term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefieldread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views the term is read through, in order; none when absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### EdgeMembership
 
 A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
@@ -12065,7 +12099,7 @@ One edge term, read through optional views. Name exactly one of
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeread.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 The latest value of a property.
@@ -12074,7 +12108,7 @@ The latest value of a property.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeread.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 The history of a property, as a list.
@@ -12083,7 +12117,7 @@ The history of a property, as a list.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeread.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 A metadata entry.
@@ -12092,7 +12126,7 @@ A metadata entry.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeread.field">field</strong></td>
-<td valign="top"><a href="#edgefield">EdgeField</a></td>
+<td valign="top"><a href="#edgefieldread">EdgeFieldRead</a></td>
 <td>
 
 A built-in edge term.
@@ -12101,7 +12135,7 @@ A built-in edge term.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeread.src">src</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td valign="top"><a href="#endpointread">EndpointRead</a></td>
 <td>
 
 A node expression evaluated on the edge's source node.
@@ -12110,20 +12144,10 @@ A node expression evaluated on the edge's source node.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeread.dst">dst</strong></td>
-<td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
+<td valign="top"><a href="#endpointread">EndpointRead</a></td>
 <td>
 
 A node expression evaluated on the edge's destination node.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="edgeread.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td>
-
-Views that scope the term, applied in list order; on `src` or `dst`
-they scope every node term inside.
 
 </td>
 </tr>
@@ -12280,6 +12304,41 @@ The string it is tested against.
 <td>
 
 OpenAI embedding models or compatible providers
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### EndpointRead
+
+A node expression evaluated on one endpoint of an edge.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="endpointread.expr">expr</strong></td>
+<td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
+<td>
+
+The node expression.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="endpointread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views the term is read through, in order; none when absent. They scope
+every node term inside `expr`.
 
 </td>
 </tr>
@@ -12606,7 +12665,7 @@ views. Name exactly one of `property`, `temporalProperty`, `metadata` or
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="explodededgeread.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 The latest value of a property.
@@ -12615,7 +12674,7 @@ The latest value of a property.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="explodededgeread.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 The history of a property, as a list.
@@ -12624,7 +12683,7 @@ The history of a property, as a list.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="explodededgeread.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 A metadata entry.
@@ -12633,19 +12692,10 @@ A metadata entry.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="explodededgeread.field">field</strong></td>
-<td valign="top"><a href="#edgefield">EdgeField</a></td>
+<td valign="top"><a href="#edgefieldread">EdgeFieldRead</a></td>
 <td>
 
 A built-in edge term.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="explodededgeread.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td>
-
-Views that scope the term, applied in list order.
 
 </td>
 </tr>
@@ -13056,6 +13106,40 @@ Reverse this key's direction (default ascending).
 </tbody>
 </table>
 
+### NamedRead
+
+A term named by a string: a property or a metadata entry.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="namedread.name">name</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The property or metadata name.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="namedread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views the term is read through, in order; none when absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### NamespaceFilter
 
 Narrows a namespace's sub-namespace listing. Sub-namespaces carry no metadata
@@ -13412,6 +13496,40 @@ The yes/no inside does not hold.
 </tbody>
 </table>
 
+### NodeFieldRead
+
+A built-in node term.
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldread.name">name</strong></td>
+<td valign="top"><a href="#nodefield">NodeField</a>!</td>
+<td>
+
+The built-in term.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefieldread.views">views</strong></td>
+<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
+<td>
+
+Views the term is read through, in order; none when absent.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### NodeMembership
 
 A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
@@ -13530,7 +13648,7 @@ One node term, read through optional views. Name exactly one of
 <tbody>
 <tr>
 <td colspan="2" valign="top"><strong id="noderead.property">property</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 The latest value of a property.
@@ -13539,7 +13657,7 @@ The latest value of a property.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="noderead.temporalproperty">temporalProperty</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 The history of a property, as a list.
@@ -13548,7 +13666,7 @@ The history of a property, as a list.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="noderead.metadata">metadata</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#namedread">NamedRead</a></td>
 <td>
 
 A metadata entry.
@@ -13557,19 +13675,10 @@ A metadata entry.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="noderead.field">field</strong></td>
-<td valign="top"><a href="#nodefield">NodeField</a></td>
+<td valign="top"><a href="#nodefieldread">NodeFieldRead</a></td>
 <td>
 
 A built-in node term.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="noderead.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td>
-
-Views that scope the term, applied in list order.
 
 </td>
 </tr>

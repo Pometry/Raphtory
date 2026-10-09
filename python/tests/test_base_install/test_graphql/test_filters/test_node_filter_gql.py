@@ -26,7 +26,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { field: ID }
+                                          read: { field: { name: ID } }
                                         }
                                         rhs: {
                                           const: {
@@ -75,7 +75,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { field: ID }
+                                          read: { field: { name: ID } }
                                         }
                                         rhs: {
                                           const: {
@@ -112,7 +112,7 @@ def test_filter_nodes_with_num_ids_for_node_id_eq_gql(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { field: ID }
+                                          read: { field: { name: ID } }
                                         }
                                         rhs: {
                                           const: {
@@ -144,7 +144,7 @@ def test_nodes_chained_selection_with_node_filter(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { field: NODE_TYPE }
+                               read: { field: { name: NODE_TYPE } }
                              }
                              rhs: {
                                const: {
@@ -159,7 +159,7 @@ def test_nodes_chained_selection_with_node_filter(graph):
                              cmp: {
                                op: EQ
                                lhs: {
-                                 read: { property: "p9" }
+                                 read: { property: { name: "p9" } }
                                }
                                rhs: {
                                  const: {
@@ -174,7 +174,7 @@ def test_nodes_chained_selection_with_node_filter(graph):
                                cmp: {
                                  op: GT
                                  lhs: {
-                                   read: { property: "p100" }
+                                   read: { property: { name: "p100" } }
                                  }
                                  rhs: {
                                    const: {
@@ -211,13 +211,15 @@ def test_nodes_filter_windowed_is_active(graph):
           select(expr: {
                          node: {
                            read: {
-                             field: IS_ACTIVE
-                             views: [{
-                               window: {
-                                 start: 1
-                                 end: 4
-                               }
-                             }]
+                             field: {
+                               name: IS_ACTIVE
+                               views: [{
+                                 window: {
+                                   start: 1
+                                   end: 4
+                                 }
+                               }]
+                             }
                            }
                          }
                        }) {
@@ -252,13 +254,15 @@ def test_nodes_filter_windowed_is_not_active(graph):
                          not: {
                            node: {
                              read: {
-                               field: IS_ACTIVE
-                               views: [{
-                                 window: {
-                                   start: 1
-                                   end: 4
-                                 }
-                               }]
+                               field: {
+                                 name: IS_ACTIVE
+                                 views: [{
+                                   window: {
+                                     start: 1
+                                     end: 4
+                                   }
+                                 }]
+                               }
                              }
                            }
                          }
@@ -325,7 +329,7 @@ def _degree(direction, op, value=None, over=None):
     the degree in an aggregate, or the comparison in a qualifier, so invalid chains can be
     spelled.
     """
-    lhs = f"{{ read: {{ field: {_DEGREE_FIELD[direction]} }} }}"
+    lhs = f"{{ read: {{ field: {{ name: {_DEGREE_FIELD[direction]} }} }} }}"
     if over in ("sum", "avg", "min", "max", "first", "last", "len"):
         lhs = f"{{ agg: {{ op: {over.upper()}, expr: {lhs} }} }}"
     if op in _PRESENCE_OP:

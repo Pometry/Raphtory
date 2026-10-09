@@ -17,7 +17,7 @@ def test_graph_node_sort_by_nothing(graph):
                           cmp: {
                             op: EQ
                             lhs: {
-                              read: { field: ID }
+                              read: { field: { name: ID } }
                             }
                             rhs: {
                               const: {

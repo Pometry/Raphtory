@@ -71,7 +71,7 @@ async fn test_algorithm_out_component_filtered() {
             algorithm {
               outComponent(node: "a", filter: {
                                                 node: {
-                                                  cmp: { op: NE, lhs: { read: { field: NAME } }
+                                                  cmp: { op: NE, lhs: { read: { field: { name: NAME } } }
                                                     rhs: {
                                                       const: {
                                                         str: "c"
@@ -113,7 +113,7 @@ async fn test_algorithm_out_component_node_filter_composed() {
               outComponent(node: "a", filter: {
                                                 and: [{
                                                   node: {
-                                                    cmp: { op: NE, lhs: { read: { field: NAME } }
+                                                    cmp: { op: NE, lhs: { read: { field: { name: NAME } } }
                                                       rhs: {
                                                         const: {
                                                           str: "b"
@@ -123,7 +123,7 @@ async fn test_algorithm_out_component_node_filter_composed() {
                                                   }
                                                 }, {
                                                   node: {
-                                                    cmp: { op: NE, lhs: { read: { field: NAME } }
+                                                    cmp: { op: NE, lhs: { read: { field: { name: NAME } } }
                                                       rhs: {
                                                         const: {
                                                           str: "c"
@@ -165,7 +165,7 @@ async fn test_algorithm_out_component_edge_filter_composed() {
               outComponent(node: "a", filter: {
                                                 and: [{
                                                   edge: {
-                                                    cmp: { op: NE, lhs: { read: { dst: { read: { field: NAME } } } }
+                                                    cmp: { op: NE, lhs: { read: { dst: { expr: { read: { field: { name: NAME } } } } } }
                                                       rhs: {
                                                         const: {
                                                           str: "b"
@@ -175,7 +175,7 @@ async fn test_algorithm_out_component_edge_filter_composed() {
                                                   }
                                                 }, {
                                                   edge: {
-                                                    cmp: { op: NE, lhs: { read: { dst: { read: { field: NAME } } } }
+                                                    cmp: { op: NE, lhs: { read: { dst: { expr: { read: { field: { name: NAME } } } } } }
                                                       rhs: {
                                                         const: {
                                                           str: "c"
@@ -267,7 +267,7 @@ async fn test_algorithm_out_component_filter_equivalence() {
             algorithm {
               outComponent(node: "a", filter: {
                                                 node: {
-                                                  cmp: { op: NE, lhs: { read: { field: NAME } }
+                                                  cmp: { op: NE, lhs: { read: { field: { name: NAME } } }
                                                     rhs: {
                                                       const: {
                                                         str: "c"
@@ -294,7 +294,7 @@ async fn test_algorithm_out_component_filter_equivalence() {
           graph(path: "g") {
             filter(expr: {
                            node: {
-                             cmp: { op: NE, lhs: { read: { field: NAME } }
+                             cmp: { op: NE, lhs: { read: { field: { name: NAME } } }
                                rhs: {
                                  const: {
                                    str: "c"

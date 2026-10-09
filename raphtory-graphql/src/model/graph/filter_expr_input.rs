@@ -11,16 +11,20 @@
 //! three ways.
 //!
 //! ```graphql
-//! filter(expr: { node: { cmp: { op: GT, lhs: { read: { property: "score" } }, rhs: { const: { i64: 4 } } } } })
-//! filter(expr: { node: { cmp: { op: GT, lhs: { read: { field: DEGREE } }, rhs: { read: { field: IN_DEGREE } } } } })
-//! filter(expr: { node: { str: { op: FUZZY, lhs: { read: { field: NAME } }, rhs: { const: { str: "alise" } }, levenshteinDistance: 1, prefixMatch: false } } })
-//! filter(expr: { node: { quantified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: "score" } }, rhs: { const: { i64: 8 } } } } } } })
-//! filter(expr: { edge: { cmp: { op: EQ, lhs: { read: { src: { read: { field: NAME } } } }, rhs: { const: { str: "alice" } } } } })
+//! filter(expr: { node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [{ window: { start: 0, end: 5 } }] } } }, rhs: { const: { i64: 4 } } } } })
+//! filter(expr: { node: { cmp: { op: GT, lhs: { read: { field: { name: DEGREE } } }, rhs: { read: { field: { name: IN_DEGREE } } } } } })
+//! filter(expr: { node: { str: { op: FUZZY, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alise" } }, levenshteinDistance: 1, prefixMatch: false } } })
+//! filter(expr: { node: { quantified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } })
+//! filter(expr: { edge: { read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } } } })
 //! ```
 //!
-//! A read names exactly one term (`property`, `temporalProperty`, `metadata` or
-//! `field`; on an edge also `src` or `dst`) and may carry `views`, which scope
-//! that term: `{ read: { property: "score", views: [{ window: { start: 0, end: 2 } }, { kind: LATEST }] } }`.
+//! A read names exactly one of `property`, `temporalProperty`, `metadata` or
+//! `field` (on an edge also `src` or `dst`). Each carries what it reads
+//! (`name`, or for `src`/`dst` a node `expr`) and optional `views`, which
+//! scope that term, applied in order:
+//! `read: { property: { name: "score", views: [{ window: { start: 0, end: 5 } }] } }`,
+//! `read: { field: { name: NAME } }`,
+//! `read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } }`.
 //! A view is one of `window`, `at`, `after`, `before`, `snapshotAt`, `layers`,
 //! `excludeLayers` (or `excludeLayer` for one name), `shrinkStart`, `shrinkEnd`,
 //! `excludeNodes`, `subgraph`, `subgraphNodeTypes`, or a `kind` that takes no
@@ -227,21 +231,31 @@ pub enum NodeField {
 impl From<NodeField> for NodeLeaf {
     fn from(f: NodeField) -> Self {
         let views = Vec::new();
-        let field = |field| NodeLeaf::Field {
-            views: Vec::new(),
-            field,
-        };
-        let degree = |direction| NodeLeaf::Degree {
-            views: Vec::new(),
-            direction,
-        };
         match f {
-            NodeField::Name => field(Field::Name),
-            NodeField::Id => field(Field::Id),
-            NodeField::NodeType => field(Field::NodeType),
-            NodeField::Degree => degree(Direction::BOTH),
-            NodeField::InDegree => degree(Direction::IN),
-            NodeField::OutDegree => degree(Direction::OUT),
+            NodeField::Name => NodeLeaf::Field {
+                views,
+                field: Field::Name,
+            },
+            NodeField::Id => NodeLeaf::Field {
+                views,
+                field: Field::Id,
+            },
+            NodeField::NodeType => NodeLeaf::Field {
+                views,
+                field: Field::NodeType,
+            },
+            NodeField::Degree => NodeLeaf::Degree {
+                views,
+                direction: Direction::BOTH,
+            },
+            NodeField::InDegree => NodeLeaf::Degree {
+                views,
+                direction: Direction::IN,
+            },
+            NodeField::OutDegree => NodeLeaf::Degree {
+                views,
+                direction: Direction::OUT,
+            },
             NodeField::IsActive => NodeLeaf::IsActive { views },
         }
     }
@@ -435,7 +449,13 @@ impl From<&ViewOp> for GqlViewOp {
     }
 }
 
-/// The views a read carries, as the wire spells them: absent when there are none.
+/// A term's views as a read spells them: absent when there are none.
+///
+/// The `Option` on a read's `views` is only the GraphQL surface's way of
+/// making the field optional: an input field may be left out only when it is
+/// an `Option`. The tree has one encoding, the empty list, so a read takes an
+/// absent `views` as the empty list. This is used once per read payload and
+/// is the only place an empty list becomes absent.
 fn read_views(views: &[ViewOp]) -> Option<Vec<GqlViewOp>> {
     (!views.is_empty()).then(|| views.iter().map(GqlViewOp::from).collect())
 }
@@ -449,378 +469,299 @@ pub trait Term: Sized {
     /// The tree's leaf for this entity.
     type Leaf: Leaf;
 
-    /// The leaf this read names, with its views; refused unless exactly one
-    /// term is set.
+    /// The leaf this read names, with its views.
     fn into_leaf(self) -> Result<Self::Leaf, GraphError>;
 
     /// The read that names `leaf`.
     fn from_leaf(leaf: &Self::Leaf) -> Result<Self, GraphError>;
 }
 
-/// The one term a read names, scoped by its views. A read that names none or
-/// several is refused, naming the fields given.
-fn one_term<L: Leaf, const N: usize>(
-    terms: [(&str, Option<L>); N],
-    views: Option<Vec<GqlViewOp>>,
-) -> Result<L, GraphError> {
-    let mut given: Vec<(&str, L)> = terms
-        .into_iter()
-        .filter_map(|(name, term)| term.map(|term| (name, term)))
-        .collect();
-    if given.len() != 1 {
-        let names: Vec<String> = given.iter().map(|(name, _)| format!("`{name}`")).collect();
-        let got = match names.as_slice() {
-            [] => "none".to_string(),
-            [init @ .., last] => format!("{} and {last}", init.join(", ")),
-        };
-        return Err(invalid(format!("a read names one term, got {got}")));
-    }
-    let (_, mut leaf) = given.remove(0);
-    for op in views.into_iter().flatten() {
+/// `leaf` scoped by a read's views, applied in list order after any it carries.
+fn scoped<L: Leaf>(mut leaf: L, views: Option<Vec<GqlViewOp>>) -> L {
+    for op in views.unwrap_or_default() {
         leaf.push_view(op.into());
     }
-    Ok(leaf)
+    leaf
+}
+
+/// A term named by a string: a property or a metadata entry.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct NamedRead {
+    /// The property or metadata name.
+    pub name: String,
+    /// Views the term is read through, in order; none when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub views: Option<Vec<GqlViewOp>>,
+}
+
+/// A built-in node term.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct NodeFieldRead {
+    /// The built-in term.
+    pub name: NodeField,
+    /// Views the term is read through, in order; none when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub views: Option<Vec<GqlViewOp>>,
+}
+
+/// A built-in edge or exploded-edge term.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct EdgeFieldRead {
+    /// The built-in term.
+    pub name: EdgeField,
+    /// Views the term is read through, in order; none when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub views: Option<Vec<GqlViewOp>>,
+}
+
+/// A node expression evaluated on one endpoint of an edge.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct EndpointRead {
+    /// The node expression.
+    pub expr: Wrapped<NodeExpr>,
+    /// Views the term is read through, in order; none when absent. They scope
+    /// every node term inside `expr`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub views: Option<Vec<GqlViewOp>>,
 }
 
 /// One node term, read through optional views. Name exactly one of
 /// `property`, `temporalProperty`, `metadata` or `field`.
-#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NodeRead {
+pub enum NodeRead {
     /// The latest value of a property.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub property: Option<String>,
+    Property(NamedRead),
     /// The history of a property, as a list.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub temporal_property: Option<String>,
+    TemporalProperty(NamedRead),
     /// A metadata entry.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<String>,
+    Metadata(NamedRead),
     /// A built-in node term.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub field: Option<NodeField>,
-    /// Views that scope the term, applied in list order.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub views: Option<Vec<GqlViewOp>>,
+    Field(NodeFieldRead),
 }
 
 impl Term for NodeRead {
     type Leaf = NodeLeaf;
 
     fn into_leaf(self) -> Result<NodeLeaf, GraphError> {
-        one_term(
-            [
-                (
-                    "property",
-                    self.property
-                        .map(|name| NodeLeaf::property(Vec::new(), name, false)),
-                ),
-                (
-                    "temporalProperty",
-                    self.temporal_property
-                        .map(|name| NodeLeaf::property(Vec::new(), name, true)),
-                ),
-                (
-                    "metadata",
-                    self.metadata
-                        .map(|name| NodeLeaf::metadata(Vec::new(), name)),
-                ),
-                ("field", self.field.map(NodeLeaf::from)),
-            ],
-            self.views,
-        )
+        Ok(match self {
+            NodeRead::Property(r) => scoped(NodeLeaf::property(Vec::new(), r.name, false), r.views),
+            NodeRead::TemporalProperty(r) => {
+                scoped(NodeLeaf::property(Vec::new(), r.name, true), r.views)
+            }
+            NodeRead::Metadata(r) => scoped(NodeLeaf::metadata(Vec::new(), r.name), r.views),
+            NodeRead::Field(r) => scoped(r.name.into(), r.views),
+        })
     }
 
     fn from_leaf(leaf: &NodeLeaf) -> Result<Self, GraphError> {
-        let (views, read) = match leaf {
-            NodeLeaf::Field { views, field } => (
-                views,
-                NodeRead {
-                    field: Some((*field).into()),
-                    ..Default::default()
-                },
-            ),
-            NodeLeaf::Degree { views, direction } => (
-                views,
-                NodeRead {
-                    field: Some((*direction).into()),
-                    ..Default::default()
-                },
-            ),
+        Ok(match leaf {
+            NodeLeaf::Field { views, field } => NodeRead::Field(NodeFieldRead {
+                name: (*field).into(),
+                views: read_views(views),
+            }),
+            NodeLeaf::Degree { views, direction } => NodeRead::Field(NodeFieldRead {
+                name: (*direction).into(),
+                views: read_views(views),
+            }),
             NodeLeaf::Property {
                 views,
                 name,
                 temporal: false,
-            } => (
-                views,
-                NodeRead {
-                    property: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
+            } => NodeRead::Property(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
             NodeLeaf::Property {
                 views,
                 name,
                 temporal: true,
-            } => (
-                views,
-                NodeRead {
-                    temporal_property: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
-            NodeLeaf::Metadata { views, name } => (
-                views,
-                NodeRead {
-                    metadata: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
-            NodeLeaf::IsActive { views } => (
-                views,
-                NodeRead {
-                    field: Some(NodeField::IsActive),
-                    ..Default::default()
-                },
-            ),
-        };
-        Ok(NodeRead {
-            views: read_views(views),
-            ..read
+            } => NodeRead::TemporalProperty(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
+            NodeLeaf::Metadata { views, name } => NodeRead::Metadata(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
+            NodeLeaf::IsActive { views } => NodeRead::Field(NodeFieldRead {
+                name: NodeField::IsActive,
+                views: read_views(views),
+            }),
         })
     }
 }
 
 /// One edge term, read through optional views. Name exactly one of
 /// `property`, `temporalProperty`, `metadata`, `field`, `src` or `dst`.
-#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EdgeRead {
+pub enum EdgeRead {
     /// The latest value of a property.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub property: Option<String>,
+    Property(NamedRead),
     /// The history of a property, as a list.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub temporal_property: Option<String>,
+    TemporalProperty(NamedRead),
     /// A metadata entry.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<String>,
+    Metadata(NamedRead),
     /// A built-in edge term.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub field: Option<EdgeField>,
+    Field(EdgeFieldRead),
     /// A node expression evaluated on the edge's source node.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub src: Option<Wrapped<NodeExpr>>,
+    Src(EndpointRead),
     /// A node expression evaluated on the edge's destination node.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub dst: Option<Wrapped<NodeExpr>>,
-    /// Views that scope the term, applied in list order; on `src` or `dst`
-    /// they scope every node term inside.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub views: Option<Vec<GqlViewOp>>,
-}
-
-/// A node expression on one end of an edge, as a tree.
-fn endpoint(e: Option<Wrapped<NodeExpr>>) -> Result<Option<Box<expr::NodeExpr>>, GraphError> {
-    e.map(|e| Ok(Box::new(e.into_inner().into_tree()?)))
-        .transpose()
+    Dst(EndpointRead),
 }
 
 impl Term for EdgeRead {
     type Leaf = EdgeLeaf;
 
     fn into_leaf(self) -> Result<EdgeLeaf, GraphError> {
-        one_term(
-            [
-                (
-                    "property",
-                    self.property
-                        .map(|name| EdgeLeaf::property(Vec::new(), name, false)),
-                ),
-                (
-                    "temporalProperty",
-                    self.temporal_property
-                        .map(|name| EdgeLeaf::property(Vec::new(), name, true)),
-                ),
-                (
-                    "metadata",
-                    self.metadata
-                        .map(|name| EdgeLeaf::metadata(Vec::new(), name)),
-                ),
-                ("field", self.field.map(EdgeLeaf::from)),
-                ("src", endpoint(self.src)?.map(EdgeLeaf::Src)),
-                ("dst", endpoint(self.dst)?.map(EdgeLeaf::Dst)),
-            ],
-            self.views,
-        )
+        Ok(match self {
+            EdgeRead::Property(r) => scoped(EdgeLeaf::property(Vec::new(), r.name, false), r.views),
+            EdgeRead::TemporalProperty(r) => {
+                scoped(EdgeLeaf::property(Vec::new(), r.name, true), r.views)
+            }
+            EdgeRead::Metadata(r) => scoped(EdgeLeaf::metadata(Vec::new(), r.name), r.views),
+            EdgeRead::Field(r) => scoped(r.name.into(), r.views),
+            EdgeRead::Src(r) => scoped(
+                EdgeLeaf::Src(Box::new(r.expr.into_inner().into_tree()?)),
+                r.views,
+            ),
+            EdgeRead::Dst(r) => scoped(
+                EdgeLeaf::Dst(Box::new(r.expr.into_inner().into_tree()?)),
+                r.views,
+            ),
+        })
     }
 
     fn from_leaf(leaf: &EdgeLeaf) -> Result<Self, GraphError> {
-        let node = |e: &expr::NodeExpr| -> Result<_, GraphError> {
-            Ok(Some(Wrapped::from(NodeExpr::from_tree(e)?)))
-        };
-        let (views, read): (&[ViewOp], _) = match leaf {
+        Ok(match leaf {
             EdgeLeaf::Property {
                 views,
                 name,
                 temporal: false,
-            } => (
-                views,
-                EdgeRead {
-                    property: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
+            } => EdgeRead::Property(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
             EdgeLeaf::Property {
                 views,
                 name,
                 temporal: true,
-            } => (
-                views,
-                EdgeRead {
-                    temporal_property: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
-            EdgeLeaf::Metadata { views, name } => (
-                views,
-                EdgeRead {
-                    metadata: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
-            EdgeLeaf::IsActive { views } => (views, EdgeRead::field(EdgeField::IsActive)),
-            EdgeLeaf::IsValid { views } => (views, EdgeRead::field(EdgeField::IsValid)),
-            EdgeLeaf::IsDeleted { views } => (views, EdgeRead::field(EdgeField::IsDeleted)),
-            EdgeLeaf::IsSelfLoop { views } => (views, EdgeRead::field(EdgeField::IsSelfLoop)),
+            } => EdgeRead::TemporalProperty(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
+            EdgeLeaf::Metadata { views, name } => EdgeRead::Metadata(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
+            EdgeLeaf::IsActive { views } => EdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsActive,
+                views: read_views(views),
+            }),
+            EdgeLeaf::IsValid { views } => EdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsValid,
+                views: read_views(views),
+            }),
+            EdgeLeaf::IsDeleted { views } => EdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsDeleted,
+                views: read_views(views),
+            }),
+            EdgeLeaf::IsSelfLoop { views } => EdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsSelfLoop,
+                views: read_views(views),
+            }),
             // The endpoint's own terms carry their views; there are none here.
-            EdgeLeaf::Src(inner) => (
-                &[],
-                EdgeRead {
-                    src: node(inner)?,
-                    ..Default::default()
-                },
-            ),
-            EdgeLeaf::Dst(inner) => (
-                &[],
-                EdgeRead {
-                    dst: node(inner)?,
-                    ..Default::default()
-                },
-            ),
-        };
-        Ok(EdgeRead {
-            views: read_views(views),
-            ..read
+            EdgeLeaf::Src(inner) => EdgeRead::Src(EndpointRead {
+                expr: Wrapped::from(NodeExpr::from_tree(inner)?),
+                views: None,
+            }),
+            EdgeLeaf::Dst(inner) => EdgeRead::Dst(EndpointRead {
+                expr: Wrapped::from(NodeExpr::from_tree(inner)?),
+                views: None,
+            }),
         })
-    }
-}
-
-impl EdgeRead {
-    fn field(field: EdgeField) -> Self {
-        EdgeRead {
-            field: Some(field),
-            ..Default::default()
-        }
     }
 }
 
 /// One exploded-edge term (one update of an edge), read through optional
 /// views. Name exactly one of `property`, `temporalProperty`, `metadata` or
 /// `field`.
-#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExplodedEdgeRead {
+pub enum ExplodedEdgeRead {
     /// The latest value of a property.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub property: Option<String>,
+    Property(NamedRead),
     /// The history of a property, as a list.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub temporal_property: Option<String>,
+    TemporalProperty(NamedRead),
     /// A metadata entry.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<String>,
+    Metadata(NamedRead),
     /// A built-in edge term.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub field: Option<EdgeField>,
-    /// Views that scope the term, applied in list order.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub views: Option<Vec<GqlViewOp>>,
+    Field(EdgeFieldRead),
 }
 
 impl Term for ExplodedEdgeRead {
     type Leaf = ExplodedEdgeLeaf;
 
     fn into_leaf(self) -> Result<ExplodedEdgeLeaf, GraphError> {
-        one_term(
-            [
-                (
-                    "property",
-                    self.property
-                        .map(|name| ExplodedEdgeLeaf::property(Vec::new(), name, false)),
-                ),
-                (
-                    "temporalProperty",
-                    self.temporal_property
-                        .map(|name| ExplodedEdgeLeaf::property(Vec::new(), name, true)),
-                ),
-                (
-                    "metadata",
-                    self.metadata
-                        .map(|name| ExplodedEdgeLeaf::metadata(Vec::new(), name)),
-                ),
-                ("field", self.field.map(ExplodedEdgeLeaf::from)),
-            ],
-            self.views,
-        )
+        Ok(match self {
+            ExplodedEdgeRead::Property(r) => scoped(
+                ExplodedEdgeLeaf::property(Vec::new(), r.name, false),
+                r.views,
+            ),
+            ExplodedEdgeRead::TemporalProperty(r) => scoped(
+                ExplodedEdgeLeaf::property(Vec::new(), r.name, true),
+                r.views,
+            ),
+            ExplodedEdgeRead::Metadata(r) => {
+                scoped(ExplodedEdgeLeaf::metadata(Vec::new(), r.name), r.views)
+            }
+            ExplodedEdgeRead::Field(r) => scoped(r.name.into(), r.views),
+        })
     }
 
     fn from_leaf(leaf: &ExplodedEdgeLeaf) -> Result<Self, GraphError> {
-        let field = |field| ExplodedEdgeRead {
-            field: Some(field),
-            ..Default::default()
-        };
-        let (views, read) = match leaf {
+        Ok(match leaf {
             ExplodedEdgeLeaf::Property {
                 views,
                 name,
                 temporal: false,
-            } => (
-                views,
-                ExplodedEdgeRead {
-                    property: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
+            } => ExplodedEdgeRead::Property(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
             ExplodedEdgeLeaf::Property {
                 views,
                 name,
                 temporal: true,
-            } => (
-                views,
-                ExplodedEdgeRead {
-                    temporal_property: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
-            ExplodedEdgeLeaf::Metadata { views, name } => (
-                views,
-                ExplodedEdgeRead {
-                    metadata: Some(name.clone()),
-                    ..Default::default()
-                },
-            ),
-            ExplodedEdgeLeaf::IsActive { views } => (views, field(EdgeField::IsActive)),
-            ExplodedEdgeLeaf::IsValid { views } => (views, field(EdgeField::IsValid)),
-            ExplodedEdgeLeaf::IsDeleted { views } => (views, field(EdgeField::IsDeleted)),
-            ExplodedEdgeLeaf::IsSelfLoop { views } => (views, field(EdgeField::IsSelfLoop)),
-        };
-        Ok(ExplodedEdgeRead {
-            views: read_views(views),
-            ..read
+            } => ExplodedEdgeRead::TemporalProperty(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
+            ExplodedEdgeLeaf::Metadata { views, name } => ExplodedEdgeRead::Metadata(NamedRead {
+                name: name.clone(),
+                views: read_views(views),
+            }),
+            ExplodedEdgeLeaf::IsActive { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsActive,
+                views: read_views(views),
+            }),
+            ExplodedEdgeLeaf::IsValid { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsValid,
+                views: read_views(views),
+            }),
+            ExplodedEdgeLeaf::IsDeleted { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsDeleted,
+                views: read_views(views),
+            }),
+            ExplodedEdgeLeaf::IsSelfLoop { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::IsSelfLoop,
+                views: read_views(views),
+            }),
         })
     }
 }
@@ -1486,7 +1427,7 @@ pub trait EntityInput: Sized {
             items.iter().map(Self::from_tree).collect()
         };
         let shape = match e {
-            expr::Expr::Const(p) => ExprShape::Const(value(p)?),
+            expr::Expr::Const(p) => ExprShape::Const(p.into()),
             expr::Expr::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
             expr::Expr::Term(leaf) => ExprShape::Read(<Self::Read as Term>::from_leaf(leaf)?),
             expr::Expr::Agg(op, e) => ExprShape::Agg {
@@ -1523,7 +1464,7 @@ pub trait EntityInput: Sized {
                 negated,
             } => {
                 let expr = wire(expr)?;
-                let values = Value::List(values.iter().map(value).collect::<Result<_, _>>()?);
+                let values = Value::List(values.iter().map(Value::from).collect());
                 if *negated {
                     ExprShape::IsNotIn { expr, values }
                 } else {
@@ -1560,10 +1501,6 @@ fn invalid(msg: impl Into<String>) -> GraphError {
 
 fn prop(value: Value) -> Result<Prop, GraphError> {
     Prop::try_from(value).map_err(|e| invalid(format!("invalid constant: {e}")))
-}
-
-fn value(p: &Prop) -> Result<Value, GraphError> {
-    Value::try_from(p).map_err(|e| invalid(format!("constant has no wire form: {e}")))
 }
 
 /// The members of a set: a list of constants. Anything else, a placeholder a
@@ -2026,13 +1963,13 @@ mod tests {
 
     #[tokio::test]
     async fn views_on_an_endpoint_read_scope_the_node_terms_inside() {
-        let outside = json!({ "edge": { "read": {
-            "src": { "read": { "property": "score" } },
+        let outside = json!({ "edge": { "read": { "src": {
+            "expr": { "read": { "property": { "name": "score" } } },
             "views": [{ "at": 2 }]
-        } } });
-        let inside = json!({ "edge": { "read": {
-            "src": { "read": { "property": "score", "views": [{ "at": 2 }] } }
-        } } });
+        } } } });
+        let inside = json!({ "edge": { "read": { "src": {
+            "expr": { "read": { "property": { "name": "score", "views": [{ "at": 2 }] } } }
+        } } } });
         assert_eq!(
             from_variable(outside).await.unwrap(),
             from_variable(inside).await.unwrap()
@@ -2054,37 +1991,39 @@ mod tests {
         let wire = GqlFilter::try_from(&tree).unwrap();
         assert_eq!(
             serde_json::to_string(&wire).unwrap(),
-            r#"{"edge":{"cmp":{"op":"EQ","lhs":{"read":{"src":{"read":{"field":"NAME"}}}},"rhs":{"const":{"str":"alice"}}}}}"#
+            r#"{"edge":{"cmp":{"op":"EQ","lhs":{"read":{"src":{"expr":{"read":{"field":{"name":"NAME"}}}}}},"rhs":{"const":{"str":"alice"}}}}}"#
         );
-        let literal = r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { read: { field: NAME } } } }, rhs: { const: { str: "alice" } } } } }"#;
+        let literal = r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { expr: { read: { field: { name: NAME } } } } } }, rhs: { const: { str: "alice" } } } } }"#;
         assert_eq!(from_literal(literal).await.unwrap(), tree_json(&tree));
     }
 
     #[tokio::test]
     async fn the_documented_examples_parse() {
         for example in [
-            r#"{ node: { cmp: { op: GT, lhs: { read: { property: "score" } }, rhs: { const: { i64: 4 } } } } }"#,
-            r#"{ node: { cmp: { op: EQ, lhs: { read: { metadata: "region" } }, rhs: { const: { str: "eu" } } } } }"#,
-            r#"{ node: { cmp: { op: EQ, lhs: { read: { field: NODE_TYPE } }, rhs: { const: { str: "user" } } } } }"#,
-            r#"{ node: { cmp: { op: GT, lhs: { read: { field: DEGREE } }, rhs: { read: { field: IN_DEGREE } } } } }"#,
-            r#"{ node: { read: { field: IS_ACTIVE } } }"#,
-            r#"{ node: { str: { op: STARTS_WITH, lhs: { read: { field: NAME } }, rhs: { const: { str: "al" } } } } }"#,
-            r#"{ node: { str: { op: FUZZY, lhs: { read: { field: NAME } }, rhs: { const: { str: "alise" } }, levenshteinDistance: 1, prefixMatch: false } } }"#,
-            r#"{ node: { isIn: { expr: { read: { field: NAME } }, values: { list: [ { str: "alice" }, { str: "carol" } ] } } } }"#,
-            r#"{ node: { presence: { op: IS_NONE, expr: { read: { property: "score" } } } } }"#,
-            r#"{ node: { cmp: { op: GE, lhs: { agg: { op: SUM, expr: { read: { temporalProperty: "score" } } } }, rhs: { const: { i64: 19 } } } } }"#,
-            r#"{ node: { quantified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: "score" } }, rhs: { const: { i64: 8 } } } } } } }"#,
-            r#"{ node: { cmp: { op: GT, lhs: { read: { property: "score", views: [ { window: { start: 0, end: 2 } } ] } }, rhs: { const: { i64: 4 } } } } }"#,
-            r#"{ node: { cmp: { op: EQ, lhs: { read: { property: "score", views: [ { window: { start: 0, end: 4 } }, { kind: LATEST } ] } }, rhs: { const: { i64: 2 } } } } }"#,
-            r#"{ node: { read: { field: IS_ACTIVE, views: [ { excludeNodes: ["bob"] }, { kind: LATEST } ] } } }"#,
-            r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { read: { field: NAME } } } }, rhs: { const: { str: "alice" } } } } }"#,
-            r#"{ edge: { cmp: { op: GT, lhs: { read: { src: { read: { property: "score", views: [ { at: 2 } ] } } } }, rhs: { read: { dst: { read: { property: "score", views: [ { at: 1 } ] } } } } } } }"#,
-            r#"{ edge: { read: { field: IS_VALID, views: [ { layers: ["work"] } ] } } }"#,
-            r#"{ explodedEdge: { cmp: { op: GT, lhs: { read: { property: "w" } }, rhs: { const: { f64: 5.0 } } } } }"#,
+            r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score" } } }, rhs: { const: { i64: 4 } } } } }"#,
+            r#"{ node: { cmp: { op: EQ, lhs: { read: { metadata: { name: "region" } } }, rhs: { const: { str: "eu" } } } } }"#,
+            r#"{ node: { cmp: { op: EQ, lhs: { read: { field: { name: NODE_TYPE } } }, rhs: { const: { str: "user" } } } } }"#,
+            r#"{ node: { cmp: { op: GT, lhs: { read: { field: { name: DEGREE } } }, rhs: { read: { field: { name: IN_DEGREE } } } } } }"#,
+            r#"{ node: { read: { field: { name: IS_ACTIVE } } } }"#,
+            r#"{ node: { str: { op: STARTS_WITH, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "al" } } } } }"#,
+            r#"{ node: { str: { op: FUZZY, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alise" } }, levenshteinDistance: 1, prefixMatch: false } } }"#,
+            r#"{ node: { isIn: { expr: { read: { field: { name: NAME } } }, values: { list: [ { str: "alice" }, { str: "carol" } ] } } } }"#,
+            r#"{ node: { presence: { op: IS_NONE, expr: { read: { property: { name: "score" } } } } } }"#,
+            r#"{ node: { cmp: { op: GE, lhs: { agg: { op: SUM, expr: { read: { temporalProperty: { name: "score" } } } } }, rhs: { const: { i64: 19 } } } } }"#,
+            r#"{ node: { quantified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } }"#,
+            r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [ { window: { start: 0, end: 2 } } ] } } }, rhs: { const: { i64: 4 } } } } }"#,
+            r#"{ node: { cmp: { op: EQ, lhs: { read: { property: { name: "score", views: [ { window: { start: 0, end: 4 } }, { kind: LATEST } ] } } }, rhs: { const: { i64: 2 } } } } }"#,
+            r#"{ node: { read: { field: { name: IS_ACTIVE, views: [ { excludeNodes: ["bob"] }, { kind: LATEST } ] } } } }"#,
+            r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { expr: { read: { field: { name: NAME } } } } } }, rhs: { const: { str: "alice" } } } } }"#,
+            r#"{ edge: { cmp: { op: GT, lhs: { read: { src: { expr: { read: { property: { name: "score", views: [ { at: 2 } ] } } } } } }, rhs: { read: { dst: { expr: { read: { property: { name: "score", views: [ { at: 1 } ] } } } } } } } } }"#,
+            r#"{ edge: { read: { field: { name: IS_VALID, views: [ { layers: ["work"] } ] } } } }"#,
+            r#"{ explodedEdge: { cmp: { op: GT, lhs: { read: { property: { name: "w" } } }, rhs: { const: { f64: 5.0 } } } } }"#,
+            r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [{ window: { start: 0, end: 5 } }] } } }, rhs: { const: { i64: 4 } } } } }"#,
+            r#"{ edge: { read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } } } }"#,
             r#"{ view: [ { window: { start: 1, end: 5 } }, { excludeLayers: ["friends"] } ] }"#,
             r#"{ view: [ { subgraph: ["alice", "bob"] }, { kind: VALID } ] }"#,
-            r#"{ and: [ { view: [ { window: { start: 1, end: 5 } } ] }, { node: { cmp: { op: GT, lhs: { read: { property: "score" } }, rhs: { const: { i64: 4 } } } } } ] }"#,
-            r#"{ node: { and: [ { presence: { op: IS_SOME, expr: { read: { property: "score" } } } }, { cmp: { op: EQ, lhs: { read: { field: NODE_TYPE } }, rhs: { const: { str: "user" } } } } ] } }"#,
+            r#"{ and: [ { view: [ { window: { start: 1, end: 5 } } ] }, { node: { cmp: { op: GT, lhs: { read: { property: { name: "score" } } }, rhs: { const: { i64: 4 } } } } } ] }"#,
+            r#"{ node: { and: [ { presence: { op: IS_SOME, expr: { read: { property: { name: "score" } } } } }, { cmp: { op: EQ, lhs: { read: { field: { name: NODE_TYPE } } }, rhs: { const: { str: "user" } } } } ] } }"#,
         ] {
             if let Err(err) = from_literal(example).await {
                 panic!("{example}: {err}");
@@ -2094,34 +2033,28 @@ mod tests {
 
     #[tokio::test]
     async fn a_read_names_exactly_one_term() {
-        for (read, got) in [
-            (
-                json!({ "property": "a", "metadata": "b" }),
-                "got `property` and `metadata`",
-            ),
-            (
-                json!({ "property": "a", "metadata": "b", "field": "NAME" }),
-                "got `property`, `metadata` and `field`",
-            ),
-            (json!({}), "got none"),
-            (json!({ "views": [{ "kind": "LATEST" }] }), "got none"),
+        for read in [
+            // Two terms.
+            json!({ "property": { "name": "a" }, "metadata": { "name": "b" } }),
+            json!({ "property": { "name": "a" }, "metadata": { "name": "b" }, "field": { "name": "NAME" } }),
+            // No term.
+            json!({}),
+            json!({ "views": [{ "kind": "LATEST" }] }),
+            // The flat string form.
+            json!({ "property": "a" }),
+            // The `term` wrapper.
+            json!({ "term": { "property": "a" } }),
+            json!({ "term": { "property": { "name": "a" } } }),
         ] {
             let filter = json!({ "node": { "read": read } });
-            let message = format!("a read names one term, {got}");
-            let err = from_variable(filter.clone()).await.unwrap_err();
-            assert!(err.contains(&message), "{err}");
-            let err = from_json(filter).unwrap_err();
-            assert!(err.contains(&message), "{err}");
+            assert!(from_variable(filter.clone()).await.is_err(), "{filter}");
+            assert!(from_json(filter.clone()).is_err(), "{filter}");
         }
-        let err = from_literal(
-            r#"{ edge: { read: { field: IS_VALID, src: { read: { field: NAME } } } } }"#,
+        assert!(from_literal(
+            r#"{ edge: { read: { field: { name: IS_VALID }, src: { expr: { read: { field: { name: NAME } } } } } } }"#,
         )
         .await
-        .unwrap_err();
-        assert!(
-            err.contains("a read names one term, got `field` and `src`"),
-            "{err}"
-        );
+        .is_err());
     }
 
     #[tokio::test]
@@ -2129,7 +2062,7 @@ mod tests {
         let test = |extra: serde_json::Value, op: &str| {
             let mut s = json!({
                 "op": op,
-                "lhs": { "read": { "field": "NAME" } },
+                "lhs": { "read": { "field": { "name": "NAME" } } },
                 "rhs": { "const": { "str": "al" } },
             });
             s.as_object_mut()

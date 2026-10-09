@@ -3009,7 +3009,7 @@ mod tests {
         },
         data::GqlGraphType,
         model::graph::{
-            filter_expr_input::{CmpOp, NodeComparison, NodeExpr, NodeRead},
+            filter_expr_input::{CmpOp, NamedRead, NodeComparison, NodeExpr, NodeRead},
             filtering::Wrapped,
             property::Value as GqlValue,
         },
@@ -3029,10 +3029,10 @@ mod tests {
     fn node_prop(name: &str, op: CmpOp, value: GqlValue) -> GqlFilter {
         GqlFilter::Node(NodeExpr::Cmp(NodeComparison {
             op,
-            lhs: Wrapped::from(NodeExpr::Read(NodeRead {
-                property: Some(name.into()),
-                ..Default::default()
-            })),
+            lhs: Wrapped::from(NodeExpr::Read(NodeRead::Property(NamedRead {
+                name: name.into(),
+                views: None,
+            }))),
             rhs: Wrapped::from(NodeExpr::Const(value)),
         }))
     }

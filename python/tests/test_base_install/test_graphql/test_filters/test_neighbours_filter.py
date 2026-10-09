@@ -19,7 +19,7 @@ def test_out_neighbours_found(graph):
                                  cmp: {
                                    op: EQ
                                    lhs: {
-                                     read: { field: NAME }
+                                     read: { field: { name: NAME } }
                                    }
                                    rhs: {
                                      const: {
@@ -33,7 +33,7 @@ def test_out_neighbours_found(graph):
                                  cmp: {
                                    op: GT
                                    lhs: {
-                                     read: { property: "prop1" }
+                                     read: { property: { name: "prop1" } }
                                    }
                                    rhs: {
                                      const: {
@@ -70,7 +70,7 @@ def test_out_neighbours_found_select(graph):
                                  cmp: {
                                    op: EQ
                                    lhs: {
-                                     read: { field: NAME }
+                                     read: { field: { name: NAME } }
                                    }
                                    rhs: {
                                      const: {
@@ -84,7 +84,7 @@ def test_out_neighbours_found_select(graph):
                                  cmp: {
                                    op: GT
                                    lhs: {
-                                     read: { property: "prop1" }
+                                     read: { property: { name: "prop1" } }
                                    }
                                    rhs: {
                                      const: {
@@ -100,7 +100,7 @@ def test_out_neighbours_found_select(graph):
                                           cmp: {
                                             op: EQ
                                             lhs: {
-                                              read: { field: NAME }
+                                              read: { field: { name: NAME } }
                                             }
                                             rhs: {
                                               const: {
@@ -134,7 +134,7 @@ def test_out_neighbours_not_found(graph):
                                cmp: {
                                  op: EQ
                                  lhs: {
-                                   read: { field: NAME }
+                                   read: { field: { name: NAME } }
                                  }
                                  rhs: {
                                    const: {
@@ -167,7 +167,7 @@ def test_in_neighbours_found(graph):
                                cmp: {
                                  op: GT
                                  lhs: {
-                                   read: { property: "prop1" }
+                                   read: { property: { name: "prop1" } }
                                  }
                                  rhs: {
                                    const: {
@@ -206,7 +206,7 @@ def test_in_neighbours_found_select(graph):
                                cmp: {
                                  op: GT
                                  lhs: {
-                                   read: { property: "prop1" }
+                                   read: { property: { name: "prop1" } }
                                  }
                                  rhs: {
                                    const: {
@@ -221,7 +221,7 @@ def test_in_neighbours_found_select(graph):
                                          cmp: {
                                            op: EQ
                                            lhs: {
-                                             read: { field: NAME }
+                                             read: { field: { name: NAME } }
                                            }
                                            rhs: {
                                              const: {
@@ -255,7 +255,7 @@ def test_in_neighbours_not_found(graph):
                                cmp: {
                                  op: EQ
                                  lhs: {
-                                   read: { field: NAME }
+                                   read: { field: { name: NAME } }
                                  }
                                  rhs: {
                                    const: {
@@ -288,7 +288,7 @@ def test_neighbours_found(graph):
                                cmp: {
                                  op: NE
                                  lhs: {
-                                   read: { field: NAME }
+                                   read: { field: { name: NAME } }
                                  }
                                  rhs: {
                                    const: {
@@ -325,7 +325,7 @@ def test_neighbours_found_select(graph):
                                cmp: {
                                  op: NE
                                  lhs: {
-                                   read: { field: NAME }
+                                   read: { field: { name: NAME } }
                                  }
                                  rhs: {
                                    const: {
@@ -340,7 +340,7 @@ def test_neighbours_found_select(graph):
                                        cmp: {
                                          op: EQ
                                          lhs: {
-                                           read: { field: NAME }
+                                           read: { field: { name: NAME } }
                                          }
                                          rhs: {
                                            const: {
@@ -374,7 +374,7 @@ def test_neighbours_not_found(graph):
                                cmp: {
                                  op: EQ
                                  lhs: {
-                                   read: { field: NAME }
+                                   read: { field: { name: NAME } }
                                  }
                                  rhs: {
                                    const: {
@@ -410,7 +410,7 @@ def test_neighbours_selection(graph):
                               cmp: {
                                 op: GT
                                 lhs: {
-                                  read: { property: "p100" }
+                                  read: { property: { name: "p100" } }
                                 }
                                 rhs: {
                                   const: {
@@ -427,7 +427,7 @@ def test_neighbours_selection(graph):
                                    cmp: {
                                      op: GT
                                      lhs: {
-                                       read: { property: "p2" }
+                                       read: { property: { name: "p2" } }
                                      }
                                      rhs: {
                                        const: {
@@ -470,7 +470,7 @@ def test_neighbours_neighbours_filtering(graph):
                               cmp: {
                                 op: GT
                                 lhs: {
-                                  read: { property: "p100" }
+                                  read: { property: { name: "p100" } }
                                 }
                                 rhs: {
                                   const: {
@@ -488,7 +488,7 @@ def test_neighbours_neighbours_filtering(graph):
                                    cmp: {
                                      op: GT
                                      lhs: {
-                                       read: { property: "p2" }
+                                       read: { property: { name: "p2" } }
                                      }
                                      rhs: {
                                        const: {

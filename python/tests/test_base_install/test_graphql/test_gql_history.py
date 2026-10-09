@@ -248,7 +248,7 @@ def test_history():
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { property: "weight" }
+                                          read: { property: { name: "weight" } }
                                         }
                                         rhs: {
                                           const: {
@@ -286,7 +286,7 @@ def test_history():
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { property: "weight" }
+                                          read: { property: { name: "weight" } }
                                         }
                                         rhs: {
                                           const: {
@@ -318,7 +318,7 @@ def test_history():
                                       cmp: {
                                         op: LT
                                         lhs: {
-                                          read: { property: "Age" }
+                                          read: { property: { name: "Age" } }
                                         }
                                         rhs: {
                                           const: {
@@ -349,7 +349,7 @@ def test_history():
                                       cmp: {
                                         op: GE
                                         lhs: {
-                                          read: { property: "Age" }
+                                          read: { property: { name: "Age" } }
                                         }
                                         rhs: {
                                           const: {
@@ -386,7 +386,7 @@ def test_history():
                                       cmp: {
                                         op: LT
                                         lhs: {
-                                          read: { property: "Age" }
+                                          read: { property: { name: "Age" } }
                                         }
                                         rhs: {
                                           const: {
@@ -417,7 +417,7 @@ def test_history():
                                       cmp: {
                                         op: GE
                                         lhs: {
-                                          read: { property: "Age" }
+                                          read: { property: { name: "Age" } }
                                         }
                                         rhs: {
                                           const: {

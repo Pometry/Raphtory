@@ -20,11 +20,11 @@ def create_graph() -> Graph:
 EVENTS = "list { src { name } dst { name } time { timestamp } }"
 WINDOW = "{ view: [{ window: { start: 0, end: 5 } }] }"
 UPDATE_IS_SEVEN = (
-    '{ explodedEdge: { cmp: { op: EQ, lhs: { read: { property: "w" } }, '
+    '{ explodedEdge: { cmp: { op: EQ, lhs: { read: { property: { name: "w" } } }, '
     "rhs: { const: { i64: 7 } } } } }"
 )
 LATEST_IS_SEVEN = (
-    '{ edge: { cmp: { op: EQ, lhs: { read: { property: "w" } }, '
+    '{ edge: { cmp: { op: EQ, lhs: { read: { property: { name: "w" } } }, '
     "rhs: { const: { i64: 7 } } } } }"
 )
 

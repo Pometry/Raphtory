@@ -66,9 +66,11 @@ def const(v):
 def read(term, views=None):
     """A read of one term (`{"property": "score"}`, `{"field": "NAME"}`, ...),
     under `views` when given."""
-    if views is None:
-        return {"read": term}
-    return {"read": {**term, "views": views}}
+    ((kind, value),) = term.items()
+    payload = {"expr" if kind in ("src", "dst") else "name": value}
+    if views is not None:
+        payload["views"] = views
+    return {"read": {kind: payload}}
 
 
 def cmp(op, lhs, rhs):

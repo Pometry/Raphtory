@@ -1228,6 +1228,20 @@ enum EdgeField {
 }
 
 """
+A built-in edge or exploded-edge term.
+"""
+input EdgeFieldRead {
+	"""
+	The built-in term.
+	"""
+	name: EdgeField!
+	"""
+	Views the term is read through, in order; none when absent.
+	"""
+	views: [ViewOp!]
+}
+
+"""
 A membership test. `values` is a list; a policy may also leave a single placeholder here (`{"var": …}`) that resolves to the list per caller.
 """
 input EdgeMembership {
@@ -1273,36 +1287,31 @@ input EdgeQuantified {
 One edge term, read through optional views. Name exactly one of
 `property`, `temporalProperty`, `metadata`, `field`, `src` or `dst`.
 """
-input EdgeRead {
+input EdgeRead @oneOf {
 	"""
 	The latest value of a property.
 	"""
-	property: String
+	property: NamedRead
 	"""
 	The history of a property, as a list.
 	"""
-	temporalProperty: String
+	temporalProperty: NamedRead
 	"""
 	A metadata entry.
 	"""
-	metadata: String
+	metadata: NamedRead
 	"""
 	A built-in edge term.
 	"""
-	field: EdgeField
+	field: EdgeFieldRead
 	"""
 	A node expression evaluated on the edge's source node.
 	"""
-	src: NodeExpr
+	src: EndpointRead
 	"""
 	A node expression evaluated on the edge's destination node.
 	"""
-	dst: NodeExpr
-	"""
-	Views that scope the term, applied in list order; on `src` or `dst`
-	they scope every node term inside.
-	"""
-	views: [ViewOp!]
+	dst: EndpointRead
 }
 
 """
@@ -1781,6 +1790,21 @@ input EmbeddingModel @oneOf {
 }
 
 """
+A node expression evaluated on one endpoint of an edge.
+"""
+input EndpointRead {
+	"""
+	The node expression.
+	"""
+	expr: NodeExpr!
+	"""
+	Views the term is read through, in order; none when absent. They scope
+	every node term inside `expr`.
+	"""
+	views: [ViewOp!]
+}
+
+"""
 Raphtory’s EventTime.
 Represents a unique timepoint in the graph’s history as (timestamp, event_id).
 
@@ -1949,27 +1973,23 @@ One exploded-edge term (one update of an edge), read through optional
 views. Name exactly one of `property`, `temporalProperty`, `metadata` or
 `field`.
 """
-input ExplodedEdgeRead {
+input ExplodedEdgeRead @oneOf {
 	"""
 	The latest value of a property.
 	"""
-	property: String
+	property: NamedRead
 	"""
 	The history of a property, as a list.
 	"""
-	temporalProperty: String
+	temporalProperty: NamedRead
 	"""
 	A metadata entry.
 	"""
-	metadata: String
+	metadata: NamedRead
 	"""
 	A built-in edge term.
 	"""
-	field: EdgeField
-	"""
-	Views that scope the term, applied in list order.
-	"""
-	views: [ViewOp!]
+	field: EdgeFieldRead
 }
 
 """
@@ -3900,6 +3920,20 @@ type MutableNode {
 }
 
 """
+A term named by a string: a property or a metadata entry.
+"""
+input NamedRead {
+	"""
+	The property or metadata name.
+	"""
+	name: String!
+	"""
+	Views the term is read through, in order; none when absent.
+	"""
+	views: [ViewOp!]
+}
+
+"""
 A directory-like container for graphs and nested namespaces. Graphs are
 addressed by path (e.g. `"team/project/graph"`), and every segment except
 the last is a namespace. Use to browse what's stored on the server without
@@ -4706,6 +4740,20 @@ enum NodeField {
 }
 
 """
+A built-in node term.
+"""
+input NodeFieldRead {
+	"""
+	The built-in term.
+	"""
+	name: NodeField!
+	"""
+	Views the term is read through, in order; none when absent.
+	"""
+	views: [ViewOp!]
+}
+
+"""
 Identifier for a node — either a string (`"alice"`) or a non-negative
 integer (`42`). Use whichever form matches how the graph was indexed
 when nodes were added.
@@ -4758,27 +4806,23 @@ input NodeQuantified {
 One node term, read through optional views. Name exactly one of
 `property`, `temporalProperty`, `metadata` or `field`.
 """
-input NodeRead {
+input NodeRead @oneOf {
 	"""
 	The latest value of a property.
 	"""
-	property: String
+	property: NamedRead
 	"""
 	The history of a property, as a list.
 	"""
-	temporalProperty: String
+	temporalProperty: NamedRead
 	"""
 	A metadata entry.
 	"""
-	metadata: String
+	metadata: NamedRead
 	"""
 	A built-in node term.
 	"""
-	field: NodeField
-	"""
-	Views that scope the term, applied in list order.
-	"""
-	views: [ViewOp!]
+	field: NodeFieldRead
 }
 
 """

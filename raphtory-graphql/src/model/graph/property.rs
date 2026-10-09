@@ -279,10 +279,8 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     }
 }
 
-impl TryFrom<&Prop> for Value {
-    type Error = GraphError;
-
-    fn try_from(prop: &Prop) -> Result<Self, Self::Error> {
+impl From<&Prop> for Value {
+    fn from(prop: &Prop) -> Self {
         prop_to_value(prop)
     }
 }
@@ -290,8 +288,8 @@ impl TryFrom<&Prop> for Value {
 /// A `Prop` from the engine → GQL wire `Value`. Mirror of [`value_to_prop`];
 /// non-lossy for scalars. Naive datetimes truncate to millisecond precision —
 /// the server's time parser accepts at most 3 fractional digits.
-fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
-    Ok(match p {
+fn prop_to_value(p: &Prop) -> Value {
+    match p {
         Prop::Str(s) => Value::Str(s.to_string()),
         Prop::U8(v) => Value::U8(*v),
         Prop::U16(v) => Value::U16(*v),
@@ -307,26 +305,20 @@ fn prop_to_value(p: &Prop) -> Result<Value, GraphError> {
         Prop::NDTime(v) => Value::NDTime(v.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()),
         Prop::DTime(v) => Value::DTime(v.to_rfc3339()),
         Prop::Decimal(v) => Value::Decimal(v.to_string()),
-        Prop::List(arr) => {
-            let items: Result<Vec<Value>, GraphError> =
-                arr.iter().map(|p| prop_to_value(&p)).collect();
-            Value::List(items?)
-        }
+        Prop::List(arr) => Value::List(arr.iter().map(|p| prop_to_value(&p)).collect()),
         Prop::Map(map) => {
             // Map props are insertion-ordered, so iteration order is already
             // deterministic and survives the wire round-trip.
             let entries = map
                 .iter()
-                .map(|(k, v)| {
-                    Ok(ObjectEntry {
-                        key: k.to_string(),
-                        value: prop_to_value(v)?,
-                    })
+                .map(|(k, v)| ObjectEntry {
+                    key: k.to_string(),
+                    value: prop_to_value(v),
                 })
-                .collect::<Result<Vec<_>, GraphError>>()?;
+                .collect();
             Value::Object(entries)
         }
-    })
+    }
 }
 
 #[derive(Clone, Debug, Scalar)]
@@ -994,7 +986,7 @@ mod value_serde_tests {
         .collect();
         let prop = Prop::Map(Arc::new(map));
 
-        let value = Value::try_from(&prop).unwrap();
+        let value = Value::from(&prop);
         let Value::Object(entries) = &value else {
             panic!("expected Object, got {value:?}");
         };
@@ -1019,7 +1011,7 @@ mod value_serde_tests {
             (f64::INFINITY, SpecialFloat::Infinity),
             (f64::NEG_INFINITY, SpecialFloat::NegInfinity),
         ] {
-            let value = Value::try_from(&Prop::F64(input)).unwrap();
+            let value = Value::from(&Prop::F64(input));
             let Value::F64Special(s) = &value else {
                 panic!("expected F64Special, got {value:?}");
             };
@@ -1031,7 +1023,7 @@ mod value_serde_tests {
             assert!(back.is_nan() == input.is_nan() && (input.is_nan() || back == input));
         }
 
-        let value = Value::try_from(&Prop::F32(f32::NEG_INFINITY)).unwrap();
+        let value = Value::from(&Prop::F32(f32::NEG_INFINITY));
         assert_eq!(
             serde_json::to_value(&value).unwrap(),
             serde_json::json!({ "f32Special": "NEG_INFINITY" })
@@ -1043,7 +1035,7 @@ mod value_serde_tests {
 
         // Finite floats keep the plain numeric form.
         assert_eq!(
-            serde_json::to_value(Value::try_from(&Prop::F64(1.5)).unwrap()).unwrap(),
+            serde_json::to_value(Value::from(&Prop::F64(1.5))).unwrap(),
             serde_json::json!({ "f64": 1.5 })
         );
     }
@@ -1056,7 +1048,7 @@ mod value_serde_tests {
         use chrono::NaiveDateTime;
 
         let dt: NaiveDateTime = "2020-01-01T00:00:00.123456".parse().unwrap();
-        let value = Value::try_from(&Prop::NDTime(dt)).unwrap();
+        let value = Value::from(&Prop::NDTime(dt));
         let Value::NDTime(s) = &value else {
             panic!("expected NDTime, got {value:?}");
         };

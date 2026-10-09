@@ -17,7 +17,7 @@ def test_graph_node_property_filter_equal(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { property: "prop5" }
+                                          read: { property: { name: "prop5" } }
                                         }
                                         rhs: {
                                           const: {
@@ -52,7 +52,7 @@ def test_graph_node_property_filter_equal_type_error(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { property: "prop5" }
+                                          read: { property: { name: "prop5" } }
                                         }
                                         rhs: {
                                           const: {
@@ -85,7 +85,7 @@ def test_graph_node_property_filter_not_equal(graph):
                                       cmp: {
                                         op: NE
                                         lhs: {
-                                          read: { property: "prop4" }
+                                          read: { property: { name: "prop4" } }
                                         }
                                         rhs: {
                                           const: {
@@ -116,7 +116,7 @@ def test_graph_node_property_filter_not_equal_type_error(graph):
                                       cmp: {
                                         op: NE
                                         lhs: {
-                                          read: { property: "prop4" }
+                                          read: { property: { name: "prop4" } }
                                         }
                                         rhs: {
                                           const: {
@@ -147,7 +147,7 @@ def test_graph_node_property_filter_greater_than_or_equal(graph):
                                       cmp: {
                                         op: GE
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -176,7 +176,7 @@ def test_graph_node_property_filter_greater_than_or_equal_type_error(graph):
                                       cmp: {
                                         op: GE
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -207,7 +207,7 @@ def test_graph_node_property_filter_less_than_or_equal(graph):
                                       cmp: {
                                         op: LE
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -242,7 +242,7 @@ def test_graph_node_property_filter_less_than_or_equal_type_error(graph):
                                       cmp: {
                                         op: LE
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -273,7 +273,7 @@ def test_graph_node_property_filter_greater_than(graph):
                                       cmp: {
                                         op: GT
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -302,7 +302,7 @@ def test_graph_node_property_filter_greater_than_type_error(graph):
                                       cmp: {
                                         op: GT
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -333,7 +333,7 @@ def test_graph_node_property_filter_less_than(graph):
                                       cmp: {
                                         op: LT
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -364,7 +364,7 @@ def test_graph_node_property_filter_less_than_type_error(graph):
                                       cmp: {
                                         op: LT
                                         lhs: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -390,7 +390,7 @@ def test_graph_node_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: { presence: { op: IS_NONE, expr: { read: { property: "prop5" } } } } }) {
+        filterNodes: filter(expr: { node: { presence: { op: IS_NONE, expr: { read: { property: { name: "prop5" } } } } } }) {
           nodes { list { name } }
         }
       }
@@ -407,7 +407,7 @@ def test_graph_node_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        filterNodes: filter(expr: { node: { presence: { op: IS_SOME, expr: { read: { property: "prop5" } } } } }) {
+        filterNodes: filter(expr: { node: { presence: { op: IS_SOME, expr: { read: { property: { name: "prop5" } } } } } }) {
           nodes { list { name } }
         }
       }
@@ -428,7 +428,7 @@ def test_graph_node_property_filter_is_in(graph):
                                     node: {
                                       isIn: {
                                         expr: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         values: {
                                           list: [{
@@ -465,7 +465,7 @@ def test_node_property_filter_is_in_empty_list(graph):
                          node: {
                            isIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: []
@@ -494,7 +494,7 @@ def test_graph_node_property_filter_is_in_no_value(graph):
                                     node: {
                                       isIn: {
                                         expr: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         values: {
                                           list: []
@@ -520,7 +520,7 @@ def test_graph_node_property_filter_is_in_type_error(graph):
                                     node: {
                                       isIn: {
                                         expr: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         values: {
                                           str: "shivam"
@@ -548,7 +548,7 @@ def test_graph_node_property_filter_is_not_in_any(graph):
                                     node: {
                                       isNotIn: {
                                         expr: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         values: {
                                           list: [{
@@ -585,7 +585,7 @@ def test_node_property_filter_not_is_not_in_empty_list(graph):
                          node: {
                            isNotIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: []
@@ -620,7 +620,7 @@ def test_graph_node_property_filter_is_not_in_type_error(graph):
                                     node: {
                                       isNotIn: {
                                         expr: {
-                                          read: { property: "prop1" }
+                                          read: { property: { name: "prop1" } }
                                         }
                                         values: {
                                           str: "shivam"
@@ -650,7 +650,7 @@ def test_graph_node_not_property_filter(graph):
                                         cmp: {
                                           op: EQ
                                           lhs: {
-                                            read: { property: "prop5" }
+                                            read: { property: { name: "prop5" } }
                                           }
                                           rhs: {
                                             const: {
@@ -693,7 +693,7 @@ def test_graph_node_type_and_property_filter(graph):
                            node: {
                              isIn: {
                                expr: {
-                                 read: { field: NODE_TYPE }
+                                 read: { field: { name: NODE_TYPE } }
                                }
                                values: {
                                  list: [{
@@ -709,7 +709,7 @@ def test_graph_node_type_and_property_filter(graph):
                              cmp: {
                                op: GT
                                lhs: {
-                                 read: { property: "prop2" }
+                                 read: { property: { name: "prop2" } }
                                }
                                rhs: {
                                  const: {
@@ -750,7 +750,7 @@ def test_graph_nodes_property_filter_starts_with(graph):
                                       str: {
                                         op: STARTS_WITH
                                         lhs: {
-                                          read: { property: "prop3" }
+                                          read: { property: { name: "prop3" } }
                                         }
                                         rhs: {
                                           const: {
@@ -787,7 +787,7 @@ def test_graph_nodes_property_filter_ends_with(graph):
                                       str: {
                                         op: ENDS_WITH
                                         lhs: {
-                                          read: { property: "prop3" }
+                                          read: { property: { name: "prop3" } }
                                         }
                                         rhs: {
                                           const: {
@@ -819,7 +819,7 @@ def test_graph_nodes_property_filter_starts_with_temporal_any(graph):
                                           str: {
                                             op: STARTS_WITH
                                             lhs: {
-                                              read: { temporalProperty: "prop3" }
+                                              read: { temporalProperty: { name: "prop3" } }
                                             }
                                             rhs: {
                                               const: {

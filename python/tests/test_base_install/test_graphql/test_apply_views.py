@@ -1440,7 +1440,7 @@ def test_apply_view_layer():
       }
     }
     nodes {
-     select(expr: {node: {cmp: {op: EQ, lhs: {read: { field: NODE_TYPE }}, rhs: {const: {str: "Person"}}}}}) {
+     select(expr: {node: {cmp: {op: EQ, lhs: {read: { field: { name: NODE_TYPE } }}, rhs: {const: {str: "Person"}}}}}) {
         list {
           history {
             timestamps {
@@ -1934,7 +1934,7 @@ def test_apply_view_type_filter():
 {
   graph(path: "g") {
       nodes {
-        select(expr: {node: {cmp: {op: EQ, lhs: {read: { field: NODE_TYPE }}, rhs: {const: {str: "Person"}}}}}) {
+        select(expr: {node: {cmp: {op: EQ, lhs: {read: { field: { name: NODE_TYPE } }}, rhs: {const: {str: "Person"}}}}}) {
           list {
             name
           }
@@ -2063,7 +2063,7 @@ def test_apply_view_node_filter():
                         cmp: {
                           op: EQ
                           lhs: {
-                            read: { property: "where" }
+                            read: { property: { name: "where" } }
                           }
                           rhs: {
                             const: {
@@ -2097,7 +2097,7 @@ def test_apply_view_edge_filter():
                         cmp: {
                           op: EQ
                           lhs: {
-                            read: { property: "where" }
+                            read: { property: { name: "where" } }
                           }
                           rhs: {
                             const: {
@@ -2261,7 +2261,7 @@ def test_apply_view_a_lot_of_views():
                           cmp: {
                             op: EQ
                             lhs: {
-                              read: { property: "where" }
+                              read: { property: { name: "where" } }
                             }
                             rhs: {
                               const: {

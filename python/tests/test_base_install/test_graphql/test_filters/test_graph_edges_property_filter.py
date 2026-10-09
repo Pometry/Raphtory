@@ -22,7 +22,7 @@ def test_graph_edge_property_filter_equal(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { property: "eprop5" }
+                                          read: { property: { name: "eprop5" } }
                                         }
                                         rhs: {
                                           const: {
@@ -63,7 +63,7 @@ def test_graph_edge_property_filter_equal_type_error(graph):
                                       cmp: {
                                         op: EQ
                                         lhs: {
-                                          read: { property: "eprop5" }
+                                          read: { property: { name: "eprop5" } }
                                         }
                                         rhs: {
                                           const: {
@@ -96,7 +96,7 @@ def test_graph_edge_property_filter_not_equal(graph):
                                       cmp: {
                                         op: NE
                                         lhs: {
-                                          read: { property: "eprop4" }
+                                          read: { property: { name: "eprop4" } }
                                         }
                                         rhs: {
                                           const: {
@@ -131,7 +131,7 @@ def test_graph_edge_property_filter_not_equal_type_error(graph):
                                       cmp: {
                                         op: NE
                                         lhs: {
-                                          read: { property: "eprop4" }
+                                          read: { property: { name: "eprop4" } }
                                         }
                                         rhs: {
                                           const: {
@@ -162,7 +162,7 @@ def test_graph_edge_property_filter_greater_than_or_equal(graph):
                                       cmp: {
                                         op: GE
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -197,7 +197,7 @@ def test_graph_edge_property_filter_greater_than_or_equal_type_error(graph):
                                       cmp: {
                                         op: GE
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -228,7 +228,7 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
                                       cmp: {
                                         op: LE
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -268,7 +268,7 @@ def test_graph_edge_property_filter_less_than_or_equal_type_error(graph):
                                       cmp: {
                                         op: LE
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -299,7 +299,7 @@ def test_graph_edge_property_filter_greater_than(graph):
                                       cmp: {
                                         op: GT
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -334,7 +334,7 @@ def test_graph_edge_property_filter_greater_than_type_error(graph):
                                       cmp: {
                                         op: GT
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -365,7 +365,7 @@ def test_graph_edge_property_filter_less_than(graph):
                                       cmp: {
                                         op: LT
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -400,7 +400,7 @@ def test_graph_edge_property_filter_less_than_type_error(graph):
                                       cmp: {
                                         op: LT
                                         lhs: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         rhs: {
                                           const: {
@@ -426,7 +426,7 @@ def test_graph_edge_property_filter_is_none(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges: filter(expr: { edge: { presence: { op: IS_NONE, expr: { read: { property: "eprop5" } } } } }) {
+        filterEdges: filter(expr: { edge: { presence: { op: IS_NONE, expr: { read: { property: { name: "eprop5" } } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -441,7 +441,7 @@ def test_graph_edge_property_filter_is_some(graph):
     query = """
     query {
       graph(path: "g") {
-        filterEdges: filter(expr: { edge: { presence: { op: IS_SOME, expr: { read: { property: "eprop5" } } } } }) {
+        filterEdges: filter(expr: { edge: { presence: { op: IS_SOME, expr: { read: { property: { name: "eprop5" } } } } } }) {
           edges { list { src { name } dst { name } } }
         }
       }
@@ -472,7 +472,7 @@ def test_graph_edge_property_filter_is_in(graph):
                                     edge: {
                                       isIn: {
                                         expr: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         values: {
                                           list: [{
@@ -515,7 +515,7 @@ def test_graph_edge_property_filter_is_empty_list(graph):
                                     edge: {
                                       isIn: {
                                         expr: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         values: {
                                           list: []
@@ -541,7 +541,7 @@ def test_graph_edge_property_filter_is_in_type_error(graph):
                                     edge: {
                                       isIn: {
                                         expr: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         values: {
                                           str: "shivam"
@@ -569,7 +569,7 @@ def test_graph_edge_property_filter_is_not_in(graph):
                                     edge: {
                                       isNotIn: {
                                         expr: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         values: {
                                           list: [{
@@ -607,7 +607,7 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
                                     edge: {
                                       isNotIn: {
                                         expr: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         values: {
                                           list: []
@@ -645,7 +645,7 @@ def test_graph_edge_property_filter_is_not_in_type_error(graph):
                                     edge: {
                                       isNotIn: {
                                         expr: {
-                                          read: { property: "eprop1" }
+                                          read: { property: { name: "eprop1" } }
                                         }
                                         values: {
                                           str: "shivam"
@@ -675,7 +675,7 @@ def test_graph_edge_not_property_filter(graph):
                                         cmp: {
                                           op: EQ
                                           lhs: {
-                                            read: { property: "eprop5" }
+                                            read: { property: { name: "eprop5" } }
                                           }
                                           rhs: {
                                             const: {
@@ -721,7 +721,7 @@ def test_edges_property_filter_starts_with(graph):
                                       str: {
                                         op: STARTS_WITH
                                         lhs: {
-                                          read: { property: "eprop3" }
+                                          read: { property: { name: "eprop3" } }
                                         }
                                         rhs: {
                                           const: {
@@ -762,7 +762,7 @@ def test_edges_property_filter_ends_with(graph):
                                       str: {
                                         op: ENDS_WITH
                                         lhs: {
-                                          read: { property: "eprop3" }
+                                          read: { property: { name: "eprop3" } }
                                         }
                                         rhs: {
                                           const: {
@@ -807,7 +807,7 @@ def test_edges_selection(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p2" }
+                              read: { property: { name: "p2" } }
                             }
                             rhs: {
                               const: {
@@ -848,7 +848,7 @@ def test_edges_selection_edges_filter_paired(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p2" }
+                              read: { property: { name: "p2" } }
                             }
                             rhs: {
                               const: {
@@ -863,7 +863,7 @@ def test_edges_selection_edges_filter_paired(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "p3" }
+                               read: { property: { name: "p3" } }
                              }
                              rhs: {
                                const: {
@@ -906,7 +906,7 @@ def test_edges_chained_selection_edges_filter_paired(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p2" }
+                              read: { property: { name: "p2" } }
                             }
                             rhs: {
                               const: {
@@ -921,7 +921,7 @@ def test_edges_chained_selection_edges_filter_paired(graph):
                            cmp: {
                              op: LT
                              lhs: {
-                               read: { property: "p2" }
+                               read: { property: { name: "p2" } }
                              }
                              rhs: {
                                const: {
@@ -936,7 +936,7 @@ def test_edges_chained_selection_edges_filter_paired(graph):
                              cmp: {
                                op: EQ
                                lhs: {
-                                 read: { dst: { read: { field: ID } } }
+                                 read: { dst: { expr: { read: { field: { name: ID } } } } }
                                }
                                rhs: {
                                  const: {
@@ -976,7 +976,7 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
                            cmp: {
                              op: GT
                              lhs: {
-                               read: { property: "p2" }
+                               read: { property: { name: "p2" } }
                              }
                              rhs: {
                                const: {
@@ -991,7 +991,7 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
                              cmp: {
                                op: LT
                                lhs: {
-                                 read: { property: "p2" }
+                                 read: { property: { name: "p2" } }
                                }
                                rhs: {
                                  const: {
@@ -1006,7 +1006,7 @@ def test_edges_chained_selection_edges_filter_paired_ver2(graph):
                                cmp: {
                                  op: EQ
                                  lhs: {
-                                   read: { dst: { read: { field: ID } } }
+                                   read: { dst: { expr: { read: { field: { name: ID } } } } }
                                  }
                                  rhs: {
                                    const: {
@@ -1054,10 +1054,12 @@ def test_edge_temporal_property_filter_empty_layers(graph):
                                             op: AVG
                                             expr: {
                                               read: {
-                                                temporalProperty: "p2"
-                                                views: [{
-                                                  layers: []
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p2"
+                                                  views: [{
+                                                    layers: []
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1094,10 +1096,12 @@ def test_edges_temporal_property_last_with_single_layer(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  layers: ["air_nomads"]
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    layers: ["air_nomads"]
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1142,10 +1146,12 @@ def test_edges_temporal_property_last_with_multiple_layers(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  layers: ["fire_nation", "air_nomads"]
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    layers: ["fire_nation", "air_nomads"]
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1189,10 +1195,12 @@ def test_edges_temporal_property_last_with_default_layer(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  layers: ["_default"]
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    layers: ["_default"]
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1236,10 +1244,12 @@ def test_edges_at_temporal_last(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  at: 1
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    at: 1
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1282,10 +1292,12 @@ def test_edges_before_temporal_last(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  before: 2
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    before: 2
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1328,10 +1340,12 @@ def test_edges_after_temporal_last(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  after: 2
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    after: 2
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1374,10 +1388,12 @@ def test_edges_latest_temporal_last(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  kind: LATEST
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    kind: LATEST
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1419,10 +1435,12 @@ def test_edges_snapshot_at_temporal_last(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  snapshotAt: 2
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    snapshotAt: 2
+                                                  }]
+                                                }
                                               }
                                             }
                                           }
@@ -1464,10 +1482,12 @@ def test_edges_snapshot_latest_temporal_last(graph):
                                             op: LAST
                                             expr: {
                                               read: {
-                                                temporalProperty: "p10"
-                                                views: [{
-                                                  kind: SNAPSHOT_LATEST
-                                                }]
+                                                temporalProperty: {
+                                                  name: "p10"
+                                                  views: [{
+                                                    kind: SNAPSHOT_LATEST
+                                                  }]
+                                                }
                                               }
                                             }
                                           }

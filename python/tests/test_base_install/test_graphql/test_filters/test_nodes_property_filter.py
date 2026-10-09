@@ -28,7 +28,7 @@ def test_node_property_filter_equal2(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "prop5" }
+                               read: { property: { name: "prop5" } }
                              }
                              rhs: {
                                const: {
@@ -85,7 +85,7 @@ def test_node_property_filter_equal3(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "prop5" }
+                               read: { property: { name: "prop5" } }
                              }
                              rhs: {
                                const: {
@@ -123,7 +123,7 @@ def test_node_property_filter_equal_type_error(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "prop5" }
+                               read: { property: { name: "prop5" } }
                              }
                              rhs: {
                                const: {
@@ -161,7 +161,7 @@ def test_node_property_filter_not_equal(graph):
                            cmp: {
                              op: NE
                              lhs: {
-                               read: { property: "prop4" }
+                               read: { property: { name: "prop4" } }
                              }
                              rhs: {
                                const: {
@@ -197,7 +197,7 @@ def test_node_property_filter_not_equal_type_error(graph):
                            cmp: {
                              op: NE
                              lhs: {
-                               read: { property: "prop4" }
+                               read: { property: { name: "prop4" } }
                              }
                              rhs: {
                                const: {
@@ -233,7 +233,7 @@ def test_node_property_filter_greater_than_or_equal(graph):
                            cmp: {
                              op: GE
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -267,7 +267,7 @@ def test_node_property_filter_greater_than_or_equal_type_error(graph):
                            cmp: {
                              op: GE
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -303,7 +303,7 @@ def test_node_property_filter_less_than_or_equal(graph):
                            cmp: {
                              op: LE
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -341,7 +341,7 @@ def test_node_property_filter_less_than_or_equal_type_error(graph):
                            cmp: {
                              op: LE
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -375,7 +375,7 @@ def test_node_property_filter_greater_than(graph):
                            cmp: {
                              op: GT
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -407,7 +407,7 @@ def test_node_property_filter_greater_than_type_error(graph):
                            cmp: {
                              op: GT
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -441,7 +441,7 @@ def test_node_property_filter_less_than(graph):
                            cmp: {
                              op: LT
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -475,7 +475,7 @@ def test_node_property_filter_less_than_type_error(graph):
                            cmp: {
                              op: LT
                              lhs: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              rhs: {
                                const: {
@@ -504,7 +504,7 @@ def test_node_property_filter_is_none(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { node: { presence: { op: IS_NONE, expr: { read: { property: "prop5" } } } } }
+          select(expr: { node: { presence: { op: IS_NONE, expr: { read: { property: { name: "prop5" } } } } } }
           ) {
             list { name }
           }
@@ -524,7 +524,7 @@ def test_node_property_filter_is_some(graph):
     query {
       graph(path: "g") {
         nodes {
-          select(expr: { node: { presence: { op: IS_SOME, expr: { read: { property: "prop5" } } } } }
+          select(expr: { node: { presence: { op: IS_SOME, expr: { read: { property: { name: "prop5" } } } } } }
           ) {
             list { name }
           }
@@ -548,7 +548,7 @@ def test_node_property_filter_is_in(graph):
                          node: {
                            isIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: [{
@@ -587,7 +587,7 @@ def test_node_property_filter_is_in_empty_list(graph):
                          node: {
                            isIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: []
@@ -617,7 +617,7 @@ def test_node_property_filter_is_in_no_value(graph):
                          node: {
                            isIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: [{
@@ -648,7 +648,7 @@ def test_node_property_filter_is_in_type_error(graph):
                          node: {
                            isIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                str: "shivam"
@@ -679,7 +679,7 @@ def test_node_property_filter_is_not_in(graph):
                          node: {
                            isNotIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: [{
@@ -718,7 +718,7 @@ def test_node_property_filter_is_not_in_empty_list(graph):
                          node: {
                            isNotIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                list: []
@@ -755,7 +755,7 @@ def test_node_property_filter_is_not_in_type_error(graph):
                          node: {
                            isNotIn: {
                              expr: {
-                               read: { property: "prop1" }
+                               read: { property: { name: "prop1" } }
                              }
                              values: {
                                str: "shivam"
@@ -786,7 +786,7 @@ def test_node_property_filter_contains_wrong_value_type_error(graph):
                                       str: {
                                         op: CONTAINS
                                         lhs: {
-                                          read: { property: "p10" }
+                                          read: { property: { name: "p10" } }
                                         }
                                         rhs: {
                                           const: {
@@ -818,7 +818,7 @@ def test_nodes_property_filter_starts_with(graph):
                            str: {
                              op: STARTS_WITH
                              lhs: {
-                               read: { property: "prop3" }
+                               read: { property: { name: "prop3" } }
                              }
                              rhs: {
                                const: {
@@ -857,7 +857,7 @@ def test_nodes_property_filter_ends_with(graph):
                            str: {
                              op: ENDS_WITH
                              lhs: {
-                               read: { property: "prop3" }
+                               read: { property: { name: "prop3" } }
                              }
                              rhs: {
                                const: {
@@ -891,7 +891,7 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
                                agg: {
                                  op: FIRST
                                  expr: {
-                                   read: { temporalProperty: "prop3" }
+                                   read: { temporalProperty: { name: "prop3" } }
                                  }
                                }
                              }
@@ -935,7 +935,7 @@ def test_nodes_property_filter_temporal_all_starts_with(graph):
                                str: {
                                  op: STARTS_WITH
                                  lhs: {
-                                   read: { temporalProperty: "prop3" }
+                                   read: { temporalProperty: { name: "prop3" } }
                                  }
                                  rhs: {
                                    const: {
@@ -971,7 +971,7 @@ def test_nodes_property_filter_list_agg(graph):
                                           agg: {
                                             op: SUM
                                             expr: {
-                                              read: { property: "prop5" }
+                                              read: { property: { name: "prop5" } }
                                             }
                                           }
                                         }
@@ -1005,7 +1005,7 @@ def test_nodes_property_filter_list_qualifier(graph):
                                           cmp: {
                                             op: EQ
                                             lhs: {
-                                              read: { property: "prop5" }
+                                              read: { property: { name: "prop5" } }
                                             }
                                             rhs: {
                                               const: {
@@ -1043,7 +1043,7 @@ def test_nodes_temporal_property_filter_agg(graph):
                                           agg: {
                                             op: AVG
                                             expr: {
-                                              read: { temporalProperty: "p2" }
+                                              read: { temporalProperty: { name: "p2" } }
                                             }
                                           }
                                         }
@@ -1087,7 +1087,7 @@ def test_nodes_temporal_property_filter_any_avg(graph):
                                               agg: {
                                                 op: AVG
                                                 expr: {
-                                                  read: { temporalProperty: "prop5" }
+                                                  read: { temporalProperty: { name: "prop5" } }
                                                 }
                                               }
                                             }
@@ -1126,7 +1126,7 @@ def test_nodes_neighbours_selection_with_prop_filter(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p100" }
+                              read: { property: { name: "p100" } }
                             }
                             rhs: {
                               const: {
@@ -1179,7 +1179,7 @@ def test_nodes_selection(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p100" }
+                              read: { property: { name: "p100" } }
                             }
                             rhs: {
                               const: {
@@ -1211,7 +1211,7 @@ def test_nodes_selection_nodes_filter_paired(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p100" }
+                              read: { property: { name: "p100" } }
                             }
                             rhs: {
                               const: {
@@ -1226,7 +1226,7 @@ def test_nodes_selection_nodes_filter_paired(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "p9" }
+                               read: { property: { name: "p9" } }
                              }
                              rhs: {
                                const: {
@@ -1261,7 +1261,7 @@ def test_nodes_selection_nodes_filter_paired2(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p100" }
+                              read: { property: { name: "p100" } }
                             }
                             rhs: {
                               const: {
@@ -1276,7 +1276,7 @@ def test_nodes_selection_nodes_filter_paired2(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "p9" }
+                               read: { property: { name: "p9" } }
                              }
                              rhs: {
                                const: {
@@ -1323,7 +1323,7 @@ def test_nodes_chained_selection_node_filter_paired(graph):
                           cmp: {
                             op: GT
                             lhs: {
-                              read: { property: "p100" }
+                              read: { property: { name: "p100" } }
                             }
                             rhs: {
                               const: {
@@ -1338,7 +1338,7 @@ def test_nodes_chained_selection_node_filter_paired(graph):
                            cmp: {
                              op: EQ
                              lhs: {
-                               read: { property: "p9" }
+                               read: { property: { name: "p9" } }
                              }
                              rhs: {
                                const: {
@@ -1353,7 +1353,7 @@ def test_nodes_chained_selection_node_filter_paired(graph):
                              cmp: {
                                op: EQ
                                lhs: {
-                                 read: { field: NODE_TYPE }
+                                 read: { field: { name: NODE_TYPE } }
                                }
                                rhs: {
                                  const: {
@@ -1389,7 +1389,7 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
                            cmp: {
                              op: GT
                              lhs: {
-                               read: { property: "p100" }
+                               read: { property: { name: "p100" } }
                              }
                              rhs: {
                                const: {
@@ -1404,7 +1404,7 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
                              cmp: {
                                op: EQ
                                lhs: {
-                                 read: { property: "p9" }
+                                 read: { property: { name: "p9" } }
                                }
                                rhs: {
                                  const: {
@@ -1419,7 +1419,7 @@ def test_nodes_chained_selection_node_filter_paired_ver2(graph):
                                cmp: {
                                  op: EQ
                                  lhs: {
-                                   read: { field: NODE_TYPE }
+                                   read: { field: { name: NODE_TYPE } }
                                  }
                                  rhs: {
                                    const: {
@@ -1468,13 +1468,15 @@ def test_nodes_temporal_property_filter_any_avg_with_window(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      window: {
-                                                        start: 1
-                                                        end: 3
-                                                      }
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        window: {
+                                                          start: 1
+                                                          end: 3
+                                                        }
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1518,10 +1520,12 @@ def test_node_property_layer_filter_not_supported(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      layers: ["air_nomads"]
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        layers: ["air_nomads"]
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1567,10 +1571,12 @@ def test_nodes_at_temporal_property(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      at: 2
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        at: 2
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1611,10 +1617,12 @@ def test_nodes_before_temporal_property(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      before: 3
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        before: 3
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1657,10 +1665,12 @@ def test_nodes_after_temporal_property(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      after: 2
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        after: 2
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1703,10 +1713,12 @@ def test_nodes_latest_temporal_property(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      kind: LATEST
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        kind: LATEST
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1747,10 +1759,12 @@ def test_nodes_snapshot_at_temporal_property(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      snapshotAt: 2
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        snapshotAt: 2
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1793,10 +1807,12 @@ def test_nodes_snapshot_latest_temporal_property(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      kind: SNAPSHOT_LATEST
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        kind: SNAPSHOT_LATEST
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1842,12 +1858,14 @@ def test_nodes_layer_then_latest(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      layers: ["_default"]
-                                                    }, {
-                                                      kind: LATEST
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        layers: ["_default"]
+                                                      }, {
+                                                        kind: LATEST
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
@@ -1888,12 +1906,14 @@ def test_nodes_latest_then_layer(graph):
                                                 op: AVG
                                                 expr: {
                                                   read: {
-                                                    temporalProperty: "prop5"
-                                                    views: [{
-                                                      kind: LATEST
-                                                    }, {
-                                                      layers: ["_default"]
-                                                    }]
+                                                    temporalProperty: {
+                                                      name: "prop5"
+                                                      views: [{
+                                                        kind: LATEST
+                                                      }, {
+                                                        layers: ["_default"]
+                                                      }]
+                                                    }
                                                   }
                                                 }
                                               }
