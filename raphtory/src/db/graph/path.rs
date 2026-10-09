@@ -22,7 +22,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 type GraphPathOp<'graph> =
     Arc<dyn Fn(DynGraphArc<'graph>, VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>;
@@ -476,7 +476,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromNode<'
             base_graph: self.base_graph.clone(),
             select: Arc::new(self.base_graph.clone()),
             edges,
-            kind: PhantomData,
+            kind: Default::default(),
         }
     }
 

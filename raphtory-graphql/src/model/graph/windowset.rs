@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
         edge::GqlEdge,
-        edges::{GqlEdges, GqlExplodedEdges},
+        edges::GqlEdges,
         graph::GqlGraph,
         node::GqlNode,
         nodes::GqlNodes,
@@ -20,7 +20,7 @@ use raphtory::db::{
     },
     graph::{
         edge::EdgeView,
-        edges::{Edge, Edges, ExplodedEdge},
+        edges::{DynEdgeItem, Edges},
         node::NodeView,
         nodes::Nodes,
         path::PathFromNode,
@@ -368,83 +368,67 @@ impl GqlEdgeWindowSet {
     }
 }
 
-/// The GraphQL object for a window set over a collection of edges of one kind,
-/// stamped out for edges and for exploded edges.
-macro_rules! gql_edges_window_set {
-    ($name:ident, $gql:literal, $kind:ty, $edges:ident, $doc:literal) => {
-        #[doc = $doc]
-        #[derive(ResolvedObject, Clone)]
-        #[graphql(name = $gql)]
-        pub struct $name {
-            pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph, $kind>>,
-        }
-
-
-        impl $name {
-            pub(crate) fn new(ws: WindowSet<'static, Edges<'static, DynamicGraph, $kind>>) -> Self {
-                Self { ws }
-            }
-        }
-        #[ResolvedObjectFields]
-        impl $name {
-            /// Number of windows in this set. Materialising all windows is expensive for
-            /// large graphs — prefer `page` over `list` when iterating.
-            pub async fn count(&self) -> usize {
-                let self_clone = self.clone();
-                blocking_compute(move || self_clone.ws.clone().count()).await
-            }
-
-            /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
-            /// The page_index sets the number of pages to skip (defaults to 0).
-            ///
-            /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
-            /// will be returned.
-
-            pub async fn page(
-                &self,
-                ctx: &Context<'_>,
-                #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
-                #[graphql(desc = "Extra items to skip on top of `pageIndex` paging (default 0).")]
-                offset: Option<usize>,
-                #[graphql(
-                    desc = "Zero-based page number; multiplies `limit` to determine where to start (default 0)."
-                )]
-                page_index: Option<usize>,
-            ) -> async_graphql::Result<Vec<$edges>> {
-                check_page_limit(ctx, limit)?;
-                let self_clone = self.clone();
-                Ok(blocking_compute(move || {
-                    let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
-                    self_clone
-                        .ws
-                        .clone()
-                        .skip(start)
-                        .take(limit)
-                        .map(|e| $edges::new(e))
-                        .collect()
-                })
-                .await)
-            }
-
-            /// Materialise every window as a list. Rejected by the server when bulk list
-            /// endpoints are disabled; use `page` for paginated access instead.
-            pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<$edges>> {
-                check_list_allowed(ctx)?;
-                let self_clone = self.clone();
-                Ok(
-                    blocking_compute(move || self_clone.ws.clone().map(|e| $edges::new(e)).collect())
-                        .await,
-                )
-            }
-        }
-    };
+/// A lazy sequence of per-window edge collections, produced by `edges.rolling` / `edges.expanding`. Each entry is an `Edges` collection as it exists in that window.
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "EdgesWindowSet")]
+pub struct GqlEdgesWindowSet {
+    pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph, DynEdgeItem>>,
 }
 
-gql_edges_window_set!(GqlEdgesWindowSet, "EdgesWindowSet", Edge, GqlEdges, "A lazy sequence of per-window edge collections, produced by `edges.rolling` / `edges.expanding`. Each entry is an `Edges` collection as it exists in that window.");
-gql_edges_window_set!(
-    GqlExplodedEdgesWindowSet,
-    "ExplodedEdgesWindowSet",
-    ExplodedEdge,
-    GqlExplodedEdges,
-    "A lazy sequence of per-window collections of exploded edges, produced by `rolling` / `expanding` on `ExplodedEdges`."
-);
+impl GqlEdgesWindowSet {
+    pub(crate) fn new(ws: WindowSet<'static, Edges<'static, DynamicGraph, DynEdgeItem>>) -> Self {
+        Self { ws }
+    }
+}
+#[ResolvedObjectFields]
+impl GqlEdgesWindowSet {
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
+    pub async fn count(&self) -> usize {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.ws.clone().count()).await
+    }
+
+    /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+    /// The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+
+    pub async fn page(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
+        #[graphql(desc = "Extra items to skip on top of `pageIndex` paging (default 0).")]
+        offset: Option<usize>,
+        #[graphql(
+            desc = "Zero-based page number; multiplies `limit` to determine where to start (default 0)."
+        )]
+        page_index: Option<usize>,
+    ) -> async_graphql::Result<Vec<GqlEdges>> {
+        check_page_limit(ctx, limit)?;
+        let self_clone = self.clone();
+        Ok(blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .ws
+                .clone()
+                .skip(start)
+                .take(limit)
+                .map(|e| GqlEdges::new(e))
+                .collect()
+        })
+        .await)
+    }
+
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
+    pub async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdges>> {
+        check_list_allowed(ctx)?;
+        let self_clone = self.clone();
+        Ok(
+            blocking_compute(move || self_clone.ws.clone().map(|e| GqlEdges::new(e)).collect())
+                .await,
+        )
+    }
+}

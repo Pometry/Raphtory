@@ -1009,13 +1009,13 @@ type Edge {
 	"""
 	Returns an edge object for each update within the original edge.
 	"""
-	explode: ExplodedEdges!
+	explode: Edges!
 	"""
 	Returns an edge object for each layer within the original edge.
 	
 	Each new edge object contains only updates from the respective layers.
 	"""
-	explodeLayers: ExplodedEdges!
+	explodeLayers: Edges!
 	"""
 	Returns a History object with time entries for when an edge is added or change to an edge is made.
 	
@@ -1426,7 +1426,7 @@ type EdgeWindowSet {
 }
 
 """
-A lazy collection of edges from a graph view. Supports the usual view transforms (window, layer, filter, ...), plus edge-specific ones like `explode` and `explodeLayers`, pagination, and sorting.
+A lazy collection of edges from a graph view. Supports the usual view transforms (window, layer, filter, ...), plus edge-specific ones like `explode` and `explodeLayers`, pagination, and sorting. `select` and `filter` on the collection returned by `explode` ask their question of each exploded edge.
 """
 type Edges {
 	"""
@@ -1593,13 +1593,13 @@ type Edges {
 	becomes three `A->B` entries each at a distinct timestamp. Use this to
 	iterate per-event rather than per-edge.
 	"""
-	explode: ExplodedEdges!
+	explode: Edges!
 	"""
 	Returns an edge object for each layer within the original edge.
 	
 	Each new edge object contains only updates from the respective layers.
 	"""
-	explodeLayers: ExplodedEdges!
+	explodeLayers: Edges!
 	"""
 	Sort the edges. Multiple criteria are applied lexicographically (ties
 	on the first key break to the second, etc.).
@@ -1996,354 +1996,6 @@ input ExplodedEdgeStringTest {
 	`FUZZY` only: whether a match on a prefix counts.
 	"""
 	prefixMatch: Boolean
-}
-
-"""
-A lazy collection of exploded edges, one per update of the edges it came from, as returned by `explode` and `explodeLayers`. Supports the same view transforms, filtering, pagination and sorting as `Edges`; `select` and `filter` ask their question of each exploded edge.
-"""
-type ExplodedEdges {
-	"""
-	Returns a collection containing only edges in the default edge layer.
-	"""
-	defaultLayer: ExplodedEdges!
-	"""
-	Returns a collection containing only edges belonging to the listed layers.
-	"""
-	layers(
-		"""
-		Layer names to include.
-		"""
-		names: [String!]!
-	): ExplodedEdges!
-	"""
-	Returns a collection containing edges belonging to all layers except the excluded list of layers.
-	"""
-	excludeLayers(
-		"""
-		Layer names to exclude.
-		"""
-		names: [String!]!
-	): ExplodedEdges!
-	"""
-	Returns a collection containing edges belonging to the specified layer.
-	"""
-	layer(
-		"""
-		Layer name to include.
-		"""
-		name: String!
-	): ExplodedEdges!
-	"""
-	Returns a collection containing edges belonging to all layers except the excluded layer specified.
-	"""
-	excludeLayer(
-		"""
-		Layer name to exclude.
-		"""
-		name: String!
-	): ExplodedEdges!
-	"""
-	Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
-	
-	Returns a collection of collections. This means that item in the window set is a collection of edges.
-	
-	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
-	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step (or window if no step is passed).
-	e.g. "1 month and 1 day" will align at the start of the day.
-	Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
-	the start of the first window and/or after the end of the last window (i.e. not included in any window).
-	"""
-	rolling(
-		"""
-		Width of each window. Pass either `{epoch: <ms>}` for a discrete number of milliseconds (e.g. `{epoch: 1000}` for 1 second), or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}` or `{duration: 2 hours and 30 minutes}`).
-		"""
-		window: WindowDuration!,
-		"""
-		Optional gap between the start of one window and the start of the next. Accepts the same `{epoch: <ms>}` or `{duration: <text>}` values as `window`. Defaults to `window` — i.e. windows touch end-to-end with no overlap and no gap.
-		"""
-		step: WindowDuration,
-		"""
-		Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set).
-		"""
-		alignmentUnit: AlignmentUnit
-	): ExplodedEdgesWindowSet!
-	"""
-	Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
-	
-	Returns a collection of collections. This means that item in the window set is a collection of edges.
-	
-	alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
-	If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
-	e.g. "1 month and 1 day" will align at the start of the day.
-	"""
-	expanding(
-		"""
-		How much the window grows by on each step. Pass either `{epoch: <ms>}` for a discrete number of milliseconds, or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}`).
-		"""
-		step: WindowDuration!,
-		"""
-		Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`.
-		"""
-		alignmentUnit: AlignmentUnit
-	): ExplodedEdgesWindowSet!
-	"""
-	Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
-	"""
-	window(
-		"""
-		Inclusive lower bound.
-		"""
-		start: TimeInput!,
-		"""
-		Exclusive upper bound.
-		"""
-		end: TimeInput!
-	): ExplodedEdges!
-	"""
-	Creates a view of the Edge including all events at a specified time.
-	"""
-	at(
-		"""
-		Instant to pin the view to.
-		"""
-		time: TimeInput!
-	): ExplodedEdges!
-	"""
-	View showing only the latest state of each edge (equivalent to `at(latestTime)`).
-	"""
-	latest: ExplodedEdges!
-	"""
-	Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
-	"""
-	snapshotAt(
-		"""
-		Instant at which entities must be valid.
-		"""
-		time: TimeInput!
-	): ExplodedEdges!
-	"""
-	Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
-	"""
-	snapshotLatest: ExplodedEdges!
-	"""
-	Creates a view of the Edge including all events before a specified end (exclusive).
-	"""
-	before(
-		"""
-		Exclusive upper bound.
-		"""
-		time: TimeInput!
-	): ExplodedEdges!
-	"""
-	Creates a view of the Edge including all events after a specified start (exclusive).
-	"""
-	after(
-		"""
-		Exclusive lower bound.
-		"""
-		time: TimeInput!
-	): ExplodedEdges!
-	"""
-	Set the start of the window.
-	"""
-	shrinkStart(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!
-	): ExplodedEdges!
-	"""
-	Set the end of the window.
-	"""
-	shrinkEnd(
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): ExplodedEdges!
-	"""
-	Expand each edge into one edge per update: if `A->B` has three updates, it
-	becomes three `A->B` entries each at a distinct timestamp. Use this to
-	iterate per-event rather than per-edge.
-	"""
-	explode: ExplodedEdges!
-	"""
-	Returns an edge object for each layer within the original edge.
-	
-	Each new edge object contains only updates from the respective layers.
-	"""
-	explodeLayers: ExplodedEdges!
-	"""
-	Sort the edges. Multiple criteria are applied lexicographically (ties
-	on the first key break to the second, etc.).
-	"""
-	sorted(
-		"""
-		Ordered list of sort keys. Each entry chooses exactly one of `src` / `dst` / `neighbour` / `time` / `property`, with an optional `reverse: true` to flip order.
-		"""
-		sortBys: [EdgeSortBy!]!
-	): ExplodedEdges!
-	"""
-	Returns the start time of the window or none if there is no window.
-	"""
-	start: EventTime!
-	"""
-	Returns the end time of the window or none if there is no window.
-	"""
-	end: EventTime!
-	"""
-	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-	"""
-	windowSize: Int
-	"""
-	Check if a layer with the given name is present in this view.
-	"""
-	hasLayer(name: String!): Boolean!
-	"""
-	Returns the source node of each edge, as a flat `PathFromNode`.
-	"""
-	src: PathFromNode!
-	"""
-	Returns the destination node of each edge, as a flat `PathFromNode`.
-	"""
-	dst: PathFromNode!
-	"""
-	Returns the node at the other end of each edge (destination for
-	out-edges, source for in-edges), as a flat `PathFromNode`.
-	"""
-	nbr: PathFromNode!
-	"""
-	Returns the number of edges.
-	
-	Returns:
-	int:
-	The property keys this collection reports: the first member's registry
-	view — the graph's registered property keys for the entity kind — or an
-	empty list when there are no members. Mirrors the local collection
-	`properties.keys()`.
-	"""
-	propertyKeys: [String!]!
-	"""
-	The metadata keys this collection reports: the first member's registry
-	view, or an empty list when there are no members. Mirrors the local
-	collection `metadata.keys()`.
-	"""
-	metadataKeys: [String!]!
-	"""
-	The number of items in the collection.
-	"""
-	count: Int!
-	"""
-	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
-	The page_index sets the number of pages to skip (defaults to 0).
-	
-	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
-	will be returned.
-	"""
-	page(
-		"""
-		Maximum number of items to return on this page.
-		"""
-		limit: Int!,
-		"""
-		Extra items to skip on top of `pageIndex` paging (default 0).
-		"""
-		offset: Int,
-		"""
-		Zero-based page number; multiplies `limit` to determine where to start (default 0).
-		"""
-		pageIndex: Int
-	): [Edge!]!
-	"""
-	Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
-	"""
-	list: [Edge!]!
-	"""
-	Narrow the collection to edges matching `expr`. The filter sticks to the
-	returned view — every subsequent traversal through these edges (their
-	properties, their endpoints' neighbours, etc.) continues to see the
-	filtered scope.
-	
-	Useful when you want one scoping rule to apply across the whole query.
-	E.g. restricting everything to a specific week:
-	
-	```text
-	edges { filter(expr: {view: [{window: {start: 1234, end: 5678}}]}) {
-	list { src { neighbours { list { name } } } }   # neighbours still windowed
-	} }
-	```
-	
-	Contrast with `select`, which applies here and is not carried through.
-	"""
-	filter(
-		"""
-		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
-		"""
-		expr: FilterExpr!
-	): ExplodedEdges!
-	"""
-	Narrow the collection to edges matching `expr`, but only at this step —
-	subsequent traversals out of these edges see the unfiltered graph again.
-	
-	Useful when you want different scopes at different hops. E.g. Monday's
-	edges, then the neighbours of their endpoints on Tuesday, then *those*
-	neighbours on Wednesday:
-	
-	```text
-	edges { select(expr: {view: [{window: {...monday...}}]}) {
-	list { src { select(expr: {view: [{window: {...tuesday...}}]}) {
-	neighbours { select(expr: {view: [{window: {...wednesday...}}]}) {
-	neighbours { list { name } }
-	} }
-	} } }
-	} }
-	```
-	
-	Contrast with `filter`, which persists the scope through subsequent ops.
-	"""
-	select(
-		"""
-		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
-		"""
-		expr: FilterExpr!
-	): ExplodedEdges!
-}
-
-"""
-A lazy sequence of per-window collections of exploded edges, produced by `rolling` / `expanding` on `ExplodedEdges`.
-"""
-type ExplodedEdgesWindowSet {
-	"""
-	Number of windows in this set. Materialising all windows is expensive for
-	large graphs — prefer `page` over `list` when iterating.
-	"""
-	count: Int!
-	"""
-	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
-	The page_index sets the number of pages to skip (defaults to 0).
-	
-	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
-	will be returned.
-	"""
-	page(
-		"""
-		Maximum number of items to return on this page.
-		"""
-		limit: Int!,
-		"""
-		Extra items to skip on top of `pageIndex` paging (default 0).
-		"""
-		offset: Int,
-		"""
-		Zero-based page number; multiplies `limit` to determine where to start (default 0).
-		"""
-		pageIndex: Int
-	): [ExplodedEdges!]!
-	"""
-	Materialise every window as a list. Rejected by the server when bulk list
-	endpoints are disabled; use `page` for paginated access instead.
-	"""
-	list: [ExplodedEdges!]!
 }
 
 """
@@ -4527,13 +4179,13 @@ type NestedEdges {
 	`NestedEdges.explode`. The per-source nesting is preserved; only the
 	inner edge lists fan out per event.
 	"""
-	explode: NestedExplodedEdges!
+	explode: NestedEdges!
 	"""
 	Expand each source's edges into one edge per layer — mirrors the local
 	`NestedEdges.explode_layers`. Each resulting edge carries only the
 	updates from its respective layer.
 	"""
-	explodeLayers: NestedExplodedEdges!
+	explodeLayers: NestedEdges!
 	"""
 	Number of source edge collections in this collection (one per source node).
 	The property keys this collection reports: the first non-empty source's first member's registry
@@ -4606,243 +4258,6 @@ type NestedEdges {
 		"""
 		expr: FilterExpr!
 	): NestedEdges!
-}
-
-"""
-A nested collection of exploded edges, one list per source node, as returned by `explode` and `explodeLayers` on `NestedEdges`. `select` and `filter` ask their question of each exploded edge.
-"""
-type NestedExplodedEdges {
-	"""
-	Returns a collection containing only edges in the default edge layer.
-	"""
-	defaultLayer: NestedExplodedEdges!
-	"""
-	Returns a collection containing only edges belonging to the listed layers.
-	"""
-	layers(
-		"""
-		Layer names to include.
-		"""
-		names: [String!]!
-	): NestedExplodedEdges!
-	"""
-	Returns a collection containing edges belonging to all layers except the excluded list of layers.
-	"""
-	excludeLayers(
-		"""
-		Layer names to exclude.
-		"""
-		names: [String!]!
-	): NestedExplodedEdges!
-	"""
-	Returns a collection containing edges belonging to the specified layer.
-	"""
-	layer(
-		"""
-		Layer name to include.
-		"""
-		name: String!
-	): NestedExplodedEdges!
-	"""
-	Returns a collection containing edges belonging to all layers except the excluded layer specified.
-	"""
-	excludeLayer(
-		"""
-		Layer name to exclude.
-		"""
-		name: String!
-	): NestedExplodedEdges!
-	"""
-	Creates a view of the NestedEdges including all events between the specified start (inclusive) and end (exclusive).
-	"""
-	window(
-		"""
-		Inclusive lower bound.
-		"""
-		start: TimeInput!,
-		"""
-		Exclusive upper bound.
-		"""
-		end: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	Creates a view of the NestedEdges including all events at a specified time.
-	"""
-	at(
-		"""
-		Instant to pin the view to.
-		"""
-		time: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	View showing only the latest state of each edge (equivalent to `at(latestTime)`).
-	"""
-	latest: NestedExplodedEdges!
-	"""
-	Creates a view of the NestedEdges including all events that are valid at time.
-	"""
-	snapshotAt(
-		"""
-		Instant at which entities must be valid.
-		"""
-		time: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	Creates a view of the NestedEdges including all events that are valid at the latest time.
-	"""
-	snapshotLatest: NestedExplodedEdges!
-	"""
-	Creates a view of the NestedEdges including all events before a specified end (exclusive).
-	"""
-	before(
-		"""
-		Exclusive upper bound.
-		"""
-		time: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	Creates a view of the NestedEdges including all events after a specified start (exclusive).
-	"""
-	after(
-		"""
-		Exclusive lower bound.
-		"""
-		time: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	Set the start of the window.
-	"""
-	shrinkStart(
-		"""
-		Proposed new start (TimeInput); ignored if it would widen the window.
-		"""
-		start: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	Set the end of the window.
-	"""
-	shrinkEnd(
-		"""
-		Proposed new end (TimeInput); ignored if it would widen the window.
-		"""
-		end: TimeInput!
-	): NestedExplodedEdges!
-	"""
-	Returns the earliest time that this NestedEdges is valid or None if valid for all times.
-	"""
-	start: EventTime!
-	"""
-	Returns the latest time that this NestedEdges is valid or None if valid for all times.
-	"""
-	end: EventTime!
-	"""
-	Returns the size of the window covered by this view (`end - start`), or None if the view is unbounded.
-	"""
-	windowSize: Int
-	"""
-	Check if a layer with the given name is present in this view.
-	"""
-	hasLayer(name: String!): Boolean!
-	"""
-	Returns the source node of each edge, grouped per source node, as a
-	nested `PathFromGraph`.
-	"""
-	src: PathFromGraph!
-	"""
-	Returns the destination node of each edge, grouped per source node, as a
-	nested `PathFromGraph`.
-	"""
-	dst: PathFromGraph!
-	"""
-	Returns the node at the other end of each edge (destination for
-	out-edges, source for in-edges), grouped per source node, as a nested
-	`PathFromGraph`.
-	"""
-	nbr: PathFromGraph!
-	"""
-	Expand each source's edges into one edge per update — mirrors the local
-	`NestedEdges.explode`. The per-source nesting is preserved; only the
-	inner edge lists fan out per event.
-	"""
-	explode: NestedExplodedEdges!
-	"""
-	Expand each source's edges into one edge per layer — mirrors the local
-	`NestedEdges.explode_layers`. Each resulting edge carries only the
-	updates from its respective layer.
-	"""
-	explodeLayers: NestedExplodedEdges!
-	"""
-	Number of source edge collections in this collection (one per source node).
-	The property keys this collection reports: the first non-empty source's first member's registry
-	view — the graph's registered property keys for the entity kind — or an
-	empty list when there are no members. Mirrors the local collection
-	`properties.keys()`.
-	"""
-	propertyKeys: [String!]!
-	"""
-	The metadata keys this collection reports: the first non-empty source's first member's registry
-	view, or an empty list when there are no members. Mirrors the local
-	collection `metadata.keys()`.
-	"""
-	metadataKeys: [String!]!
-	"""
-	The number of source nodes, one edge collection each.
-	"""
-	count: Int!
-	"""
-	Fetch one page of source edge collections up to a specified limit, optionally offset by a specified amount.
-	The page_index sets the number of pages to skip (defaults to 0).
-	
-	For example, if page(5, 2, 1) is called, a page with 5 source collections, offset by 11 (2 pages of 5 + 1),
-	will be returned. Each entry is the per-source list of incident edges.
-	"""
-	page(
-		"""
-		Maximum number of source edge collections to return on this page.
-		"""
-		limit: Int!,
-		"""
-		Extra source edge collections to skip on top of `pageIndex` paging (default 0).
-		"""
-		offset: Int,
-		"""
-		Zero-based page number; multiplies `limit` to determine where to start (default 0).
-		"""
-		pageIndex: Int
-	): [ExplodedEdges!]!
-	"""
-	Materialise every source edge collection — one `Edges` per source node,
-	each holding that source's incident-edge list. Read
-	`list { list { src { name } dst { name } } }` to reach the per-source
-	edges. Rejected by the server when bulk list endpoints are disabled; use
-	`page` for paginated access instead.
-	"""
-	list: [ExplodedEdges!]!
-	"""
-	Narrow the edge set to edges matching `expr`. The filter sticks to the
-	returned collection — every subsequent traversal continues to see the
-	filtered scope.
-	
-	Contrast with `select`, which applies here and is not carried through.
-	"""
-	filter(
-		"""
-		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
-		"""
-		expr: FilterExpr!
-	): NestedExplodedEdges!
-	"""
-	Narrow the edge set to edges matching `expr`, but only at this hop —
-	further traversals out of these edges see the unfiltered graph again.
-	
-	Contrast with `filter`, which persists the scope through subsequent ops.
-	"""
-	select(
-		"""
-		Filter expression: node/edge predicates, graph views, or and/or/not combinations (and = intersection).
-		"""
-		expr: FilterExpr!
-	): NestedExplodedEdges!
 }
 
 """
@@ -7916,4 +7331,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

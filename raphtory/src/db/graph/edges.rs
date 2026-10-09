@@ -26,7 +26,6 @@ use itertools::Itertools;
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
-    marker::PhantomData,
     sync::Arc,
 };
 
@@ -45,6 +44,7 @@ pub trait EdgeItem: Copy + Debug + Default + Send + Sync + 'static {
     /// `select` with the items that pass `filter` taken out, on top of the
     /// selections already made.
     fn select<'graph, F: CreateFilter + 'graph>(
+        self,
         select: DynGraphArc<'graph>,
         filter: F,
     ) -> Result<DynGraphArc<'graph>, GraphError>;
@@ -60,6 +60,7 @@ pub struct ExplodedEdge;
 
 impl EdgeItem for Edge {
     fn select<'graph, F: CreateFilter + 'graph>(
+        self,
         select: DynGraphArc<'graph>,
         filter: F,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
@@ -70,11 +71,35 @@ impl EdgeItem for Edge {
 
 impl EdgeItem for ExplodedEdge {
     fn select<'graph, F: CreateFilter + 'graph>(
+        self,
         select: DynGraphArc<'graph>,
         filter: F,
     ) -> Result<DynGraphArc<'graph>, GraphError> {
         let filter = filter.create_edge_filter(select.clone())?;
         Ok(Arc::new(ExplodedEdgeExprFilteredGraph::new(select, filter)))
+    }
+}
+
+/// The kind of a collection decided at run time, for the bindings that cannot
+/// be generic over it, the way `DynamicGraph` stands for any graph view. A
+/// typed collection converts into one and keeps what `select` asks about.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DynEdgeItem {
+    #[default]
+    Edge,
+    Exploded,
+}
+
+impl EdgeItem for DynEdgeItem {
+    fn select<'graph, F: CreateFilter + 'graph>(
+        self,
+        select: DynGraphArc<'graph>,
+        filter: F,
+    ) -> Result<DynGraphArc<'graph>, GraphError> {
+        match self {
+            DynEdgeItem::Edge => Edge.select(select, filter),
+            DynEdgeItem::Exploded => ExplodedEdge.select(select, filter),
+        }
     }
 }
 
@@ -86,7 +111,31 @@ pub struct Edges<'graph, G, K = Edge> {
     pub(crate) base_graph: G,
     pub(crate) select: DynGraphArc<'graph>,
     pub(crate) edges: EdgeOp<'graph>,
-    pub(crate) kind: PhantomData<K>,
+    pub(crate) kind: K,
+}
+
+impl<'graph, G, K> Edges<'graph, G, K> {
+    /// The same collection under another kind.
+    fn with_kind<K2>(self, kind: K2) -> Edges<'graph, G, K2> {
+        Edges {
+            base_graph: self.base_graph,
+            select: self.select,
+            edges: self.edges,
+            kind,
+        }
+    }
+}
+
+impl<'graph, G> From<Edges<'graph, G, Edge>> for Edges<'graph, G, DynEdgeItem> {
+    fn from(edges: Edges<'graph, G, Edge>) -> Self {
+        edges.with_kind(DynEdgeItem::Edge)
+    }
+}
+
+impl<'graph, G> From<Edges<'graph, G, ExplodedEdge>> for Edges<'graph, G, DynEdgeItem> {
+    fn from(edges: Edges<'graph, G, ExplodedEdge>) -> Self {
+        edges.with_kind(DynEdgeItem::Exploded)
+    }
 }
 
 impl<G: IntoDynamic, K: EdgeItem> Edges<'static, G, K> {
@@ -95,7 +144,7 @@ impl<G: IntoDynamic, K: EdgeItem> Edges<'static, G, K> {
             base_graph: self.base_graph.into_dynamic(),
             select: self.select,
             edges: self.edges,
-            kind: PhantomData,
+            kind: self.kind,
         }
     }
 }
@@ -126,7 +175,7 @@ where
             base_graph: filtered_graph,
             select: self.select.clone(),
             edges: self.edges.clone(),
-            kind: PhantomData,
+            kind: self.kind,
         }
     }
 }
@@ -138,7 +187,7 @@ impl<'graph, G: GraphView + 'graph, K: EdgeItem> Edges<'graph, G, K> {
             base_graph,
             select,
             edges,
-            kind: PhantomData,
+            kind: Default::default(),
         }
     }
 
@@ -161,13 +210,15 @@ impl<'graph, G: GraphView + 'graph, K: EdgeItem> Edges<'graph, G, K> {
             })
             .map(|edge_view| edge_view.edge)
             .collect();
-        Edges::new(
+        // the sorted collection holds the same kind of item
+        Self::new(
             self.base_graph.clone(),
             Arc::new(move |_| {
                 let sorted = sorted.clone();
                 (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()
             }),
         )
+        .with_kind(self.kind)
     }
 
     pub fn len(&self) -> usize {
@@ -268,7 +319,7 @@ impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> BaseEdgeViewOps<'graph> for E
             base_graph: self.base_graph.clone(),
             select,
             edges,
-            kind: PhantomData,
+            kind: Default::default(),
         }
     }
 }
@@ -281,7 +332,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static, K: EdgeItem> From<Edges<'stat
             base_graph: value.base_graph.into_dynamic(),
             select: value.select,
             edges: value.edges,
-            kind: PhantomData,
+            kind: value.kind,
         }
     }
 }
@@ -297,9 +348,9 @@ impl<'graph, G: GraphView + 'graph, K: EdgeItem> Select<'graph> for Edges<'graph
         // the kind of item decides what the predicate is asked about.
         Ok(Edges {
             base_graph: self.base_graph.clone(),
-            select: K::select(self.select.clone(), filter)?,
+            select: self.kind.select(self.select.clone(), filter)?,
             edges: self.edges.clone(),
-            kind: PhantomData,
+            kind: self.kind,
         })
     }
 }
@@ -316,7 +367,32 @@ pub struct NestedEdges<'graph, G, K = Edge> {
     pub(crate) select: DynGraphArc<'graph>,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
     pub(crate) edges: NestedEdgeOp<'graph>,
-    pub(crate) kind: PhantomData<K>,
+    pub(crate) kind: K,
+}
+
+impl<'graph, G, K> NestedEdges<'graph, G, K> {
+    /// The same collection under another kind.
+    fn with_kind<K2>(self, kind: K2) -> NestedEdges<'graph, G, K2> {
+        NestedEdges {
+            graph: self.graph,
+            select: self.select,
+            nodes: self.nodes,
+            edges: self.edges,
+            kind,
+        }
+    }
+}
+
+impl<'graph, G> From<NestedEdges<'graph, G, Edge>> for NestedEdges<'graph, G, DynEdgeItem> {
+    fn from(edges: NestedEdges<'graph, G, Edge>) -> Self {
+        edges.with_kind(DynEdgeItem::Edge)
+    }
+}
+
+impl<'graph, G> From<NestedEdges<'graph, G, ExplodedEdge>> for NestedEdges<'graph, G, DynEdgeItem> {
+    fn from(edges: NestedEdges<'graph, G, ExplodedEdge>) -> Self {
+        edges.with_kind(DynEdgeItem::Exploded)
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> NestedEdges<'graph, G, K> {
@@ -331,7 +407,7 @@ impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> NestedEdges<'graph, G, K> {
             select,
             nodes,
             edges,
-            kind: PhantomData,
+            kind: Default::default(),
         }
     }
 
@@ -347,13 +423,14 @@ impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> NestedEdges<'graph, G, K> {
         let base_graph = self.graph.clone();
         let edges = self.edges.clone();
         let select = self.select.clone();
+        let kind = self.kind;
         (self.nodes)().map(move |n| {
             let edge_fn = edges.clone();
             Edges {
                 base_graph: base_graph.clone(),
                 select: select.clone(),
                 edges: Arc::new(move |graph| edge_fn(graph, n)),
-                kind: PhantomData,
+                kind,
             }
         })
     }
@@ -370,7 +447,7 @@ impl<'graph, G: IntoDynamic, K: EdgeItem> NestedEdges<'graph, G, K> {
             select: self.select,
             nodes: self.nodes,
             edges: self.edges,
-            kind: PhantomData,
+            kind: self.kind,
         }
     }
 }
@@ -384,7 +461,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Static, K: EdgeItem> From<NestedEdges
             select: value.select,
             nodes: value.nodes,
             edges: value.edges,
-            kind: PhantomData,
+            kind: value.kind,
         }
     }
 }
@@ -410,7 +487,7 @@ where
             select: self.select.clone(),
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
-            kind: PhantomData,
+            kind: self.kind,
         }
     }
 }
@@ -487,7 +564,7 @@ impl<'graph, G: GraphViewOps<'graph>, K: EdgeItem> BaseEdgeViewOps<'graph>
             nodes: self.nodes.clone(),
             select,
             edges,
-            kind: PhantomData,
+            kind: Default::default(),
         }
     }
 }
@@ -502,9 +579,9 @@ impl<'graph, G: GraphView + 'graph, K: EdgeItem> Select<'graph> for NestedEdges<
         Ok(NestedEdges {
             graph: self.graph.clone(),
             nodes: self.nodes.clone(),
-            select: K::select(self.select.clone(), filter)?,
+            select: self.kind.select(self.select.clone(), filter)?,
             edges: self.edges.clone(),
-            kind: PhantomData,
+            kind: self.kind,
         })
     }
 }

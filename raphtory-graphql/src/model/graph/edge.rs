@@ -1,6 +1,6 @@
 use crate::{
     model::graph::{
-        edges::GqlExplodedEdges,
+        edges::GqlEdges,
         filter_expr_input::GqlFilter,
         history::GqlHistory,
         node::GqlNode,
@@ -366,15 +366,15 @@ impl GqlEdge {
     }
 
     /// Returns an edge object for each update within the original edge.
-    pub async fn explode(&self) -> GqlExplodedEdges {
-        GqlExplodedEdges::new(self.ee.explode())
+    pub async fn explode(&self) -> GqlEdges {
+        GqlEdges::new(self.ee.explode())
     }
 
     /// Returns an edge object for each layer within the original edge.
     ///
     /// Each new edge object contains only updates from the respective layers.
-    pub async fn explode_layers(&self) -> GqlExplodedEdges {
-        GqlExplodedEdges::new(self.ee.explode_layers())
+    pub async fn explode_layers(&self) -> GqlEdges {
+        GqlEdges::new(self.ee.explode_layers())
     }
 
     /// Returns a History object with time entries for when an edge is added or change to an edge is made.
