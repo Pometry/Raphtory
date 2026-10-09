@@ -7,7 +7,10 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
-    core::entities::properties::prop::{InvalidBigDecimal, PropError},
+    core::entities::properties::{
+        meta::DEFAULT_LAYER_NAME,
+        prop::{InvalidBigDecimal, PropError},
+    },
     inherit::Base,
 };
 use raphtory_core::entities::properties::props::{MetadataError, TPropError};
@@ -56,6 +59,10 @@ pub enum MutationError {
     },
     #[error("Storage error: {0}")]
     StorageError(#[from] StorageError),
+    #[error("'{0}' is not a valid layer name")]
+    InvalidLayerName(String),
+    #[error("'{DEFAULT_LAYER_NAME}' is reserved for the default layer")]
+    DefaultLayer,
 }
 
 pub trait InheritMutationOps: Base {}

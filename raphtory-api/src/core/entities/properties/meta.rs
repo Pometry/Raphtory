@@ -32,6 +32,7 @@ pub const NODE_TYPE_PROP_ID: usize = 1;
 /// The type ID for nodes that don't have a specified type.
 pub const DEFAULT_NODE_TYPE_ID: usize = 0;
 
+pub const DEFAULT_LAYER_NAME: &str = "_default";
 pub const STATIC_GRAPH_LAYER_NAME: &str = "_static_graph";
 pub const STATIC_GRAPH_LAYER_ID: LayerId = LayerId(0);
 pub const STATIC_GRAPH_LAYER: LayerIds = LayerIds::One(STATIC_GRAPH_LAYER_ID);
@@ -165,7 +166,7 @@ impl Meta {
     #[inline]
     pub fn get_or_create_layer_id(&self, name: Option<&str>) -> MaybeNew<LayerId> {
         self.layer_mapper
-            .get_or_create_id(name.unwrap_or("_default"))
+            .get_or_create_id(name.unwrap_or(DEFAULT_LAYER_NAME))
             .map(LayerId)
     }
 
