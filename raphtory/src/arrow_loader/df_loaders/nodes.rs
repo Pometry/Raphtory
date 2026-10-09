@@ -224,6 +224,9 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
+            if resolve_nodes {
+                node_col.validate(graph, LoadError::InvalidNodeError)?;
+            }
 
             // Load the secondary index column if it exists, otherwise generate from start_id.
             let secondary_index_col =
@@ -399,6 +402,9 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
+        if resolve_nodes {
+            node_col.validate(graph, LoadError::InvalidNodeError)?;
+        }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
         let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
             let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
@@ -724,9 +730,11 @@ fn resolve_node_and_meta_for_node_col<
                     .inner()
             }
         } else {
+            // Metadata can only be attached to a node that exists: an unknown id is an error,
+            // the same one load_edge_metadata gives for an unknown endpoint, not a row to skip.
             graph
                 .internalise_node(gid.as_node_ref())
-                .unwrap_or_default()
+                .ok_or_else(|| GraphError::NodeMissingError(gid.into()))?
         };
         *vid = res_vid;
         last_node_type = node_type;

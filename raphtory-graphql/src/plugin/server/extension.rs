@@ -5,7 +5,6 @@ use crate::{
     GraphServer,
 };
 use clap::{ArgMatches, Command};
-use config::ConfigError;
 use indexmap::{map::IntoValues, IndexMap};
 use serde::{
     de,

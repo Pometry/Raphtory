@@ -1,9 +1,8 @@
 use dynamic_graphql::{SimpleObject, Union};
 #[cfg(feature = "vectors")]
-use raphtory::{
-    db::api::view::{IntoDynamic, StaticGraphViewOps},
-    vectors::DocumentEntity,
-};
+use raphtory::db::api::view::{IntoDynamic, StaticGraphViewOps};
+#[cfg(feature = "vectors")]
+use raphtory_vectors::DocumentEntity;
 
 use super::{edge::GqlEdge, node::GqlNode};
 

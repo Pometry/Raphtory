@@ -50,6 +50,13 @@ pub enum GQLError {
     Arc(#[from] Arc<Self>),
 }
 
+#[cfg(feature = "vectors")]
+impl From<raphtory_vectors::errors::VectorError> for GQLError {
+    fn from(error: raphtory_vectors::errors::VectorError) -> Self {
+        GQLError::GraphError(error.into())
+    }
+}
+
 #[cfg(test)]
 mod graphql_test {
     use crate::{

@@ -155,6 +155,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     }
 
     fn flush(&self) -> Result<(), GraphError>;
+
+    fn vacuum(&self) -> Result<(), GraphError>;
 }
 
 impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> AdditionOps for G {
@@ -303,6 +305,11 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
     fn flush(&self) -> Result<(), GraphError> {
         self.core_graph().flush().map_err(into_graph_err)
+    }
+
+    fn vacuum(&self) -> Result<(), GraphError> {
+        self.core_graph().vacuum().map_err(into_graph_err)?;
+        Ok(())
     }
 }
 

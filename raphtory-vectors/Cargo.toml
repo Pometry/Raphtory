@@ -1,0 +1,57 @@
+[package]
+name = "raphtory-vectors"
+description = "Vector embeddings, document templates and similarity search for Raphtory graphs"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+raphtory = { workspace = true, features = ["vectors"] }
+raphtory-api = { workspace = true, features = ["template"] }
+raphtory-core.workspace = true
+raphtory-storage.workspace = true
+ahash.workspace = true
+arrow.workspace = true
+arrow-array.workspace = true
+arrow-schema.workspace = true
+async-openai.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+either.workspace = true
+futures-util.workspace = true
+heed.workspace = true
+itertools.workspace = true
+lancedb.workspace = true
+minijinja.workspace = true
+minijinja-contrib.workspace = true
+moka = { workspace = true, features = ["future"] }
+parking_lot.workspace = true
+roaring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# python binding optional dependencies
+pyo3 = { workspace = true, optional = true }
+pyo3-arrow = { workspace = true, optional = true }
+
+[dev-dependencies]
+dotenvy.workspace = true
+indoc.workspace = true
+once_cell.workspace = true
+rand.workspace = true
+raphtory = { workspace = true, features = ["io"] }
+
+[features]
+python = ["dep:pyo3", "dep:pyo3-arrow", "raphtory/python", "raphtory-api/python", "raphtory/vectors"]
+panic-on-drop = ["raphtory/panic-on-drop"]
