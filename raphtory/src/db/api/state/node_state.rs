@@ -646,7 +646,7 @@ impl<K: From<usize>> RoaringProducer<K> {
 impl<K: From<usize> + Send> Producer for RoaringProducer<K> {
     type Item = (usize, K);
     /// Collected because we can't borrow the shared bitmap. Only adapters that need the iterator
-    /// itself (`zip`, `chunks`, ...) use this; the rest go through `fold_with`.
+    /// itself (such as `zip`, `chunks`, ...) use this; the rest go through `fold_with`.
     type IntoIter = std::vec::IntoIter<(usize, K)>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -687,7 +687,6 @@ struct RoaringIter {
 }
 
 impl RoaringIter {
-    /// A walk over the keys at positions `range`.
     fn over(keys: Arc<RoaringTreemap>, range: Range<usize>) -> Self {
         let (start, end) = (range.start, range.end);
         RoaringIterBuilder {
@@ -1303,8 +1302,6 @@ mod index_subset_test {
             prop_assert_eq!(partial(&a).is_subset(&roaring(&b)), want, "partial/roaring");
         }
 
-        /// Walking and jumping a bitmap's owned iterator from both ends, and cloning it part way,
-        /// must match a plain list. Keys span several containers so jumps cross them.
         #[test]
         fn roaring_owned_iteration_agrees_with_a_list(
             a in proptest::collection::vec(0usize..300_000, 0..60),
@@ -1328,8 +1325,7 @@ mod index_subset_test {
             prop_assert_eq!(iter.collect::<Vec<_>>(), reference.collect::<Vec<_>>());
         }
 
-        /// A bitmap index must behave exactly like a sorted one over the same keys: same
-        /// positions, same keys, and the same results when combined with any representation.
+        /// A bitmap index must behave exactly like a sorted one
         #[test]
         fn roaring_agrees_with_sorted(
             a in proptest::collection::vec(0usize..40, 0..20),
@@ -1367,7 +1363,7 @@ mod index_subset_test {
         Index::Full(Arc::new(StateIndex::new([len], len as u32)))
     }
 
-    /// Big enough for rayon to split many times, with gaps so a key's position and value differ.
+    /// Big enough for rayon to split, with gaps so positions and keys differ.
     #[test]
     fn roaring_parallel_iteration_keeps_order_across_splits() {
         let keys: Vec<usize> = (0..300_000).filter(|k| k % 3 != 1).collect();
@@ -1388,7 +1384,7 @@ mod index_subset_test {
                 .collect::<Vec<_>>(),
             with_positions
         );
-        // the same, through the iterator each piece hands out rather than `fold_with`
+        // through `into_iter` rather than `fold_with`
         assert_eq!(
             RoaringParIter::<VID>::new(bitmap.clone())
                 .with_max_len(7)

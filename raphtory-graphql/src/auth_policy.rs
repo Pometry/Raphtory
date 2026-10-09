@@ -114,8 +114,7 @@ pub enum NamespacePermission {
     Write,
 }
 
-/// A graph that has been loaded, read with the right semantics, and filtered; everything a read needs.
-/// These get cached for efficient reads.
+/// A loaded and filtered graph with its folder; what the authorization policy caches.
 #[derive(Clone)]
 pub struct DynGraphWithFolder {
     folder: UnlockedGraphFolder,
@@ -131,11 +130,6 @@ impl DynGraphWithFolder {
         (self.folder, self.graph)
     }
 
-    /// The same read with its node and edge membership materialised, so each later read tests a
-    /// bitmap rather than re-evaluating the filter per entity.
-    ///
-    /// A pass over the whole graph — seconds to minutes on a large one — so it is queued behind any
-    /// other caching and run off the query pools. See [`crate::rayon::blocking_cache`].
     pub async fn into_cached_view(self) -> Self {
         let Self { folder, graph } = self;
         let graph = blocking_cache(move || graph.cache_view().into_dynamic()).await;
@@ -143,13 +137,10 @@ impl DynGraphWithFolder {
     }
 }
 
-/// What a refined read resolves to: either a filter still to be applied, or a graph the policy had
-/// cached.
+/// A filter still to be applied, or a graph from the policy's cache.
 pub enum MaybeCachedFilteredRead {
-    /// Apply this filter to the graph, as an unrefined read would.
     Filter(Option<GraphAccessFilter>),
-    /// The loaded and filtered graph, held by the policy. The caching of the view may still be in progress in
-    /// the background, in which case it is read through the filter as usual until it is ready.
+    /// Read through the lazy filter until its cached view is ready.
     FromCache(DynGraphWithFolder),
 }
 
@@ -200,8 +191,6 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     ///
     /// The default returns `perm` unchanged: policies that need no refinement — and the no-policy
     /// case — are unaffected. Returning `Err` denies the request.
-    ///
-    /// `graph_type` is passed in case the policy wants to cache the filtered graph.
     fn refine_permission<'a>(
         &'a self,
         _ctx: &'a async_graphql::Context<'_>,
@@ -209,7 +198,6 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         _graph_type: Option<GqlGraphType>,
         perm: GraphPermission,
     ) -> BoxFuture<'a, Result<MaybeCachedFilteredRead, AuthPolicyError>> {
-        // Only a filtered read carries anything to refine
         let filter = match perm {
             GraphPermission::Read { filter } => filter,
             _ => None,
@@ -233,13 +221,7 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
             .is_some_and(|p| p.level() >= PermissionLevel::Read))
     }
 
-    /// Called after a graph on this server is successfully mutated, so a policy can discard
-    /// anything it derived from any graph contents. We currently don't differentiate between different graphs,
-    /// any graph mutation goes through here.
-    ///
-    /// Currently clears the whole cache, even for graphs which were unaffected,
-    /// since permissions may have changed.
-    /// Default no-op: only meaningful to a policy that caches.
+    /// Called after any graph on this server is successfully mutated. Default no-op.
     fn on_graph_mutated(&self) {}
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.

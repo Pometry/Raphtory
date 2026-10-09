@@ -75,7 +75,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
-        // A view per layer slot. Slot 0 is the static layer, which `unique_layers` does not return.
+        // Slot 0 is the static layer, which `unique_layers` does not return.
         let mut layered_graphs = vec![graph.layers(Layer::None).ok()];
         for name in graph.unique_layers() {
             let id = graph.get_layer_id(&name).unwrap().0;
@@ -86,7 +86,6 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
         }
         let empty = || vec![RoaringTreemap::new(); layered_graphs.len()];
 
-        // one pass over the nodes
         let storage = graph.core_graph().lock();
         let (global_nodes_mask, layered_node_masks) = graph
             .node_list()
@@ -115,7 +114,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 },
             );
 
-        // One pass over the edges. Its endpoints are checked against the node masks for that layer.
+        // Endpoints are checked against the node masks rather than the node filter for efficiency.
         let edges = graph.core_edges();
         let exploded = graph.internal_exploded_edge_filtered();
         let (layered_edge_masks, exploded_ids) = edges
@@ -158,8 +157,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 },
             );
 
-        // Layer views reuse `node_list`, which is the global mask, so it must hold every layer's
-        // nodes. Ensures no node fails graph.filter_node() and passes a layer's filtering
+        // layer views reuse `node_list` (the global mask), so it must hold every layer's nodes
         debug_assert!(
             layered_node_masks
                 .iter()
@@ -173,7 +171,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
             .zip(exploded_ids)
             .enumerate()
             .map(|(id, ((nodes, edges), exploded_ids))| {
-                // the static layer and missing layers always have an exploded filter and it is empty
+                // the static layer and missing layers get an empty exploded filter
                 let named = id != STATIC_GRAPH_LAYER_ID.0 && layered_graphs[id].is_some();
                 let exploded_filter = (!named || exploded).then(|| sorted_id_mask(exploded_ids));
                 (nodes, edges, exploded_filter)
@@ -188,8 +186,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     }
 }
 
-/// Add `id` to `mask`. Ids arrive in storage order, which is ascending, so this is almost always an
-/// append rather than a search + insert, which is faster.
+/// Ids arriving in ascending storage order will almost always append.
 fn push(mask: &mut RoaringTreemap, id: u64) {
     if mask.try_push(id).is_err() {
         mask.insert(id);
@@ -203,7 +200,7 @@ fn union(mut masks: Vec<RoaringTreemap>, others: Vec<RoaringTreemap>) -> Vec<Roa
     masks
 }
 
-/// Exploded edges are keyed by event id, which is not in storage order, so these are sorted first.
+/// Useful for event ids, which aren't necessarily in storage order, so they are sorted first.
 fn sorted_id_mask(mut ids: Vec<u64>) -> RoaringTreemap {
     ids.par_sort_unstable();
     ids.dedup();
@@ -211,8 +208,7 @@ fn sorted_id_mask(mut ids: Vec<u64>) -> RoaringTreemap {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> ListOps for CachedView<G> {
-    /// The global mask itself, shared rather than copied, so listing the view's nodes never goes
-    /// back to the filter it was cached from.
+    /// The global mask, shared rather than copied.
     fn node_list(&self) -> NodeList {
         NodeList::List {
             elems: Index::from_bitmap(self.global_nodes_mask.clone(), true),
@@ -335,7 +331,6 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     fn internal_nodes_filtered(&self) -> bool {
         self.graph.internal_nodes_filtered()
     }
-    /// The list is exactly this view's nodes.
     fn internal_node_list_trusted(&self) -> bool {
         true
     }
@@ -392,7 +387,7 @@ mod tests {
 
     fn fixture() -> Graph {
         let graph = Graph::new();
-        // Added without a layer, so it lives in the static layer and every view shows it.
+        // in the static layer, so every view shows it
         graph
             .add_node(0, "unlayered", NO_PROPS, None, None)
             .unwrap();
@@ -402,8 +397,7 @@ mod tests {
         graph
             .add_edge(0, "c", "d", NO_PROPS, Some("layer_b"))
             .unwrap();
-        // No layer name, so this one lands in the default layer — an ordinary layer, unlike the
-        // static layer nodes get.
+        // in the default layer, an ordinary layer for edges
         graph.add_edge(0, "e", "f", NO_PROPS, None).unwrap();
         graph
     }
@@ -414,8 +408,7 @@ mod tests {
         names
     }
 
-    /// Every edge as `src-dst@layer`, sorted — enough to catch an edge appearing in the wrong layer
-    /// as well as one appearing at all.
+    /// Every edge formatted as `src-dst@layer`, sorted.
     fn edges<'a, G: GraphViewOps<'a>>(graph: &G) -> Vec<String> {
         let mut edges: Vec<String> = graph
             .edges()
@@ -432,8 +425,7 @@ mod tests {
         edges
     }
 
-    /// Caching a view must not change what it contains: nodes or edges.
-    fn assert_caching_changes_nothing<'a, G: GraphViewOps<'a> + Clone>(view: &G, what: &str) {
+    fn assert_caching_doesnt_change_graph<'a, G: GraphViewOps<'a> + Clone>(view: &G, what: &str) {
         let cached = view.cache_view();
         assert_eq!(names(&cached), names(view), "nodes disagree for {what}");
         assert_eq!(edges(&cached), edges(view), "edges disagree for {what}");
@@ -444,7 +436,6 @@ mod tests {
         );
     }
 
-    /// Make sure a cache with a graph with no layers selected still returns unlayered nodes.
     #[test]
     fn caching_a_no_layer_view_keeps_exactly_its_unlayered_nodes() {
         let graph = fixture();
@@ -465,7 +456,6 @@ mod tests {
         );
     }
 
-    /// The same, but with the layers excluded *after* caching rather than before.
     #[test]
     fn excluding_every_layer_after_caching_also_keeps_only_unlayered_nodes() {
         let graph = fixture();
@@ -480,7 +470,6 @@ mod tests {
         );
     }
 
-    /// Normal case.
     #[test]
     fn caching_agrees_on_all_layers_and_on_one() {
         let graph = fixture();
@@ -491,21 +480,19 @@ mod tests {
         assert_eq!(one.cache_view().edges().len(), one.edges().len());
     }
 
-    /// Edges across every shape of layer selection. Unlike nodes, edges have no "visible in every
-    /// view" layer; an edge added without a layer name goes to the _default layer, which is an
-    /// ordinary one. Selecting no layers really does mean no edges.
+    /// Unlike nodes, edges have no layer visible in every view, so selecting no layers means no edges.
     #[test]
     fn caching_agrees_on_edges_for_every_layer_selection() {
         let graph = fixture();
 
-        assert_caching_changes_nothing(&graph, "the whole graph");
-        assert_caching_changes_nothing(&graph.layers("layer_a").unwrap(), "one named layer");
-        assert_caching_changes_nothing(&graph.layers("_default").unwrap(), "the default layer");
-        assert_caching_changes_nothing(
+        assert_caching_doesnt_change_graph(&graph, "the whole graph");
+        assert_caching_doesnt_change_graph(&graph.layers("layer_a").unwrap(), "one named layer");
+        assert_caching_doesnt_change_graph(&graph.layers("_default").unwrap(), "the default layer");
+        assert_caching_doesnt_change_graph(
             &graph.layers(vec!["layer_a", "layer_b"]).unwrap(),
             "several named layers",
         );
-        assert_caching_changes_nothing(
+        assert_caching_doesnt_change_graph(
             &graph.exclude_layers("layer_a").unwrap(),
             "one layer excluded",
         );
@@ -514,13 +501,11 @@ mod tests {
             .exclude_layers(vec!["layer_a", "layer_b", "_default"])
             .unwrap();
         assert!(edges(&none).is_empty(), "no layer selected means no edges");
-        assert_caching_changes_nothing(&none, "every layer excluded");
+        assert_caching_doesnt_change_graph(&none, "every layer excluded");
     }
 
-    /// The default layer is an ordinary layer, so excluding it hides its edges — the asymmetry with
-    /// nodes, whose static layer survives every exclusion.
     #[test]
-    fn the_default_layer_is_not_exempt_the_way_the_static_node_layer_is() {
+    fn the_default_edge_layer_is_not_exempt_the_way_the_static_node_layer_is() {
         let graph = fixture();
         let without_default = graph.exclude_layers("_default").unwrap();
 
@@ -531,12 +516,11 @@ mod tests {
             "excluding the default layer must hide its edges, got {:?}",
             edges(&without_default)
         );
-        // The unlayered node is still there, which is the rule edges do not share.
         assert!(names(&without_default).contains(&"unlayered".to_string()));
-        assert_caching_changes_nothing(&without_default, "the default layer excluded");
+        assert_caching_doesnt_change_graph(&without_default, "the default layer excluded");
     }
 
-    /// Node and edge properties for filters to cut on, and an edge that sits in two layers.
+    /// Properties for filters to cut on, along with edges in two layers.
     fn filtered_fixture() -> Graph {
         let graph = Graph::new();
         for (name, x) in [
@@ -571,13 +555,12 @@ mod tests {
         graph
     }
 
-    /// Caching must change nothing, whichever layers are selected before or after caching, and
-    /// down to the exploded edges.
+    /// Caching must change nothing in any layer, down to the exploded edges.
     fn assert_caching_changes_nothing_in_any_layer<'a, G: GraphViewOps<'a> + Clone>(
         view: &G,
         what: &str,
     ) {
-        assert_caching_changes_nothing(view, what);
+        assert_caching_doesnt_change_graph(view, what);
         let cached = view.cache_view();
         assert_eq!(
             cached.count_temporal_edges(),
@@ -594,16 +577,14 @@ mod tests {
                 direct.count_temporal_edges(),
                 "exploded edges in {layer} for {what}"
             );
-            assert_caching_changes_nothing(&direct, &format!("{what}, only {layer}"));
+            assert_caching_doesnt_change_graph(&direct, &format!("{what}, only {layer}"));
         }
-        assert_caching_changes_nothing(
+        assert_caching_doesnt_change_graph(
             &view.exclude_layers("layer_a").unwrap(),
             &format!("{what}, without layer_a"),
         );
     }
 
-    /// Each filter takes its own path through caching: a node filter is checked per node and then
-    /// against both ends of an edge, a window per edge, an exploded filter per update.
     #[test]
     fn caching_agrees_with_node_window_and_exploded_filters() {
         let graph = filtered_fixture();

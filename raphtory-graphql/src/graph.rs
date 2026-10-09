@@ -62,18 +62,11 @@ pub struct GraphWithVectorsInner {
     pub folder: UnlockedGraphFolder,
     pub is_dirty: AtomicBool,
     pub is_flushing: AtomicBool,
-    /// Told when this graph's contents change — see [`MutationListener`].
+    /// See [`MutationListener`].
     listener: MutationListener,
 }
 
-/// Whoever needs to know that a graph's contents changed.
-///
-/// Today that is the authorization policy, which may hold scopes derived from graph data. It rides
-/// on the graph handle rather than being threaded through the write resolvers because every
-/// write-side handle — the graph, and the node and edge handles reached from it — already holds one
-/// of these, so a mutation anywhere on that surface can report itself without a signature change.
-///
-/// Empty when no policy is configured, which is the common case and costs a null check.
+/// Tells the authorization policy that a graph's contents changed. Empty when there is no policy.
 #[derive(Clone, Default)]
 pub struct MutationListener(Option<Arc<dyn AuthorizationPolicy>>);
 
@@ -82,8 +75,7 @@ impl MutationListener {
         Self(policy)
     }
 
-    /// Report a mutation that **succeeded**. A refused or failed write must not call this: it
-    /// changed nothing, so anything derived from the graph is still current.
+    /// Report a mutation that succeeded; failed writes must not call this.
     pub fn notify(&self) {
         if let Some(policy) = &self.0 {
             policy.on_graph_mutated();
@@ -178,12 +170,12 @@ impl GraphWithVectors {
         Arc::strong_count(&self.inner)
     }
 
-    /// Report a mutation of this graph that succeeded. See [`MutationListener::notify`].
+    /// See [`MutationListener::notify`].
     pub fn notify_mutated(&self) {
         self.inner.listener.notify();
     }
 
-    /// This graph's listener, for handing to a handle rebuilt around the same graph.
+    /// For a handle rebuilt around the same graph.
     pub(crate) fn listener(&self) -> MutationListener {
         self.inner.listener.clone()
     }

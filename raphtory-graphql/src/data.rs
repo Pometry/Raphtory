@@ -358,15 +358,12 @@ impl Data {
         WorkDirWriteGuard { guard }
     }
 
-    /// The [`MutationListener`] handed to every graph this `Data` loads, so a successful write on
-    /// any of them reaches the authorization policy.
+    /// Handed to every graph this `Data` loads, so successful writes reach the authorization policy.
     fn mutation_listener(&self) -> MutationListener {
         MutationListener::new(self.auth_policy.clone())
     }
 
-    /// Report a successful mutation that changed which graphs exist, rather than the contents of
-    /// one — a create, delete, replace or move. A policy may have derived a caller's scope from a
-    /// graph that has just appeared or gone, so it is told the same way an in-place write tells it.
+    /// Report a successful mutation on a whole graph (such as create, delete, replace, move, ...)
     fn notify_graph_mutated(&self) {
         if let Some(policy) = &self.auth_policy {
             policy.on_graph_mutated();
@@ -1076,8 +1073,7 @@ impl Data {
         Ok(DynGraphWithFolder::new(gwv.folder().clone(), graph))
     }
 
-    /// The read a refinement resolved to. A held graph is already the answer; a filter still has to
-    /// be applied.
+    /// The read a refinement resolved to, applying its filter if it has one.
     async fn load_refined(
         &self,
         path: &str,
