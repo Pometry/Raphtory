@@ -988,6 +988,60 @@ Optional maximum path length; stops the search once reached.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="algorithms.allsimplepaths">allSimplePaths</strong></td>
+<td valign="top">[<a href="#nodes">Nodes</a>!]!</td>
+<td>
+
+Returns all simple (loop-less) paths from a `source` to a `target` in order of path length
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Source node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">target</td>
+<td valign="top"><a href="#nodeid">NodeId</a>!</td>
+<td>
+
+Target node id.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Number of paths to skip. Defaults to 0.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of paths to return.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">maxLen</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Do not return paths with more than `maxLen` nodes.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="algorithms.incomponents">inComponents</strong></td>
 <td valign="top"><a href="#nodestate">NodeState</a>!</td>
 <td>

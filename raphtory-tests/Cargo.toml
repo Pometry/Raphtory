@@ -27,6 +27,7 @@ rand.workspace = true
 rayon.workspace = true
 bigdecimal.workspace = true
 chrono.workspace = true
+indexmap.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

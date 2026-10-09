@@ -7,13 +7,14 @@ use crate::{
             outputs::{GqlMatching, GqlMotifCounts},
         },
         graph::{
-            filtering::GqlFilter, node_id::GqlNodeId, node_state::GqlNodeState,
-            timeindex::GqlTimeInput, WindowDuration,
+            collection::check_page_limit, filtering::GqlFilter, node_id::GqlNodeId,
+            node_state::GqlNodeState, nodes::GqlNodes, timeindex::GqlTimeInput, WindowDuration,
         },
     },
     rayon::blocking_compute,
     Value,
 };
+use async_graphql::{Context, Result};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory::{
@@ -62,7 +63,7 @@ use raphtory::{
             triplet_count::triplet_count,
         },
         pathing::{
-            dijkstra::dijkstra_single_source_shortest_paths,
+            all_paths::all_simple_paths, dijkstra::dijkstra_single_source_shortest_paths,
             single_source_shortest_path::single_source_shortest_path,
             temporal_reachability::temporally_reachable_nodes,
         },
@@ -177,6 +178,32 @@ impl GqlAlgorithms {
     ) -> GqlNodeState {
         self.run(move |graph| single_source_shortest_path(&graph, source, cutoff).into())
             .await
+    }
+
+    /// Returns all simple (loop-less) paths from a `source` to a `target` in order of path length
+    pub async fn all_simple_paths(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "Source node id.")] source: GqlNodeId,
+        #[graphql(desc = "Target node id.")] target: GqlNodeId,
+        #[graphql(desc = "Number of paths to skip. Defaults to 0.")] offset: Option<usize>,
+        #[graphql(desc = "Maximum number of paths to return.")] limit: usize,
+        #[graphql(desc = "Do not return paths with more than `maxLen` nodes.")] max_len: Option<
+            usize,
+        >,
+    ) -> Result<Vec<GqlNodes>> {
+        check_page_limit(ctx, limit)?;
+        Ok(self
+            .run(move |graph| {
+                all_simple_paths(&graph, source, target).map(|iter| {
+                    iter.skip(offset.unwrap_or(0))
+                        .take_while(|p| max_len.is_none_or(|max_len| p.len() <= max_len))
+                        .take(limit)
+                        .map(|nodes| GqlNodes::new(nodes))
+                        .collect()
+                })
+            })
+            .await?)
     }
 
     /// Returns the in component (all nodes that can reach it following out-edges) of every node.

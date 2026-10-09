@@ -71,6 +71,31 @@ type Algorithms {
 		cutoff: Int
 	): NodeState!
 	"""
+	Returns all simple (loop-less) paths from a `source` to a `target` in order of path length
+	"""
+	allSimplePaths(
+		"""
+		Source node id.
+		"""
+		source: NodeId!,
+		"""
+		Target node id.
+		"""
+		target: NodeId!,
+		"""
+		Number of paths to skip. Defaults to 0.
+		"""
+		offset: Int,
+		"""
+		Maximum number of paths to return.
+		"""
+		limit: Int!,
+		"""
+		Do not return paths with more than `maxLen` nodes.
+		"""
+		maxLen: Int
+	): [Nodes!]!
+	"""
 	Returns the in component (all nodes that can reach it following out-edges) of every node.
 	"""
 	inComponents(

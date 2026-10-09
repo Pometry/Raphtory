@@ -5,6 +5,8 @@ pub mod is_active_graph;
 pub mod is_deleted_graph;
 pub mod is_self_loop_graph;
 pub mod layer_graph;
+pub mod masked_edge_graph;
+pub mod masked_node_graph;
 pub mod node_subgraph;
 pub mod property_redacted_graph;
 pub mod valid_graph;

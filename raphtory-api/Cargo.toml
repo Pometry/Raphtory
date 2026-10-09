@@ -51,6 +51,7 @@ indexmap = { workspace = true, features = ["serde"] }
 ordered-float = { workspace = true, features = ["serde"] }
 num-bigint = { workspace = true }
 num-rational = { workspace = true, features = ["num-bigint"] }
+roaring = { workspace = true }
 
 [dev-dependencies]
 proptest.workspace = true
