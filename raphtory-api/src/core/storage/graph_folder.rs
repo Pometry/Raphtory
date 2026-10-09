@@ -388,7 +388,7 @@ impl GraphFolder {
         let graph_path = graph_path.as_ref();
         let root = graph_path
             .parent()
-            .and_then(|data_folder| data_folder.parent())
+            .and_then(|data_path| data_path.parent())
             .ok_or_else(|| GraphFolderError::InvalidGraphPath(graph_path.to_path_buf()))?;
 
         // Ensure `.raph` exists and contains a valid pointer to a 'data{id}' dir.
