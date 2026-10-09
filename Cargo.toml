@@ -142,7 +142,7 @@ jsonwebtoken = { version = "11.0.0", features = ["aws_lc_rs"] }
 spki = "0.8.0"
 poem = { version = "3.1.12", features = ["compression", "embed", "static-files"] }
 rust-embed = { version = "8.11.0", features = ["interpolate-folder-path"] }
-opentelemetry = "0.32.0"
+opentelemetry = "0.33.0"
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic"] }
 opentelemetry-stdout = "0.32.0"
