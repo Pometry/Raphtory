@@ -19,5 +19,7 @@ tempfile = { workspace = true }
 
 [features]
 vectors = ["raphtory-graphql/vectors"]
-# the `sparql` field on `Graph`; off by default, like `vectors`
+# the `rdfGraph` field and the `/sparql` endpoint; off by default, like `vectors`
 rdf = ["raphtory-graphql/rdf"]
+# `RdfGraph.validateShacl`
+shacl = ["rdf", "raphtory-graphql/shacl"]

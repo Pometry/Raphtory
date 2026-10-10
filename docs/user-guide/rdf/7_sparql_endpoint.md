@@ -1,6 +1,6 @@
 # SPARQL endpoint
 
-Besides the [`sparql` field](5_graphql.md) of GraphQL, the GraphQL server serves every graph as a
+Besides the [`rdfGraph` field](5_graphql.md) of GraphQL, the GraphQL server serves every graph as a
 [SPARQL 1.1 Protocol](https://www.w3.org/TR/sparql11-protocol/) endpoint, so standard SPARQL tools can query it directly:
 query editors such as [YASGUI](https://yasgui.triply.cc/), Sparnatural and Sparklis, and client libraries such as
 SPARQLWrapper, rdflib, Comunica, Apache Jena and RDF4J. The endpoint of the graph at path `people` is
@@ -10,8 +10,8 @@ http://localhost:1736/sparql/people
 ```
 
 and a graph in a namespace has its path after `/sparql/`, as in `http://localhost:1736/sparql/team/people` (encode
-special characters, such as a space as `%20`). The endpoint runs the same query engine as the `sparql` field, with the
-same permissions and limits, and answers with the same results.
+special characters, such as a space as `%20`). The endpoint reads the graph through `rdfGraph`, with the same
+permissions and limits, and by default queries its current state (see [time travel](#time-travel)).
 
 !!! info
 
@@ -31,17 +31,17 @@ import tempfile
 import urllib.parse
 import urllib.request
 
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 from raphtory.graphql import GraphServer
 
-g = PersistentGraph()
-g.load_rdf("2021-06-01", b"""
+rg = RdfGraph()
+rg.load_rdf("2021-06-01", b"""
     @prefix ex: <http://example.org/> .
     ex:alice ex:worksFor ex:acme ; ex:name "Alice" .
     ex:bob   ex:worksFor ex:acme ; ex:name "Bob" .
 """)
-g.retract_rdf("2023-06-01", b"<http://example.org/alice> <http://example.org/worksFor> <http://example.org/acme> .")
-g.load_rdf("2023-06-01", b"<http://example.org/alice> <http://example.org/worksFor> <http://example.org/initech> .")
+rg.retract_rdf("2023-06-01", b"<http://example.org/alice> <http://example.org/worksFor> <http://example.org/acme> .")
+rg.load_rdf("2023-06-01", b"<http://example.org/alice> <http://example.org/worksFor> <http://example.org/initech> .")
 
 employers = """
     PREFIX ex: <http://example.org/>
@@ -50,7 +50,7 @@ employers = """
 
 work_dir = tempfile.mkdtemp()
 with GraphServer(work_dir).start() as server:
-    server.get_client().send_graph(path="people", graph=g)
+    server.get_client().send_graph(path="people", graph=rg.graph)
     endpoint = f"http://localhost:{server.port()}/sparql/people"
     url = endpoint + "?" + urllib.parse.urlencode({"query": employers})
     request = urllib.request.Request(url, headers={"Accept": "text/csv"})
@@ -64,7 +64,7 @@ print(csv)
 
 ```{.python continuation hide}
 assert content_type == "text/csv; charset=utf-8"
-assert csv == g.sparql(employers, format="csv")
+assert csv == rg.valid().sparql(employers, format="csv")
 ```
 
 !!! Output
@@ -86,8 +86,8 @@ The endpoint answers the query operation of the SPARQL 1.1 Protocol in its three
 | `POST` with `Content-Type: application/x-www-form-urlencoded` | form field `query` | form fields (or URL parameters) |
 | `POST` with `Content-Type: application/sparql-query` | the request body | URL parameters |
 
-The other parameters are `default-graph-uri` and `named-graph-uri`, and the Raphtory parameters `graph_type` and
-`asof` (see [graph type and time travel](#graph-type-and-time-travel)); parameters the endpoint does not know, such as
+The other parameters are `default-graph-uri` and `named-graph-uri`, and the Raphtory parameter `asof` (see
+[time travel](#time-travel)); parameters the endpoint does not know, such as
 the `format` and `output` that some clients add, are ignored. A `GET` without a query returns the
 [SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/) of the endpoint, as RDF (Turtle by default): its URL, the query language, the result formats and the
 [temporal functions](3_time-travel.md#since-when-validity-functions). Like a query, it needs a graph the caller can read,
@@ -122,19 +122,21 @@ out: when the preferred format cannot hold them, it answers in the next format t
 when there is none. For example, `Accept: application/rdf+xml, text/turtle;q=0.5` gets RDF/XML when it holds the
 results and Turtle otherwise, while `Accept: application/rdf+xml` alone gets a 406 naming the formats to accept instead.
 
-## Graph type and time travel
+## Time travel
 
-A query sees the triples of the graph as the [`sparql` field](5_graphql.md) of `graph(path:)` does: on a persistent graph
-the current state, on an event graph every triple asserted (retractions are ignored). The parameter `graph_type=event` or
-`graph_type=persistent` reads the graph the other way, as `graphType` does in GraphQL.
+The endpoint views every graph, event or persistent, as an `RdfGraph`, and picks the view the query runs on:
 
-The parameter `asof=T` runs the query on the graph as it was at time `T`: on the history up to and including `T`, as
-`before(time: T + 1)` does in GraphQL. On a persistent graph the query sees the triples that held at `T`, and on an
-event graph every triple asserted at or before `T`. `T` is written as in a [time graph](3_time-travel.md#comparing-times-in-one-query): epoch
+| Request                                                            | View                         |
+|--------------------------------------------------------------------|------------------------------|
+| no parameter                                                       | `valid()`: the current state |
+| a query that reads a time graph `<raphtory:asof:T>` (in `FROM`, `FROM NAMED` or a `GRAPH` pattern), or a request with `default-graph-uri` or `named-graph-uri` | the whole graph, so each time graph is the state at its time |
+| `asof=T`                                                           | `at(T)`: the state as of `T` |
+
+`T` is written as in a [time graph](3_time-travel.md#comparing-times-in-one-query): epoch
 milliseconds or a date-time such as `2023-01-01`, `2023-01-01T09:30:00` or `2023-01-01T09:30:00Z` (UTC unless it has a
 timezone). In a URL a `+` normally stands for a space, but the `+` of a timezone offset can be written as is, as in
-`?asof=2023-01-01T09:30:00+01:00`, or as `%2B`. Any query, including one written for the current state, then runs on the
-past, and since the parameter can be part of the endpoint URL, so can every query of a query editor:
+`?asof=2023-01-01T09:30:00+01:00`, or as `%2B`. Since the parameter can be part of the endpoint URL, every query of a
+query editor can run on the past:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
@@ -149,7 +151,7 @@ print(early_2023)
 ///
 
 ```{.python continuation hide}
-assert early_2023 == g.snapshot_at("2023-01-01").sparql(employers, format="csv")
+assert early_2023 == rg.at("2023-01-01").sparql(employers, format="csv")
 ```
 
 !!! Output
@@ -161,11 +163,13 @@ assert early_2023 == g.snapshot_at("2023-01-01").sparql(employers, format="csv")
     ```
 
 `T` is the present of the query: the [validity functions](3_time-travel.md#since-when-validity-functions) without a
-reference time answer for `T`, so `raphtory:validTo` of a triple that held at `T` is unbound even if it was retracted
-later.
+reference time answer for `T`. A time graph at another time is empty under `asof`, since `at(T)` holds a single
+instant: to compare times, name them in the query instead.
 
-The time graphs `<raphtory:asof:T>` work as in Python: `GRAPH <raphtory:asof:T> { ... }` in a query matches the triples
-as of `T`. The protocol's dataset parameters can name them too. `default-graph-uri=raphtory:asof:T` makes the graph as of
+A query that reads time graphs runs on the whole graph, so `GRAPH <raphtory:asof:T> { ... }` matches the triples as of
+`T`; in such a query, `validFrom` without a reference time is bound only for the triples that hold now (see
+[comparing times](3_time-travel.md#comparing-times-in-one-query)). The protocol's dataset parameters can name time
+graphs too. `default-graph-uri=raphtory:asof:T` makes the graph as of
 `T` the default graph, which is another way to run a query on the past:
 
 /// tab | :fontawesome-brands-python: Python
@@ -195,13 +199,9 @@ requires, the two parameters replace the dataset of the query: its `FROM` and `F
 only `default-graph-uri` there are no named graphs, so `GRAPH` patterns match nothing. The parameters can only name time graphs: any other IRI fails with
 status 400.
 
-With `asof=T`, the time graphs see the same history: `<raphtory:asof:T2>` for an earlier `T2` matches the triples as of
-`T2`, so a query can still compare times up to `T`, and the time graph of a later time is empty (see
-[comparing times in one query](3_time-travel.md#comparing-times-in-one-query)).
-
 ## Access and limits
 
-The endpoint runs a query as the [`sparql` field](5_graphql.md#limits) does, for the same caller:
+The endpoint runs a query as the [`sparql` field](5_graphql.md#limits) of `rdfGraph` does, for the same caller:
 
 - **Authentication.** The endpoint reads the bearer token of the `Authorization` header as the GraphQL endpoint does.
   When the server requires a token for reads, a request without a valid one fails with status 401.
@@ -217,7 +217,7 @@ Errors have a plain-text body with the same message as the GraphQL error, and th
 
 | Status | When |
 |---|---|
-| 400 Bad Request | a syntax or evaluation error, a query that is too long or has too many triple patterns, a dataset IRI that is not a time graph, an invalid `graph_type`, a missing or repeated `query`, an invalid or repeated `asof` |
+| 400 Bad Request | a syntax or evaluation error, a query that is too long or has too many triple patterns, a dataset IRI that is not a time graph, a missing or repeated `query`, an invalid or repeated `asof` |
 | 401 Unauthorized | no valid token when the server requires one for reads |
 | 404 Not Found | the graph does not exist or the caller cannot read it |
 | 405 Method Not Allowed | a method other than `GET`, `POST` and `OPTIONS` |

@@ -15,11 +15,28 @@ mod shacl_report;
 mod temporal;
 mod time_graph;
 
-use crate::rdf::{RdfViewOps, SparqlResults};
+use crate::{
+    db::api::view::{IntoDynamic, StaticGraphViewOps},
+    rdf::{layer_name_of, model::NamedNode, RdfFormat, RdfView, SparqlResults},
+};
+use oxigraph::io::RdfParser;
+
+/// The layer name of the predicate `iri`.
+fn layer_of(iri: &str) -> String {
+    layer_name_of(NamedNode::new(iri).unwrap().as_ref().into()).unwrap()
+}
+
+/// Whether this build parses RDF 1.2 (triple terms, directional literals). Checked at run time
+/// because oxigraph features unify across the workspace.
+fn rdf12() -> bool {
+    RdfParser::from_format(RdfFormat::NTriples)
+        .for_slice("<http://e/a> <http://e/p> <<( <http://e/s> <http://e/p> <http://e/o> )>> .")
+        .all(|quad| quad.is_ok())
+}
 
 /// Runs a `SELECT` query and returns its rows in N-Triples form (`UNDEF` where a variable is
 /// unbound), sorted.
-fn select<G: RdfViewOps>(view: &G, query: &str) -> Vec<Vec<String>> {
+fn select<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -> Vec<Vec<String>> {
     match view
         .sparql(query)
         .unwrap_or_else(|e| panic!("{query}: {e}"))
@@ -45,7 +62,7 @@ fn select<G: RdfViewOps>(view: &G, query: &str) -> Vec<Vec<String>> {
 }
 
 /// Runs an `ASK` query.
-fn ask<G: RdfViewOps>(view: &G, query: &str) -> bool {
+fn ask<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -> bool {
     match view
         .sparql(query)
         .unwrap_or_else(|e| panic!("{query}: {e}"))

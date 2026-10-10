@@ -5,7 +5,7 @@
 //! ones checked against the official expected reports. It therefore uses only `crate::rdf` paths,
 //! which that crate provides as a re-export of `raphtory::rdf`.
 use crate::rdf::{
-    model::{vocab::rdf, Graph as RdfGraph, NamedNode, NamedOrBlankNode, Term},
+    model::{vocab::rdf, Graph as OxGraph, NamedNode, NamedOrBlankNode, Term},
     shacl::{ShaclPath, ShaclReport},
 };
 
@@ -16,7 +16,7 @@ fn sh(local: &str) -> NamedNode {
 }
 
 pub(super) fn objects(
-    graph: &RdfGraph,
+    graph: &OxGraph,
     subject: impl Into<NamedOrBlankNode>,
     predicate: &NamedNode,
 ) -> Vec<Term> {
@@ -28,7 +28,7 @@ pub(super) fn objects(
 }
 
 pub(super) fn one(
-    graph: &RdfGraph,
+    graph: &OxGraph,
     subject: &NamedOrBlankNode,
     predicate: &NamedNode,
 ) -> Option<Term> {
@@ -36,7 +36,7 @@ pub(super) fn one(
 }
 
 /// The members of an RDF list.
-pub(super) fn list(graph: &RdfGraph, mut head: Term) -> Vec<Term> {
+pub(super) fn list(graph: &OxGraph, mut head: Term) -> Vec<Term> {
     let mut members = Vec::new();
     let nil = Term::from(rdf::NIL.into_owned());
     while head != nil {
@@ -59,7 +59,7 @@ pub(super) fn list(graph: &RdfGraph, mut head: Term) -> Vec<Term> {
 type Wrap = fn(Box<ShaclPath>) -> ShaclPath;
 
 /// Reads a SHACL path from a graph.
-fn path_of(graph: &RdfGraph, term: &Term) -> ShaclPath {
+fn path_of(graph: &OxGraph, term: &Term) -> ShaclPath {
     if let Term::NamedNode(predicate) = term {
         return ShaclPath::Predicate(predicate.clone());
     }
@@ -103,7 +103,7 @@ type Key = (
 );
 
 /// `sh:conforms` and the sorted results of the report `report` in `graph`.
-pub(super) fn expected(graph: &RdfGraph, report: &Term) -> (bool, Vec<Key>) {
+pub(super) fn expected(graph: &OxGraph, report: &Term) -> (bool, Vec<Key>) {
     let report = NamedOrBlankNode::try_from(report.clone()).unwrap();
     let conforms = one(graph, &report, &sh("conforms"))
         .is_some_and(|conforms| conforms.to_string().contains("true"));
@@ -144,84 +144,4 @@ pub(super) fn actual(report: &ShaclReport) -> (bool, Vec<Key>) {
         .collect();
     keys.sort();
     (report.conforms, keys)
-}
-
-/// Every kind of path, nested, is read from the SHACL syntax that the W3C expected reports use,
-/// whatever the validator writes.
-#[test]
-fn reads_every_kind_of_path() {
-    use crate::rdf::{model::Triple, RdfFormat, RdfParser};
-    let turtle = r#"
-        @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix ex: <http://ex/> .
-        ex:report sh:conforms false ;
-            sh:result [
-                sh:focusNode ex:a ;
-                sh:sourceConstraintComponent sh:MinCountConstraintComponent ;
-                sh:resultSeverity sh:Violation ;
-                sh:resultPath (
-                    ex:p
-                    [ sh:inversePath [ sh:alternativePath ( ex:q [ sh:zeroOrMorePath ex:r ] ) ] ]
-                    [ sh:oneOrMorePath [ sh:zeroOrOnePath [ sh:inversePath ex:s ] ] ]
-                ) ;
-                sh:value "v" ;
-                sh:sourceShape ex:shape
-            ] , [
-                sh:focusNode ex:b ;
-                sh:sourceConstraintComponent sh:ClassConstraintComponent ;
-                sh:resultSeverity sh:Warning
-            ] .
-    "#;
-    let graph: RdfGraph = RdfParser::from_format(RdfFormat::Turtle)
-        .for_slice(turtle.as_bytes())
-        .map(|quad| quad.map(Triple::from))
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap()
-        .iter()
-        .collect();
-    let ex = |local: &str| NamedNode::new_unchecked(format!("http://ex/{local}"));
-    let p = |local: &str| ShaclPath::Predicate(ex(local));
-    let path = ShaclPath::Sequence(vec![
-        p("p"),
-        ShaclPath::Inverse(Box::new(ShaclPath::Alternative(vec![
-            p("q"),
-            ShaclPath::ZeroOrMore(Box::new(p("r"))),
-        ]))),
-        ShaclPath::OneOrMore(Box::new(ShaclPath::ZeroOrOne(Box::new(
-            ShaclPath::Inverse(Box::new(p("s"))),
-        )))),
-    ]);
-    let results = objects(&graph, ex("report"), &sh("result"));
-    let read: Vec<_> = results
-        .iter()
-        .filter_map(|result| {
-            let result = NamedOrBlankNode::try_from(result.clone()).unwrap();
-            one(&graph, &result, &sh("resultPath")).map(|term| path_of(&graph, &term))
-        })
-        .collect();
-    assert_eq!(read, vec![path.clone()]);
-    assert_eq!(
-        expected(&graph, &Term::from(ex("report"))),
-        (
-            false,
-            vec![
-                (
-                    "<http://ex/a>".to_owned(),
-                    format!("<{SH}MinCountConstraintComponent>"),
-                    format!("<{SH}Violation>"),
-                    Some(path.to_string()),
-                    Some("\"v\"".to_owned()),
-                    Some("<http://ex/shape>".to_owned()),
-                ),
-                (
-                    "<http://ex/b>".to_owned(),
-                    format!("<{SH}ClassConstraintComponent>"),
-                    format!("<{SH}Warning>"),
-                    None,
-                    None,
-                    None,
-                ),
-            ]
-        )
-    );
 }

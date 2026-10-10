@@ -29,8 +29,10 @@ openYasgui("people", PREFIXES, [
   ["Who moved?", "Table", `# Two times in one query: GRAPH <raphtory:asof:T> matches the triples as of T
 SELECT ?person ?then ?now WHERE {
   GRAPH raphtory:asof:2022-01-01 { ?person ex:worksFor ?then }
+  # naming a time graph runs the query on the whole history: validFrom keeps the current state
   ?person ex:worksFor ?now .
-  FILTER(?then != ?now)
+  BIND(raphtory:validFrom(?person, ex:worksFor, ?now) AS ?since)
+  FILTER(BOUND(?since) && ?then != ?now)
 }`],
   ["Since when?", "Table", `SELECT ?person ?company ?since WHERE {
   ?person ex:worksFor ?company .

@@ -96,25 +96,8 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      # --checkout (in the make target) works whatever `update` strategy .gitmodules sets.
       - name: Check out the W3C test suites
         run: make w3c-tests-init
-      # Without the suites the tests skip and pass: fail here instead if any file they read is missing.
-      - name: Check the W3C test suites are present
-        run: |
-          for file in \
-            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql10/manifest-evaluation.ttl \
-            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql10/manifest-syntax.ttl \
-            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql11/manifest-sparql11-query.ttl \
-            raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql11/manifest-sparql11-results.ttl \
-            raphtory-rdf-tests/test-suites/rdf-tests/rdf/rdf11/rdf-turtle/manifest.ttl \
-            raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/manifest.ttl \
-            raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/core/manifest.ttl \
-            raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/sparql/manifest.ttl \
-            raphtory-rdf-tests/test-suites/data-shapes/shacl12-test-suite/tests/core/property/singleLine-001.ttl
-          do
-            test -f "$file" || { echo "::error::missing W3C test suite file $file"; exit 1; }
-          done
       - name: Run the W3C conformance tests
         env:
           RUSTFLAGS: -Awarnings

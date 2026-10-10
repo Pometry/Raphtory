@@ -1,9 +1,10 @@
 //! The Gene Ontology (GO, <https://geneontology.org/docs/download-ontology/>) as versioned RDF:
 //! reading releases of `go.owl`, skolemizing their blank nodes so that releases can be diffed,
-//! loading them into a `PersistentGraph` and an oxigraph `Store`, and the queries to run.
+//! loading them into an `RdfGraph` and an oxigraph `Store`, and the queries to run.
 //!
-//! Shared by `raphtory-rdf-tests/tests/go.rs` and `rdf-bench/benches/go.rs` (both include this
-//! file with `#[path]`), so it only uses `raphtory`, `oxigraph` and `std`.
+//! Used by `rdf-bench/benches/go.rs` (which includes this file and
+//! `raphtory-rdf-tests/tests/common/data.rs` with `#[path]`), so it only uses `raphtory`,
+//! `oxigraph` and `std`.
 //!
 //! # The data
 //!
@@ -29,17 +30,19 @@
 //!
 //! # Versions
 //!
-//! Release `k` is time [`millis`]`(date_k)`. [`load_raphtory`] writes the first release at its
+//! Release `k` is time `date_k` (midnight UTC). [`load_raphtory`] writes the first release at its
 //! time and every later one as its changes, retracting the removed triples and asserting the
-//! added ones at its time, so `pg.snapshot_at(millis(date_k))` and `<raphtory:asof:date_k>` are
-//! release `k`. [`load_store`] puts release `k` in the named graph [`release_graph`]`(date_k)`.
+//! added ones at its time, so `rg.snapshot_at(date_k)` and `<raphtory:asof:date_k>` are
+//! release `k`. [`load_store_release`] puts release `k` in the named graph
+//! [`release_graph`]`(date_k)`.
 #![allow(dead_code)]
-use oxigraph::store::Store;
+use super::data::{data_dir, ntriples};
+use oxigraph::{io::RdfParser, store::Store};
 use raphtory::{
     errors::GraphError,
     rdf::{
         model::{NamedNode, NamedOrBlankNode, Term, Triple},
-        RdfFormat, RdfMutationOps, RdfParser, ASOF_NS,
+        RdfFormat, RdfGraph, ASOF_NS,
     },
 };
 use std::{
@@ -48,13 +51,8 @@ use std::{
     hash::{Hash, Hasher},
     io::BufReader,
     path::{Path, PathBuf},
-    process::Command,
     time::{Duration, Instant},
 };
-
-/// The environment variable that points at the directory with the downloaded RDF data (the
-/// `RDF_DATA_DIR` of the Makefile); GO is in its `go` subdirectory.
-pub const DATA_ENV: &str = "RAPHTORY_RDF_DATA";
 
 /// The releases and their SHA-256 checksums: `<sha256>  <date>/go.owl`.
 pub const SUMS: &str = include_str!("go.sha256");
@@ -83,13 +81,7 @@ pub fn release_dates(sums: &str) -> Vec<String> {
 
 /// The GO directory `$RAPHTORY_RDF_DATA/go` with every release of [`SUMS`], or why there is none.
 pub fn go_dir() -> Result<PathBuf, String> {
-    let Some(root) = std::env::var_os(DATA_ENV) else {
-        return Err(format!(
-            "{DATA_ENV} is not set; set it to the directory `make go-fetch` downloads to \
-             (~/.cache/raphtory-rdf by default)"
-        ));
-    };
-    let dir = PathBuf::from(root).join("go");
+    let dir = data_dir("go")?;
     let missing: Vec<String> = release_dates(SUMS)
         .into_iter()
         .filter(|date| !owl_file(&dir, date).is_file())
@@ -108,72 +100,6 @@ pub fn owl_file(dir: &Path, date: &str) -> PathBuf {
     dir.join(date).join("go.owl")
 }
 
-/// Checks the files of a checksum file under `dir` with `sha256sum` or `shasum`.
-pub fn verify(dir: &Path, sums: &str) -> Result<(), String> {
-    let sha256sum = Command::new("sha256sum")
-        .arg("--version")
-        .output()
-        .is_ok_and(|o| o.status.success());
-    let (tool, args): (&str, &[&str]) = if sha256sum {
-        ("sha256sum", &[])
-    } else {
-        ("shasum", &["-a", "256"])
-    };
-    let entries: Vec<(&str, &str)> = sums
-        .lines()
-        .filter_map(|line| line.split_once(char::is_whitespace))
-        .map(|(sum, file)| (sum, file.trim().trim_start_matches("./")))
-        .collect();
-    std::thread::scope(|s| {
-        let checks: Vec<_> = entries
-            .iter()
-            .map(|&(expected, file)| {
-                s.spawn(move || {
-                    let path = dir.join(file);
-                    let output = Command::new(tool)
-                        .args(args)
-                        .arg(&path)
-                        .output()
-                        .map_err(|e| format!("cannot run {tool}: {e}"))?;
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    match stdout.split_whitespace().next() {
-                        Some(sum) if output.status.success() && sum == expected => Ok(()),
-                        Some(sum) if output.status.success() => Err(format!(
-                            "{}: SHA-256 {sum}, expected {expected}",
-                            path.display()
-                        )),
-                        _ => Err(format!(
-                            "{}: {}",
-                            path.display(),
-                            String::from_utf8_lossy(&output.stderr).trim()
-                        )),
-                    }
-                })
-            })
-            .collect();
-        checks
-            .into_iter()
-            .try_for_each(|check| check.join().expect("checksum thread"))
-    })
-}
-
-/// A `YYYY-MM-DD` date as epoch milliseconds (midnight UTC).
-pub fn millis(date: &str) -> i64 {
-    let field = |i: usize| -> i64 {
-        date.split('-')
-            .nth(i)
-            .and_then(|f| f.parse().ok())
-            .unwrap_or_else(|| panic!("not a YYYY-MM-DD date: {date}"))
-    };
-    let (m, d) = (field(1), field(2));
-    let y = if m <= 2 { field(0) - 1 } else { field(0) };
-    let era = y.div_euclid(400);
-    let year_of_era = y - era * 400;
-    let day_of_year = (153 * ((m + 9) % 12) + 2) / 5 + d - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    (era * 146_097 + day_of_era - 719_468) * 86_400_000
-}
-
 /// The Store's graph of a release, as a SPARQL IRI.
 pub fn release_graph(date: &str) -> String {
     format!("<{RELEASE_NS}{date}>")
@@ -182,12 +108,6 @@ pub fn release_graph(date: &str) -> String {
 /// Raphtory's time graph of a release, as a SPARQL IRI.
 pub fn asof_graph(date: &str) -> String {
     format!("<{ASOF_NS}{date}>")
-}
-
-/// A term with the graph IRIs of both engines written as `<release:date>`.
-pub fn same_graphs(term: &str) -> String {
-    term.replace(&format!("<{ASOF_NS}"), "<release:")
-        .replace(&format!("<{RELEASE_NS}"), "<release:")
 }
 
 /// The triples of an RDF/XML file.
@@ -200,20 +120,6 @@ pub fn read_release(path: &Path) -> Result<Vec<Triple>, String> {
                 .map_err(|e| format!("{}: {e}", path.display()))
         })
         .collect()
-}
-
-/// Triples as an N-Triples document.
-pub fn ntriples<'a>(triples: impl IntoIterator<Item = &'a Triple>) -> Vec<u8> {
-    let mut doc = String::new();
-    for triple in triples {
-        doc.push_str(&triple.to_string());
-        doc.push_str(" .\n");
-    }
-    doc.into_bytes()
-}
-
-pub fn is_genid(term: &Term) -> bool {
-    matches!(term, Term::NamedNode(n) if n.as_str().starts_with(GENID))
 }
 
 pub fn hash128(write: impl Fn(&mut DefaultHasher)) -> u128 {
@@ -553,19 +459,15 @@ pub struct Docs {
 
 /// Writes the versions into `g` (see the [module docs](self)) and returns the number of triples
 /// written.
-pub fn load_raphtory<G: RdfMutationOps>(
-    g: &G,
-    dates: &[String],
-    docs: &Docs,
-) -> Result<usize, GraphError> {
+pub fn load_raphtory(g: &RdfGraph, dates: &[String], docs: &Docs) -> Result<usize, GraphError> {
     let mut written = g.load_rdf(
-        millis(&dates[0]),
+        dates[0].as_str(),
         docs.first.as_slice(),
         RdfFormat::NTriples,
         None,
     )?;
     for (date, (removed, added)) in dates[1..].iter().zip(&docs.changes) {
-        let t = millis(date);
+        let t = date.as_str();
         written += g.retract_rdf(t, removed.as_slice(), RdfFormat::NTriples, None)?;
         written += g.load_rdf(t, added.as_slice(), RdfFormat::NTriples, None)?;
     }
@@ -583,14 +485,6 @@ pub fn load_store_release(store: &Store, date: &str, doc: &[u8]) -> Result<(), S
         )
         .map_err(|e| e.to_string())?;
     loader.commit().map_err(|e| e.to_string())
-}
-
-/// Every release in its graph.
-pub fn load_store(store: &Store, versions: &Versions) -> Result<(), String> {
-    versions.for_each_release(|k, release| {
-        let doc = ntriples(release.iter().copied());
-        load_store_release(store, &versions.dates[k], &doc)
-    })
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -818,9 +712,11 @@ pub fn queries_asof(date: &str) -> Vec<GoQuery> {
         .collect()
 }
 
-/// When obsolete terms became obsolete, from the validity of the triple.
+/// When the terms obsolete in the last release became obsolete, from the validity of the
+/// triple.
 const SINCE_RAPHTORY: &str = "SELECT ?c ?since WHERE {
-    ?c owl:deprecated true BIND(raphtory:validFrom(?c, owl:deprecated, true) AS ?since)
+    GRAPH {G:last} { ?c owl:deprecated true }
+    BIND(raphtory:validFrom(?c, owl:deprecated, true) AS ?since)
 }";
 
 /// The same over the release graphs: the first release from which the triple is in every

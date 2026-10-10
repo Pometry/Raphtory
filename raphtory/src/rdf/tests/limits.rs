@@ -1,14 +1,14 @@
-//! Queries that would overflow the stack: `MAX_SPARQL_NESTING` and `sparql_stack_size`.
+//! Queries that would overflow the stack: `MAX_SPARQL_NESTING` and the query's own stack.
 use crate::{
     errors::GraphError,
     prelude::*,
-    rdf::{sparql_stack_size, RdfError, RdfViewOps, SparqlResults, MAX_SPARQL_NESTING},
+    rdf::{RdfError, SparqlResults, MAX_SPARQL_NESTING},
 };
 
-fn graph() -> PersistentGraph {
+fn graph() -> RdfGraph {
     let g = PersistentGraph::new();
     g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
-    g
+    g.into()
 }
 
 /// Runs `query` on a thread with an 8 MiB stack, the usual size of a main thread.
@@ -66,15 +66,13 @@ fn nested(depth: usize) -> Vec<String> {
     ]
 }
 
+/// Queries nest up to `MAX_SPARQL_NESTING` on an 8 MiB stack, and deeper ones fail before they
+/// are parsed.
 #[test]
 fn queries_can_nest_up_to_the_limit() {
     for query in nested(MAX_SPARQL_NESTING) {
         assert!(run(query.clone()).is_ok(), "{query}");
     }
-}
-
-#[test]
-fn deeper_queries_fail_before_they_are_parsed() {
     for query in nested(MAX_SPARQL_NESTING + 1) {
         assert!(too_deep(&query).is_some(), "{query}");
     }
@@ -85,11 +83,7 @@ fn deeper_queries_fail_before_they_are_parsed() {
         "(".repeat(deep),
         ")".repeat(deep)
     );
-    let error = graph().sparql(&query).unwrap_err().to_string();
-    assert_eq!(
-        error,
-        "SPARQL syntax error: brackets nest more than 128 deep at line 1, column 140"
-    );
+    assert_eq!(too_deep(&query), Some((1, 140)));
     // the position is that of the first bracket too deep, in characters
     let query = format!(
         "# é\nASK {{\n  FILTER(\"é\" = {}1{}) }}",
@@ -99,46 +93,8 @@ fn deeper_queries_fail_before_they_are_parsed() {
     assert_eq!(too_deep(&query), Some((3, 142)));
 }
 
-#[test]
-fn brackets_in_strings_iris_and_comments_do_not_nest() {
-    let deep = "(".repeat(200);
-    let ok = |query: String| match run(query.clone()) {
-        Ok(_) => {}
-        Err(error) => panic!("{query}: {error}"),
-    };
-    for string in [
-        format!("'{deep}'"),
-        format!("\"{deep}\""),
-        format!("'''{deep}\n'''"),
-        format!("\"\"\"{deep}\n\"\"\""),
-        format!("'\\'{deep}'"),
-        format!("\"\\\"{deep}\""),
-        format!("'''a''{deep}'''"),
-    ] {
-        ok(format!("ASK {{ FILTER(STRLEN({string}) > 0) }}"));
-    }
-    // brackets in IRIs count (the `<` might be an operator), but balanced ones do not add up
-    let balanced = "(a)".repeat(200);
-    ok(format!(
-        "ASK {{ FILTER(<http://ex/{balanced}> != <http://ex/>) }}"
-    ));
-    assert!(too_deep(&format!(
-        "ASK {{ FILTER(<http://ex/{deep}> != <http://ex/>) }}"
-    ))
-    .is_some());
-    ok(format!("ASK {{ FILTER(true) }} # {deep}"));
-    ok(format!("ASK {{ # {deep}\n FILTER(true) }}"));
-    // `\(` in a prefixed name is a character of the name
-    let escaped = "\\(".repeat(200);
-    ok(format!(
-        "PREFIX ex: <http://ex/> ASK {{ FILTER(ex:a{escaped} != ex:b) }}"
-    ));
-    // `[]`, `()` and balanced brackets
-    let flat = "{} ".repeat(1000);
-    ok(format!("ASK {{ {flat} }}"));
-}
-
-/// The nesting scan finds deep nesting hidden behind ambiguous `<`, quotes and `#`.
+/// The nesting scan skips brackets in strings, comments and escaped names, and finds deep
+/// nesting hidden behind ambiguous `<`, quotes and `#`.
 #[test]
 fn every_reading_of_the_query_is_checked() {
     let hiding = |deep: &str| {
@@ -160,12 +116,53 @@ fn every_reading_of_the_query_is_checked() {
         ]
     };
     let shallow = |depth: usize| format!("{}1{}", "(".repeat(depth), ")".repeat(depth));
-    // the queries are valid
-    for query in hiding(&shallow(3)) {
-        assert!(run(query.clone()).is_ok(), "{query}");
-    }
-    for query in hiding(&shallow(MAX_SPARQL_NESTING)) {
-        assert!(too_deep(&query).is_some(), "{query}");
+    let deep = "(".repeat(200);
+    // (query, rejected as too deep)
+    let mut cases: Vec<(String, bool)> = vec![
+        (format!("ASK {{ FILTER(STRLEN('{deep}') > 0) }}"), false),
+        (
+            format!("ASK {{ FILTER(STRLEN('''{deep}\n''') > 0) }}"),
+            false,
+        ),
+        (
+            format!("ASK {{ FILTER(STRLEN(\"\\\"{deep}\") > 0) }}"),
+            false,
+        ),
+        (format!("ASK {{ FILTER(true) }} # {deep}"), false),
+        // `\(` in a prefixed name is a character of the name
+        (
+            format!(
+                "PREFIX ex: <http://ex/> ASK {{ FILTER(ex:a{} != ex:b) }}",
+                "\\(".repeat(200)
+            ),
+            false,
+        ),
+        (format!("ASK {{ {} }}", "{} ".repeat(1000)), false),
+        // brackets in IRIs count (the `<` might be an operator), but balanced ones do not add up
+        (
+            format!(
+                "ASK {{ FILTER(<http://ex/{}> != <http://ex/>) }}",
+                "(a)".repeat(200)
+            ),
+            false,
+        ),
+        (
+            format!("ASK {{ FILTER(<http://ex/{deep}> != <http://ex/>) }}"),
+            true,
+        ),
+    ];
+    cases.extend(hiding(&shallow(3)).into_iter().map(|query| (query, false)));
+    cases.extend(
+        hiding(&shallow(MAX_SPARQL_NESTING))
+            .into_iter()
+            .map(|query| (query, true)),
+    );
+    for (query, rejected) in cases {
+        if rejected {
+            assert!(too_deep(&query).is_some(), "{query}");
+        } else if let Err(error) = run(query.clone()) {
+            panic!("{query}: {error}");
+        }
     }
 }
 
@@ -181,15 +178,13 @@ fn the_parser_does_not_decode_escapes_outside_strings() {
     );
 }
 
-/// A long flat query runs on a stack of `sparql_stack_size`.
+/// A long flat query runs on a stack sized to it, whatever the stack of the caller.
 #[test]
 fn long_flat_queries_run_on_a_sparql_stack() {
     // about 9,000 nested unions
     let query = format!("SELECT * {{ {{}}{} }}", "UNION{}".repeat(9_000));
-    let stack = sparql_stack_size(query.len());
-    assert_eq!(stack, (16 << 20) + query.len() * 8 * 1024);
     let results = std::thread::Builder::new()
-        .stack_size(stack)
+        .stack_size(256 << 10)
         .spawn(move || graph().sparql(&query))
         .unwrap()
         .join()

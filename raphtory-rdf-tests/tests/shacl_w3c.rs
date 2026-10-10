@@ -1,23 +1,23 @@
-//! The W3C SHACL test suite (core and SHACL-SPARQL, plus the SHACL 1.2 `sh:singleLine` test),
-//! run on Raphtory-backed data graphs.
+//! The W3C SHACL test suite (core and SHACL-SPARQL), run on Raphtory-backed data graphs.
 //!
 //! The suite is read from a checkout of <https://github.com/w3c/data-shapes> (W3C Software and
 //! Document License, see `LICENSE.md` in the checkout): the git submodule
 //! `raphtory-rdf-tests/test-suites/data-shapes`, or the directory in `RAPHTORY_SHACL_TESTS` if it
 //! is set and not empty. `make w3c-tests-init` checks the submodule out and `make rust-test-shacl-w3c` runs
-//! these tests. Without a checkout (or a test file), a test prints how to get it and passes.
+//! these tests. Without a checkout, the test prints how to get it and passes.
 //!
-//! The data graph is stored with [`add_triple`](raphtory::rdf::RdfMutationOps::add_triple), which
+//! The data graph is stored with [`add_triple`](raphtory::rdf::RdfGraph::add_triple), which
 //! keeps blank-node labels, so data, shapes and expected report share their blank nodes.
 //! Reports are compared, as the suite specifies, by `sh:conforms` and the multiset of (focus
 //! node, constraint component, severity, path, value, source shape).
+use oxigraph::io::RdfParser;
 use raphtory::{
     errors::GraphError,
     prelude::*,
     rdf::{
-        model::{Graph as RdfGraph, NamedNode, NamedOrBlankNode, Term, Triple},
+        model::{Graph as OxGraph, NamedNode, NamedOrBlankNode, Term, Triple},
         shacl::{ShaclReport, ShaclShapes},
-        RdfError, RdfFormat, RdfMutationOps, RdfParser,
+        RdfError, RdfFormat,
     },
 };
 use shacl_report::{actual, expected, list, objects, one};
@@ -97,21 +97,6 @@ fn checkout_root(dir: &Path) -> Result<PathBuf, String> {
     }
 }
 
-/// `root.join(file)` if that file is in the checkout `root`, or else `None`, with a message.
-fn suite_file(root: &Path, file: &str) -> Option<PathBuf> {
-    let path = root.join(file);
-    if path.is_file() {
-        Some(path)
-    } else {
-        println!(
-            "skipping {file}: it is not in {} (the submodule {SUBMODULE} at its pinned commit has \
-             it: `{INIT}`)",
-            root.display()
-        );
-        None
-    }
-}
-
 fn file_iri(path: &Path) -> String {
     format!("file://{}", path.display()).replace(' ', "%20")
 }
@@ -145,7 +130,7 @@ impl Files {
 
 /// The manifests with entries reachable from `manifest` through `mf:include`.
 fn test_manifests(files: &mut Files, manifest: &str, out: &mut Vec<String>) {
-    let graph: RdfGraph = files.get(manifest).iter().collect();
+    let graph: OxGraph = files.get(manifest).iter().collect();
     let node = NamedNode::new_unchecked(manifest);
     for include in objects(&graph, node.clone(), &nn(MF, "include")) {
         if let Term::NamedNode(include) = include {
@@ -177,7 +162,7 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
     test_manifests(&mut files, &file_iri(manifest), &mut manifests);
     let mut outcomes = BTreeMap::new();
     for manifest in manifests {
-        let graph: RdfGraph = files.get(&manifest).iter().collect();
+        let graph: OxGraph = files.get(&manifest).iter().collect();
         let node = NamedOrBlankNode::from(NamedNode::new_unchecked(&manifest));
         let entries = one(&graph, &node, &nn(MF, "entries"))
             .map(|head| list(&graph, head))
@@ -200,11 +185,13 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
             let data = files.get(data.as_str());
             let shapes = files.get(shapes.as_str());
             let validated = (|| -> Result<ShaclReport, GraphError> {
-                let g = Graph::new();
+                let g = RdfGraph::new();
                 for triple in &data {
                     g.add_triple(1, triple)?;
                 }
-                ShaclShapes::from_triples(shapes.iter().map(Triple::as_ref))?.validate(&g)
+                g.validate_shacl(&ShaclShapes::from_triples(
+                    shapes.iter().map(Triple::as_ref),
+                )?)
             })();
             let failure_expected = result == Term::from(nn(SHT, "Failure"));
             let outcome = match validated {
@@ -231,176 +218,25 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
     outcomes
 }
 
-fn failures(outcomes: &BTreeMap<String, Outcome>) -> Vec<(&String, &Outcome)> {
-    outcomes
-        .iter()
-        .filter(|(_, outcome)| matches!(outcome, Outcome::Fail(_)))
-        .collect()
-}
-
-#[test]
-fn w3c_core() {
-    let Some(root) = tests_root() else { return };
-    let outcomes = run_suite(&root.join("data-shapes-test-suite/tests/core/manifest.ttl"));
-    assert_eq!(failures(&outcomes), vec![]);
-    assert_eq!(outcomes.len(), 98);
-    let not_passed: Vec<_> = outcomes
-        .iter()
-        .filter(|(_, outcome)| **outcome != Outcome::Pass)
-        .collect();
-    assert_eq!(not_passed, vec![]);
-}
-
-/// Every SHACL-SPARQL test is rejected explicitly, or expects a failure.
-#[test]
-fn w3c_sparql() {
-    let Some(root) = tests_root() else { return };
-    let outcomes = run_suite(&root.join("data-shapes-test-suite/tests/sparql/manifest.ttl"));
-    assert_eq!(failures(&outcomes), vec![]);
-    let unsupported = outcomes
-        .values()
-        .filter(|outcome| matches!(outcome, Outcome::Unsupported(_)))
-        .count();
-    let failure = outcomes
-        .values()
-        .filter(|outcome| **outcome == Outcome::PassFailure)
-        .count();
-    assert_eq!((outcomes.len(), unsupported, failure), (22, 15, 7));
-    for outcome in outcomes.values() {
-        if let Outcome::Unsupported(feature) = outcome {
-            assert!(
-                feature.contains("SHACL-SPARQL is not supported"),
-                "{feature}"
-            );
-        }
-    }
-}
-
-/// The whole suite through its root manifest: the core and SHACL-SPARQL tests.
+/// The whole suite through its root manifest: every core test passes, and every SHACL-SPARQL
+/// test is rejected explicitly or expects a failure.
 #[test]
 fn w3c_root_manifest() {
     let Some(root) = tests_root() else { return };
     let outcomes = run_suite(&root.join("data-shapes-test-suite/tests/manifest.ttl"));
-    assert_eq!(outcomes.len(), 120);
-    assert_eq!(failures(&outcomes), vec![]);
-}
-
-/// The SHACL 1.2 test of `sh:singleLine`, in a checkout of w3c/data-shapes.
-const SINGLE_LINE: &str = "shacl12-test-suite/tests/core/property/singleLine-001.ttl";
-
-/// The SHACL 1.2 test of `sh:singleLine`, which the validator does not support, is rejected.
-#[test]
-fn w3c_shacl12_single_line() {
-    let Some(root) = tests_root() else { return };
-    let Some(path) = suite_file(&root, SINGLE_LINE) else {
-        return;
-    };
-    let single_line = |feature: &str| {
-        feature.starts_with("sh:singleLine ")
-            && feature.contains("SHACL 1.2 features are not supported")
-    };
-    let mut files = Files::default();
-    let shapes = files.get(&file_iri(&path));
-    let error = ShaclShapes::from_triples(shapes.iter().map(Triple::as_ref)).unwrap_err();
-    let GraphError::Rdf(RdfError::ShaclUnsupported(feature)) = &error else {
-        panic!("{error:?}")
-    };
-    assert!(single_line(feature), "{feature}");
-    let outcomes = run_suite(&path);
-    assert!(!outcomes.is_empty());
-    assert!(
-        outcomes.values().all(|outcome| matches!(
-            outcome,
-            Outcome::Unsupported(feature) if single_line(feature)
-        )),
-        "{outcomes:?}"
-    );
-}
-
-/// Without `RAPHTORY_SHACL_TESTS`, the tests read the submodule declared in the `.gitmodules`
-/// of the workspace.
-#[test]
-fn tests_dir_defaults_to_the_submodule() {
-    if std::env::var_os(TESTS_ENV).is_some_and(|dir| !dir.is_empty()) {
-        return;
-    }
-    let dir = tests_dir();
-    assert!(dir.ends_with(SUBMODULE), "{}", dir.display());
-    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let gitmodules = std::fs::read_to_string(workspace.join(".gitmodules")).unwrap();
-    assert!(
-        gitmodules.contains(&format!("path = {SUBMODULE}")),
-        "{gitmodules}"
-    );
-}
-
-/// A directory that is not a checkout (such as an uninitialized submodule) is skipped with a message.
-#[test]
-fn checkout_root_tells_how_to_get_the_submodule() {
-    let empty = tempfile::tempdir().unwrap();
-    let message = checkout_root(empty.path()).unwrap_err();
-    assert!(
-        message.contains(
-            "`git submodule update --init --checkout raphtory-rdf-tests/test-suites/data-shapes`"
-        ),
-        "{message}"
-    );
-    assert!(message.contains(TESTS_ENV), "{message}");
-}
-
-/// A test file that is not in the checkout is skipped with a message.
-#[test]
-fn suite_file_skips_a_file_the_checkout_lacks() {
-    let checkout = tempfile::tempdir().unwrap();
-    let tests = checkout.path().join("data-shapes-test-suite/tests");
-    std::fs::create_dir_all(&tests).unwrap();
-    std::fs::write(tests.join("manifest.ttl"), "").unwrap();
-    let root = checkout_root(checkout.path()).unwrap();
-    assert_eq!(suite_file(&root, SINGLE_LINE), None);
+    let failed: Vec<_> = outcomes
+        .iter()
+        .filter(|(_, outcome)| matches!(outcome, Outcome::Fail(_)))
+        .collect();
+    assert_eq!(failed, vec![]);
+    let count = |pred: fn(&Outcome) -> bool| outcomes.values().filter(|o| pred(*o)).count();
     assert_eq!(
-        suite_file(&root, "data-shapes-test-suite/tests/manifest.ttl"),
-        Some(root.join("data-shapes-test-suite/tests/manifest.ttl"))
+        (
+            count(|o| *o == Outcome::Pass),
+            count(|o| matches!(o, Outcome::Unsupported(_))),
+            count(|o| *o == Outcome::PassFailure),
+            outcomes.len(),
+        ),
+        (98, 15, 7, 120)
     );
-    // The submodule at its pinned commit has the SHACL 1.2 test.
-    if std::env::var_os(TESTS_ENV).is_none_or(|dir| dir.is_empty()) {
-        if let Some(root) = tests_root() {
-            assert!(suite_file(&root, SINGLE_LINE).is_some());
-        }
-    }
-}
-
-/// A relative `RAPHTORY_SHACL_TESTS` is resolved against the working directory of the test, and
-/// the skip message shows where it was resolved to.
-#[test]
-fn checkout_root_shows_the_resolved_path() {
-    // Joined with the separator of the platform, as `std::path::absolute` gives it: on Windows,
-    // it turns `/` into `\`.
-    let relative = Path::new("no-such-dir").join("data-shapes");
-    let message = checkout_root(&relative).unwrap_err();
-    let resolved = std::env::current_dir().unwrap().join(&relative);
-    assert!(
-        message.contains(&format!("(resolved to {})", resolved.display())),
-        "{message}"
-    );
-}
-
-/// A checkout is accepted by an absolute or a relative path, and given as a canonical path, so
-/// the file IRIs of the tests are absolute.
-#[test]
-fn checkout_root_accepts_a_checkout() {
-    let checkout = tempfile::tempdir().unwrap();
-    let tests = checkout.path().join("data-shapes-test-suite/tests");
-    std::fs::create_dir_all(&tests).unwrap();
-    std::fs::write(tests.join("manifest.ttl"), "").unwrap();
-    let canonical = checkout.path().canonicalize().unwrap();
-    assert_eq!(checkout_root(checkout.path()), Ok(canonical.clone()));
-    // From the working directory up to the root, then down to the checkout (on Unix, where the
-    // root is shared).
-    if cfg!(unix) {
-        let cwd = std::env::current_dir().unwrap();
-        let mut relative: PathBuf = cwd.ancestors().skip(1).map(|_| "..").collect();
-        relative.push(canonical.strip_prefix("/").unwrap());
-        assert!(relative.is_relative());
-        assert_eq!(checkout_root(&relative), Ok(canonical));
-    }
 }

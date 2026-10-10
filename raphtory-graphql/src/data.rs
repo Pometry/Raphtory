@@ -1013,7 +1013,7 @@ impl Data {
     async fn load_and_filter(
         &self,
         path: &str,
-        perm: GraphPermission,
+        perm: &GraphPermission,
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let gwv = self.get_graph_unchecked(path).await?;
@@ -1035,10 +1035,7 @@ impl Data {
             None => gwv.graph().clone(),
         };
         let raw = typed_graph.into_dynamic();
-        let graph = if let GraphPermission::Read {
-            filter: Some(ref f),
-        } = perm
-        {
+        let graph = if let GraphPermission::Read { filter: Some(f) } = perm {
             apply_access_filter(raw, f).await?
         } else {
             raw
@@ -1054,14 +1051,29 @@ impl Data {
         path: &str,
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph)>> {
-        match require_at_least_read(ctx, &self.auth_policy, path) {
-            Ok(perm) => match refine(ctx, &self.auth_policy, path, perm).await {
-                Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
-                // Refinement denied access — hide the graph, as with any other read denial.
-                Err(_) => Ok(None),
-            },
-            Err(_) => Ok(None),
-        }
+        let graph = self
+            .get_graph_and_read_permission(ctx, path, graph_type)
+            .await?;
+        Ok(graph.map(|(folder, graph, _)| (folder, graph)))
+    }
+
+    /// [`get_graph_with_read_permission`](Self::get_graph_with_read_permission), also returning
+    /// the permission the view was filtered with.
+    pub(crate) async fn get_graph_and_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<Option<(UnlockedGraphFolder, DynamicGraph, GraphPermission)>> {
+        let Ok(perm) = require_at_least_read(ctx, &self.auth_policy, path) else {
+            return Ok(None);
+        };
+        // Refinement denied access — hide the graph, as with any other read denial.
+        let Ok(perm) = refine(ctx, &self.auth_policy, path, perm).await else {
+            return Ok(None);
+        };
+        let (folder, graph) = self.load_and_filter(path, &perm, graph_type).await?;
+        Ok(Some((folder, graph, perm)))
     }
 
     /// For resolvers that must surface the specific denial reason (`receive_graph`,
@@ -1076,7 +1088,7 @@ impl Data {
     ) -> async_graphql::Result<(UnlockedGraphFolder, DynamicGraph)> {
         let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         let perm = refine(ctx, &self.auth_policy, path, perm).await?;
-        self.load_and_filter(path, perm, graph_type).await
+        self.load_and_filter(path, &perm, graph_type).await
     }
 
     /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).
@@ -1125,22 +1137,6 @@ impl Data {
         }
         let graph = self.get_graph_unchecked(path).await?;
         Ok(graph.vectors().cloned().map(|g| g.into()))
-    }
-
-    /// Whether the caller reads the graph at `path` through a row filter (hiding nodes, edges,
-    /// layers or times); the SPARQL temporal functions are disabled for such reads.
-    /// Property/metadata redaction alone does not count. The permission is resolved as the read
-    /// path resolves it. Fails closed: an unresolvable or non-read permission counts as filtered.
-    #[cfg(feature = "rdf")]
-    pub(crate) async fn read_has_row_filter(&self, ctx: &Context<'_>, path: &str) -> bool {
-        let Ok(perm) = require_at_least_read(ctx, &self.auth_policy, path) else {
-            return true;
-        };
-        match refine(ctx, &self.auth_policy, path, perm).await {
-            Ok(GraphPermission::Read { filter: Some(f) }) => f.filter.is_some(),
-            Ok(GraphPermission::Read { filter: None } | GraphPermission::Write) => false,
-            Ok(GraphPermission::Introspect) | Err(_) => true,
-        }
     }
 }
 

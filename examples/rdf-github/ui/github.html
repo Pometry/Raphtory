@@ -58,7 +58,9 @@ WHERE {
 SELECT ?pr ?title ?state ?since WHERE {
   GRAPH <raphtory:asof:2024-06-01> { ?pr a gh:PullRequest ; gh:state gh:Open }
   ?pr gh:title ?title ; gh:state ?state .
+  # naming a time graph runs the query on the whole history: validFrom keeps the current state
   BIND(raphtory:validFrom(?pr, gh:state, ?state) AS ?since)
+  FILTER(BOUND(?since))
 }
 ORDER BY ?since`],
 

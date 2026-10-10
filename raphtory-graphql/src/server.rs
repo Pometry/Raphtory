@@ -1,3 +1,5 @@
+#[cfg(feature = "rdf")]
+use crate::sparql::endpoint::SparqlEndpoint;
 use crate::{
     auth::{AuthenticatedGraphQL, KeyResolver, MutationAuth},
     auth_policy::AuthorizationPolicy,
@@ -411,7 +413,7 @@ impl GraphServer {
         #[cfg(feature = "rdf")]
         let app = app.at(
             "/sparql/*path",
-            crate::sparql::endpoint::SparqlEndpoint::new(graphql, config.concurrency.clone()),
+            SparqlEndpoint::new(graphql, config.concurrency.clone()),
         );
         let app = app
             .with(Cors::new())

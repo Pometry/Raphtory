@@ -25,7 +25,7 @@ import shutil
 import sys
 import time
 
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
 GH = "http://example.org/gh/"
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
@@ -157,12 +157,12 @@ def main(data_dir, graph_path):
     for issue in issues:
         add_issue(history, issue)
 
-    graph = PersistentGraph()
+    graph = RdfGraph()
     start = time.time()
     written = history.write(graph)
     shutil.rmtree(graph_path, ignore_errors=True)
     os.makedirs(os.path.dirname(os.path.abspath(graph_path)), exist_ok=True)
-    graph.save_to_file(graph_path)
+    graph.graph.save_to_file(graph_path)
     developers = sum(1 for _, cls, _ in history.first_seen.values() if cls == "Developer")
     print(
         f"{len(prs)} pull requests, {len(issues)} issues, {developers} developers: "

@@ -1,26 +1,27 @@
 //! The SPARQL dataset of a graph view.
 //!
-//! [`RaphtoryDataset`] implements spareval's [`QueryableDataset`] on top of a view. The default
-//! graph holds exactly the `(edge, layer)` pairs visible in `view.valid()`, the same set
-//! [`RdfViewOps::to_rdf`](crate::rdf::RdfViewOps::to_rdf) writes: each one is the quad
-//! `name(src) name(layer) name(dst)`. Named graphs are never stored; the only named graphs are
-//! the virtual time graphs `<raphtory:asof:T>` ([`TimeGraph`]), which hold the same quads for
-//! `view.snapshot_at(T).valid()`. They cannot be enumerated, so the dataset lists only the ones
-//! it is given ([`RaphtoryDataset::with_time_graphs`]).
+//! [`RaphtoryDataset`] implements spareval's [`QueryableDataset`] on top of a graph view. The
+//! default graph holds exactly the `(edge, layer)` pairs visible in the view, the same set
+//! [`RdfView::to_rdf`](crate::rdf::RdfView::to_rdf) writes: each one is the quad
+//! `term_of(src) layer_term(layer) term_of(dst)`. Named graphs are never stored; the only named
+//! graphs are the virtual time graphs `<raphtory:asof:T>` ([`TimeGraph`]), which hold the same
+//! quads for `view.snapshot_at(T)`. They cannot be enumerated, so the dataset lists only the
+//! ones it is given ([`RaphtoryDataset::with_time_graphs`]).
 use crate::{
     core::entities::{nodes::node_ref::NodeRef, GidRef},
     db::api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic, StaticGraphViewOps},
     prelude::*,
     rdf::{
         limits::{self, Interrupt},
-        mapping::{name_of, term_of},
-        scan::{view_layers, Dir, EdgeScan},
+        mapping::{layer_name_of, layer_term, name_of, term_of},
+        scan::{in_layer, view_layers, Dir, EdgeScan},
         time_graph::TimeGraph,
         RdfError,
     },
 };
 use oxigraph::model::Term;
 use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, VID};
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 use rustc_hash::{FxHashMap, FxHashSet};
 use spareval::{InternalQuad, QueryableDataset};
 use std::{
@@ -48,7 +49,7 @@ const _: () = {
 /// Every RDF term has exactly one internal value, so equality of internal terms is SPARQL
 /// `sameTerm`. In order of precedence, a term is:
 /// 1. [`Node`](RdfTerm::Node) if it is the term of a node name ([`term_of`]),
-/// 2. otherwise [`Layer`](RdfTerm::Layer) if it is the term of a layer name,
+/// 2. otherwise [`Layer`](RdfTerm::Layer) if it is the term of a layer name ([`layer_term`]),
 /// 3. otherwise [`TimeGraph`](RdfTerm::TimeGraph) if it is an IRI under
 ///    [`ASOF_NS`](crate::rdf::ASOF_NS) (no node or layer name maps to such an IRI). One whose
 ///    time does not parse is an error, [`RdfError::InvalidTimeGraph`], which aborts the query,
@@ -57,11 +58,11 @@ const _: () = {
 /// So a predicate IRI that is also a node name is the `Node` in every position, and the two join.
 /// The internal value of each layer's term is fixed when the [`RaphtoryDataset`] is built.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[non_exhaustive]
-pub enum RdfTerm {
+pub(crate) enum RdfTerm {
     /// A node of the graph. Its RDF term is `term_of(node_name)`.
     Node(VID),
-    /// A layer whose name is not also the name of a node. Its RDF term is `term_of(layer_name)`.
+    /// A layer whose term is not also the term of a node. Its RDF term is
+    /// `layer_term(layer_name)`.
     Layer(LayerId),
     /// A time graph `<raphtory:asof:T>`. Its RDF term is its IRI, as written in the query.
     TimeGraph(Arc<TimeGraph>),
@@ -85,17 +86,16 @@ impl Clone for RdfTerm {
     }
 }
 
-/// A graph view as a SPARQL dataset, for use with an [`evaluator`](crate::rdf::evaluator)
+/// A graph view as a SPARQL dataset, for use with an [`evaluator`](crate::rdf::query::evaluator)
 /// (`evaluator().parse_query(q)?.on_queryable_dataset(RaphtoryDataset::new(view))`).
 ///
-/// - The default graph holds one triple per `(edge, layer)` pair visible in `view.valid()`:
-///   `name(src) name(layer) name(dst)`, see [`term_of`]. So on a persistent graph a triple is in
-///   the default graph if its latest assertion or retraction in the view is an assertion, and
-///   `pg.snapshot_at(t)` is the dataset "as of `t`". On an event graph a triple is in the default
-///   graph if it was asserted at least once in the view.
+/// - The default graph holds one triple per `(edge, layer)` pair visible in the view:
+///   `term_of(src) layer_term(layer) term_of(dst)`. So `rg.valid()` is the dataset of the
+///   current state and `rg.at(t)` the dataset "as of `t`".
 /// - The only named graphs are the virtual, read-only time graphs `<raphtory:asof:T>`
 ///   ([`TimeGraph`]): `GRAPH <raphtory:asof:T> { .. }` (or `FROM <raphtory:asof:T>`) matches
-///   against `view.snapshot_at(T).valid()` (windows intersect, see [`TimeGraph`]). Time
+///   against `view.snapshot_at(T)` (the view's window and filters apply, `valid()` included,
+///   see [`TimeGraph`]). Time
 ///   graphs cannot be enumerated, so `GRAPH ?g` with `?g` unbound visits the `FROM NAMED`
 ///   graphs or else those given to [`with_time_graphs`](Self::with_time_graphs). A `?g`
 ///   bound elsewhere is only reliably matched if listed, named with `FROM NAMED`, or
@@ -105,16 +105,16 @@ impl Clone for RdfTerm {
 ///   `CONSTRUCT` drops them, and `DESCRIBE` can be incomplete on such views.
 /// - No storage lock is held between results, so the graph can be written to during a query,
 ///   with no snapshot isolation: writes may or may not be seen, and triples in layers created
-///   after the dataset was built are skipped. For a consistent result query a
-///   `graph.read_only()` view (writers wait until it is dropped; writing on the same thread
+///   after the dataset was built are skipped. For a consistent result query a view of
+///   `graph.read_only()` (writers wait until it is dropped; writing on the same thread
 ///   deadlocks).
 ///
 /// A dataset is meant for one query. It caches internal terms and views, so a term keeps the
 /// same internal value for the whole query even while the graph is written to, and keeps the
 /// triples of a full scan (no subject or object) the query repeats (up to a cap), so repeats
 /// replay the same triples.
-pub struct RaphtoryDataset {
-    /// The caller's view, without the `valid()` wrapper.
+pub(crate) struct RaphtoryDataset {
+    /// The caller's view.
     base: DynamicGraph,
     preds: Arc<PredTable>,
     /// The time graphs `GRAPH ?g` visits when `?g` is unbound, without duplicate IRIs.
@@ -152,10 +152,10 @@ type ViewKey = (Option<i64>, Option<LayerId>);
 /// The predicate term of every layer of the view, fixed when the dataset is built.
 #[derive(Default)]
 struct PredTable {
-    /// `Node(v)` if a node is named like the layer, else `Layer(l)` (the same precedence as
+    /// `Node(v)` if a node has the layer's term, else `Layer(l)` (the same precedence as
     /// `internalize_term`).
     term: FxHashMap<LayerId, RdfTerm>,
-    /// Layers named like a node, by that node.
+    /// Layers whose term is a node's term, by that node.
     by_node: FxHashMap<VID, LayerId>,
 }
 
@@ -163,7 +163,8 @@ impl PredTable {
     fn new(g: &DynamicGraph) -> Self {
         let mut table = Self::default();
         for (l, name) in view_layers(g) {
-            let term = match lookup_node(g, &name) {
+            let node = name_of(layer_term(&name).as_ref()).and_then(|node| lookup_node(g, &node));
+            let term = match node {
                 Some(v) => {
                     table.by_node.insert(v, l);
                     RdfTerm::Node(v)
@@ -181,10 +182,10 @@ pub(crate) fn lookup_node(g: &DynamicGraph, name: &str) -> Option<VID> {
     let v = g.internalise_node(NodeRef::External(GidRef::Str(name)))?;
     // A locked view may not hold a node whose name was resolved after it was locked (reading
     // its name would panic).
-    g.core_graph().try_core_node(v)?;
+    let node = g.core_graph().try_core_node(v)?;
     // On a u64-id graph a string that is not a number is looked up by its hash, so check the
     // name of what was found.
-    (g.node_name(v) == name).then_some(v)
+    (node.as_ref().name() == name).then_some(v)
 }
 
 /// The bound terms of a quad pattern, resolved: the subject and object nodes and the layer of
@@ -198,7 +199,7 @@ struct Bound {
 
 impl RaphtoryDataset {
     /// Builds the dataset of `view`, listing no time graph.
-    pub fn new<G: StaticGraphViewOps + IntoDynamic>(view: G) -> Self {
+    pub(crate) fn new<G: StaticGraphViewOps + IntoDynamic>(view: G) -> Self {
         let base = view.into_dynamic();
         let preds = Arc::new(PredTable::new(&base));
         Self {
@@ -240,36 +241,7 @@ impl RaphtoryDataset {
     /// Lists `graphs` (skipping duplicate IRIs) as the named graphs `GRAPH ?g { .. }` visits
     /// with `?g` unbound when the query has no `FROM NAMED`. Unlisted time graphs still match
     /// when named explicitly.
-    ///
-    /// # Example
-    /// ```
-    /// use raphtory::{
-    ///     prelude::*,
-    ///     rdf::{evaluator, model::NamedNode, QueryResults, RaphtoryDataset, TimeGraph},
-    /// };
-    ///
-    /// let g = PersistentGraph::new();
-    /// g.add_edge(1, "Alice", "Bob", NO_PROPS, None).unwrap();
-    /// let graph = |iri: &str| TimeGraph::parse(&NamedNode::new(iri).unwrap()).unwrap().unwrap();
-    /// let query = "ASK { GRAPH ?g { ?s ?p ?o } }";
-    /// let ask = |dataset: RaphtoryDataset| {
-    ///     let results = evaluator()
-    ///         .parse_query(query)
-    ///         .unwrap()
-    ///         .on_queryable_dataset(dataset)
-    ///         .execute()
-    ///         .unwrap();
-    ///     matches!(results, QueryResults::Boolean(true))
-    /// };
-    /// assert!(!ask(RaphtoryDataset::new(g.clone())));
-    /// assert!(!ask(
-    ///     RaphtoryDataset::new(g.clone()).with_time_graphs([graph("raphtory:asof:0")])
-    /// ));
-    /// assert!(ask(
-    ///     RaphtoryDataset::new(g.clone()).with_time_graphs([graph("raphtory:asof:2")])
-    /// ));
-    /// ```
-    pub fn with_time_graphs(mut self, graphs: impl IntoIterator<Item = TimeGraph>) -> Self {
+    pub(crate) fn with_time_graphs(mut self, graphs: impl IntoIterator<Item = TimeGraph>) -> Self {
         let mut listed: FxHashSet<_> = self.named.iter().map(|graph| graph.iri.clone()).collect();
         for graph in graphs {
             if listed.insert(graph.iri.clone()) {
@@ -279,8 +251,7 @@ impl RaphtoryDataset {
         self
     }
 
-    /// The base view (as of `at`), optionally restricted to one layer, memoised. It is not
-    /// wrapped in `valid()`: its scans must use [`EdgeScan::only_valid`].
+    /// The base view (as of `at`), optionally restricted to one layer, memoised.
     fn view(&self, at: Option<i64>, layer: Option<LayerId>) -> DynamicGraph {
         if let Some(view) = self.views.borrow().get(&(at, layer)) {
             return view.clone();
@@ -291,10 +262,7 @@ impl RaphtoryDataset {
         };
         let g = match layer {
             None => g,
-            // `valid_layers` intersects with the layers of the view
-            Some(l) => g
-                .valid_layers(Layer::One(self.base.get_layer_name(l)))
-                .into_dynamic(),
+            Some(l) => in_layer(&g, l),
         };
         let mut views = self.views.borrow_mut();
         if views.len() >= VIEW_CACHE_CAP {
@@ -302,12 +270,6 @@ impl RaphtoryDataset {
         }
         views.insert((at, layer), g.clone());
         g
-    }
-
-    /// The number of cached views.
-    #[cfg(test)]
-    pub(super) fn num_cached_views(&self) -> usize {
-        self.views.borrow().len()
     }
 
     /// The layer a bound predicate stands for, if any.
@@ -353,8 +315,7 @@ impl RaphtoryDataset {
         // `GRAPH <raphtory:asof:T>` is the view as of `T`.
         let at = graph.map(|graph| graph.at);
         let view = self.view(at, layer);
-        let interruptible =
-            |scan: EdgeScan| scan.only_valid().interruptible(self.interrupt.clone());
+        let interruptible = |scan: EdgeScan| scan.interruptible(self.interrupt.clone());
         let triples = match (subject, object) {
             (Some(s), Some(o)) => {
                 Triples::Scan(interruptible(EdgeScan::between(view, s, o, layer)))
@@ -379,11 +340,7 @@ impl RaphtoryDataset {
     /// A full scan of `view`. On its second request the triples are kept (up to
     /// `scan_memo_cap` per dataset) and later requests replay them.
     fn full_scan(&self, key: ViewKey, view: DynamicGraph, layer: Option<LayerId>) -> Triples {
-        let scan = || {
-            EdgeScan::all(view, layer)
-                .only_valid()
-                .interruptible(self.interrupt.clone())
-        };
+        let scan = || EdgeScan::all(view, layer).interruptible(self.interrupt.clone());
         // `scans` is not borrowed while the graph is read
         let memo = self.scans.borrow().get(&key).cloned();
         match memo {
@@ -468,23 +425,21 @@ impl RaphtoryDataset {
     }
 
     fn internalize(&self, term: &Term) -> Result<RdfTerm, RdfError> {
-        if let Some(name) = name_of(term.as_ref()) {
-            let layer = self
-                .base
-                .get_layer_id(&name)
-                .filter(|l| *l != STATIC_GRAPH_LAYER_ID);
-            // A layer's predicate term is fixed at build time and wins over a newer node.
-            if let Some(predicate) = layer.and_then(|l| self.preds.term.get(&l)) {
-                return Ok(predicate.clone());
-            }
-            if let Some(v) = lookup_node(&self.base, &name) {
-                return Ok(RdfTerm::Node(v));
-            }
-            if let Some(l) = layer {
-                return Ok(RdfTerm::Layer(l));
-            }
+        let layer = layer_name_of(term.as_ref())
+            .and_then(|name| self.base.get_layer_id(&name))
+            .filter(|l| *l != STATIC_GRAPH_LAYER_ID);
+        // A layer's predicate term is fixed at build time and wins over a newer node.
+        if let Some(predicate) = layer.and_then(|l| self.preds.term.get(&l)) {
+            return Ok(predicate.clone());
         }
-        // `name_of` is `None` for every IRI under `ASOF_NS`, so a time graph is never a node.
+        if let Some(v) = name_of(term.as_ref()).and_then(|name| lookup_node(&self.base, &name)) {
+            return Ok(RdfTerm::Node(v));
+        }
+        if let Some(l) = layer {
+            return Ok(RdfTerm::Layer(l));
+        }
+        // `name_of` and `layer_name_of` are `None` for every IRI under `ASOF_NS`, so a time graph
+        // is never a node or a layer.
         if let Term::NamedNode(iri) = term {
             if let Some(graph) = TimeGraph::parse(iri)? {
                 return Ok(RdfTerm::TimeGraph(Arc::new(graph)));
@@ -618,9 +573,9 @@ impl<'a> QueryableDataset<'a> for RaphtoryDataset {
             RdfTerm::Node(v) => {
                 self.cached_external(RdfTerm::Node(v), || term_of(&self.base.node_name(v)))
             }
-            RdfTerm::Layer(l) => {
-                self.cached_external(RdfTerm::Layer(l), || term_of(&self.base.get_layer_name(l)))
-            }
+            RdfTerm::Layer(l) => self.cached_external(RdfTerm::Layer(l), || {
+                layer_term(&self.base.get_layer_name(l))
+            }),
             RdfTerm::TimeGraph(graph) => graph.iri.clone().into(),
             RdfTerm::Other(t) => t,
         })

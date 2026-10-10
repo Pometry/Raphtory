@@ -327,10 +327,10 @@ python dictionary object.
 
 ### SPARQL queries
 
-The `sparql` field of a graph runs a [SPARQL](https://www.w3.org/TR/sparql11-query/) query on the RDF triples of the
-graph view and returns the results as one string, such as SPARQL Results JSON. See
-[SPARQL in GraphQL](../rdf/5_graphql.md) for how to use it, and [RDF and SPARQL](../rdf/1_intro.md) for how a graph maps
-to RDF triples.
+`rdfGraph(path:)` returns a graph viewed as RDF, and its `sparql` field runs a
+[SPARQL](https://www.w3.org/TR/sparql11-query/) query on the triples of the view and returns the results as one string,
+such as SPARQL Results JSON. See [RDF in GraphQL](../rdf/5_graphql.md) for how to use it, and
+[RDF and SPARQL](../rdf/1_intro.md) for how a graph maps to RDF triples.
 
 ## Mutation requests
 

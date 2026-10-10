@@ -72,9 +72,21 @@ rust-test-all: rust-check
 # RDF tests (raphtory-rdf-tests) and benchmarks (rdf-bench/Makefile). The W3C suites are git submodules of
 # raphtory-rdf-tests; RAPHTORY_RDF_TESTS and RAPHTORY_SHACL_TESTS point the tests at another checkout.
 W3C_SUITES := raphtory-rdf-tests/test-suites/rdf-tests raphtory-rdf-tests/test-suites/data-shapes
+W3C_MANIFESTS := \
+	raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql10/manifest-evaluation.ttl \
+	raphtory-rdf-tests/test-suites/rdf-tests/sparql/sparql11/manifest-sparql11-query.ttl \
+	raphtory-rdf-tests/test-suites/rdf-tests/rdf/rdf11/rdf-turtle/manifest.ttl \
+	raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/manifest.ttl \
+	raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/core/manifest.ttl \
+	raphtory-rdf-tests/test-suites/data-shapes/data-shapes-test-suite/tests/sparql/manifest.ttl
 
+# --checkout works whatever `update` strategy .gitmodules sets. Without the suites the tests skip and pass, so fail
+# here if a manifest they read is missing.
 w3c-tests-init:
 	git submodule update --init --checkout $(W3C_SUITES)
+	@for file in $(W3C_MANIFESTS); do \
+		test -f "$$file" || { echo "missing W3C test suite file $$file"; exit 1; }; \
+	done
 
 rust-test-rdf-w3c: w3c-tests-init
 	cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test sparql_w3c -- --nocapture --test-threads=1
@@ -92,17 +104,8 @@ override RDF_DATA_DIR := $(abspath $(RDF_DATA_DIR))
 bear-b-fetch bsbm-fetch go-fetch:
 	$(MAKE) -C rdf-bench $@ RDF_DATA_DIR=$(RDF_DATA_DIR)
 
-# RAPHTORY_BEAR_FULL=1 checks every version of day and hour (slow).
 rust-test-rdf-bear: bear-b-fetch
 	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test bear -- --nocapture
-
-# RAPHTORY_BSBM_FULL=1 checks every distinct query at 5,000 products too (slow).
-rust-test-rdf-bsbm: bsbm-fetch
-	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test bsbm -- --nocapture
-
-# RAPHTORY_GO_FULL=1 runs the single-release queries as of every release (slow).
-rust-test-rdf-go: go-fetch
-	RAPHTORY_RDF_DATA=$(RDF_DATA_DIR) cargo test --profile build-fast -p raphtory-rdf-tests --features rdf --test go -- --nocapture
 
 bench-rdf-load:
 	$(MAKE) -C rdf-bench bench-load

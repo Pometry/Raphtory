@@ -1,12 +1,13 @@
 //! Bounds on the work a SPARQL query does: its size, its time and cancellation (see
 //! [`SparqlOptions`](crate::rdf::SparqlOptions)).
-use crate::rdf::RdfError;
+use crate::rdf::{
+    algebra::{walk, Node},
+    RdfError,
+};
 use oxigraph::sparql::CancellationToken;
 use parking_lot::{Condvar, Mutex};
 use spargebra::{
-    algebra::{
-        AggregateExpression, Expression, GraphPattern, OrderExpression, PropertyPathExpression,
-    },
+    algebra::{GraphPattern, PropertyPathExpression},
     Query,
 };
 use std::{
@@ -19,8 +20,19 @@ use std::{
         Arc, Weak,
     },
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, TryFromFloatSecsError},
 };
+
+/// A time limit given in seconds, such as a [`SparqlOptions::timeout`]: errors unless finite
+/// and at least 0. Values too large for a [`Duration`] are a limit that is never reached.
+///
+/// [`SparqlOptions::timeout`]: crate::rdf::SparqlOptions::timeout
+pub fn timeout_from_secs(seconds: f64) -> Result<Duration, TryFromFloatSecsError> {
+    if seconds.is_finite() && seconds >= Duration::MAX.as_secs_f64() {
+        return Ok(Duration::MAX);
+    }
+    Duration::try_from_secs_f64(seconds)
+}
 
 /// The state of an [`Interrupt`] while its query may run on.
 const RUNNING: u8 = 0;
@@ -381,124 +393,24 @@ pub(crate) fn count_triple_patterns(query: &Query) -> usize {
         | Query::Ask { pattern, .. } => pattern,
     };
     let mut count = 0usize;
-    let mut patterns = vec![pattern];
-    let mut expressions: Vec<&Expression> = Vec::new();
-    let mut paths: Vec<&PropertyPathExpression> = Vec::new();
-    while !patterns.is_empty() || !expressions.is_empty() || !paths.is_empty() {
-        if let Some(pattern) = patterns.pop() {
-            match pattern {
-                GraphPattern::Bgp { patterns } => count = count.saturating_add(patterns.len()),
-                GraphPattern::Path { path, .. } => paths.push(path),
-                GraphPattern::Join { left, right }
-                | GraphPattern::Lateral { left, right }
-                | GraphPattern::Union { left, right }
-                | GraphPattern::Minus { left, right } => {
-                    patterns.push(left);
-                    patterns.push(right);
-                }
-                GraphPattern::LeftJoin {
-                    left,
-                    right,
-                    expression,
-                } => {
-                    patterns.push(left);
-                    patterns.push(right);
-                    expressions.extend(expression);
-                }
-                GraphPattern::Filter { expr, inner } => {
-                    expressions.push(expr);
-                    patterns.push(inner);
-                }
-                GraphPattern::Extend {
-                    inner, expression, ..
-                } => {
-                    count = count.saturating_add(1);
-                    expressions.push(expression);
-                    patterns.push(inner);
-                }
-                GraphPattern::Values {
-                    variables,
-                    bindings,
-                } => {
-                    count = count
-                        .saturating_add(1)
-                        .saturating_add(variables.len())
-                        .saturating_add(bindings.len() / VALUES_ROWS_PER_PATTERN)
-                }
-                GraphPattern::OrderBy { inner, expression } => {
-                    patterns.push(inner);
-                    expressions.extend(expression.iter().map(|order| match order {
-                        OrderExpression::Asc(e) | OrderExpression::Desc(e) => e,
-                    }));
-                }
-                GraphPattern::Group {
-                    inner, aggregates, ..
-                } => {
-                    patterns.push(inner);
-                    expressions.extend(aggregates.iter().filter_map(
-                        |(_, aggregate)| match aggregate {
-                            AggregateExpression::CountSolutions { .. } => None,
-                            AggregateExpression::FunctionCall { expr, .. } => Some(expr),
-                        },
-                    ));
-                }
-                GraphPattern::Graph { inner, .. }
-                | GraphPattern::Project { inner, .. }
-                | GraphPattern::Distinct { inner }
-                | GraphPattern::Reduced { inner }
-                | GraphPattern::Slice { inner, .. }
-                | GraphPattern::Service { inner, .. } => patterns.push(inner),
-            }
-        } else if let Some(expression) = expressions.pop() {
-            match expression {
-                Expression::NamedNode(_)
-                | Expression::Literal(_)
-                | Expression::Variable(_)
-                | Expression::Bound(_) => {}
-                Expression::Or(a, b)
-                | Expression::And(a, b)
-                | Expression::Equal(a, b)
-                | Expression::SameTerm(a, b)
-                | Expression::Greater(a, b)
-                | Expression::GreaterOrEqual(a, b)
-                | Expression::Less(a, b)
-                | Expression::LessOrEqual(a, b)
-                | Expression::Add(a, b)
-                | Expression::Subtract(a, b)
-                | Expression::Multiply(a, b)
-                | Expression::Divide(a, b) => {
-                    expressions.push(a);
-                    expressions.push(b);
-                }
-                Expression::UnaryPlus(a) | Expression::UnaryMinus(a) | Expression::Not(a) => {
-                    expressions.push(a)
-                }
-                Expression::In(a, list) => {
-                    expressions.push(a);
-                    expressions.extend(list);
-                }
-                Expression::If(a, b, c) => expressions.extend([&**a, &**b, &**c]),
-                Expression::Coalesce(list) | Expression::FunctionCall(_, list) => {
-                    expressions.extend(list)
-                }
-                Expression::Exists(pattern) => patterns.push(pattern),
-            }
-        } else if let Some(path) = paths.pop() {
-            match path {
+    walk(pattern, |node| {
+        let weight = match node {
+            Node::Pattern(GraphPattern::Bgp { patterns }) => patterns.len(),
+            Node::Pattern(GraphPattern::Extend { .. }) => 1,
+            Node::Pattern(GraphPattern::Values {
+                variables,
+                bindings,
+            }) => 1usize
+                .saturating_add(variables.len())
+                .saturating_add(bindings.len() / VALUES_ROWS_PER_PATTERN),
+            Node::Path(
                 PropertyPathExpression::NamedNode(_)
-                | PropertyPathExpression::NegatedPropertySet(_) => count = count.saturating_add(1),
-                PropertyPathExpression::Reverse(p)
-                | PropertyPathExpression::ZeroOrMore(p)
-                | PropertyPathExpression::OneOrMore(p)
-                | PropertyPathExpression::ZeroOrOne(p) => paths.push(p),
-                PropertyPathExpression::Sequence(a, b)
-                | PropertyPathExpression::Alternative(a, b) => {
-                    paths.push(a);
-                    paths.push(b);
-                }
-            }
-        }
-    }
+                | PropertyPathExpression::NegatedPropertySet(_),
+            ) => 1,
+            _ => 0,
+        };
+        count = count.saturating_add(weight);
+    });
     count
 }
 

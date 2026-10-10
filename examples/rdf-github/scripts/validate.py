@@ -1,6 +1,6 @@
 """
 Validates a graph against SHACL shapes now, as of the start of each year of its history, and on its
-event view (every triple ever asserted, ignoring retractions).
+whole history (every triple ever asserted or retracted).
 
     python scripts/validate.py GRAPH_PATH SHAPES
 """
@@ -9,7 +9,7 @@ import collections
 import datetime
 import sys
 
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
 
 def summary(report):
@@ -24,14 +24,13 @@ def summary(report):
 
 
 def main(graph_path, shapes):
-    graph = PersistentGraph.load_from_file(graph_path)
-    print(f"now:          {summary(graph.validate_shacl(shapes))}")
-    first, last = graph.earliest_time.dt.year, graph.latest_time.dt.year
+    graph = RdfGraph.load(graph_path)
+    print(f"now:          {summary(graph.valid().validate_shacl(shapes))}")
+    first, last = graph.graph.earliest_time.dt.year, graph.graph.latest_time.dt.year
     years = [datetime.datetime(year, 1, 1, tzinfo=datetime.timezone.utc) for year in range(first + 1, last + 1)]
     for time, report in graph.validate_shacl_at(shapes, years):
-        moment = datetime.datetime.fromtimestamp(time / 1000, tz=datetime.timezone.utc)
-        print(f"as of {moment:%Y-%m-%d}: {summary(report)}")
-    print(f"event view:   {summary(graph.event_graph().validate_shacl(shapes))}")
+        print(f"as of {time.dt:%Y-%m-%d}: {summary(report)}")
+    print(f"ever:         {summary(graph.validate_shacl(shapes))}")
 
 
 if __name__ == "__main__":

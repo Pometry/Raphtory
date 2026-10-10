@@ -3,9 +3,10 @@ use crate::{
     db::api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic, StaticGraphViewOps},
     errors::GraphError,
     rdf::{
+        limits::Interrupt,
         mapping::{layer_predicate, term_of},
         scan::EdgeScan,
-        RdfError, RdfExportStats,
+        CancellationToken, RdfError, WriteStats,
     },
 };
 use oxigraph::{
@@ -17,21 +18,40 @@ use oxigraph::{
 };
 use raphtory_api::core::entities::{LayerId, VID};
 use rustc_hash::FxHashMap;
-use std::io::{self, BufWriter, Write};
+use std::{
+    io::{self, BufWriter, Write},
+    sync::Arc,
+    time::Duration,
+};
 
-/// Writes every `(edge, layer)` pair visible in `view.valid()` as one triple, grouped by
-/// subject. Generalized triples are skipped and counted in [`RdfExportStats::skipped`].
+/// The most object terms an export keeps in memory.
+const OBJECT_CACHE_CAP: usize = 1 << 20;
+
+/// Writes every `(edge, layer)` pair visible in `view` as one triple, grouped by
+/// subject. Generalized triples are skipped and counted in [`WriteStats::skipped`]. Stops with
+/// [`RdfError::ExportTimeout`] once it has run for `timeout`, or with
+/// [`RdfError::ExportCancelled`] once `cancellation_token` is cancelled.
 pub(crate) fn write_rdf<G: StaticGraphViewOps + IntoDynamic, W: Write>(
     view: &G,
     writer: W,
-    serializer: RdfSerializer,
-) -> Result<RdfExportStats, GraphError> {
+    format: RdfFormat,
+    prefixes: &[(&str, &str)],
+    timeout: Option<Duration>,
+    cancellation_token: Option<CancellationToken>,
+) -> Result<WriteStats, GraphError> {
     let view = view.clone().into_dynamic();
-    let mut sink = TripleSink::new(serializer, writer);
+    let mut sink = TripleSink::new(
+        serializer_with_prefixes(format, prefixes.iter().copied())?,
+        writer,
+    );
+    let interrupt = (timeout.is_some() || cancellation_token.is_some())
+        .then(|| Arc::new(Interrupt::new(cancellation_token, timeout)));
     let mut predicates: FxHashMap<LayerId, Option<NamedNode>> = FxHashMap::default();
+    let mut objects: FxHashMap<VID, Term> = FxHashMap::default();
     // The scan is grouped by subject, so cache the last subject term.
     let mut subject: Option<(VID, Option<NamedOrBlankNode>)> = None;
-    for (s, l, o) in EdgeScan::all_by_nodes(view.clone(), None).only_valid() {
+    let scan = EdgeScan::all_by_nodes(view.clone(), None).interruptible(interrupt.clone());
+    for (s, l, o) in scan {
         if subject.as_ref().is_none_or(|(v, _)| *v != s) {
             let term = NamedOrBlankNode::try_from(term_of(&view.node_name(s))).ok();
             subject = Some((s, term));
@@ -43,11 +63,24 @@ pub(crate) fn write_rdf<G: StaticGraphViewOps + IntoDynamic, W: Write>(
             .as_ref();
         match (subject_term, predicate) {
             (Some(subject_term), Some(predicate)) => {
-                let object = term_of(&view.node_name(o));
+                if objects.len() >= OBJECT_CACHE_CAP && !objects.contains_key(&o) {
+                    objects.clear();
+                }
+                let object = objects
+                    .entry(o)
+                    .or_insert_with(|| term_of(&view.node_name(o)));
                 sink.push(subject_term.as_ref(), predicate.as_ref(), object.as_ref())?;
             }
             _ => sink.skip(),
         }
+    }
+    // the scan of a stopped export ends early, so its document is incomplete
+    if let Some(error) = interrupt.as_deref().and_then(Interrupt::error) {
+        return Err(match error {
+            RdfError::Timeout { timeout } => RdfError::ExportTimeout { timeout },
+            _ => RdfError::ExportCancelled,
+        }
+        .into());
     }
     Ok(sink.finish()?)
 }
@@ -67,7 +100,7 @@ pub(crate) fn write_rdf<G: StaticGraphViewOps + IntoDynamic, W: Write>(
 pub(crate) struct TripleSink<W: Write> {
     out: WriterQuadSerializer<BufWriter<W>>,
     rdf_xml: bool,
-    stats: RdfExportStats,
+    stats: WriteStats,
     /// RDF/XML only: whether a predicate IRI can be a property element, memoised.
     predicates: FxHashMap<String, bool>,
     /// RDF/XML only: the subject of the current run, as given and as written.
@@ -84,7 +117,7 @@ impl<W: Write> TripleSink<W> {
         Self {
             rdf_xml: serializer.format() == RdfFormat::RdfXml,
             out: serializer.for_writer(BufWriter::new(writer)),
-            stats: RdfExportStats::default(),
+            stats: WriteStats::default(),
             predicates: FxHashMap::default(),
             subject: None,
             subject_written: false,
@@ -102,7 +135,7 @@ impl<W: Write> TripleSink<W> {
         if !self.rdf_xml {
             self.out
                 .serialize_triple(TripleRef::new(subject, predicate, object))?;
-            self.stats.triples += 1;
+            self.stats.written += 1;
             return Ok(());
         }
         if self
@@ -134,12 +167,12 @@ impl<W: Write> TripleSink<W> {
         };
         self.out
             .serialize_triple(TripleRef::new(subject, predicate, &object))?;
-        self.stats.triples += 1;
+        self.stats.written += 1;
         self.subject_written = true;
         for object in self.held_types.drain(..) {
             self.out
                 .serialize_triple(TripleRef::new(subject, rdf::TYPE, &object))?;
-            self.stats.triples += 1;
+            self.stats.written += 1;
         }
         Ok(())
     }
@@ -150,7 +183,7 @@ impl<W: Write> TripleSink<W> {
     }
 
     /// Ends the document, flushes the output and returns the counts.
-    pub(crate) fn finish(mut self) -> io::Result<RdfExportStats> {
+    pub(crate) fn finish(mut self) -> io::Result<WriteStats> {
         self.end_run();
         self.out.finish()?.flush()?;
         Ok(self.stats)
@@ -324,43 +357,18 @@ fn invalid_prefix_name(format: RdfFormat, name: &str) -> Option<&'static str> {
 /// Builds an [`RdfSerializer`] for `format` with the given prefixes (the serializer chooses the
 /// order in which they are written; a repeated name keeps its last IRI).
 ///
-/// Unlike [`RdfSerializer::with_prefix`], this also checks that each prefix name can be
-/// written in `format`, failing with [`RdfError::InvalidPrefix`] on the first invalid one.
-/// Formats without prefixes (N-Triples, N-Quads, JSON-LD) ignore them.
-///
-/// # Example
-/// ```
-/// use raphtory::{
-///     prelude::*,
-///     rdf::{serializer_with_prefixes, RdfError, RdfFormat},
-/// };
-///
-/// let g = Graph::new();
-/// g.add_edge(1, "http://ex/a", "http://ex/b", NO_PROPS, Some("http://ex/p"))
-///     .unwrap();
-/// let mut out = Vec::new();
-/// let serializer = serializer_with_prefixes(RdfFormat::Turtle, [("ex", "http://ex/")]).unwrap();
-/// g.to_rdf(&mut out, serializer).unwrap();
-/// assert_eq!(
-///     String::from_utf8(out).unwrap(),
-///     "@prefix ex: <http://ex/> .\nex:a ex:p ex:b .\n"
-/// );
-///
-/// assert!(matches!(
-///     serializer_with_prefixes(RdfFormat::Turtle, [("a b", "http://ex/")]),
-///     Err(RdfError::InvalidPrefix { .. })
-/// ));
-/// ```
-pub fn serializer_with_prefixes(
+/// Unlike [`RdfSerializer::with_prefix`], which only parses the IRI, this also checks that each
+/// prefix name can be written in `format`, failing with [`RdfError::InvalidPrefix`] on the first
+/// invalid one. Formats without prefixes (N-Triples, N-Quads, JSON-LD) ignore them.
+pub(crate) fn serializer_with_prefixes<'a>(
     format: RdfFormat,
-    prefixes: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    prefixes: impl IntoIterator<Item = (&'a str, &'a str)>,
 ) -> Result<RdfSerializer, RdfError> {
     let mut serializer = RdfSerializer::from_format(format);
     for (name, iri) in prefixes {
-        let name = name.into();
-        if let Some(reason) = invalid_prefix_name(format, &name) {
+        if let Some(reason) = invalid_prefix_name(format, name) {
             return Err(RdfError::InvalidPrefix {
-                name,
+                name: name.to_owned(),
                 format,
                 reason,
             });

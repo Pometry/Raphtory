@@ -171,7 +171,7 @@ pub mod prelude {
     };
 
     #[cfg(feature = "rdf")]
-    pub use crate::rdf::{RdfMutationOps, RdfViewOps};
+    pub use crate::rdf::{RdfGraph, RdfView};
 }
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};

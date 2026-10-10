@@ -289,7 +289,7 @@ impl PyGraphServer {
                     RecvTimeoutError::Timeout => {
                         return Err(PyRuntimeError::new_err(format!(
                             "Failed to start server in {timeout_ms} milliseconds"
-                        )));
+                        )))
                     }
                     RecvTimeoutError::Disconnected => {
                         // failure in server start, extract the error

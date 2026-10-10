@@ -3,11 +3,12 @@ use crate::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     errors::GraphError,
     rdf::{
+        algebra::{walk, Node},
         dataset::RaphtoryDataset,
-        functions::with_temporal_functions,
+        functions::temporal_functions_of,
         limits::{check_triple_patterns, run_interruptible, Interrupt},
         time_graph::time_graphs_in,
-        RdfError, RESERVED_NS,
+        RdfError, TimeGraph, RESERVED_NS,
     },
 };
 use oxigraph::{
@@ -20,41 +21,14 @@ use oxigraph::{
 use oxiri::Iri;
 use rustc_hash::FxHashSet;
 use spargebra::{algebra::GraphPattern, Query, SparqlParser};
-use std::{fmt, sync::Arc, time::Duration};
+use std::{fmt, panic, sync::Arc, thread, time::Duration};
 
 /// A [`SparqlEvaluator`] with the `raphtory:` prefix registered, so queries can write
 /// `raphtory:Alice` for the node `Alice` (see [`term_of`](crate::rdf::term_of)), and with
-/// SPARQL `SERVICE` calls refused.
-///
-/// A `SERVICE` call fails with [`QueryEvaluationError::Service`] (`SERVICE SILENT` gives one
-/// empty solution), so no query makes a network request, whatever oxigraph features are on.
-/// Register handlers with [`SparqlEvaluator::with_service_handler`] to answer some services
-/// ([`SparqlEvaluator::with_default_service_handler`] replaces the refusal for the others).
-///
-/// Use it with a [`RaphtoryDataset`] for what [`RdfViewOps::sparql`](crate::rdf::RdfViewOps::sparql)
-/// does not offer (custom functions, service handlers, substitution, streaming, explanations).
-/// Unlike `sparql`, it does not list the time graphs the query names (see
-/// [`RaphtoryDataset::with_time_graphs`]) and has no temporal functions (add them with
-/// [`with_temporal_functions`](crate::rdf::with_temporal_functions)).
-///
-/// # Example
-/// ```
-/// use raphtory::{
-///     prelude::*,
-///     rdf::{evaluator, QueryResults, RaphtoryDataset},
-/// };
-///
-/// let g = Graph::new();
-/// g.add_edge(1, "Alice", "Bob", NO_PROPS, None).unwrap();
-/// let results = evaluator()
-///     .parse_query("ASK { raphtory:Alice raphtory:_default raphtory:Bob }")
-///     .unwrap()
-///     .on_queryable_dataset(RaphtoryDataset::new(g.clone()))
-///     .execute()
-///     .unwrap();
-/// assert!(matches!(results, QueryResults::Boolean(true)));
-/// ```
-pub fn evaluator() -> SparqlEvaluator {
+/// SPARQL `SERVICE` calls refused: a `SERVICE` call fails with
+/// [`QueryEvaluationError::Service`] (`SERVICE SILENT` gives one empty solution), so no query
+/// makes a network request, whatever oxigraph features are on.
+pub(crate) fn evaluator() -> SparqlEvaluator {
     SparqlEvaluator::new()
         .with_prefix("raphtory", RESERVED_NS)
         .expect("`raphtory:` is a valid IRI")
@@ -84,7 +58,7 @@ impl DefaultServiceHandler for NoService {
     }
 }
 
-/// The fully collected results of a SPARQL query. Unlike [`QueryResults`] they are `Send`.
+/// The fully collected results of a SPARQL query.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SparqlResults {
     /// The solutions of a `SELECT` query: one row per solution, with one value per variable
@@ -102,7 +76,7 @@ pub enum SparqlResults {
 
 impl SparqlResults {
     /// Collects query results, failing on the first evaluation error.
-    pub fn from_query_results(results: QueryResults<'_>) -> Result<Self, GraphError> {
+    pub(crate) fn from_query_results(results: QueryResults<'_>) -> Result<Self, GraphError> {
         Ok(match results {
             QueryResults::Solutions(solutions) => {
                 let variables = solutions.variables().to_vec();
@@ -119,9 +93,108 @@ impl SparqlResults {
     }
 }
 
+/// The form of a SPARQL query, which decides what its results are.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QueryForm {
+    /// `SELECT`: solutions.
+    Select,
+    /// `ASK`: a boolean.
+    Ask,
+    /// `CONSTRUCT`: triples.
+    Construct,
+    /// `DESCRIBE`: triples.
+    Describe,
+}
+
+impl QueryForm {
+    pub(crate) fn of(query: &Query) -> Self {
+        match query {
+            Query::Select { .. } => Self::Select,
+            Query::Ask { .. } => Self::Ask,
+            Query::Construct { .. } => Self::Construct,
+            Query::Describe { .. } => Self::Describe,
+        }
+    }
+
+    /// The keyword of the form, such as `SELECT`.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Select => "SELECT",
+            Self::Ask => "ASK",
+            Self::Construct => "CONSTRUCT",
+            Self::Describe => "DESCRIBE",
+        }
+    }
+
+    /// Whether the results are triples (`CONSTRUCT` and `DESCRIBE`), written in an RDF format
+    /// rather than a SPARQL results format.
+    pub fn is_graph(self) -> bool {
+        matches!(self, Self::Construct | Self::Describe)
+    }
+}
+
+/// What a SPARQL query asks for, read from the query without running it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QueryOutline {
+    /// The form of the query.
+    pub form: QueryForm,
+    /// The time graphs `<raphtory:asof:T>` the query names, in `FROM` and `FROM NAMED` or as
+    /// constants, each once.
+    pub time_graphs: Vec<TimeGraph>,
+    /// Whether the query reads a time graph: one is in `FROM` or `FROM NAMED`, or the query
+    /// names one and has a `GRAPH` pattern. A time graph that is only the argument of a
+    /// function, such as the reference time of `raphtory:validFrom`, is not read.
+    pub reads_time_graphs: bool,
+}
+
+impl QueryOutline {
+    /// Parses `query` as [`RdfView::sparql`](crate::rdf::RdfView::sparql) does, and fails with
+    /// the same syntax errors.
+    pub fn parse(query: &str) -> Result<Self, GraphError> {
+        on_query_stack(query, || {
+            let query = parse(query)?;
+            let (Query::Select { dataset, .. }
+            | Query::Ask { dataset, .. }
+            | Query::Construct { dataset, .. }
+            | Query::Describe { dataset, .. }) = &query;
+            let mut time_graphs = time_graphs_in(&query);
+            let mut reads_time_graphs = !time_graphs.is_empty() && has_graph_pattern(&query);
+            let from = dataset
+                .iter()
+                .flat_map(|dataset| dataset.default.iter().chain(dataset.named.iter().flatten()));
+            for iri in from {
+                if let Ok(Some(graph)) = TimeGraph::parse(iri) {
+                    reads_time_graphs = true;
+                    if !time_graphs.contains(&graph) {
+                        time_graphs.push(graph);
+                    }
+                }
+            }
+            Ok(Self {
+                form: QueryForm::of(&query),
+                time_graphs,
+                reads_time_graphs,
+            })
+        })
+    }
+}
+
+/// Whether `query` has a `GRAPH` pattern.
+fn has_graph_pattern(query: &Query) -> bool {
+    let (Query::Select { pattern, .. }
+    | Query::Ask { pattern, .. }
+    | Query::Construct { pattern, .. }
+    | Query::Describe { pattern, .. }) = query;
+    let mut found = false;
+    walk(pattern, |node| {
+        found |= matches!(node, Node::Pattern(GraphPattern::Graph { .. }));
+    });
+    found
+}
+
 /// Options for running a SPARQL query, passed to
-/// [`RdfViewOps::sparql_with`](crate::rdf::RdfViewOps::sparql_with) and
-/// [`RdfViewOps::sparql_to_writer_with`](crate::rdf::RdfViewOps::sparql_to_writer_with).
+/// [`RdfView::sparql_with`](crate::rdf::RdfView::sparql_with) and
+/// [`RdfView::sparql_to_writer_with`](crate::rdf::RdfView::sparql_to_writer_with).
 ///
 /// Build it with `SparqlOptions::default()` (what the methods without options use) and the
 /// `with_*` methods.
@@ -134,8 +207,8 @@ impl SparqlResults {
 ///   joined patterns).
 /// - [`timeout`](Self::timeout) stops evaluation once it has run that long, with
 ///   [`RdfError::Timeout`].
-/// - [`cancellation_token`](Self::cancellation_token) lets another thread stop it, with
-///   [`RdfError::Cancelled`].
+/// - [`with_cancellation_token`](Self::with_cancellation_token) lets another thread stop it,
+///   with [`RdfError::Cancelled`].
 ///
 /// A stopped query releases no partial results: [`sparql_with`] fails, and
 /// [`sparql_to_writer_with`] fails after writing part of the document. Evaluation checks
@@ -144,52 +217,31 @@ impl SparqlResults {
 /// interrupted, and in a build with `panic = "abort"` neither is work that reads nothing from
 /// the graph (and a query stopped while sorting by an `EXISTS` key can then abort the process).
 ///
-/// [`sparql_with`]: crate::rdf::RdfViewOps::sparql_with
-/// [`sparql_to_writer_with`]: crate::rdf::RdfViewOps::sparql_to_writer_with
+/// [`sparql_with`]: crate::rdf::RdfView::sparql_with
+/// [`sparql_to_writer_with`]: crate::rdf::RdfView::sparql_to_writer_with
 /// [`RdfError::Timeout`]: crate::rdf::RdfError::Timeout
 /// [`RdfError::Cancelled`]: crate::rdf::RdfError::Cancelled
 ///
 /// # Example
 /// ```
-/// use raphtory::{
-///     errors::GraphError,
-///     prelude::*,
-///     rdf::{QueryResultsFormat, RdfError, RdfViewOps, SparqlOptions},
-/// };
+/// use raphtory::{prelude::*, rdf::SparqlOptions};
 /// use std::time::Duration;
 ///
-/// let g = PersistentGraph::new();
-/// g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("knows")).unwrap();
-/// let query = "SELECT (raphtory:validFromTime(raphtory:Alice, raphtory:knows, raphtory:Bob) AS ?t) {}";
-///
-/// let mut csv = Vec::new();
-/// g.sparql_to_writer(query, &mut csv, QueryResultsFormat::Csv).unwrap();
-/// assert_eq!(String::from_utf8(csv).unwrap(), "t\r\n1\r\n");
-///
-/// // without the temporal functions, the query fails
-/// let options = SparqlOptions::default().with_temporal_functions(false);
-/// assert!(g
-///     .sparql_to_writer_with(query, &mut Vec::new(), QueryResultsFormat::Csv, &options)
-///     .is_err());
+/// let rg = RdfGraph::new();
+/// rg.graph().add_edge(1, "Alice", "Bob", NO_PROPS, Some("knows")).unwrap();
 ///
 /// // bounded queries, as a server would run them
 /// let options = SparqlOptions::default()
 ///     .with_timeout(Duration::from_secs(30))
 ///     .with_max_triple_patterns(100);
-/// assert!(g.sparql_with("ASK { ?s raphtory:knows ?o }", &options).is_ok());
-/// let star: String = (0..101).map(|i| format!("?s ?p{i} ?o{i} . ")).collect();
-/// let error = g.sparql_with(&format!("ASK {{ {star} }}"), &options).unwrap_err();
-/// assert!(matches!(
-///     error,
-///     GraphError::Rdf(RdfError::TooManyPatterns { count: 101, max: 100 })
-/// ));
+/// assert!(rg.sparql_with("ASK { ?s raphtory:knows ?o }", &options).is_ok());
 /// ```
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct SparqlOptions {
     /// Whether queries can call the temporal functions [`VALID_FROM`], [`VALID_TO`],
     /// [`VALID_FROM_TIME`] and [`VALID_TO_TIME`] (see
-    /// [`with_temporal_functions`](crate::rdf::with_temporal_functions)). Defaults to `true`.
+    /// [the rules](crate::rdf#the-rules-of-the-temporal-functions)). Defaults to `true`.
     /// Without them, a query that calls one fails with [`RdfError::SparqlEvaluation`].
     ///
     /// They read a triple's full history without the view's filters (but never report a triple
@@ -220,12 +272,8 @@ pub struct SparqlOptions {
     /// [`RdfError::TooManyPatterns`]: crate::rdf::RdfError::TooManyPatterns
     pub max_triple_patterns: Option<usize>,
 
-    /// A token that stops the query with [`RdfError::Cancelled`] when cancelled (also if
-    /// cancelled before it starts). The query never cancels the token itself, so it can be shared
-    /// and reused. Defaults to `None`.
-    ///
-    /// [`RdfError::Cancelled`]: crate::rdf::RdfError::Cancelled
-    pub cancellation_token: Option<CancellationToken>,
+    /// Set by [`with_cancellation_token`](Self::with_cancellation_token).
+    pub(crate) cancellation_token: Option<CancellationToken>,
 
     /// The RDF dataset of the query, replacing the one its `FROM` and `FROM NAMED` clauses
     /// give, as the `default-graph-uri` and `named-graph-uri` parameters of the SPARQL 1.1
@@ -236,28 +284,6 @@ pub struct SparqlOptions {
 /// An RDF dataset for [`SparqlOptions::dataset`]: the graphs merged into the default graph and
 /// the named graphs `GRAPH` can match. Only the default graph of the view and the time graphs
 /// `<raphtory:asof:T>` hold triples; other IRIs name empty graphs.
-///
-/// # Example
-/// ```
-/// use raphtory::{
-///     prelude::*,
-///     rdf::{model::NamedNode, RdfFormat, SparqlDataset, SparqlOptions, SparqlResults},
-/// };
-///
-/// let pg = PersistentGraph::new();
-/// let doc = "<http://ex/alice> <http://ex/knows> <http://ex/bob> .";
-/// pg.load_rdf(1, doc.as_bytes(), RdfFormat::NTriples, None).unwrap();
-/// pg.retract_rdf(5, doc.as_bytes(), RdfFormat::NTriples, None).unwrap();
-///
-/// // the default graph is the graph as of 3
-/// let options = SparqlOptions::default().with_dataset(SparqlDataset {
-///     default_graphs: vec![NamedNode::new("raphtory:asof:3").unwrap()],
-///     named_graphs: vec![],
-/// });
-/// let ask = "ASK { ?s ?p ?o }";
-/// assert_eq!(pg.sparql_with(ask, &options).unwrap(), SparqlResults::Boolean(true));
-/// assert_eq!(pg.sparql(ask).unwrap(), SparqlResults::Boolean(false));
-/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SparqlDataset {
     /// The graphs merged into the default graph; none is an empty default graph.
@@ -319,27 +345,11 @@ impl SparqlOptions {
         self
     }
 
-    /// Sets [`cancellation_token`](Self::cancellation_token). Keep a clone of the token to
-    /// cancel the query with.
+    /// Stops the query with [`RdfError::Cancelled`] once `token` is cancelled (also if it is
+    /// cancelled before the query starts). Keep a clone of the token to cancel the query with;
+    /// the query never cancels it, so it can be shared and reused.
     ///
-    /// # Example
-    /// ```
-    /// use raphtory::{
-    ///     errors::GraphError,
-    ///     prelude::*,
-    ///     rdf::{CancellationToken, RdfError, RdfViewOps, SparqlOptions},
-    /// };
-    ///
-    /// let g = Graph::new();
-    /// g.add_edge(1, "Alice", "Bob", NO_PROPS, None).unwrap();
-    /// let token = CancellationToken::new();
-    /// let options = SparqlOptions::default().with_cancellation_token(token.clone());
-    /// assert!(g.sparql_with("SELECT * { ?s ?p ?o }", &options).is_ok());
-    ///
-    /// token.cancel(); // from any thread
-    /// let error = g.sparql_with("SELECT * { ?s ?p ?o }", &options).unwrap_err();
-    /// assert!(matches!(error, GraphError::Rdf(RdfError::Cancelled)));
-    /// ```
+    /// [`RdfError::Cancelled`]: crate::rdf::RdfError::Cancelled
     pub fn with_cancellation_token(mut self, token: CancellationToken) -> Self {
         self.cancellation_token = Some(token);
         self
@@ -349,29 +359,6 @@ impl SparqlOptions {
     pub fn with_dataset(mut self, dataset: impl Into<Option<SparqlDataset>>) -> Self {
         self.dataset = dataset.into();
         self
-    }
-}
-
-/// The time limit of `seconds` seconds, for [`SparqlOptions::with_timeout`]: `None` if
-/// `seconds` is negative, NaN or infinite, and [`Duration::MAX`] if too large for a `Duration`.
-///
-/// # Example
-/// ```
-/// use raphtory::rdf::timeout_from_secs;
-/// use std::time::Duration;
-///
-/// assert_eq!(timeout_from_secs(1.5), Some(Duration::from_millis(1500)));
-/// assert_eq!(timeout_from_secs(0.0), Some(Duration::ZERO));
-/// assert_eq!(timeout_from_secs(1e20), Some(Duration::MAX));
-/// assert_eq!(timeout_from_secs(-1.0), None);
-/// assert_eq!(timeout_from_secs(f64::INFINITY), None);
-/// assert_eq!(timeout_from_secs(f64::NAN), None);
-/// ```
-pub fn timeout_from_secs(seconds: f64) -> Option<Duration> {
-    if seconds.is_finite() && seconds >= Duration::MAX.as_secs_f64() {
-        Some(Duration::MAX)
-    } else {
-        Duration::try_from_secs_f64(seconds).ok()
     }
 }
 
@@ -397,14 +384,23 @@ pub(crate) fn dedup_triples<'a>(
 /// which aborts the process.
 pub const MAX_SPARQL_NESTING: usize = 128;
 
-/// The stack size for a thread that runs a SPARQL query of `length` bytes: 16 MiB, plus 8 KiB
-/// for every byte of the query.
-///
-/// Long flat queries (such as `?s ?p (1 1 1 ...)`) also make deep recursion, so a query of a
-/// few kilobytes can overflow a default stack. Run queries you do not control on a thread with
-/// this stack size (reserved address space: only what the query uses is memory).
-pub fn sparql_stack_size(length: usize) -> usize {
-    (16usize << 20).saturating_add(length.saturating_mul(8 << 10))
+/// Runs `f`, which parses and evaluates `query`, on a thread with a stack of 16 MiB plus 8 KiB
+/// per byte of the query, and re-raises its panic. A stack overflow aborts the process, and
+/// long flat queries (such as `?s ?p (1 1 1 ...)`) recurse deeply too, so a query of a few
+/// kilobytes can overflow a default stack. Only the stack the query uses is memory.
+pub(crate) fn on_query_stack<R: Send>(
+    query: &str,
+    f: impl FnOnce() -> Result<R, GraphError> + Send,
+) -> Result<R, GraphError> {
+    let stack_size = (16usize << 20).saturating_add(query.len().saturating_mul(8 << 10));
+    thread::scope(|scope| {
+        thread::Builder::new()
+            .name("raphtory-sparql".to_owned())
+            .stack_size(stack_size)
+            .spawn_scoped(scope, f)?
+            .join()
+            .unwrap_or_else(|panic| panic::resume_unwind(panic))
+    })
 }
 
 /// Fails with [`RdfError::SparqlTooDeep`] if the brackets of `query` might nest deeper than
@@ -519,7 +515,7 @@ pub(crate) fn parse(query: &str) -> Result<Query, GraphError> {
         .parse_query(query)?)
 }
 
-/// Evaluates a parsed query on the triples visible in `view.valid()` and hands the (lazy)
+/// Evaluates a parsed query on the triples visible in `view` and hands the (lazy)
 /// results to `f`, applying the limits of `options`. A stopped query fails with
 /// [`RdfError::Timeout`] or [`RdfError::Cancelled`], whatever `f` returned.
 pub(crate) fn execute<G: StaticGraphViewOps + IntoDynamic, R>(
@@ -552,7 +548,7 @@ pub(crate) fn execute<G: StaticGraphViewOps + IntoDynamic, R>(
     // spareval gets no cancellation token (it would make `EXISTS` see errors as matches); the
     // dataset checks the interrupt instead.
     let evaluator = if options.temporal_functions {
-        with_temporal_functions(evaluator(), view.clone())
+        temporal_functions_of(evaluator(), view.clone())
     } else {
         evaluator()
     };
@@ -626,16 +622,18 @@ fn interruptible(results: QueryResults<'_>, interrupt: Arc<Interrupt>) -> QueryR
     }
 }
 
-/// Body of [`RdfViewOps::sparql_with`](crate::rdf::RdfViewOps::sparql_with).
+/// Body of [`RdfView::sparql_with`](crate::rdf::RdfView::sparql_with).
 pub(crate) fn sparql<G: StaticGraphViewOps + IntoDynamic>(
     view: &G,
     query: &str,
     options: &SparqlOptions,
 ) -> Result<SparqlResults, GraphError> {
-    execute(
-        view,
-        parse(query)?,
-        options,
-        SparqlResults::from_query_results,
-    )
+    on_query_stack(query, || {
+        execute(
+            view,
+            parse(query)?,
+            options,
+            SparqlResults::from_query_results,
+        )
+    })
 }

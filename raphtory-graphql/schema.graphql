@@ -2642,32 +2642,6 @@ type Graph {
 		"""
 		views: [GraphViewCollection!]!
 	): Graph!
-	"""
-	Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the RDF triples of this
-	view and returns the results as one serialized document. The view has one triple per
-	visible edge and layer (source, layer, destination); a name that is not an IRI, a blank
-	node or a literal is an IRI under `raphtory:`, a prefix every query can use. On
-	PERSISTENT graphs the triples are the state at the end of the view, so under
-	`snapshotAt(time: T)` the state as of T; EVENT graphs ignore deletions (use
-	`graphType: PERSISTENT`). `GRAPH <raphtory:asof:T>` matches the triples as of T. The
-	temporal functions (`raphtory:validFrom`, `validTo`, `validFromTime`, `validToTime`) are
-	unavailable when the caller's access to the graph is row-filtered. Disabled when the
-	server sets `disable_lists`. Queries longer than the server's `max_sparql_query_length`
-	(16 KiB by default), with more than `max_sparql_triple_patterns` triple patterns (100 by
-	default) or with brackets nested more than 128 deep are rejected before they run, and a
-	query that runs longer than `sparql_timeout` (30 seconds by default) is stopped with an
-	error.
-	"""
-	sparql(
-		"""
-		The SPARQL 1.1 query.
-		"""
-		query: String!,
-		"""
-		Result format: a name, file extension or media type. SELECT and ASK: `json` (SPARQL Results JSON, the default), `xml`, `csv` or `tsv`. CONSTRUCT and DESCRIBE: an RDF format, `nt` (N-Triples, the default), `ttl`, `jsonld`, `rdf` (RDF/XML), `nq` or `trig`. `json` and `xml` mean a different format for each form of query; a format that does not fit the query is an error.
-		"""
-		format: String
-	): String!
 }
 
 """
@@ -7302,6 +7276,380 @@ type QueryRoot {
 		"""
 		path: String!
 	): VectorisedGraph
+	"""
+	Returns a stored graph, event or persistent, viewed as RDF with persistent semantics:
+	one triple per edge and layer (source, layer, destination), where a retraction is a
+	deletion. Null if the caller cannot read the graph.
+	"""
+	rdfGraph(
+		"""
+		Graph path relative to the root namespace.
+		"""
+		path: String!
+	): RdfGraph
+}
+
+"""
+An RDF format.
+"""
+enum RdfFormat {
+	"""
+	Turtle.
+	"""
+	TURTLE
+	"""
+	N-Triples.
+	"""
+	N_TRIPLES
+	"""
+	N-Quads.
+	"""
+	N_QUADS
+	"""
+	TriG.
+	"""
+	TRIG
+	"""
+	RDF/XML.
+	"""
+	RDF_XML
+	"""
+	JSON-LD.
+	"""
+	JSON_LD
+}
+
+"""
+A graph viewed as RDF, with persistent semantics: one triple per visible edge and layer
+(source, layer, destination). A node name that is not an IRI, a blank node or a literal is an
+IRI under `raphtory:`, a prefix every query can use, and the layer of a predicate IRI is the
+IRI with `%`, `/`, `:`, `?` and `*` written `%25`, `%2F`, `%3A`, `%3F` and `%2A` (the
+predicate `<http://ex/knows>` is the layer `http%3A%2F%2Fex%2Fknows`). Every view field
+returns an RDF view, and the RDF fields see exactly the triples of the view: under `valid`
+the current state, under `at(time: T)` the state as of T, and on the whole graph every triple
+ever asserted or retracted.
+"""
+type RdfGraph {
+	"""
+	View restricted to the default layer.
+	"""
+	defaultLayer: RdfGraph!
+	"""
+	View restricted to the named layers.
+	"""
+	layers(
+		"""
+		Layer names to include.
+		"""
+		names: [String!]!
+	): RdfGraph!
+	"""
+	View with the named layers hidden.
+	"""
+	excludeLayers(
+		"""
+		Layer names to exclude.
+		"""
+		names: [String!]!
+	): RdfGraph!
+	"""
+	View restricted to a single layer.
+	"""
+	layer(
+		"""
+		Layer name to include.
+		"""
+		name: String!
+	): RdfGraph!
+	"""
+	View with one layer hidden.
+	"""
+	excludeLayer(
+		"""
+		Layer name to exclude.
+		"""
+		name: String!
+	): RdfGraph!
+	"""
+	View restricted to a set of nodes and the edges between them.
+	"""
+	subgraph(
+		"""
+		Node ids to keep.
+		"""
+		nodes: [NodeId!]!
+	): RdfGraph!
+	"""
+	View of the triples valid at the end of this view: on the whole graph, the current
+	state.
+	"""
+	valid: RdfGraph!
+	"""
+	View restricted to nodes with the given node types.
+	"""
+	subgraphNodeTypes(
+		"""
+		Node types to include.
+		"""
+		nodeTypes: [String!]!
+	): RdfGraph!
+	"""
+	View with a set of nodes removed, along with their edges.
+	"""
+	excludeNodes(
+		"""
+		Node ids to exclude.
+		"""
+		nodes: [NodeId!]!
+	): RdfGraph!
+	"""
+	Windows of a fixed size that move forward by a step, as `Graph.rolling`; each window is
+	an `RdfGraph`.
+	"""
+	rolling(
+		"""
+		Width of each window, as in `Graph.rolling`.
+		"""
+		window: WindowDuration!,
+		"""
+		Gap between the starts of consecutive windows; defaults to `window`.
+		"""
+		step: WindowDuration,
+		"""
+		Unit to align the window boundaries to, as in `Graph.rolling`.
+		"""
+		alignmentUnit: AlignmentUnit
+	): RdfGraphWindowSet!
+	"""
+	Windows that grow by a step, as `Graph.expanding`; each window is an `RdfGraph`.
+	"""
+	expanding(
+		"""
+		How much the window grows by on each step.
+		"""
+		step: WindowDuration!,
+		"""
+		Unit to align the window boundaries to, as in `Graph.expanding`.
+		"""
+		alignmentUnit: AlignmentUnit
+	): RdfGraphWindowSet!
+	"""
+	View of the triples that held at some point between start and end.
+	"""
+	window(
+		"""
+		Inclusive lower bound.
+		"""
+		start: TimeInput!,
+		"""
+		Exclusive upper bound.
+		"""
+		end: TimeInput!
+	): RdfGraph!
+	"""
+	View of the state at a time.
+	"""
+	at(
+		"""
+		Instant to pin the view to.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	View of the state at the latest time.
+	"""
+	latest: RdfGraph!
+	"""
+	View of the triples valid at a time.
+	"""
+	snapshotAt(
+		"""
+		Instant at which triples must be valid.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	View of the triples valid at the latest time.
+	"""
+	snapshotLatest: RdfGraph!
+	"""
+	View of the events before a time (exclusive).
+	"""
+	before(
+		"""
+		Exclusive upper bound.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	View of the events after a time (exclusive).
+	"""
+	after(
+		"""
+		Exclusive lower bound.
+		"""
+		time: TimeInput!
+	): RdfGraph!
+	"""
+	Sets the start of the window to the larger of the given time and the current start.
+	"""
+	shrinkStart(
+		"""
+		Proposed new start; has no effect if it would widen the window.
+		"""
+		start: TimeInput!
+	): RdfGraph!
+	"""
+	Sets the end of the window to the smaller of the given time and the current end.
+	"""
+	shrinkEnd(
+		"""
+		Proposed new end; has no effect if it would widen the window.
+		"""
+		end: TimeInput!
+	): RdfGraph!
+	"""
+	View narrowed by a node or edge filter expression, as `Graph.filter`.
+	"""
+	filter(
+		"""
+		Filter expression; if omitted, applies the identity filter.
+		"""
+		expr: GqlFilter
+	): RdfGraph!
+	"""
+	Applies a list of view operations in order, as `Graph.applyViews`.
+	"""
+	applyViews(
+		"""
+		Ordered list of view operations.
+		"""
+		views: [GraphViewCollection!]!
+	): RdfGraph!
+	"""
+	Returns the graph name.
+	"""
+	name: String!
+	"""
+	Returns the path of the graph.
+	"""
+	path: String!
+	"""
+	Returns the time entry of the earliest activity in the view.
+	"""
+	earliestTime: EventTime!
+	"""
+	Returns the time entry of the latest activity in the view.
+	"""
+	latestTime: EventTime!
+	"""
+	Returns the start time of the window. Errors if there is no window.
+	"""
+	start: EventTime!
+	"""
+	Returns the end time of the window. Errors if there is no window.
+	"""
+	end: EventTime!
+	"""
+	Returns the size of the window covered by this view (`end - start`), or None if the view
+	is unbounded.
+	"""
+	windowSize: Int
+	"""
+	Returns the names of the layers with an edge event visible in this view.
+	"""
+	uniqueLayers: [String!]!
+	"""
+	Check if a layer with the given name is present in the graph.
+	"""
+	hasLayer(name: String!): Boolean!
+	"""
+	The same view as a property graph.
+	"""
+	graph: Graph!
+	"""
+	Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
+	and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
+	`snapshotAt(time: T)` of the view. The temporal functions (`raphtory:validFrom`,
+	`validTo`, `validFromTime`, `validToTime`) are unavailable when the caller's access to
+	the graph is row-filtered. Disabled when the server sets `disable_lists`. Queries longer
+	than the server's `max_sparql_query_length` (16 KiB by default), with more than
+	`max_sparql_triple_patterns` triple patterns (100 by default) or with brackets nested
+	more than 128 deep are rejected before they run, and a query that runs longer than
+	`sparql_timeout` (30 seconds by default) is stopped with an error.
+	"""
+	sparql(
+		"""
+		The SPARQL 1.1 query.
+		"""
+		query: String!,
+		"""
+		The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error.
+		"""
+		format: SparqlFormat
+	): String!
+	"""
+	The triples of this view as one RDF document. Disabled when the server sets
+	`disable_lists`. An export that runs longer than `sparql_timeout` (30 seconds by default)
+	is stopped with an error.
+	"""
+	toRdf(
+		"""
+		The RDF format of the document; N_TRIPLES by default.
+		"""
+		format: RdfFormat
+	): String!
+	"""
+	Validates the triples of this view against a SHACL shapes graph and returns the W3C
+	`sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
+	are rejected. Disabled when the server sets `disable_lists`. A validation that runs
+	longer than `sparql_timeout` (30 seconds by default) is stopped with an error.
+	"""
+	validateShacl(
+		"""
+		The shapes graph, as an RDF document.
+		"""
+		shapes: String!,
+		"""
+		The RDF format of the shapes; TURTLE by default.
+		"""
+		format: RdfFormat,
+		"""
+		The RDF format of the report; TURTLE by default.
+		"""
+		reportFormat: RdfFormat
+	): String!
+}
+
+"""
+The windows of `rolling` or `expanding` on an `RdfGraph`, each an `RdfGraph`.
+"""
+type RdfGraphWindowSet {
+	"""
+	Number of windows in this set.
+	"""
+	count: Int!
+	"""
+	One page of windows, as `GraphWindowSet.page`.
+	"""
+	page(
+		"""
+		Maximum number of items to return on this page.
+		"""
+		limit: Int!,
+		"""
+		Extra items to skip on top of `pageIndex` paging (default 0).
+		"""
+		offset: Int,
+		"""
+		Zero-based page number; multiplies `limit` to determine where to start (default 0).
+		"""
+		pageIndex: Int
+	): [RdfGraph!]!
+	"""
+	Every window, as `GraphWindowSet.list`. Rejected when the server sets `disable_lists`.
+	"""
+	list: [RdfGraph!]!
 }
 
 """
@@ -7331,6 +7679,53 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+"""
+A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
+CONSTRUCT and DESCRIBE.
+"""
+enum SparqlFormat {
+	"""
+	SPARQL 1.1 Query Results JSON; JSON-LD for CONSTRUCT and DESCRIBE.
+	"""
+	JSON
+	"""
+	SPARQL Query Results XML; RDF/XML for CONSTRUCT and DESCRIBE.
+	"""
+	XML
+	"""
+	SPARQL 1.1 Query Results CSV.
+	"""
+	CSV
+	"""
+	SPARQL 1.1 Query Results TSV.
+	"""
+	TSV
+	"""
+	Turtle.
+	"""
+	TURTLE
+	"""
+	N-Triples.
+	"""
+	N_TRIPLES
+	"""
+	N-Quads.
+	"""
+	N_QUADS
+	"""
+	TriG.
+	"""
+	TRIG
+	"""
+	RDF/XML.
+	"""
+	RDF_XML
+	"""
+	JSON-LD.
+	"""
+	JSON_LD
 }
 
 """

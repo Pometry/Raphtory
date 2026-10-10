@@ -84,13 +84,15 @@ asserted when the pull request or issue is opened, and an issue's state reflects
 
 ## Querying
 
-The query pages are the quickest way in; each tab says what it shows. Any SPARQL client can use the endpoints.
-To query the past:
+The query pages are the quickest way in; each tab says what it shows. Any SPARQL client can use the endpoints, which
+query the current state of a graph. To query the past:
 
 - add `?asof=2024-06-01` to an endpoint URL, which runs every query on the graph as it was on that date
   (in YASGUI, put it in the endpoint field);
 - or name a time in the query: `FROM <raphtory:asof:2024-06-01>` for the whole query, or
-  `GRAPH <raphtory:asof:2024-06-01> { ... }` for part of it, to compare dates in one query.
+  `GRAPH <raphtory:asof:2024-06-01> { ... }` for part of it, to compare dates in one query. A query that names a time
+  runs on the whole history, where `BIND(raphtory:validFrom(?s, ?p, ?o) AS ?since) FILTER(BOUND(?since))` keeps the
+  triples that hold now.
 
 ```bash
 curl -H 'Accept: text/csv' \
@@ -102,24 +104,25 @@ curl -H 'Accept: text/csv' \
 From Python, without a server:
 
 ```python
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
-g = PersistentGraph.load_from_file("graphs/github")
-rows = g.snapshot_at("2024-06-01").sparql("""
+rg = RdfGraph.load("graphs/github")
+rows = rg.at("2024-06-01").sparql("""
     PREFIX gh: <http://example.org/gh/>
     SELECT (COUNT(*) AS ?open) WHERE { ?pr a gh:PullRequest ; gh:state gh:Open }
 """, decode_literals=True)
 print(rows)  # [{'open': 6}] for pometry/raphtory
 ```
 
-The Raphtory UI on <http://localhost:1736> shows the same graph as nodes and edges, and the GraphQL API has the
-same queries as `graph(path: "github") { sparql(query: "...") }`.
+`rg.valid()` is the current state, and `rg.graph` the same graph as a `PersistentGraph`. The Raphtory UI on
+<http://localhost:1736> shows the same graph as nodes and edges, and the GraphQL API has the same queries as
+`rdfGraph(path: "github") { valid { sparql(query: "...") } }`.
 
 ## Validation
 
 [`schema/github.ttl`](schema/github.ttl) describes the graph as SHACL shapes. `make validate` checks the graph against
-them now, as of the start of each year of its history, and on its event view, which keeps every triple ever asserted
-and ignores retractions:
+them now, as of the start of each year of its history, and on its whole history, which holds every triple ever
+asserted:
 
 ```output
 now:          conforms
@@ -127,7 +130,8 @@ as of 2018-01-01: conforms
 as of 2019-01-01: conforms
 ...
 as of 2026-01-01: conforms
-event view:   2575 violations (2575 x http://example.org/gh/state MaxCountConstraintComponent)
+ever:         2575 violations (2575 x http://example.org/gh/state MaxCountConstraintComponent)
 ```
 
-The graph conforms at every time, but its event view does not: there, a merged pull request is both open and merged.
+The graph conforms at every time, but its whole history does not: there, a merged pull request is both open and
+merged.

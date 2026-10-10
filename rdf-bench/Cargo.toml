@@ -12,21 +12,25 @@ rust-version.workspace = true
 criterion = { workspace = true }
 raphtory = { workspace = true }
 oxigraph = { workspace = true, optional = true }
+spargebra = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }
 bzip2 = { workspace = true, optional = true }
 csv = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
+rustc-hash = { workspace = true, optional = true }
 
 [features]
 rdf = [
     "raphtory/rdf",
     "dep:oxigraph",
+    "dep:spargebra",
     "dep:flate2",
     "dep:zip",
     "dep:bzip2",
     "dep:csv",
     "dep:regex",
+    "dep:rustc-hash",
 ]
 
 [[bench]]

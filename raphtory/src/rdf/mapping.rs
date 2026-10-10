@@ -1,6 +1,7 @@
-//! The bijection between Raphtory names (node names and layer names) and RDF terms.
+//! The bijections between Raphtory names and RDF terms: one for node names, one for layer
+//! names.
 //!
-//! [`term_of`] maps every string to an RDF term and [`name_of`] is its checked inverse:
+//! [`term_of`] maps every node name to an RDF term and [`name_of`] is its checked inverse:
 //!
 //! - an absolute IRI (anything [`NamedNode::new`] accepts that does not start with
 //!   [`RESERVED_NS`]) is kept verbatim,
@@ -11,15 +12,31 @@
 //!   `"hi"@en--ltr`),
 //! - every other string `n` becomes `<raphtory:pct_encode(n)>`.
 //!
-//! RDF 1.2 terms are never the term of a name, so the mapping does not depend on whether
-//! oxigraph was built with RDF 1.2. `name_of(term_of(n).as_ref()) == Some(n)` for every `n`,
-//! and `name_of` returns `Some` only for terms `term_of` can produce.
+//! [`layer_term`] and [`layer_name_of`] do the same for layer names, except that the layer of a
+//! predicate IRI is named by the IRI with `%`, `/`, `:`, `?` and `*` percent-escaped (`%25`,
+//! `%2F`, `%3A`, `%3F` and `%2A`), so `<http://ex/knows>` is the layer `http%3A%2F%2Fex%2Fknows`.
+//! Layer names must be safe as file names on every platform, because the storage may use them
+//! in folder names. A layer name starting with `"` or `_:` follows the literal and blank-node
+//! rules above, and any other layer name that is not such an escaped IRI becomes
+//! `<raphtory:pct_encode(n)>`, like a node name. So the layer of `<raphtory:rest>` is
+//! `pct_decode(rest)`, which may contain characters not allowed in file names; writes reject
+//! those.
+//!
+//! RDF 1.2 terms are never the term of a name, so the mappings do not depend on whether
+//! oxigraph was built with RDF 1.2. `name_of(term_of(n).as_ref()) == Some(n)` and
+//! `layer_name_of(layer_term(n).as_ref()) == Some(n)` for every `n`, and the inverses return
+//! `Some` only for terms their mapping can produce.
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use oxigraph::model::{vocab::rdf, BlankNode, Literal, LiteralRef, NamedNode, Term, TermRef};
+use oxigraph::model::{
+    vocab::rdf, BlankNode, Literal, LiteralRef, NamedNode, NamedNodeRef, Term, TermRef,
+};
+use percent_encoding::{
+    percent_decode_str, utf8_percent_encode, AsciiSet, PercentEncode, NON_ALPHANUMERIC,
+};
 use raphtory_api::core::entities::properties::prop::Prop;
 use spareval::ExpressionTerm;
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 /// The IRI prefix used for Raphtory names that are not themselves RDF terms.
 ///
@@ -27,7 +44,7 @@ use std::str::FromStr;
 /// `<raphtory:_default>`.
 pub const RESERVED_NS: &str = "raphtory:";
 
-/// Maps a Raphtory name (node name or layer name) to its RDF term. Total and injective.
+/// Maps a node name to its RDF term. Total and injective. Layer names use [`layer_term`].
 ///
 /// A name `_:label` is a blank node only if `label` is valid in N-Triples, Turtle and SPARQL
 /// (`_:a:b` is `<raphtory:_%3Aa%3Ab>`).
@@ -62,7 +79,7 @@ pub fn term_of(name: &str) -> Term {
     NamedNode::new_unchecked(format!("{RESERVED_NS}{}", pct_encode(name))).into()
 }
 
-/// Maps an RDF term back to the Raphtory name it stands for.
+/// Maps an RDF term back to the node name it stands for.
 ///
 /// This is the checked inverse of [`term_of`]: it returns `Some(n)` only if
 /// `term_of(&n) == t`. Non-canonical terms (for example `<raphtory:%61>`, lower-case
@@ -72,7 +89,8 @@ pub fn name_of(t: TermRef<'_>) -> Option<String> {
     let candidate = match t {
         TermRef::NamedNode(n) => match n.as_str().strip_prefix(RESERVED_NS) {
             Some(rest) => pct_decode(rest)?,
-            None => n.as_str().to_owned(),
+            // `term_of` keeps exactly the valid IRIs outside `RESERVED_NS`
+            None => return is_valid_iri(n).then(|| n.as_str().to_owned()),
         },
         TermRef::BlankNode(b) => format!("_:{}", b.as_str()),
         TermRef::Literal(l) => l.to_string(),
@@ -82,11 +100,113 @@ pub fn name_of(t: TermRef<'_>) -> Option<String> {
     (term_of(&candidate).as_ref() == t).then_some(candidate)
 }
 
-/// The predicate IRI of the layer named `name`, or `None` if its term ([`term_of`]) is not an
-/// IRI (a layer named like a literal or a blank node gives generalized triples, which RDF
+/// Maps a layer name to its RDF term. Total and injective.
+///
+/// The layer of a predicate IRI is named by the IRI with `%`, `/`, `:`, `?` and `*` written
+/// `%25`, `%2F`, `%3A`, `%3F` and `%2A`, so that layer names are valid file names. A name that
+/// is not such an escaped IRI (it contains a raw `/`, `:`, `?` or `*` or another `%` sequence,
+/// or does not unescape to an IRI outside `raphtory:`) is `<raphtory:pct_encode(name)>`, and
+/// names starting with `"` or `_:` follow the literal and blank-node rules of [`term_of`].
+///
+/// # Example
+/// ```
+/// use raphtory::rdf::{layer_name_of, layer_term};
+/// let knows = layer_term("http%3A%2F%2Fex%2Fknows");
+/// assert_eq!(knows.to_string(), "<http://ex/knows>");
+/// assert_eq!(layer_name_of(knows.as_ref()).as_deref(), Some("http%3A%2F%2Fex%2Fknows"));
+/// assert_eq!(layer_term("_default").to_string(), "<raphtory:_default>");
+/// ```
+pub fn layer_term(name: &str) -> Term {
+    if name.starts_with('"') || name.starts_with("_:") {
+        return term_of(name);
+    }
+    if !name.starts_with(RESERVED_NS) {
+        if let Some(iri) = unescape_layer(name) {
+            if !iri.starts_with(RESERVED_NS) {
+                if let Ok(iri) = NamedNode::new(iri) {
+                    return iri.into();
+                }
+            }
+        }
+    }
+    NamedNode::new_unchecked(format!("{RESERVED_NS}{}", pct_encode(name))).into()
+}
+
+/// Maps an RDF term back to the layer name it stands for.
+///
+/// This is the checked inverse of [`layer_term`]: it returns `Some(n)` only if
+/// `layer_term(&n) == t`.
+pub fn layer_name_of(t: TermRef<'_>) -> Option<String> {
+    let candidate = match t {
+        TermRef::NamedNode(n) => match n.as_str().strip_prefix(RESERVED_NS) {
+            Some(rest) => pct_decode(rest)?,
+            // `layer_term` unescapes the escaped name of a valid IRI back to it
+            None => return is_valid_iri(n).then(|| escape_layer(n.as_str()).into_owned()),
+        },
+        TermRef::BlankNode(b) => format!("_:{}", b.as_str()),
+        TermRef::Literal(l) => l.to_string(),
+        #[allow(unreachable_patterns)]
+        _ => return None, // RDF 1.2 triple terms
+    };
+    (layer_term(&candidate).as_ref() == t).then_some(candidate)
+}
+
+/// The layer name of an IRI that is not under [`RESERVED_NS`]: `%`, `/`, `:`, `?` and `*` as
+/// `%25`, `%2F`, `%3A`, `%3F` and `%2A`.
+pub(crate) fn escape_layer(iri: &str) -> Cow<'_, str> {
+    if !iri.contains(LAYER_ESCAPED) {
+        return Cow::Borrowed(iri);
+    }
+    let mut out = String::with_capacity(iri.len() + 16);
+    for c in iri.chars() {
+        match c {
+            '%' => out.push_str("%25"),
+            '/' => out.push_str("%2F"),
+            ':' => out.push_str("%3A"),
+            '?' => out.push_str("%3F"),
+            '*' => out.push_str("%2A"),
+            c => out.push(c),
+        }
+    }
+    Cow::Owned(out)
+}
+
+/// The characters [`escape_layer`] escapes: the ones an IRI may contain that are not allowed
+/// in Windows or Unix file names.
+const LAYER_ESCAPED: [char; 5] = ['%', '/', ':', '?', '*'];
+
+/// Inverse of [`escape_layer`]: `None` if `name` has a raw `/`, `:`, `?` or `*`, or a `%` not
+/// starting `%25`, `%2F`, `%3A`, `%3F` or `%2A`.
+fn unescape_layer(name: &str) -> Option<Cow<'_, str>> {
+    if name.contains(['/', ':', '?', '*']) {
+        return None;
+    }
+    if !name.contains('%') {
+        return Some(Cow::Borrowed(name));
+    }
+    let mut parts = name.split('%');
+    let mut out = String::with_capacity(name.len());
+    out.push_str(parts.next()?);
+    for part in parts {
+        let c = match part.get(..2)? {
+            "25" => '%',
+            "2F" => '/',
+            "3A" => ':',
+            "3F" => '?',
+            "2A" => '*',
+            _ => return None,
+        };
+        out.push(c);
+        out.push_str(&part[2..]);
+    }
+    Some(Cow::Owned(out))
+}
+
+/// The predicate IRI of the layer named `name`, or `None` if its term ([`layer_term`]) is not
+/// an IRI (a layer named like a literal or a blank node gives generalized triples, which RDF
 /// exports and SHACL leave out).
 pub(crate) fn layer_predicate(name: &str) -> Option<NamedNode> {
-    match term_of(name) {
+    match layer_term(name) {
         Term::NamedNode(iri) => Some(iri),
         _ => None,
     }
@@ -108,55 +228,31 @@ pub(crate) fn is_rdf11_term(t: TermRef<'_>) -> bool {
     }
 }
 
-#[inline]
-fn is_unreserved(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~')
+/// Whether `iri` is valid, as [`NamedNode::new`] checks it.
+fn is_valid_iri(iri: NamedNodeRef<'_>) -> bool {
+    NamedNodeRef::new(iri.as_str()).is_ok()
 }
+
+/// The bytes [`pct_encode`] escapes: all but `[A-Za-z0-9-._~]`.
+const PCT_ENCODED: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
 
 /// Percent-encodes every byte outside `[A-Za-z0-9-._~]` as upper-case `%XX`.
-pub(crate) fn pct_encode(s: &str) -> String {
-    const HEX: &[u8; 16] = b"0123456789ABCDEF";
-    let mut out = String::with_capacity(s.len());
-    for &b in s.as_bytes() {
-        if is_unreserved(b) {
-            out.push(b as char);
-        } else {
-            out.push('%');
-            out.push(HEX[(b >> 4) as usize] as char);
-            out.push(HEX[(b & 0xF) as usize] as char);
-        }
-    }
-    out
+fn pct_encode(s: &str) -> PercentEncode<'_> {
+    utf8_percent_encode(s, PCT_ENCODED)
 }
 
-/// Inverse of [`pct_encode`]. Accepts only unreserved bytes and `%XX` escapes with upper-case
-/// hex digits, and the decoded bytes must be valid UTF-8; anything else gives `None`.
-pub(crate) fn pct_decode(s: &str) -> Option<String> {
-    fn hex(b: u8) -> Option<u8> {
-        match b {
-            b'0'..=b'9' => Some(b - b'0'),
-            b'A'..=b'F' => Some(b - b'A' + 10),
-            _ => None,
-        }
-    }
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if b == b'%' {
-            let hi = hex(*bytes.get(i + 1)?)?;
-            let lo = hex(*bytes.get(i + 2)?)?;
-            out.push((hi << 4) | lo);
-            i += 3;
-        } else if is_unreserved(b) {
-            out.push(b);
-            i += 1;
-        } else {
-            return None;
-        }
-    }
-    String::from_utf8(out).ok()
+/// Decodes `%XX` escapes, or `None` if the result is not UTF-8. It also decodes encodings
+/// [`pct_encode`] does not give: [`name_of`] and [`layer_name_of`] reject those by encoding the
+/// name again.
+fn pct_decode(s: &str) -> Option<String> {
+    percent_decode_str(s)
+        .decode_utf8()
+        .ok()
+        .map(Cow::into_owned)
 }
 
 /// Converts a literal to a Raphtory [`Prop`] by its value, or `None` if its datatype is not
@@ -170,7 +266,7 @@ pub(crate) fn pct_decode(s: &str) -> Option<String> {
 /// | `xsd:decimal` (when it has at most 18 digits after the decimal point, ignoring trailing zeros, at most 38 significant digits and an absolute value below 1.7 × 10^20) | `Decimal` |
 /// | `xsd:float`, `xsd:double` | `F64` |
 /// | `xsd:dateTime` | `DTime` with a timezone, otherwise `NDTime` |
-pub fn literal_to_prop(literal: &Literal) -> Option<Prop> {
+pub(crate) fn literal_to_prop(literal: &Literal) -> Option<Prop> {
     match ExpressionTerm::from(Term::Literal(literal.clone())) {
         ExpressionTerm::StringLiteral(value) => Some(Prop::str(value)),
         ExpressionTerm::LangStringLiteral { value, .. } => Some(Prop::str(value)),

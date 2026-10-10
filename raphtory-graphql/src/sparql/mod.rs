@@ -1,44 +1,43 @@
-//! SPARQL queries over graph views (feature `rdf`), shared by the `sparql` field of `Graph` and
-//! the SPARQL 1.1 Protocol endpoint at `/sparql/<graph path>`.
+//! SPARQL queries over RDF graph views (feature `rdf`), shared by the `sparql` field of
+//! `RdfGraph` and the SPARQL 1.1 Protocol endpoint at `/sparql/<graph path>`, and the limits of
+//! the server that the RDF fields of `RdfGraph` run within.
 mod accept;
 pub(crate) mod endpoint;
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    config::concurrency_config::{
-        sparql_timeout_duration, ConcurrencyConfig, DEFAULT_MAX_SPARQL_QUERY_LENGTH,
-        DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS, DEFAULT_SPARQL_TIMEOUT,
-    },
-    data::Data,
-    model::graph::graph::GqlGraph,
-    paths::ValidGraphPaths,
-    rayon::blocking_compute,
-};
-use async_graphql::Context;
+use crate::{config::concurrency_config::ConcurrencyConfig, rayon::blocking_compute};
 use raphtory::{
-    db::api::view::DynamicGraph,
     errors::GraphError,
-    rdf::{sparql_stack_size, CancellationToken, RdfError, SparqlDataset, SparqlOptions},
+    rdf::{CancellationToken, QueryForm, RdfError, RdfView, SparqlDataset, SparqlOptions},
 };
-use std::{fmt, thread};
+#[cfg(test)]
+use std::sync::Mutex;
+use std::{
+    fmt,
+    panic::{catch_unwind, AssertUnwindSafe},
+};
+use tracing::error;
 
-/// Why a SPARQL query failed. The messages are the errors of the GraphQL `sparql` field.
+/// Why a SPARQL query or an RDF export failed. The messages are the errors of the GraphQL
+/// fields.
 #[derive(Debug)]
 pub(crate) enum SparqlError {
     /// The server sets `disable_lists`.
     Disabled,
     /// The query is longer than `max_sparql_query_length`.
     TooLong { length: usize, max: usize },
-    /// The server's `sparql_timeout` is invalid.
-    InvalidTimeout(String),
     /// Parsing, evaluating or writing the query failed.
     Query(GraphError),
-    /// The client accepts no format for the results of this form of query (`SELECT`, ...).
-    NotAcceptable { form: &'static str },
+    /// The client accepts no format for the results of this form of query.
+    NotAcceptable { form: QueryForm },
     /// RDF/XML, the only RDF format the client accepts, cannot hold `skipped` of the `triples`
     /// triples of the results.
     RdfXmlSkipped { skipped: usize, triples: usize },
+    /// The shapes of `validateShacl` are recursive, which a reader could use to overflow the
+    /// validator's stack and abort the server.
+    #[cfg(feature = "shacl")]
+    RecursiveShapes,
     /// The query could not run.
     Internal(String),
 }
@@ -48,16 +47,22 @@ impl fmt::Display for SparqlError {
         match self {
             Self::Disabled => write!(
                 f,
-                "SPARQL queries are disabled on this server (`disable_lists`)"
+                "SPARQL queries, RDF exports and SHACL validation are disabled on this server \
+                 (`disable_lists`)"
             ),
             Self::TooLong { length, max } => write!(
                 f,
                 "SPARQL query too long: {length} bytes, the limit is {max} bytes \
                  (`max_sparql_query_length`)"
             ),
-            Self::InvalidTimeout(error) => write!(f, "{error} (`sparql_timeout`)"),
             // name the setting that limits the query
-            Self::Query(error @ GraphError::Rdf(RdfError::Timeout { .. })) => {
+            Self::Query(
+                error @ GraphError::Rdf(RdfError::Timeout { .. } | RdfError::ExportTimeout { .. }),
+            ) => {
+                write!(f, "{error} (`sparql_timeout`)")
+            }
+            #[cfg(feature = "shacl")]
+            Self::Query(error @ GraphError::Rdf(RdfError::ShaclTimeout { .. })) => {
                 write!(f, "{error} (`sparql_timeout`)")
             }
             Self::Query(error @ GraphError::Rdf(RdfError::TooManyPatterns { .. })) => {
@@ -66,7 +71,8 @@ impl fmt::Display for SparqlError {
             Self::Query(error) => write!(f, "{error}"),
             Self::NotAcceptable { form } => write!(
                 f,
-                "none of the formats the Accept header allows can hold {form} results"
+                "none of the formats the Accept header allows can hold {} results",
+                form.name()
             ),
             Self::RdfXmlSkipped { skipped, triples } => write!(
                 f,
@@ -74,6 +80,12 @@ impl fmt::Display for SparqlError {
                  triples whose predicate does not end in an XML name); accept another RDF format: \
                  text/turtle, application/n-triples, application/ld+json, application/n-quads or \
                  application/trig"
+            ),
+            #[cfg(feature = "shacl")]
+            Self::RecursiveShapes => write!(
+                f,
+                "recursive SHACL shapes (a shape that refers to itself) cannot be validated on \
+                 this server"
             ),
             Self::Internal(error) => write!(f, "{error}"),
         }
@@ -86,19 +98,21 @@ impl From<GraphError> for SparqlError {
     }
 }
 
-/// Fails if the server disables SPARQL queries or `query` is too long.
-pub(crate) fn check_query(
-    config: Option<&ConcurrencyConfig>,
-    query: &str,
-) -> Result<(), SparqlError> {
+/// Fails if the server disables SPARQL queries, RDF exports and SHACL validation.
+pub(crate) fn check_enabled(config: Option<&ConcurrencyConfig>) -> Result<(), SparqlError> {
     // `SELECT * { ?s ?p ?o }` lists every edge, so SPARQL is a bulk list endpoint.
     if config.is_some_and(|config| config.disable_lists) {
         return Err(SparqlError::Disabled);
     }
-    let max_length = config.map_or(Some(DEFAULT_MAX_SPARQL_QUERY_LENGTH), |config| {
-        config.max_sparql_query_length
-    });
-    match max_length.filter(|&max| query.len() > max) {
+    Ok(())
+}
+
+/// Fails if `query` is longer than `max_sparql_query_length`.
+pub(crate) fn check_length(config: &ConcurrencyConfig, query: &str) -> Result<(), SparqlError> {
+    match config
+        .max_sparql_query_length
+        .filter(|&max| query.len() > max)
+    {
         Some(max) => Err(SparqlError::TooLong {
             length: query.len(),
             max,
@@ -107,68 +121,69 @@ pub(crate) fn check_query(
     }
 }
 
-/// Runs `query` on the view of `graph` as the caller of `ctx` may: within the server's limits,
-/// with the temporal functions only if the caller's read has no row filter, and on a thread
-/// with a stack sized to the query. `write` evaluates the query and serializes its results.
+/// Runs `query` on `view` within the server's limits of `config`. `write` evaluates the query
+/// and serializes its results.
 pub(crate) async fn run_sparql<T: Send + 'static>(
-    ctx: &Context<'_>,
-    graph: &GqlGraph,
+    config: Option<&ConcurrencyConfig>,
+    view: RdfView,
+    temporal_functions: bool,
     query: String,
     dataset: Option<SparqlDataset>,
-    write: impl FnOnce(&DynamicGraph, &str, &SparqlOptions) -> Result<T, SparqlError> + Send + 'static,
+    write: impl FnOnce(&RdfView, &str, &SparqlOptions) -> Result<T, SparqlError> + Send + 'static,
 ) -> Result<T, SparqlError> {
-    let config = ctx.data_opt::<ConcurrencyConfig>();
-    check_query(config, &query)?;
-    // The temporal functions read unfiltered history, which a row filter must hide.
-    let data = ctx.data_unchecked::<Data>();
-    let temporal_functions = !data
-        .read_has_row_filter(ctx, graph.folder().local_path())
-        .await;
-    let timeout = config
-        .map_or(Some(DEFAULT_SPARQL_TIMEOUT), |config| config.sparql_timeout)
-        .map(sparql_timeout_duration)
-        .transpose()
-        .map_err(SparqlError::InvalidTimeout)?;
-    let max_patterns = config.map_or(Some(DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS), |config| {
-        config.max_sparql_triple_patterns
-    });
+    run_limited(config, move |config, token| {
+        check_length(config, &query)?;
+        let options = SparqlOptions::default()
+            .with_temporal_functions(temporal_functions)
+            .with_timeout(config.sparql_timeout)
+            .with_max_triple_patterns(config.max_sparql_triple_patterns)
+            .with_cancellation_token(token)
+            .with_dataset(dataset);
+        #[cfg(test)]
+        let _running = Running::new(&query);
+        write(&view, &query, &options)
+    })
+    .await
+}
+
+/// Runs `f` on the compute pool with the limits of `config` (the defaults if the server sets
+/// none) and a token that is cancelled when the request is dropped, unless the server sets
+/// `disable_lists`.
+pub(crate) async fn run_limited<T: Send + 'static>(
+    config: Option<&ConcurrencyConfig>,
+    f: impl FnOnce(&ConcurrencyConfig, CancellationToken) -> Result<T, SparqlError> + Send + 'static,
+) -> Result<T, SparqlError> {
+    check_enabled(config)?;
+    let config = config.cloned().unwrap_or_default();
     let token = CancellationToken::new();
-    // held until the query is done, or dropped with the request
+    // held until `f` is done, or dropped with the request
     let _cancel_on_drop = CancelOnDrop(token.clone());
-    let view = graph.graph().clone();
-    let options = SparqlOptions::default()
-        .with_temporal_functions(temporal_functions)
-        .with_timeout(timeout)
-        .with_max_triple_patterns(max_patterns)
-        .with_cancellation_token(token)
-        .with_dataset(dataset);
+    compute(move || f(&config, token)).await
+}
+
+/// Runs `f` on the compute pool.
+async fn compute<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, SparqlError> + Send + 'static,
+) -> Result<T, SparqlError> {
     blocking_compute(move || {
-        // Own thread with a stack sized to the query: a stack overflow would abort the server.
-        thread::scope(|scope| {
-            thread::Builder::new()
-                .name("RAP-sparql".to_owned())
-                .stack_size(sparql_stack_size(query.len()))
-                .spawn_scoped(scope, || {
-                    #[cfg(test)]
-                    let _running = Running::new(&query);
-                    write(&view, &query, &options)
-                })
-                .map_err(|error| {
-                    SparqlError::Internal(format!("cannot run the SPARQL query: {error}"))
-                })?
-                .join()
-                .unwrap_or_else(|_| {
-                    Err(SparqlError::Internal(
-                        "the SPARQL query failed unexpectedly".to_owned(),
-                    ))
-                })
+        // a panic on the compute pool would abort the server
+        catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|panic| {
+            let message = panic
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("unknown panic");
+            error!("RDF operation panicked: {message}");
+            Err(SparqlError::Internal(
+                "the RDF operation failed unexpectedly".to_owned(),
+            ))
         })
     })
     .await
 }
 
-/// Cancels the query when the request future is dropped (e.g. on server shutdown). Client
-/// disconnects do not drop it; those queries run until `sparql_timeout`.
+/// Cancels the work when the request future is dropped (e.g. on server shutdown). Client
+/// disconnects do not drop it; that work runs until `sparql_timeout`.
 struct CancelOnDrop(CancellationToken);
 
 impl Drop for CancelOnDrop {
@@ -179,7 +194,7 @@ impl Drop for CancelOnDrop {
 
 /// The SPARQL queries running (tests check when a query stops).
 #[cfg(test)]
-static RUNNING: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+static RUNNING: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Lists a running query in [`RUNNING`] while it lives.
 #[cfg(test)]

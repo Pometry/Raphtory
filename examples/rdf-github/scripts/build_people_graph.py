@@ -12,7 +12,7 @@ import os
 import shutil
 import sys
 
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
 P = b"@prefix ex: <http://example.org/> .\n"
 HISTORY = [
@@ -43,13 +43,13 @@ HISTORY = [
 
 
 def main(graph_path):
-    graph = PersistentGraph()
+    graph = RdfGraph()
     for date, action, document in HISTORY:
         (graph.load_rdf if action == "load" else graph.retract_rdf)(date, document)
     shutil.rmtree(graph_path, ignore_errors=True)
     os.makedirs(os.path.dirname(os.path.abspath(graph_path)), exist_ok=True)
-    graph.save_to_file(graph_path)
-    print(f"{graph.count_temporal_edges()} assertions and retractions -> {graph_path}")
+    graph.graph.save_to_file(graph_path)
+    print(f"{graph.graph.count_temporal_edges()} assertions and retractions -> {graph_path}")
 
 
 if __name__ == "__main__":

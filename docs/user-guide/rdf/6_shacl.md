@@ -2,13 +2,12 @@
 
 [SHACL](https://www.w3.org/TR/shacl/) is the W3C language for describing what valid RDF data looks like: a *shapes
 graph* says, for example, that every `ex:Person` has exactly one `ex:name`, or that an age is a non-negative integer.
-[validate_shacl()][raphtory.GraphView.validate_shacl] checks the RDF triples of any graph or view against a shapes graph
-and returns a *validation report*: whether the data conforms, and one result per violation.
+[validate_shacl()][raphtory.RdfView.validate_shacl] checks the triples of an `RdfGraph` or any view of it against a
+shapes graph and returns a *validation report*: whether the data conforms, and one result per violation.
 
-Validation sees the same triples as [sparql()][raphtory.GraphView.sparql] and `to_rdf()`: one triple per visible edge
-and layer (see the [introduction](1_intro.md#how-triples-become-a-graph)). So, as with SPARQL, time travel is picking
-the view: `g.snapshot_at(t).validate_shacl(shapes)` validates the data as it was at time `t`, and
-[validate_shacl_at()][raphtory.GraphView.validate_shacl_at] validates several times at once.
+Validation sees the same triples as [sparql()][raphtory.RdfView.sparql] and `to_rdf()`, so time travel is picking the
+view: `rg.valid().validate_shacl(shapes)` validates the current state, `rg.at(t).validate_shacl(shapes)` the state as
+of `t`, and [validate_shacl_at()][raphtory.RdfView.validate_shacl_at] several times at once.
 
 !!! info
 
@@ -16,7 +15,8 @@ the view: `g.snapshot_at(t).validate_shacl(shapes)` validates the data as it was
     `raphtory` crate (which turns on `rdf`), in the
     [`raphtory::rdf::shacl`](https://docs.rs/raphtory/latest/raphtory/rdf/shacl/index.html) module. Validation runs
     natively, with the SHACL engine of [rudof](https://rudof-project.github.io/), on the triples of the graph as it
-    reads them, without copying the graph.
+    reads them, without copying the graph. GraphQL has it as the `validateShacl` field of
+    [`rdfGraph`](5_graphql.md).
 
 ## Validating a graph
 
@@ -25,16 +25,16 @@ time 7:
 
 /// tab | :fontawesome-brands-python: Python
 ```python
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
-g = PersistentGraph()
-g.load_rdf(1, b"""
+rg = RdfGraph()
+rg.load_rdf(1, b"""
     @prefix ex: <http://example.org/> .
     ex:alice a ex:Person ; ex:name "Alice" ; ex:age 42 .
     ex:bob   a ex:Person ; ex:name "Bob" .
 """)
-g.retract_rdf(5, b'<http://example.org/alice> <http://example.org/name> "Alice" .')
-g.load_rdf(7, b"<http://example.org/bob> <http://example.org/age> -3 .")
+rg.retract_rdf(5, b'<http://example.org/alice> <http://example.org/name> "Alice" .')
+rg.load_rdf(7, b"<http://example.org/bob> <http://example.org/age> -3 .")
 
 shapes = b"""
     @prefix sh:  <http://www.w3.org/ns/shacl#> .
@@ -48,7 +48,7 @@ shapes = b"""
     ex:PersonAge  sh:path ex:age ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 0 .
 """
 
-report = g.validate_shacl(shapes)
+report = rg.valid().validate_shacl(shapes)
 print(report["conforms"])
 for result in report["results"]:
     print(result["focus_node"], result["path"], result["constraint_component"], result["value"])
@@ -62,17 +62,17 @@ use raphtory::{
     rdf::{shacl::ShaclShapes, RdfFormat},
 };
 
-let g = PersistentGraph::new();
+let rg = RdfGraph::new();
 let people = r#"
     @prefix ex: <http://example.org/> .
     ex:alice a ex:Person ; ex:name "Alice" ; ex:age 42 .
     ex:bob   a ex:Person ; ex:name "Bob" .
 "#;
-g.load_rdf(1, people.as_bytes(), RdfFormat::Turtle, None).unwrap();
+rg.load_rdf(1, people.as_bytes(), RdfFormat::Turtle, None).unwrap();
 let alice_name = r#"<http://example.org/alice> <http://example.org/name> "Alice" ."#;
-g.retract_rdf(5, alice_name.as_bytes(), RdfFormat::NTriples, None).unwrap();
+rg.retract_rdf(5, alice_name.as_bytes(), RdfFormat::NTriples, None).unwrap();
 let bob_age = "<http://example.org/bob> <http://example.org/age> -3 .";
-g.load_rdf(7, bob_age.as_bytes(), RdfFormat::Turtle, None).unwrap();
+rg.load_rdf(7, bob_age.as_bytes(), RdfFormat::Turtle, None).unwrap();
 
 let shapes_ttl = r#"
     @prefix sh:  <http://www.w3.org/ns/shacl#> .
@@ -86,7 +86,7 @@ let shapes_ttl = r#"
     ex:PersonAge  sh:path ex:age ; sh:maxCount 1 ; sh:datatype xsd:integer ; sh:minInclusive 0 .
 "#;
 let shapes = ShaclShapes::parse(shapes_ttl.as_bytes(), RdfFormat::Turtle, None).unwrap();
-let report = g.validate_shacl(&shapes).unwrap();
+let report = rg.valid().validate_shacl(&shapes).unwrap();
 println!("{}", report.conforms);
 for result in &report.results {
     // RDF terms: use `raphtory::rdf::name_of` to get the name of a node
@@ -122,8 +122,11 @@ The report is a dictionary with three keys:
 - `conforms`: `True` if there are no results, of any severity.
 - `results`: one dictionary per result, in a deterministic order, with
     - `focus_node`: the node that does not conform,
-    - `path`: the path of the property shape, if the result comes from one: the predicate (a layer name) for a single
-      predicate, otherwise a SPARQL property path such as `(<http://example.org/worksFor> / <http://example.org/name>)`,
+    - `path`: the path of the property shape, if the result comes from one: the predicate's Raphtory name for a
+      single predicate, as in `sparql()` (the IRI itself, such as `http://example.org/name`, for an IRI not under
+      `raphtory:`, whose layer is the escaped IRI described in [layer names](1_intro.md#layer-names); `manages` for
+      `raphtory:manages`), otherwise a SPARQL property path such as
+      `(<http://example.org/worksFor> / <http://example.org/name>)`,
     - `value`: the value that violates the constraint, if there is one (a count, such as `sh:minCount`, has none),
     - `source_shape`: the shape whose constraint is violated (a blank node of the shapes is `_:` followed by a label,
       which is the same each time the same shapes are validated),
@@ -138,7 +141,7 @@ As with `sparql()`, terms are returned as Raphtory names, so a focus node or a v
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-alice = g.node(report["results"][0]["focus_node"])
+alice = rg.graph.node(report["results"][0]["focus_node"])
 print(alice.name)
 ```
 ///
@@ -158,7 +161,7 @@ when the data can hold such literals:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-document = g.validate_shacl(shapes, report_format="ttl")
+document = rg.valid().validate_shacl(shapes, report_format="ttl")
 ```
 ///
 
@@ -169,36 +172,36 @@ assert document.count("http://www.w3.org/ns/shacl#ValidationResult") == 2
 
 ## Validating the past
 
-The report above describes the current state of the graph. On a `PersistentGraph`, `snapshot_at(t)` is the state as of
-`t`, so it can be validated in the same way, and
-[validate_shacl_at()][raphtory.GraphView.validate_shacl_at] validates several times, parsing the shapes once. It
-returns each time with its report:
+The report above describes the current state. `rg.at(t)` is the state as of `t`, so it can be validated in the same
+way, and [validate_shacl_at()][raphtory.RdfView.validate_shacl_at] validates `snapshot_at(t)` of the view for several
+times, parsing the shapes once. On `rg` that is the state as of each time. It returns each time with its report:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-print(g.snapshot_at(3).validate_shacl(shapes)["conforms"])
+print(rg.at(3).validate_shacl(shapes)["conforms"])
 
-for t, report in g.validate_shacl_at(shapes, [1, 5, 7]):
-    print(t, report["conforms"], len(report["results"]))
+for t, report in rg.validate_shacl_at(shapes, [1, 5, 7]):
+    print(t.t, report["conforms"], len(report["results"]))
 
 # when did the data first stop conforming?
-reports = g.validate_shacl_at(shapes, list(range(10)))
-print(next(t for t, report in reports if not report["conforms"]))
+reports = rg.validate_shacl_at(shapes, list(range(10)))
+print(next(t.t for t, report in reports if not report["conforms"]))
 ```
 ///
 
 /// tab | :fontawesome-brands-rust: Rust
 ```rust
-assert!(g.snapshot_at(3).validate_shacl(&shapes).unwrap().conforms);
+assert!(rg.at(3).validate_shacl(&shapes).unwrap().conforms);
 
-for (t, report) in shapes.validate_at(&g, [1, 5, 7]).unwrap() {
-    println!("{t} {} {}", report.conforms, report.results.len());
+for (t, report) in rg.validate_shacl_at(&shapes, [1, 5, 7]).unwrap() {
+    println!("{} {} {}", t.t(), report.conforms, report.results.len());
 }
 ```
 ///
 
 ```{.python continuation hide}
-assert g.snapshot_at(3).validate_shacl(shapes)["conforms"]
+assert rg.at(3).validate_shacl(shapes)["conforms"]
+assert not rg.valid().validate_shacl_at(shapes, [3])[0][1]["conforms"]
 ```
 
 !!! Output
@@ -212,15 +215,15 @@ assert g.snapshot_at(3).validate_shacl(shapes)["conforms"]
     ```
 
 Times are anything a time can be in Raphtory, such as integers or date-time strings (`"2024-01-01"`), and are returned
-as milliseconds. On an event `Graph`, a snapshot holds every triple asserted up to its time, and retractions are
-ignored; use `g.persistent_graph()` to validate the state as of each time.
+as the `EventTime` of each. On `rg.valid()` each snapshot holds only the triples that still hold now, so call `validate_shacl_at()`
+on `rg` itself.
 
 Every other view works too. For example, a [layer view](../views/3_layer.md) validates only some predicates, so the
 names below are not seen and both people miss one:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-view = g.snapshot_at(3).exclude_layer("http://example.org/name")
+view = rg.at(3).exclude_layer("http%3A%2F%2Fexample.org%2Fname")
 for result in view.validate_shacl(shapes)["results"]:
     print(result["focus_node"], result["path"])
 ```
@@ -235,13 +238,13 @@ for result in view.validate_shacl(shapes)["results"]:
 
 ## Graphs not loaded from RDF
 
-Any graph can be validated. Names that are not RDF terms are IRIs under `raphtory:`, as in SPARQL: the node `Alice` is
-`raphtory:Alice` and the layer `manages` is `raphtory:manages`, which shapes can write after declaring the prefix.
-Results come back as names:
+Any graph can be validated through `RdfGraph(g)`. Names that are not RDF terms are IRIs under `raphtory:`, as in SPARQL:
+the node `Alice` is `raphtory:Alice` and the layer `manages` is `raphtory:manages`, which shapes can write after
+declaring the prefix. Results come back as names:
 
 /// tab | :fontawesome-brands-python: Python
 ```python
-from raphtory import Graph
+from raphtory import Graph, RdfGraph
 
 g = Graph()
 g.add_edge(1, "Alice", "Bob", layer="manages")
@@ -255,9 +258,10 @@ shapes = b"""
     <http://example.org/OneReport> sh:targetSubjectsOf raphtory:manages ;
         sh:property [ sh:path raphtory:manages ; sh:maxCount 1 ] .
 """
-for result in g.validate_shacl(shapes)["results"]:
+rg = RdfGraph(g)
+for result in rg.validate_shacl(shapes)["results"]:
     print(result["focus_node"], result["path"])
-print(g.window(0, 2).validate_shacl(shapes)["conforms"])
+print(rg.window(0, 2).validate_shacl(shapes)["conforms"])
 ```
 ///
 
@@ -308,10 +312,7 @@ process. So shapes fail with `SHACL error: ...` if an RDF list (such as the valu
 members, if shapes and paths nest more than 256 deep, or if a path or list contains itself. To check that values
 belong to a longer list, use `sh:pattern`, or a SPARQL query.
 
-`owl:imports` and `sh:shapesGraph` are not followed: the shapes graph is the document you pass. SHACL validation is not
-available through the [GraphQL server](5_graphql.md): unlike a SPARQL query, a validation cannot be stopped by a
-timeout, so the server cannot bound the work an untrusted request asks for. Validate in Python or Rust, or query the
-server with SPARQL.
+`owl:imports` and `sh:shapesGraph` are not followed: the shapes graph is the document you pass.
 
 ## Subclasses
 
@@ -329,10 +330,10 @@ or implicit class targets and the view has an `rdfs:subClassOf` triple, the repo
 
 /// tab | :fontawesome-brands-python: Python
 ```python
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
-g = PersistentGraph()
-g.load_rdf(1, b"""
+rg = RdfGraph()
+rg.load_rdf(1, b"""
     @prefix ex:   <http://example.org/> .
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     ex:Student rdfs:subClassOf ex:Person .
@@ -343,7 +344,7 @@ shapes = b"""
     @prefix ex: <http://example.org/> .
     ex:PersonShape sh:targetClass ex:Person ; sh:property [ sh:path ex:name ; sh:minCount 1 ] .
 """
-report = g.validate_shacl(shapes)
+report = rg.valid().validate_shacl(shapes)
 print(report["conforms"])
 print(report["warnings"][0][:60])
 ```
@@ -371,10 +372,10 @@ both have a name. The report then has a warning:
 
 /// tab | :fontawesome-brands-python: Python
 ```python
-from raphtory import PersistentGraph
+from raphtory import RdfGraph
 
-g = PersistentGraph()
-g.load_rdf(1, b"""
+rg = RdfGraph()
+rg.load_rdf(1, b"""
     @prefix ex: <http://example.org/> .
     ex:alice a ex:Person ; ex:name "Alice" ; ex:knows ex:bob .
     ex:bob   a ex:Person ; ex:name "Bob" .
@@ -386,10 +387,10 @@ shapes = b"""
         sh:property [ sh:path ex:name ; sh:minCount 1 ] ;
         sh:property [ sh:path ex:knows ; sh:node ex:PersonShape ] .
 """
-print(g.validate_shacl(shapes)["conforms"])
+print(rg.valid().validate_shacl(shapes)["conforms"])
 
-g.load_rdf(2, b"<http://example.org/bob> <http://example.org/knows> <http://example.org/alice> .")
-report = g.validate_shacl(shapes)
+rg.load_rdf(2, b"<http://example.org/bob> <http://example.org/knows> <http://example.org/alice> .")
+report = rg.valid().validate_shacl(shapes)
 for result in report["results"]:
     print(result["focus_node"], result["value"])
 print(report["warnings"][0][:51])
@@ -407,7 +408,8 @@ print(report["warnings"][0][:51])
 
 The validator follows a recursive shape through the data by recursing itself, once per node: on a chain of many
 thousands of nodes that each depend on the next (such as `ex:next` links checked with `sh:node` against the same
-shape), its stack overflows, which ends the process.
+shape), its stack overflows, which ends the process. So the `validateShacl` field of [GraphQL](5_graphql.md) rejects
+recursive shapes.
 
 ## Literal values
 
@@ -436,8 +438,9 @@ positive and negative integer types (`"042"^^xsd:long` becomes `"42"`, and a `xs
   which takes about as long as validating an in-memory copy of the same triples: a few seconds for 200,000 triples.
 - **SHACL 1.2 reifier shapes see no reifiers.** The graph cannot hold triple terms, so `sh:reifierShape` has nothing
   to check, and `sh:reificationRequired true` is never satisfied.
-- **Validation cannot be stopped.** There is no timeout. A validation releases the GIL while it runs, so other Python
-  threads keep running.
+- **No timeout in Python.** A validation releases the GIL while it runs, so other Python threads keep running. In Rust,
+  `validate_shacl_with()` takes a timeout and a cancellation token, and the GraphQL server stops a validation after
+  `sparql_timeout`.
 
 ## Using pySHACL instead
 
@@ -450,7 +453,7 @@ validate with `to_rdf()`:
 import pyshacl
 import rdflib
 
-data = rdflib.Graph().parse(data=g.snapshot_at(3).to_rdf(format="nt"), format="nt")
+data = rdflib.Graph().parse(data=rg.at(3).to_rdf(format="nt"), format="nt")
 shapes_graph = rdflib.Graph().parse(data=shapes, format="turtle")
 conforms, report_graph, report_text = pyshacl.validate(
     data, shacl_graph=shapes_graph, inference="rdfs"
@@ -463,7 +466,7 @@ To validate several times, export each snapshot:
 
 ```{.python notest}
 for t in [1, 5, 7]:
-    data = rdflib.Graph().parse(data=g.snapshot_at(t).to_rdf(format="nt"), format="nt")
+    data = rdflib.Graph().parse(data=rg.at(t).to_rdf(format="nt"), format="nt")
     conforms, _, _ = pyshacl.validate(data, shacl_graph=shapes_graph, inference="rdfs")
     print(t, conforms)
 ```

@@ -27,7 +27,7 @@ help:
 	@echo "make clean     remove the graphs; make distclean also removes the downloaded data"
 
 check:
-	@$(PYTHON) -c "from raphtory import Graph; Graph().sparql('ASK {}')" \
+	@$(PYTHON) -c "from raphtory import RdfGraph; RdfGraph().sparql('ASK {}')" \
 		|| (echo "raphtory with RDF support is needed: build it from this repository (make build-python at its root)" && false)
 
 fetch:

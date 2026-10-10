@@ -1,10 +1,10 @@
 //! Reading BEAR-B, the DBpedia Live part of BEAR (the BEnchmark of RDF ARchives,
 //! <https://aic.ai.wu.ac.at/qadlod/bear.html>), and loading its versions into a
-//! `PersistentGraph`.
+//! `RdfGraph`.
 //!
 //! Shared by `raphtory-rdf-tests/tests/bear.rs` and `rdf-bench/benches/temporal.rs` (both
-//! include this file with `#[path]`), so it only uses `raphtory`, `flate2`, `zip` and
-//! `std`.
+//! include this file and `data.rs` with `#[path]`), so it only uses `raphtory`, `oxigraph`,
+//! `flate2`, `zip` and `std`.
 //!
 //! # The data
 //!
@@ -26,16 +26,15 @@
 //! [`load`] writes version `k` at time `t = k`: version 1 at `t = 1`, and for every pair
 //! `i -> i+1` the deleted triples are retracted and then the added ones asserted, both at
 //! `t = i + 1`. Retractions go first so that a triple a delta deletes and adds stays, as in
-//! `(V \ deleted) ∪ added`. BEAR's own results number versions from 0 (`t = v + 1`).
+//! `(V \ deleted) ∪ added`.
 #![allow(dead_code)]
+use super::data::{data_dir, ntriples, parse};
 use flate2::read::{GzDecoder, MultiGzDecoder};
 use raphtory::{
-    api::core::storage::timeindex::{AsTime, EventTime},
     errors::GraphError,
-    prelude::*,
     rdf::{
         model::{NamedNode, Term, Triple},
-        name_of, RdfFormat, RdfMutationOps, RdfParser, ASOF_NS,
+        RdfFormat, RdfGraph, ASOF_NS,
     },
 };
 use std::{
@@ -46,19 +45,9 @@ use std::{
     str::FromStr,
 };
 
-/// The environment variable that points at the directory with the downloaded RDF data (the
-/// `RDF_DATA_DIR` of the Makefile); BEAR-B is in its `bear-b` subdirectory.
-pub const DATA_ENV: &str = "RAPHTORY_RDF_DATA";
-
 /// The BEAR-B directory `$RAPHTORY_RDF_DATA/bear-b`, or why there is none.
 pub fn bear_b_dir() -> Result<PathBuf, String> {
-    let Some(root) = std::env::var_os(DATA_ENV) else {
-        return Err(format!(
-            "{DATA_ENV} is not set; set it to the directory `make bear-b-fetch` downloads to \
-             (~/.cache/raphtory-rdf by default)"
-        ));
-    };
-    let dir = PathBuf::from(root).join("bear-b");
+    let dir = data_dir("bear-b")?;
     if dir.join("datasets").is_dir() {
         Ok(dir)
     } else {
@@ -137,8 +126,10 @@ impl Changes {
         let mut delta_triples = 0;
         let mut blank_nodes = false;
         for (i, delta) in deltas.iter().enumerate() {
-            let deleted = parse(&delta.deleted).map_err(|e| format!("delta {}: {e}", i + 1))?;
-            let added = parse(&delta.added).map_err(|e| format!("delta {}: {e}", i + 1))?;
+            let deleted = parse(&delta.deleted, RdfFormat::NTriples)
+                .map_err(|e| format!("delta {}: {e}", i + 1))?;
+            let added = parse(&delta.added, RdfFormat::NTriples)
+                .map_err(|e| format!("delta {}: {e}", i + 1))?;
             delta_triples += deleted.len() + added.len();
             blank_nodes |= deleted.iter().chain(&added).any(has_blank_node);
             for triple in deleted {
@@ -172,24 +163,6 @@ impl Changes {
 /// Whether a triple has a blank node.
 pub fn has_blank_node(triple: &Triple) -> bool {
     triple.subject.is_blank_node() || triple.object.is_blank_node()
-}
-
-/// The triples of an N-Triples document.
-pub fn parse(doc: &[u8]) -> Result<Vec<Triple>, String> {
-    RdfParser::from_format(RdfFormat::NTriples)
-        .for_slice(doc)
-        .map(|quad| quad.map(Triple::from).map_err(|e| e.to_string()))
-        .collect()
-}
-
-/// Triples as an N-Triples document.
-pub fn ntriples<'a>(triples: impl IntoIterator<Item = &'a Triple>) -> Vec<u8> {
-    let mut doc = String::new();
-    for triple in triples {
-        doc.push_str(&triple.to_string());
-        doc.push_str(" .\n");
-    }
-    doc.into_bytes()
 }
 
 /// Reads the deltas of a change-based archive (a `.tar.gz` of `.nt.gz` files), in order.
@@ -315,12 +288,14 @@ pub fn untar(tar: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
 
 /// Writes the versions into `g` (see the [module docs](self)). With blank nodes it writes
 /// triple by triple, since `load_rdf` renames blank nodes and later deletions would not match.
-pub fn load<G: RdfMutationOps>(g: &G, changes: &Changes) -> Result<(), GraphError> {
+pub fn load(g: &RdfGraph, changes: &Changes) -> Result<(), GraphError> {
     let write = |t: i64, doc: &[u8], retract: bool| -> Result<(), GraphError> {
         if changes.blank_nodes {
-            for triple in parse(doc).expect("the documents were parsed by Changes::from_deltas") {
+            for triple in parse(doc, RdfFormat::NTriples)
+                .expect("the documents were parsed by Changes::from_deltas")
+            {
                 if retract {
-                    g.delete_triple(t, &triple)?;
+                    g.retract_triple(t, &triple)?;
                 } else {
                     g.add_triple(t, &triple)?;
                 }
@@ -385,127 +360,6 @@ impl Lookup {
             .map(Self::parse)
             .collect()
     }
-
-    /// The layer of the predicate.
-    pub fn layer(&self) -> &str {
-        self.predicate.as_str()
-    }
-
-    /// The node name of the object of a `?PO` query.
-    pub fn object_name(&self) -> Option<String> {
-        self.object.as_ref().and_then(|o| name_of(o.as_ref()))
-    }
-
-    /// The triple pattern with every variable bound to the terms of a triple.
-    pub fn triple(&self, subject: Term, object: Term) -> String {
-        format!("{subject} {} {object} .", self.predicate)
-    }
-}
-
-/// A triple of a lookup, by node names: `(subject, object)`.
-pub type Pair = (String, String);
-
-/// `?P?` and `?PO` natively: the `(subject, object)` names of the triples of a lookup visible
-/// as of `t`, from the edges of its layer in `pg.snapshot_at(t)`.
-pub fn native_mat(pg: &PersistentGraph, q: &Lookup, t: i64) -> Vec<Pair> {
-    let view = pg.snapshot_at(t).valid_layers(q.layer()).valid();
-    match q.object_name() {
-        Some(o) => match view.node(o.as_str()) {
-            Some(node) => node
-                .in_edges()
-                .iter()
-                .map(|e| (e.src().name(), o.clone()))
-                .collect(),
-            None => Vec::new(),
-        },
-        None => view
-            .edges()
-            .iter()
-            .map(|e| (e.src().name(), e.dst().name()))
-            .collect(),
-    }
-}
-
-/// The validity runs `[from, to)` of a triple from its events (`to` is `None` while the run is
-/// open): it holds at `t` if its latest event at or before `t` is an assertion, and at an
-/// identical event time a retraction wins (as `raphtory:validFromTime` reads them).
-pub fn runs(mut events: Events) -> Vec<(i64, Option<i64>)> {
-    events.sort_unstable_by_key(|&(t, asserted)| (t, !asserted));
-    let mut runs = Vec::new();
-    let mut open: Option<i64> = None;
-    for group in events.chunk_by(|(a, _), (b, _)| a.t() == b.t()) {
-        let t = group[0].0.t();
-        let holds = group[group.len() - 1].1;
-        match (open, holds) {
-            (None, true) => open = Some(t),
-            (Some(from), false) => {
-                runs.push((from, Some(t)));
-                open = None;
-            }
-            _ => {}
-        }
-    }
-    if let Some(from) = open {
-        runs.push((from, None));
-    }
-    runs
-}
-
-/// Whether a run list holds at `t`.
-pub fn holds_at(runs: &[(i64, Option<i64>)], t: i64) -> bool {
-    runs.iter()
-        .any(|&(from, to)| from <= t && to.is_none_or(|to| t < to))
-}
-
-/// The events of a triple: `(time, asserted)`.
-pub type Events = Vec<(EventTime, bool)>;
-
-/// Every triple of a lookup in the whole history of `pg` (deleted ones too), with its events:
-/// `(subject, object, events)`, from the edges of its layer.
-fn histories(pg: &PersistentGraph, q: &Lookup) -> Vec<(String, String, Events)> {
-    let layer = pg.valid_layers(q.layer());
-    let edges = match q.object_name() {
-        Some(o) => match layer.node(o.as_str()) {
-            Some(node) => node.in_edges().into_iter().collect::<Vec<_>>(),
-            None => Vec::new(),
-        },
-        None => layer.edges().into_iter().collect(),
-    };
-    edges
-        .into_iter()
-        .map(|e| {
-            let mut events: Vec<_> = e.history().iter().map(|t| (t, true)).collect();
-            events.extend(e.deletions().iter().map(|t| (t, false)));
-            (e.src().name(), e.dst().name(), events)
-        })
-        .collect()
-}
-
-/// `Ver` natively: every validity run of every triple of a lookup, `(subject, object, from,
-/// to)`, read from the history of the edges of its layer.
-pub fn native_ver(pg: &PersistentGraph, q: &Lookup) -> Vec<(String, String, i64, Option<i64>)> {
-    let mut rows = Vec::new();
-    for (s, o, events) in histories(pg, q) {
-        for (from, to) in runs(events) {
-            rows.push((s.clone(), o.clone(), from, to));
-        }
-    }
-    rows
-}
-
-/// `Diff` natively: the triples of a lookup that hold at `j` and not at `i` (added) and those
-/// that hold at `i` and not at `j` (deleted), from the history of the edges of its layer.
-pub fn native_diff(pg: &PersistentGraph, q: &Lookup, i: i64, j: i64) -> (Vec<Pair>, Vec<Pair>) {
-    let (mut added, mut deleted) = (Vec::new(), Vec::new());
-    for (s, o, events) in histories(pg, q) {
-        let runs = runs(events);
-        match (holds_at(&runs, i), holds_at(&runs, j)) {
-            (false, true) => added.push((s, o)),
-            (true, false) => deleted.push((s, o)),
-            _ => {}
-        }
-    }
-    (added, deleted)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -584,34 +438,6 @@ impl BearQuery {
             graphs.join(" "),
             self.pattern
         )
-    }
-
-    pub fn ver_from_named(&self, versions: &[i64]) -> String {
-        let graphs: String = versions
-            .iter()
-            .map(|&t| format!("FROM NAMED {} ", asof(t)))
-            .collect();
-        format!("SELECT * {graphs}{{ GRAPH ?g {{ {} }} }}", self.pattern)
-    }
-
-    /// The interval form of Ver for a lookup: one row per validity run.
-    pub fn ver_intervals(&self, versions: &[i64]) -> Option<String> {
-        let lookup = self.lookup.as_ref()?;
-        let graphs: Vec<String> = versions.iter().map(|&t| asof(t)).collect();
-        let p = &lookup.predicate;
-        let (o, projected) = match &lookup.object {
-            Some(o) => (o.to_string(), "?s"),
-            None => ("?o".to_owned(), "?s ?o"),
-        };
-        Some(format!(
-            "SELECT DISTINCT {projected} ?from ?to {{
-                VALUES ?g {{ {} }}
-                GRAPH ?g {{ ?s {p} {o} }}
-                BIND(raphtory:validFromTime(?s, {p}, {o}, ?g) AS ?from)
-                BIND(raphtory:validToTime(?s, {p}, {o}, ?g) AS ?to)
-            }}",
-            graphs.join(" ")
-        ))
     }
 }
 

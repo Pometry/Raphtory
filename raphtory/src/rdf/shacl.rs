@@ -1,24 +1,25 @@
 //! SHACL validation of graph views (feature `shacl`), with the native engine of rudof's
 //! [`shacl`](https://crates.io/crates/shacl) crate.
 //!
-//! A [`ShaclShapes`] is a compiled SHACL shapes graph. [`ShaclShapes::validate`] (or
-//! [`RdfViewOps::validate_shacl`]) checks the triples of a view against it and returns a
-//! [`ShaclReport`]: the `sh:ValidationReport` of the W3C SHACL recommendation, as Rust values,
-//! which [`ShaclReport::write`] serialises as RDF.
+//! A [`ShaclShapes`] is a compiled SHACL shapes graph.
+//! [`RdfView::validate_shacl`](crate::rdf::RdfView::validate_shacl) checks the triples of a view
+//! against it and returns a [`ShaclReport`]: the `sh:ValidationReport` of the W3C SHACL
+//! recommendation, as Rust values, which [`ShaclReport::write`] serialises as RDF.
 //!
 //! # What SHACL sees
 //!
-//! The data graph is exactly the triples [`to_rdf`](crate::rdf::RdfViewOps::to_rdf) writes and
-//! [`sparql`](crate::rdf::RdfViewOps::sparql) matches: one triple per `(edge, layer)` pair
-//! visible in `view.valid()`, with names mapped to terms by [`term_of`]. Generalized triples (a
-//! literal subject, or a layer whose term is not an IRI) are left out. It is read from the graph
-//! as the validator asks for it, without a copy.
+//! The data graph is exactly the triples [`to_rdf`](crate::rdf::RdfView::to_rdf) writes and
+//! [`sparql`](crate::rdf::RdfView::sparql) matches: one triple per `(edge, layer)` pair
+//! visible in the view, with node names mapped to terms by [`term_of`] and layer names by
+//! [`layer_term`](crate::rdf::layer_term). Generalized triples (a literal subject, or a layer
+//! whose term is not an IRI) are left out. It is read from the graph as the validator asks for
+//! it, without a copy.
 //!
-//! So time travel is picking the view: `pg.snapshot_at(t)` validates the state as of `t`, and
-//! [`ShaclShapes::validate_at`] validates several times. On an event [`Graph`] retractions are
-//! ignored (use `persistent_graph()`). As with `sparql`, validation does not see a snapshot of a
-//! graph that other threads write meanwhile: validate a `read_only()` view for a consistent
-//! result.
+//! So time travel is picking the view: `rg.valid()` validates the current state, `rg.at(t)` the
+//! state as of `t`, and [`RdfView::validate_shacl_at`](crate::rdf::RdfView::validate_shacl_at)
+//! validates several times. As with `sparql`, validation does not see a snapshot of a graph
+//! that other threads write meanwhile: validate a view of a `read_only()` graph for a
+//! consistent result.
 //!
 //! # Supported SHACL
 //!
@@ -60,14 +61,15 @@
 //!    subclass steps below `C` is reported.
 //!
 //! When the shapes use class targets or `sh:class` and the view has an `rdfs:subClassOf`
-//! triple, the report has a warning ([`SUBCLASS_WARNING`]).
+//! triple, the report has a warning ([`ShaclWarning::PartialSubclassReasoning`]).
 //!
 //! Recursive shapes (a shape that refers to itself through `sh:node`, `sh:property`, `sh:not`,
 //! `sh:and`, `sh:or`, `sh:xone` or `sh:qualifiedValueShape`) have the least-fixpoint semantics
 //! of the validator: a node whose conformance depends on itself through a cycle of the data does
 //! not conform (e.g. two people who `ex:knows` each other under a self-referencing shape),
 //! where other processors accept it (SHACL 1.0 leaves recursion undefined).
-//! A report of recursive shapes that has results has a warning ([`RECURSION_WARNING`]). The
+//! A report of recursive shapes that has results has a warning
+//! ([`ShaclWarning::RecursiveShapes`]). The
 //! validator recurses once per node, so a very long chain of mutually dependent nodes overflows
 //! the stack and aborts the process.
 //!
@@ -101,6 +103,7 @@
 //!     prelude::*,
 //!     rdf::{shacl::ShaclShapes, RdfFormat},
 //! };
+//! use raphtory_api::core::storage::timeindex::AsTime;
 //!
 //! let shapes = ShaclShapes::parse(
 //!     r#"
@@ -116,13 +119,13 @@
 //! )
 //! .unwrap();
 //!
-//! let pg = PersistentGraph::new();
+//! let rg = RdfGraph::new();
 //! let doc = r#"
 //!     @prefix ex: <http://ex/> .
 //!     ex:alice a ex:Person ; ex:name "Alice" .
 //! "#;
-//! pg.load_rdf(1, doc.as_bytes(), RdfFormat::Turtle, None).unwrap();
-//! pg.retract_rdf(
+//! rg.load_rdf(1, doc.as_bytes(), RdfFormat::Turtle, None).unwrap();
+//! rg.retract_rdf(
 //!     5,
 //!     r#"<http://ex/alice> <http://ex/name> "Alice" ."#.as_bytes(),
 //!     RdfFormat::NTriples,
@@ -130,39 +133,34 @@
 //! )
 //! .unwrap();
 //!
-//! assert!(pg.validate_shacl(&shapes).unwrap().results.len() == 1);
+//! assert!(rg.valid().validate_shacl(&shapes).unwrap().results.len() == 1);
 //! // as of t = 3 alice had a name
-//! assert!(pg.snapshot_at(3).validate_shacl(&shapes).unwrap().conforms);
+//! assert!(rg.at(3).validate_shacl(&shapes).unwrap().conforms);
 //!
 //! // when was the data valid?
-//! let reports = shapes.validate_at(&pg, [1, 4, 5, 9]).unwrap();
-//! let conforms: Vec<(i64, bool)> = reports.iter().map(|(t, r)| (*t, r.conforms)).collect();
+//! let reports = rg.validate_shacl_at(&shapes, [1, 4, 5, 9]).unwrap();
+//! let conforms: Vec<(i64, bool)> = reports.iter().map(|(t, r)| (t.t(), r.conforms)).collect();
 //! assert_eq!(conforms, [(1, true), (4, true), (5, false), (9, false)]);
 //!
-//! let result = &pg.validate_shacl(&shapes).unwrap().results[0];
+//! let result = &rg.valid().validate_shacl(&shapes).unwrap().results[0];
 //! assert_eq!(result.focus_node.to_string(), "<http://ex/alice>");
-//! assert_eq!(
-//!     result.constraint_component.as_str(),
-//!     "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
-//! );
-//! assert_eq!(result.path.as_ref().unwrap().to_string(), "<http://ex/name>");
 //! ```
 use crate::{
     db::api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic, StaticGraphViewOps},
     errors::GraphError,
-    prelude::*,
     rdf::{
         dataset::lookup_node,
-        export::{xml_text_safe, TripleSink},
+        export::{serializer_with_prefixes, xml_text_safe, TripleSink},
+        limits::Interrupt,
         mapping::{layer_predicate, name_of, term_of},
         scan::{view_layers, Dir, EdgeScan},
-        RdfError, RdfExportStats,
+        CancellationToken, RdfError,
     },
 };
 use dashmap::{mapref::entry::Entry, DashMap};
 use indexmap::IndexMap;
 use oxigraph::{
-    io::{RdfFormat, RdfParser, RdfSerializer},
+    io::{RdfFormat, RdfParser},
     model::{
         vocab::{rdf, rdfs, xsd},
         BlankNode, BlankNodeRef, Literal, NamedNode, NamedNodeRef, NamedOrBlankNode,
@@ -170,20 +168,18 @@ use oxigraph::{
     },
 };
 use prefixmap::{PrefixMap, PrefixMapError};
-use raphtory_api::core::{
-    entities::{LayerId, VID},
-    storage::timeindex::AsTime,
-    utils::time::TryIntoTime,
-};
+use raphtory_api::core::entities::{LayerId, VID};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rudof_iri::IriS;
 use rudof_rdf::{
-    rdf_core::{term::Object, Matcher, NeighsRDF, RDFFormat, Rdf, SHACLPath},
-    rdf_impl::ReaderMode,
+    rdf_core::{term::Object, Matcher, NeighsRDF, Rdf, SHACLPath},
+    rdf_impl::OxigraphInMemory,
 };
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet, FxHasher};
 use shacl::{
+    error::IRError,
     ir::IRSchema,
+    rdf::ShaclParser,
     validator::{
         engine::{Engine, NativeEngine},
         processor::ShaclProcessor,
@@ -194,10 +190,14 @@ use shacl::{
 use std::{
     any::Any,
     fmt,
-    hash::{Hash, Hasher},
+    hash::{BuildHasher, Hash, Hasher},
     io::{Read, Write},
     panic::{catch_unwind, AssertUnwindSafe},
-    sync::{Arc, OnceLock},
+    sync::{
+        atomic::{AtomicUsize, Ordering::Relaxed},
+        Arc, OnceLock,
+    },
+    time::Duration,
 };
 
 /// The SHACL namespace.
@@ -230,19 +230,37 @@ pub const MAX_LIST_LENGTH: usize = 10_000;
 /// [`RdfError::Shacl`] rather than risk a stack overflow.
 pub const MAX_NESTING: usize = 256;
 
-/// The warning of a report on a view with `rdfs:subClassOf` triples, validated with shapes that
-/// use class targets or `sh:class` (see the [module documentation](self)).
-pub const SUBCLASS_WARNING: &str = "the data has rdfs:subClassOf triples, but the validator \
-    follows them only partly: sh:targetClass targets direct rdf:type instances only, and implicit \
-    class targets and sh:class follow a single rdfs:subClassOf step, so results can differ from \
-    those of a SHACL processor with full subclass reasoning";
+/// Why the results of a [`ShaclReport`] may not be those of SHACL (see the
+/// [module documentation](self)). It displays as an explanation for users.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum ShaclWarning {
+    /// The view has `rdfs:subClassOf` triples, which the validator follows only partly, and the
+    /// shapes use class targets or `sh:class`.
+    PartialSubclassReasoning,
+    /// The shapes are recursive, which the validator gives least-fixpoint semantics, and the
+    /// report has results.
+    RecursiveShapes,
+}
 
-/// The warning of a report that has results, validated with recursive shapes (see the
-/// [module documentation](self)).
-pub const RECURSION_WARNING: &str = "the shapes are recursive, and the validator gives \
-    recursion least-fixpoint semantics (which SHACL 1.0 leaves undefined): a node whose \
-    conformance depends on itself through a cycle in the data is reported as not conforming, \
-    where other SHACL processors may accept it";
+impl fmt::Display for ShaclWarning {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::PartialSubclassReasoning => {
+                "the data has rdfs:subClassOf triples, but the validator follows them only \
+                 partly: sh:targetClass targets direct rdf:type instances only, and implicit \
+                 class targets and sh:class follow a single rdfs:subClassOf step, so results can \
+                 differ from those of a SHACL processor with full subclass reasoning"
+            }
+            Self::RecursiveShapes => {
+                "the shapes are recursive, and the validator gives recursion least-fixpoint \
+                 semantics (which SHACL 1.0 leaves undefined): a node whose conformance depends \
+                 on itself through a cycle in the data is reported as not conforming, where \
+                 other SHACL processors may accept it"
+            }
+        })
+    }
+}
 
 const SHACL_SPARQL: &str = "SHACL-SPARQL is not supported";
 const SHACL_AF: &str = "SHACL Advanced Features are not supported";
@@ -310,9 +328,9 @@ fn unsupported_class(local: &str) -> Option<&'static str> {
 pub struct ShaclShapes {
     schema: Arc<IRSchema>,
     /// Whether the shapes use class targets or `sh:class`, which follow `rdfs:subClassOf` only
-    /// partly (see [`SUBCLASS_WARNING`]).
+    /// partly (see [`ShaclWarning::PartialSubclassReasoning`]).
     uses_classes: bool,
-    /// Whether a shape refers to itself (see [`RECURSION_WARNING`]).
+    /// Whether a shape refers to itself (see [`ShaclWarning::RecursiveShapes`]).
     recursive: bool,
     /// The literals of `sh:targetNode` the validator rewrites (see
     /// [`ShapesGraph::rewritten_targets`]).
@@ -421,7 +439,7 @@ impl fmt::Display for ShaclPath {
 }
 
 /// One `sh:ValidationResult` of a [`ShaclReport`]. Terms are RDF terms, as in
-/// [`to_rdf`](crate::rdf::RdfViewOps::to_rdf): use [`name_of`] to get the Raphtory name of a
+/// [`to_rdf`](crate::rdf::RdfView::to_rdf): use [`name_of`] to get the Raphtory name of a
 /// node.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -443,7 +461,8 @@ pub struct ShaclResult {
     pub messages: Vec<Literal>,
 }
 
-/// A SHACL `sh:ValidationReport`: the result of [`ShaclShapes::validate`].
+/// A SHACL `sh:ValidationReport`: the result of
+/// [`RdfView::validate_shacl`](crate::rdf::RdfView::validate_shacl).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ShaclReport {
@@ -452,11 +471,8 @@ pub struct ShaclReport {
     /// `sh:result`: the validation results, in a deterministic order (by focus node, then
     /// constraint component, path, value and source shape).
     pub results: Vec<ShaclResult>,
-    /// Why the results may not be those of SHACL (not part of the W3C report):
-    /// [`SUBCLASS_WARNING`], when the shapes use class targets or `sh:class` and the view has an
-    /// `rdfs:subClassOf` triple, and [`RECURSION_WARNING`], when the shapes are recursive and
-    /// there are results.
-    pub warnings: Vec<String>,
+    /// Why the results may not be those of SHACL (not part of the W3C report).
+    pub warnings: Vec<ShaclWarning>,
 }
 
 impl ShaclShapes {
@@ -501,28 +517,17 @@ impl ShaclShapes {
         graph.check_literals()?;
         let targets = Arc::new(graph.rewritten_targets());
         let uses_classes = uses_classes(&triples);
-        // the validator reads its shapes graph from a document: N-Triples keeps the blank-node
-        // labels as given
-        let mut document = Vec::new();
-        let mut serializer =
-            RdfSerializer::from_format(RdfFormat::NTriples).for_writer(&mut document);
-        for triple in &triples {
-            serializer
-                .serialize_triple(*triple)
-                .map_err(|error| RdfError::Shacl(error.to_string()))?;
-        }
-        serializer
-            .finish()
-            .map_err(|error| RdfError::Shacl(error.to_string()))?;
-        let schema = run_guarded("the SHACL shapes compiler", move || {
-            IRSchema::from_reader(
-                &mut document.as_slice(),
-                "shapes",
-                &RDFFormat::NTriples,
-                None,
-                &ReaderMode::Strict,
-            )
-            .map_err(|error| RdfError::Shacl(error.to_string()))
+        let schema = run_guarded("the SHACL shapes compiler", || {
+            let mut graph = OxigraphInMemory::new();
+            for triple in &triples {
+                graph
+                    .add_triple_ref(triple.subject, triple.predicate, triple.object)
+                    .map_err(RdfError::shacl)?;
+            }
+            let ast = ShaclParser::new(graph)
+                .parse()
+                .map_err(|error| RdfError::shacl(IRError::from(error)))?;
+            IRSchema::try_from(ast).map_err(RdfError::shacl)
         })?;
         Ok(Self {
             schema: Arc::new(schema),
@@ -532,58 +537,53 @@ impl ShaclShapes {
         })
     }
 
-    /// Validates the triples of `view` (the triples [`to_rdf`](crate::rdf::RdfViewOps::to_rdf)
-    /// writes; see the [module documentation](self)).
-    ///
-    /// Runs on a shared pool of large-stack threads while the caller waits; a validator panic
-    /// becomes [`RdfError::Shacl`].
-    pub fn validate<G: StaticGraphViewOps + IntoDynamic>(
+    /// Whether a shape refers to itself. The validator follows such shapes through the data by
+    /// recursing once per node, so on a long enough chain of nodes it overflows its stack.
+    pub fn is_recursive(&self) -> bool {
+        self.recursive
+    }
+
+    /// Body of [`RdfView::validate_shacl_with`](crate::rdf::RdfView::validate_shacl_with).
+    pub(crate) fn validate<G: StaticGraphViewOps + IntoDynamic>(
         &self,
         view: &G,
+        timeout: Option<Duration>,
+        cancellation_token: Option<CancellationToken>,
     ) -> Result<ShaclReport, GraphError> {
         let view = view.clone().into_dynamic();
         let schema = self.schema.clone();
         let (uses_classes, recursive) = (self.uses_classes, self.recursive);
         let targets = self.targets.clone();
+        let interrupt = (timeout.is_some() || cancellation_token.is_some())
+            .then(|| Arc::new(Interrupt::new(cancellation_token, timeout)));
         let report = run_guarded("the SHACL validator", move || {
-            let mut processor = Proc(ShaclStore::new(view).with_targets(targets));
+            let store = ShaclStore::new(view)
+                .with_targets(targets)
+                .with_interrupt(interrupt.clone());
+            let mut processor = Proc(store);
             let mut warnings = Vec::new();
             if uses_classes && processor.0.has_subclass_triples() {
-                warnings.push(SUBCLASS_WARNING.to_owned());
+                warnings.push(ShaclWarning::PartialSubclassReasoning);
             }
-            let report = processor
-                .validate(
-                    &schema,
-                    &ShaclValidationMode::Native,
-                    &ShaclConfig::default(),
-                )
-                .map_err(|error| RdfError::Shacl(error.to_string()))?;
+            let report = processor.validate(
+                &schema,
+                &ShaclValidationMode::Native,
+                &ShaclConfig::default(),
+            );
+            // the scans of a stopped validation end early, so its report is incomplete
+            if let Some(error) = interrupt.as_deref().and_then(Interrupt::error) {
+                return Err(match error {
+                    RdfError::Timeout { timeout } => RdfError::ShaclTimeout { timeout },
+                    _ => RdfError::ShaclCancelled,
+                });
+            }
+            let report = report.map_err(RdfError::shacl)?;
             if recursive && !report.conforms() {
-                warnings.push(RECURSION_WARNING.to_owned());
+                warnings.push(ShaclWarning::RecursiveShapes);
             }
             convert(&report, warnings, &processor.0)
         })?;
         Ok(report)
-    }
-
-    /// Validates `view.snapshot_at(t)` for every time `t` of `times`, in order, and returns each
-    /// time (in milliseconds) with its report.
-    ///
-    /// On a [`PersistentGraph`] that is the state as of each time, so this tells when the data
-    /// started or stopped conforming. On an event [`Graph`] a snapshot holds every triple
-    /// asserted up to the time.
-    pub fn validate_at<G: StaticGraphViewOps + IntoDynamic, T: TryIntoTime>(
-        &self,
-        view: &G,
-        times: impl IntoIterator<Item = T>,
-    ) -> Result<Vec<(i64, ShaclReport)>, GraphError> {
-        times
-            .into_iter()
-            .map(|time| {
-                let t = time.try_into_time()?.t();
-                Ok((t, self.validate(&view.snapshot_at(t))?))
-            })
-            .collect()
     }
 }
 
@@ -721,11 +721,11 @@ struct ShapesGraph<'a> {
 }
 
 fn cyclic_path() -> RdfError {
-    RdfError::Shacl("the shapes graph has a path that contains itself".to_owned())
+    RdfError::shacl("the shapes graph has a path that contains itself")
 }
 
 fn too_deep() -> RdfError {
-    RdfError::Shacl(format!(
+    RdfError::shacl(format!(
         "the shapes graph nests shapes and paths more than {MAX_NESTING} deep, the most the \
          validator accepts"
     ))
@@ -780,14 +780,13 @@ impl<'a> ShapesGraph<'a> {
         let mut node = as_node(head);
         while let Some(current) = node {
             if !seen.insert(current) {
-                return Err(RdfError::Shacl(
-                    "the shapes graph has a cyclic RDF list (its rdf:rest links lead back to it)"
-                        .to_owned(),
+                return Err(RdfError::shacl(
+                    "the shapes graph has a cyclic RDF list (its rdf:rest links lead back to it)",
                 ));
             }
             members.extend(self.objects(current, rdf::FIRST).take(1));
             if members.len() > MAX_LIST_LENGTH {
-                return Err(RdfError::Shacl(format!(
+                return Err(RdfError::shacl(format!(
                     "the shapes graph has an RDF list of more than {MAX_LIST_LENGTH} members, \
                      the most the validator accepts"
                 )));
@@ -1073,7 +1072,7 @@ fn pool() -> Result<&'static ThreadPool, RdfError> {
             .map_err(|error| error.to_string())
     })
     .as_ref()
-    .map_err(|error| RdfError::Shacl(format!("cannot start the SHACL threads: {error}")))
+    .map_err(|error| RdfError::shacl(format!("cannot start the SHACL threads: {error}")))
 }
 
 /// Runs `f` on [`pool`] (so the parallel work of the validator runs there too), turning a panic
@@ -1084,7 +1083,7 @@ pub(crate) fn run_guarded<R: Send>(
 ) -> Result<R, RdfError> {
     pool()?.install(|| {
         catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|panic| {
-            Err(RdfError::Shacl(format!(
+            Err(RdfError::shacl(format!(
                 "{what} panicked: {}",
                 panic_message(&*panic)
             )))
@@ -1092,19 +1091,19 @@ pub(crate) fn run_guarded<R: Send>(
     })
 }
 
-fn panic_message(panic: &(dyn Any + Send)) -> String {
+fn panic_message(panic: &(dyn Any + Send)) -> &str {
     panic
         .downcast_ref::<&str>()
-        .map(|message| message.to_string())
-        .or_else(|| panic.downcast_ref::<String>().cloned())
-        .unwrap_or_else(|| "unknown panic".to_owned())
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("unknown panic")
 }
 
 /// The IRI of a term of a report, which the validator always makes an IRI.
 fn iri(term: Term, what: &str) -> Result<NamedNode, RdfError> {
     match term {
         Term::NamedNode(iri) => Ok(iri),
-        other => Err(RdfError::Shacl(format!("{what} {other} is not an IRI"))),
+        other => Err(RdfError::shacl(format!("{what} {other} is not an IRI"))),
     }
 }
 
@@ -1112,7 +1111,7 @@ fn iri(term: Term, what: &str) -> Result<NamedNode, RdfError> {
 /// (see [`ShaclStore::original`]).
 fn convert(
     report: &ValidationReport,
-    warnings: Vec<String>,
+    warnings: Vec<ShaclWarning>,
     store: &ShaclStore,
 ) -> Result<ShaclReport, RdfError> {
     let mut results = report
@@ -1179,20 +1178,20 @@ impl ShaclReport {
     /// `sh:resultPath` and `sh:resultMessage`). Paths other than a predicate are written as
     /// SHACL paths (RDF lists and blank nodes). [`warnings`](Self::warnings) are not written.
     ///
-    /// `serializer` is an [`RdfFormat`] or an [`RdfSerializer`] (for example with the `sh:`
-    /// prefix from [`serializer_with_prefixes`](crate::rdf::serializer_with_prefixes)). The
-    /// triples of each subject are written together.
+    /// `prefixes` are prefix names and IRIs, such as `("sh", "http://www.w3.org/ns/shacl#")`, as
+    /// in [`to_rdf`](crate::rdf::RdfView::to_rdf). The triples of each subject are written
+    /// together, and the number of triples written is returned.
     ///
     /// In RDF/XML, a report whose focus node, value or message is a literal RDF/XML cannot hold
     /// (control characters other than tab and line feed, U+FFFE, U+FFFF) fails with
-    /// [`RdfError::XmlUnsafeReport`] before anything is written. [`RdfExportStats::skipped`] is
-    /// always 0.
+    /// [`RdfError::XmlUnsafeReport`] before anything is written.
     pub fn write<W: Write>(
         &self,
         writer: W,
-        serializer: impl Into<RdfSerializer>,
-    ) -> Result<RdfExportStats, GraphError> {
-        let serializer = serializer.into();
+        format: RdfFormat,
+        prefixes: &[(&str, &str)],
+    ) -> Result<usize, GraphError> {
+        let serializer = serializer_with_prefixes(format, prefixes.iter().copied())?;
         let mut graph = ReportGraph::default();
         let root: NamedOrBlankNode = BlankNode::default().into();
         graph.add(&root, rdf::TYPE, sh("ValidationReport"));
@@ -1226,7 +1225,7 @@ impl ShaclReport {
                 graph.add(&node, sh("resultMessage").as_ref(), message.clone());
             }
         }
-        if serializer.format() == RdfFormat::RdfXml {
+        if format == RdfFormat::RdfXml {
             if let Some(object) = graph
                 .0
                 .values()
@@ -1243,7 +1242,7 @@ impl ShaclReport {
                 sink.push(subject.as_ref(), predicate.as_ref(), object.as_ref())?;
             }
         }
-        Ok(sink.finish()?)
+        Ok(sink.finish()?.written)
     }
 }
 
@@ -1313,11 +1312,10 @@ impl ReportGraph {
 }
 
 /// The triples of a view, as the validator reads them: one triple per `(edge, layer)` pair
-/// visible in `view.valid()`, as [`to_rdf`](crate::rdf::RdfViewOps::to_rdf) writes them. Every
+/// visible in the view, as [`to_rdf`](crate::rdf::RdfView::to_rdf) writes them. Every
 /// pattern is answered by an [`EdgeScan`], which holds no lock between triples, so writers are
 /// never blocked and the validator's own reads cannot deadlock.
 pub(crate) struct ShaclStore {
-    /// The view (not `valid()`: the scans only produce valid pairs).
     view: DynamicGraph,
     /// The predicate IRI of every layer whose term is an IRI.
     predicates: FxHashMap<LayerId, NamedNode>,
@@ -1325,13 +1323,22 @@ pub(crate) struct ShaclStore {
     layers: FxHashMap<NamedNode, LayerId>,
     /// The terms of the nodes read so far (at most [`TERM_CACHE_CAP`]).
     terms: DashMap<VID, Term, FxBuildHasher>,
+    /// The nodes of `terms`, by [`term_key`] of their term, so a borrowed term can be looked up;
+    /// of two terms with the same key only the first is kept.
+    nodes: DashMap<u64, VID, FxBuildHasher>,
+    /// About the number of entries of `terms` (`DashMap::len` locks every shard).
+    num_terms: AtomicUsize,
     /// The literals read so far that the validator rewrites, by the form it gives them (see
     /// [`canonical_form`]): `None` if several literals have that form. At most
     /// [`TERM_CACHE_CAP`] forms are remembered; the literals of the others stay rewritten in
     /// results.
     originals: DashMap<Term, Option<Term>, FxBuildHasher>,
+    /// About the number of entries of `originals`.
+    num_originals: AtomicUsize,
     /// The literals of `sh:targetNode` the validator rewrites, by the form it gives them.
     targets: Arc<FxHashMap<Term, Term>>,
+    /// Once it has fired, every scan ends early (see [`EdgeScan::interruptible`]).
+    interrupt: Option<Arc<Interrupt>>,
 }
 
 impl fmt::Debug for ShaclStore {
@@ -1355,8 +1362,12 @@ impl ShaclStore {
             predicates,
             layers,
             terms: DashMap::default(),
+            nodes: DashMap::default(),
+            num_terms: AtomicUsize::new(0),
             originals: DashMap::default(),
+            num_originals: AtomicUsize::new(0),
             targets: Arc::default(),
+            interrupt: None,
         }
     }
 
@@ -1365,16 +1376,21 @@ impl ShaclStore {
         Self { targets, ..self }
     }
 
+    /// The store, with scans that end once `interrupt` has fired.
+    fn with_interrupt(self, interrupt: Option<Arc<Interrupt>>) -> Self {
+        Self { interrupt, ..self }
+    }
+
+    /// A full scan of `layer`, ending once the interrupt has fired.
+    fn scan_layer(&self, layer: LayerId) -> EdgeScan {
+        EdgeScan::all(self.view.clone(), Some(layer)).interruptible(self.interrupt.clone())
+    }
+
     /// Whether the view has a visible `rdfs:subClassOf` triple.
     fn has_subclass_triples(&self) -> bool {
         self.layers
             .get(&rdfs::SUB_CLASS_OF.into_owned())
-            .is_some_and(|&layer| {
-                EdgeScan::all(self.view.clone(), Some(layer))
-                    .only_valid()
-                    .next()
-                    .is_some()
-            })
+            .is_some_and(|&layer| self.scan_layer(layer).next().is_some())
     }
 
     /// The term of node `v`.
@@ -1384,8 +1400,11 @@ impl ShaclStore {
         }
         let term = term_of(&self.view.node_name(v));
         self.note_original(&term);
-        if self.terms.len() < TERM_CACHE_CAP {
-            self.terms.insert(v, term.clone());
+        if self.num_terms.load(Relaxed) < TERM_CACHE_CAP
+            && self.terms.insert(v, term.clone()).is_none()
+        {
+            self.nodes.entry(term_key(term.as_ref())).or_insert(v);
+            self.num_terms.fetch_add(1, Relaxed);
         }
         term
     }
@@ -1395,8 +1414,7 @@ impl ShaclStore {
         let Some(canonical) = canonical_form(term) else {
             return;
         };
-        // before taking the entry: `len` locks every shard
-        let full = self.originals.len() >= TERM_CACHE_CAP;
+        let full = self.num_originals.load(Relaxed) >= TERM_CACHE_CAP;
         match self.originals.entry(canonical) {
             Entry::Occupied(mut entry) => {
                 if entry.get().as_ref() != Some(term) {
@@ -1406,6 +1424,7 @@ impl ShaclStore {
             Entry::Vacant(entry) => {
                 if !full {
                     entry.insert(Some(term.clone()));
+                    self.num_originals.fetch_add(1, Relaxed);
                 }
             }
         }
@@ -1439,6 +1458,16 @@ impl ShaclStore {
     /// check that). A literal of `sh:targetNode` that the validator rewrote, and that is not a
     /// node as rewritten, is looked up as written.
     fn node(&self, term: TermRef<'_>) -> Option<VID> {
+        let cached = self.nodes.get(&term_key(term)).map(|v| *v);
+        if let Some(v) = cached {
+            if self
+                .terms
+                .get(&v)
+                .is_some_and(|known| known.as_ref() == term)
+            {
+                return Some(v);
+            }
+        }
         lookup_node(&self.view, &name_of(term)?).or_else(|| {
             let TermRef::Literal(literal) = term else {
                 return None;
@@ -1486,8 +1515,13 @@ impl ShaclStore {
             (None, Some(o)) => EdgeScan::around(view, o, Dir::In, layer),
             (None, None) => EdgeScan::all(view, layer),
         };
-        Some(scan.only_valid())
+        Some(scan.interruptible(self.interrupt.clone()))
     }
+}
+
+/// The key of a term in [`ShaclStore::nodes`].
+fn term_key(term: TermRef<'_>) -> u64 {
+    FxBuildHasher.hash_one(term)
 }
 
 impl Rdf for ShaclStore {
@@ -1520,16 +1554,6 @@ impl Rdf for ShaclStore {
     }
 }
 
-impl ShaclStore {
-    /// Every triple of the view (see [`NeighsRDF::triples`]).
-    #[cfg(test)]
-    pub(crate) fn all_triples(&self) -> impl Iterator<Item = Triple> + '_ {
-        EdgeScan::all(self.view.clone(), None)
-            .only_valid()
-            .filter_map(move |item| self.triple(item))
-    }
-}
-
 impl NeighsRDF for ShaclStore {
     /// The `rdf:type` and `rdfs:subClassOf` triples of the view only, not all of them.
     ///
@@ -1541,10 +1565,9 @@ impl NeighsRDF for ShaclStore {
             .into_iter()
             .filter_map(|predicate| self.layers.get(&predicate.into_owned()).copied())
             .collect();
-        let view = self.view.clone();
         Ok(layers
             .into_iter()
-            .flat_map(move |layer| EdgeScan::all(view.clone(), Some(layer)).only_valid())
+            .flat_map(move |layer| self.scan_layer(layer))
             .filter_map(move |item| self.triple(item)))
     }
 

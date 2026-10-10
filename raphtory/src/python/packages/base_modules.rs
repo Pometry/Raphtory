@@ -55,6 +55,8 @@ use raphtory_api::python::{
     PyProp,
 };
 
+#[cfg(feature = "rdf")]
+use crate::python::packages::rdf::{PyRdfGraph, PyRdfView};
 #[cfg(feature = "vectors")]
 use crate::python::{
     packages::vectors::{
@@ -102,6 +104,8 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyWindowSet,
         PyProp
     );
+    #[cfg(feature = "rdf")]
+    add_classes!(m, PyRdfView, PyRdfGraph);
 
     #[pyfunction]
     /// Return Raphtory version.

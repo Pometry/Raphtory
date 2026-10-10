@@ -6640,6 +6640,7 @@ dependencies = [
  "oxiri 0.2.11",
  "parking_lot",
  "parquet",
+ "percent-encoding",
  "prefixmap",
  "proptest",
  "pyo3",
@@ -6806,6 +6807,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry-stdout",
  "opentelemetry_sdk",
+ "oxigraph",
  "parking_lot",
  "parquet",
  "poem",
@@ -6910,6 +6912,8 @@ dependencies = [
  "oxigraph",
  "raphtory",
  "regex",
+ "rustc-hash",
+ "spargebra",
  "zip",
 ]
 
@@ -6917,16 +6921,11 @@ dependencies = [
 name = "raphtory-rdf-tests"
 version = "0.18.0"
 dependencies = [
- "bigdecimal",
- "bzip2",
- "csv",
  "flate2",
  "oxigraph",
  "raphtory",
  "rayon",
- "spareval",
  "spargebra",
- "tempfile",
  "zip",
 ]
 

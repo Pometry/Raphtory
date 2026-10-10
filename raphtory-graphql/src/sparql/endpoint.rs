@@ -1,21 +1,23 @@
 //! The SPARQL 1.1 Protocol endpoint: `/sparql/<graph path>` answers SPARQL queries on a graph.
 //!
-//! A query runs as the GraphQL query `graph(path:, graphType:) { sparql(query:) }` (with
-//! `before(time: T + 1)` in between for `asof=T`) with the caller's credentials, so it gets the same
-//! permission checks, access filters and limits. The [`ProtocolCall`] in the request data
-//! carries the negotiated formats and dataset to the `sparql` field and the serialized results
-//! back.
+//! A request reads the graph through the `rdfGraph` field with the caller's credentials, so it
+//! gets the same permission checks and access filters, and runs the query on `valid()` of it,
+//! the current state. A query that reads a time graph `<raphtory:asof:T>`
+//! ([`QueryOutline::reads_time_graphs`]), or a request whose dataset names one, runs on the whole
+//! graph instead, since a time graph already holds the state at
+//! its time; `asof=T` runs it on `at(T)`.
 use crate::{
     auth::{Access, AuthenticatedGraphQL, Roles, TokenClaimValues},
     config::concurrency_config::ConcurrencyConfig,
-    data::GqlGraphType,
-    model::graph::graph::GqlGraph,
+    model::graph::rdf_graph::{GqlRdfGraph, RdfGraphLookup},
     paths::PathValidationError,
-    sparql::{accept, check_query, run_sparql, SparqlError},
+    sparql::{accept, check_enabled, check_length, run_sparql, SparqlError},
     GQLError,
 };
-use async_graphql::{Executor, ServerError, Variables};
+use async_graphql::{Executor, Request as GraphQLRequest, ServerError, Variables};
+use oxigraph::io::{JsonLdProfileSet, RdfSerializer};
 use poem::{
+    error::ReadBodyError,
     http::{
         header::{HeaderValue, ACCEPT, ALLOW, CONTENT_TYPE, HOST, VARY},
         Method, StatusCode,
@@ -23,22 +25,17 @@ use poem::{
     Body, Endpoint, Request, Response,
 };
 use raphtory::{
-    db::api::view::DynamicGraph,
+    db::api::view::TimeOps,
     errors::GraphError,
     rdf::{
         model::{vocab::rdf, BlankNode, NamedNode, Triple},
-        QueryResultsFormat, RdfError, RdfFormat, RdfSerializer, RdfViewOps, SparqlDataset,
-        SparqlFormat, SparqlOptions, SparqlWriteStats, TimeGraph, VALID_FROM, VALID_FROM_TIME,
-        VALID_TO, VALID_TO_TIME,
+        QueryForm, QueryOutline, QueryResultsFormat, RdfError, RdfFormat, RdfView, SparqlDataset,
+        SparqlFormat, SparqlOptions, TimeGraph, WriteStats, VALID_FROM, VALID_FROM_TIME, VALID_TO,
+        VALID_TO_TIME,
     },
 };
-use raphtory_api::core::{storage::timeindex::AsTime, utils::time::TryIntoTime};
 use serde_json::json;
-use std::{
-    collections::HashSet,
-    io,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashSet, sync::Arc};
 
 /// The methods the endpoint answers.
 const ALLOWED: &str = "GET, POST, OPTIONS";
@@ -64,102 +61,56 @@ const RESULTS_FORMATS: &[(QueryResultsFormat, &[&str])] = &[
 
 /// The formats of `CONSTRUCT` and `DESCRIBE` results and of the service description, the
 /// default first, with the media types each is served for.
-const GRAPH_FORMATS: &[(GraphFormat, &[&str])] = &[
+const GRAPH_FORMATS: &[(RdfFormat, &[&str])] = &[
     (
-        GraphFormat::Turtle,
+        RdfFormat::Turtle,
         &["text/turtle", "application/x-turtle", "application/turtle"],
     ),
-    (GraphFormat::NTriples, &["application/n-triples"]),
+    (RdfFormat::NTriples, &["application/n-triples"]),
     (
-        GraphFormat::RdfXml,
+        RdfFormat::RdfXml,
         &["application/rdf+xml", "application/xml", "text/xml"],
     ),
     (
-        GraphFormat::JsonLd,
+        RdfFormat::JsonLd {
+            profile: JsonLdProfileSet::empty(),
+        },
         &["application/ld+json", "application/json"],
     ),
-    (GraphFormat::NQuads, &["application/n-quads"]),
-    (GraphFormat::TriG, &["application/trig"]),
+    (RdfFormat::NQuads, &["application/n-quads"]),
+    (RdfFormat::TriG, &["application/trig"]),
 ];
-
-/// The RDF formats of [`GRAPH_FORMATS`].
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum GraphFormat {
-    Turtle,
-    NTriples,
-    RdfXml,
-    JsonLd,
-    NQuads,
-    TriG,
-}
-
-impl GraphFormat {
-    fn rdf_format(self) -> RdfFormat {
-        match self {
-            Self::Turtle => RdfFormat::Turtle,
-            Self::NTriples => RdfFormat::NTriples,
-            Self::RdfXml => RdfFormat::RdfXml,
-            Self::JsonLd => {
-                RdfFormat::from_media_type("application/ld+json").expect("JSON-LD is supported")
-            }
-            Self::NQuads => RdfFormat::NQuads,
-            Self::TriG => RdfFormat::TriG,
-        }
-    }
-
-    /// The W3C IRI of the format, for the service description.
-    fn iri(self) -> &'static str {
-        match self {
-            Self::Turtle => "http://www.w3.org/ns/formats/Turtle",
-            Self::NTriples => "http://www.w3.org/ns/formats/N-Triples",
-            Self::RdfXml => "http://www.w3.org/ns/formats/RDF_XML",
-            Self::JsonLd => "http://www.w3.org/ns/formats/JSON-LD",
-            Self::NQuads => "http://www.w3.org/ns/formats/N-Quads",
-            Self::TriG => "http://www.w3.org/ns/formats/TriG",
-        }
-    }
-}
-
-/// The W3C IRI of a results format, for the service description.
-fn results_format_iri(format: QueryResultsFormat) -> &'static str {
-    match format {
-        QueryResultsFormat::Json => "http://www.w3.org/ns/formats/SPARQL_Results_JSON",
-        QueryResultsFormat::Xml => "http://www.w3.org/ns/formats/SPARQL_Results_XML",
-        QueryResultsFormat::Csv => "http://www.w3.org/ns/formats/SPARQL_Results_CSV",
-        _ => "http://www.w3.org/ns/formats/SPARQL_Results_TSV",
-    }
-}
 
 /// A format of query results: a SPARQL results format for `SELECT` and `ASK`, an RDF format for
 /// `CONSTRUCT` and `DESCRIBE`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Format {
     Results(QueryResultsFormat),
-    Graph(GraphFormat),
+    Graph(RdfFormat),
 }
 
 impl Format {
     fn sparql_format(self) -> SparqlFormat {
         match self {
             Self::Results(format) => format.into(),
-            Self::Graph(format) => format.rdf_format().into(),
+            Self::Graph(format) => format.into(),
         }
     }
 
     fn media_type(self) -> &'static str {
         match self {
             Self::Results(format) => format.media_type(),
-            Self::Graph(format) => format.rdf_format().media_type(),
+            Self::Graph(format) => format.media_type(),
         }
     }
 
     /// Whether some results do not fit the format: SPARQL Results XML cannot hold literals with
     /// control characters and RDF 1.2 triple terms, and RDF/XML skips triples such as those
-    /// whose predicate does not end in an XML name (see `RdfViewOps::sparql_to_writer`).
+    /// whose predicate does not end in an XML name (see `RdfView::sparql_to_writer`).
     fn may_not_hold(self) -> bool {
         matches!(
             self,
-            Self::Results(QueryResultsFormat::Xml) | Self::Graph(GraphFormat::RdfXml)
+            Self::Results(QueryResultsFormat::Xml) | Self::Graph(RdfFormat::RdfXml)
         )
     }
 }
@@ -189,15 +140,20 @@ impl Formats {
         self.results.is_empty() && self.graph.is_empty()
     }
 
-    /// Runs `query` and returns its results and their media type: in the preferred format the
-    /// client accepts for the form of the query that holds them all.
+    /// Runs `query`, of the form `form`, and returns its results and their media type: in the
+    /// preferred format the client accepts for the form that holds them all.
     fn write(
         &self,
-        view: &DynamicGraph,
+        view: &RdfView,
         query: &str,
+        form: QueryForm,
         options: &SparqlOptions,
     ) -> Result<(Vec<u8>, &'static str), SparqlError> {
-        let (form, formats) = self.for_form(view, query, options)?;
+        let formats = if form.is_graph() {
+            &self.graph
+        } else {
+            &self.results
+        };
         let Some((&preferred, others)) = formats.split_first() else {
             return Err(SparqlError::NotAcceptable { form });
         };
@@ -216,42 +172,14 @@ impl Formats {
                 written => return written,
             }
         }
-        Err(not_held.unwrap_or_else(|| SparqlError::NotAcceptable { form }))
-    }
-
-    /// The form of `query` (`SELECT`, ...) and the formats accepted for its results, found once
-    /// the query parses and before it runs.
-    fn for_form(
-        &self,
-        view: &DynamicGraph,
-        query: &str,
-        options: &SparqlOptions,
-    ) -> Result<(&'static str, &[Format]), SparqlError> {
-        // A format with no slot fits no query, and is refused before the query runs.
-        let no_format = SparqlFormat {
-            results: None,
-            graph: None,
-        };
-        match view.sparql_to_writer_with(query, io::sink(), no_format, options) {
-            Err(GraphError::Rdf(RdfError::WrongResultsFormat { form, .. })) => {
-                let formats = match form {
-                    "CONSTRUCT" | "DESCRIBE" => &self.graph,
-                    _ => &self.results,
-                };
-                Ok((form, formats))
-            }
-            Err(error) => Err(error.into()),
-            Ok(_) => Err(SparqlError::Internal(
-                "the form of the SPARQL query is unknown".to_owned(),
-            )),
-        }
+        Err(not_held.unwrap_or(SparqlError::NotAcceptable { form }))
     }
 }
 
 /// Writes results in `format` with `write`, failing if the format cannot hold them all.
 fn write_in(
     format: Format,
-    write: impl FnOnce(&mut Vec<u8>, SparqlFormat) -> Result<SparqlWriteStats, GraphError>,
+    write: impl FnOnce(&mut Vec<u8>, SparqlFormat) -> Result<WriteStats, GraphError>,
 ) -> Result<(Vec<u8>, &'static str), SparqlError> {
     let mut out = Vec::new();
     let stats = write(&mut out, format.sparql_format())?;
@@ -273,36 +201,6 @@ fn cannot_hold(error: &SparqlError) -> bool {
                 RdfError::XmlUnsafeLiteral(_) | RdfError::XmlTripleTerm(_)
             ))
     )
-}
-
-/// What the endpoint passes to the `sparql` field in the request data.
-pub(crate) struct ProtocolCall {
-    formats: Formats,
-    dataset: Option<SparqlDataset>,
-    /// The serialized results and their media type, once the query has run.
-    results: Mutex<Option<(Vec<u8>, &'static str)>>,
-}
-
-impl ProtocolCall {
-    /// Runs `query` on `graph` for the caller of `ctx` and keeps the results.
-    pub(crate) async fn run(
-        &self,
-        ctx: &async_graphql::Context<'_>,
-        graph: &GqlGraph,
-        query: String,
-    ) -> Result<(), SparqlError> {
-        let formats = self.formats.clone();
-        let results = run_sparql(
-            ctx,
-            graph,
-            query,
-            self.dataset.clone(),
-            move |view, q, o| formats.write(view, q, o),
-        )
-        .await?;
-        *self.results.lock().unwrap() = Some(results);
-        Ok(())
-    }
 }
 
 /// A failed request: its status and a message for the plain-text body.
@@ -347,9 +245,9 @@ fn status_of(error: &SparqlError) -> StatusCode {
         SparqlError::NotAcceptable { .. } | SparqlError::RdfXmlSkipped { .. } => {
             StatusCode::NOT_ACCEPTABLE
         }
-        SparqlError::InvalidTimeout(_) | SparqlError::Internal(_) => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        #[cfg(feature = "shacl")]
+        SparqlError::RecursiveShapes => StatusCode::BAD_REQUEST,
+        SparqlError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         SparqlError::Query(GraphError::Rdf(error)) => match error {
             RdfError::Timeout { .. } => StatusCode::GATEWAY_TIMEOUT,
             RdfError::Cancelled => StatusCode::SERVICE_UNAVAILABLE,
@@ -377,12 +275,8 @@ fn not_found(path: &str) -> Failure {
     )
 }
 
-/// The response for a GraphQL error of the query.
+/// The response for a GraphQL error of `rdfGraph(path:)`, which failed to load the graph.
 fn failure(error: &ServerError, path: &str) -> Failure {
-    if let Some(error) = error.source::<SparqlError>() {
-        return error.into();
-    }
-    // `graph(path:)` failed to load the graph
     let mut graph_error = error.source::<GQLError>();
     while let Some(GQLError::Arc(inner)) = graph_error {
         graph_error = Some(inner.as_ref());
@@ -406,7 +300,6 @@ struct Params {
     update: bool,
     default_graphs: Vec<String>,
     named_graphs: Vec<String>,
-    graph_type: Option<String>,
     asof: Option<String>,
 }
 
@@ -427,7 +320,6 @@ impl Params {
             "update" => self.update = true,
             "default-graph-uri" => self.default_graphs.push(value),
             "named-graph-uri" => self.named_graphs.push(value),
-            "graph_type" => once(&mut self.graph_type, value)?,
             "asof" => once(&mut self.asof, value)?,
             // other parameters (such as the `format` and `output` of some clients) are ignored
             _ => {}
@@ -477,47 +369,34 @@ impl Params {
         }))
     }
 
-    fn graph_type(&self) -> Result<Option<GqlGraphType>, Failure> {
-        match self.graph_type.as_deref().map(str::to_ascii_lowercase) {
-            None => Ok(None),
-            Some(t) if t == "event" => Ok(Some(GqlGraphType::Event)),
-            Some(t) if t == "persistent" => Ok(Some(GqlGraphType::Persistent)),
-            Some(_) => Err(text(
-                StatusCode::BAD_REQUEST,
-                "invalid `graph_type`: expected `event` or `persistent`",
-            )),
-        }
-    }
-
-    /// The time of `asof` in epoch milliseconds, parsed as in `<raphtory:asof:T>`.
+    /// The time of `asof` in epoch milliseconds, parsed as the time of `<raphtory:asof:T>`.
     ///
     /// Parameters are form-encoded, where `+` stands for a space, so the `+` of a timezone offset
-    /// pasted as is into a URL (`?asof=2024-01-01T00:00:00+01:00`) arrives as a space. A time that
-    /// does not parse is therefore read again with its last space as `+`.
+    /// pasted as is into a URL (`?asof=2024-01-01T00:00:00+01:00`) arrives as a space. A date-time
+    /// that does not parse and ends in a space and an offset `hh:mm` is therefore read again with
+    /// that space as `+`.
     fn asof(&self) -> Result<Option<i64>, Failure> {
         let Some(time) = self.asof.as_deref() else {
             return Ok(None);
         };
-        let parse = |time: &str| match time.parse::<i64>() {
-            Ok(at) => Some(at),
-            Err(_) => time.try_into_time().ok().map(|at| at.t()),
+        let error = match TimeGraph::parse_time(time) {
+            Ok(at) => return Ok(Some(at)),
+            Err(error) => error,
         };
-        let with_plus = || {
-            let (before, after) = time.rsplit_once(' ')?;
-            parse(&format!("{before}+{after}"))
-        };
-        match parse(time).or_else(with_plus) {
-            Some(at) => Ok(Some(at)),
-            None => Err(text(
-                StatusCode::BAD_REQUEST,
-                format!(
-                    "invalid `asof`: cannot parse \"{time}\" as a time: expected epoch \
-                     milliseconds or a date-time such as 2024-01-01, 2024-01-01T00:00:00 or \
-                     2024-01-01T00:00:00Z"
-                ),
-            )),
-        }
+        time.rsplit_once(' ')
+            .filter(|(date_time, offset)| date_time.contains('T') && is_offset(offset))
+            .and_then(|(date_time, offset)| {
+                TimeGraph::parse_time(&format!("{date_time}+{offset}")).ok()
+            })
+            .map(Some)
+            .ok_or_else(|| text(StatusCode::BAD_REQUEST, format!("invalid `asof`: {error}")))
     }
+}
+
+/// Whether `offset` is a timezone offset `hh:mm`.
+fn is_offset(offset: &str) -> bool {
+    let bytes = offset.as_bytes();
+    bytes.len() == 5 && bytes[2] == b':' && [0, 1, 3, 4].iter().all(|&i| bytes[i].is_ascii_digit())
 }
 
 /// The media type of a header value, lower-cased and without parameters.
@@ -537,8 +416,8 @@ pub(crate) struct SparqlEndpoint<E> {
 }
 
 impl<E> SparqlEndpoint<E> {
-    /// An endpoint that runs queries through `graphql`, the GraphQL endpoint of the server, and
-    /// shares its `heavy_query_limit` slots.
+    /// An endpoint that reads graphs through `graphql`, the GraphQL endpoint of the server, and
+    /// shares its `exclusive_writes` lock and `heavy_query_limit` slots.
     pub(crate) fn new(graphql: Arc<AuthenticatedGraphQL<E>>, config: ConcurrencyConfig) -> Self {
         Self { graphql, config }
     }
@@ -580,44 +459,18 @@ impl<E: Executor> Endpoint for SparqlEndpoint<E> {
     }
 }
 
-/// The GraphQL query a protocol request runs.
-const QUERY: &str = "query SparqlProtocol($path: String!, $graphType: GraphType, $query: String!) \
-    { graph(path: $path, graphType: $graphType) { sparql(query: $query) } }";
-
-/// The GraphQL query a protocol request with `asof=T` runs: on the history up to and including
-/// `T`, so the triples as of `T`, with the time graphs of earlier times.
-const QUERY_AS_OF: &str = "query SparqlProtocol($path: String!, $graphType: GraphType, \
-    $end: TimeInput!, $query: String!) { graph(path: $path, graphType: $graphType) \
-    { before(time: $end) { sparql(query: $query) } } }";
-
-/// The GraphQL query that checks that the caller can read the graph of a request.
-const LOOKUP: &str = "query SparqlService($path: String!, $graphType: GraphType) \
-    { graph(path: $path, graphType: $graphType) { path } }";
+/// The GraphQL query that reads the graph of a request into its [`RdfGraphLookup`].
+const LOOKUP: &str = "query SparqlEndpoint($path: String!) { rdfGraph(path: $path) { path } }";
 
 /// The caller of a request, as the GraphQL endpoint authenticates it.
 type Caller = (Access, Roles, TokenClaimValues);
-
-/// The GraphQL request of `query` with `variables`, made by `caller`.
-fn graphql_request(
-    query: &str,
-    variables: serde_json::Value,
-    (access, roles, claims): Caller,
-) -> async_graphql::Request {
-    async_graphql::Request::new(query)
-        .variables(Variables::from_json(variables))
-        .data(access)
-        .data(roles)
-        .data(claims)
-}
 
 impl<E: Executor> SparqlEndpoint<E> {
     /// Answers a GET or POST request.
     async fn respond(&self, mut req: Request) -> Result<Response, Failure> {
         let path = req.raw_path_param("path").unwrap_or_default().to_owned();
         let caller = self.graphql.authenticate(&req).await?;
-        let config = Some(&self.config);
-        // `disable_lists` turns the endpoint off
-        check_query(config, "").map_err(|error| Failure::from(&error))?;
+        check_enabled(Some(&self.config)).map_err(|error| Failure::from(&error))?;
 
         let mut params = Params::default();
         if let Some(query) = req.uri().query() {
@@ -653,20 +506,15 @@ impl<E: Executor> SparqlEndpoint<E> {
             ));
         }
         let accept = accept_header(&req);
+        let asof = params.asof()?;
         let Some(query) = params.query.take() else {
             if req.method() == Method::POST {
                 return Err(text(StatusCode::BAD_REQUEST, "the request has no `query`"));
             }
-            let graph_type = params.graph_type()?;
-            params.asof()?;
-            return self
-                .describe(&req, &path, graph_type, accept.as_deref(), caller)
-                .await;
+            return self.describe(&req, &path, accept.as_deref(), caller).await;
         };
-        check_query(config, &query).map_err(|error| Failure::from(&error))?;
+        check_length(&self.config, &query).map_err(|error| Failure::from(&error))?;
         let dataset = params.dataset()?;
-        let graph_type = params.graph_type()?;
-        let asof = params.asof()?;
         let formats = Formats::negotiate(accept.as_deref());
         if formats.is_empty() {
             return Err(text(
@@ -678,34 +526,33 @@ impl<E: Executor> SparqlEndpoint<E> {
                  application/trig",
             ));
         }
-
-        let call = Arc::new(ProtocolCall {
-            formats,
-            dataset,
-            results: Mutex::new(None),
-        });
-        let mut variables = json!({
-            "path": path,
-            "graphType": graph_type.map(|graph_type| graph_type.as_gql()),
-            "query": query,
-        });
-        let document = match asof {
-            Some(asof) => {
-                variables["end"] = json!(asof.saturating_add(1));
-                QUERY_AS_OF
-            }
-            None => QUERY,
+        let run = async {
+            let graph = self.rdf_graph(&path, caller).await?;
+            let view = graph
+                .view()
+                .map_err(|error| Failure::from(&SparqlError::from(error)))?;
+            let has_dataset = dataset.is_some();
+            run_sparql(
+                Some(&self.config),
+                view,
+                graph.temporal_functions(),
+                query,
+                dataset,
+                move |view, query, options| {
+                    let outline = QueryOutline::parse(query)?;
+                    let view = match asof {
+                        Some(at) => view.at(at).into_dynamic(),
+                        None if has_dataset || outline.reads_time_graphs => view.clone(),
+                        None => view.valid().into_dynamic(),
+                    };
+                    formats.write(&view, query, outline.form, options)
+                },
+            )
+            .await
+            .map_err(|error| Failure::from(&error))
         };
-        let request = graphql_request(document, variables, caller).data(call.clone());
-        let response = self.graphql.execute_read(request, true).await?;
-        if let Some((body, media_type)) = call.results.lock().unwrap().take() {
-            return Ok(Response::builder().content_type(media_type).body(body));
-        }
-        Err(match response.errors.first() {
-            Some(error) => failure(error, &path),
-            // `graph` is null: the caller cannot read the graph
-            None => not_found(&path),
-        })
+        let (body, media_type) = self.graphql.read(true, run).await??;
+        Ok(Response::builder().content_type(media_type).body(body))
     }
 
     /// The service description of the endpoint of the graph at `path`, in the RDF format
@@ -714,7 +561,6 @@ impl<E: Executor> SparqlEndpoint<E> {
         &self,
         req: &Request,
         path: &str,
-        graph_type: Option<GqlGraphType>,
         accept: Option<&str>,
         caller: Caller,
     ) -> Result<Response, Failure> {
@@ -726,33 +572,42 @@ impl<E: Executor> SparqlEndpoint<E> {
                  application/n-quads or application/trig",
             ));
         };
-        let variables = json!({
-            "path": path,
-            "graphType": graph_type.map(|graph_type| graph_type.as_gql()),
-        });
-        let request = graphql_request(LOOKUP, variables, caller);
-        let response = self.graphql.execute_read(request, false).await?;
+        self.graphql
+            .read(false, self.rdf_graph(path, caller))
+            .await??;
+        service_description(req, format)
+    }
+
+    /// The graph at `path` as `rdfGraph` reads it for `caller`.
+    async fn rdf_graph(&self, path: &str, caller: Caller) -> Result<GqlRdfGraph, Failure> {
+        let (access, roles, claims) = caller;
+        let lookup = Arc::new(RdfGraphLookup::default());
+        let request = GraphQLRequest::new(LOOKUP)
+            .variables(Variables::from_json(json!({ "path": path })))
+            .data(access)
+            .data(roles)
+            .data(claims)
+            .data(lookup.clone());
+        let response = self.graphql.executor().execute(request).await;
         if let Some(error) = response.errors.first() {
             return Err(failure(error, path));
         }
-        match response.data.into_json() {
-            Ok(data) if data["graph"].is_object() => service_description(req, format),
-            // `graph` is null: the caller cannot read the graph
-            _ => Err(not_found(path)),
-        }
+        // `rdfGraph` is null: the caller cannot read the graph
+        Arc::into_inner(lookup)
+            .and_then(RdfGraphLookup::into_inner)
+            .ok_or_else(|| not_found(path))
     }
 
     /// The body of a POST, at most a little more than a form holding the longest query.
     async fn read_body(&self, body: Body) -> Result<Vec<u8>, Failure> {
-        let unreadable =
-            |error: poem::error::ReadBodyError| text(StatusCode::BAD_REQUEST, error.to_string());
+        let unreadable = |error: ReadBodyError| text(StatusCode::BAD_REQUEST, error.to_string());
         let Some(max) = self.config.max_sparql_query_length else {
             return body.into_vec().await.map_err(unreadable);
         };
         let limit = max.saturating_mul(3).saturating_add(64 * 1024);
         match body.into_bytes_limit(limit).await {
             Ok(body) => Ok(body.into()),
-            Err(poem::error::ReadBodyError::PayloadTooLarge) => Err(text(
+            Err(ReadBodyError::PayloadTooLarge) => Err(text(
                 StatusCode::PAYLOAD_TOO_LARGE,
                 format!(
                     "request body too large for a SPARQL query of at most {max} bytes \
@@ -795,7 +650,7 @@ fn endpoint_url(req: &Request) -> NamedNode {
 const SD: &str = "http://www.w3.org/ns/sparql-service-description#";
 
 /// The SPARQL 1.1 Service Description of the endpoint `req` was sent to, in `format`.
-fn service_description(req: &Request, format: GraphFormat) -> Result<Response, Failure> {
+fn service_description(req: &Request, format: RdfFormat) -> Result<Response, Failure> {
     let sd = |name: &str| NamedNode::new_unchecked(format!("{SD}{name}"));
     let iri = |iri: &str| NamedNode::new_unchecked(iri);
     let service = BlankNode::default();
@@ -808,10 +663,12 @@ fn service_description(req: &Request, format: GraphFormat) -> Result<Response, F
             sd("SPARQL11Query"),
         ),
     ];
-    let results_formats = RESULTS_FORMATS
-        .iter()
-        .map(|(format, _)| results_format_iri(*format));
-    let graph_formats = GRAPH_FORMATS.iter().map(|(format, _)| format.iri());
+    let results_formats = RESULTS_FORMATS.iter().map(|(format, _)| format.iri());
+    let graph_formats = GRAPH_FORMATS.iter().map(|(format, _)| match format {
+        // oxigraph's IRI for JSON-LD is not the one of the W3C formats registry
+        RdfFormat::JsonLd { .. } => "http://www.w3.org/ns/formats/JSON-LD",
+        format => format.iri(),
+    });
     for format in results_formats.chain(graph_formats) {
         triples.push(Triple::new(
             service.clone(),
@@ -826,8 +683,7 @@ fn service_description(req: &Request, format: GraphFormat) -> Result<Response, F
             iri(function),
         ));
     }
-    let rdf_format = format.rdf_format();
-    let serializer = RdfSerializer::from_format(rdf_format)
+    let serializer = RdfSerializer::from_format(format)
         .with_prefix("sd", SD)
         .and_then(|serializer| serializer.with_prefix("formats", "http://www.w3.org/ns/formats/"))
         .expect("valid prefixes");
@@ -838,7 +694,7 @@ fn service_description(req: &Request, format: GraphFormat) -> Result<Response, F
         .and_then(|()| writer.finish());
     match written {
         Ok(body) => Ok(Response::builder()
-            .content_type(rdf_format.media_type())
+            .content_type(format.media_type())
             .body(body)),
         Err(error) => Err(text(
             StatusCode::INTERNAL_SERVER_ERROR,

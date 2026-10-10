@@ -2,7 +2,6 @@
 
 /// A media range of an `Accept` header: lower-cased type and subtype (`*` for a wildcard) and
 /// its quality.
-#[derive(Debug, PartialEq)]
 struct Range {
     kind: String,
     subtype: String,
@@ -103,7 +102,7 @@ pub(super) fn rank<T: Copy>(header: Option<&str>, formats: &[(T, &[&str])]) -> V
 
 #[cfg(test)]
 mod tests {
-    use super::{ranges, rank, Range};
+    use super::rank;
 
     const FORMATS: &[(&str, &[&str])] = &[
         (
@@ -118,98 +117,71 @@ mod tests {
         ("tsv", &["text/tab-separated-values"]),
     ];
 
-    /// The preferred format.
-    fn pick(header: &str) -> Option<&'static str> {
-        rank(Some(header), FORMATS).first().copied()
-    }
-
-    #[test]
-    fn ranges_parse() {
-        let range = |kind: &str, subtype: &str, q: f32| Range {
-            kind: kind.to_owned(),
-            subtype: subtype.to_owned(),
-            q,
-        };
-        assert_eq!(
-            ranges("Text/CSV;charset=utf-8 , application/*; q=0.5,*;q=0.1"),
-            [
-                range("text", "csv", 1.0),
-                range("application", "*", 0.5),
-                range("*", "*", 0.1)
-            ]
-        );
-        // invalid ranges are left out
-        assert_eq!(
-            ranges("text, */json, text/csv;q=2, text/csv;q=x, ,text/tsv;Q=0"),
-            [range("text", "tsv", 0.0)]
-        );
-    }
-
-    #[test]
-    fn negotiation() {
-        // no preference: the first
-        assert_eq!(rank(None, FORMATS).first(), Some(&"json"));
-        for header in ["", "*/*", "*", "garbage", "application/*"] {
-            assert_eq!(pick(header), Some("json"), "{header}");
-        }
-        assert_eq!(pick("text/csv"), Some("csv"));
-        assert_eq!(pick("TEXT/CSV; charset=utf-8"), Some("csv"));
-        assert_eq!(pick("application/xml"), Some("xml"));
-        // the highest quality wins, ties go to the earlier format
-        assert_eq!(
-            pick("text/csv;q=0.5, application/sparql-results+xml"),
-            Some("xml")
-        );
-        assert_eq!(pick("text/tab-separated-values, text/csv"), Some("csv"));
-        assert_eq!(pick("text/*"), Some("csv"));
-        assert_eq!(pick("text/*;q=0.5, text/tab-separated-values"), Some("tsv"));
-        // the most specific range decides
-        assert_eq!(pick("text/csv;q=0, text/*"), Some("tsv"));
-        assert_eq!(pick("application/json;q=0, */*;q=0.1"), Some("json"));
-        assert_eq!(
-            pick("application/sparql-results+json;q=0, application/json;q=0, */*;q=0.1"),
-            Some("xml")
-        );
-        assert_eq!(
-            pick("*/*;q=0.1, text/tab-separated-values;q=0.2"),
-            Some("tsv")
-        );
-        // nothing acceptable
-        assert_eq!(pick("text/turtle"), None);
-        assert_eq!(pick("*/*;q=0"), None);
-        assert_eq!(pick("text/csv;q=0, text/tab-separated-values;q=0"), None);
-    }
-
     #[test]
     fn ranking() {
-        let rank = |header: Option<&str>| rank(header, FORMATS);
-        // no preference: all, in order
-        for header in [None, Some("*/*"), Some("garbage")] {
-            assert_eq!(rank(header), ["json", "xml", "csv", "tsv"], "{header:?}");
+        let all = ["json", "xml", "csv", "tsv"];
+        let rows: &[(Option<&str>, &[&str])] = &[
+            // no preference: all, in order
+            (None, &all),
+            (Some(""), &all),
+            (Some("*"), &all),
+            (Some("*/*"), &all),
+            (Some("garbage"), &all),
+            // case and parameters other than q are ignored
+            (
+                Some("Text/CSV;charset=utf-8 , application/*; q=0.5,*;q=0.1"),
+                &["csv", "json", "xml", "tsv"],
+            ),
+            (Some("TEXT/*;Q=0, */*"), &["json", "xml"]),
+            // invalid ranges are left out
+            (
+                Some(
+                    "text, */json, text/tab-separated-values;q=2, \
+                     text/tab-separated-values;q=x, , text/*;q=0.5",
+                ),
+                &["csv", "tsv"],
+            ),
+            // by quality, ties in order
+            (Some("text/csv"), &["csv"]),
+            (Some("application/xml"), &["xml"]),
+            (Some("application/*"), &["json", "xml"]),
+            (Some("text/tab-separated-values, text/csv"), &["csv", "tsv"]),
+            (
+                Some("text/*;q=0.5, text/tab-separated-values"),
+                &["tsv", "csv"],
+            ),
+            (
+                Some("application/sparql-results+xml, application/sparql-results+json;q=0.5"),
+                &["xml", "json"],
+            ),
+            (
+                Some("text/csv;q=0.5, application/sparql-results+xml, */*;q=0.1"),
+                &["xml", "csv", "json", "tsv"],
+            ),
+            (
+                Some("*/*;q=0.1, text/tab-separated-values;q=0.2"),
+                &["tsv", "json", "xml", "csv"],
+            ),
+            // the most specific range decides, so q=0 refuses
+            (Some("text/csv;q=0, text/*"), &["tsv"]),
+            (
+                Some("text/*, application/json;q=0, */*;q=0.2"),
+                &["csv", "tsv", "json", "xml"],
+            ),
+            (
+                Some(
+                    "text/*, application/sparql-results+json;q=0, application/json;q=0, \
+                     */*;q=0.2",
+                ),
+                &["csv", "tsv", "xml"],
+            ),
+            // nothing acceptable
+            (Some("text/turtle"), &[]),
+            (Some("*/*;q=0"), &[]),
+            (Some("text/csv;q=0, text/tab-separated-values;q=0"), &[]),
+        ];
+        for (header, expected) in rows {
+            assert_eq!(rank(*header, FORMATS), *expected, "{header:?}");
         }
-        // by quality, then in order; refused and unlisted formats are left out
-        assert_eq!(
-            rank(Some(
-                "application/sparql-results+xml, application/sparql-results+json;q=0.5"
-            )),
-            ["xml", "json"]
-        );
-        assert_eq!(
-            rank(Some(
-                "text/csv;q=0.5, application/sparql-results+xml, */*;q=0.1"
-            )),
-            ["xml", "csv", "json", "tsv"]
-        );
-        assert_eq!(
-            rank(Some("text/*, application/json;q=0, */*;q=0.2")),
-            ["csv", "tsv", "json", "xml"]
-        );
-        assert_eq!(
-            rank(Some(
-                "text/*, application/sparql-results+json;q=0, application/json;q=0, */*;q=0.2"
-            )),
-            ["csv", "tsv", "xml"]
-        );
-        assert_eq!(rank(Some("text/csv;q=0")), Vec::<&str>::new());
     }
 }

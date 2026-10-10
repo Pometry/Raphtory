@@ -1,8 +1,8 @@
 //! Temporal SPARQL functions: since when a triple has held, and until when.
 //!
-//! [`with_temporal_functions`] registers four functions on a [`SparqlEvaluator`], answering for
-//! the triples of one view. [`RdfViewOps::sparql`](crate::rdf::RdfViewOps::sparql) and
-//! [`RdfViewOps::sparql_to_writer`](crate::rdf::RdfViewOps::sparql_to_writer) register them by
+//! [`temporal_functions_of`] registers four functions on a [`SparqlEvaluator`], answering for
+//! the triples of one view. [`RdfView::sparql`](crate::rdf::RdfView::sparql) and
+//! [`RdfView::sparql_to_writer`](crate::rdf::RdfView::sparql_to_writer) register them by
 //! default (see [`SparqlOptions`](crate::rdf::SparqlOptions)).
 use crate::{
     db::api::view::{
@@ -12,7 +12,8 @@ use crate::{
     prelude::*,
     rdf::{
         dataset::lookup_node,
-        mapping::{literal_to_prop, name_of, term_of},
+        mapping::{layer_name_of, literal_to_prop, name_of, term_of},
+        scan::in_layer,
         time_graph::TimeGraph,
     },
 };
@@ -21,22 +22,20 @@ use oxigraph::{
     model::{vocab::xsd, Literal, NamedNode, Term},
     sparql::SparqlEvaluator,
 };
-use raphtory_api::{
-    core::{
-        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, VID},
-        storage::timeindex::{AsTime, EventTime},
-    },
-    GraphType,
+use raphtory_api::core::{
+    entities::{properties::meta::STATIC_GRAPH_LAYER_ID, VID},
+    storage::timeindex::{AsTime, EventTime},
 };
 use spareval::ExpressionTerm;
 use std::sync::Arc;
 
 /// `raphtory:validFrom(?s, ?p, ?o [, ?ref])`: the start of the validity interval of a triple, as
-/// an `xsd:dateTime` (see [`with_temporal_functions`]).
+/// an `xsd:dateTime` (see [the rules](crate::rdf#the-rules-of-the-temporal-functions)).
 pub const VALID_FROM: &str = "raphtory:validFrom";
 
 /// `raphtory:validTo(?s, ?p, ?o [, ?ref])`: the end of the validity interval of a triple (the
-/// time it was retracted), as an `xsd:dateTime` (see [`with_temporal_functions`]).
+/// time it was retracted), as an `xsd:dateTime` (see
+/// [the rules](crate::rdf#the-rules-of-the-temporal-functions)).
 pub const VALID_TO: &str = "raphtory:validTo";
 
 /// `raphtory:validFromTime(?s, ?p, ?o [, ?ref])`: [`VALID_FROM`] as an `xsd:integer`, the
@@ -48,109 +47,9 @@ pub const VALID_FROM_TIME: &str = "raphtory:validFromTime";
 pub const VALID_TO_TIME: &str = "raphtory:validToTime";
 
 /// Registers the temporal functions [`VALID_FROM`], [`VALID_TO`], [`VALID_FROM_TIME`] and
-/// [`VALID_TO_TIME`] on `evaluator`, answering for the triples of `view` (the view given to
-/// [`RaphtoryDataset::new`](crate::rdf::RaphtoryDataset::new)).
-///
-/// Each function takes a triple `?s ?p ?o` and an optional reference time `?ref`, and returns
-/// one end of the *validity interval* (the run) of the triple that contains the reference time:
-/// `validFrom` when it started to hold and `validTo` when it was retracted. `validFrom` and
-/// `validTo` return an `xsd:dateTime` (UTC, milliseconds), `validFromTime` and `validToTime` the
-/// Raphtory time as an `xsd:integer`.
-///
-/// ```sparql
-/// SELECT ?who ?since { ?who ex:worksFor ex:acme BIND(raphtory:validFrom(?who, ex:worksFor, ex:acme) AS ?since) }
-/// ```
-///
-/// # Arguments
-///
-/// - `?s ?p ?o` are the terms of the triple. SPARQL passes xsd value literals in canonical form,
-///   so a literal object is matched by canonical form among the objects of `?s` in layer `?p`
-///   (another datatype or timezone does not match; several matches give an unbound result).
-///   Pass the object bound by the pattern. A literal subject or predicate gives an unbound
-///   result.
-/// - `?ref`, if given, is a time graph IRI `<raphtory:asof:T>` (see [`TimeGraph`]), an integer
-///   (epoch milliseconds) or an `xsd:dateTime` (UTC if it has no timezone). Without it, the
-///   reference time is the end of the view.
-///
-/// Any other argument, or a call with other than 3 or 4 arguments, gives an unbound result. The
-/// functions never make a query fail.
-///
-/// # Semantics
-///
-/// Let `H` be the end of the view (no end for a view without a time window) and `R` the graph of
-/// the view without its window and filters (with the view's [`GraphType`]), keeping only the
-/// events before `H`.
-///
-/// 1. **Scope.** The result is unbound unless the triple is visible in the view (without
-///    `?ref`) or in `view.snapshot_at(T)` (with `?ref` `T`), so hidden triples are never
-///    revealed. Same window rules as `GRAPH <raphtory:asof:T>` on the view (see [`TimeGraph`]).
-/// 2. **Run.** The largest interval `[from, to)` containing the reference time (capped at `H`)
-///    in which the triple is in `R.snapshot_at(t)`. `validTo` is unbound if the run is still
-///    open at `H` (so always without `?ref`). History before the window counts; events at or
-///    after `H` do not.
-/// 3. **Persistent graphs.** A triple holds at `t` if its latest event at or before `t` (by
-///    time, then event id) is an assertion; a retraction and an assertion with the identical
-///    time and event id count as a retraction. So a duplicate assertion does not restart a run.
-/// 4. **Event graphs.** A triple holds from its first assertion on, so `validTo` is always
-///    unbound (use `persistent_graph()` for runs that end at retractions).
-/// 5. **Return values.** `validFrom` and `validTo` are unbound outside the years 1 to 9999;
-///    `validFromTime` and `validToTime` still answer.
-///
-/// Functions cannot see the active `GRAPH` or `FROM`: a 3-argument call inside
-/// `GRAPH <raphtory:asof:T> { .. }` uses the present of the view, not `T`. Pass the graph as
-/// `?ref` instead, in a `BIND` after the `GRAPH` pattern (inside it `?g` is not bound yet):
-///
-/// ```sparql
-/// SELECT ?who ?since ?until FROM NAMED raphtory:asof:2023-01-01 {
-///   GRAPH ?g { ?who ex:worksFor ex:acme }
-///   BIND(raphtory:validFrom(?who, ex:worksFor, ex:acme, ?g) AS ?since)
-///   BIND(raphtory:validTo(?who, ex:worksFor, ex:acme, ?g) AS ?until)
-/// }
-/// ```
-///
-/// Results are computed when the function is called, with no snapshot isolation (query a
-/// `read_only()` view for a consistent result).
-///
-/// # Example
-/// ```
-/// use raphtory::{
-///     prelude::*,
-///     rdf::{evaluator, model::Term, with_temporal_functions, QueryResults, RaphtoryDataset},
-/// };
-///
-/// let pg = PersistentGraph::new();
-/// pg.add_edge(1, "Alice", "Acme", NO_PROPS, Some("worksFor")).unwrap();
-/// pg.delete_edge(5, "Alice", "Acme", Some("worksFor")).unwrap();
-/// pg.add_edge(9, "Alice", "Acme", NO_PROPS, Some("worksFor")).unwrap();
-///
-/// let query = "SELECT ?from ?to {
-///     VALUES ?t { 3 10 }
-///     BIND(raphtory:validFromTime(raphtory:Alice, raphtory:worksFor, raphtory:Acme, ?t) AS ?from)
-///     BIND(raphtory:validToTime(raphtory:Alice, raphtory:worksFor, raphtory:Acme, ?t) AS ?to)
-/// }";
-/// let QueryResults::Solutions(solutions) =
-///     with_temporal_functions(evaluator(), pg.clone())
-///         .parse_query(query)
-///         .unwrap()
-///         .on_queryable_dataset(RaphtoryDataset::new(pg.clone()))
-///         .execute()
-///         .unwrap()
-/// else {
-///     unreachable!()
-/// };
-/// let rows: Vec<Vec<Option<String>>> = solutions
-///     .map(|solution| {
-///         let solution = solution.unwrap();
-///         ["from", "to"]
-///             .map(|v| solution.get(v).map(Term::to_string))
-///             .to_vec()
-///     })
-///     .collect();
-/// let int = |t: i64| Some(format!("\"{t}\"^^<http://www.w3.org/2001/XMLSchema#integer>"));
-/// // at 3 the triple holds from 1 until 5; at 10 it holds from 9 on
-/// assert_eq!(rows, [[int(1), int(5)], [int(9), None]]);
-/// ```
-pub fn with_temporal_functions<G: StaticGraphViewOps + IntoDynamic>(
+/// [`VALID_TO_TIME`] on `evaluator`, answering for the triples of `view` (see
+/// [the rules](crate::rdf#the-rules-of-the-temporal-functions)).
+pub(crate) fn temporal_functions_of<G: StaticGraphViewOps + IntoDynamic>(
     evaluator: SparqlEvaluator,
     view: G,
 ) -> SparqlEvaluator {
@@ -197,8 +96,6 @@ struct Temporal {
     root: DynamicGraph,
     /// The end of the view: only the events before it count.
     horizon: Option<EventTime>,
-    /// Whether retractions end runs.
-    persistent: bool,
 }
 
 impl Temporal {
@@ -208,12 +105,10 @@ impl Temporal {
             .new_base_graph(base.core_graph().clone())
             .into_dynamic();
         let horizon = base.end();
-        let persistent = base.graph_type() == GraphType::PersistentGraph;
         Self {
             base,
             root,
             horizon,
-            persistent,
         }
     }
 
@@ -244,16 +139,15 @@ impl Temporal {
         let s = lookup_node(&self.base, &name_of(s.as_ref())?)?;
         let layer = self
             .base
-            .get_layer_id(&name_of(p.as_ref())?)
+            .get_layer_id(&layer_name_of(p.as_ref())?)
             .filter(|l| *l != STATIC_GRAPH_LAYER_ID)?;
-        let layer = Layer::One(self.base.get_layer_name(layer));
         // The scope is what SPARQL sees: the view (as of the reference time) in the layer.
         let scope = match at {
             None => self.base.clone(),
             Some(t) => self.base.snapshot_at(t).into_dynamic(),
         };
-        let scope = scope.valid_layers(layer.clone()).valid().into_dynamic();
-        let root = self.root.valid_layers(layer).into_dynamic();
+        let scope = in_layer(&scope, layer).valid().into_dynamic();
+        let root = in_layer(&self.root, layer);
         let o = self.object(&scope, &root, s, o)?;
         // The state of `R` is constant from the end of the view on.
         let horizon = self.horizon.map(|h| h.t());
@@ -289,17 +183,15 @@ impl Temporal {
         found.next().is_none().then_some(v)
     }
 
-    /// The assertions (`true`) and, on a persistent graph, the retractions (`false`) of the edge
-    /// `s -> o` in the layer of `root`, before the end of the view, sorted by time with the
-    /// assertions first at an identical time (so the retraction wins).
+    /// The assertions (`true`) and the retractions (`false`) of the edge `s -> o` in the layer of
+    /// `root`, before the end of the view, sorted by time with the assertions first at an
+    /// identical time (so the retraction wins).
     fn events(&self, root: &DynamicGraph, s: VID, o: VID) -> Vec<(EventTime, bool)> {
         let Some(edge) = root.edge(s, o) else {
             return Vec::new();
         };
         let mut events: Vec<_> = edge.history().iter().map(|t| (t, true)).collect();
-        if self.persistent {
-            events.extend(edge.deletions().iter().map(|t| (t, false)));
-        }
+        events.extend(edge.deletions().iter().map(|t| (t, false)));
         events.retain(|(t, _)| self.horizon.is_none_or(|h| *t < h));
         events.sort_unstable_by_key(|&(t, asserted)| (t, !asserted));
         events

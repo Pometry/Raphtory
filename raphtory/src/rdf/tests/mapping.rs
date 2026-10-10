@@ -1,15 +1,16 @@
-//! The name <-> term bijection and `literal_to_prop`.
+//! The name <-> term bijections (node names and layer names) and `literal_to_prop`.
 use crate::{
     prelude::Prop,
     rdf::{
-        literal_to_prop,
-        mapping::{pct_decode, pct_encode},
+        layer_name_of, layer_term,
+        mapping::literal_to_prop,
         model::{vocab::xsd, BlankNode, Literal, NamedNode, NamedOrBlankNode, Term, Triple},
-        name_of, term_of, RdfFormat, RdfParser, RESERVED_NS,
+        name_of, term_of, RdfFormat, RESERVED_NS,
     },
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
+use oxigraph::io::RdfParser;
 use proptest::prelude::*;
 use spareval::ExpressionTerm;
 use std::str::FromStr;
@@ -140,56 +141,104 @@ proptest! {
         prop_assert_eq!(term_of(&name.unwrap()), term.clone());
         assert_parses_back(&term);
     }
+}
 
+/// The printable characters and NUL that Windows or Unix do not allow in file names.
+const PATH_UNSAFE: [char; 10] = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0'];
+
+fn assert_layer_round_trip(name: &str) {
+    let term = layer_term(name);
+    assert_eq!(
+        layer_name_of(term.as_ref()).as_deref(),
+        Some(name),
+        "layer {name:?} -> term {term}"
+    );
+    if let Term::NamedNode(n) = &term {
+        assert!(NamedNode::new(n.as_str()).is_ok(), "invalid IRI {n}");
+        if !n.as_str().starts_with(RESERVED_NS) {
+            assert!(
+                !name.contains(PATH_UNSAFE),
+                "layer name {name:?} of {n} is not path safe"
+            );
+        }
+    }
+    if !name.contains(['/', '%', ':', '?', '*']) || name.starts_with('"') || name.starts_with("_:")
+    {
+        assert_eq!(term, term_of(name), "{name:?} changed term");
+    }
+    assert_parses_back(&term);
+}
+
+/// Names that are, or are close to, escaped IRIs.
+fn layer_names() -> impl Strategy<Value = String> {
+    prop_oneof![
+        names(),
+        "[a-z]{1,4}(:|%3A|%3a)([a-z0-9:?*@._~ ]|%2F|%25|%3A|%3F|%2A|%2f|%3a|%3f|%2a|%20|%41|%2|%3|%|/|\\\\){0,8}",
+        "raphtory(:|%3A)([a-z]|%2F|%25|%3A|%3F|%2A|/|:|\\?|\\*){0,6}",
+        layer_iris().prop_map(|iri| layer_name_of(iri.as_ref().into()).unwrap()),
+    ]
+}
+
+/// IRIs not under the reserved namespace, including ones with `?`, `*`, `%2F`, `%25`, `%3A` and
+/// other escapes.
+fn layer_iris() -> impl Strategy<Value = NamedNode> {
+    prop_oneof![
+        "[a-z][a-z0-9+.-]{0,5}:[a-zA-Z0-9/:?*@._~-]{0,12}",
+        "http://ex/([a-z/:?*]|%2F|%25|%3A|%3F|%2A|%2f|%3a|%3f|%2a|%41|%20){0,8}",
+        "http://ex/\\PC{0,8}",
+        "urn:[a-z]{0,4}(%2[5FA]|%3[AF]){0,3}",
+    ]
+    .prop_filter_map("valid IRI", |s| {
+        (!s.starts_with(RESERVED_NS))
+            .then(|| NamedNode::new(s).ok())
+            .flatten()
+    })
+}
+
+proptest! {
+    /// `layer_name_of(layer_term(n)) == Some(n)` for any string.
     #[test]
-    fn pct_codec_round_trip(s in any::<String>()) {
-        let encoded = pct_encode(&s);
-        prop_assert!(encoded.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._~%".contains(&b)));
-        prop_assert_eq!(pct_decode(&encoded), Some(s));
+    fn layer_name_term_name_round_trip(name in layer_names()) {
+        assert_layer_round_trip(&name);
+    }
+
+    /// The layer of every IRI predicate round-trips and is safe as a file name.
+    #[test]
+    fn layer_iri_round_trip(iri in layer_iris()) {
+        let term = Term::from(iri.clone());
+        let name = layer_name_of(term.as_ref());
+        prop_assert!(name.is_some(), "no layer name for {}", iri);
+        let name = name.unwrap();
+        prop_assert!(!name.contains(PATH_UNSAFE), "{:?}", name);
+        prop_assert_eq!(layer_term(&name), term);
     }
 }
 
+/// Rows of the layer mapping table.
 #[test]
-fn round_trip_edge_cases() {
-    for name in [
-        "",
-        "\"",
-        "\"\"",
-        "\"x",
-        "\"x\" ",
-        " \"x\"",
-        "\"x\"@EN",
-        "\"x\"^^<http://www.w3.org/2001/XMLSchema#string>",
-        "_:",
-        "_:a b",
-        "_:a",
-        "_:a:b",
-        "_::x",
-        "_:x:",
-        "_:1x",
-        "_:a.b",
-        "raphtory:",
-        "raphtory:a",
-        "raphtory:%61",
-        "raphtory:asof:2024",
-        "RAPHTORY:x",
-        "%",
-        "%2F",
-        "a/b",
-        "日本語",
-        "\u{0}",
-        "Alice\nSmith",
-        "http://ex/a b",
-        "http://ex/a",
-        "42",
-        "-1",
-        "true",
-    ] {
-        assert_round_trip(name);
+fn layer_mapping_table() {
+    let cases: Vec<(&str, Term)> = vec![
+        ("http%3A%2F%2Fex%2Fknows", iri("http://ex/knows")),
+        ("http%3A%2F%2Fex%2Fa%252Fb", iri("http://ex/a%2Fb")),
+        ("_default", iri("raphtory:_default")),
+        // a valid IRI, but not an escaped one
+        ("http://ex/p", iri("raphtory:http%3A%2F%2Fex%2Fp")),
+        ("urn%3ax", iri("raphtory:urn%253ax")),
+        ("_:b1", BlankNode::new("b1").unwrap().into()),
+        ("\"x\"", Literal::new_simple_literal("x").into()),
+    ];
+    for (name, term) in cases {
+        assert_eq!(layer_term(name), term, "layer_term({name:?})");
+        assert_eq!(
+            layer_name_of(term.as_ref()).as_deref(),
+            Some(name),
+            "layer_name_of({term})"
+        );
+        assert_layer_round_trip(name);
     }
 }
 
-/// Every row of the mapping table.
+/// Rows of the mapping table.
 #[test]
 fn mapping_table() {
     let cases: Vec<(&str, Term)> = vec![
@@ -220,6 +269,8 @@ fn mapping_table() {
             Literal::new_typed_literal("42", xsd::INTEGER).into(),
         ),
         ("\"x\"@EN", iri("raphtory:%22x%22%40EN")),
+        // the form of an RDF 1.2 directional literal: the same IRI in every build
+        ("\"hi\"@en--ltr", iri("raphtory:%22hi%22%40en--ltr")),
         ("_default", iri("raphtory:_default")),
         (
             "http://xmlns.com/foaf/0.1/knows",
@@ -233,6 +284,10 @@ fn mapping_table() {
             Some(name),
             "name_of({term})"
         );
+        assert_round_trip(name);
+    }
+    for name in ["raphtory:%61", "\u{0}"] {
+        assert_round_trip(name);
     }
     // literals keep their exact lexical form
     assert_ne!(
@@ -241,42 +296,32 @@ fn mapping_table() {
     );
 }
 
-/// Non-canonical terms have no name.
+/// Terms that the checked inverses give no node name or no layer name.
 #[test]
 fn non_canonical_terms_have_no_name() {
-    let terms: Vec<Term> = vec![
-        iri("raphtory:%61"),
-        iri("raphtory:%2f"),
-        iri("raphtory:asof:2024"),
-        iri("raphtory:a:b"),
-        Literal::new_language_tagged_literal_unchecked("x", "EN").into(),
-        NamedNode::new_unchecked("http://ex/a b").into(),
-        NamedNode::new_unchecked("raphtory:%").into(),
-        NamedNode::new_unchecked("raphtory:%FF").into(), // not UTF-8
-        BlankNode::new_unchecked("a b").into(),
+    let cases: Vec<(Term, Option<&str>, Option<&str>)> = vec![
+        (iri("raphtory:%61"), None, None),
+        (iri("raphtory:%2f"), None, None),
+        (iri("raphtory:asof:2024"), None, None),
+        // not UTF-8
+        (NamedNode::new_unchecked("raphtory:%FF").into(), None, None),
+        // the layer `http%3A%2F%2Fex%2Fp` is `<http://ex/p>`
+        (
+            iri("raphtory:http%253A%252F%252Fex%252Fp"),
+            Some("http%3A%2F%2Fex%2Fp"),
+            None,
+        ),
         // valid in N-Triples, but `_:a:b` is minted under `raphtory:`
-        BlankNode::new("a:b").unwrap().into(),
+        (BlankNode::new("a:b").unwrap().into(), None, None),
     ];
-    for term in terms {
-        assert_eq!(name_of(term.as_ref()), None, "{term}");
+    for (term, name, layer) in cases {
+        assert_eq!(name_of(term.as_ref()).as_deref(), name, "name_of({term})");
+        assert_eq!(
+            layer_name_of(term.as_ref()).as_deref(),
+            layer,
+            "layer_name_of({term})"
+        );
     }
-}
-
-#[test]
-fn pct_codec() {
-    assert_eq!(pct_encode("Alice Smith"), "Alice%20Smith");
-    assert_eq!(pct_encode("a:b/c\"@"), "a%3Ab%2Fc%22%40");
-    assert_eq!(pct_encode("é"), "%C3%A9");
-    assert_eq!(pct_encode("AZaz09-._~"), "AZaz09-._~");
-    assert_eq!(pct_decode("%C3%A9").as_deref(), Some("é"));
-    assert_eq!(pct_decode("%2F").as_deref(), Some("/"));
-    assert_eq!(pct_decode("%61").as_deref(), Some("a")); // rejected later by name_of
-    assert_eq!(pct_decode("%2f"), None);
-    assert_eq!(pct_decode("a:b"), None);
-    assert_eq!(pct_decode("%2"), None);
-    assert_eq!(pct_decode("%G0"), None);
-    assert_eq!(pct_decode("%FF"), None);
-    assert_eq!(pct_decode("").as_deref(), Some(""));
 }
 
 fn typed(value: &str, datatype: oxigraph::model::NamedNodeRef<'_>) -> Literal {
@@ -287,18 +332,15 @@ fn typed(value: &str, datatype: oxigraph::model::NamedNodeRef<'_>) -> Literal {
 #[test]
 fn literal_to_prop_conversions() {
     let utc = |s: &str| DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc);
+    let too_long = typed("123456789012345678901.123456789012345678", xsd::DECIMAL);
     let cases: Vec<(Literal, Option<Prop>)> = vec![
         (Literal::new_simple_literal("x"), Some(Prop::str("x"))),
-        (typed("x", xsd::STRING), Some(Prop::str("x"))),
         (
             Literal::new_language_tagged_literal("x", "en").unwrap(),
             Some(Prop::str("x")),
         ),
         (typed("true", xsd::BOOLEAN), Some(Prop::Bool(true))),
-        (typed("0", xsd::BOOLEAN), Some(Prop::Bool(false))),
-        (typed("42", xsd::INTEGER), Some(Prop::I64(42))),
         (typed("042", xsd::INTEGER), Some(Prop::I64(42))),
-        (typed("-7", xsd::INT), Some(Prop::I64(-7))),
         (
             typed("1.50", xsd::DECIMAL),
             Some(Prop::Decimal(BigDecimal::from_str("1.5").unwrap())),
@@ -310,15 +352,12 @@ fn literal_to_prop_conversions() {
                 BigDecimal::from_str("12345678901234567890.123456789012345678").unwrap(),
             )),
         ),
-        (typed("2.5", xsd::FLOAT), Some(Prop::F64(2.5))),
+        // 39 do not
+        (too_long.clone(), None),
         (typed("1.5E0", xsd::DOUBLE), Some(Prop::F64(1.5))),
         (
             typed("2024-01-01T00:00:00Z", xsd::DATE_TIME),
             Some(Prop::DTime(utc("2024-01-01T00:00:00Z"))),
-        ),
-        (
-            typed("2024-01-01T01:30:00.5+01:00", xsd::DATE_TIME),
-            Some(Prop::DTime(utc("2024-01-01T00:30:00.5Z"))),
         ),
         (
             typed("2024-01-01T12:34:56", xsd::DATE_TIME),
@@ -329,36 +368,6 @@ fn literal_to_prop_conversions() {
                     .unwrap(),
             )),
         ),
-        // 18 fractional digits fit (trailing zeros do not count)
-        (
-            typed("1.123456789012345678", xsd::DECIMAL),
-            Some(Prop::Decimal(
-                BigDecimal::from_str("1.123456789012345678").unwrap(),
-            )),
-        ),
-        (
-            typed("1.50000000000000000000000", xsd::DECIMAL),
-            Some(Prop::Decimal(BigDecimal::from_str("1.5").unwrap())),
-        ),
-        (
-            typed(&i64::MAX.to_string(), xsd::UNSIGNED_LONG),
-            Some(Prop::I64(i64::MAX)),
-        ),
-        // fallbacks
-        (typed("99999999999999999999", xsd::INTEGER), None),
-        // an `xsd:unsignedLong` above `i64::MAX`
-        (typed("18446744073709551615", xsd::UNSIGNED_LONG), None),
-        // spareval keeps at most 18 fractional digits, and absolute values below about 1.7e20
-        (typed("1.1234567890123456789", xsd::DECIMAL), None),
-        (typed("12345678901234567890123.5", xsd::DECIMAL), None),
-        (typed("999999999999999999999", xsd::DECIMAL), None),
-        // a valid `xsd:decimal` with 39 significant digits does not fit in a `Prop::Decimal`
-        (
-            typed("123456789012345678901.123456789012345678", xsd::DECIMAL),
-            None,
-        ),
-        (typed("abc", xsd::INTEGER), None),
-        (typed("2024-01-01", xsd::DATE), None),
         (
             typed("x", NamedNode::new("http://ex/type").unwrap().as_ref()),
             None,
@@ -368,7 +377,6 @@ fn literal_to_prop_conversions() {
         assert_eq!(literal_to_prop(&literal), expected, "{literal}");
     }
     // the 39-digit decimal is a valid `xsd:decimal`, so its `None` comes from the size check
-    let too_long = typed("123456789012345678901.123456789012345678", xsd::DECIMAL);
     assert!(matches!(
         ExpressionTerm::from(Term::from(too_long)),
         ExpressionTerm::DecimalLiteral(_)

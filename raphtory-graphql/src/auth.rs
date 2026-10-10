@@ -15,7 +15,7 @@ use poem::{
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, future::Future, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, warn};
 
@@ -236,35 +236,9 @@ where
         GraphQLBatchResponse(self.executor.execute_batch(request).await).into_response()
     }
 
-    async fn execute_read_query(&self, req: BatchRequest) -> Result<Response> {
-        let is_heavy = match &req {
-            BatchRequest::Single(request) => is_query_heavy(&request.query),
-            BatchRequest::Batch(requests) => requests
-                .iter()
-                .any(|request| is_query_heavy(&request.query)),
-        };
-        if is_heavy {
-            if let Some(semaphore) = &self.semaphore {
-                match semaphore.acquire().await {
-                    Ok(_permit) => Ok(self.execute(req).await),
-                    Err(error) => Err(TooManyRequests(error)),
-                }
-            } else {
-                Ok(self.execute(req).await)
-            }
-        } else {
-            Ok(self.execute(req).await)
-        }
-    }
-
-    /// Executes a read query the way `call` does: holding the read side of the `exclusive_writes`
-    /// lock and, for a `heavy` query, a `heavy_query_limit` slot.
-    #[cfg(feature = "rdf")]
-    pub(crate) async fn execute_read(
-        &self,
-        request: async_graphql::Request,
-        heavy: bool,
-    ) -> Result<async_graphql::Response> {
+    /// Runs `f` as a read: holding the read side of the `exclusive_writes` lock and, if `heavy`,
+    /// a `heavy_query_limit` slot.
+    pub(crate) async fn read<R>(&self, heavy: bool, f: impl Future<Output = R>) -> Result<R> {
         let _guard = match &self.lock {
             Some(lock) => Some(lock.read().await),
             None => None,
@@ -273,7 +247,12 @@ where
             Some(semaphore) if heavy => Some(semaphore.acquire().await.map_err(TooManyRequests)?),
             _ => None,
         };
-        Ok(self.executor.execute(request).await)
+        Ok(f.await)
+    }
+
+    #[cfg(feature = "rdf")]
+    pub(crate) fn executor(&self) -> &E {
+        &self.executor
     }
 }
 
@@ -357,12 +336,13 @@ where
                     Ok(self.execute(req).await)
                 }
             } else {
-                if let Some(lock) = &self.lock {
-                    let _guard = lock.read().await;
-                    self.execute_read_query(req).await
-                } else {
-                    self.execute_read_query(req).await
-                }
+                let heavy = match &req {
+                    BatchRequest::Single(request) => is_query_heavy(&request.query),
+                    BatchRequest::Batch(requests) => requests
+                        .iter()
+                        .any(|request| is_query_heavy(&request.query)),
+                };
+                self.read(heavy, self.execute(req)).await
             }
         }
     }
@@ -388,8 +368,10 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("outNeighbours")
         || query.contains("inNeighbours")
         || query.contains("algorithm")
-        // the `sparql` field (feature `rdf`) runs a whole SPARQL query
-        || (cfg!(feature = "rdf") && query.contains("sparql"))
+        || (cfg!(feature = "rdf")
+            && ["sparql", "toRdf", "validateShacl"]
+                .iter()
+                .any(|field| is_operation(query, field)))
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),
@@ -647,19 +629,15 @@ mod tests {
 
     #[cfg(feature = "rdf")]
     #[test]
-    fn sparql_queries_are_heavy() {
-        assert!(is_query_heavy(
-            r#"{ graph(path: "g") { sparql(query: "SELECT * { ?s ?p ?o }") } }"#
-        ));
-        assert!(!is_query_heavy(r#"{ graph(path: "g") { countNodes } }"#));
-    }
-
-    /// Without the `rdf` feature the word `sparql` does not make a query heavy.
-    #[cfg(not(feature = "rdf"))]
-    #[test]
-    fn sparql_is_not_heavy_without_rdf() {
-        assert!(!is_query_heavy(
-            r#"{ graph(path: "sparql") { countNodes } }"#
-        ));
+    fn rdf_fields_are_heavy() {
+        for field in [
+            "sparql(query: \"ASK {}\")",
+            "toRdf",
+            "validateShacl(shapes: \"\")",
+        ] {
+            let query = format!(r#"{{ rdfGraph(path: "g") {{ valid {{ {field} }} }} }}"#);
+            assert!(is_query_heavy(&query), "{query}");
+        }
+        assert!(!is_query_heavy(r#"{ rdfGraph(path: "g") { name } }"#));
     }
 }

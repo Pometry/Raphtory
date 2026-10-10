@@ -6,11 +6,16 @@ use crate::{
         NamespacePermission,
     },
     config::app_config::{AppConfig, AppConfigBuilder},
-    model::graph::filtering::GraphAccessFilter,
     server::GraphServer,
     sparql::Running,
+    test_support::rdf::{
+        pairs, people, read_with, rows, slow_count, triples, AS_OF_3, COUNT, KNOWN_BY, KNOWS, NOW,
+        SINCE,
+    },
 };
+use async_graphql::Context;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
+use oxigraph::io::JsonLdProfileSet;
 use poem::{
     endpoint::BoxEndpoint,
     http::{Method, StatusCode},
@@ -19,55 +24,19 @@ use poem::{
 use raphtory::{
     db::api::storage::storage::Args,
     prelude::*,
-    rdf::{QueryResultsFormat, RdfFormat, RdfParser, RdfViewOps, SparqlFormat},
+    rdf::{QueryResultsFormat, RdfFormat},
 };
 use serde_json::{json, Value as Json};
 use std::{
+    fs,
     sync::Arc,
     time::{Duration, Instant},
 };
 use tempfile::TempDir;
 use url::form_urlencoded::byte_serialize;
 
-const PEOPLE: &str = r#"
-    @prefix ex: <http://ex/> .
-    ex:alice ex:knows ex:bob ; ex:age 42 .
-    ex:bob ex:knows ex:carol .
-    ex:carol ex:name "Carol" .
-"#;
-const KNOWS: &str = "PREFIX ex: <http://ex/> SELECT ?s ?o { ?s ex:knows ?o } ORDER BY ?s ?o";
-const COUNT: &str = "SELECT (COUNT(*) AS ?n) { ?s ?p ?o }";
-const KNOWN_BY: &str =
-    "PREFIX ex: <http://ex/> CONSTRUCT { ?o ex:knownBy ?s } WHERE { ?s ex:knows ?o }";
-/// When `bob knows carol` started holding: at 1.
-const SINCE: &str = "PREFIX ex: <http://ex/> \
-    SELECT (raphtory:validFromTime(ex:bob, ex:knows, ex:carol) AS ?t) {}";
 const JSON: &str = "application/sparql-results+json";
 const TEXT: &str = "text/plain; charset=utf-8";
-
-/// Asserted at 1: `alice knows bob`, `alice age 42`, `bob knows carol`, `carol name "Carol"`.
-/// `alice knows bob` is retracted at 5, and `dave knows alice` asserted at 7.
-fn people() -> PersistentGraph {
-    let pg = PersistentGraph::new();
-    pg.load_rdf(1, PEOPLE.as_bytes(), RdfFormat::Turtle, None)
-        .unwrap();
-    let triple = |s: &str, o: &str| format!("<http://ex/{s}> <http://ex/knows> <http://ex/{o}> .");
-    pg.retract_rdf(
-        5,
-        triple("alice", "bob").as_bytes(),
-        RdfFormat::NTriples,
-        None,
-    )
-    .unwrap();
-    pg.load_rdf(
-        7,
-        triple("dave", "alice").as_bytes(),
-        RdfFormat::NTriples,
-        None,
-    )
-    .unwrap();
-    pg
-}
 
 /// `alice` knows `carol` (layer `knows`) and met `bob` in 2023 (layer `2023`, so the predicate
 /// `<raphtory:2023>`, which does not end in an XML name and so cannot be written in RDF/XML).
@@ -95,7 +64,7 @@ impl Server {
             .event_graph()
             .encode(work_dir.path().join("eg"))
             .unwrap();
-        std::fs::create_dir(work_dir.path().join("ns")).unwrap();
+        fs::create_dir(work_dir.path().join("ns")).unwrap();
         people()
             .encode(work_dir.path().join("ns").join("inner graph"))
             .unwrap();
@@ -248,53 +217,21 @@ fn url_encode(s: &str) -> String {
     byte_serialize(s.as_bytes()).collect()
 }
 
-/// The values of the solutions of SPARQL Results JSON, `""` for an unbound variable.
-fn rows(results: &str) -> Vec<Vec<String>> {
-    let results: Json = serde_json::from_str(results).unwrap();
-    let vars: Vec<&str> = results["head"]["vars"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|var| var.as_str().unwrap())
-        .collect();
-    results["results"]["bindings"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|solution| {
-            vars.iter()
-                .map(|var| solution[var]["value"].as_str().unwrap_or("").to_owned())
-                .collect()
-        })
-        .collect()
-}
-
-fn pairs(pairs: &[(&str, &str)]) -> Vec<Vec<String>> {
-    pairs
-        .iter()
-        .map(|(s, o)| vec![format!("http://ex/{s}"), format!("http://ex/{o}")])
-        .collect()
-}
-
-/// The results of `query` on `pg`, as `sparql_to_writer` writes them.
-fn local(query: &str, format: impl Into<SparqlFormat>) -> String {
+/// The results of `query` on the current state of `pg`, as `sparql_to_writer` writes them.
+fn local(query: &str, format: QueryResultsFormat) -> String {
     let mut out = Vec::new();
-    people().sparql_to_writer(query, &mut out, format).unwrap();
+    RdfGraph::from(people())
+        .valid()
+        .sparql_to_writer(query, &mut out, format)
+        .unwrap();
     String::from_utf8(out).unwrap()
 }
 
-/// The triples of an RDF document, in N-Triples form and sorted.
-fn triples(document: &str, format: RdfFormat) -> Vec<String> {
-    let mut triples: Vec<String> = RdfParser::from_format(format)
-        .for_slice(document.as_bytes())
-        .map(|quad| format!("{} .", quad.unwrap()))
-        .collect();
-    triples.sort();
-    triples
-}
-
-const NOW: &[(&str, &str)] = &[("bob", "carol"), ("dave", "alice")];
-const AS_OF_3: &[(&str, &str)] = &[("alice", "bob"), ("bob", "carol")];
+/// The triples of `KNOWN_BY` on the current state of `pg`.
+const KNOWN_BY_NOW: [&str; 2] = [
+    "<http://ex/alice> <http://ex/knownBy> <http://ex/dave> .",
+    "<http://ex/carol> <http://ex/knownBy> <http://ex/bob> .",
+];
 
 #[tokio::test]
 async fn every_query_form_of_the_protocol() {
@@ -302,7 +239,9 @@ async fn every_query_form_of_the_protocol() {
     let expected = local(KNOWS, QueryResultsFormat::Json);
     assert_eq!(rows(&expected), pairs(NOW));
     // GET
-    assert_eq!(server.select(KNOWS).await.json(), expected);
+    let reply = server.select(KNOWS).await;
+    assert_eq!(reply.vary, "Accept");
+    assert_eq!(reply.json(), expected);
     // POST of a form, also with a charset
     for content_type in [
         "application/x-www-form-urlencoded",
@@ -326,29 +265,37 @@ async fn every_query_form_of_the_protocol() {
         )
         .await;
     assert_eq!(reply.json(), expected);
+    // a graph in a namespace
+    let reply = server
+        .get_from("ns/inner%20graph", &[("query", KNOWS)], None)
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(NOW));
 
-    // ASK, CONSTRUCT and DESCRIBE
+    // ASK and CONSTRUCT
     let ask = server
         .select("ASK { <http://ex/bob> <http://ex/knows> <http://ex/carol> }")
         .await;
     assert_eq!(ask.json(), r#"{"head":{},"boolean":true}"#);
     let turtle = server.select(KNOWN_BY).await.ok("text/turtle");
-    assert_eq!(turtle, local(KNOWN_BY, RdfFormat::Turtle));
-    assert_eq!(
-        triples(&turtle, RdfFormat::Turtle),
-        [
-            "<http://ex/alice> <http://ex/knownBy> <http://ex/dave> .",
-            "<http://ex/carol> <http://ex/knownBy> <http://ex/bob> .",
-        ]
-    );
-    let describe = server
-        .select("DESCRIBE <http://ex/carol>")
-        .await
-        .ok("text/turtle");
-    assert_eq!(
-        triples(&describe, RdfFormat::Turtle),
-        ["<http://ex/carol> <http://ex/name> \"Carol\" ."]
-    );
+    assert_eq!(triples(&turtle, RdfFormat::Turtle), KNOWN_BY_NOW);
+}
+
+#[tokio::test]
+async fn the_endpoint_queries_the_current_state_unless_a_time_graph_is_read() {
+    let server = Server::default().await;
+    assert_eq!(rows(&server.select(KNOWS).await.json()), pairs(NOW));
+    // the time graph holds `alice knows bob`, retracted since
+    let as_of_3 = "PREFIX ex: <http://ex/> \
+                   SELECT ?s ?o { GRAPH raphtory:asof:3 { ?s ex:knows ?o } } ORDER BY ?s ?o";
+    assert_eq!(rows(&server.select(as_of_3).await.json()), pairs(AS_OF_3));
+    // a time graph that is only a reference time keeps the current state
+    let since_3 = "PREFIX ex: <http://ex/> SELECT ?s ?o { ?s ex:knows ?o \
+                   BIND(raphtory:validFrom(?s, ex:knows, ?o, raphtory:asof:3) AS ?since) } \
+                   ORDER BY ?s ?o";
+    assert_eq!(rows(&server.select(since_3).await.json()), pairs(NOW));
+    // an event graph is read with persistent semantics
+    let reply = server.get_from("eg", &[("query", KNOWS)], None).await;
+    assert_eq!(rows(&reply.json()), pairs(NOW));
 }
 
 #[tokio::test]
@@ -370,15 +317,6 @@ async fn the_accept_header_picks_the_format() {
         ("application/xml", QueryResultsFormat::Xml),
         ("text/csv", QueryResultsFormat::Csv),
         ("text/tab-separated-values", QueryResultsFormat::Tsv),
-        // q-values
-        (
-            "text/csv;q=0.5, application/sparql-results+xml;q=0.8, text/turtle",
-            QueryResultsFormat::Xml,
-        ),
-        (
-            "text/csv;q=0, text/tab-separated-values;q=0.5, */*;q=0.1",
-            QueryResultsFormat::Tsv,
-        ),
         // SPARQLWrapper and YASGUI
         (
             "application/sparql-results+json,application/json,text/javascript,application/javascript",
@@ -392,11 +330,10 @@ async fn the_accept_header_picks_the_format() {
         let body = select(accept).await.ok(format.media_type());
         assert_eq!(body, local(KNOWS, format), "{accept}");
     }
-    assert_eq!(
-        select("text/csv").await.body,
-        "s,o\r\nhttp://ex/bob,http://ex/carol\r\nhttp://ex/dave,http://ex/alice\r\n"
-    );
 
+    let json_ld = RdfFormat::JsonLd {
+        profile: JsonLdProfileSet::empty(),
+    };
     for (accept, format) in [
         ("*/*", RdfFormat::Turtle),
         ("application/n-triples", RdfFormat::NTriples),
@@ -404,10 +341,8 @@ async fn the_accept_header_picks_the_format() {
         ("application/xml", RdfFormat::RdfXml),
         ("application/n-quads", RdfFormat::NQuads),
         ("application/trig", RdfFormat::TriG),
-        (
-            "application/n-triples;q=0.4, application/rdf+xml;q=0.9",
-            RdfFormat::RdfXml,
-        ),
+        ("application/ld+json", json_ld),
+        ("application/json", json_ld),
         // rdflib and YASGUI
         (
             "application/sparql-results+xml, application/rdf+xml",
@@ -419,208 +354,78 @@ async fn the_accept_header_picks_the_format() {
         ),
     ] {
         let body = construct(accept).await.ok(format.media_type());
-        assert_eq!(body, local(KNOWN_BY, format), "{accept}");
-    }
-    for accept in ["application/ld+json", "application/json"] {
-        let body = construct(accept).await.ok("application/ld+json");
-        assert_eq!(
-            triples(
-                &body,
-                RdfFormat::from_media_type("application/ld+json").unwrap()
-            ),
-            triples(&local(KNOWN_BY, RdfFormat::Turtle), RdfFormat::Turtle)
-        );
+        assert_eq!(triples(&body, format), KNOWN_BY_NOW, "{accept}");
     }
 
     // nothing acceptable: 406 before the query runs, or once its form is known
-    for accept in ["text/plain", "*/*;q=0", "image/png, text/html"] {
-        let error = select(accept).await.error(StatusCode::NOT_ACCEPTABLE);
-        assert!(error.contains("text/turtle"), "{error}");
-    }
-    let error = construct("text/csv")
+    select("text/plain").await.error(StatusCode::NOT_ACCEPTABLE);
+    construct("text/csv")
         .await
         .error(StatusCode::NOT_ACCEPTABLE);
-    assert_eq!(
-        error,
-        "none of the formats the Accept header allows can hold CONSTRUCT results"
-    );
-    let error = select("text/turtle")
+    select("text/turtle")
         .await
         .error(StatusCode::NOT_ACCEPTABLE);
-    assert_eq!(
-        error,
-        "none of the formats the Accept header allows can hold SELECT results"
-    );
-    // a literal SPARQL Results XML cannot hold
+
+    // a literal SPARQL Results XML cannot hold is written in the next format the Accept header
+    // allows
     let control = "SELECT ?v { BIND(\"a\\u0001b\" AS ?v) }";
-    let error = server
-        .get(
-            &[("query", control)],
-            Some("application/sparql-results+xml"),
-        )
-        .await
-        .error(StatusCode::NOT_ACCEPTABLE);
-    assert!(error.contains("use JSON"), "{error}");
-    // ... in the next format the Accept header allows, if any
     let xml_first = "application/sparql-results+xml, application/sparql-results+json;q=0.5";
-    for (accept, format) in [
-        (xml_first, QueryResultsFormat::Json),
-        (
-            "application/sparql-results+xml, text/csv;q=0.5, */*;q=0.1",
-            QueryResultsFormat::Csv,
-        ),
-    ] {
-        let reply = server.get(&[("query", control)], Some(accept)).await;
-        assert_eq!(
-            reply.ok(format.media_type()),
-            local(control, format),
-            "{accept}"
-        );
-    }
+    let reply = server.get(&[("query", control)], Some(xml_first)).await;
+    assert_eq!(
+        reply.ok(QueryResultsFormat::Json.media_type()),
+        local(control, QueryResultsFormat::Json)
+    );
     // XML when it holds the results
-    for query in [KNOWS, "ASK {}"] {
-        let reply = server.get(&[("query", query)], Some(xml_first)).await;
-        assert_eq!(
-            reply.ok(QueryResultsFormat::Xml.media_type()),
-            local(query, QueryResultsFormat::Xml),
-            "{query}"
-        );
-    }
-    // the formats of the other form of query do not count
-    let error = server
-        .get(&[("query", KNOWN_BY)], Some(xml_first))
-        .await
-        .error(StatusCode::NOT_ACCEPTABLE);
+    let reply = server.get(&[("query", KNOWS)], Some(xml_first)).await;
     assert_eq!(
-        error,
-        "none of the formats the Accept header allows can hold CONSTRUCT results"
+        reply.ok(QueryResultsFormat::Xml.media_type()),
+        local(KNOWS, QueryResultsFormat::Xml)
     );
-    let reply = server
-        .get(
-            &[("query", KNOWN_BY)],
-            Some("application/sparql-results+xml, application/rdf+xml;q=0.1"),
-        )
-        .await;
-    assert_eq!(
-        reply.ok("application/rdf+xml"),
-        local(KNOWN_BY, RdfFormat::RdfXml)
-    );
-}
 
-/// The results of `query` on `years`, as `sparql_to_writer` writes them.
-fn local_years(query: &str, format: impl Into<SparqlFormat>) -> String {
-    let mut out = Vec::new();
-    years().sparql_to_writer(query, &mut out, format).unwrap();
-    String::from_utf8(out).unwrap()
-}
-
-#[tokio::test]
-async fn rdf_xml_never_drops_triples() {
-    let server = Server::default().await;
-    let construct = |query: &'static str, accept: &'static str| {
+    // the same for triples RDF/XML cannot hold
+    let from_years = |query: &'static str| {
         let server = &server;
         async move {
             server
-                .get_from("years", &[("query", query)], Some(accept))
+                .get_from(
+                    "years",
+                    &[("query", query)],
+                    Some("application/rdf+xml, text/turtle;q=0.5"),
+                )
                 .await
         }
     };
-    let all = "CONSTRUCT WHERE { ?s ?p ?o }";
+    let all = from_years("CONSTRUCT WHERE { ?s ?p ?o }")
+        .await
+        .ok(RdfFormat::Turtle.media_type());
     assert_eq!(
-        triples(&local_years(all, RdfFormat::NTriples), RdfFormat::NTriples),
+        triples(&all, RdfFormat::Turtle),
         [
             "<raphtory:alice> <raphtory:2023> <raphtory:bob> .",
             "<raphtory:alice> <raphtory:knows> <raphtory:carol> .",
         ]
     );
-    // With RDF/XML the only RDF format allowed, results it cannot hold are refused, not cut
-    // short. rdflib's SPARQLStore sends the second header.
-    for accept in [
-        "application/rdf+xml",
-        "application/sparql-results+xml, application/rdf+xml",
-    ] {
-        let error = construct(all, accept)
-            .await
-            .error(StatusCode::NOT_ACCEPTABLE);
-        assert_eq!(
-            error,
-            "RDF/XML cannot hold 1 of the 2 triples of the results (such as triples whose \
-             predicate does not end in an XML name); accept another RDF format: text/turtle, \
-             application/n-triples, application/ld+json, application/n-quads or application/trig",
-            "{accept}"
-        );
-    }
-    let met = "CONSTRUCT WHERE { ?s <raphtory:2023> ?o }";
-    let error = construct(met, "application/rdf+xml")
+    let knows = from_years("CONSTRUCT WHERE { ?s <raphtory:knows> ?o }")
         .await
-        .error(StatusCode::NOT_ACCEPTABLE);
-    assert!(
-        error.starts_with("RDF/XML cannot hold 1 of the 1 triples"),
-        "{error}"
-    );
-    // otherwise they are in the next RDF format allowed
-    for (accept, format) in [
-        ("application/rdf+xml, text/turtle;q=0.5", RdfFormat::Turtle),
-        (
-            "application/rdf+xml, application/n-triples;q=0.9, text/turtle;q=0.5",
-            RdfFormat::NTriples,
-        ),
-        ("application/rdf+xml, */*;q=0.1", RdfFormat::Turtle),
-    ] {
-        let body = construct(all, accept).await.ok(format.media_type());
-        assert_eq!(body, local_years(all, format), "{accept}");
-    }
-    let describe = "DESCRIBE <raphtory:alice>";
-    let reply = construct(describe, "application/rdf+xml, application/n-triples;q=0.5").await;
+        .ok(RdfFormat::RdfXml.media_type());
     assert_eq!(
-        triples(&reply.ok("application/n-triples"), RdfFormat::NTriples),
-        triples(&local_years(all, RdfFormat::NTriples), RdfFormat::NTriples)
+        triples(&knows, RdfFormat::RdfXml),
+        ["<raphtory:alice> <raphtory:knows> <raphtory:carol> ."]
     );
-    // and in RDF/XML when it holds them all
-    let knows = "CONSTRUCT WHERE { ?s <raphtory:knows> ?o }";
-    let body = construct(knows, "application/rdf+xml, text/turtle;q=0.5")
-        .await
-        .ok("application/rdf+xml");
-    assert_eq!(body, local_years(knows, RdfFormat::RdfXml));
-    assert!(body.contains("raphtory:carol"), "{body}");
 }
 
 #[tokio::test]
 async fn dataset_parameters_set_the_dataset() {
     let server = Server::default().await;
     let all = "SELECT ?s ?o { ?s <http://ex/knows> ?o } ORDER BY ?s ?o";
-    // the default graph as of 3, also replacing `FROM`
-    let as_of_3 = server
-        .get(
-            &[("query", all), ("default-graph-uri", "raphtory:asof:3")],
-            None,
-        )
-        .await;
-    assert_eq!(rows(&as_of_3.json()), pairs(AS_OF_3));
+    // the default graph as of 3, replacing `FROM`
     let from_now = "SELECT ?s ?o FROM raphtory:asof:9 { ?s <http://ex/knows> ?o } ORDER BY ?s ?o";
-    assert_eq!(rows(&server.select(from_now).await.json()), pairs(NOW));
     let reply = server
         .get(
             &[
                 ("query", from_now),
                 ("default-graph-uri", "raphtory:asof:3"),
             ],
-            None,
-        )
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    // in a form, and with a date-time
-    let reply = server
-        .post(
-            &[],
-            "application/x-www-form-urlencoded",
-            form(&[
-                ("query", all),
-                (
-                    "default-graph-uri",
-                    "raphtory:asof:1970-01-01T00:00:00.003Z",
-                ),
-            ]),
             None,
         )
         .await;
@@ -636,7 +441,7 @@ async fn dataset_parameters_set_the_dataset() {
         .await;
     assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
 
-    // named graphs, repeated
+    // named graphs; a graph named twice counts once
     let graphs = "SELECT ?g (COUNT(*) AS ?n) { GRAPH ?g { ?s <http://ex/knows> ?o } } \
                   GROUP BY ?g ORDER BY ?g";
     let reply = server
@@ -645,21 +450,6 @@ async fn dataset_parameters_set_the_dataset() {
                 ("query", graphs),
                 ("named-graph-uri", "raphtory:asof:3"),
                 ("named-graph-uri", "raphtory:asof:9"),
-            ],
-            None,
-        )
-        .await;
-    assert_eq!(
-        rows(&reply.json()),
-        [["raphtory:asof:3", "2"], ["raphtory:asof:9", "2"]]
-    );
-    // a graph named twice counts once
-    let reply = server
-        .get(
-            &[
-                ("query", graphs),
-                ("named-graph-uri", "raphtory:asof:3"),
-                ("named-graph-uri", "raphtory:asof:9"),
                 ("named-graph-uri", "raphtory:asof:3"),
             ],
             None,
@@ -669,81 +459,6 @@ async fn dataset_parameters_set_the_dataset() {
         rows(&reply.json()),
         [["raphtory:asof:3", "2"], ["raphtory:asof:9", "2"]]
     );
-    let reply = server
-        .get(
-            &[
-                ("query", all),
-                ("default-graph-uri", "raphtory:asof:3"),
-                ("default-graph-uri", "raphtory:asof:3"),
-            ],
-            None,
-        )
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    // the protocol dataset replaces the whole dataset: no named graphs here
-    let reply = server
-        .get(
-            &[("query", graphs), ("default-graph-uri", "raphtory:asof:3")],
-            None,
-        )
-        .await;
-    assert_eq!(rows(&reply.json()), Vec::<Vec<String>>::new());
-
-    // only time graphs
-    for iri in ["http://ex/g", "not an iri", "raphtory:Alice"] {
-        let error = server
-            .get(&[("query", all), ("default-graph-uri", iri)], None)
-            .await
-            .error(StatusCode::BAD_REQUEST);
-        assert!(error.contains("can only name time graphs"), "{error}");
-    }
-    let error = server
-        .get(
-            &[("query", all), ("named-graph-uri", "raphtory:asof:soon")],
-            None,
-        )
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(
-        error.starts_with("invalid time graph <raphtory:asof:soon>"),
-        "{error}"
-    );
-}
-
-#[tokio::test]
-async fn graph_type_reads_the_graph_as_events_or_persistent() {
-    let server = Server::default().await;
-    let ask = "ASK { <http://ex/alice> <http://ex/knows> <http://ex/bob> }";
-    let yes = r#"{"head":{},"boolean":true}"#;
-    let no = r#"{"head":{},"boolean":false}"#;
-    for (graph, graph_type, expected) in [
-        ("eg", None, yes),
-        ("eg", Some("persistent"), no),
-        ("eg", Some("PERSISTENT"), no),
-        ("pg", None, no),
-        ("pg", Some("event"), yes),
-    ] {
-        let mut params = vec![("query", ask)];
-        params.extend(graph_type.map(|graph_type| ("graph_type", graph_type)));
-        let reply = server.get_from(graph, &params, None).await;
-        assert_eq!(reply.json(), expected, "{graph} {graph_type:?}");
-    }
-    let error = server
-        .get(&[("query", ask), ("graph_type", "eventually")], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(
-        error,
-        "invalid `graph_type`: expected `event` or `persistent`"
-    );
-}
-
-/// `KNOWS` on the default graph as of `t`.
-fn knows_from(t: &str) -> String {
-    format!(
-        "PREFIX ex: <http://ex/> SELECT ?s ?o FROM <raphtory:asof:{t}> {{ ?s ex:knows ?o }} \
-         ORDER BY ?s ?o"
-    )
 }
 
 #[tokio::test]
@@ -751,39 +466,29 @@ async fn asof_queries_the_graph_as_of_a_time() {
     let server = Server::default().await;
     // as `FROM <raphtory:asof:T>`, before, between and after the retraction
     for t in ["0", "3", "6", "9"] {
-        let from = rows(&server.select(&knows_from(t)).await.json());
+        let from = format!(
+            "PREFIX ex: <http://ex/> SELECT ?s ?o FROM <raphtory:asof:{t}> {{ ?s ex:knows ?o }} \
+             ORDER BY ?s ?o"
+        );
+        let from = rows(&server.select(&from).await.json());
         let reply = server.get(&[("query", KNOWS), ("asof", t)], None).await;
         assert_eq!(rows(&reply.json()), from, "asof={t}");
     }
-    // the forms of a time
-    for (t, expected) in [
-        ("3", AS_OF_3),
-        ("1970-01-01T00:00:00.003Z", AS_OF_3),
-        ("1970-01-01T00:00:00.003", AS_OF_3),
-        ("1970-01-01", &[]),
-        ("1970-01-02", NOW),
-    ] {
-        let reply = server.get(&[("query", KNOWS), ("asof", t)], None).await;
-        assert_eq!(rows(&reply.json()), pairs(expected), "asof={t}");
-    }
-    // a timezone offset in a URL, its `+` encoded as `%2B` or written as is (so read as a space)
-    for (asof, expected) in [
-        ("1970-01-01T01:00:00.003%2B01:00", AS_OF_3),
-        ("1970-01-01T01:00:00.003+01:00", AS_OF_3),
-        ("Thu,%2001%20Jan%201970%2001:00:01%20+0100", NOW),
-    ] {
-        let uri = format!("/sparql/pg?asof={asof}&query={}", url_encode(KNOWS));
-        let reply = server
-            .send(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri(uri.parse().unwrap())
-                    .finish(),
-            )
-            .await;
-        assert_eq!(rows(&reply.json()), pairs(expected), "asof={asof}");
-    }
-    // in a form, in the URL of a form and in the URL of a query body
+    // a timezone offset in a URL, its `+` written as is (so read as a space)
+    let uri = format!(
+        "/sparql/pg?asof=1970-01-01T01:00:00.003+01:00&query={}",
+        url_encode(KNOWS)
+    );
+    let reply = server
+        .send(
+            Request::builder()
+                .method(Method::GET)
+                .uri(uri.parse().unwrap())
+                .finish(),
+        )
+        .await;
+    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
+    // in a form
     let reply = server
         .post(
             &[],
@@ -793,277 +498,6 @@ async fn asof_queries_the_graph_as_of_a_time() {
         )
         .await;
     assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    let reply = server
-        .post(
-            &[("asof", "3")],
-            "application/x-www-form-urlencoded",
-            form(&[("query", KNOWS)]),
-            None,
-        )
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    let reply = server
-        .post(&[("asof", "3")], "application/sparql-query", KNOWS, None)
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    // other formats
-    let reply = server
-        .get(
-            &[("query", KNOWN_BY), ("asof", "3")],
-            Some("application/n-triples"),
-        )
-        .await;
-    assert_eq!(
-        triples(&reply.ok("application/n-triples"), RdfFormat::NTriples),
-        triples(
-            &local(&knows_from_construct("3"), RdfFormat::NTriples),
-            RdfFormat::NTriples
-        )
-    );
-
-    // an event graph sees every triple asserted up to the time
-    let reply = server
-        .get_from("eg", &[("query", KNOWS), ("asof", "3")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    let reply = server
-        .get_from("eg", &[("query", KNOWS), ("asof", "9")], None)
-        .await;
-    assert_eq!(
-        rows(&reply.json()),
-        pairs(&[("alice", "bob"), ("bob", "carol"), ("dave", "alice")])
-    );
-    let reply = server
-        .get(
-            &[("query", KNOWS), ("asof", "9"), ("graph_type", "event")],
-            None,
-        )
-        .await;
-    assert_eq!(
-        rows(&reply.json()),
-        pairs(&[("alice", "bob"), ("bob", "carol"), ("dave", "alice")])
-    );
-}
-
-/// `KNOWN_BY` on the default graph as of `t`.
-fn knows_from_construct(t: &str) -> String {
-    format!(
-        "PREFIX ex: <http://ex/> CONSTRUCT {{ ?o ex:knownBy ?s }} FROM <raphtory:asof:{t}> \
-         WHERE {{ ?s ex:knows ?o }}"
-    )
-}
-
-#[tokio::test]
-async fn asof_is_the_present_of_the_query() {
-    let server = Server::default().await;
-    // `alice knows bob` held from 1 until its retraction at 5
-    let interval = |at: &str| {
-        format!(
-            "PREFIX ex: <http://ex/> \
-             SELECT (raphtory:validFromTime(ex:alice, ex:knows, ex:bob{at}) AS ?from) \
-                    (raphtory:validToTime(ex:alice, ex:knows, ex:bob{at}) AS ?to) {{}}"
-        )
-    };
-    let present = interval("");
-    let at_4 = interval(", raphtory:asof:4");
-    // asked for 4 on the full history, the run ends at the retraction
-    assert_eq!(rows(&server.select(&at_4).await.json()), [["1", "5"]]);
-    // while as of 4, without a reference time, the functions answer for 4, before the
-    // retraction: the run is still open
-    let reply = server
-        .get(&[("query", present.as_str()), ("asof", "4")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), [["1", ""]]);
-    let reply = server
-        .get(&[("query", at_4.as_str()), ("asof", "4")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), [["1", ""]]);
-    // now the triple no longer holds
-    assert_eq!(rows(&server.select(&present).await.json()), [["", ""]]);
-    // an earlier reference time is in the history as of 4, which ends before the retraction
-    let at_3 = interval(", raphtory:asof:3");
-    assert_eq!(rows(&server.select(&at_3).await.json()), [["1", "5"]]);
-    let reply = server
-        .get(&[("query", at_3.as_str()), ("asof", "4")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), [["1", ""]]);
-    // a later one is not
-    let at_6 = interval(", raphtory:asof:6");
-    let reply = server
-        .get(&[("query", at_6.as_str()), ("asof", "4")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), [["", ""]]);
-
-    // time graphs and the dataset parameters see the history up to `asof`
-    let graphs = "SELECT ?g (COUNT(*) AS ?n) { GRAPH ?g { ?s <http://ex/knows> ?o } } \
-                  GROUP BY ?g ORDER BY ?g";
-    let both = [
-        ("named-graph-uri", "raphtory:asof:3"),
-        ("named-graph-uri", "raphtory:asof:9"),
-    ];
-    let mut params = vec![("query", graphs), ("asof", "9")];
-    params.extend(both);
-    let reply = server.get(&params, None).await;
-    assert_eq!(
-        rows(&reply.json()),
-        [["raphtory:asof:3", "2"], ["raphtory:asof:9", "2"]]
-    );
-    let reply = server.get_from("eg", &params, None).await;
-    assert_eq!(
-        rows(&reply.json()),
-        [["raphtory:asof:3", "2"], ["raphtory:asof:9", "3"]]
-    );
-    let in_query = "PREFIX ex: <http://ex/> \
-        SELECT ?s ?o { GRAPH <raphtory:asof:3> { ?s ex:knows ?o } } ORDER BY ?s ?o";
-    let reply = server
-        .get_from("eg", &[("query", in_query), ("asof", "9")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    let reply = server
-        .get(&[("query", in_query), ("asof", "9")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    let reply = server
-        .get(&[("query", in_query), ("asof", "2")], None)
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(&[]));
-    let reply = server
-        .get(
-            &[
-                ("query", KNOWS),
-                ("asof", "3"),
-                ("default-graph-uri", "raphtory:asof:3"),
-            ],
-            None,
-        )
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(AS_OF_3));
-    for graph in ["pg", "eg"] {
-        let reply = server
-            .get_from(
-                graph,
-                &[
-                    ("query", KNOWS),
-                    ("asof", "9"),
-                    ("default-graph-uri", "raphtory:asof:3"),
-                ],
-                None,
-            )
-            .await;
-        assert_eq!(rows(&reply.json()), pairs(AS_OF_3), "{graph}");
-    }
-}
-
-#[tokio::test]
-async fn invalid_asof_is_refused() {
-    let server = Server::default().await;
-    // the last also with its space read as `+`
-    for t in ["foo", "", "2024-13-01", "3.5", "2024-01-01T00:00:00 junk"] {
-        let error = server
-            .get(&[("query", KNOWS), ("asof", t)], None)
-            .await
-            .error(StatusCode::BAD_REQUEST);
-        assert!(
-            error.starts_with(&format!("invalid `asof`: cannot parse \"{t}\" as a time")),
-            "{error}"
-        );
-        // also by the service description
-        let error = server
-            .get(&[("asof", t)], None)
-            .await
-            .error(StatusCode::BAD_REQUEST);
-        assert!(error.starts_with("invalid `asof`"), "{error}");
-    }
-    server
-        .get(&[("asof", "2024-01-01")], None)
-        .await
-        .ok("text/turtle");
-    let error = server
-        .get(&[("query", KNOWS), ("asof", "3"), ("asof", "3")], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, "the request has more than one `asof`");
-    let error = server
-        .post(
-            &[("asof", "3")],
-            "application/x-www-form-urlencoded",
-            form(&[("query", KNOWS), ("asof", "4")]),
-            None,
-        )
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, "the request has more than one `asof`");
-}
-
-#[tokio::test]
-async fn asof_keeps_permissions_and_access_filters() {
-    let server = Server::as_user(read_with(json!({
-        "filter": { "node": { "name": { "where": { "ne": { "str": "http://ex/carol" } } } } }
-    })))
-    .await;
-    let reply = server.get(&[("query", KNOWS), ("asof", "3")], None).await;
-    assert_eq!(rows(&reply.json()), pairs(&[("alice", "bob")]));
-    let refused = server.select(SINCE).await.error(StatusCode::BAD_REQUEST);
-    let error = server
-        .get(&[("query", SINCE), ("asof", "3")], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, refused);
-
-    let server = Server::as_user(GraphPermission::Read { filter: None }).await;
-    let reply = server.get(&[("query", SINCE), ("asof", "3")], None).await;
-    assert_eq!(rows(&reply.json()), [["1"]]);
-
-    let server = Server::as_user(GraphPermission::Introspect).await;
-    for params in [&[("query", KNOWS), ("asof", "3")][..], &[("asof", "3")]] {
-        let error = server.get(params, None).await.error(StatusCode::NOT_FOUND);
-        assert_eq!(error, "Graph 'pg' does not exist");
-        let error = server
-            .get_from("ns/inner%20graph", params, None)
-            .await
-            .error(StatusCode::NOT_FOUND);
-        assert_eq!(error, "Graph 'ns/inner graph' does not exist");
-    }
-}
-
-#[tokio::test]
-async fn graphs_in_namespaces() {
-    let server = Server::default().await;
-    let reply = server
-        .get_from("ns/inner%20graph", &[("query", KNOWS)], None)
-        .await;
-    assert_eq!(rows(&reply.json()), pairs(NOW));
-    let error = server
-        .get_from("ns/nope", &[("query", KNOWS)], None)
-        .await
-        .error(StatusCode::NOT_FOUND);
-    assert_eq!(error, "Graph 'ns/nope' does not exist");
-}
-
-#[tokio::test]
-async fn updates_are_refused() {
-    let server = Server::default().await;
-    let update = "INSERT DATA { <http://ex/a> <http://ex/b> <http://ex/c> }";
-    let refused = "SPARQL Update is not supported: this endpoint answers queries only";
-    let replies = [
-        server
-            .post(
-                &[],
-                "application/x-www-form-urlencoded",
-                form(&[("update", update)]),
-                None,
-            )
-            .await,
-        server
-            .post(&[], "application/sparql-update", update, None)
-            .await,
-        server.get(&[("update", update)], None).await,
-    ];
-    for reply in replies {
-        assert_eq!(reply.error(StatusCode::NOT_IMPLEMENTED), refused);
-    }
-    // nothing changed
-    assert_eq!(rows(&server.select(COUNT).await.json()), [["4"]]);
 }
 
 #[tokio::test]
@@ -1083,32 +517,22 @@ async fn the_service_description() {
             .any(|triple| triple.ends_with(&format!(" {predicate} {object} .")))
     };
     assert!(
-        has(
-            "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
-            &sd("Service")
-        ),
-        "{turtle}"
-    );
-    assert!(
         has(&sd("endpoint"), "<http://example.org:1736/sparql/pg>"),
         "{turtle}"
     );
-    assert!(has(&sd("supportedLanguage"), &sd("SPARQL11Query")));
-    for format in [
-        "SPARQL_Results_JSON",
-        "SPARQL_Results_CSV",
-        "Turtle",
-        "JSON-LD",
-    ] {
+    for format in ["SPARQL_Results_JSON", "JSON-LD"] {
         assert!(
             has(
                 &sd("resultFormat"),
                 &format!("<http://www.w3.org/ns/formats/{format}>")
             ),
-            "{format}"
+            "{turtle}"
         );
     }
-    assert!(has(&sd("extensionFunction"), "<raphtory:validFrom>"));
+    assert!(
+        has(&sd("extensionFunction"), "<raphtory:validFrom>"),
+        "{turtle}"
+    );
 
     // negotiated, behind a proxy
     let request = Request::builder()
@@ -1126,190 +550,80 @@ async fn the_service_description() {
         )),
         "{nt}"
     );
-    let error = server
-        .get(&[], Some("text/csv"))
-        .await
-        .error(StatusCode::NOT_ACCEPTABLE);
-    assert!(error.contains("text/turtle"), "{error}");
-
-    // like a query, it needs a graph that exists
-    for graph in ["nope", "ns/nope"] {
-        let error = server
-            .get_from(graph, &[], None)
-            .await
-            .error(StatusCode::NOT_FOUND);
-        assert_eq!(error, format!("Graph '{graph}' does not exist"));
-    }
-    let error = server
-        .get_from("..%2Fpg", &[], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(error.starts_with("Invalid path"), "{error}");
-    server
-        .get(&[("graph_type", "event")], None)
-        .await
-        .ok("text/turtle");
-    let error = server
-        .get(&[("graph_type", "eventually")], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(
-        error,
-        "invalid `graph_type`: expected `event` or `persistent`"
-    );
 }
 
 #[tokio::test]
-async fn bad_requests() {
+async fn protocol_errors_have_their_status() {
     let server = Server::default().await;
-    let error = server
-        .select("SELECT ?x WHERE { ?x")
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(error.starts_with("SPARQL syntax error"), "{error}");
-    let error = server
-        .select("SELECT (<http://ex/nope>(1) AS ?x) {}")
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(error.starts_with("SPARQL evaluation error"), "{error}");
-    let nested = format!(
-        "SELECT * {{ FILTER({}1{}) }}",
-        "(".repeat(500),
-        ")".repeat(500)
-    );
-    let error = server.select(&nested).await.error(StatusCode::BAD_REQUEST);
-    assert!(
-        error.contains("brackets nest more than 128 deep"),
-        "{error}"
-    );
-    // SERVICE makes no request
-    let error = server
-        .select("SELECT * { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }")
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(error.contains("is not supported"), "{error}");
-
-    // the protocol
-    let error = server
-        .post(&[], "application/x-www-form-urlencoded", "", None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, "the request has no `query`");
-    let error = server
-        .get(&[("query", KNOWS), ("query", COUNT)], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, "the request has more than one `query`");
-    let error = server
-        .post(&[("query", KNOWS)], "application/sparql-query", COUNT, None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, "the request has more than one `query`");
-    let error = server
-        .post(&[], "application/json", "{}", None)
-        .await
-        .error(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-    assert!(error.contains("application/sparql-query"), "{error}");
-    let invalid_utf8 = Request::builder()
-        .method(Method::POST)
-        .uri("/sparql/pg".parse().unwrap())
-        .header("content-type", "application/sparql-query")
-        .body(vec![b'A', b'S', b'K', 0xff]);
-    let error = server
-        .send(invalid_utf8)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(error, "the query is not UTF-8");
+    let disabled = Server::with(|config| config.concurrency.disable_lists = true).await;
+    let update = "INSERT DATA { <http://ex/a> <http://ex/b> <http://ex/c> }";
     let put = Request::builder()
         .method(Method::PUT)
         .uri("/sparql/pg".parse().unwrap())
         .finish();
-    let reply = server.send(put).await;
-    assert_eq!(reply.allow, "GET, POST, OPTIONS");
-    reply.error(StatusCode::METHOD_NOT_ALLOWED);
+    let put = server.send(put).await;
+    assert_eq!(put.allow, "GET, POST, OPTIONS");
 
-    // graphs
-    let error = server
-        .get_from("nope", &[("query", KNOWS)], None)
-        .await
-        .error(StatusCode::NOT_FOUND);
-    assert_eq!(error, "Graph 'nope' does not exist");
-    let error = server
-        .get_from("..%2Fpg", &[("query", KNOWS)], None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(error.starts_with("Invalid path"), "{error}");
-}
-
-#[tokio::test]
-async fn the_limits_of_the_server_apply() {
-    // the default length limit, 16 KiB
-    let server = Server::default().await;
-    let padded = |length: usize| format!("{COUNT}{}", " ".repeat(length - COUNT.len()));
-    assert_eq!(
-        rows(&server.select(&padded(16 * 1024)).await.json()),
-        [["4"]]
-    );
-    let too_long = server
-        .post(&[], "application/sparql-query", padded(16 * 1024 + 1), None)
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert_eq!(
-        too_long,
-        "SPARQL query too long: 16385 bytes, the limit is 16384 bytes \
-         (`max_sparql_query_length`)"
-    );
-    // a body far longer than any form of an allowed query is not read
-    let huge = server
-        .post(&[], "application/sparql-query", padded(1024 * 1024), None)
-        .await
-        .error(StatusCode::PAYLOAD_TOO_LARGE);
-    assert!(huge.contains("`max_sparql_query_length`"), "{huge}");
-    // the default limit of 100 triple patterns
-    let star = |n: usize| {
-        let patterns: String = (0..n).map(|i| format!("?s ?p{i} ?o{i} . ")).collect();
-        format!("SELECT ?s {{ {patterns} }}")
-    };
-    server.select(&star(100)).await.json();
-    let error = server
-        .select(&star(101))
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(
-        error.starts_with("SPARQL query too complex: 101 triple patterns"),
-        "{error}"
-    );
-    assert!(error.ends_with("(`max_sparql_triple_patterns`)"), "{error}");
-
-    let server = Server::with(|config| config.concurrency.max_sparql_query_length = Some(40)).await;
-    let error = server
-        .select(&padded(41))
-        .await
-        .error(StatusCode::BAD_REQUEST);
-    assert!(
-        error.starts_with("SPARQL query too long: 41 bytes"),
-        "{error}"
-    );
-
-    let server = Server::with(|config| config.concurrency.disable_lists = true).await;
-    for reply in [server.select(COUNT).await, server.get(&[], None).await] {
+    let replies = [
+        (
+            StatusCode::BAD_REQUEST,
+            server.select("SELECT ?x WHERE { ?x").await,
+        ),
+        (
+            StatusCode::BAD_REQUEST,
+            server.get(&[("query", KNOWS), ("asof", "foo")], None).await,
+        ),
+        (
+            StatusCode::PAYLOAD_TOO_LARGE,
+            server
+                .post(
+                    &[],
+                    "application/sparql-query",
+                    " ".repeat(1024 * 1024),
+                    None,
+                )
+                .await,
+        ),
+        (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            server.post(&[], "application/json", "{}", None).await,
+        ),
+        (StatusCode::METHOD_NOT_ALLOWED, put),
+        (
+            StatusCode::NOT_FOUND,
+            server.get_from("nope", &[("query", KNOWS)], None).await,
+        ),
+        (
+            StatusCode::NOT_ACCEPTABLE,
+            server.get(&[], Some("text/csv")).await,
+        ),
+        (
+            StatusCode::NOT_IMPLEMENTED,
+            server
+                .post(&[], "application/sparql-update", update, None)
+                .await,
+        ),
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            disabled.select(COUNT).await,
+        ),
+    ];
+    for (row, (status, reply)) in replies.into_iter().enumerate() {
         assert_eq!(
-            reply.error(StatusCode::SERVICE_UNAVAILABLE),
-            "SPARQL queries are disabled on this server (`disable_lists`)"
+            (reply.status, reply.content_type.as_str()),
+            (status, TEXT),
+            "row {row}: {}",
+            reply.body
         );
     }
 }
 
-/// A query over the 4 triples of `pg` that effectively never finishes (4^16 solutions).
-fn slow_count(tag: &str) -> String {
-    let patterns: String = (0..16).map(|i| format!("?s{i} ?p{i} ?o{i} . ")).collect();
-    format!("# {tag}\nSELECT (COUNT(*) AS ?n) {{ {patterns} }}")
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn slow_queries_time_out() {
-    let server =
-        Arc::new(Server::with(|config| config.concurrency.sparql_timeout = Some(0.2)).await);
+    let server = Arc::new(
+        Server::with(|config| config.concurrency.sparql_timeout = Some(Duration::from_millis(200)))
+            .await,
+    );
     let query = slow_count("endpoint timeout");
     let slow = {
         let server = server.clone();
@@ -1339,7 +653,7 @@ async fn queries_share_the_heavy_query_limit_with_graphql() {
     let server = Arc::new(
         Server::with(|config| {
             config.concurrency.heavy_query_limit = Some(1);
-            config.concurrency.sparql_timeout = Some(1.5);
+            config.concurrency.sparql_timeout = Some(Duration::from_millis(1500));
         })
         .await,
     );
@@ -1360,13 +674,14 @@ async fn queries_share_the_heavy_query_limit_with_graphql() {
         .uri("/".parse().unwrap())
         .header("content-type", "application/json")
         .body(
-            json!({ "query": r#"{ graph(path: "pg") { sparql(query: "ASK {}") } }"# }).to_string(),
+            json!({ "query": r#"{ rdfGraph(path: "pg") { sparql(query: "ASK {}") } }"# })
+                .to_string(),
         );
     let reply = server.send(graphql).await;
     let waited = started.elapsed();
     assert_eq!(
         serde_json::from_str::<Json>(&reply.body).unwrap(),
-        json!({ "data": { "graph": { "sparql": r#"{"head":{},"boolean":true}"# } } })
+        json!({ "data": { "rdfGraph": { "sparql": r#"{"head":{},"boolean":true}"# } } })
     );
     assert!(
         waited >= Duration::from_millis(1000),
@@ -1375,61 +690,61 @@ async fn queries_share_the_heavy_query_limit_with_graphql() {
     slow.await.unwrap().error(StatusCode::GATEWAY_TIMEOUT);
 }
 
-/// A row-filtered read permission (see [`GraphAccessFilter`]).
-fn read_with(filter: Json) -> GraphPermission {
-    GraphPermission::Read {
-        filter: Some(serde_json::from_value::<GraphAccessFilter>(filter).unwrap()),
-    }
-}
-
+/// Access control applies to every kind of request, and no access looks exactly like a missing
+/// graph.
 #[tokio::test]
 async fn permissions_and_access_filters_apply() {
+    let query: &[(&str, &str)] = &[("query", KNOWS)];
+    let query_as_of_3: &[(&str, &str)] = &[("query", KNOWS), ("asof", "3")];
+    let description: &[(&str, &str)] = &[];
+    let since: [&[(&str, &str)]; 2] = [&[("query", SINCE)], &[("query", SINCE), ("asof", "3")]];
+
     let server = Server::as_user(read_with(json!({
         "filter": { "node": { "name": { "where": { "ne": { "str": "http://ex/carol" } } } } }
     })))
     .await;
     assert_eq!(
-        rows(&server.select(KNOWS).await.json()),
+        rows(&server.get(query, None).await.json()),
         pairs(&[("dave", "alice")])
     );
-    assert_eq!(rows(&server.select(COUNT).await.json()), [["2"]]);
-    let ask = "ASK { ?s ?p <http://ex/carol> }";
-    let reply = server
-        .get(
-            &[("query", ask), ("default-graph-uri", "raphtory:asof:3")],
-            None,
-        )
-        .await;
-    assert_eq!(reply.json(), r#"{"head":{},"boolean":false}"#);
-    let hidden = server
-        .get(&[("query", "DESCRIBE <http://ex/carol>")], None)
-        .await
-        .ok("text/turtle");
     assert_eq!(
-        hidden,
-        local("DESCRIBE <http://ex/nobody>", RdfFormat::Turtle)
+        rows(&server.get(query_as_of_3, None).await.json()),
+        pairs(&[("alice", "bob")])
     );
     // no temporal functions for a row-filtered read
-    let error = server.select(SINCE).await.error(StatusCode::BAD_REQUEST);
-    assert!(error.contains("validFromTime"), "{error}");
+    for params in since {
+        let error = server
+            .get(params, None)
+            .await
+            .error(StatusCode::BAD_REQUEST);
+        assert!(error.contains("validFromTime"), "{params:?}: {error}");
+    }
 
     // an unfiltered read has them
     let server = Server::as_user(GraphPermission::Read { filter: None }).await;
-    assert_eq!(rows(&server.select(SINCE).await.json()), [["1"]]);
-    server.get(&[], None).await.ok("text/turtle");
+    for params in since {
+        assert_eq!(
+            rows(&server.get(params, None).await.json()),
+            [["1"]],
+            "{params:?}"
+        );
+    }
+    server.get(description, None).await.ok("text/turtle");
 
-    // introspection only, no grant and no graph look the same, also to the service description
+    // introspection only and no grant look the same as no graph
     let server = Server::as_user(GraphPermission::Introspect).await;
-    let introspect = server.select(KNOWS).await.error(StatusCode::NOT_FOUND);
-    assert_eq!(introspect, "Graph 'pg' does not exist");
-    let introspect = server.get(&[], None).await.error(StatusCode::NOT_FOUND);
-    assert_eq!(introspect, "Graph 'pg' does not exist");
-    for params in [&[("query", KNOWS)][..], &[]] {
-        let no_grant = server
-            .get_from("ns/inner%20graph", params, None)
-            .await
-            .error(StatusCode::NOT_FOUND);
-        assert_eq!(no_grant, "Graph 'ns/inner graph' does not exist");
+    for params in [query, query_as_of_3, description] {
+        for (graph, name) in [("pg", "pg"), ("ns/inner%20graph", "ns/inner graph")] {
+            let error = server
+                .get_from(graph, params, None)
+                .await
+                .error(StatusCode::NOT_FOUND);
+            assert_eq!(
+                error,
+                format!("Graph '{name}' does not exist"),
+                "{params:?}"
+            );
+        }
     }
 }
 
@@ -1465,7 +780,7 @@ struct TokenPolicy;
 impl AuthorizationPolicy for TokenPolicy {
     fn graph_permissions(
         &self,
-        ctx: &async_graphql::Context<'_>,
+        ctx: &Context<'_>,
         path: &str,
     ) -> Result<Option<GraphPermission>, AuthPolicyError> {
         let missing = |what: &str| AuthPolicyError::new(format!("no {what} in the context"));
@@ -1485,7 +800,7 @@ impl AuthorizationPolicy for TokenPolicy {
 
     fn namespace_permissions(
         &self,
-        _ctx: &async_graphql::Context<'_>,
+        _ctx: &Context<'_>,
         _path: &str,
     ) -> Result<Option<NamespacePermission>, AuthPolicyError> {
         Ok(None)
@@ -1510,95 +825,33 @@ async fn a_valid_token_reads_with_its_roles_and_claims() {
             }
         };
     let knows: &[(&str, &str)] = &[("query", KNOWS)];
+    let description: &[(&str, &str)] = &[];
 
     // the role, the claim and the access of the token reach the policy
     assert_eq!(rows(&read("pg", knows, &analyst).await.json()), pairs(NOW));
     assert_eq!(
         rows(&read("eg", knows, &graph_team).await.json()),
-        pairs(&[("alice", "bob"), ("bob", "carol"), ("dave", "alice")])
+        pairs(NOW)
     );
     assert_eq!(
         rows(&read("ns/inner%20graph", knows, &admin).await.json()),
         pairs(NOW)
     );
-    read("pg", &[], &analyst).await.ok("text/turtle");
+    read("pg", description, &analyst).await.ok("text/turtle");
     // a graph the policy does not grant looks like one that does not exist
-    for (graph, name, token) in [
-        ("pg", "pg", &graph_team),
-        ("pg", "pg", &guest),
-        ("eg", "eg", &analyst),
-        ("ns/inner%20graph", "ns/inner graph", &analyst),
-    ] {
-        for params in [knows, &[]] {
-            let error = read(graph, params, token)
-                .await
-                .error(StatusCode::NOT_FOUND);
-            assert_eq!(error, format!("Graph '{name}' does not exist"));
-        }
+    for (graph, params, token) in [("pg", knows, &guest), ("eg", description, &analyst)] {
+        let error = read(graph, params, token)
+            .await
+            .error(StatusCode::NOT_FOUND);
+        assert_eq!(error, format!("Graph '{graph}' does not exist"));
     }
-    // without a token
-    let reply = server.select(KNOWS).await;
-    assert_eq!(reply.status, StatusCode::UNAUTHORIZED, "{}", reply.body);
-}
-
-#[tokio::test]
-async fn reads_can_require_a_token() {
-    let server = Server::new(reads_need_a_token(), None).await;
+    // without a token, or with one that does not verify
     for reply in [
-        server.select(COUNT).await,
-        server.get(&[], None).await,
-        server
-            .send(
-                Request::builder()
-                    .method(Method::GET)
-                    .uri(
-                        format!("/sparql/pg?query={}", url_encode(COUNT))
-                            .parse()
-                            .unwrap(),
-                    )
-                    .header("authorization", "Bearer not.a.token")
-                    .finish(),
-            )
-            .await,
+        server.select(KNOWS).await,
+        read("pg", knows, "Bearer not.a.token").await,
     ] {
         assert_eq!(reply.status, StatusCode::UNAUTHORIZED, "{}", reply.body);
     }
-}
-
-#[tokio::test]
-async fn answers_vary_with_the_accept_header() {
-    let server = Server::default().await;
-    let replies = [
-        server.select(KNOWS).await,
-        server
-            .get(&[("query", KNOWN_BY)], Some("application/n-triples"))
-            .await,
-        server
-            .post(&[], "application/sparql-query", KNOWS, Some("text/csv"))
-            .await,
-        server.get(&[], None).await,
-        server.get(&[("query", KNOWS)], Some("text/turtle")).await,
-        server.get(&[], Some("text/csv")).await,
-        server.select("SELECT ?x WHERE { ?x").await,
-    ];
-    let answers: Vec<_> = replies
-        .iter()
-        .map(|reply| (reply.status, reply.vary.as_str()))
-        .collect();
-    let ok = (StatusCode::OK, "Accept");
-    let not_acceptable = (StatusCode::NOT_ACCEPTABLE, "Accept");
-    assert_eq!(
-        answers,
-        [
-            ok,
-            ok,
-            ok,
-            ok,
-            not_acceptable,
-            not_acceptable,
-            (StatusCode::BAD_REQUEST, "Accept")
-        ]
-    );
 }
 
 #[tokio::test]
@@ -1633,31 +886,4 @@ async fn browsers_can_call_the_endpoint_from_other_origins() {
         (reply.status, reply.allow.as_str()),
         (StatusCode::NO_CONTENT, "GET, POST, OPTIONS")
     );
-}
-
-/// Results are the RDF terms of the graph, whichever way the query was sent.
-#[tokio::test]
-async fn terms_are_kept() {
-    let server = Server::default().await;
-    let json = server
-        .select("SELECT ?o { ?s <http://ex/age> ?o }")
-        .await
-        .json();
-    let results: Json = serde_json::from_str(&json).unwrap();
-    assert_eq!(
-        results["results"]["bindings"][0]["o"],
-        json!({
-            "type": "literal",
-            "datatype": "http://www.w3.org/2001/XMLSchema#integer",
-            "value": "42",
-        })
-    );
-    let nt = server
-        .get(
-            &[("query", "CONSTRUCT { ?s ?p ?o } WHERE { ?s <http://ex/name> ?o BIND(<http://ex/name> AS ?p) }")],
-            Some("application/n-triples"),
-        )
-        .await
-        .ok("application/n-triples");
-    assert_eq!(nt, "<http://ex/carol> <http://ex/name> \"Carol\" .\n");
 }

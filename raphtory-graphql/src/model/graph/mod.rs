@@ -34,7 +34,7 @@ pub mod vectorised_graph;
 pub mod document;
 
 #[cfg(feature = "rdf")]
-pub mod sparql;
+pub mod rdf_graph;
 
 #[derive(OneOfInput, Clone)]
 pub enum WindowDuration {

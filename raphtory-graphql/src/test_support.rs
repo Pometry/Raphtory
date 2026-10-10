@@ -84,3 +84,109 @@ pub(crate) fn assert_is_namespace_dir(path: &Path) {
         DIRTY_PATH,
     );
 }
+
+/// Fixtures of the RDF tests.
+#[cfg(feature = "rdf")]
+pub(crate) mod rdf {
+    use crate::{auth_policy::GraphPermission, model::graph::filtering::GraphAccessFilter};
+    use oxigraph::io::RdfParser;
+    use raphtory::{prelude::*, rdf::RdfFormat};
+    use serde_json::Value as Json;
+
+    pub(crate) const PEOPLE: &str = r#"
+        @prefix ex: <http://ex/> .
+        ex:alice ex:knows ex:bob ; ex:age 42 .
+        ex:bob ex:knows ex:carol .
+        ex:carol ex:name "Carol" .
+    "#;
+    pub(crate) const KNOWS: &str =
+        "PREFIX ex: <http://ex/> SELECT ?s ?o { ?s ex:knows ?o } ORDER BY ?s ?o";
+    pub(crate) const COUNT: &str = "SELECT (COUNT(*) AS ?n) { ?s ?p ?o }";
+    pub(crate) const KNOWN_BY: &str =
+        "PREFIX ex: <http://ex/> CONSTRUCT { ?o ex:knownBy ?s } WHERE { ?s ex:knows ?o }";
+    /// When `bob knows carol` started holding: at 1.
+    pub(crate) const SINCE: &str = "PREFIX ex: <http://ex/> \
+        SELECT (raphtory:validFromTime(ex:bob, ex:knows, ex:carol) AS ?t) {}";
+    /// The `knows` pairs of [`people`] now.
+    pub(crate) const NOW: &[(&str, &str)] = &[("bob", "carol"), ("dave", "alice")];
+    /// The `knows` pairs of [`people`] as of 3.
+    pub(crate) const AS_OF_3: &[(&str, &str)] = &[("alice", "bob"), ("bob", "carol")];
+
+    /// Asserted at 1: `alice knows bob`, `alice age 42`, `bob knows carol`, `carol name "Carol"`.
+    /// `alice knows bob` is retracted at 5, and `dave knows alice` asserted at 7.
+    pub(crate) fn people() -> PersistentGraph {
+        let rg = RdfGraph::new();
+        rg.load_rdf(1, PEOPLE.as_bytes(), RdfFormat::Turtle, None)
+            .unwrap();
+        let triple =
+            |s: &str, o: &str| format!("<http://ex/{s}> <http://ex/knows> <http://ex/{o}> .");
+        rg.retract_rdf(
+            5,
+            triple("alice", "bob").as_bytes(),
+            RdfFormat::NTriples,
+            None,
+        )
+        .unwrap();
+        rg.load_rdf(
+            7,
+            triple("dave", "alice").as_bytes(),
+            RdfFormat::NTriples,
+            None,
+        )
+        .unwrap();
+        rg.graph().clone()
+    }
+
+    /// The values of the solutions of SPARQL Results JSON, `""` for an unbound variable.
+    pub(crate) fn rows(results: &str) -> Vec<Vec<String>> {
+        let results: Json = serde_json::from_str(results).unwrap();
+        let vars: Vec<&str> = results["head"]["vars"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|var| var.as_str().unwrap())
+            .collect();
+        results["results"]["bindings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|solution| {
+                vars.iter()
+                    .map(|var| solution[var]["value"].as_str().unwrap_or("").to_owned())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// The rows of `knows` pairs.
+    pub(crate) fn pairs(pairs: &[(&str, &str)]) -> Vec<Vec<String>> {
+        pairs
+            .iter()
+            .map(|(s, o)| vec![format!("http://ex/{s}"), format!("http://ex/{o}")])
+            .collect()
+    }
+
+    /// The triples of an RDF document, in N-Triples form and sorted.
+    pub(crate) fn triples(document: &str, format: RdfFormat) -> Vec<String> {
+        let mut triples: Vec<String> = RdfParser::from_format(format)
+            .for_slice(document.as_bytes())
+            .map(|quad| format!("{} .", quad.unwrap()))
+            .collect();
+        triples.sort();
+        triples
+    }
+
+    /// A row-filtered read permission (see [`GraphAccessFilter`]).
+    pub(crate) fn read_with(filter: Json) -> GraphPermission {
+        GraphPermission::Read {
+            filter: Some(serde_json::from_value::<GraphAccessFilter>(filter).unwrap()),
+        }
+    }
+
+    /// A query over the triples of [`people`] that effectively never finishes (at least 4^16
+    /// solutions), tagged so no other test runs the same query.
+    pub(crate) fn slow_count(tag: &str) -> String {
+        let patterns: String = (0..16).map(|i| format!("?s{i} ?p{i} ?o{i} . ")).collect();
+        format!("# {tag}\nSELECT (COUNT(*) AS ?n) {{ {patterns} }}")
+    }
+}

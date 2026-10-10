@@ -1,13 +1,10 @@
-//! `load_rdf` and `retract_rdf` on generated FOAF-like documents of about 200k and 2M triples.
+//! `load_rdf` of a generated FOAF-like document of about 200k triples, as N-Triples and as Turtle.
 //!
 //! Run with `cargo bench -p raphtory-rdf-bench --features rdf --bench load` (or `make bench-load`
 //! in `rdf-bench/`).
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
-use raphtory::{
-    prelude::*,
-    rdf::{RdfFormat, RdfMutationOps},
-};
-use std::{fmt::Write, time::Duration};
+use raphtory::{prelude::*, rdf::RdfFormat};
+use std::fmt::Write;
 
 /// About 10.2 triples per person: IRIs, plain, typed and language-tagged literals, `knows` links
 /// and, for every tenth person, a blank-node address.
@@ -74,27 +71,17 @@ fn people(n: usize) -> String {
     doc
 }
 
-/// `load_rdf` of a document about `people_count` people in each of `formats` and, if `retract`,
-/// `retract_rdf` of it as N-Triples, each on a new `PersistentGraph`.
-fn bench_load(
-    c: &mut Criterion,
-    people_count: usize,
-    label: &str,
-    formats: &[RdfFormat],
-    retract: bool,
-) {
-    let doc = people(people_count);
+/// `load_rdf` of a document of 20,000 people in each format, each on a new `RdfGraph`.
+fn rdf(c: &mut Criterion) {
+    let doc = people(20_000);
     let triples = doc.lines().count() as u64;
     let mut group = c.benchmark_group("rdf_load");
     group.sample_size(10);
     group.throughput(Throughput::Elements(triples));
-    if people_count > 100_000 {
-        group.measurement_time(Duration::from_secs(40));
-    }
-    for &format in formats {
-        group.bench_function(format!("{format}_{label}"), |b| {
+    for format in [RdfFormat::NTriples, RdfFormat::Turtle] {
+        group.bench_function(format!("{format}_200k"), |b| {
             b.iter_batched(
-                PersistentGraph::new,
+                RdfGraph::new,
                 |g| {
                     g.load_rdf(1, doc.as_bytes(), format, None).unwrap();
                     g
@@ -104,35 +91,6 @@ fn bench_load(
         });
     }
     group.finish();
-
-    if retract {
-        let mut group = c.benchmark_group("rdf_retract");
-        group.sample_size(10);
-        group.throughput(Throughput::Elements(triples));
-        group.bench_function(format!("N-Triples_{label}"), |b| {
-            b.iter_batched(
-                PersistentGraph::new,
-                |g| {
-                    g.retract_rdf(1, doc.as_bytes(), RdfFormat::NTriples, None)
-                        .unwrap();
-                    g
-                },
-                BatchSize::PerIteration,
-            )
-        });
-        group.finish();
-    }
-}
-
-fn rdf(c: &mut Criterion) {
-    bench_load(
-        c,
-        20_000,
-        "200k",
-        &[RdfFormat::NTriples, RdfFormat::Turtle],
-        true,
-    );
-    bench_load(c, 200_000, "2M", &[RdfFormat::NTriples], false);
 }
 
 criterion_group!(benches, rdf);

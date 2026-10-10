@@ -1,13 +1,14 @@
 //! Writing RDF triples to a graph: one edge event per triple.
 //!
-//! Asserting `s p o` at `t` is `add_edge(t, name(s), name(o), NO_PROPS, Some(name(p)))` and
-//! retracting it is `delete_edge(t, name(s), name(o), Some(name(p)))`.
+//! Asserting `s p o` at `t` is `add_edge(t, name(s), name(o), NO_PROPS, Some(layer(p)))` and
+//! retracting it is `delete_edge(t, name(s), name(o), Some(layer(p)))`, where `name` is
+//! [`name_of`] and `layer` is [`layer_name_of`].
 use crate::{
     db::api::view::internal::CoreGraphOps,
     errors::GraphError,
     prelude::*,
     rdf::{
-        mapping::{is_rdf11_term, name_of},
+        mapping::{escape_layer, is_rdf11_term, layer_name_of, name_of},
         RdfError, RESERVED_NS,
     },
 };
@@ -27,28 +28,63 @@ fn check_string_ids<G: CoreGraphOps>(g: &G) -> Result<(), RdfError> {
     }
 }
 
-/// The name of a term, or why it cannot be stored: an RDF 1.2 term ([`RdfError::Rdf12Term`]) or
-/// an IRI under [`RESERVED_NS`] that does not encode a name ([`RdfError::NonCanonicalTerm`]).
-fn name(t: TermRef<'_>) -> Result<String, RdfError> {
-    name_of(t).ok_or_else(|| {
-        if is_rdf11_term(t) {
-            RdfError::NonCanonicalTerm(t.to_string())
-        } else {
-            RdfError::Rdf12Term(t.to_string())
-        }
-    })
+/// Why a term cannot be stored: an RDF 1.2 term ([`RdfError::Rdf12Term`]) or an IRI under
+/// [`RESERVED_NS`] that does not encode a name ([`RdfError::NonCanonicalTerm`]).
+fn unstorable(t: TermRef<'_>) -> RdfError {
+    if is_rdf11_term(t) {
+        RdfError::NonCanonicalTerm(t.to_string())
+    } else {
+        RdfError::Rdf12Term(t.to_string())
+    }
 }
 
-/// [`name`] for the terms of an N-Triples or N-Quads document parsed without a base IRI.
-///
-/// Those parsers already validate IRIs as `NamedNode::new` does, so an IRI outside
-/// [`RESERVED_NS`] is its own name without the [`name_of`] round trip.
-fn fast_name(t: TermRef<'_>) -> Result<Cow<'_, str>, RdfError> {
-    match t {
-        TermRef::NamedNode(n) if !n.as_str().starts_with(RESERVED_NS) => {
-            Ok(Cow::Borrowed(n.as_str()))
+/// The node name of a term, or why it cannot be stored.
+fn name(t: TermRef<'_>) -> Result<String, RdfError> {
+    name_of(t).ok_or_else(|| unstorable(t))
+}
+
+/// The printable characters that Windows or Unix do not allow in file names.
+const UNSAFE_LAYER_CHARS: [char; 9] = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+
+/// The layer name of a predicate, or why it cannot be stored.
+fn layer(t: TermRef<'_>) -> Result<String, RdfError> {
+    let name = layer_name_of(t).ok_or_else(|| unstorable(t))?;
+    // only `<raphtory:..>` predicates can decode to these; escaped IRIs never do
+    if name.trim().is_empty()
+        || name.contains(|c: char| c.is_control() || UNSAFE_LAYER_CHARS.contains(&c))
+    {
+        return Err(RdfError::UnsafeLayerName(t.to_string()));
+    }
+    Ok(name)
+}
+
+/// How a triple's terms are named: by the full mappings, or by the fast ones.
+#[derive(Clone, Copy)]
+enum Naming {
+    Checked,
+    /// For the terms of an N-Triples or N-Quads document parsed without a base IRI. Those
+    /// parsers already validate IRIs as `NamedNode::new` does, so an IRI outside
+    /// [`RESERVED_NS`] needs no round trip.
+    Fast,
+}
+
+impl Naming {
+    fn node<'a>(self, t: TermRef<'a>) -> Result<Cow<'a, str>, RdfError> {
+        match (self, t) {
+            (Self::Fast, TermRef::NamedNode(n)) if !n.as_str().starts_with(RESERVED_NS) => {
+                Ok(Cow::Borrowed(n.as_str()))
+            }
+            _ => name(t).map(Cow::Owned),
         }
-        t => name(t).map(Cow::Owned),
+    }
+
+    fn layer<'a>(self, t: TermRef<'a>) -> Result<Cow<'a, str>, RdfError> {
+        match (self, t) {
+            (Self::Fast, TermRef::NamedNode(n)) if !n.as_str().starts_with(RESERVED_NS) => {
+                Ok(escape_layer(n.as_str()))
+            }
+            _ => layer(t).map(Cow::Owned),
+        }
     }
 }
 
@@ -67,17 +103,17 @@ fn write_names<G: AdditionOps + DeletionOps>(
     Ok(())
 }
 
-/// Writes one triple, naming its terms with `name` ([`fast_name`] or the full mapping).
-fn write_triple<'a, G: AdditionOps + DeletionOps>(
+/// Writes one triple, naming its terms with `naming`.
+fn write_triple<G: AdditionOps + DeletionOps>(
     g: &G,
     time: InputTime,
-    triple: TripleRef<'a>,
+    triple: TripleRef<'_>,
     retract: bool,
-    name: impl Fn(TermRef<'a>) -> Result<Cow<'a, str>, RdfError>,
+    naming: Naming,
 ) -> Result<(), GraphError> {
-    let s = name(triple.subject.into())?;
-    let p = name(triple.predicate.into())?;
-    let o = name(triple.object)?;
+    let s = naming.node(triple.subject.into())?;
+    let p = naming.layer(triple.predicate.into())?;
+    let o = naming.node(triple.object)?;
     write_names(g, time, (&s, &p, &o), retract)
 }
 
@@ -89,7 +125,7 @@ pub(crate) fn write_single<G: AdditionOps + DeletionOps>(
     retract: bool,
 ) -> Result<(), GraphError> {
     check_string_ids(g)?;
-    write_triple(g, time, triple, retract, |t| name(t).map(Cow::Owned))
+    write_triple(g, time, triple, retract, Naming::Checked)
 }
 
 /// Asserts (or retracts) every triple of an RDF document at `time`, in document order, and
@@ -113,17 +149,18 @@ pub(crate) fn read_document<G: AdditionOps + DeletionOps>(
     if let Some(base_iri) = base_iri {
         parser = parser.with_base_iri(base_iri)?;
     }
-    let fast_iris = base_iri.is_none() && matches!(format, RdfFormat::NTriples | RdfFormat::NQuads);
+    let naming = if base_iri.is_none() && matches!(format, RdfFormat::NTriples | RdfFormat::NQuads)
+    {
+        Naming::Fast
+    } else {
+        Naming::Checked
+    };
     let mut count = 0;
     // The parsers buffer their input themselves.
     for quad in parser.for_reader(data) {
         let quad = quad?;
         let triple = quad.as_ref().into();
-        if fast_iris {
-            write_triple(g, time, triple, retract, fast_name)?;
-        } else {
-            write_triple(g, time, triple, retract, |t| name(t).map(Cow::Owned))?;
-        }
+        write_triple(g, time, triple, retract, naming)?;
         count += 1;
     }
     Ok(count)

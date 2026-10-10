@@ -1,4 +1,6 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
+#[cfg(feature = "rdf")]
+use crate::config::concurrency_config::optional_seconds;
 use crate::{
     cli::ConfigArgs,
     config::{
@@ -16,6 +18,8 @@ use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "rdf")]
+use std::time::Duration;
 use std::{
     collections::HashMap,
     error::Error,
@@ -403,17 +407,10 @@ impl AppConfigBuilder {
                             }
                             #[cfg(feature = "rdf")]
                             ConcurrencyConfigFieldName::SparqlTimeout => {
-                                let seconds: Option<f64> = Deserialize::deserialize(value)
-                                    .map_err(|e| invalid_value([path, sub_path], e))?;
-                                if let Some(seconds) = seconds {
-                                    crate::config::concurrency_config::sparql_timeout_duration(
-                                        seconds,
-                                    )
-                                    .map_err(|e| {
-                                        invalid_value([path, sub_path], ConfigError::Message(e))
-                                    })?;
-                                }
-                                self.with_sparql_timeout(seconds);
+                                self.with_sparql_timeout(
+                                    optional_seconds::deserialize(value)
+                                        .map_err(|e| invalid_value([path, sub_path], e))?,
+                                );
                             }
                             #[cfg(feature = "rdf")]
                             ConcurrencyConfigFieldName::MaxSparqlTriplePatterns => {
@@ -641,10 +638,8 @@ impl AppConfigBuilder {
         self
     }
 
-    /// Sets the SPARQL time limit in seconds (`None`: unlimited). An invalid value (negative or
-    /// not finite) makes every SPARQL query fail.
     #[cfg(feature = "rdf")]
-    pub fn with_sparql_timeout(&mut self, sparql_timeout: Option<f64>) -> &mut Self {
+    pub fn with_sparql_timeout(&mut self, sparql_timeout: Option<Duration>) -> &mut Self {
         self.config.concurrency.sparql_timeout = sparql_timeout;
         self
     }
