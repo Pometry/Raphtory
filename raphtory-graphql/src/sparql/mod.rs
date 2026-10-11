@@ -6,95 +6,61 @@ pub(crate) mod endpoint;
 #[cfg(test)]
 mod tests;
 
-use crate::{config::concurrency_config::ConcurrencyConfig, rayon::blocking_compute};
-use raphtory::{
-    errors::GraphError,
-    rdf::{CancellationToken, QueryForm, RdfError, RdfView, SparqlDataset, SparqlOptions},
+use crate::{
+    config::concurrency_config::ConcurrencyConfig, model::graph::rdf_graph::GqlRdfGraph,
+    rayon::blocking_compute,
 };
-#[cfg(test)]
-use std::sync::Mutex;
+use raphtory_rdf::{QueryForm, RdfError, RdfView, SparqlDataset, SparqlOptions};
 use std::{
-    fmt,
+    io::{self, Write},
     panic::{catch_unwind, AssertUnwindSafe},
 };
+use thiserror::Error;
 use tracing::error;
 
 /// Why a SPARQL query or an RDF export failed. The messages are the errors of the GraphQL
 /// fields.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub(crate) enum SparqlError {
     /// The server sets `disable_lists`.
+    #[error(
+        "SPARQL queries, RDF exports and SHACL validation are disabled on this server \
+         (`disable_lists`)"
+    )]
     Disabled,
     /// The query is longer than `max_sparql_query_length`.
+    #[error(
+        "SPARQL query too long: {length} bytes, the limit is {max} bytes \
+         (`max_sparql_query_length`)"
+    )]
     TooLong { length: usize, max: usize },
     /// Parsing, evaluating or writing the query failed.
-    Query(GraphError),
+    #[error("{}{}", .0, limit_setting(.0))]
+    Query(#[from] RdfError),
     /// The client accepts no format for the results of this form of query.
+    #[error("none of the formats the Accept header allows can hold {} results", .form.name())]
     NotAcceptable { form: QueryForm },
-    /// RDF/XML, the only RDF format the client accepts, cannot hold `skipped` of the `triples`
-    /// triples of the results.
-    RdfXmlSkipped { skipped: usize, triples: usize },
+    /// The results are larger than `max_sparql_result_bytes`.
+    #[error("SPARQL results larger than {max} bytes (`max_sparql_result_bytes`)")]
+    TooLarge { max: usize },
     /// The shapes of `validateShacl` are recursive, which a reader could use to overflow the
     /// validator's stack and abort the server.
     #[cfg(feature = "shacl")]
+    #[error(
+        "recursive SHACL shapes (a shape that refers to itself) cannot be validated on this \
+         server"
+    )]
     RecursiveShapes,
-    /// The query could not run.
-    Internal(String),
+    /// The operation panicked; the panic is logged.
+    #[error("the RDF operation failed unexpectedly")]
+    Panicked,
 }
 
-impl fmt::Display for SparqlError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Disabled => write!(
-                f,
-                "SPARQL queries, RDF exports and SHACL validation are disabled on this server \
-                 (`disable_lists`)"
-            ),
-            Self::TooLong { length, max } => write!(
-                f,
-                "SPARQL query too long: {length} bytes, the limit is {max} bytes \
-                 (`max_sparql_query_length`)"
-            ),
-            // name the setting that limits the query
-            Self::Query(
-                error @ GraphError::Rdf(RdfError::Timeout { .. } | RdfError::ExportTimeout { .. }),
-            ) => {
-                write!(f, "{error} (`sparql_timeout`)")
-            }
-            #[cfg(feature = "shacl")]
-            Self::Query(error @ GraphError::Rdf(RdfError::ShaclTimeout { .. })) => {
-                write!(f, "{error} (`sparql_timeout`)")
-            }
-            Self::Query(error @ GraphError::Rdf(RdfError::TooManyPatterns { .. })) => {
-                write!(f, "{error} (`max_sparql_triple_patterns`)")
-            }
-            Self::Query(error) => write!(f, "{error}"),
-            Self::NotAcceptable { form } => write!(
-                f,
-                "none of the formats the Accept header allows can hold {} results",
-                form.name()
-            ),
-            Self::RdfXmlSkipped { skipped, triples } => write!(
-                f,
-                "RDF/XML cannot hold {skipped} of the {triples} triples of the results (such as \
-                 triples whose predicate does not end in an XML name); accept another RDF format: \
-                 text/turtle, application/n-triples, application/ld+json, application/n-quads or \
-                 application/trig"
-            ),
-            #[cfg(feature = "shacl")]
-            Self::RecursiveShapes => write!(
-                f,
-                "recursive SHACL shapes (a shape that refers to itself) cannot be validated on \
-                 this server"
-            ),
-            Self::Internal(error) => write!(f, "{error}"),
-        }
-    }
-}
-
-impl From<GraphError> for SparqlError {
-    fn from(error: GraphError) -> Self {
-        Self::Query(error)
+/// The server setting that limits a query, for the message of `error`.
+fn limit_setting(error: &RdfError) -> &'static str {
+    match error {
+        RdfError::TooManyPatterns { .. } => " (`max_sparql_triple_patterns`)",
+        _ => "",
     }
 }
 
@@ -121,44 +87,81 @@ pub(crate) fn check_length(config: &ConcurrencyConfig, query: &str) -> Result<()
     }
 }
 
-/// Runs `query` on `view` within the server's limits of `config`. `write` evaluates the query
-/// and serializes its results.
+/// A writer that fails once more than `max` bytes would be written to it.
+pub(crate) struct Capped<W> {
+    inner: W,
+    max: Option<usize>,
+    written: usize,
+    exceeded: bool,
+}
+
+impl<W: Write> Write for Capped<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.max.is_some_and(|max| self.written + buf.len() > max) {
+            self.exceeded = true;
+            return Err(io::Error::other("the output is larger than its limit"));
+        }
+        let written = self.inner.write(buf)?;
+        self.written += written;
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+/// Writes with `write` into a buffer of at most `max_sparql_result_bytes` of `config`.
+pub(crate) fn write_capped<T>(
+    config: &ConcurrencyConfig,
+    write: impl FnOnce(&mut Capped<Vec<u8>>) -> Result<T, RdfError>,
+) -> Result<Vec<u8>, SparqlError> {
+    let mut out = Capped {
+        inner: Vec::new(),
+        max: config.max_sparql_result_bytes,
+        written: 0,
+        exceeded: false,
+    };
+    let result = write(&mut out);
+    match out.max {
+        Some(max) if out.exceeded => Err(SparqlError::TooLarge { max }),
+        _ => Ok(result.map(|_| out.inner)?),
+    }
+}
+
+/// Runs `query` on `graph` within the server's limits of `config`. `write` evaluates the query
+/// and serializes its results, within the limits of the config it is given.
 pub(crate) async fn run_sparql<T: Send + 'static>(
     config: Option<&ConcurrencyConfig>,
-    view: RdfView,
-    temporal_functions: bool,
+    graph: &GqlRdfGraph,
     query: String,
     dataset: Option<SparqlDataset>,
-    write: impl FnOnce(&RdfView, &str, &SparqlOptions) -> Result<T, SparqlError> + Send + 'static,
+    write: impl FnOnce(&RdfView, &str, &SparqlOptions, &ConcurrencyConfig) -> Result<T, SparqlError>
+        + Send
+        + 'static,
 ) -> Result<T, SparqlError> {
-    run_limited(config, move |config, token| {
+    let view = graph.view()?;
+    let temporal_functions = graph.temporal_functions();
+    run_limited(config, move |config| {
         check_length(config, &query)?;
         let options = SparqlOptions::default()
             .with_temporal_functions(temporal_functions)
-            .with_timeout(config.sparql_timeout)
             .with_max_triple_patterns(config.max_sparql_triple_patterns)
-            .with_cancellation_token(token)
             .with_dataset(dataset);
-        #[cfg(test)]
-        let _running = Running::new(&query);
-        write(&view, &query, &options)
+        write(&view, &query, &options, config)
     })
     .await
 }
 
 /// Runs `f` on the compute pool with the limits of `config` (the defaults if the server sets
-/// none) and a token that is cancelled when the request is dropped, unless the server sets
-/// `disable_lists`.
+/// none), unless the server sets `disable_lists`.
 pub(crate) async fn run_limited<T: Send + 'static>(
     config: Option<&ConcurrencyConfig>,
-    f: impl FnOnce(&ConcurrencyConfig, CancellationToken) -> Result<T, SparqlError> + Send + 'static,
+    f: impl FnOnce(&ConcurrencyConfig) -> Result<T, SparqlError> + Send + 'static,
 ) -> Result<T, SparqlError> {
     check_enabled(config)?;
     let config = config.cloned().unwrap_or_default();
-    let token = CancellationToken::new();
-    // held until `f` is done, or dropped with the request
-    let _cancel_on_drop = CancelOnDrop(token.clone());
-    compute(move || f(&config, token)).await
+    compute(move || f(&config)).await
 }
 
 /// Runs `f` on the compute pool.
@@ -174,56 +177,8 @@ async fn compute<T: Send + 'static>(
                 .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
                 .unwrap_or("unknown panic");
             error!("RDF operation panicked: {message}");
-            Err(SparqlError::Internal(
-                "the RDF operation failed unexpectedly".to_owned(),
-            ))
+            Err(SparqlError::Panicked)
         })
     })
     .await
-}
-
-/// Cancels the work when the request future is dropped (e.g. on server shutdown). Client
-/// disconnects do not drop it; that work runs until `sparql_timeout`.
-struct CancelOnDrop(CancellationToken);
-
-impl Drop for CancelOnDrop {
-    fn drop(&mut self) {
-        self.0.cancel();
-    }
-}
-
-/// The SPARQL queries running (tests check when a query stops).
-#[cfg(test)]
-static RUNNING: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-/// Lists a running query in [`RUNNING`] while it lives.
-#[cfg(test)]
-pub(crate) struct Running(String);
-
-#[cfg(test)]
-impl Running {
-    fn new(query: &str) -> Self {
-        RUNNING.lock().unwrap().push(query.to_owned());
-        Running(query.to_owned())
-    }
-
-    /// How many times `query` is running.
-    pub(crate) fn count(query: &str) -> usize {
-        RUNNING
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|q| *q == query)
-            .count()
-    }
-}
-
-#[cfg(test)]
-impl Drop for Running {
-    fn drop(&mut self) {
-        let mut running = RUNNING.lock().unwrap();
-        if let Some(i) = running.iter().position(|q| *q == self.0) {
-            running.remove(i);
-        }
-    }
 }

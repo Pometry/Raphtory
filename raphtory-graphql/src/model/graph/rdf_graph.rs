@@ -15,19 +15,16 @@ use crate::{
         QueryRoot,
     },
     paths::PathValidationError,
-    sparql::{run_limited, run_sparql, SparqlError},
+    sparql::{run_limited, run_sparql, write_capped, SparqlError},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
     Enum, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, Result,
 };
-use oxigraph::io::JsonLdProfileSet;
+use raphtory::errors::GraphError;
 #[cfg(feature = "shacl")]
-use raphtory::rdf::shacl::ShaclShapes;
-use raphtory::{
-    errors::GraphError,
-    rdf::{QueryResultsFormat, RdfFormat, RdfView, SparqlFormat},
-};
+use raphtory_rdf::shacl::ShaclShapes;
+use raphtory_rdf::{QueryResultsFormat, RdfError, RdfFormat, RdfView, SparqlFormat};
 use std::sync::{Arc, OnceLock};
 
 /// Adds the `rdfGraph` field to the query root.
@@ -73,8 +70,8 @@ impl RdfGraphLookup {
         self.0.get_or_init(|| graph.clone());
     }
 
-    pub(crate) fn into_inner(self) -> Option<GqlRdfGraph> {
-        self.0.into_inner()
+    pub(crate) fn get(&self) -> Option<GqlRdfGraph> {
+        self.0.get().cloned()
     }
 }
 
@@ -108,7 +105,7 @@ impl GqlRdfGraph {
         }
     }
 
-    pub(crate) fn view(&self) -> Result<RdfView, GraphError> {
+    pub(crate) fn view(&self) -> Result<RdfView, RdfError> {
         RdfView::from_view(self.graph.graph().clone())
     }
 
@@ -240,12 +237,13 @@ impl GqlRdfGraph {
         self.with(self.graph.snapshot_latest().await)
     }
 
-    /// View of the events before a time (exclusive).
+    /// View of the triples that held at some time before `time` (exclusive), including those
+    /// retracted before it; `at` gives the state at a time.
     async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
         self.with(self.graph.before(time).await)
     }
 
-    /// View of the events after a time (exclusive).
+    /// View of the triples that held at some time after `time` (exclusive).
     async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
         self.with(self.graph.after(time).await)
     }
@@ -327,7 +325,7 @@ impl GqlRdfGraph {
     }
 
     /// Check if a layer with the given name is present in the graph.
-    async fn has_layer(&self, name: String) -> bool {
+    async fn has_layer(&self, #[graphql(desc = "Layer name to look for.")] name: String) -> bool {
         self.graph.has_layer(name).await
     }
 
@@ -341,10 +339,10 @@ impl GqlRdfGraph {
     /// `snapshotAt(time: T)` of the view. The temporal functions (`raphtory:validFrom`,
     /// `validTo`, `validFromTime`, `validToTime`) are unavailable when the caller's access to
     /// the graph is row-filtered. Disabled when the server sets `disable_lists`. Queries longer
-    /// than the server's `max_sparql_query_length` (16 KiB by default), with more than
-    /// `max_sparql_triple_patterns` triple patterns (100 by default) or with brackets nested
-    /// more than 128 deep are rejected before they run, and a query that runs longer than
-    /// `sparql_timeout` (30 seconds by default) is stopped with an error.
+    /// than the server's `max_sparql_query_length`, with more than `max_sparql_triple_patterns`
+    /// triple patterns or with brackets nested too deep are rejected before they run, and
+    /// results larger than `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold
+    /// the results, such as a triple whose predicate does not end in an XML name.
     async fn sparql(
         &self,
         ctx: &Context<'_>,
@@ -357,14 +355,13 @@ impl GqlRdfGraph {
         let format = format.map_or_else(SparqlFormat::default, SparqlFormat::from);
         let results = run_sparql(
             ctx.data_opt::<ConcurrencyConfig>(),
-            self.view()?,
-            self.temporal_functions,
+            self,
             query,
             None,
-            move |view, query, options| {
-                let mut results = Vec::new();
-                view.sparql_to_writer_with(query, &mut results, format, options)?;
-                into_string(results)
+            move |view, query, options, config| {
+                into_string(write_capped(config, |out| {
+                    view.sparql_to_writer(query, out, format, options)
+                })?)
             },
         )
         .await?;
@@ -372,8 +369,7 @@ impl GqlRdfGraph {
     }
 
     /// The triples of this view as one RDF document. Disabled when the server sets
-    /// `disable_lists`. An export that runs longer than `sparql_timeout` (30 seconds by default)
-    /// is stopped with an error.
+    /// `disable_lists`; documents larger than `max_sparql_result_bytes` fail.
     async fn to_rdf(
         &self,
         ctx: &Context<'_>,
@@ -383,16 +379,8 @@ impl GqlRdfGraph {
     ) -> Result<String> {
         let view = self.view()?;
         let format = format.map_or(RdfFormat::NTriples, RdfFormat::from);
-        let document = run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |config, token| {
-            let mut document = Vec::new();
-            view.to_rdf_with(
-                &mut document,
-                format,
-                &[],
-                config.sparql_timeout,
-                Some(token),
-            )?;
-            into_string(document)
+        let document = run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |config| {
+            into_string(write_capped(config, |out| view.to_rdf(out, format, &[]))?)
         })
         .await?;
         Ok(document)
@@ -457,8 +445,7 @@ pub struct RdfGraphShacl<'a>(&'a GqlRdfGraph);
 impl<'a> RdfGraphShacl<'a> {
     /// Validates the triples of this view against a SHACL shapes graph and returns the W3C
     /// `sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-    /// are rejected. Disabled when the server sets `disable_lists`. A validation that runs
-    /// longer than `sparql_timeout` (30 seconds by default) is stopped with an error.
+    /// are rejected. Disabled when the server sets `disable_lists`.
     async fn validate_shacl(
         &self,
         ctx: &Context<'_>,
@@ -473,13 +460,13 @@ impl<'a> RdfGraphShacl<'a> {
         let view = self.0.view()?;
         let format = format.map_or(RdfFormat::Turtle, RdfFormat::from);
         let report_format = report_format.map_or(RdfFormat::Turtle, RdfFormat::from);
-        let report = run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |config, token| {
+        let report = run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |_| {
             let shapes = ShaclShapes::parse(shapes.as_bytes(), format, None)?;
             if shapes.is_recursive() {
                 return Err(SparqlError::RecursiveShapes);
             }
             let mut report = Vec::new();
-            view.validate_shacl_with(&shapes, config.sparql_timeout, Some(token))?
+            view.validate_shacl(&shapes)?
                 .write(&mut report, report_format, &[])?;
             into_string(report)
         })
@@ -489,8 +476,7 @@ impl<'a> RdfGraphShacl<'a> {
 }
 
 fn into_string(document: Vec<u8>) -> Result<String, SparqlError> {
-    String::from_utf8(document)
-        .map_err(|error| SparqlError::Internal(format!("RDF output is not UTF-8: {error}")))
+    Ok(String::from_utf8(document).map_err(RdfError::from)?)
 }
 
 /// An RDF format.
@@ -519,9 +505,7 @@ impl From<GqlRdfFormat> for RdfFormat {
             GqlRdfFormat::NQuads => RdfFormat::NQuads,
             GqlRdfFormat::Trig => RdfFormat::TriG,
             GqlRdfFormat::RdfXml => RdfFormat::RdfXml,
-            GqlRdfFormat::JsonLd => RdfFormat::JsonLd {
-                profile: JsonLdProfileSet::empty(),
-            },
+            GqlRdfFormat::JsonLd => RdfFormat::JsonLd,
         }
     }
 }
@@ -560,7 +544,6 @@ impl From<GqlSparqlFormat> for SparqlFormat {
         let both = |results, graph: GqlRdfFormat| SparqlFormat {
             results: Some(results),
             graph: Some(graph.into()),
-            prefixes: Vec::new(),
         };
         match format {
             GqlSparqlFormat::Json => both(QueryResultsFormat::Json, GqlRdfFormat::JsonLd),
@@ -579,32 +562,33 @@ impl From<GqlSparqlFormat> for SparqlFormat {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "shacl")]
+    use crate::test_support::rdf::ex;
     use crate::{
         auth_policy::{
             auth_policy_tests::FakePolicy, AuthorizationPolicy, GraphPermission,
             NamespacePermission,
         },
-        cli::{Args, Commands},
-        config::{app_config::AppConfigBuilder, concurrency_config::ConcurrencyConfig},
+        config::concurrency_config::ConcurrencyConfig,
         model::App,
-        sparql::Running,
+        sparql::SparqlError,
         test_support::{
             rdf::{
-                pairs, people, read_with, rows, slow_count, triples, AS_OF_3, COUNT, KNOWN_BY,
+                graph, pairs, people, rows, without_carol, AS_OF_3, COUNT, KNOWN_BY, KNOWN_BY_NOW,
                 KNOWS, NOW, SINCE,
             },
             setup_with_graphs, setup_with_policy,
         },
     };
-    use async_graphql::dynamic::Schema;
-    use clap::Parser;
+    use async_graphql::{dynamic::Schema, ServerError};
     use dynamic_graphql::{Request, Variables};
-    use raphtory::{db::api::view::MaterializedGraph, rdf::RdfFormat};
+    #[cfg(feature = "shacl")]
+    use oxigraph::model::NamedNodeRef;
+    use oxigraph::{io::RdfFormat, model::Literal, sparql::QueryEvaluationError};
+    use raphtory::db::api::view::MaterializedGraph;
+    use raphtory_rdf::RdfError;
     use serde_json::{json, Value as Json};
-    use std::{
-        sync::Arc,
-        time::{Duration, Instant},
-    };
+    use std::sync::Arc;
     use tempfile::TempDir;
 
     /// `pg` holds [`people`], `eg` the same events as an event graph.
@@ -641,18 +625,22 @@ mod tests {
             .unwrap()
     }
 
-    /// The data of `document` with `variables`, or its first error message.
-    async fn execute(schema: &Schema, document: &str, variables: Json) -> Result<Json, String> {
+    /// The data of `document` with `variables`, or its first error.
+    async fn execute(
+        schema: &Schema,
+        document: &str,
+        variables: Json,
+    ) -> Result<Json, ServerError> {
         let request = Request::new(document).variables(Variables::from_json(variables));
         let response = schema.execute(request).await;
         match response.errors.first() {
-            Some(error) => Err(error.message.clone()),
+            Some(error) => Err(error.clone()),
             None => Ok(response.data.into_json().unwrap()),
         }
     }
 
     /// The results of `query` on `rdfGraph(path: "pg") { valid { .. } }`.
-    async fn sparql(schema: &Schema, query: &str) -> Result<String, String> {
+    async fn sparql(schema: &Schema, query: &str) -> Result<String, ServerError> {
         let document =
             r#"query Q($q: String!) { rdfGraph(path: "pg") { valid { sparql(query: $q) } } }"#;
         let data = execute(schema, document, json!({ "q": query })).await?;
@@ -681,41 +669,37 @@ mod tests {
         }"#;
         let variables = json!({ "knows": KNOWS, "since": SINCE, "knownBy": KNOWN_BY });
         let data = execute(&schema, document, variables).await.unwrap();
-        let graph = &data["rdfGraph"];
+        let fields = &data["rdfGraph"];
         let rows_of = |value: &Json| rows(value.as_str().unwrap());
+        let graph_of = |value: &Json, format| graph(value.as_str().unwrap(), format);
 
         let all = [("alice", "bob"), ("bob", "carol"), ("dave", "alice")];
-        assert_eq!(rows_of(&graph["all"]), pairs(&all));
-        assert_eq!(rows_of(&graph["valid"]["sparql"]), pairs(NOW));
-        assert_eq!(rows_of(&graph["at"]["sparql"]), pairs(AS_OF_3));
+        assert_eq!(rows_of(&fields["all"]), pairs(&all));
+        assert_eq!(rows_of(&fields["valid"]["sparql"]), pairs(NOW));
+        assert_eq!(rows_of(&fields["at"]["sparql"]), pairs(AS_OF_3));
         assert_eq!(
-            rows_of(&graph["window"]["valid"]["sparql"]),
+            rows_of(&fields["window"]["valid"]["sparql"]),
             pairs(&[("bob", "carol")])
         );
-        assert_eq!(rows_of(&graph["since"]["sparql"]), [["1"]]);
         assert_eq!(
-            triples(
-                graph["knownBy"]["sparql"].as_str().unwrap(),
-                RdfFormat::Turtle
-            ),
-            [
-                "<http://ex/alice> <http://ex/knownBy> <http://ex/dave> .",
-                "<http://ex/carol> <http://ex/knownBy> <http://ex/bob> .",
-            ]
+            rows_of(&fields["since"]["sparql"]),
+            [[Some(Literal::from(1).into())]]
         );
         assert_eq!(
-            triples(
-                graph["export"]["toRdf"].as_str().unwrap(),
-                RdfFormat::NTriples
-            ),
-            [
-                r#"<http://ex/alice> <http://ex/age> "42"^^<http://www.w3.org/2001/XMLSchema#integer> ."#,
-                "<http://ex/bob> <http://ex/knows> <http://ex/carol> .",
-                r#"<http://ex/carol> <http://ex/name> "Carol" ."#,
-                "<http://ex/dave> <http://ex/knows> <http://ex/alice> .",
-            ]
+            graph_of(&fields["knownBy"]["sparql"], RdfFormat::Turtle),
+            graph(KNOWN_BY_NOW, RdfFormat::NTriples)
         );
-        let windows = graph["rolling"]["list"].as_array().unwrap();
+        let export = r#"
+            <http://ex/alice> <http://ex/age> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .
+            <http://ex/bob> <http://ex/knows> <http://ex/carol> .
+            <http://ex/carol> <http://ex/name> "Carol" .
+            <http://ex/dave> <http://ex/knows> <http://ex/alice> .
+        "#;
+        assert_eq!(
+            graph_of(&fields["export"]["toRdf"], RdfFormat::NTriples),
+            graph(export, RdfFormat::NTriples)
+        );
+        let windows = fields["rolling"]["list"].as_array().unwrap();
         assert_eq!(
             rows_of(&windows.last().unwrap()["valid"]["sparql"]),
             pairs(NOW)
@@ -738,14 +722,19 @@ mod tests {
         let data = execute(&schema, document, json!({ "shapes": shapes }))
             .await
             .unwrap();
-        let report = data["rdfGraph"]["at"]["validateShacl"].as_str().unwrap();
+        let report = graph(
+            data["rdfGraph"]["at"]["validateShacl"].as_str().unwrap(),
+            RdfFormat::NTriples,
+        );
+        let focus_node = NamedNodeRef::new_unchecked("http://www.w3.org/ns/shacl#focusNode");
         // as of 3, bob knows carol but has no age
-        let focus_nodes: Vec<String> = triples(report, RdfFormat::NTriples)
-            .into_iter()
-            .filter(|triple| triple.contains("<http://www.w3.org/ns/shacl#focusNode>"))
-            .collect();
-        assert_eq!(focus_nodes.len(), 1, "{report}");
-        assert!(focus_nodes[0].ends_with(" <http://ex/bob> ."), "{report}");
+        assert_eq!(
+            report
+                .triples_for_predicate(focus_node)
+                .map(|triple| triple.object.into_owned())
+                .collect::<Vec<_>>(),
+            [ex("bob").into()]
+        );
     }
 
     #[cfg(feature = "shacl")]
@@ -762,30 +751,34 @@ mod tests {
         let error = execute(&schema, document, json!({ "shapes": shapes }))
             .await
             .unwrap_err();
-        assert_eq!(
-            error,
-            "recursive SHACL shapes (a shape that refers to itself) cannot be validated on this \
-             server"
-        );
+        assert!(matches!(
+            error.source::<SparqlError>(),
+            Some(SparqlError::RecursiveShapes)
+        ));
     }
 
     #[tokio::test]
     async fn a_row_filter_turns_off_the_temporal_functions() {
         let work_dir = TempDir::new().unwrap();
         let schema = setup_as(&work_dir, GraphPermission::Read { filter: None }).await;
-        assert_eq!(rows(&sparql(&schema, SINCE).await.unwrap()), [["1"]]);
+        assert_eq!(
+            rows(&sparql(&schema, SINCE).await.unwrap()),
+            [[Some(Literal::from(1).into())]]
+        );
 
         let work_dir = TempDir::new().unwrap();
-        let node_filter = json!({
-            "filter": { "node": { "name": { "where": { "ne": { "str": "http://ex/carol" } } } } }
-        });
-        let schema = setup_as(&work_dir, read_with(node_filter)).await;
+        let schema = setup_as(&work_dir, without_carol()).await;
         assert_eq!(
             rows(&sparql(&schema, KNOWS).await.unwrap()),
             pairs(&[("dave", "alice")])
         );
         let error = sparql(&schema, SINCE).await.unwrap_err();
-        assert!(error.contains("validFromTime"), "{error}");
+        assert!(matches!(
+            error.source::<SparqlError>(),
+            Some(SparqlError::Query(RdfError::SparqlEvaluation(
+                QueryEvaluationError::UnsupportedCustomFunction(_)
+            )))
+        ));
     }
 
     /// A graph the caller may only introspect, one it has no grant on and one that does not
@@ -816,20 +809,23 @@ mod tests {
             ..Default::default()
         };
         let schema = setup_with_config(&work_dir, config).await;
-        assert_eq!(rows(&sparql(&schema, COUNT).await.unwrap()), [["4"]]);
         assert_eq!(
-            sparql(&schema, &format!("{COUNT} ")).await.unwrap_err(),
-            format!(
-                "SPARQL query too long: {} bytes, the limit is {} bytes \
-                 (`max_sparql_query_length`)",
-                COUNT.len() + 1,
-                COUNT.len()
-            )
+            rows(&sparql(&schema, COUNT).await.unwrap()),
+            [[Some(Literal::from(4).into())]]
         );
+        let error = sparql(&schema, &format!("{COUNT} ")).await.unwrap_err();
+        assert!(matches!(
+            error.source::<SparqlError>(),
+            Some(SparqlError::TooLong { length, max })
+                if *length == COUNT.len() + 1 && *max == COUNT.len()
+        ));
         let error = sparql(&schema, "ASK{?a ?b ?c.?c ?d ?e.?e ?f ?g}")
             .await
             .unwrap_err();
-        assert!(error.ends_with("(`max_sparql_triple_patterns`)"), "{error}");
+        assert!(matches!(
+            error.source::<SparqlError>(),
+            Some(SparqlError::Query(RdfError::TooManyPatterns { .. }))
+        ));
 
         let work_dir = TempDir::new().unwrap();
         let config = ConcurrencyConfig {
@@ -837,92 +833,17 @@ mod tests {
             ..Default::default()
         };
         let schema = setup_with_config(&work_dir, config).await;
-        let disabled = "SPARQL queries, RDF exports and SHACL validation are disabled on this \
-                        server (`disable_lists`)";
-        assert_eq!(sparql(&schema, "ASK {}").await.unwrap_err(), disabled);
+        let disabled = |error: ServerError| {
+            matches!(error.source::<SparqlError>(), Some(SparqlError::Disabled))
+        };
+        assert!(disabled(sparql(&schema, "ASK {}").await.unwrap_err()));
         let export = execute(&schema, r#"{ rdfGraph(path: "pg") { toRdf } }"#, json!({})).await;
-        assert_eq!(export.unwrap_err(), disabled);
+        assert!(disabled(export.unwrap_err()));
         #[cfg(feature = "shacl")]
         {
             let document = r#"{ rdfGraph(path: "pg") { validateShacl(shapes: "") } }"#;
             let validation = execute(&schema, document, json!({})).await;
-            assert_eq!(validation.unwrap_err(), disabled);
+            assert!(disabled(validation.unwrap_err()));
         }
-
-        let work_dir = TempDir::new().unwrap();
-        let config = ConcurrencyConfig {
-            sparql_timeout: Some(Duration::ZERO),
-            ..Default::default()
-        };
-        let schema = setup_with_config(&work_dir, config).await;
-        let export = execute(&schema, r#"{ rdfGraph(path: "pg") { toRdf } }"#, json!({})).await;
-        assert_eq!(
-            export.unwrap_err(),
-            "RDF export timed out: it ran longer than its time limit of 0ns (`sparql_timeout`)"
-        );
-    }
-
-    /// Dropping the request future stops its query.
-    #[tokio::test]
-    async fn dropping_the_request_stops_the_query() {
-        let work_dir = TempDir::new().unwrap();
-        let config = ConcurrencyConfig {
-            sparql_timeout: None,
-            ..Default::default()
-        };
-        let schema = setup_with_config(&work_dir, config).await;
-        let query = slow_count("dropped");
-        let wait_for = |running: usize| {
-            let query = query.clone();
-            async move {
-                let start = Instant::now();
-                while Running::count(&query) != running {
-                    assert!(
-                        start.elapsed() < Duration::from_secs(30),
-                        "the query runs {} times, expected {running}",
-                        Running::count(&query)
-                    );
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-            }
-        };
-        let task = {
-            let schema = schema.clone();
-            let query = query.clone();
-            tokio::spawn(async move { sparql(&schema, &query).await })
-        };
-        wait_for(1).await;
-        task.abort(); // drops the request future
-        assert!(task.await.unwrap_err().is_cancelled());
-        wait_for(0).await;
-    }
-
-    #[test]
-    fn the_limits_are_configurable() {
-        let config = AppConfigBuilder::new()
-            .update_from_json(json!({
-                "concurrency": {
-                    "sparql_timeout": 1.5,
-                    "max_sparql_triple_patterns": 7,
-                    "max_sparql_query_length": null
-                }
-            }))
-            .unwrap()
-            .build()
-            .concurrency;
-        assert_eq!(config.sparql_timeout, Some(Duration::from_millis(1500)));
-        assert_eq!(config.max_sparql_triple_patterns, Some(7));
-        assert_eq!(config.max_sparql_query_length, None);
-
-        let args =
-            Args::try_parse_from(["raphtory", "server", "--sparql-timeout", "0.25"]).unwrap();
-        let Commands::Server(server) = args.command else {
-            panic!("not the server command")
-        };
-        let config = AppConfigBuilder::new_from_args(server.config_args)
-            .unwrap()
-            .build()
-            .concurrency;
-        assert_eq!(config.sparql_timeout, Some(Duration::from_millis(250)));
     }
 }

@@ -411,10 +411,7 @@ impl GraphServer {
             .at("/health", get(health))
             .at("/version", get(version));
         #[cfg(feature = "rdf")]
-        let app = app.at(
-            "/sparql/*path",
-            SparqlEndpoint::new(graphql, config.concurrency.clone()),
-        );
+        let app = app.at("/sparql/*path", SparqlEndpoint::new(graphql));
         let app = app
             .with(Cors::new())
             .with(Compression::new().with_quality(CompressionLevel::Fastest));

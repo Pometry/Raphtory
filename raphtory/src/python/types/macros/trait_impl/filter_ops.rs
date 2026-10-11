@@ -9,6 +9,7 @@
 /// Paths are `$crate`-qualified so the macro expands correctly regardless of
 /// what the call site happens to import.
 
+#[macro_export]
 macro_rules! impl_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {
         #[pyo3::pymethods]

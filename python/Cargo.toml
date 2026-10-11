@@ -25,18 +25,15 @@ raphtory = { workspace = true, features = [
 raphtory-graphql = { workspace = true, features = [
     "python",
 ] }
+raphtory-rdf = { workspace = true, optional = true }
 auth = { workspace = true }
 
 
 [features]
 default = ["datafusion", "vectors", "rdf", "shacl"]
 datafusion = ["raphtory/datafusion"]
-# RDF import/export and SPARQL queries (RdfGraph and RdfView, and the `rdfGraph` field and
-# SPARQL endpoint of the GraphQL server)
-rdf = ["raphtory/rdf", "raphtory-graphql/rdf"]
-# SHACL validation (RdfView.validate_shacl / validate_shacl_at and `RdfGraph.validateShacl` in
-# GraphQL). It also turns on RDF 1.2 and SPARQL 1.2 syntax for the whole module.
-shacl = ["rdf", "raphtory/shacl", "raphtory-graphql/shacl"]
+rdf = ["dep:raphtory-rdf", "raphtory-rdf/python", "raphtory-graphql/rdf"]
+shacl = ["rdf", "raphtory-rdf/shacl", "raphtory-graphql/shacl"]
 # search = ["raphtory/search", "raphtory-graphql/search"]
 vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
 test = ["raphtory/panic-on-drop"]

@@ -89,7 +89,7 @@ The endpoint answers the query operation of the SPARQL 1.1 Protocol in its three
 The other parameters are `default-graph-uri` and `named-graph-uri`, and the Raphtory parameter `asof` (see
 [time travel](#time-travel)); parameters the endpoint does not know, such as
 the `format` and `output` that some clients add, are ignored. A `GET` without a query returns the
-[SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/) of the endpoint, as RDF (Turtle by default): its URL, the query language, the result formats and the
+[SPARQL 1.1 Service Description](https://www.w3.org/TR/sparql11-service-description/) of the endpoint, as RDF (Turtle by default): its URL (`http://` and the `Host` header of the request), the query language, the result formats and, when the caller may call them, the
 [temporal functions](3_time-travel.md#since-when-validity-functions). Like a query, it needs a graph the caller can read,
 and is a 404 otherwise, so a mistyped endpoint URL does not look live. The endpoint answers `OPTIONS` requests, including
 the preflight requests of browsers, so query editors served from other sites can use it.
@@ -120,7 +120,7 @@ cannot hold a triple whose predicate does not end in an XML name, such as `<raph
 (see [Limitations](4_limitations.md#exporting) for the details). The endpoint never sends results with something left
 out: when the preferred format cannot hold them, it answers in the next format the `Accept` header allows, and with 406
 when there is none. For example, `Accept: application/rdf+xml, text/turtle;q=0.5` gets RDF/XML when it holds the
-results and Turtle otherwise, while `Accept: application/rdf+xml` alone gets a 406 naming the formats to accept instead.
+results and Turtle otherwise, while `Accept: application/rdf+xml` alone gets a 406.
 
 ## Time travel
 
@@ -129,13 +129,13 @@ The endpoint views every graph, event or persistent, as an `RdfGraph`, and picks
 | Request                                                            | View                         |
 |--------------------------------------------------------------------|------------------------------|
 | no parameter                                                       | `valid()`: the current state |
-| a query that reads a time graph `<raphtory:asof:T>` (in `FROM`, `FROM NAMED` or a `GRAPH` pattern), or a request with `default-graph-uri` or `named-graph-uri` | the whole graph, so each time graph is the state at its time |
+| a query that reads a time graph `<raphtory:asof:T>` (in `FROM`, `FROM NAMED` or a `GRAPH` pattern, including one built with `IRI()`), or a request with `default-graph-uri` or `named-graph-uri` | the whole graph, so each time graph is the state at its time; the default graph then holds every triple ever asserted or retracted, and the current state can be named as a time graph at the present time |
 | `asof=T`                                                           | `at(T)`: the state as of `T` |
 
 `T` is written as in a [time graph](3_time-travel.md#comparing-times-in-one-query): epoch
 milliseconds or a date-time such as `2023-01-01`, `2023-01-01T09:30:00` or `2023-01-01T09:30:00Z` (UTC unless it has a
-timezone). In a URL a `+` normally stands for a space, but the `+` of a timezone offset can be written as is, as in
-`?asof=2023-01-01T09:30:00+01:00`, or as `%2B`. Since the parameter can be part of the endpoint URL, every query of a
+timezone). In a URL a `+` stands for a space, so write the `+` of a timezone offset as `%2B`, as in
+`?asof=2023-01-01T09:30:00%2B01:00`. Since the parameter can be part of the endpoint URL, every query of a
 query editor can run on the past:
 
 /// tab | :fontawesome-brands-python: Python
@@ -208,25 +208,25 @@ The endpoint runs a query as the [`sparql` field](5_graphql.md#limits) of `rdfGr
 - **Permissions.** The caller needs read access to the graph. A graph the caller cannot read gives the same 404 as a graph
   that does not exist. A caller whose access is row-filtered sees only the triples the filter keeps, and cannot use the
   temporal functions.
-- **Limits.** `max_sparql_query_length`, `max_sparql_triple_patterns` and `sparql_timeout` apply, and a query takes one
-  of the `heavy_query_limit` slots it shares with the GraphQL queries. `disable_lists` turns the endpoint off. A request
-  body longer than three times `max_sparql_query_length` plus 64 KiB is not read.
+- **Limits.** `max_sparql_query_length`, `max_sparql_triple_patterns` and `max_sparql_result_bytes` apply, and a query
+  takes one of the `heavy_query_limit` slots it shares with the GraphQL queries. `disable_lists` turns the endpoint off.
+  A request body longer than three times `max_sparql_query_length` plus 64 KiB is not read.
 - **No federation.** `SERVICE` calls are refused; the server never sends a query to another endpoint.
 
 Errors have a plain-text body with the same message as the GraphQL error, and these status codes:
 
 | Status | When |
 |---|---|
-| 400 Bad Request | a syntax or evaluation error, a query that is too long or has too many triple patterns, a dataset IRI that is not a time graph, a missing or repeated `query`, an invalid or repeated `asof` |
+| 400 Bad Request | a syntax or evaluation error, a query that is too long or has too many triple patterns, a dataset IRI that does not parse or is not a time graph, a missing or repeated `query`, an invalid or repeated `asof`, a service description request whose `Host` header does not make the endpoint URL an IRI |
 | 401 Unauthorized | no valid token when the server requires one for reads |
 | 404 Not Found | the graph does not exist or the caller cannot read it |
 | 405 Method Not Allowed | a method other than `GET`, `POST` and `OPTIONS` |
-| 406 Not Acceptable | no format of the `Accept` header fits the results, or none of them can hold the results |
-| 413 Payload Too Large | a request body far longer than any allowed query |
+| 406 Not Acceptable | no format of the `Accept` header fits the results, or none of them can hold the results (such as RDF/XML, which cannot hold a triple whose predicate does not end in an XML name) |
+| 413 Payload Too Large | a request body far longer than any allowed query, or results larger than `max_sparql_result_bytes` |
 | 415 Unsupported Media Type | a `POST` that is neither a form nor `application/sparql-query` |
+| 500 Internal Server Error | an unexpected failure inside the server |
 | 501 Not Implemented | SPARQL Update |
-| 503 Service Unavailable | the server sets `disable_lists`, or is shutting down |
-| 504 Gateway Timeout | the query ran longer than `sparql_timeout` |
+| 503 Service Unavailable | the server sets `disable_lists` |
 
 ## Clients
 

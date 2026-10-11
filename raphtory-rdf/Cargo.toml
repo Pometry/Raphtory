@@ -1,0 +1,62 @@
+[package]
+name = "raphtory-rdf"
+description = "RDF import and export, SPARQL queries and SHACL validation over Raphtory graphs"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+categories.workspace = true
+
+[package.metadata.docs.rs]
+features = ["shacl"]
+
+[dependencies]
+raphtory = { workspace = true, features = ["io"] }
+raphtory-api.workspace = true
+raphtory-storage.workspace = true
+oxigraph = { workspace = true, features = ["rdf-12"] }
+spareval.workspace = true
+spargebra.workspace = true
+oxiri.workspace = true
+percent-encoding.workspace = true
+bigdecimal.workspace = true
+chrono.workspace = true
+dashmap.workspace = true
+either.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+rayon.workspace = true
+rustc-hash.workspace = true
+thiserror.workspace = true
+
+# shacl optional dependencies
+shacl = { workspace = true, optional = true }
+rudof_rdf = { workspace = true, optional = true }
+prefixmap = { workspace = true, optional = true }
+rudof_iri = { workspace = true, optional = true }
+
+# python binding optional dependencies
+pyo3 = { workspace = true, optional = true }
+# named by raphtory's Python view macros
+raphtory-core = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest.workspace = true
+
+[features]
+# SHACL validation of graph views (via rudof's `shacl` crate). It also turns on oxigraph's HTTP
+# client (SERVICE calls are still refused).
+shacl = ["dep:shacl", "dep:rudof_rdf", "dep:prefixmap", "dep:rudof_iri"]
+python = [
+    "dep:pyo3",
+    "dep:raphtory-core",
+    "raphtory/python",
+    "raphtory-api/python",
+]
+panic-on-drop = ["raphtory/panic-on-drop"]

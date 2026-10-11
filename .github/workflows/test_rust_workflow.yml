@@ -55,14 +55,14 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --workspace --all-features --cargo-profile build-fast
+          cargo nextest run --workspace --all-features --cargo-profile build-fast -E 'not (binary_id(raphtory-rdf-tests::sparql_w3c) | binary_id(raphtory-rdf-tests::shacl_w3c))'
       - name: Check all features
         env:
           RUSTFLAGS: -Awarnings
         run: |
           cargo hack check --workspace --all-targets --each-feature
   # Runs the W3C SPARQL/Turtle and SHACL conformance suites (git submodules under
-  # raphtory-rdf-tests/test-suites/), which the jobs above skip because they check out without submodules.
+  # raphtory-rdf-tests/test-suites/), which the job above leaves out because it checks out without submodules.
   w3c-conformance:
     if: ${{ !inputs.skip_tests }}
     name: "W3C conformance tests"
@@ -86,18 +86,12 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Rust version
         run: rustc --version --verbose
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
           cache-all-crates: true
-      - name: Check out the W3C test suites
-        run: make w3c-tests-init
       - name: Run the W3C conformance tests
         env:
           RUSTFLAGS: -Awarnings

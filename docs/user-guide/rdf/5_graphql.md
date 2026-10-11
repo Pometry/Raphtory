@@ -192,22 +192,24 @@ The RDF fields run on the graph as the caller is allowed to see it:
 
 The `concurrency` section of the server configuration (see [GraphServer][raphtory.graphql.GraphServer]) bounds the RDF
 fields. The three SPARQL limits are also `raphtory server` options (`--max-sparql-query-length`,
-`--max-sparql-triple-patterns`, `--sparql-timeout`) and environment variables (`RAPHTORY_MAX_SPARQL_QUERY_LENGTH`,
-`RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS`, `RAPHTORY_SPARQL_TIMEOUT`), and `None` removes them.
+`--max-sparql-triple-patterns`, `--max-sparql-result-bytes`) and environment variables
+(`RAPHTORY_MAX_SPARQL_QUERY_LENGTH`, `RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS`, `RAPHTORY_MAX_SPARQL_RESULT_BYTES`), and
+setting one to `None` in the configuration removes it.
 
 | Setting                      | Default | What it does                                                                                     |
 |------------------------------|---------|--------------------------------------------------------------------------------------------------|
 | `disable_lists`              | off     | turns off `sparql`, `toRdf`, `validateShacl` and the [SPARQL endpoint](7_sparql_endpoint.md)      |
 | `max_sparql_query_length`    | 16 KiB  | rejects a longer query before parsing it (`SPARQL query too long`)                                |
 | `max_sparql_triple_patterns` | 100     | rejects a query with more triple patterns, counted as in [limits](2_sparql.md#errors-and-limits), before planning it |
-| `sparql_timeout`             | 30 s    | stops a query, an export or a SHACL validation that runs longer (`SPARQL query timed out`)        |
-| `heavy_query_limit`          | none    | the RDF fields count as heavy queries and wait for a free slot                                    |
+| `max_sparql_result_bytes`    | 256 MiB | fails a larger result of `sparql` or `toRdf` (`SPARQL results larger than`)                      |
+| `heavy_query_limit`          | none    | every GraphQL query and every SPARQL endpoint query takes a slot, and waits for a free one        |
 
-For example, `GraphServer(work_dir, config={"concurrency": {"sparql_timeout": 5, "max_sparql_triple_patterns": 50}})`.
+For example, `GraphServer(work_dir, config={"concurrency": {"max_sparql_triple_patterns": 50}})`.
 
-- **Disconnected clients.** The server does not notice a client that disconnects, so its query runs on until it ends
-  or reaches `sparql_timeout`. Keep the timeout on a server that clients you do not control can reach.
-- **Results in memory.** The whole result is held in memory as one string until it is sent. Use `LIMIT`.
+- **No time limit.** A query, export or validation runs until it ends. Bound queries with `max_sparql_triple_patterns`
+  and `LIMIT`.
+- **Results in memory.** The whole result is held in memory as one string, of at most `max_sparql_result_bytes`, until
+  it is sent. Use `LIMIT`.
 - **Reads only.** There is no SPARQL Update and no mutation that loads RDF yet. Load RDF in Python, then send the graph
   with `send_graph(path=..., graph=rg.graph)` or `upload_graph()`, which keeps the history of every triple.
 - **SPARQL tools.** Tools that speak the SPARQL protocol, such as YASGUI, SPARQLWrapper and rdflib, use the

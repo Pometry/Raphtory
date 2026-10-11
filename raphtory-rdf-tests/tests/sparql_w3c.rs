@@ -4,10 +4,8 @@
 //! # Running
 //!
 //! The suites are read from the git submodule `raphtory-rdf-tests/test-suites/rdf-tests` (pinned
-//! to the commit oxigraph pins; bump it with oxigraph), or from `RAPHTORY_RDF_TESTS` if set and
-//! not empty. `make w3c-tests-init` checks the submodule out and `make rust-test-rdf-w3c` runs
-//! this file.
-//! Without a checkout the suites print a message and pass.
+//! to the commit oxigraph pins; bump it with oxigraph). `make w3c-tests-init` checks the
+//! submodule out and `make rust-test-rdf-w3c` runs this file.
 //!
 //! # What is checked
 //!
@@ -16,8 +14,8 @@
 //!   [`add_decoys`]), and the query, prefixed with `BASE <query URL>`, runs through `sparql()` on
 //!   `at(T)`. It must give the expected result: the same solutions as a multiset up to
 //!   blank-node renaming, the same boolean, or an isomorphic graph. Tests with
-//!   `mf:resultCardinality mf:LaxCardinality`, named graphs (`qt:graphData`, or a query with
-//!   `FROM` or `FROM NAMED`) or `SERVICE` are skipped: Raphtory stores only the default graph.
+//!   `mf:resultCardinality mf:LaxCardinality` or named graphs (`qt:graphData`, or a query with
+//!   `FROM` or `FROM NAMED`) are skipped: Raphtory stores only the default graph.
 //! - `rdft:TestTurtleEval`: the document is loaded with `load_rdf` and exported as N-Triples with
 //!   `to_rdf`, which must be isomorphic to the expected N-Triples.
 //!
@@ -25,7 +23,7 @@
 //!
 //! A test that fails is compared with an oracle: spareval (the evaluator Raphtory uses) over an
 //! `oxrdf::Dataset` of the same data, which keeps terms exactly as written, as Raphtory does.
-//! If Raphtory's result differs from the oracle's, the failure is a bug in `raphtory::rdf`. If
+//! If Raphtory's result differs from the oracle's, the failure is a bug in `raphtory_rdf`. If
 //! they agree, it comes from spareval or from the test suite, and the test must be listed in
 //! [`KNOWN_FAILURES`] with the reason. A listed test that passes fails the run, so the list is
 //! pruned when, for example, an oxigraph upgrade fixes one.
@@ -33,40 +31,29 @@
 mod oracle;
 
 use oxigraph::{
-    io::RdfParser,
+    io::{RdfFormat as OxRdfFormat, RdfParser},
+    model::{
+        dataset::CanonicalizationAlgorithm, vocab::rdf, BlankNode, Dataset, Graph as OxGraph,
+        GraphName, NamedNodeRef, NamedOrBlankNodeRef, Quad,
+    },
     sparql::results::{QueryResultsFormat, QueryResultsParser, ReaderQueryResultsParserOutput},
 };
-use raphtory::{
-    errors::GraphError,
-    prelude::*,
-    rdf::{
-        model::{
-            dataset::CanonicalizationAlgorithm, vocab::rdf, BlankNode, Dataset, Graph as OxGraph,
-            GraphName, NamedNode, NamedNodeRef, NamedOrBlankNodeRef, Quad, Term, TermRef, Triple,
-        },
-        parse_rdf_format, RdfFormat, SparqlResults,
-    },
+use raphtory::prelude::*;
+use raphtory_rdf::{
+    NamedNode, RdfError, RdfFormat, RdfGraph, SparqlOptions, SparqlResults, Term, TermRef, Triple,
+    Variable,
 };
-use spargebra::{algebra::GraphPattern, Query, SparqlParser};
+use spargebra::{Query, SparqlParser};
 use std::{
-    collections::BTreeMap,
-    fmt, fs,
+    fs,
     path::{Path, PathBuf},
     sync::mpsc,
     thread,
     time::Duration,
 };
 
-/// The environment variable that overrides the directory of the checkout of w3c/rdf-tests.
-const TESTS_ENV: &str = "RAPHTORY_RDF_TESTS";
-
-/// The git submodule of w3c/rdf-tests, relative to the root of the workspace.
-const SUBMODULE: &str = "raphtory-rdf-tests/test-suites/rdf-tests";
-
-/// The command that checks the submodule out at its pinned commit (`--checkout` does so whatever
-/// `update` strategy the submodule has).
-const INIT: &str =
-    "git submodule update --init --checkout raphtory-rdf-tests/test-suites/rdf-tests";
+/// The checkout of w3c/rdf-tests (a git submodule).
+const SUITE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test-suites/rdf-tests");
 
 /// The URL of the root of the checkout. Test files are named by their URL under it, as
 /// oxigraph's test runner names them, so relative IRIs resolve as the expected results assume.
@@ -107,7 +94,7 @@ macro_rules! r11 {
 }
 
 /// The tests that fail in the same way with spareval over an `oxrdf::Dataset`, with the reason:
-/// they come from spareval/spargebra or from the test suite, not from `raphtory::rdf`. Terms are
+/// they come from spareval/spargebra or from the test suite, not from `raphtory_rdf`. Terms are
 /// compared exactly, as Raphtory keeps them as written.
 const KNOWN_FAILURES: &[(&str, &str)] = &[
     // SPARQL 1.0
@@ -173,91 +160,45 @@ const GROUP_CONCAT: &str = "spareval's GROUP_CONCAT keeps a language tag that al
 const ZERO_LENGTH: &str = "spareval's zero-length path does not match a constant that is not \
     in the data; the test (from an erratum) expects the constant to match itself";
 
-// ---------------------------------------------------------------------------------------------
-// The suites
-// ---------------------------------------------------------------------------------------------
-
 #[test]
 fn sparql10_evaluation() {
-    conformance("sparql/sparql10/manifest-evaluation.ttl");
+    conformance("sparql/sparql10/manifest-evaluation.ttl", (282, 245, 4, 33));
 }
 
 /// The SPARQL 1.1 query tests (the syntax tests of `syntax-query` are skipped).
 #[test]
 fn sparql11_query() {
-    conformance("sparql/sparql11/manifest-sparql11-query.ttl");
+    conformance(
+        "sparql/sparql11/manifest-sparql11-query.ttl",
+        (328, 188, 21, 119),
+    );
 }
 
 #[test]
 fn turtle() {
-    conformance("rdf/rdf11/rdf-turtle/manifest.ttl");
+    conformance("rdf/rdf11/rdf-turtle/manifest.ttl", (313, 145, 0, 168));
 }
 
-/// The directory of the checkout of w3c/rdf-tests: `RAPHTORY_RDF_TESTS` if it is set and not
-/// empty, or else the submodule of the workspace.
-fn tests_dir() -> PathBuf {
-    match std::env::var_os(TESTS_ENV) {
-        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
-        _ => Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .expect("raphtory-rdf-tests is in a workspace")
-            .join(SUBMODULE),
-    }
-}
-
-/// The checkout of w3c/rdf-tests, or `None` (with a message) if [`tests_dir`] is not a checkout.
-fn tests_root() -> Option<PathBuf> {
-    checkout_root(&tests_dir())
-        .inspect_err(|message| println!("{message}"))
-        .ok()
-}
-
-/// `dir` as a canonical absolute path if it is a checkout of w3c/rdf-tests (it has a `sparql/`
-/// directory), or else the skip message. A relative `dir` is resolved against the
-/// `raphtory-rdf-tests` crate directory, where cargo runs the tests.
-fn checkout_root(dir: &Path) -> Result<PathBuf, String> {
-    let absolute = std::path::absolute(dir).unwrap_or_else(|_| dir.to_owned());
-    if absolute.join("sparql").is_dir() {
-        Ok(absolute.canonicalize().unwrap_or(absolute))
-    } else {
-        Err(format!(
-            "skipping the W3C conformance tests: {} (resolved to {}) is not a checkout of \
-             https://github.com/w3c/rdf-tests (it has no sparql/ directory). Run `{INIT}` (or \
-             `make w3c-tests-init`) in the Raphtory repository, or set {TESTS_ENV} to a checkout \
-             (a relative path is resolved against the raphtory-rdf-tests crate directory, where \
-             cargo runs the tests)",
-            dir.display(),
-            absolute.display()
-        ))
-    }
-}
-
-/// Runs the suite of `manifest`, prints its report and fails if it has problems.
-fn conformance(manifest: &str) {
-    let Some(root) = tests_root() else {
-        return;
-    };
-    if !root.join(manifest).is_file() {
-        println!(
-            "skipping {manifest}: it is not in {} (the submodule {SUBMODULE} at its pinned \
-             commit has it: `{INIT}`)",
-            root.display()
-        );
-        return;
-    }
-    let report = run_suite(&root, manifest, KNOWN_FAILURES);
-    println!("{report}");
+/// Runs the suite of `manifest`, and fails if it has problems or if its `(tests, pass, known,
+/// skipped)` counts are not `expected`.
+fn conformance(manifest: &str, expected: (usize, usize, usize, usize)) {
+    let root = Path::new(SUITE);
+    assert!(
+        root.join(manifest).is_file(),
+        "{manifest} is missing from {SUITE}: run `make w3c-tests-init`"
+    );
+    let report = run_suite(root, manifest);
     assert!(
         report.problems.is_empty(),
         "{} problem(s) in {manifest}:\n{}",
         report.problems.len(),
         report.problems.join("\n")
     );
+    assert_eq!(
+        (report.tests, report.pass, report.known, report.skipped),
+        expected
+    );
 }
-
-// ---------------------------------------------------------------------------------------------
-// Manifests
-// ---------------------------------------------------------------------------------------------
 
 /// The files of the checkout, named by their URL under [`TESTS_URL`].
 #[derive(Clone)]
@@ -288,27 +229,17 @@ struct TestCase {
     /// The IRI of the test.
     id: String,
     /// Its `rdf:type`s.
-    kinds: Vec<String>,
+    kinds: Vec<NamedNode>,
     /// The query (`qt:query`), or the file of a syntax or Turtle test (`mf:action`).
     action: Option<String>,
     /// `qt:data`.
     data: Vec<String>,
     /// Whether it has `qt:graphData`.
     graph_data: bool,
-    /// Whether it has `qt:serviceData`.
-    service_data: bool,
     /// `mf:result`.
     result: Option<String>,
     /// Whether its `mf:resultCardinality` is `mf:LaxCardinality`.
     lax: bool,
-}
-
-impl TestCase {
-    fn is(&self, namespace: &str, local: &str) -> bool {
-        self.kinds
-            .iter()
-            .any(|kind| kind.strip_prefix(namespace) == Some(local))
-    }
 }
 
 fn iri(namespace: &str, local: &str) -> NamedNode {
@@ -317,8 +248,7 @@ fn iri(namespace: &str, local: &str) -> NamedNode {
 
 /// The RDF format of a file, from its extension.
 fn format_of(url: &str) -> Result<RdfFormat, String> {
-    let extension = url.rsplit_once('.').map_or("", |(_, extension)| extension);
-    parse_rdf_format(extension).map_err(|e| format!("{url}: {e}"))
+    RdfFormat::from_extension(extension(url)).ok_or_else(|| format!("{url}: unknown RDF format"))
 }
 
 /// Parses an RDF file, keeping blank-node labels.
@@ -326,21 +256,20 @@ fn read_triples(files: &Files, url: &str) -> Result<Vec<Triple>, String> {
     parse_triples(&files.read(url)?, format_of(url)?, url)
 }
 
+/// oxigraph's parser of `format`.
+fn parser(format: RdfFormat) -> RdfParser {
+    RdfParser::from_format(
+        OxRdfFormat::from_media_type(format.media_type()).expect("an RDF media type"),
+    )
+}
+
 fn parse_triples(data: &[u8], format: RdfFormat, base: &str) -> Result<Vec<Triple>, String> {
-    RdfParser::from_format(format)
+    parser(format)
         .with_base_iri(base)
         .map_err(|e| e.to_string())?
         .for_slice(data)
         .map(|quad| quad.map(Triple::from).map_err(|e| format!("{base}: {e}")))
         .collect()
-}
-
-fn read_graph(files: &Files, url: &str) -> Result<OxGraph, String> {
-    let mut graph = OxGraph::new();
-    for triple in read_triples(files, url)? {
-        graph.insert(&triple);
-    }
-    Ok(graph)
 }
 
 fn subject_of(term: TermRef<'_>) -> Option<NamedOrBlankNodeRef<'_>> {
@@ -386,7 +315,7 @@ fn read_manifest(
     if depth > 8 {
         return Err(format!("{url}: manifests include each other too deep"));
     }
-    let graph = read_graph(files, url)?;
+    let graph: OxGraph = read_triples(files, url)?.into_iter().collect();
     let manifest = iri(MF, "Manifest");
     let manifests: Vec<_> = graph
         .subjects_for_predicate_object(rdf::TYPE, &manifest)
@@ -424,15 +353,16 @@ fn read_test(graph: &OxGraph, entry: TermRef<'_>) -> Option<TestCase> {
         id: iri_of(entry).unwrap_or_else(|| entry.to_string()),
         kinds: graph
             .objects_for_subject_predicate(subject, rdf::TYPE)
-            .filter_map(iri_of)
+            .filter_map(|kind| match kind {
+                TermRef::NamedNode(kind) => Some(kind.into_owned()),
+                _ => None,
+            })
             .collect(),
         result: objects(graph, subject, MF, "result")
             .into_iter()
             .find_map(iri_of),
         lax: objects(graph, subject, MF, "resultCardinality")
-            .into_iter()
-            .filter_map(iri_of)
-            .any(|cardinality| cardinality == format!("{MF}LaxCardinality")),
+            .contains(&(&iri(MF, "LaxCardinality")).into()),
         ..TestCase::default()
     };
     match objects(graph, subject, MF, "action").first()? {
@@ -442,50 +372,19 @@ fn read_test(graph: &OxGraph, entry: TermRef<'_>) -> Option<TestCase> {
             test.action = qt("query").into_iter().find_map(iri_of);
             test.data = qt("data").into_iter().filter_map(iri_of).collect();
             test.graph_data = !qt("graphData").is_empty();
-            test.service_data = !qt("serviceData").is_empty();
         }
         _ => return None,
     }
     Some(test)
 }
 
-// ---------------------------------------------------------------------------------------------
-// Results and their comparison
-// ---------------------------------------------------------------------------------------------
-
 type Row = Vec<Option<Term>>;
 
-/// Query results in a form that can be compared.
-#[derive(Debug, Clone)]
-enum Results {
-    Solutions {
-        variables: Vec<String>,
-        rows: Vec<Row>,
-    },
-    Boolean(bool),
-    Graph(Vec<Triple>),
-}
-
-impl Results {
-    fn kind(&self) -> &'static str {
-        match self {
-            Self::Solutions { .. } => "solutions",
-            Self::Boolean(_) => "a boolean",
-            Self::Graph(_) => "a graph",
-        }
-    }
-}
-
-impl From<SparqlResults> for Results {
-    fn from(results: SparqlResults) -> Self {
-        match results {
-            SparqlResults::Solutions { variables, rows } => Self::Solutions {
-                variables: variables.iter().map(|v| v.as_str().to_owned()).collect(),
-                rows,
-            },
-            SparqlResults::Boolean(value) => Self::Boolean(value),
-            SparqlResults::Graph(triples) => Self::Graph(triples),
-        }
+fn kind(results: &SparqlResults) -> &'static str {
+    match results {
+        SparqlResults::Solutions { .. } => "solutions",
+        SparqlResults::Boolean(_) => "a boolean",
+        SparqlResults::Graph(_) => "a graph",
     }
 }
 
@@ -500,31 +399,30 @@ fn shape(value: &Option<Term>) -> String {
 
 /// Compares results: solutions as multisets up to a renaming of blank nodes, graphs up to
 /// isomorphism.
-fn compare(expected: &Results, actual: &Results) -> Result<(), String> {
+fn compare(expected: &SparqlResults, actual: &SparqlResults) -> Result<(), String> {
     match (expected, actual) {
-        (Results::Boolean(e), Results::Boolean(a)) if e == a => Ok(()),
-        (Results::Boolean(e), Results::Boolean(a)) => Err(format!("expected {e}, got {a}")),
-        (Results::Graph(e), Results::Graph(a)) => compare_graphs(e, a),
+        (SparqlResults::Boolean(e), SparqlResults::Boolean(a)) if e == a => Ok(()),
+        (SparqlResults::Boolean(e), SparqlResults::Boolean(a)) => {
+            Err(format!("expected {e}, got {a}"))
+        }
+        (SparqlResults::Graph(e), SparqlResults::Graph(a)) => compare_graphs(e, a),
         (
-            Results::Solutions {
+            SparqlResults::Solutions {
                 variables: ev,
                 rows: er,
             },
-            Results::Solutions {
+            SparqlResults::Solutions {
                 variables: av,
                 rows: ar,
             },
         ) => compare_solutions(ev, er, av, ar),
-        (e, a) => Err(format!("expected {}, got {}", e.kind(), a.kind())),
+        (e, a) => Err(format!("expected {}, got {}", kind(e), kind(a))),
     }
 }
 
 /// A graph with its blank nodes relabelled canonically, so that isomorphic graphs are equal.
 fn canonical(triples: &[Triple]) -> OxGraph {
-    let mut graph = OxGraph::new();
-    for triple in triples {
-        graph.insert(triple);
-    }
+    let mut graph: OxGraph = triples.iter().collect();
     graph.canonicalize(CanonicalizationAlgorithm::Unstable);
     graph
 }
@@ -549,10 +447,10 @@ fn compare_graphs(expected: &[Triple], actual: &[Triple]) -> Result<(), String> 
 /// Rows as a graph with a blank node per row, so that two multisets of rows are equal up to a
 /// renaming of blank nodes when their graphs are isomorphic. The rows are not linked to a common
 /// node: canonicalization would then permute all the rows that look alike.
-fn solutions_graph(variables: &[String], rows: &[Row]) -> Result<Vec<Triple>, String> {
+fn solutions_graph(variables: &[Variable], rows: &[Row]) -> Result<Vec<Triple>, String> {
     let predicates = variables
         .iter()
-        .map(|v| NamedNode::new(format!("{RS}value/{v}")).map_err(|e| e.to_string()))
+        .map(|v| NamedNode::new(format!("{RS}value/{}", v.as_str())).map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?;
     let solution = iri(RS, "Solution");
     let mut triples = Vec::new();
@@ -584,11 +482,16 @@ fn sample(items: impl Iterator<Item = String>) -> String {
     }
 }
 
-fn compare_solutions(ev: &[String], er: &[Row], av: &[String], ar: &[Row]) -> Result<(), String> {
+fn compare_solutions(
+    ev: &[Variable],
+    er: &[Row],
+    av: &[Variable],
+    ar: &[Row],
+) -> Result<(), String> {
     let (mut es, mut avs) = (ev.to_vec(), av.to_vec());
     es.sort();
     avs.sort();
-    if es != avs || ev.len() != av.len() {
+    if es != avs {
         return Err(format!("expected variables {ev:?}, got {av:?}"));
     }
     // the actual rows with their columns in the expected order
@@ -635,38 +538,13 @@ fn compare_solutions(ev: &[String], er: &[Row], av: &[String], ar: &[Row]) -> Re
     Ok(())
 }
 
-fn has_service(pattern: &GraphPattern) -> bool {
-    match pattern {
-        GraphPattern::Service { .. } => true,
-        GraphPattern::Join { left, right }
-        | GraphPattern::LeftJoin { left, right, .. }
-        | GraphPattern::Lateral { left, right }
-        | GraphPattern::Union { left, right }
-        | GraphPattern::Minus { left, right } => has_service(left) || has_service(right),
-        GraphPattern::Filter { inner, .. }
-        | GraphPattern::Graph { inner, .. }
-        | GraphPattern::Extend { inner, .. }
-        | GraphPattern::OrderBy { inner, .. }
-        | GraphPattern::Project { inner, .. }
-        | GraphPattern::Distinct { inner }
-        | GraphPattern::Reduced { inner }
-        | GraphPattern::Slice { inner, .. }
-        | GraphPattern::Group { inner, .. } => has_service(inner),
-        GraphPattern::Bgp { .. } | GraphPattern::Path { .. } | GraphPattern::Values { .. } => false,
-    }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Expected results
-// ---------------------------------------------------------------------------------------------
-
 fn extension(url: &str) -> &str {
     url.rsplit_once('.').map_or("", |(_, extension)| extension)
 }
 
 /// Reads the expected results of a query of the given form (`None` if the query does not
 /// parse).
-fn read_expected(files: &Files, url: &str, query: Option<&Query>) -> Result<Results, String> {
+fn read_expected(files: &Files, url: &str, query: Option<&Query>) -> Result<SparqlResults, String> {
     let graph_form = matches!(
         query,
         Some(Query::Construct { .. } | Query::Describe { .. })
@@ -675,32 +553,25 @@ fn read_expected(files: &Files, url: &str, query: Option<&Query>) -> Result<Resu
         return parse_results(&files.read(url)?, format).map_err(|e| format!("{url}: {e}"));
     }
     let triples = read_triples(files, url)?;
-    let mut graph = OxGraph::new();
-    for triple in &triples {
-        graph.insert(triple);
-    }
+    let graph: OxGraph = triples.iter().collect();
     let result_set = graph
         .subject_for_predicate_object(rdf::TYPE, &iri(RS, "ResultSet"))
         .is_some();
     if graph_form || !result_set {
-        Ok(Results::Graph(triples))
+        Ok(SparqlResults::Graph(triples))
     } else {
         decode_result_set(&graph).map_err(|e| format!("{url}: {e}"))
     }
 }
 
-fn parse_results(data: &[u8], format: QueryResultsFormat) -> Result<Results, String> {
+fn parse_results(data: &[u8], format: QueryResultsFormat) -> Result<SparqlResults, String> {
     match QueryResultsParser::from_format(format)
         .for_reader(data)
         .map_err(|e| e.to_string())?
     {
-        ReaderQueryResultsParserOutput::Boolean(value) => Ok(Results::Boolean(value)),
+        ReaderQueryResultsParserOutput::Boolean(value) => Ok(SparqlResults::Boolean(value)),
         ReaderQueryResultsParserOutput::Solutions(solutions) => {
-            let variables: Vec<String> = solutions
-                .variables()
-                .iter()
-                .map(|v| v.as_str().to_owned())
-                .collect();
+            let variables = solutions.variables().to_vec();
             let rows = solutions
                 .map(|solution| {
                     solution
@@ -708,13 +579,13 @@ fn parse_results(data: &[u8], format: QueryResultsFormat) -> Result<Results, Str
                         .map_err(|e| e.to_string())
                 })
                 .collect::<Result<_, _>>()?;
-            Ok(Results::Solutions { variables, rows })
+            Ok(SparqlResults::Solutions { variables, rows })
         }
     }
 }
 
 /// Decodes results written in the `rs:` vocabulary.
-fn decode_result_set(graph: &OxGraph) -> Result<Results, String> {
+fn decode_result_set(graph: &OxGraph) -> Result<SparqlResults, String> {
     let rs = |local| iri(RS, local);
     let set = graph
         .subject_for_predicate_object(rdf::TYPE, &rs("ResultSet"))
@@ -724,11 +595,11 @@ fn decode_result_set(graph: &OxGraph) -> Result<Results, String> {
         other => Err(format!("expected a literal, got {other:?}")),
     };
     if let Some(value) = graph.object_for_subject_predicate(set, &rs("boolean")) {
-        return Ok(Results::Boolean(literal(Some(value))? == "true"));
+        return Ok(SparqlResults::Boolean(literal(Some(value))? == "true"));
     }
     let mut variables = graph
         .objects_for_subject_predicate(set, &rs("resultVariable"))
-        .map(|v| literal(Some(v)))
+        .map(|v| literal(Some(v)).map(Variable::new_unchecked))
         .collect::<Result<Vec<_>, _>>()?;
     variables.sort();
     let mut rows = Vec::new();
@@ -743,18 +614,14 @@ fn decode_result_set(graph: &OxGraph) -> Result<Results, String> {
                 .ok_or("rs:binding without rs:value")?;
             let column = variables
                 .iter()
-                .position(|v| *v == variable)
+                .position(|v| v.as_str() == variable)
                 .ok_or_else(|| format!("binding of ?{variable}, which is not a result variable"))?;
             row[column] = Some(value.into_owned());
         }
         rows.push(row);
     }
-    Ok(Results::Solutions { variables, rows })
+    Ok(SparqlResults::Solutions { variables, rows })
 }
-
-// ---------------------------------------------------------------------------------------------
-// Running tests
-// ---------------------------------------------------------------------------------------------
 
 /// The outcome of a test.
 #[derive(Debug)]
@@ -799,15 +666,15 @@ fn run_isolated(files: &Files, test: &TestCase) -> TestRun {
 }
 
 fn run_test(files: &Files, test: &TestCase) -> TestRun {
-    let result = if test.is(MF, "QueryEvaluationTest") {
+    let result = if test.kinds.contains(&iri(MF, "QueryEvaluationTest")) {
         Eval::new(files, test).map(|eval| match eval {
             Ok(eval) => TestRun::Ran(eval.outcome()),
             Err(skip) => TestRun::Skipped(skip),
         })
-    } else if test.is(RDFT, "TestTurtleEval") {
+    } else if test.kinds.contains(&iri(RDFT, "TestTurtleEval")) {
         turtle_eval_test(files, test)
     } else {
-        let kind = test.kinds.first().map_or("none", String::as_str);
+        let kind = test.kinds.first().map_or("none", NamedNode::as_str);
         let kind = kind.rsplit(['#', '/']).next().unwrap_or(kind);
         Ok(TestRun::Skipped(format!("test type {kind}")))
     };
@@ -820,7 +687,7 @@ struct Eval {
     query: String,
     /// The data files: URL, content and format.
     data: Vec<(String, Vec<u8>, RdfFormat)>,
-    expected: Results,
+    expected: SparqlResults,
 }
 
 impl Eval {
@@ -829,28 +696,14 @@ impl Eval {
         if test.graph_data {
             return Ok(Err("named graphs (qt:graphData)".to_owned()));
         }
-        if test.service_data {
-            return Ok(Err("SERVICE (qt:serviceData)".to_owned()));
-        }
         if test.lax {
             return Ok(Err("lax cardinality (mf:LaxCardinality)".to_owned()));
         }
         let query_url = test.action.as_deref().ok_or("no qt:query")?;
         let query = format!("BASE <{query_url}>\n{}", files.read_string(query_url)?);
         let parsed = SparqlParser::new().parse_query(&query).ok();
-        if let Some(parsed) = &parsed {
-            if parsed.dataset().is_some() {
-                return Ok(Err("FROM / FROM NAMED".to_owned()));
-            }
-            let pattern = match parsed {
-                Query::Select { pattern, .. }
-                | Query::Construct { pattern, .. }
-                | Query::Describe { pattern, .. }
-                | Query::Ask { pattern, .. } => pattern,
-            };
-            if has_service(pattern) {
-                return Ok(Err("SERVICE".to_owned()));
-            }
+        if parsed.as_ref().is_some_and(|q| q.dataset().is_some()) {
+            return Ok(Err("FROM / FROM NAMED".to_owned()));
         }
         let result_url = test.result.as_deref().ok_or("no mf:result")?;
         let expected = read_expected(files, result_url, parsed.as_ref())?;
@@ -878,19 +731,18 @@ impl Eval {
     }
 
     /// Raphtory's results, on the graph as of `T`.
-    fn ours(&self) -> Result<Results, String> {
+    fn ours(&self) -> Result<SparqlResults, String> {
         let g = self.graph()?;
         g.at(T)
-            .sparql(&self.query)
-            .map(Results::from)
+            .sparql(&self.query, &SparqlOptions::default())
             .map_err(|e| e.to_string())
     }
 
     /// The oracle's results: spareval over an `oxrdf::Dataset` of the data.
-    fn oracle(&self) -> Result<Results, String> {
+    fn oracle(&self) -> Result<SparqlResults, String> {
         let mut dataset = Dataset::new();
         for (url, data, format) in &self.data {
-            let parser = RdfParser::from_format(*format)
+            let parser = parser(*format)
                 .with_base_iri(url)
                 .map_err(|e| e.to_string())?
                 .rename_blank_nodes();
@@ -904,7 +756,7 @@ impl Eval {
                 ));
             }
         }
-        oracle::evaluate(&dataset, &self.query).map(Results::from)
+        oracle::evaluate(&dataset, &self.query)
     }
 
     fn outcome(&self) -> Outcome {
@@ -921,7 +773,7 @@ impl Eval {
 
     /// Tells a bug of Raphtory (its result differs from the oracle's) from a failure that
     /// comes from spareval or the test suite (the same result as the oracle).
-    fn triage(&self, ours: Result<Results, String>, diff: String) -> Outcome {
+    fn triage(&self, ours: Result<SparqlResults, String>, diff: String) -> Outcome {
         let oracle = self.oracle();
         match (&ours, &oracle) {
             (Ok(ours), Ok(oracle)) if compare(oracle, ours).is_ok() => Outcome::Upstream(diff),
@@ -929,9 +781,10 @@ impl Eval {
             (_, oracle) => Outcome::Bug(format!(
                 "{diff}; the oracle gives {}",
                 match oracle {
-                    Ok(Results::Solutions { rows, .. }) => format!("{} solutions", rows.len()),
-                    Ok(Results::Boolean(value)) => value.to_string(),
-                    Ok(Results::Graph(triples)) => format!("{} triples", triples.len()),
+                    Ok(SparqlResults::Solutions { rows, .. }) =>
+                        format!("{} solutions", rows.len()),
+                    Ok(SparqlResults::Boolean(value)) => value.to_string(),
+                    Ok(SparqlResults::Graph(triples)) => format!("{} triples", triples.len()),
                     Err(e) => format!("an error: {e}"),
                 }
             )),
@@ -943,7 +796,7 @@ impl Eval {
 /// every triple `s p o`, `s p <decoy>` and `s <decoy> o` asserted at 5 and retracted at 7,
 /// `<decoy> p o` asserted at 20, and the triple itself asserted at 3, retracted at 5 and
 /// retracted again at 20; and a triple of decoy terms asserted at 5 and retracted at 7.
-fn add_decoys(rg: &RdfGraph) -> Result<(), GraphError> {
+fn add_decoys(rg: &RdfGraph) -> Result<(), RdfError> {
     let mut doc = Vec::new();
     rg.to_rdf(&mut doc, RdfFormat::NTriples, &[])?;
     let triples = parse_triples(&doc, RdfFormat::NTriples, TESTS_URL)
@@ -997,7 +850,7 @@ fn turtle_eval_test(files: &Files, test: &TestCase) -> Result<TestRun, String> {
     let g = RdfGraph::new();
     let ours = g
         .load_rdf(T, doc.as_slice(), RdfFormat::Turtle, Some(url))
-        .map_err(|e: GraphError| format!("cannot load {url}: {e}"))
+        .map_err(|e: RdfError| format!("cannot load {url}: {e}"))
         .and_then(|_| export(&g));
     let outcome = match ours
         .clone()
@@ -1015,41 +868,34 @@ fn turtle_eval_test(files: &Files, test: &TestCase) -> Result<TestRun, String> {
     Ok(TestRun::Ran(outcome))
 }
 
-// ---------------------------------------------------------------------------------------------
-// Reports
-// ---------------------------------------------------------------------------------------------
-
 /// What a suite gave.
 #[derive(Default)]
 struct Report {
-    suite: String,
     tests: usize,
-    /// Tests skipped, by reason.
-    skipped: BTreeMap<String, usize>,
     pass: usize,
-    fail: usize,
-    /// The known failures that failed as expected, with the reason.
-    known: Vec<(String, String)>,
+    /// The tests of [`KNOWN_FAILURES`] that fail as listed.
+    known: usize,
+    skipped: usize,
     /// Failures, errors and known failures that pass.
     problems: Vec<String>,
 }
 
 impl Report {
-    fn add(&mut self, test: &TestCase, run: TestRun, known: &[(&str, &str)]) {
+    fn add(&mut self, test: &TestCase, run: TestRun) {
         self.tests += 1;
-        let listed = known
+        let listed = KNOWN_FAILURES
             .iter()
             .find(|(id, _)| *id == test.id)
             .map(|(_, reason)| *reason);
         let id = &test.id;
         match run {
             TestRun::Skipped(reason) => {
+                self.skipped += 1;
                 if listed.is_some() {
                     self.problems.push(format!(
                         "{id} is listed in KNOWN_FAILURES but is skipped ({reason})"
                     ));
                 }
-                *self.skipped.entry(reason).or_default() += 1;
             }
             TestRun::Error(e) => self.problems.push(format!("{id}: {e}")),
             TestRun::Ran(Outcome::Pass) => {
@@ -1062,23 +908,17 @@ impl Report {
                 }
             }
             TestRun::Ran(Outcome::Upstream(diff)) => match listed {
-                Some(reason) => self.known.push((id.clone(), reason.to_owned())),
-                None => {
-                    self.fail += 1;
-                    self.problems.push(format!(
-                        "{id}: {}; the oracle (spareval over an oxrdf Dataset) gives the same \
-                         result, so list it in KNOWN_FAILURES with the reason",
-                        truncate(&diff)
-                    ));
-                }
-            },
-            TestRun::Ran(Outcome::Bug(diff)) => {
-                self.fail += 1;
-                self.problems.push(format!(
-                    "{id}: BUG, Raphtory differs from the oracle: {}",
+                Some(_) => self.known += 1,
+                None => self.problems.push(format!(
+                    "{id}: {}; the oracle (spareval over an oxrdf Dataset) gives the same \
+                     result, so list it in KNOWN_FAILURES with the reason",
                     truncate(&diff)
-                ));
-            }
+                )),
+            },
+            TestRun::Ran(Outcome::Bug(diff)) => self.problems.push(format!(
+                "{id}: BUG, Raphtory differs from the oracle: {}",
+                truncate(&diff)
+            )),
         }
     }
 }
@@ -1091,47 +931,12 @@ fn truncate(text: &str) -> String {
     }
 }
 
-impl fmt::Display for Report {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let skipped: usize = self.skipped.values().sum();
-        writeln!(
-            f,
-            "== W3C suite {}: {} tests, {} pass, {} known, {} fail, {} skipped",
-            self.suite,
-            self.tests,
-            self.pass,
-            self.known.len(),
-            self.fail,
-            skipped
-        )?;
-        for (reason, n) in &self.skipped {
-            writeln!(f, "   skipped: {n} x {reason}")?;
-        }
-        if !self.known.is_empty() {
-            writeln!(f, "   known failures ({}):", self.known.len())?;
-            for (id, reason) in &self.known {
-                writeln!(f, "      {id}: {reason}")?;
-            }
-        }
-        if !self.problems.is_empty() {
-            writeln!(f, "   PROBLEMS ({}):", self.problems.len())?;
-            for problem in &self.problems {
-                writeln!(f, "      {problem}")?;
-            }
-        }
-        Ok(())
-    }
-}
-
 /// Runs every test of the manifest at `manifest` (relative to `root`).
-fn run_suite(root: &Path, manifest: &str, known: &[(&str, &str)]) -> Report {
+fn run_suite(root: &Path, manifest: &str) -> Report {
     let files = Files {
         root: root.to_owned(),
     };
-    let mut report = Report {
-        suite: manifest.to_owned(),
-        ..Report::default()
-    };
+    let mut report = Report::default();
     let mut tests = Vec::new();
     if let Err(e) = read_manifest(&files, &format!("{TESTS_URL}{manifest}"), &mut tests, 0) {
         report.problems.push(e);
@@ -1139,7 +944,7 @@ fn run_suite(root: &Path, manifest: &str, known: &[(&str, &str)]) -> Report {
     }
     for test in &tests {
         let run = run_isolated(&files, test);
-        report.add(test, run, known);
+        report.add(test, run);
     }
     report
 }

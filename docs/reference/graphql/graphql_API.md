@@ -11515,7 +11515,8 @@ View of the triples valid at the latest time.
 <td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
 <td>
 
-View of the events before a time (exclusive).
+View of the triples that held at some time before `time` (exclusive), including those
+retracted before it; `at` gives the state at a time.
 
 </td>
 </tr>
@@ -11533,7 +11534,7 @@ Exclusive upper bound.
 <td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
 <td>
 
-View of the events after a time (exclusive).
+View of the triples that held at some time after `time` (exclusive).
 
 </td>
 </tr>
@@ -11703,7 +11704,11 @@ Check if a layer with the given name is present in the graph.
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Layer name to look for.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="rdfgraph.graph">graph</strong></td>
@@ -11724,10 +11729,10 @@ and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` ma
 `snapshotAt(time: T)` of the view. The temporal functions (`raphtory:validFrom`,
 `validTo`, `validFromTime`, `validToTime`) are unavailable when the caller's access to
 the graph is row-filtered. Disabled when the server sets `disable_lists`. Queries longer
-than the server's `max_sparql_query_length` (16 KiB by default), with more than
-`max_sparql_triple_patterns` triple patterns (100 by default) or with brackets nested
-more than 128 deep are rejected before they run, and a query that runs longer than
-`sparql_timeout` (30 seconds by default) is stopped with an error.
+than the server's `max_sparql_query_length`, with more than `max_sparql_triple_patterns`
+triple patterns or with brackets nested too deep are rejected before they run, and
+results larger than `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold
+the results, such as a triple whose predicate does not end in an XML name.
 
 </td>
 </tr>
@@ -11755,8 +11760,7 @@ The format of the results: JSON (the default), XML, CSV or TSV for SELECT and AS
 <td>
 
 The triples of this view as one RDF document. Disabled when the server sets
-`disable_lists`. An export that runs longer than `sparql_timeout` (30 seconds by default)
-is stopped with an error.
+`disable_lists`; documents larger than `max_sparql_result_bytes` fail.
 
 </td>
 </tr>
@@ -11776,8 +11780,7 @@ The RDF format of the document; N_TRIPLES by default.
 
 Validates the triples of this view against a SHACL shapes graph and returns the W3C
 `sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-are rejected. Disabled when the server sets `disable_lists`. A validation that runs
-longer than `sparql_timeout` (30 seconds by default) is stopped with an error.
+are rejected. Disabled when the server sets `disable_lists`.
 
 </td>
 </tr>

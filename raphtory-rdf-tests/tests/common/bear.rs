@@ -2,24 +2,26 @@
 //! <https://aic.ai.wu.ac.at/qadlod/bear.html>), and loading its versions into a
 //! `RdfGraph`.
 //!
-//! Shared by `raphtory-rdf-tests/tests/bear.rs` and `rdf-bench/benches/temporal.rs` (both
-//! include this file and `data.rs` with `#[path]`), so it only uses `raphtory`, `oxigraph`,
-//! `flate2`, `zip` and `std`.
+//! Included with `#[path]`, with `data.rs`, by `tests/bear.rs` and `benches/temporal.rs` of
+//! `raphtory-rdf-tests`, so it only uses the dependencies of its `rdf` feature.
 //!
 //! # The data
 //!
 //! `make bear-b-fetch` downloads the archives into `$(RDF_DATA_DIR)/bear-b`; the tests and the
 //! benchmark read `$RAPHTORY_RDF_DATA/bear-b` ([`bear_b_dir`]).
 //!
-//! The change-based archive of a granularity, `datasets/<day|hour|instant>/CB/alldata.CB.nt.tar.gz`,
+//! The change-based archive of a granularity, `datasets/<day|instant>/CB/alldata.CB.nt.tar.gz`,
 //! holds for every pair of consecutive versions `i -> i+1` (numbered from 1) the triples added
 //! (`data-added_<i>-<i+1>.nt.gz`) and deleted (`data-deleted_<i>-<i+1>.nt.gz`) between them.
 //!
 //! # Version 1 is not in the archive
 //!
 //! [`Changes::read`] reconstructs the part of version 1 that ever changes: every triple a delta
-//! deletes before any delta adds it. The rest is its *static core*, which no delta mentions;
-//! leaving it out changes no Diff, and changes every Mat and Ver result by the same rows.
+//! deletes before any delta adds it. The rest is its *static core*, which no delta mentions. For
+//! the single-triple-pattern lookups (`?s <p> ?o`, `?s <p> <o>`), leaving it out changes no Diff,
+//! and changes every Mat and Ver result by the same rows. A join can match a triple of the static
+//! core with one that changes, so its results can differ: the reconstructed versions are not
+//! BEAR-B's own.
 //!
 //! # Versions are times
 //!
@@ -27,23 +29,22 @@
 //! `i -> i+1` the deleted triples are retracted and then the added ones asserted, both at
 //! `t = i + 1`. Retractions go first so that a triple a delta deletes and adds stays, as in
 //! `(V \ deleted) ∪ added`.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "each includer uses a different part of this module"
+)]
 use super::data::{data_dir, ntriples, parse};
 use flate2::read::{GzDecoder, MultiGzDecoder};
-use raphtory::{
-    errors::GraphError,
-    rdf::{
-        model::{NamedNode, Term, Triple},
-        RdfFormat, RdfGraph, ASOF_NS,
-    },
-};
+use raphtory_rdf::{RdfError, RdfFormat, RdfGraph, Triple, ASOF_NS};
 use std::{
     collections::{BTreeMap, HashSet},
+    error::Error,
+    ffi::OsStr,
     fmt, fs,
     io::Read,
     path::{Path, PathBuf},
-    str::FromStr,
 };
+use tar::Archive;
 
 /// The BEAR-B directory `$RAPHTORY_RDF_DATA/bear-b`, or why there is none.
 pub fn bear_b_dir() -> Result<PathBuf, String> {
@@ -58,22 +59,18 @@ pub fn bear_b_dir() -> Result<PathBuf, String> {
     }
 }
 
-/// The three granularities of BEAR-B: the DBpedia Live changes aggregated by day and by hour,
-/// and every single change.
+/// The granularities of BEAR-B read here: the DBpedia Live changes aggregated by day, and every
+/// single change.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Granularity {
     Day,
-    Hour,
     Instant,
 }
 
 impl Granularity {
-    pub const ALL: [Self; 3] = [Self::Day, Self::Hour, Self::Instant];
-
     pub fn name(self) -> &'static str {
         match self {
             Self::Day => "day",
-            Self::Hour => "hour",
             Self::Instant => "instant",
         }
     }
@@ -89,14 +86,14 @@ impl Granularity {
 }
 
 /// The changes between two consecutive versions, as N-Triples documents.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Delta {
     pub added: Vec<u8>,
     pub deleted: Vec<u8>,
 }
 
 /// The versions of an archive: the reconstructed part of version 1 and the deltas.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Changes {
     /// The triples of version 1 that some delta deletes (see the [module docs](self)).
     pub base: Vec<Triple>,
@@ -106,14 +103,13 @@ pub struct Changes {
     pub deltas: Vec<Delta>,
     /// The number of triples in all the deltas, added and deleted.
     pub delta_triples: usize,
-    /// Whether any triple has a blank node; [`load`] then keeps their labels.
-    pub blank_nodes: bool,
 }
 
 impl Changes {
     /// Reads a change-based archive and reconstructs version 1.
     pub fn read(archive: &Path) -> Result<Self, String> {
-        Self::from_deltas(read_deltas(archive)?)
+        let deltas = read_deltas(archive).map_err(|e| format!("{}: {e}", archive.display()))?;
+        Self::from_deltas(deltas)
     }
 
     /// Reconstructs version 1 from the deltas: the triples that a delta deletes when no earlier
@@ -124,14 +120,12 @@ impl Changes {
         let mut in_base: HashSet<Triple> = HashSet::new();
         let mut base = Vec::new();
         let mut delta_triples = 0;
-        let mut blank_nodes = false;
         for (i, delta) in deltas.iter().enumerate() {
             let deleted = parse(&delta.deleted, RdfFormat::NTriples)
                 .map_err(|e| format!("delta {}: {e}", i + 1))?;
             let added = parse(&delta.added, RdfFormat::NTriples)
                 .map_err(|e| format!("delta {}: {e}", i + 1))?;
             delta_triples += deleted.len() + added.len();
-            blank_nodes |= deleted.iter().chain(&added).any(has_blank_node);
             for triple in deleted {
                 if !present.remove(&triple) && in_base.insert(triple.clone()) {
                     base.push(triple);
@@ -145,7 +139,6 @@ impl Changes {
             base_doc,
             deltas,
             delta_triples,
-            blank_nodes,
         })
     }
 
@@ -160,56 +153,40 @@ impl Changes {
     }
 }
 
-/// Whether a triple has a blank node.
-pub fn has_blank_node(triple: &Triple) -> bool {
-    triple.subject.is_blank_node() || triple.object.is_blank_node()
-}
-
-/// Reads the deltas of a change-based archive (a `.tar.gz` of `.nt.gz` files), in order.
-pub fn read_deltas(archive: &Path) -> Result<Vec<Delta>, String> {
-    let gz = fs::read(archive).map_err(|e| format!("cannot read {}: {e}", archive.display()))?;
-    let mut tar = Vec::new();
-    GzDecoder::new(gz.as_slice())
-        .read_to_end(&mut tar)
-        .map_err(|e| format!("{}: {e}", archive.display()))?;
-    deltas_of_tar(&tar).map_err(|e| format!("{}: {e}", archive.display()))
-}
-
-/// The deltas in a tar archive of `data-added_<i>-<i+1>.nt[.gz]` and
-/// `data-deleted_<i>-<i+1>.nt[.gz]` files, which must be there for every `i` from 1 on.
-pub fn deltas_of_tar(tar: &[u8]) -> Result<Vec<Delta>, String> {
+/// Reads the deltas of a change-based archive, a `.tar.gz` of `data-added_<i>-<i+1>.nt.gz` and
+/// `data-deleted_<i>-<i+1>.nt.gz` files, which must be there for every `i` from 1 on.
+pub fn read_deltas(archive: &Path) -> Result<Vec<Delta>, Box<dyn Error>> {
     let mut added = BTreeMap::new();
     let mut deleted = BTreeMap::new();
-    for (path, data) in untar(tar)? {
-        let file = path.rsplit('/').next().unwrap_or(&path);
-        let Some((kind, from)) = delta_name(file) else {
+    for entry in Archive::new(GzDecoder::new(fs::File::open(archive)?)).entries()? {
+        let mut entry = entry?;
+        let Some(file) = entry
+            .path()?
+            .file_name()
+            .and_then(OsStr::to_str)
+            .map(str::to_owned)
+        else {
             continue;
         };
-        let doc = if file.ends_with(".gz") {
-            let mut doc = Vec::new();
-            MultiGzDecoder::new(data)
-                .read_to_end(&mut doc)
-                .map_err(|e| format!("{path}: {e}"))?;
-            doc
-        } else {
-            data.to_vec()
+        let Some((adds, from)) = delta_name(&file) else {
+            continue;
         };
-        let map = if kind == "added" {
-            &mut added
+        let mut doc = Vec::new();
+        let read = if file.ends_with(".gz") {
+            MultiGzDecoder::new(&mut entry).read_to_end(&mut doc)
         } else {
-            &mut deleted
+            entry.read_to_end(&mut doc)
         };
+        read.map_err(|e| format!("{file}: {e}"))?;
+        let map = if adds { &mut added } else { &mut deleted };
         if map.insert(from, doc).is_some() {
-            return Err(format!("{file} is in the archive twice"));
+            return Err(format!("{file} is in the archive twice").into());
         }
     }
     let n = added.len().max(deleted.len());
     for i in 1..=n {
         if !added.contains_key(&i) || !deleted.contains_key(&i) {
-            return Err(format!(
-                "the changes from version {i} to {} are missing",
-                i + 1
-            ));
+            return Err(format!("the changes from version {i} to {} are missing", i + 1).into());
         }
     }
     Ok(added
@@ -219,152 +196,32 @@ pub fn deltas_of_tar(tar: &[u8]) -> Result<Vec<Delta>, String> {
         .collect())
 }
 
-/// `("added" | "deleted", i)` for the file of the delta `i -> i+1`.
-fn delta_name(file: &str) -> Option<(&'static str, usize)> {
+/// `(adds, i)` for the file of the delta `i -> i+1`, where `adds` is whether it holds the added
+/// triples rather than the deleted ones.
+fn delta_name(file: &str) -> Option<(bool, usize)> {
     let stem = file
         .strip_suffix(".nt.gz")
         .or_else(|| file.strip_suffix(".nt"))?;
-    let (kind, range) = if let Some(range) = stem.strip_prefix("data-added_") {
-        ("added", range)
+    let (adds, range) = if let Some(range) = stem.strip_prefix("data-added_") {
+        (true, range)
     } else {
-        ("deleted", stem.strip_prefix("data-deleted_")?)
+        (false, stem.strip_prefix("data-deleted_")?)
     };
     let (from, to) = range.split_once('-')?;
     let (from, to): (usize, usize) = (from.parse().ok()?, to.parse().ok()?);
-    (to == from + 1 && from >= 1).then_some((kind, from))
+    (to == from + 1 && from >= 1).then_some((adds, from))
 }
 
-/// The regular files of a tar archive (ustar, with GNU long names and pax paths): their paths
-/// and contents.
-pub fn untar(tar: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
-    fn field(header: &[u8]) -> &[u8] {
-        let end = header.iter().position(|&b| b == 0).unwrap_or(header.len());
-        &header[..end]
-    }
-    let mut files = Vec::new();
-    let mut pos = 0;
-    let mut long_name: Option<String> = None;
-    while pos + 512 <= tar.len() {
-        let header = &tar[pos..pos + 512];
-        if header.iter().all(|&b| b == 0) {
-            break;
-        }
-        let size = std::str::from_utf8(field(&header[124..136]))
-            .ok()
-            .map(|s| s.trim_matches([' ', '\0']))
-            .and_then(|s| usize::from_str_radix(s, 8).ok())
-            .ok_or_else(|| format!("bad tar header at byte {pos}"))?;
-        let start = pos + 512;
-        let data = tar
-            .get(start..start + size)
-            .ok_or_else(|| format!("the tar archive ends inside an entry at byte {pos}"))?;
-        let mut name = String::from_utf8_lossy(field(&header[..100])).into_owned();
-        if &header[257..262] == b"ustar" {
-            let prefix = field(&header[345..500]);
-            if !prefix.is_empty() {
-                name = format!("{}/{name}", String::from_utf8_lossy(prefix));
-            }
-        }
-        if let Some(long) = long_name.take() {
-            name = long;
-        }
-        match header[156] {
-            // GNU long name of the next entry
-            b'L' => long_name = Some(String::from_utf8_lossy(field(data)).into_owned()),
-            // pax extended header: its `path` is the name of the next entry
-            b'x' => {
-                long_name = String::from_utf8_lossy(data).lines().find_map(|record| {
-                    let (_, kv) = record.split_once(' ')?;
-                    kv.strip_prefix("path=").map(str::to_owned)
-                })
-            }
-            b'0' | 0 => files.push((name, data)),
-            _ => {}
-        }
-        pos = start + size.div_ceil(512) * 512;
-    }
-    Ok(files)
-}
-
-/// Writes the versions into `g` (see the [module docs](self)). With blank nodes it writes
-/// triple by triple, since `load_rdf` renames blank nodes and later deletions would not match.
-pub fn load(g: &RdfGraph, changes: &Changes) -> Result<(), GraphError> {
-    let write = |t: i64, doc: &[u8], retract: bool| -> Result<(), GraphError> {
-        if changes.blank_nodes {
-            for triple in parse(doc, RdfFormat::NTriples)
-                .expect("the documents were parsed by Changes::from_deltas")
-            {
-                if retract {
-                    g.retract_triple(t, &triple)?;
-                } else {
-                    g.add_triple(t, &triple)?;
-                }
-            }
-        } else if retract {
-            g.retract_rdf(t, doc, RdfFormat::NTriples, None)?;
-        } else {
-            g.load_rdf(t, doc, RdfFormat::NTriples, None)?;
-        }
-        Ok(())
-    };
-    write(1, &changes.base_doc, false)?;
+/// Writes the versions into `g` (see the [module docs](self)).
+pub fn load(g: &RdfGraph, changes: &Changes) -> Result<(), RdfError> {
+    g.load_rdf(1, changes.base_doc.as_slice(), RdfFormat::NTriples, None)?;
     for (i, delta) in changes.deltas.iter().enumerate() {
         let t = i as i64 + 2;
-        write(t, &delta.deleted, true)?;
-        write(t, &delta.added, false)?;
+        g.retract_rdf(t, delta.deleted.as_slice(), RdfFormat::NTriples, None)?;
+        g.load_rdf(t, delta.added.as_slice(), RdfFormat::NTriples, None)?;
     }
     Ok(())
 }
-
-/// A BEAR-B lookup query: `?s <p> ?o .` (`?P?`, `Queries/p/p.txt`) or `?s <p> <o> .`
-/// (`?PO`, `Queries/po/po.txt`).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Lookup {
-    /// The triple pattern, as written.
-    pub pattern: String,
-    pub predicate: NamedNode,
-    /// The object of a `?PO` query.
-    pub object: Option<Term>,
-}
-
-impl Lookup {
-    /// Parses one line of `p.txt` or `po.txt`.
-    pub fn parse(line: &str) -> Result<Self, String> {
-        let pattern = line.trim();
-        let body = pattern.strip_suffix('.').unwrap_or(pattern).trim();
-        let rest = body
-            .strip_prefix("?s")
-            .ok_or_else(|| format!("not a BEAR-B lookup: {line}"))?
-            .trim_start();
-        let end = rest
-            .find('>')
-            .ok_or_else(|| format!("no predicate IRI: {line}"))?;
-        let predicate = NamedNode::from_str(&rest[..=end]).map_err(|e| format!("{line}: {e}"))?;
-        let object = match rest[end + 1..].trim() {
-            "?o" => None,
-            object => Some(Term::from_str(object).map_err(|e| format!("{line}: {e}"))?),
-        };
-        Ok(Self {
-            pattern: pattern.to_owned(),
-            predicate,
-            object,
-        })
-    }
-
-    /// The queries of a query file, one per non-empty line.
-    pub fn read_all(path: &Path) -> Result<Vec<Self>, String> {
-        fs::read_to_string(path)
-            .map_err(|e| format!("cannot read {}: {e}", path.display()))?
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .map(Self::parse)
-            .collect()
-    }
-}
-
-// ---------------------------------------------------------------------------------------------
-// Queries: the lookups, the joins and the forms of Mat, Diff and Ver
-// ---------------------------------------------------------------------------------------------
 
 /// The kinds of BEAR-B queries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -395,8 +252,6 @@ pub struct BearQuery {
     pub number: usize,
     /// The graph pattern (the body of `SELECT * { .. }`).
     pub pattern: String,
-    /// The lookup of a `?P?` or `?PO` query.
-    pub lookup: Option<Lookup>,
 }
 
 impl fmt::Display for BearQuery {
@@ -449,12 +304,15 @@ pub fn read_queries(dir: &Path) -> Result<Vec<BearQuery>, String> {
         (Kind::P, "Queries/p/p.txt"),
         (Kind::Po, "Queries/po/po.txt"),
     ] {
-        for (i, lookup) in Lookup::read_all(&dir.join(file))?.into_iter().enumerate() {
+        let path = dir.join(file);
+        let text = fs::read_to_string(&path)
+            .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+        let patterns = text.lines().map(str::trim).filter(|l| !l.is_empty());
+        for (i, pattern) in patterns.enumerate() {
             queries.push(BearQuery {
                 kind,
                 number: i + 1,
-                pattern: lookup.pattern.clone(),
-                lookup: Some(lookup),
+                pattern: pattern.to_owned(),
             });
         }
     }
@@ -482,7 +340,6 @@ pub fn read_queries(dir: &Path) -> Result<Vec<BearQuery>, String> {
             kind: Kind::Join,
             number,
             pattern,
-            lookup: None,
         });
     }
     Ok(queries)

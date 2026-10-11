@@ -12,8 +12,8 @@ of `t`, and [validate_shacl_at()][raphtory.RdfView.validate_shacl_at] several ti
 !!! info
 
     SHACL validation is part of the `raphtory` Python package. In Rust it is behind the `shacl` cargo feature of the
-    `raphtory` crate (which turns on `rdf`), in the
-    [`raphtory::rdf::shacl`](https://docs.rs/raphtory/latest/raphtory/rdf/shacl/index.html) module. Validation runs
+    `raphtory-rdf` crate, in the
+    [`raphtory_rdf::shacl`](https://docs.rs/raphtory-rdf/latest/raphtory_rdf/shacl/index.html) module. Validation runs
     natively, with the SHACL engine of [rudof](https://rudof-project.github.io/), on the triples of the graph as it
     reads them, without copying the graph. GraphQL has it as the `validateShacl` field of
     [`rdfGraph`](5_graphql.md).
@@ -57,10 +57,7 @@ for result in report["results"]:
 
 /// tab | :fontawesome-brands-rust: Rust
 ```rust
-use raphtory::{
-    prelude::*,
-    rdf::{shacl::ShaclShapes, RdfFormat},
-};
+use raphtory_rdf::{shacl::ShaclShapes, RdfFormat, RdfGraph};
 
 let rg = RdfGraph::new();
 let people = r#"
@@ -89,7 +86,7 @@ let shapes = ShaclShapes::parse(shapes_ttl.as_bytes(), RdfFormat::Turtle, None).
 let report = rg.valid().validate_shacl(&shapes).unwrap();
 println!("{}", report.conforms);
 for result in &report.results {
-    // RDF terms: use `raphtory::rdf::name_of` to get the name of a node
+    // RDF terms: use `raphtory_rdf::name_of` to get the name of a node
     println!(
         "{} {:?} {} {:?}",
         result.focus_node,
@@ -133,8 +130,9 @@ The report is a dictionary with three keys:
     - `constraint_component`: the SHACL constraint component, such as `sh:MinCountConstraintComponent`,
     - `severity`: `sh:Violation`, unless the shape sets another `sh:severity`,
     - `messages`: the messages of the shape (`sh:message`) or, without one, a message of the validator.
-- `warnings`: reasons why the results may not be those of the SHACL specification (see
-  [subclasses](#subclasses) and [recursive shapes](#recursive-shapes)).
+- `warnings`: a list of `ShaclWarning` values, the reasons why the results may not be those of the SHACL
+  specification: `ShaclWarning.PartialSubclassReasoning` (see [subclasses](#subclasses)) and
+  `ShaclWarning.RecursiveShapes` (see [recursive shapes](#recursive-shapes)).
 
 As with `sparql()`, terms are returned as Raphtory names, so a focus node or a value can be passed straight to
 `node()`:
@@ -193,8 +191,9 @@ print(next(t.t for t, report in reports if not report["conforms"]))
 ```rust
 assert!(rg.at(3).validate_shacl(&shapes).unwrap().conforms);
 
-for (t, report) in rg.validate_shacl_at(&shapes, [1, 5, 7]).unwrap() {
-    println!("{} {} {}", t.t(), report.conforms, report.results.len());
+for t in [1, 5, 7] {
+    let report = rg.snapshot_at(t).validate_shacl(&shapes).unwrap();
+    println!("{} {} {}", t, report.conforms, report.results.len());
 }
 ```
 ///
@@ -279,19 +278,14 @@ types, cardinality, value ranges, strings, property pairs, logical constraints, 
 `sh:node` and `sh:qualifiedValueShape`, `sh:closed`, `sh:hasValue` and `sh:in`), every property path, the targets
 `sh:targetNode`, `sh:targetClass`, `sh:targetSubjectsOf`, `sh:targetObjectsOf` and implicit class targets,
 `sh:deactivated`, `sh:severity` and `sh:message`, and [recursive shapes](#recursive-shapes). Raphtory runs the W3C
-SHACL Core test suite on Raphtory graphs, and passes all 98 tests.
+SHACL Core test suite on Raphtory graphs, and passes it.
 
 The W3C test suite is the git submodule `raphtory-rdf-tests/test-suites/data-shapes` of the Raphtory repository, a
-checkout of [w3c/data-shapes](https://github.com/w3c/data-shapes) pinned to commit
-`b923e580aaaccda57972a302754393d612de35fb`. Fetch it with
-`git submodule update --init --checkout raphtory-rdf-tests/test-suites/data-shapes` (or `make w3c-tests-init`, which
-also fetches the [SPARQL and Turtle test suites](4_limitations.md#conformance)), and `make rust-test-shacl-w3c` runs the
-conformance tests on it: all 98 SHACL Core tests pass, the 22 SHACL-SPARQL tests are rejected as unsupported (15) or
-expect a failure (7), and the SHACL 1.2 `sh:singleLine` test is rejected as unsupported. Without the submodule, the
-tests print how to fetch it and pass. The `RAPHTORY_SHACL_TESTS` environment variable points them at another checkout.
+checkout of [w3c/data-shapes](https://github.com/w3c/data-shapes); [conformance](4_limitations.md#conformance) says how
+to fetch and run it. The SHACL-SPARQL tests and the SHACL 1.2 `sh:singleLine` test are rejected as unsupported.
 
 Shapes that use a feature the validator does not evaluate, or would misread, fail to parse with an error that names
-the feature (`unsupported SHACL feature: ...`), instead of being silently ignored:
+the term and the feature (`unsupported SHACL feature <term>: ...`), instead of being silently ignored:
 
 - SHACL-SPARQL: `sh:sparql`, `sh:select`, `sh:ask`, `sh:SPARQLConstraint`, `sh:ConstraintComponent` and its
   validators, `sh:SPARQLTarget`, `sh:SPARQLFunction`, ...
@@ -309,7 +303,8 @@ the feature (`unsupported SHACL feature: ...`), instead of being silently ignore
 
 The validator reads shapes, paths and RDF lists recursively, and a recursion too deep for its stack would end the
 process. So shapes fail with `SHACL error: ...` if an RDF list (such as the values of `sh:in`) has more than 10,000
-members, if shapes and paths nest more than 256 deep, or if a path or list contains itself. To check that values
+members, if shapes and paths nest more than 256 deep, if a path or list contains itself, or if the shapes expand to
+more than 1,000,000 path steps and list members (a shared sub-path counts wherever it is used). To check that values
 belong to a longer list, use `sh:pattern`, or a SPARQL query.
 
 `owl:imports` and `sh:shapesGraph` are not followed: the shapes graph is the document you pass.
@@ -346,7 +341,7 @@ shapes = b"""
 """
 report = rg.valid().validate_shacl(shapes)
 print(report["conforms"])
-print(report["warnings"][0][:60])
+print(report["warnings"])
 ```
 ///
 
@@ -354,7 +349,7 @@ print(report["warnings"][0][:60])
 
     ```output
     True
-    the data has rdfs:subClassOf triples, but the validator foll
+    [ShaclWarning.PartialSubclassReasoning]
     ```
 
 Bob is a student, so a person without a name, but `sh:targetClass ex:Person` does not reach him. To validate such data,
@@ -393,7 +388,7 @@ rg.load_rdf(2, b"<http://example.org/bob> <http://example.org/knows> <http://exa
 report = rg.valid().validate_shacl(shapes)
 for result in report["results"]:
     print(result["focus_node"], result["value"])
-print(report["warnings"][0][:51])
+print(report["warnings"])
 ```
 ///
 
@@ -403,13 +398,17 @@ print(report["warnings"][0][:51])
     True
     http://example.org/alice http://example.org/bob
     http://example.org/bob http://example.org/alice
-    the shapes are recursive, and the validator gives r
+    [ShaclWarning.RecursiveShapes]
     ```
 
 The validator follows a recursive shape through the data by recursing itself, once per node: on a chain of many
 thousands of nodes that each depend on the next (such as `ex:next` links checked with `sh:node` against the same
 shape), its stack overflows, which ends the process. So the `validateShacl` field of [GraphQL](5_graphql.md) rejects
 recursive shapes.
+
+Recursion through `sh:not` is evaluated the same way, unless a shape negates its way back into a cycle, such as
+`ex:S sh:not [ sh:property [ sh:path ex:knows ; sh:node ex:S ] ]`: the validator cannot evaluate such shapes, so they
+fail to parse with `SHACL error: Dependency graph has negative cycles ...`.
 
 ## Literal values
 
@@ -420,27 +419,40 @@ positive and negative integer types (`"042"^^xsd:long` becomes `"42"`, and a `xs
 `xsd:integer`), and language tags with a region (`@en-gb` becomes `@en-GB`). Literals of `xsd:integer`, `xsd:int`,
 `xsd:decimal`, `xsd:double`, `xsd:float`, strings and other datatypes keep their exact form.
 
-- In results, focus nodes and values are given back as written in the graph, so `node()` finds them. If two literals
-  of the graph have the same canonical form (such as `"01"^^xsd:long` and `"001"^^xsd:long`), or the canonical form is
-  itself a node, the canonical form is returned, which `node()` may not find.
+- In results, focus nodes and values are given back as written in the graph (or in `sh:targetNode`), so `node()`
+  finds them. If two literals of the view have the same canonical form (such as `"01"^^xsd:long` and
+  `"001"^^xsd:long`), or the canonical form is itself a literal of the view, the canonical form is returned, which
+  `node()` may not find.
 - `sh:hasValue` and `sh:in` compare RDF terms, so a literal of theirs that is not in canonical form is rejected (see
-  [supported SHACL](#supported-shacl)). A literal of `sh:targetNode` is looked up as written.
+  [supported SHACL](#supported-shacl)). A literal of `sh:targetNode` is looked up as written, unless its canonical
+  form is a value in the view or another `sh:targetNode` literal has the same canonical form.
 - `sh:disjoint` compares canonical forms, so it takes `"1"^^xsd:boolean` and `"true"^^xsd:boolean` to be the same
   value.
+
+## Paths through literals and literal focus nodes
+
+The validator also treats literals differently from SHACL when a path passes through one, or when one is a focus node
+(such as a node targeted by `sh:targetObjectsOf`):
+
+- A sequence path, `sh:zeroOrMorePath` or `sh:oneOrMorePath` never continues from a literal, even into an inverse
+  step, so values reached through a literal are missed. With `ex:alice ex:age 5`, the path
+  `( ex:age [ sh:inversePath ex:age ] )` leads from `ex:alice` to `5` and back to `ex:alice` in SHACL, but the
+  validator finds no value.
+- Property-pair constraints on a literal focus node: `sh:equals` is skipped, `sh:lessThan` and `sh:lessThanOrEquals`
+  fail the validation with an error, and `sh:disjoint` fails it with `the SHACL validator panicked`.
 
 ## Other limitations
 
 - **No snapshot isolation.** As with SPARQL, validation reads the graph as it goes, holding no lock between triples,
   so other threads can write to the graph meanwhile; the result may or may not include their writes. Do not write to
   the graph while validating if you need a consistent result.
-- **Performance.** Validation reads the triples it needs from the graph as it validates, and every `rdf:type` and
-  `rdfs:subClassOf` triple of the view once, to index the classes. Most of the time is spent in the validator itself,
-  which takes about as long as validating an in-memory copy of the same triples: a few seconds for 200,000 triples.
+- **Performance.** Validation reads the triples it needs from the graph as it validates and, when the shapes use
+  classes, every `rdf:type` and `rdfs:subClassOf` triple of the view once, to index them. Most of the time is spent in
+  the validator itself, which takes about as long as validating an in-memory copy of the same triples: a few seconds
+  for 200,000 triples.
 - **SHACL 1.2 reifier shapes see no reifiers.** The graph cannot hold triple terms, so `sh:reifierShape` has nothing
   to check, and `sh:reificationRequired true` is never satisfied.
-- **No timeout in Python.** A validation releases the GIL while it runs, so other Python threads keep running. In Rust,
-  `validate_shacl_with()` takes a timeout and a cancellation token, and the GraphQL server stops a validation after
-  `sparql_timeout`.
+- **No time limit.** A validation runs until it ends; it releases the GIL, so other Python threads keep running.
 
 ## Using pySHACL instead
 

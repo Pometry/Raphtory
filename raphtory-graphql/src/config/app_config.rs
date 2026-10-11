@@ -1,6 +1,4 @@
 use super::auth_config::{AuthConfig, AuthConfigFieldName, PublicKeyError};
-#[cfg(feature = "rdf")]
-use crate::config::concurrency_config::optional_seconds;
 use crate::{
     cli::ConfigArgs,
     config::{
@@ -18,8 +16,6 @@ use config::{Config, ConfigError, File};
 use field_types::FieldName;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "rdf")]
-use std::time::Duration;
 use std::{
     collections::HashMap,
     error::Error,
@@ -164,12 +160,12 @@ impl AppConfigBuilder {
             builder.with_max_sparql_query_length(Some(max_sparql_query_length));
         }
         #[cfg(feature = "rdf")]
-        if let Some(sparql_timeout) = server_args.sparql_timeout {
-            builder.with_sparql_timeout(Some(sparql_timeout));
-        }
-        #[cfg(feature = "rdf")]
         if let Some(max_sparql_triple_patterns) = server_args.max_sparql_triple_patterns {
             builder.with_max_sparql_triple_patterns(Some(max_sparql_triple_patterns));
+        }
+        #[cfg(feature = "rdf")]
+        if let Some(max_sparql_result_bytes) = server_args.max_sparql_result_bytes {
+            builder.with_max_sparql_result_bytes(Some(max_sparql_result_bytes));
         }
         if let Some(max_query_depth) = server_args.max_query_depth {
             builder.with_max_query_depth(Some(max_query_depth));
@@ -406,15 +402,15 @@ impl AppConfigBuilder {
                                 );
                             }
                             #[cfg(feature = "rdf")]
-                            ConcurrencyConfigFieldName::SparqlTimeout => {
-                                self.with_sparql_timeout(
-                                    optional_seconds::deserialize(value)
+                            ConcurrencyConfigFieldName::MaxSparqlTriplePatterns => {
+                                self.with_max_sparql_triple_patterns(
+                                    Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
                             }
                             #[cfg(feature = "rdf")]
-                            ConcurrencyConfigFieldName::MaxSparqlTriplePatterns => {
-                                self.with_max_sparql_triple_patterns(
+                            ConcurrencyConfigFieldName::MaxSparqlResultBytes => {
+                                self.with_max_sparql_result_bytes(
                                     Deserialize::deserialize(value)
                                         .map_err(|e| invalid_value([path, sub_path], e))?,
                                 );
@@ -639,17 +635,20 @@ impl AppConfigBuilder {
     }
 
     #[cfg(feature = "rdf")]
-    pub fn with_sparql_timeout(&mut self, sparql_timeout: Option<Duration>) -> &mut Self {
-        self.config.concurrency.sparql_timeout = sparql_timeout;
-        self
-    }
-
-    #[cfg(feature = "rdf")]
     pub fn with_max_sparql_triple_patterns(
         &mut self,
         max_sparql_triple_patterns: Option<usize>,
     ) -> &mut Self {
         self.config.concurrency.max_sparql_triple_patterns = max_sparql_triple_patterns;
+        self
+    }
+
+    #[cfg(feature = "rdf")]
+    pub fn with_max_sparql_result_bytes(
+        &mut self,
+        max_sparql_result_bytes: Option<usize>,
+    ) -> &mut Self {
+        self.config.concurrency.max_sparql_result_bytes = max_sparql_result_bytes;
         self
     }
 

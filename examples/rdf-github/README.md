@@ -11,7 +11,8 @@ It also builds a small graph of people and the companies they work for, which ne
 - Python with `raphtory` built from this repository, which includes RDF support. Run `make build-python` at the
   repository root, then `make check` here to confirm.
 - The [GitHub CLI](https://cli.github.com/), logged in (`gh auth login`), to download a repository's history. The
-  people graph does not need it.
+  people graph does not need it: without gh, run `make people && python scripts/serve.py graphs` (`make serve` builds
+  both graphs and needs gh).
 - A browser with internet access: the query pages load [YASGUI](https://github.com/Matdata-eu/Yasgui) and its
   [graph plugin](https://github.com/Matdata-eu/yasgui-graph-plugin) from jsdelivr.
 
@@ -69,6 +70,9 @@ and `https://github.com/miratepuffin`. The vocabulary is under `http://example.o
 | issue               | `gh:assignee` | developer                               | it is opened                        |                                |
 | developer, label    | `rdf:type`    | `gh:Developer`, `gh:Label`              | it first appears                    |                                |
 | developer, label    | `rdfs:label`  | string: the login or the label's name   | it first appears                    |                                |
+
+`scripts/fetch.sh` keeps the first 20 labels, 50 reviews and 10 closing issues of a pull request, and the first 20
+labels and 10 assignees of an issue.
 
 A few things follow from writing every event at its own time:
 

@@ -11,6 +11,8 @@ use raphtory::python::{
 };
 
 use raphtory_graphql::python::pymodule::base_graphql_module;
+#[cfg(feature = "rdf")]
+use raphtory_rdf::python::add_rdf_classes;
 
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
@@ -23,6 +25,8 @@ static GLOBAL: Jemalloc = Jemalloc;
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     auth::init();
     add_raphtory_classes(m)?;
+    #[cfg(feature = "rdf")]
+    add_rdf_classes(m)?;
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;

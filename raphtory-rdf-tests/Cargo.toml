@@ -1,6 +1,5 @@
-# Conformance and correctness tests for raphtory's RDF support (separate crate so the W3C suites and the
-# benchmark data stay out of the raphtory crate). The features are off by default so that workspace builds
-# do not turn on raphtory/rdf.
+# Conformance tests and benchmarks for raphtory-rdf (separate crate so the W3C suites and the benchmark
+# data stay out of raphtory-rdf). The features are off by default, so workspace builds skip them.
 
 [package]
 name = "raphtory-rdf-tests"
@@ -19,33 +18,76 @@ publish = false
 
 [dependencies]
 raphtory = { workspace = true, features = ["panic-on-drop"] }
+raphtory-rdf = { workspace = true, optional = true }
 rayon.workspace = true
 oxigraph = { workspace = true, optional = true }
 spargebra = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }
+tar = { workspace = true, optional = true }
+criterion = { workspace = true, optional = true }
+bzip2 = { workspace = true, optional = true }
+csv = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+rustc-hash = { workspace = true, optional = true }
+rudof_rdf = { workspace = true, optional = true }
+
+[dev-dependencies]
+url = { workspace = true }
 
 [features]
 rdf = [
-    "raphtory/rdf",
+    "dep:raphtory-rdf",
     "dep:oxigraph",
     "dep:spargebra",
     "dep:flate2",
     "dep:zip",
+    "dep:tar",
 ]
-shacl = ["rdf", "raphtory/shacl"]
+shacl = ["rdf", "raphtory-rdf/shacl", "dep:rudof_rdf", "dep:rustc-hash"]
+bench = [
+    "rdf",
+    "dep:criterion",
+    "dep:bzip2",
+    "dep:csv",
+    "dep:regex",
+    "dep:rustc-hash",
+]
 
-# The W3C SPARQL and Turtle test suites (test-suites/rdf-tests, or RAPHTORY_RDF_TESTS).
+# The W3C SPARQL and Turtle test suites (test-suites/rdf-tests).
 [[test]]
 name = "sparql_w3c"
 required-features = ["rdf"]
 
-# The W3C SHACL test suite (test-suites/data-shapes, or RAPHTORY_SHACL_TESTS).
+# The W3C SHACL test suite (test-suites/data-shapes).
 [[test]]
 name = "shacl_w3c"
 required-features = ["shacl"]
 
-# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b (`make -C rdf-bench bear-b-fetch`).
+# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b (`make bear-b-fetch`).
 [[test]]
 name = "bear"
 required-features = ["rdf"]
+
+[[bench]]
+name = "load"
+harness = false
+required-features = ["bench"]
+
+# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b.
+[[bench]]
+name = "temporal"
+harness = false
+required-features = ["bench"]
+
+# BSBM and Sparqloscope, read from $RAPHTORY_RDF_DATA/bsbm.
+[[bench]]
+name = "sparql"
+harness = false
+required-features = ["bench"]
+
+# The Gene Ontology, read from $RAPHTORY_RDF_DATA/go.
+[[bench]]
+name = "go"
+harness = false
+required-features = ["bench"]

@@ -1,7 +1,5 @@
 use field_types::FieldName;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "rdf")]
-use std::time::Duration;
 
 pub const DEFAULT_EXCLUSIVE_WRITES: bool = false;
 pub const DEFAULT_DISABLE_BATCHING: bool = false;
@@ -13,46 +11,23 @@ pub const DEFAULT_MAX_BATCH_SIZE: usize = 10;
 /// Default cap on the length of a SPARQL query, in bytes (see `max_sparql_query_length`).
 #[cfg(feature = "rdf")]
 pub const DEFAULT_MAX_SPARQL_QUERY_LENGTH: usize = 16 * 1024;
-/// Default time limit of a SPARQL query (see `sparql_timeout`).
-#[cfg(feature = "rdf")]
-pub const DEFAULT_SPARQL_TIMEOUT: Duration = Duration::from_secs(30);
 /// Default cap on the number of triple patterns of a SPARQL query (see
-/// `max_sparql_triple_patterns`). Planning cannot be interrupted and its cost grows steeply with
-/// the number of patterns; 100 keeps planning to about a second.
+/// `max_sparql_triple_patterns`). The cost of planning grows steeply with the number of
+/// patterns.
 #[cfg(feature = "rdf")]
 pub const DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS: usize = 100;
-
-/// `Option<Duration>` written as a number of seconds, as configs and the CLI give it.
+/// Default cap on the size of SPARQL results and RDF exports, in bytes (see
+/// `max_sparql_result_bytes`).
 #[cfg(feature = "rdf")]
-pub(crate) mod optional_seconds {
-    use raphtory::rdf::timeout_from_secs;
-    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-    use std::time::Duration;
-
-    pub(crate) fn serialize<S: Serializer>(
-        value: &Option<Duration>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        value.map(|d| d.as_secs_f64()).serialize(serializer)
-    }
-
-    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Option<Duration>, D::Error> {
-        Option::<f64>::deserialize(deserializer)?
-            .map(|seconds| timeout_from_secs(seconds).map_err(D::Error::custom))
-            .transpose()
-    }
-}
+pub const DEFAULT_MAX_SPARQL_RESULT_BYTES: usize = 256 << 20;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
 #[derive(Debug, Deserialize, PartialEq, Clone, Serialize, FieldName)]
 pub struct ConcurrencyConfig {
-    /// Restricts how many expensive graph traversal queries can execute simultaneously.
-    /// Covers operations like connected components, edge traversals, and neighbour lookups
-    /// (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours,
-    /// inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and
-    /// wait until a slot becomes available before executing. `None` means unlimited.
+    /// Restricts how many queries can execute simultaneously. Every GraphQL query and every
+    /// SPARQL endpoint query takes a slot. Once the limit is exceeded, queries are parked on a
+    /// semaphore and wait until a slot becomes available before executing. `None` means
+    /// unlimited.
     pub heavy_query_limit: Option<usize>,
 
     /// Ensures only one ingestion/write operation runs at a time and blocks reads until
@@ -87,25 +62,18 @@ pub struct ConcurrencyConfig {
     #[cfg(feature = "rdf")]
     pub max_sparql_query_length: Option<usize>,
 
-    /// Time limit of a SPARQL query, in seconds in configs, of the `sparql` field of `RdfGraph`
-    /// or the SPARQL endpoint (feature `rdf`), and of the `validateShacl` field (feature
-    /// `shacl`). A query that runs longer is stopped and returns an error.
-    /// Client disconnects are not detected, so this is also what stops abandoned queries, which
-    /// hold a compute thread and a `heavy_query_limit` slot until then. Defaults to
-    /// `DEFAULT_SPARQL_TIMEOUT`; `None` means unlimited (keep a limit on a server shared with
-    /// clients you do not control).
-    #[cfg(feature = "rdf")]
-    #[serde(with = "optional_seconds")]
-    pub sparql_timeout: Option<Duration>,
-
-    /// Maximum number of triple patterns of a SPARQL query, of the `sparql` field of `RdfGraph`
-    /// or the SPARQL endpoint (feature `rdf`), counting those of collections, property paths (one
-    /// per predicate), `BIND` and the expressions `(... AS ?v)` of `SELECT` and `GROUP BY` (one
-    /// each) and `VALUES` (one per block, plus one per variable and per 100 rows).
-    /// Larger queries are rejected before they are planned.
-    /// Defaults to `DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS`; `None` means unlimited.
+    /// Maximum number of triple patterns of a SPARQL query, counted as
+    /// `SparqlOptions::with_max_triple_patterns` counts them; larger queries are rejected before
+    /// planning. Defaults to `DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS`; `None` means unlimited.
     #[cfg(feature = "rdf")]
     pub max_sparql_triple_patterns: Option<usize>,
+
+    /// Maximum size in bytes of the serialized results of a SPARQL query or of an RDF export, of
+    /// the `sparql` and `toRdf` fields of `RdfGraph` or the SPARQL endpoint (feature `rdf`).
+    /// Larger results fail. Defaults to `DEFAULT_MAX_SPARQL_RESULT_BYTES`; `None` means
+    /// unlimited.
+    #[cfg(feature = "rdf")]
+    pub max_sparql_result_bytes: Option<usize>,
 
     /// Maximum graph loads decoding at once. Each in-flight load holds a whole graph in memory,
     /// so this bounds peak memory when many graphs are requested together. `None` = cores / 4,
@@ -125,9 +93,9 @@ impl Default for ConcurrencyConfig {
             #[cfg(feature = "rdf")]
             max_sparql_query_length: Some(DEFAULT_MAX_SPARQL_QUERY_LENGTH),
             #[cfg(feature = "rdf")]
-            sparql_timeout: Some(DEFAULT_SPARQL_TIMEOUT),
-            #[cfg(feature = "rdf")]
             max_sparql_triple_patterns: Some(DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS),
+            #[cfg(feature = "rdf")]
+            max_sparql_result_bytes: Some(DEFAULT_MAX_SPARQL_RESULT_BYTES),
             max_concurrent_loads: None,
         }
     }

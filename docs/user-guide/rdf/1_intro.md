@@ -17,10 +17,10 @@ The following pages cover [SPARQL queries](2_sparql.md), [time travel](3_time-tr
 
 !!! info
 
-    RDF support is part of the `raphtory` Python package. In Rust it is behind the `rdf` cargo feature of the
-    `raphtory` crate (SHACL behind `shacl`), and the API is documented in the
-    [`raphtory::rdf`](https://docs.rs/raphtory/latest/raphtory/rdf/index.html) module
-    (`cargo doc -p raphtory --features rdf --open`).
+    RDF support is part of the `raphtory` Python package. In Rust it is the `raphtory-rdf` crate (SHACL behind its
+    `shacl` cargo feature), documented at
+    [`raphtory_rdf`](https://docs.rs/raphtory-rdf/latest/raphtory_rdf/index.html)
+    (`cargo doc -p raphtory-rdf --open`).
 
 ## A first example
 
@@ -65,10 +65,7 @@ for row in rows:
 
 /// tab | :fontawesome-brands-rust: Rust
 ```rust
-use raphtory::{
-    prelude::*,
-    rdf::{RdfFormat, SparqlResults},
-};
+use raphtory_rdf::{RdfFormat, RdfGraph, SparqlOptions, SparqlResults};
 
 let doc = r#"
 @prefix ex:   <http://example.org/> .
@@ -90,6 +87,7 @@ let results = rg
     .sparql(
         "PREFIX foaf: <http://xmlns.com/foaf/0.1/>
          SELECT ?person ?name WHERE { ?person foaf:name ?name } ORDER BY ?person",
+        &SparqlOptions::default(),
     )
     .unwrap();
 if let SparqlResults::Solutions { rows, .. } = results {
@@ -199,7 +197,8 @@ is `<raphtory:a>`) and the [time graphs](3_time-travel.md#comparing-times-in-one
 - **IRIs** are kept as written. Any name that is a valid absolute IRI (a scheme such as `http:`, `urn:` or `user:`,
   and no character IRIs forbid, such as a space) is that IRI. Names starting with `raphtory:` are encoded like the
   names below.
-- **Blank nodes** are named `_:` followed by their label.
+- **Blank nodes** are named `_:` followed by their label (a label valid in N-Triples, so `_:a:b` is an IRI, not a blank
+  node).
 - **Literals** are named by their N-Triples form. Parsing lower-cases language tags (`"Bob"@EN` is `"Bob"@en`) and
   makes `"x"^^xsd:string` the plain `"x"`. Numbers keep their digits, so `"042"^^xsd:integer` and `"42"^^xsd:integer`
   are different nodes. A name added with `add_edge` is only a literal if it is in exactly this form.
@@ -272,7 +271,8 @@ assert g.layer("knows").has_edge("Bob", "Carol")
     ```
 
 An `RdfGraph` always has persistent semantics. A retraction written through it into a wrapped event `Graph` is stored
-as a deletion: the `RdfGraph` sees it, and event views of the same `Graph` ignore it.
+as a deletion, which the `RdfGraph` sees. On an event `Graph` a retraction is a deletion event: it ends nothing, so
+event views still show the triple, and a triple that was only retracted appears as an edge (`g.valid()` drops it).
 
 ## Loading RDF
 
@@ -376,8 +376,8 @@ assert rg.valid().sparql("ASK { <http://example.org/alice> <http://example.org/a
     [{'who': 'http://example.org/alice'}]
     ```
 
-`load_rdf()`, `retract_rdf()`, `add_triple()` and `retract_triple()` write one edge event per triple, so they are safe
-to run while other threads or a server query the graph.
+`load_rdf()`, `retract_rdf()`, `add_triple()` and `retract_triple()` write one edge event per triple, so they can run
+while other threads or a server query the graph; a concurrent query may see part of a load.
 
 ## Retracting triples
 
@@ -414,7 +414,8 @@ assert rg.at(3).sparql(query) == rg.sparql(query)
     ```
 
 - **Retractions are always recorded**, even for a triple that was never asserted. The subject and object nodes are
-  created, and the whole graph shows the triple, but `valid()` and `at(t)` do not.
+  created, and the whole graph and any window containing the retraction show the triple, but `valid()` and `at(t)` do
+  not.
 - **Blank-node labels are used as written**, so a retraction must use the stored labels, as `to_rdf()` and `sparql()`
   return them. An anonymous blank node (`[]`) in a retraction never matches anything.
 
@@ -472,108 +473,3 @@ renamed blank nodes when loaded, and layer names that are not safe as file names
 `to_rdf()` leaves out the edges that cannot be RDF triples: from a node named by a literal, or in a layer named by a
 literal or a blank node. RDF/XML also leaves out the triples it cannot write (see the
 [limitations](4_limitations.md#exporting)). In Rust, `to_rdf()` returns how many triples it wrote and skipped.
-
-```{.python hide}
-import os
-import tempfile
-
-import pytest
-from raphtory import Graph, PersistentGraph, RdfGraph
-
-# the name <-> term table
-names = Graph()
-for name in ["http://example.org/alice", "_:b1", '"Alice"', '"Bob"@en', '"42"^^<http://www.w3.org/2001/XMLSchema#integer>',
-             "Alice", "Bob Smith", "12:30", "Zoë", "user:42", "raphtory:x", '"Bob"@EN']:
-    names.add_edge(1, "http://example.org/s", name, layer="http%3A%2F%2Fexample.org%2Fp")
-names.add_edge(1, "Alice", "Bob", layer="_default")
-names = RdfGraph(names)
-nt = names.to_rdf()
-for term in ["<http://example.org/alice>", "_:b1", '"Alice"', '"Bob"@en', '"42"^^<http://www.w3.org/2001/XMLSchema#integer>',
-             "<raphtory:Alice>", "<raphtory:Bob%20Smith>", "<raphtory:12%3A30>", "<raphtory:Zo%C3%AB>", "<user:42>",
-             "<raphtory:raphtory%3Ax>", "<raphtory:%22Bob%22%40EN>", "<raphtory:_default>"]:
-    assert term in nt, term
-assert names.sparql("ASK { ?s ?p raphtory:Zo%C3%AB }") is True
-assert names.sparql("ASK { ?s ?p raphtory:Zoë }") is False
-assert names.sparql("SELECT ?x WHERE { BIND(<raphtory:%61> AS ?x) }") == [{"x": "<raphtory:%61>"}]
-
-# identical literals share a node, literals equal in value but written differently do not
-values = RdfGraph()
-values.load_rdf(1, b"""
-    @prefix ex:  <http://example.org/> .
-    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-    ex:a ex:age 42 . ex:b ex:age 42 . ex:c ex:age "042"^^xsd:integer . ex:d ex:age "42"^^xsd:int .
-""")
-assert values.graph.count_nodes() == 7
-ids = Graph()
-ids.add_edge(1, 42, 43)
-assert RdfGraph(ids).to_rdf() == "<raphtory:42> <raphtory:_default> <raphtory:43> .\n"
-with pytest.raises(Exception, match="string node ids"):
-    RdfGraph(ids).load_rdf(1, b"<http://example.org/a> <http://example.org/p> <http://example.org/b> .")
-
-# parsing normalises language tags and xsd:string
-norm = RdfGraph()
-norm.load_rdf(1, b'<http://example.org/a> <http://example.org/p> "Bob"@EN, "x"^^<http://www.w3.org/2001/XMLSchema#string> .')
-assert sorted(norm.graph.nodes.name) == ['"Bob"@en', '"x"', "http://example.org/a"]
-
-# predicates under raphtory: must give a safe layer name
-with pytest.raises(Exception, match="cannot be stored"):
-    RdfGraph().load_rdf(1, b"<http://example.org/a> <raphtory:a%2Fb> <http://example.org/b> .")
-
-# format names
-doc = b"<http://example.org/a> <http://example.org/p> <http://example.org/b> ."
-for fmt in ["ttl", "turtle", "text/turtle", "nt", "n-triples", "nq", "n-quads", "trig", "n3"]:
-    assert RdfGraph().load_rdf(1, doc, format=fmt) == 1, fmt
-for fmt in ["rdf", "xml", "application/rdf+xml", "jsonld", "application/ld+json"]:
-    assert RdfGraph().load_rdf(1, norm.to_rdf(format=fmt).encode(), format=fmt) == 2, fmt
-
-# a str source is a path, bytes are the document; to_rdf takes the format from the extension
-with pytest.raises(Exception, match="pass the document as bytes"):
-    RdfGraph().load_rdf(1, doc.decode())
-with tempfile.TemporaryDirectory() as tmp:
-    path = os.path.join(tmp, "doc.nt")
-    with open(path, "wb") as f:
-        f.write(doc)
-    assert RdfGraph().load_rdf(1, path) == 1
-    with pytest.raises(Exception, match="unknown RDF format 'data'"):
-        RdfGraph().load_rdf(1, os.path.join(tmp, "doc.data"))
-    out = os.path.join(tmp, "out.ttl")
-    assert norm.to_rdf(out, prefixes={"ex": "http://example.org/"}) is None
-    with open(out) as f:
-        assert f.read() == norm.to_rdf(format="ttl", prefixes={"ex": "http://example.org/"})
-    # RdfGraph.load opens a stored graph folder
-    stored = os.path.join(tmp, "stored")
-    norm.graph.save_to_file(stored)
-    assert RdfGraph.load(stored).to_rdf() == norm.to_rdf()
-with pytest.raises(Exception, match="invalid prefix name"):
-    norm.to_rdf(format="ttl", prefixes={"a b": "http://example.org/"})
-
-# names round-trip through export and load, except _:label names
-plain = Graph()
-plain.add_edge(1, "Alice", "Bob Smith", layer="knows")
-plain.add_edge(1, "Alice", "12:30")
-copy = RdfGraph()
-copy.load_rdf(1, RdfGraph(plain).to_rdf().encode(), format="nt")
-assert sorted(copy.graph.nodes.name) == ["12:30", "Alice", "Bob Smith"]
-assert sorted(copy.graph.unique_layers) == sorted(plain.unique_layers)
-
-# edges that are not valid RDF are left out
-odd = Graph()
-odd.add_edge(1, '"x"', "Bob")
-odd.add_edge(1, "Alice", "Bob", layer="_:l")
-odd.add_edge(1, "http://example.org/a", "http://example.org/b", layer="http%3A%2F%2Fexample.org%2F42")
-assert RdfGraph(odd).to_rdf() == "<http://example.org/a> <http://example.org/42> <http://example.org/b> .\n"
-assert "example.org/42" not in RdfGraph(odd).to_rdf(format="rdf")
-
-# a retraction through an RdfGraph is a deletion: the RdfGraph sees it, event views of the wrapped Graph do not
-events = Graph()
-wrapped = RdfGraph(events)
-wrapped.load_rdf(1, doc)
-wrapped.retract_rdf(2, doc)
-assert wrapped.valid().sparql("ASK { ?s ?p ?o }") is False
-assert events.window(0, 3).count_edges() == 1
-# a triple that was only retracted shows on the whole graph, not under valid()
-retracted = RdfGraph()
-retracted.retract_rdf(1, doc)
-assert retracted.sparql("ASK { ?s ?p ?o }") is True
-assert retracted.valid().sparql("ASK { ?s ?p ?o }") is False
-```

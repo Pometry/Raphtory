@@ -66,9 +66,10 @@ __all__ = [
     "Intervals",
     "WindowSet",
     "Prop",
+    "version",
     "RdfView",
     "RdfGraph",
-    "version",
+    "ShaclWarning",
     "graphql",
     "algorithms",
     "graph_loader",
@@ -7692,6 +7693,14 @@ class Prop(object):
             Prop:
         """
 
+def version() -> str:
+    """
+    Return Raphtory version.
+
+    Returns:
+        str:
+    """
+
 class RdfView(object):
     """
     A view of an RdfGraph: the RDF triples of a persistent graph view, one per edge and layer
@@ -7970,7 +7979,6 @@ class RdfView(object):
         query: str,
         decode_literals: bool = False,
         format: Optional[str] = None,
-        timeout: Optional[float] = None,
         max_triple_patterns: Optional[int] = None,
     ):
         """
@@ -8016,25 +8024,23 @@ class RdfView(object):
         RDF/XML. Serialized results hold RDF terms, as to_rdf() writes them, not Raphtory names.
 
         By default a query runs until it is done. To run queries you do not control, bound them
-        with timeout, which stops the query once it has run that long, and max_triple_patterns,
-        which rejects a query that is too large before it is planned (planning cannot be
-        interrupted by timeout). Each triple pattern counts one, a property path one per
-        predicate it names, a BIND or a SELECT or GROUP BY expression one, and a VALUES block one
-        plus one per variable and per 100 rows.
+        with max_triple_patterns, which rejects a query that is too large before it is planned.
+        Each triple pattern counts one, a property path one per predicate it names, a BIND or a
+        SELECT or GROUP BY expression one, and a VALUES block one plus one per variable and per
+        100 rows.
 
         Arguments:
             query (str): The SPARQL query.
-            decode_literals (bool): If True, literals are returned as Python values (str, bool, int, float, Decimal or datetime) where their datatype is supported and the value fits the Python type (a datetime from year 1 to 9999), instead of their names. Cannot be combined with format. Defaults to False.
+            decode_literals (bool): If True, literals are returned as Python values (str, bool, int, float, Decimal or datetime) where their datatype is supported and the value fits the Python type (a datetime from year 1 to 9999, in whole microseconds), instead of their names; language tags are dropped. Cannot be combined with format. Defaults to False.
             format (str, optional): If given, the results are returned as a document in this format, as a file extension, name or media type (such as "json", "xml", "csv", "tsv" or "application/sparql-results+json" for SELECT and ASK, and "nt", "ttl", "jsonld", "rdf" or "text/turtle" for CONSTRUCT and DESCRIBE). Defaults to None.
-            timeout (float, optional): If given, the query is stopped with a GraphError once it has run this many seconds. Defaults to None.
-            max_triple_patterns (int, optional): If given, a query with more triple patterns raises a GraphError before it runs. Defaults to None.
+            max_triple_patterns (int, optional): If given, a query with more triple patterns raises a ValueError before it runs. Defaults to None.
 
         Returns:
             list[dict[str, Any]] | bool | list[tuple[str, str, Any]] | str: For SELECT, one dict per solution mapping every variable (in the order of the SELECT clause, or sorted by name for SELECT *) to its value (None if unbound); for ASK, a bool; for CONSTRUCT and DESCRIBE, one (subject, predicate, object) tuple per triple; with format, the serialized results.
 
         Raises:
-            GraphError: If the query does not parse or its evaluation fails, if format is unknown or does not fit the form of the query, if SPARQL Results XML cannot hold a value, if the query has more than max_triple_patterns triple patterns, or if it runs longer than timeout.
-            ValueError: If both decode_literals and format are given, or if timeout is negative or not finite.
+            GraphError: If the evaluation of the query fails, or if SPARQL Results XML cannot hold a value or RDF/XML a triple (such as one whose predicate does not end in an XML name).
+            ValueError: If the query does not parse or has more than max_triple_patterns triple patterns, if format is unknown or does not fit the form of the query, or if both decode_literals and format are given.
         """
 
     @property
@@ -8096,7 +8102,8 @@ class RdfView(object):
             Optional[str]: The document if path is not given, otherwise None.
 
         Raises:
-            GraphError: If the format is unknown, a prefix name or IRI is invalid, or writing fails.
+            GraphError: If a prefix IRI is invalid or writing fails.
+            ValueError: If the format is unknown or a prefix name is invalid.
         """
 
     def valid(self) -> RdfView:
@@ -8139,32 +8146,24 @@ class RdfView(object):
         loaded from RDF is the IRI raphtory:Alice, which shapes can name with
         @prefix raphtory: <raphtory:> .
 
-        All of SHACL Core is supported. Shapes raise an error if they use SHACL-SPARQL, SHACL
-        Advanced Features, SHACL-JS, sh:entailment, SHACL 1.2 features, the inverse of a path that
-        is not a predicate (write ^(ex:p / ex:q) as (^ex:q / ^ex:p)), or a literal in sh:hasValue
-        or sh:in that the validator would rewrite (such as "1"^^xsd:boolean). Other unknown sh:
-        terms are ignored. Shapes with an RDF list of more than 10,000 members, or nested more
-        than 256 deep, raise an error too. owl:imports is not followed.
-
-        sh:targetClass targets direct rdf:type instances only, and implicit class targets and
-        sh:class follow a single rdfs:subClassOf step (the report warns if the data has
-        rdfs:subClassOf triples). Recursive shapes have least-fixpoint semantics: a node whose
-        conformance depends on itself through a cycle is reported, with a warning.
+        SHACL Core is supported, and shapes that use other parts of SHACL raise an error. The user
+        guide page Validating with SHACL describes what is supported and how the validator
+        deviates from SHACL.
 
         The report is a dict with conforms (bool, True if there are no results of any severity),
         results (a list of dicts with focus_node, path, value, source_shape, constraint_component,
-        severity and messages) and warnings (a list of str). Terms are Raphtory names, as in
+        severity and messages) and warnings (a list[ShaclWarning], holding
+        ShaclWarning.PartialSubclassReasoning if partial subclass reasoning may affect the results
+        and ShaclWarning.RecursiveShapes if recursive shapes may). Terms are Raphtory names, as in
         sparql(): focus_node and value can be passed to graph.node(), path is the predicate's IRI
         for a single predicate and otherwise a SPARQL property path such as
         (<http://ex/a> / <http://ex/b>), constraint_component and severity are SHACL IRIs such as
         http://www.w3.org/ns/shacl#MinCountConstraintComponent, and messages are the values of
         the result messages. path, value and source_shape are None when the result has none.
         Results are in a deterministic order, and shape blank nodes get the same labels each time.
-        Some literals are rewritten in canonical form (booleans, date-times, integer types other
-        than xsd:integer and xsd:int, region language tags); they come back as written in the
-        graph when unambiguous, otherwise as rewritten, which graph.node() may not find.
-
-        Validation releases the GIL.
+        A literal the validator rewrites in canonical form (such as "1"^^xsd:boolean as
+        "true"^^xsd:boolean) comes back as written in the graph when that is unambiguous, and
+        otherwise as rewritten, which graph.node() may not find.
 
         Arguments:
             shapes (bytes | str | PathLike): The shapes graph: the document as bytes, or the path of a file to read.
@@ -8176,8 +8175,9 @@ class RdfView(object):
             dict[str, Any] | str: The report as a dict, or as a document if report_format is given.
 
         Raises:
-            GraphError: If the shapes do not parse, use an unsupported SHACL feature or are not a valid shapes graph, if a format is unknown, if validation fails, or if RDF/XML cannot hold the report.
-            TypeError: If shapes is neither bytes nor a path, or is a str that looks like a document rather than a path.
+            GraphError: If the shapes use an unsupported SHACL feature or are not a valid shapes graph, if validation fails, or if RDF/XML cannot hold the report.
+            ValueError: If the shapes do not parse or a format is unknown.
+            TypeError: If shapes is neither bytes nor a path.
         """
 
     def validate_shacl_at(
@@ -8205,8 +8205,9 @@ class RdfView(object):
             list[tuple[EventTime, dict[str, Any]]]: Each time, as given, with the report of validate_shacl() for it.
 
         Raises:
-            GraphError: If the shapes do not parse, use an unsupported SHACL feature or are not a valid shapes graph, if the format is unknown, or if validation fails.
-            TypeError: If shapes is neither bytes nor a path, or is a str that looks like a document rather than a path.
+            GraphError: If the shapes use an unsupported SHACL feature or are not a valid shapes graph, or if validation fails.
+            ValueError: If the shapes do not parse or the format is unknown.
+            TypeError: If shapes is neither bytes nor a path.
         """
 
     def window(self, start: TimeInput, end: TimeInput) -> RdfView:
@@ -8237,9 +8238,10 @@ class RdfGraph(RdfView):
 
     Each triple s p o is an edge from s to o in the layer of p, and a retraction is a deletion.
     Wrapping a Graph shares its storage, so nothing is copied and writes through either handle
-    are seen by both; retractions are seen by the RdfGraph and ignored by event views of the same
-    graph. The whole graph shows every triple ever asserted or retracted: valid() is the current
-    state and at(t) the state as of t.
+    are seen by both. On an event Graph a retraction is a deletion event: it ends nothing, so
+    event views still show the triple, and a triple that was only retracted appears as an edge
+    (g.valid() drops it). The whole graph shows every triple ever asserted or retracted: valid()
+    is the current state and at(t) the state as of t.
 
     Arguments:
         graph (Graph | PersistentGraph, optional): The graph to view as RDF. If not given, a new empty graph is created. Defaults to None.
@@ -8248,7 +8250,6 @@ class RdfGraph(RdfView):
     def __new__(cls, graph: Optional[Graph | PersistentGraph] = None) -> RdfGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def __reduce__(self): ...
     def add_triple(
         self, time: TimeInput, subject: str, predicate: str, object: str
     ) -> None:
@@ -8272,6 +8273,7 @@ class RdfGraph(RdfView):
 
         Raises:
             GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
+            TypeError: If the graph uses integer node ids.
         """
 
     @property
@@ -8284,15 +8286,30 @@ class RdfGraph(RdfView):
         """
 
     @staticmethod
-    def load(path: str | PathLike) -> RdfGraph:
+    def load(
+        path: str | PathLike,
+        config: Optional[dict[str, Any]] = None,
+        read_only: bool = False,
+    ) -> RdfGraph:
         """
         Opens the graph stored at path, event or persistent, as an RdfGraph.
 
+        A graph saved to disk is opened and an encoded graph is decoded. config and read_only
+        apply to a graph saved to disk.
+
         Arguments:
             path (str | PathLike): The path of the graph folder.
+            config (dict[str, Any], optional): specify a new config to override the values saved for the graph
+                                       (note that page sizes cannot be overridden; providing them raises an error)
+            read_only (bool): open as a read-only snapshot. Defaults to False.
+                              Multiple processes can hold a read-only handle to the same graph
+                              directory concurrently. Mutating the returned graph will fail.
 
         Returns:
             RdfGraph: The graph.
+
+        Raises:
+            GraphError: If path is not a stored graph or cannot be read.
         """
 
     def load_rdf(
@@ -8327,8 +8344,9 @@ class RdfGraph(RdfView):
             int: The number of triples read.
 
         Raises:
-            GraphError: If the format is unknown, the document does not parse, the graph uses integer node ids, or the operation fails.
-            TypeError: If source is neither bytes nor a path, or is a str that looks like a document rather than a path.
+            GraphError: If the operation fails.
+            ValueError: If the format is unknown or the document does not parse.
+            TypeError: If source is neither bytes nor a path, or the graph uses integer node ids.
         """
 
     def retract_rdf(
@@ -8345,7 +8363,8 @@ class RdfGraph(RdfView):
         mapped as in load_rdf(), so from time on it does not hold (until it is asserted again). A
         retraction is recorded even if the triple was never asserted. Blank-node labels are used
         as written, so they must be the stored labels (as returned by to_rdf() or sparql()). Each
-        triple is written as one edge event, in document order.
+        triple is written as one edge event, in document order. The retraction streams and is not
+        atomic: triples before an error stay retracted.
 
         Arguments:
             time (TimeInput): The time at which the triples are retracted.
@@ -8357,8 +8376,9 @@ class RdfGraph(RdfView):
             int: The number of triples read.
 
         Raises:
-            GraphError: If the format is unknown, the document does not parse, the graph uses integer node ids, or the operation fails.
-            TypeError: If source is neither bytes nor a path, or is a str that looks like a document rather than a path.
+            GraphError: If the operation fails.
+            ValueError: If the format is unknown or the document does not parse.
+            TypeError: If source is neither bytes nor a path, or the graph uses integer node ids.
         """
 
     def retract_triple(
@@ -8367,11 +8387,7 @@ class RdfGraph(RdfView):
         """
         Retracts one triple at time.
 
-        The terms are given as the node names sparql() returns, so its values can be passed
-        straight back: an absolute IRI as written (http://ex/alice), _:label for a blank node
-        (used as written), a literal in its N-Triples form ("Bob" or
-        "42"^^<http://www.w3.org/2001/XMLSchema#integer>), and any other name as raphtory: followed
-        by the percent-encoded name (Alice is raphtory:Alice).
+        Terms are given as in add_triple().
 
         Arguments:
             time (TimeInput): The time at which the triple is retracted.
@@ -8384,12 +8400,38 @@ class RdfGraph(RdfView):
 
         Raises:
             GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
+            TypeError: If the graph uses integer node ids.
         """
 
-def version() -> str:
+class ShaclWarning(object):
     """
-    Return Raphtory version.
+    Why the results of a SHACL validation report may not be those of SHACL. Its string form is a
+    stable name: `partial_subclass_reasoning` or `recursive_shapes`.
+    """
 
-    Returns:
-        str:
-    """
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __str__(self):
+        """Return str(self)."""

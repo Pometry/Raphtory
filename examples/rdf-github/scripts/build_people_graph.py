@@ -49,7 +49,7 @@ def main(graph_path):
     shutil.rmtree(graph_path, ignore_errors=True)
     os.makedirs(os.path.dirname(os.path.abspath(graph_path)), exist_ok=True)
     graph.graph.save_to_file(graph_path)
-    print(f"{graph.graph.count_temporal_edges()} assertions and retractions -> {graph_path}")
+    print(f"{graph.graph.count_temporal_edges()} assertions -> {graph_path}")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ use async_graphql::{
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
-    BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
+    BatchRequest, Context, Executor, Request as GqlRequest, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::{future::BoxFuture, StreamExt};
@@ -178,15 +178,12 @@ impl<E> AuthenticatedGraphQL<E> {
         }
     }
 
-    /// The caller's access, roles and token claims, read from the `Authorization` header of
-    /// `req`. Fails with 401 when reads require a valid token and `req` has none.
-    pub(crate) async fn authenticate(
-        &self,
-        req: &Request,
-    ) -> Result<(Access, Roles, TokenClaimValues)> {
+    /// The caller of `req`, read from its `Authorization` header. Fails with 401 when reads
+    /// require a valid token and `req` has none.
+    pub(crate) async fn authenticate(&self, req: &Request) -> Result<Caller> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
         let auth = &self.config.auth;
-        let (access, roles, claim_values) = match &self.key_resolver {
+        let (access, roles, claims) = match &self.key_resolver {
             // if auth is not setup, we give write access to all requests
             None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
             Some(resolver) => {
@@ -224,7 +221,29 @@ impl<E> AuthenticatedGraphQL<E> {
                 }
             }
         };
-        Ok((access, roles, claim_values))
+        Ok(Caller {
+            access,
+            roles,
+            claims,
+        })
+    }
+}
+
+/// The caller of a request: the access, roles and token claims its `Authorization` header
+/// carries.
+pub(crate) struct Caller {
+    access: Access,
+    roles: Roles,
+    claims: TokenClaimValues,
+}
+
+impl Caller {
+    /// Puts the caller in the data of `request`, where resolvers and authorization policies
+    /// read it.
+    pub(crate) fn attach(&self, request: &mut GqlRequest) {
+        request.data.insert(self.access.clone());
+        request.data.insert(self.roles.clone());
+        request.data.insert(self.claims.clone());
     }
 }
 
@@ -253,6 +272,11 @@ where
     #[cfg(feature = "rdf")]
     pub(crate) fn executor(&self) -> &E {
         &self.executor
+    }
+
+    #[cfg(feature = "rdf")]
+    pub(crate) fn config(&self) -> &AppConfig {
+        &self.config
     }
 }
 
@@ -286,7 +310,7 @@ where
     type Output = Response;
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
-        let (access, roles, claim_values) = self.authenticate(&req).await?;
+        let caller = self.authenticate(&req).await?;
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -295,8 +319,8 @@ where
 
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
-            let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(roles).data(claim_values);
+            let mut req = GraphQLRequest::from_request(&req, &mut body).await?.0;
+            caller.attach(&mut req);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -306,7 +330,7 @@ where
                 )))
         } else {
             let (req, mut body) = req.split();
-            let batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
+            let mut batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
 
             if let BatchRequest::Batch(requests) = &batch_req {
                 if self.config.concurrency.disable_batching {
@@ -320,9 +344,11 @@ where
                 }
             }
 
-            let req = batch_req.data(access).data(roles).data(claim_values);
+            batch_req
+                .iter_mut()
+                .for_each(|request| caller.attach(request));
 
-            let contains_update = match &req {
+            let contains_update = match &batch_req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),
                 BatchRequest::Batch(requests) => requests
                     .iter()
@@ -331,18 +357,18 @@ where
             if contains_update {
                 if let Some(lock) = &self.lock {
                     let _guard = lock.write().await;
-                    Ok(self.execute(req).await)
+                    Ok(self.execute(batch_req).await)
                 } else {
-                    Ok(self.execute(req).await)
+                    Ok(self.execute(batch_req).await)
                 }
             } else {
-                let heavy = match &req {
+                let heavy = match &batch_req {
                     BatchRequest::Single(request) => is_query_heavy(&request.query),
                     BatchRequest::Batch(requests) => requests
                         .iter()
                         .any(|request| is_query_heavy(&request.query)),
                 };
-                self.read(heavy, self.execute(req)).await
+                self.read(heavy, self.execute(batch_req)).await
             }
         }
     }
@@ -358,20 +384,9 @@ fn is_operation(query: &str, op: &str) -> bool {
         .any(|token| token == op)
 }
 
-fn is_query_heavy(query: &str) -> bool {
-    query.contains("outComponent")
-        || query.contains("inComponent")
-        || query.contains("edges")
-        || query.contains("outEdges")
-        || query.contains("inEdges")
-        || query.contains("neighbours")
-        || query.contains("outNeighbours")
-        || query.contains("inNeighbours")
-        || query.contains("algorithm")
-        || (cfg!(feature = "rdf")
-            && ["sparql", "toRdf", "validateShacl"]
-                .iter()
-                .any(|field| is_operation(query, field)))
+/// Every GraphQL request takes a `heavy_query_limit` slot.
+fn is_query_heavy(_query: &str) -> bool {
+    true
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),
@@ -625,19 +640,5 @@ mod tests {
             effective_roles(&c, None),
             vec!["b".to_string(), "a".to_string(), "c".to_string()]
         );
-    }
-
-    #[cfg(feature = "rdf")]
-    #[test]
-    fn rdf_fields_are_heavy() {
-        for field in [
-            "sparql(query: \"ASK {}\")",
-            "toRdf",
-            "validateShacl(shapes: \"\")",
-        ] {
-            let query = format!(r#"{{ rdfGraph(path: "g") {{ valid {{ {field} }} }} }}"#);
-            assert!(is_query_heavy(&query), "{query}");
-        }
-        assert!(!is_query_heavy(r#"{ rdfGraph(path: "g") { name } }"#));
     }
 }

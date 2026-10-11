@@ -82,7 +82,8 @@ class History:
             self.add(time, subject, iri(RDFS_LABEL), literal(name))
         written = 0
         for time in sorted(self.events):
-            for action in ("retract", "assert"):
+            # at equal times the later event wins: an item closed in the second it opened must end retracted
+            for action in ("assert", "retract"):
                 triples = self.events[time][action]
                 if triples:
                     document = "\n".join(triples).encode()

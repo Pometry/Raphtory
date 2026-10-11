@@ -202,6 +202,8 @@ print(now.sparql("""
 - **CSV loses information.** As the W3C specification defines it, CSV writes only values: literals lose their datatype
   and language. Use JSON, XML or TSV to keep the terms.
 - **ASK in CSV and TSV** is a bare `true` or `false`.
+- **RDF/XML cannot hold every triple.** A `CONSTRUCT` or `DESCRIBE` result with a triple RDF/XML cannot write, such as
+  one whose predicate does not end in an XML name, raises an error (see [limitations](4_limitations.md#exporting)).
 
 ## Joining through values
 
@@ -270,15 +272,13 @@ print(now.subgraph(["http://example.org/alice", "http://example.org/bob", "http:
 ## Errors and limits
 
 A query that does not parse raises an exception starting with `SPARQL syntax error`, and one that fails while it runs,
-`SPARQL evaluation error`. By default a query runs until it is done. To run queries you do not control, bound them:
+`SPARQL evaluation error`. By default a query runs until it is done; it has no time limit. To run queries you do not
+control, bound their size:
 
-- **`timeout`** (seconds) stops a query once it has run that long (`SPARQL query timed out`). A single expensive step,
-  such as hashing a very long string, runs to its end first.
-- **`max_triple_patterns`** rejects a query that is too large, before it runs (`SPARQL query too complex`). Planning
-  cannot be interrupted by `timeout`, and its cost grows with the fourth power of the number of triple patterns joined
-  together (about 0.6 s for 100 patterns and 1.5 s for 128, even on an empty graph). Every triple pattern counts one
-  (also those the parser makes of collections and `[ ... ]`), a property path one per predicate, a `BIND` or a
-  `SELECT` or `GROUP BY` expression one, and a `VALUES` block one plus one per variable and per 100 rows.
+- **`max_triple_patterns`** rejects a query that is too large, before it runs (`SPARQL query too complex`). The cost of
+  planning grows steeply with the number of joined patterns. Every triple pattern counts one (also those the parser
+  makes of collections and `[ ... ]`), a property path one per predicate, a `BIND` or a `SELECT` or `GROUP BY`
+  expression one, and a `VALUES` block one plus one per variable and per 100 rows.
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python}
@@ -289,105 +289,33 @@ for i in range(20):
     chain.add_edge(i, str(i), str(i + 1), layer="next")
 rg = RdfGraph(chain)
 
-# 20^8 combinations of eight unrelated patterns: far too many to count
-huge = "SELECT (COUNT(*) AS ?n) WHERE { " + " ".join(f"?s{i} ?p{i} ?o{i} ." for i in range(8)) + " }"
-try:
-    rg.sparql(huge, timeout=0.5)
-except Exception as e:
-    print(str(e))
-
 try:
     rg.sparql("SELECT * WHERE { ?a raphtory:next ?b . ?b raphtory:next ?c }", max_triple_patterns=1)
 except Exception as e:
     print(str(e).split(" (")[0])
 
-print(rg.sparql("ASK { raphtory:0 raphtory:next/raphtory:next raphtory:2 }", timeout=10, max_triple_patterns=10))
+print(rg.sparql("ASK { raphtory:0 raphtory:next/raphtory:next raphtory:2 }", max_triple_patterns=10))
 ```
 ///
 
 !!! Output
 
     ```output
-    SPARQL query timed out: it ran longer than its time limit of 500ms
     SPARQL query too complex: 2 triple patterns, the limit is 1
     True
     ```
 
-The [GraphQL server](5_graphql.md#limits) applies both limits to every query, by default 30 seconds and 100 triple
-patterns.
+The [GraphQL server](5_graphql.md#limits) applies the limit to every query, by default 100 triple patterns.
 
 ## Using SPARQL from Rust
 
 In Rust, `sparql()` is a method of `RdfGraph` and `RdfView`, and returns a `SparqlResults` whose terms are oxigraph
 `Term`s. `sparql_to_writer()` streams the results to a `std::io::Write` in a `QueryResultsFormat` (`SELECT`, `ASK`),
 an `RdfFormat` (`CONSTRUCT`, `DESCRIBE`) or a `SparqlFormat` with both, which `SparqlFormat::parse()` reads from the
-names of the Python `format` argument. `sparql_with()` and `sparql_to_writer_with()` also take `SparqlOptions`:
+names of the Python `format` argument. Both take `SparqlOptions`, built from `SparqlOptions::default()` with:
 
 - `with_temporal_functions(false)` turns off the [validity functions](3_time-travel.md#since-when-validity-functions)
   `raphtory:validFrom`, `validTo`, `validFromTime` and `validToTime` (whose IRIs are `VALID_FROM`, `VALID_TO`,
   `VALID_FROM_TIME` and `VALID_TO_TIME`), so a query that calls them fails.
-- `with_timeout(Duration)` and `with_max_triple_patterns(usize)` are the limits above, failing with
-  `RdfError::Timeout` and `RdfError::TooManyPatterns`. `SparqlOptions::default()` has neither.
-- `with_cancellation_token(CancellationToken)` lets another thread stop the query by calling `cancel()` on a clone of
-  the token (`RdfError::Cancelled`).
-
-A query that is stopped returns no results, but `sparql_to_writer_with()` may already have written part of the
-document.
-
-```{.python continuation hide}
-from datetime import datetime, timezone
-from decimal import Decimal
-
-import pytest
-
-zoo = RdfGraph()
-zoo.load_rdf(1, b"""
-    @prefix ex:  <http://example.org/> .
-    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-    ex:a ex:string "x"^^xsd:string ;
-         ex:lang "y"@en-GB ;
-         ex:int "5"^^xsd:int ;
-         ex:big 123456789012345678901234567890 ;
-         ex:fraction_18 1.123456789012345678 ;
-         ex:fraction_19 1.1234567890123456789 ;
-         ex:float "2.5"^^xsd:float ;
-         ex:offset "2024-01-02T03:04:05+02:00"^^xsd:dateTime ;
-         ex:naive "2024-01-02T03:04:05"^^xsd:dateTime ;
-         ex:year0 "0000-01-01T00:00:00Z"^^xsd:dateTime ;
-         ex:date "2024-01-02"^^xsd:date ;
-         ex:blank [] .
-""")
-decoded = {
-    row["p"].removeprefix("http://example.org/"): row["o"]
-    for row in zoo.sparql("SELECT ?p ?o WHERE { ?s ?p ?o }", decode_literals=True)
-}
-XSD = "http://www.w3.org/2001/XMLSchema#"
-assert decoded["string"] == "x" and decoded["lang"] == "y" and decoded["int"] == 5
-assert decoded["big"] == f'"123456789012345678901234567890"^^<{XSD}integer>'
-assert decoded["fraction_18"] == Decimal("1.123456789012345678")
-assert decoded["fraction_19"] == f'"1.1234567890123456789"^^<{XSD}decimal>'
-assert decoded["float"] == 2.5
-assert decoded["offset"] == datetime(2024, 1, 2, 1, 4, 5, tzinfo=timezone.utc)
-assert decoded["naive"] == datetime(2024, 1, 2, 3, 4, 5)
-assert decoded["year0"] == f'"0000-01-01T00:00:00Z"^^<{XSD}dateTime>'
-assert decoded["date"] == f'"2024-01-02"^^<{XSD}date>'
-assert zoo.graph.node(decoded["blank"]) is not None
-
-assert zoo.sparql("SELECT ?x WHERE { BIND(raphtory:asof:2024-01-01 AS ?x) }") == [{"x": "<raphtory:asof:2024-01-01>"}]
-assert zoo.sparql("SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }") == [{"n": f'"12"^^<{XSD}integer>'}]
-described = zoo.sparql("DESCRIBE <http://example.org/a>")
-assert len(described) == len(set(described)) == 12
-
-assert zoo.sparql("ASK { ?s ?p ?o }", format="csv") == "true"
-assert zoo.sparql("ASK { ?s ?p ?o }", format="json") == '{"head":{},"boolean":true}'
-with pytest.raises(Exception, match="SPARQL syntax error"):
-    zoo.sparql("SELECT ?x WHERE { ?x ")
-with pytest.raises(ValueError):
-    zoo.sparql("ASK { ?s ?p ?o }", format="json", decode_literals=True)
-
-people = Graph()
-people.add_edge(1, "Alice", "Bob Smith", layer="knows")
-assert RdfGraph(people).sparql("SELECT ?s ?o WHERE { ?s raphtory:knows ?o }", format="csv") == (
-    "s,o\r\nraphtory:Alice,raphtory:Bob%20Smith\r\n"
-)
-```
+- `with_max_triple_patterns(usize)` is the limit above, failing with `RdfError::TooManyPatterns`;
+  `SparqlOptions::default()` has no limit.

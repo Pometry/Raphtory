@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Downloads every pull request (with its reviews) and issue of a GitHub repository as JSON lines.
+# Lists are capped: the first 20 labels, 50 reviews and 10 closing issues of a pull request, and the first
+# 20 labels and 10 assignees of an issue.
 #   scripts/fetch.sh OWNER/NAME OUT_DIR
 # Needs the GitHub CLI (`gh`), logged in (`gh auth login`).
 set -euo pipefail
@@ -18,7 +20,7 @@ query($owner: String!, $name: String!, $endCursor: String) {
     pullRequests(first: 40, after: $endCursor, orderBy: {field: CREATED_AT, direction: ASC}) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        url number title createdAt mergedAt closedAt state additions deletions
+        url title createdAt mergedAt closedAt additions deletions
         author { login } mergedBy { login }
         labels(first: 20) { nodes { name url } }
         reviews(first: 50) { nodes { author { login } submittedAt state } }
@@ -36,7 +38,7 @@ query($owner: String!, $name: String!, $endCursor: String) {
     issues(first: 100, after: $endCursor, orderBy: {field: CREATED_AT, direction: ASC}) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        url number title createdAt closedAt state
+        url title createdAt closedAt
         author { login }
         labels(first: 20) { nodes { name url } }
         assignees(first: 10) { nodes { login } }

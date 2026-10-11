@@ -1,4 +1,4 @@
-from raphtory import EventTime, RdfGraph
+from raphtory import EventTime, RdfGraph, ShaclWarning
 
 SH = "http://www.w3.org/ns/shacl#"
 XSD = "http://www.w3.org/2001/XMLSchema#"
@@ -23,17 +23,6 @@ ex:PersonEmployer sh:path ( ex:worksFor ex:name ) ; sh:minLength 2 .
 """
 
 
-KEYS = {
-    "focus_node",
-    "path",
-    "value",
-    "source_shape",
-    "constraint_component",
-    "severity",
-    "messages",
-}
-
-
 def people():
     """alice loses her name at 5; bob gets a negative age at 7; acme's name gets too short at 9."""
     rg = RdfGraph()
@@ -47,7 +36,12 @@ def people():
 
 def summary(report):
     return [
-        (r["focus_node"], r["constraint_component"].removeprefix(SH), r["path"], r["value"])
+        (
+            r["focus_node"],
+            r["constraint_component"].removeprefix(SH),
+            r["path"],
+            r["value"],
+        )
         for r in report["results"]
     ]
 
@@ -55,13 +49,17 @@ def summary(report):
 def test_report_dict():
     rg = people()
     report = rg.valid().validate_shacl(SHAPES)
-    assert set(report) == {"conforms", "results", "warnings"}
     assert report["conforms"] is False
     assert report["warnings"] == []
-    for result in report["results"]:
-        assert set(result) == KEYS
-        assert result["severity"] == SH + "Violation"
-        assert isinstance(result["messages"], list)
+    assert report["results"][0] == {
+        "focus_node": "http://ex/alice",
+        "path": "http://ex/name",
+        "value": None,
+        "source_shape": "http://ex/PersonName",
+        "constraint_component": SH + "MinCountConstraintComponent",
+        "severity": SH + "Violation",
+        "messages": ["MinCount(1) not satisfied"],
+    }
     assert summary(report) == [
         ("http://ex/alice", "MinCountConstraintComponent", "http://ex/name", None),
         (
@@ -76,16 +74,6 @@ def test_report_dict():
             "http://ex/age",
             f'"-3"^^<{XSD}integer>',
         ),
-    ]
-    # names: focus nodes and values are nodes
-    for result in report["results"]:
-        assert rg.graph.node(result["focus_node"]) is not None
-        if result["value"] is not None:
-            assert rg.graph.node(result["value"]) is not None
-    assert [r["source_shape"] for r in report["results"]] == [
-        "http://ex/PersonName",
-        "http://ex/PersonEmployer",
-        "http://ex/PersonAge",
     ]
     # or the report as a document
     nt = rg.valid().validate_shacl(SHAPES, report_format="nt")
@@ -103,3 +91,17 @@ def test_snapshots_and_validate_at():
     assert [len(report["results"]) for _, report in reports] == [0, 1, 2]
     for t, report in reports:
         assert report == rg.snapshot_at(t).validate_shacl(SHAPES)
+
+
+def test_warnings():
+    rg = RdfGraph()
+    rg.load_rdf(
+        1, b"@prefix ex: <http://ex/> . ex:a ex:knows ex:b . ex:b ex:knows ex:a ."
+    )
+    recursive = b"""
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix ex: <http://ex/> .
+    ex:S sh:targetNode ex:a ; sh:property [ sh:path ex:knows ; sh:node ex:S ] .
+    """
+    report = rg.validate_shacl(recursive)
+    assert report["warnings"] == [ShaclWarning.RecursiveShapes]

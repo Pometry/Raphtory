@@ -1,40 +1,34 @@
 //! The W3C SHACL test suite (core and SHACL-SPARQL), run on Raphtory-backed data graphs.
 //!
-//! The suite is read from a checkout of <https://github.com/w3c/data-shapes> (W3C Software and
-//! Document License, see `LICENSE.md` in the checkout): the git submodule
-//! `raphtory-rdf-tests/test-suites/data-shapes`, or the directory in `RAPHTORY_SHACL_TESTS` if it
-//! is set and not empty. `make w3c-tests-init` checks the submodule out and `make rust-test-shacl-w3c` runs
-//! these tests. Without a checkout, the test prints how to get it and passes.
+//! The suite is read from the git submodule `raphtory-rdf-tests/test-suites/data-shapes`, a
+//! checkout of <https://github.com/w3c/data-shapes> (W3C Software and Document License, see
+//! `LICENSE.md` in the checkout). `make w3c-tests-init` checks the submodule out and
+//! `make rust-test-shacl-w3c` runs these tests.
 //!
-//! The data graph is stored with [`add_triple`](raphtory::rdf::RdfGraph::add_triple), which
+//! The data graph is stored with [`add_triple`](raphtory_rdf::RdfGraph::add_triple), which
 //! keeps blank-node labels, so data, shapes and expected report share their blank nodes.
 //! Reports are compared, as the suite specifies, by `sh:conforms` and the multiset of (focus
 //! node, constraint component, severity, path, value, source shape).
-use oxigraph::io::RdfParser;
-use raphtory::{
-    errors::GraphError,
-    prelude::*,
-    rdf::{
-        model::{Graph as OxGraph, NamedNode, NamedOrBlankNode, Term, Triple},
-        shacl::{ShaclReport, ShaclShapes},
-        RdfError, RdfFormat,
-    },
+use oxigraph::{
+    io::{RdfFormat, RdfParser},
+    model::{Graph as OxGraph, NamedOrBlankNode},
+};
+use raphtory_rdf::{
+    shacl::{self, ShaclFeature, ShaclReport, ShaclShapes},
+    Literal, NamedNode, RdfError, RdfGraph, Term, Triple,
 };
 use shacl_report::{actual, expected, list, objects, one};
 use std::{
     collections::BTreeMap,
+    fs,
     path::{Path, PathBuf},
 };
+use url::Url;
 
-/// `raphtory::rdf` as `crate::rdf`, the path [`shacl_report`] uses inside raphtory.
-mod rdf {
-    pub use raphtory::rdf::*;
-}
-
-/// Reading reports back: the helpers of raphtory's own SHACL tests (`rdf::tests::shacl`), which
+/// Reading reports back: the helpers of raphtory-rdf's own SHACL tests (`tests::shacl`), which
 /// compare `ShaclReport::write` with them, so that this suite checks those exact helpers against
-/// the expected reports.
-#[path = "../../raphtory/src/rdf/tests/shacl_report.rs"]
+/// the expected reports. They name `crate::shacl` and `crate::Literal`, imported above.
+#[path = "../../raphtory-rdf/src/tests/shacl_report.rs"]
 mod shacl_report;
 
 const MF: &str = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#";
@@ -44,65 +38,18 @@ fn nn(namespace: &str, local: &str) -> NamedNode {
     NamedNode::new_unchecked(format!("{namespace}{local}"))
 }
 
-/// The environment variable that overrides the directory of the checkout of w3c/data-shapes.
-const TESTS_ENV: &str = "RAPHTORY_SHACL_TESTS";
-
-/// The git submodule of w3c/data-shapes, relative to the root of the workspace.
-const SUBMODULE: &str = "raphtory-rdf-tests/test-suites/data-shapes";
-
-/// The command that checks the submodule out at its pinned commit (`--checkout` does so whatever
-/// `update` strategy the submodule has).
-const INIT: &str =
-    "git submodule update --init --checkout raphtory-rdf-tests/test-suites/data-shapes";
-
-/// The directory of the checkout of w3c/data-shapes: `RAPHTORY_SHACL_TESTS` if it is set and not
-/// empty, or else the submodule of the workspace.
-fn tests_dir() -> PathBuf {
-    match std::env::var_os(TESTS_ENV) {
-        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
-        _ => Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .expect("raphtory-rdf-tests is in a workspace")
-            .join(SUBMODULE),
-    }
-}
-
-/// The root of the checkout of w3c/data-shapes, or `None` (with a message) if [`tests_dir`] is
-/// not such a checkout.
-fn tests_root() -> Option<PathBuf> {
-    checkout_root(&tests_dir())
-        .inspect_err(|message| println!("{message}"))
-        .ok()
-}
-
-/// `dir` as a canonical absolute path if it is a checkout of w3c/data-shapes, or else the skip
-/// message. A relative `dir` is resolved against the test's working directory (the
-/// `raphtory-rdf-tests` crate directory), which the message shows.
-fn checkout_root(dir: &Path) -> Result<PathBuf, String> {
-    let absolute = std::path::absolute(dir).unwrap_or_else(|_| dir.to_owned());
-    if absolute
-        .join("data-shapes-test-suite/tests/manifest.ttl")
-        .is_file()
-    {
-        Ok(absolute.canonicalize().unwrap_or(absolute))
-    } else {
-        Err(format!(
-            "skipping the W3C SHACL conformance tests: {} (resolved to {}) is not a checkout of \
-             https://github.com/w3c/data-shapes. Run `{INIT}` (or `make w3c-tests-init`) in the \
-             Raphtory repository, or set {TESTS_ENV} to a checkout (a relative path is resolved \
-             against the raphtory-rdf-tests crate directory, where cargo runs the tests)",
-            dir.display(),
-            absolute.display()
-        ))
-    }
-}
+/// The root manifest of the suite (a git submodule).
+const MANIFEST: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/test-suites/data-shapes/data-shapes-test-suite/tests/manifest.ttl"
+);
 
 fn file_iri(path: &Path) -> String {
-    format!("file://{}", path.display()).replace(' ', "%20")
+    Url::from_file_path(path).unwrap().to_string()
 }
 
 fn iri_path(iri: &str) -> PathBuf {
-    PathBuf::from(iri.strip_prefix("file://").unwrap().replace("%20", " "))
+    Url::parse(iri).unwrap().to_file_path().unwrap()
 }
 
 /// The triples of every file read, by IRI: each file is parsed once, so its blank nodes keep
@@ -115,7 +62,7 @@ impl Files {
         self.0
             .entry(iri.to_owned())
             .or_insert_with(|| {
-                let data = std::fs::read(iri_path(iri)).unwrap();
+                let data = fs::read(iri_path(iri)).unwrap();
                 RdfParser::from_format(RdfFormat::Turtle)
                     .with_base_iri(iri)
                     .unwrap()
@@ -143,14 +90,12 @@ fn test_manifests(files: &mut Files, manifest: &str, out: &mut Vec<String>) {
 }
 
 /// How a test went.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq)]
 enum Outcome {
     /// The report is the expected one.
     Pass,
-    /// A failure was expected (`sht:Failure`), and validating failed.
-    PassFailure,
     /// The shapes use a feature that is rejected.
-    Unsupported(String),
+    Unsupported(ShaclFeature),
     /// Anything else.
     Fail(String),
 }
@@ -169,9 +114,11 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
             .unwrap_or_default();
         let dir = manifest.rsplit('/').nth(1).unwrap_or_default().to_owned();
         for entry in entries {
-            let name = entry.to_string();
-            let name = name.trim_end_matches('>').rsplit('/').next().unwrap();
-            let entry = NamedOrBlankNode::try_from(entry.clone()).unwrap();
+            let Term::NamedNode(id) = entry else {
+                panic!("{manifest}: an entry is not an IRI: {entry}")
+            };
+            let name = id.as_str().rsplit('/').next().unwrap();
+            let entry = NamedOrBlankNode::from(id.clone());
             let action = one(&graph, &entry, &nn(MF, "action")).unwrap();
             let action = NamedOrBlankNode::try_from(action).unwrap();
             let Some(Term::NamedNode(data)) = one(&graph, &action, &nn(SHT, "dataGraph")) else {
@@ -184,7 +131,7 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
             let result = one(&graph, &entry, &nn(MF, "result")).unwrap();
             let data = files.get(data.as_str());
             let shapes = files.get(shapes.as_str());
-            let validated = (|| -> Result<ShaclReport, GraphError> {
+            let validated = (|| -> Result<ShaclReport, RdfError> {
                 let g = RdfGraph::new();
                 for triple in &data {
                     g.add_triple(1, triple)?;
@@ -195,10 +142,7 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
             })();
             let failure_expected = result == Term::from(nn(SHT, "Failure"));
             let outcome = match validated {
-                Err(_) if failure_expected => Outcome::PassFailure,
-                Err(GraphError::Rdf(RdfError::ShaclUnsupported(feature))) => {
-                    Outcome::Unsupported(feature)
-                }
+                Err(RdfError::ShaclUnsupported { feature, .. }) => Outcome::Unsupported(feature),
                 Err(error) => Outcome::Fail(format!("error: {error}")),
                 Ok(_) if failure_expected => Outcome::Fail("a failure was expected".to_owned()),
                 Ok(report) => {
@@ -219,24 +163,26 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
 }
 
 /// The whole suite through its root manifest: every core test passes, and every SHACL-SPARQL
-/// test is rejected explicitly or expects a failure.
+/// test is rejected explicitly.
 #[test]
 fn w3c_root_manifest() {
-    let Some(root) = tests_root() else { return };
-    let outcomes = run_suite(&root.join("data-shapes-test-suite/tests/manifest.ttl"));
+    assert!(
+        Path::new(MANIFEST).is_file(),
+        "the W3C SHACL suite is missing: run `make w3c-tests-init`"
+    );
+    let outcomes = run_suite(Path::new(MANIFEST));
     let failed: Vec<_> = outcomes
         .iter()
         .filter(|(_, outcome)| matches!(outcome, Outcome::Fail(_)))
         .collect();
     assert_eq!(failed, vec![]);
-    let count = |pred: fn(&Outcome) -> bool| outcomes.values().filter(|o| pred(*o)).count();
+    let count = |pred: fn(&Outcome) -> bool| outcomes.values().filter(|o| pred(o)).count();
     assert_eq!(
         (
             count(|o| *o == Outcome::Pass),
             count(|o| matches!(o, Outcome::Unsupported(_))),
-            count(|o| *o == Outcome::PassFailure),
             outcomes.len(),
         ),
-        (98, 15, 7, 120)
+        (98, 22, 120)
     );
 }

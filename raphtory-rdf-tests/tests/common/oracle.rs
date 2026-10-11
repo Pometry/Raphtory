@@ -6,7 +6,7 @@ use oxigraph::{
     model::Dataset,
     sparql::{QueryResults, SparqlEvaluator},
 };
-use raphtory::rdf::{SparqlResults, RESERVED_NS};
+use raphtory_rdf::{SparqlResults, RESERVED_NS};
 use std::collections::HashSet;
 
 /// The results of `query` on `dataset`, collected as `RdfView::sparql` collects them (the

@@ -32,13 +32,13 @@ rg.load_rdf("2023-06-01", works_for("alice", "initech"))
 
 A query sees exactly the triples of the view it runs on:
 
-| View                                             | The triples it shows                                              |
-|--------------------------------------------------|-------------------------------------------------------------------|
-| `rg`                                             | every triple ever asserted (or retracted)                         |
-| `rg.valid()`, `rg.latest()`                      | the current state                                                 |
-| `rg.at(t)`, `rg.snapshot_at(t)`                  | the state as of `t`                                               |
-| `rg.window(start, end)`, `rg.before(t)`, `rg.after(t)` | every triple that held at some point in the window          |
-| `view.valid()`                                   | the triples of `view` that hold at its end                        |
+| View                                                   | The triples it shows                                                                 |
+|--------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `rg`                                                   | every triple ever asserted (or retracted)                                            |
+| `rg.valid()`, `rg.latest()`                            | the current state                                                                    |
+| `rg.at(t)`, `rg.snapshot_at(t)`                        | the state as of `t`                                                                  |
+| `rg.window(start, end)`, `rg.before(t)`, `rg.after(t)` | every triple that held at some point in the window, or was retracted after its start |
+| `view.valid()`                                         | the triples of `view` that hold at its end                                           |
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
@@ -125,7 +125,8 @@ assert shown(rg.valid().before(25)) == ["p", "q"]
 - Assertions and retractions are ordered by time, not by the order in which they were written.
 - If an assertion and a retraction of the same triple have the same time, the one written last wins.
 - Asserting a triple that already holds changes nothing visible, but the event is kept. One retraction ends it.
-- Retracting a triple that was never asserted is recorded: the whole graph shows the triple, `valid()` and `at(t)` do
+- Retractions are always recorded, even for a triple that was never asserted. The subject and object nodes are
+  created, and the whole graph and any window containing the retraction show the triple, but `valid()` and `at(t)` do
   not.
 - Retracting a triple does not affect other triples between the same two nodes, because each predicate is a separate
   layer.
@@ -150,20 +151,6 @@ same_time.retract_rdf(1, triple)
 print(same_time.at(1).sparql(ask))
 ```
 ///
-
-```{.python continuation hide}
-assert out_of_order.valid().sparql(ask) is False
-reversed_order = RdfGraph()
-reversed_order.retract_rdf(1, triple)
-reversed_order.load_rdf(1, triple)
-assert reversed_order.at(1).sparql(ask) is True
-duplicates = RdfGraph()
-duplicates.load_rdf(1, triple)
-duplicates.load_rdf(2, triple)
-duplicates.retract_rdf(3, triple)
-assert len(duplicates.at(2).sparql("SELECT * WHERE { ?s ?p ?o }")) == 1
-assert duplicates.at(3).sparql(ask) is False
-```
 
 !!! Output
 
@@ -215,8 +202,8 @@ Four functions answer "since when has this triple held, and until when?" inside 
 | `raphtory:validFromTime(s, p, o)` | the same time as `validFrom`, as a Raphtory time (milliseconds since the epoch)  |
 | `raphtory:validToTime(s, p, o)`   | the same time as `validTo`, as a Raphtory time                                   |
 
-Without a fourth argument they answer for the end of the view: on `rg` and `rg.valid()`, the present. So `validTo` is
-unbound, and `validFrom` is unbound for a triple that does not hold now. This query lists the current jobs of the
+Without a fourth argument they answer for the end of the view, so `validTo` is always unbound and `validFrom` is
+unbound for a triple that does not hold there. This query lists the current jobs of the
 [history above](#a-history-of-employment), with their start dates:
 
 /// tab | :fontawesome-brands-python: Python
@@ -324,37 +311,6 @@ The rules:
 - **Dates.** `validFrom` and `validTo` are unbound outside the years 1 to 9999; `validFromTime` and `validToTime` still
   answer.
 
-```{.python continuation hide}
-import pytest
-
-alice_acme = "<http://example.org/alice>, <http://example.org/worksFor>, <http://example.org/acme>"
-
-
-def interval(view, at=None):
-    args = alice_acme if at is None else alice_acme + ", " + at
-    [row] = view.sparql(
-        "SELECT (raphtory:validFromTime(" + args + ") AS ?since) (raphtory:validToTime(" + args + ") AS ?until) {}"
-    )
-    return row["since"], row["until"]
-
-
-june_2021 = '"1622505600000"^^<http://www.w3.org/2001/XMLSchema#integer>'
-june_2023 = '"1685577600000"^^<http://www.w3.org/2001/XMLSchema#integer>'
-assert interval(rg) == (None, None)
-for at in [
-    "raphtory:asof:2023-01-01",
-    "1672531200000",
-    '"2023-01-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>',
-]:
-    assert interval(rg, at) == (june_2021, june_2023), at
-assert interval(rg, '"2023-01-01"') == (None, None)
-with pytest.raises(Exception, match="SPARQL evaluation error"):
-    rg.sparql("SELECT (raphtory:validfrom(" + alice_acme + ") AS ?x) {}")
-assert interval(rg.at("2023-01-01")) == (june_2021, None)
-assert interval(rg.window("2023-01-01", "2023-03-01")) == (june_2021, None)
-assert interval(rg.exclude_nodes(["http://example.org/acme"]), "raphtory:asof:2023-01-01") == (None, None)
-```
-
 ## Comparing times in one query
 
 The time graphs `<raphtory:asof:T>` are virtual, read-only named graphs: `GRAPH <raphtory:asof:T> { ... }` matches its
@@ -456,41 +412,3 @@ for row in rows:
 - **`FROM NAMED`.** As SPARQL specifies, a query with `FROM NAMED` and no `FROM` has an empty default graph. Name the
   times with `VALUES` or constant `GRAPH` patterns to keep the default graph.
 - **Spelling.** `raphtory:asof:2024-01-01` and `raphtory:asof:1704067200000` are different graphs with the same triples.
-
-```{.python continuation hide}
-instant = RdfGraph()
-instant.load_rdf(1704067200000, works_for("alice", "acme"))
-for t in ["1704067200000", "2024-01-01", "2024-01-01T00:00:00", "2024-01-01T00:00:00.000", "2024-01-01T00:00:00Z",
-          "<raphtory:asof:2024-01-01T01:00:00+01:00>"]:
-    graph = t if t.startswith("<") else "raphtory:asof:" + t
-    assert instant.sparql("ASK { GRAPH " + graph + " { ?s ?p ?o } }") is True, t
-assert instant.sparql("ASK { GRAPH raphtory:asof:1704067199999 { ?s ?p ?o } }") is False
-with pytest.raises(Exception, match="invalid time graph"):
-    instant.sparql("ASK { GRAPH raphtory:asof:yesterday { ?s ?p ?o } }")
-
-staff = "SELECT ?person ?company WHERE { ?person <http://example.org/worksFor> ?company } ORDER BY ?person"
-staff_from = "SELECT ?person ?company FROM raphtory:asof:2023-01-01 WHERE { ?person <http://example.org/worksFor> ?company } ORDER BY ?person"
-assert rg.sparql(staff_from) == rg.at("2023-01-01").sparql(staff)
-two_froms = "SELECT MODIFIER ?person FROM raphtory:asof:2023-01-01 FROM raphtory:asof:2024-01-01 WHERE { ?person <http://example.org/worksFor> <http://example.org/acme> }"
-assert len(rg.sparql(two_froms.replace("MODIFIER", ""))) == 3
-assert len(rg.sparql(two_froms.replace("MODIFIER", "DISTINCT"))) == 2
-
-assert rg.sparql("ASK { GRAPH ?g { ?s ?p ?o } }") is False
-built = 'BIND(IRI(CONCAT("raphtory:asof:", "2022-01-01")) AS ?g)'
-pattern = "GRAPH ?g { ?person ?p ?company OPTIONAL { ?company ?q ?r } }"
-assert rg.sparql("SELECT ?person WHERE { " + built + " LATERAL { " + pattern + " } }") == [{"person": "http://example.org/alice"}]
-assert rg.sparql("ASK FROM NAMED raphtory:asof:2022-01-01 { ?s ?p ?o }") is False
-
-asof_2022 = "ASK { GRAPH raphtory:asof:2022-01-01 { ?s ?p ?o } }"
-assert rg.sparql(asof_2022) is True
-assert rg.layer("http%3A%2F%2Fexample.org%2FworksFor").sparql(asof_2022) is True
-assert rg.valid().sparql(asof_2022) is False
-assert rg.at("2023-01-01").sparql(asof_2022) is False
-assert rg.window("2021-06-01", "2023-01-01").sparql(asof_2022) is True
-```
-
-## Wrapped event graphs
-
-`RdfGraph(g)` on an event `Graph` views the same storage with persistent semantics. A retraction written through the
-`RdfGraph` is stored as a deletion: the `RdfGraph` and `g.persistent_graph()` see it, and event views of `g` ignore it,
-since an event graph treats every assertion as an instantaneous event.

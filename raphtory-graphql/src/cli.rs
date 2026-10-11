@@ -1,6 +1,7 @@
 #[cfg(feature = "rdf")]
 use crate::config::concurrency_config::{
-    DEFAULT_MAX_SPARQL_QUERY_LENGTH, DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS, DEFAULT_SPARQL_TIMEOUT,
+    DEFAULT_MAX_SPARQL_QUERY_LENGTH, DEFAULT_MAX_SPARQL_RESULT_BYTES,
+    DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS,
 };
 use crate::{
     config::{
@@ -23,23 +24,13 @@ use crate::{
 };
 use clap::{Parser, Subcommand};
 use raphtory::db::api::storage::storage::Args as GraphArgs;
-#[cfg(feature = "rdf")]
-use raphtory::rdf::timeout_from_secs;
 use serde::Serialize;
 use serde_json::json;
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
-#[cfg(feature = "rdf")]
-use std::{error::Error, time::Duration};
 use tokio::io::Result as IoResult;
 
 fn parse_json_map(input: &str) -> Result<HashMap<String, String>, serde_json::Error> {
     serde_json::from_str(input)
-}
-
-/// A `--sparql-timeout` in seconds: a finite number, at least 0.
-#[cfg(feature = "rdf")]
-fn parse_sparql_timeout(input: &str) -> Result<Duration, Box<dyn Error + Send + Sync>> {
-    Ok(timeout_from_secs(input.trim().parse()?)?)
 }
 
 macro_rules! help_with_default {
@@ -134,8 +125,8 @@ pub struct ConfigArgs {
     #[arg(
         long,
         env = "RAPHTORY_HEAVY_QUERY_LIMIT",
-        help = "Restricts how many expensive graph traversal queries can execute simultaneously.",
-        long_help = "Covers operations like connected components, edge traversals, and neighbour lookups (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
+        help = "Restricts how many queries can execute simultaneously.",
+        long_help = "Every GraphQL query and every SPARQL endpoint query takes a slot. Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
     )]
     pub(crate) heavy_query_limit: Option<usize>,
 
@@ -185,19 +176,18 @@ pub struct ConfigArgs {
     #[cfg(feature = "rdf")]
     #[arg(
         long,
-        env = "RAPHTORY_SPARQL_TIMEOUT",
-        value_parser = parse_sparql_timeout,
-        help = help_with_default!("Time limit in seconds of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Longer queries are stopped and return an error. A query whose client disconnects runs on until this limit.", DEFAULT_SPARQL_TIMEOUT.as_secs_f64())
+        env = "RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS",
+        help = help_with_default!("Maximum number of triple patterns of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Larger queries are rejected before they are planned.", DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS)
     )]
-    pub(crate) sparql_timeout: Option<Duration>,
+    pub(crate) max_sparql_triple_patterns: Option<usize>,
 
     #[cfg(feature = "rdf")]
     #[arg(
         long,
-        env = "RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS",
-        help = help_with_default!("Maximum number of triple patterns of a SPARQL query (the `sparql` field or the `/sparql` endpoint) (each pattern, property path step, BIND and (... AS ?v) of SELECT or GROUP BY counts one, and each VALUES block one plus one per variable and per 100 rows). Larger queries are rejected before they are planned.", DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS)
+        env = "RAPHTORY_MAX_SPARQL_RESULT_BYTES",
+        help = help_with_default!("Maximum size in bytes of the results of a SPARQL query or an RDF export (the `sparql` and `toRdf` fields or the `/sparql` endpoint). Larger results fail.", DEFAULT_MAX_SPARQL_RESULT_BYTES)
     )]
-    pub(crate) max_sparql_triple_patterns: Option<usize>,
+    pub(crate) max_sparql_result_bytes: Option<usize>,
 
     #[arg(
         long,

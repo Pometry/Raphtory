@@ -43,22 +43,23 @@ use {
 ///                                bearer tokens), `require_auth_for_reads` (bool),
 ///                                `audience` (str), `issuer` (str), `role_claim` (str)
 ///                              * `concurrency`: `heavy_query_limit` (int, maximum number of
-///                                expensive traversal queries allowed to run simultaneously;
-///                                extra queries are parked on a semaphore),
+///                                queries allowed to run simultaneously, counting every GraphQL
+///                                query and every SPARQL endpoint query; extra queries are
+///                                parked on a semaphore),
 ///                                `exclusive_writes` (bool, run write operations one at a time
 ///                                and block reads until complete), `disable_batching` (bool,
 ///                                reject batched GraphQL requests), `max_batch_size` (int, cap
 ///                                on the number of queries in a batched request; null for
 ///                                unlimited), `disable_lists` (bool, disable bulk `list`
-///                                endpoints so clients must use `page`), `max_page_size` (int),
-///                                `max_sparql_query_length` (int, maximum length in bytes of a
-///                                SPARQL query; null for unlimited), `sparql_timeout` (float,
-///                                seconds before a SPARQL query is stopped, also when its
-///                                client has disconnected; default 30, null for unlimited),
+///                                endpoints so clients must use `page`, and `sparql`, `toRdf`,
+///                                `validateShacl` and the `/sparql` endpoint), `max_page_size`
+///                                (int), `max_sparql_query_length` (int, maximum length in bytes
+///                                of a SPARQL query; default 16384, null for unlimited),
 ///                                `max_sparql_triple_patterns` (int, maximum number of triple
-///                                patterns of a SPARQL query; default 100, null for unlimited)
-///                                (the last three need the `rdf` feature, which the Python
-///                                package has)
+///                                patterns of a SPARQL query; default 100, null for unlimited),
+///                                `max_sparql_result_bytes` (int, maximum size in bytes of the
+///                                results of a SPARQL query or an RDF export; default 268435456,
+///                                null for unlimited)
 ///                              * `schema`: `max_query_depth` (int), `max_query_complexity`
 ///                                (int, based on the number of fields selected),
 ///                                `max_recursive_depth` (int, safety limit against stack

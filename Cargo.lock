@@ -2715,6 +2715,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6636,12 +6646,8 @@ dependencies = [
  "once_cell",
  "ordered-float 5.5.0",
  "ouroboros",
- "oxigraph",
- "oxiri 0.2.11",
  "parking_lot",
  "parquet",
- "percent-encoding",
- "prefixmap",
  "proptest",
  "pyo3",
  "pythonize",
@@ -6658,15 +6664,10 @@ dependencies = [
  "regex",
  "reqwest 0.13.4",
  "roaring",
- "rudof_iri",
- "rudof_rdf",
  "rustc-hash",
  "serde",
  "serde_arrow",
  "serde_json",
- "shacl",
- "spareval",
- "spargebra",
  "streaming-stats",
  "strsim",
  "tempfile",
@@ -6819,6 +6820,7 @@ dependencies = [
  "rand 0.9.5",
  "raphtory",
  "raphtory-api",
+ "raphtory-rdf",
  "raphtory-storage",
  "rayon",
  "reqwest 0.13.4",
@@ -6877,6 +6879,7 @@ dependencies = [
  "raphtory",
  "raphtory-auth-noop",
  "raphtory-graphql",
+ "raphtory-rdf",
  "tikv-jemallocator",
 ]
 
@@ -6902,7 +6905,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "raphtory-rdf-bench"
+name = "raphtory-rdf"
+version = "0.18.0"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "dashmap",
+ "either",
+ "indexmap 2.14.0",
+ "itertools 0.15.0",
+ "oxigraph",
+ "oxiri 0.2.11",
+ "percent-encoding",
+ "prefixmap",
+ "proptest",
+ "pyo3",
+ "raphtory",
+ "raphtory-api",
+ "raphtory-core",
+ "raphtory-storage",
+ "rayon",
+ "rudof_iri",
+ "rudof_rdf",
+ "rustc-hash",
+ "shacl",
+ "spareval",
+ "spargebra",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "raphtory-rdf-tests"
 version = "0.18.0"
 dependencies = [
  "bzip2",
@@ -6911,21 +6944,14 @@ dependencies = [
  "flate2",
  "oxigraph",
  "raphtory",
+ "raphtory-rdf",
+ "rayon",
  "regex",
+ "rudof_rdf",
  "rustc-hash",
  "spargebra",
- "zip",
-]
-
-[[package]]
-name = "raphtory-rdf-tests"
-version = "0.18.0"
-dependencies = [
- "flate2",
- "oxigraph",
- "raphtory",
- "rayon",
- "spargebra",
+ "tar",
+ "url",
  "zip",
 ]
 
@@ -8397,6 +8423,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+ "xattr",
+]
+
+[[package]]
 name = "target-lexicon"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9564,6 +9601,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
+]
+
+[[package]]
+name = "xattr"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
+dependencies = [
+ "libc",
+ "rustix",
 ]
 
 [[package]]

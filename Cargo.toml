@@ -17,8 +17,8 @@ members = [
     "raphtory-itertools",
     "drop-logging",
     "raphtory-graphql-tests",
-    "raphtory-rdf-tests",
-    "rdf-bench"
+    "raphtory-rdf",
+    "raphtory-rdf-tests"
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -69,6 +69,7 @@ raphtory-api = { version = "0.18.0", path = "raphtory-api", default-features = f
 raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", default-features = false }
 raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
+raphtory-rdf = { version = "0.18.0", path = "raphtory-rdf", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
 drop-logging = { version = "0.18.0", path = "drop-logging" }
@@ -126,6 +127,7 @@ glam = "0.33.0"
 quad-rand = "0.2.3"
 zip = "8.6.0"
 bzip2 = "0.6.1"
+tar = "0.4"
 async-trait = "0.1.89"
 async-openai = "0.28.3"
 num = "0.4.3"

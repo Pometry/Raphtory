@@ -1,7 +1,9 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
 
 def get_app_config(stdout: str) -> dict:
@@ -142,3 +144,32 @@ def test_raphtory_server_with_command_line_argument():
     app_config = get_app_config(stdout)
     cache_capacity = app_config["cache"]["capacity"]
     assert cache_capacity == 789
+
+
+def test_sparql_limits_from_every_config_source():
+    env = {k: v for k, v in os.environ.items() if not k.startswith("RAPHTORY_")}
+    env["RAPHTORY_MAX_SPARQL_TRIPLE_PATTERNS"] = "5"
+    with tempfile.TemporaryDirectory() as tmp:
+        config_file = Path(tmp) / "config.toml"
+        config_file.write_text("[concurrency]\nmax_sparql_query_length = 100\n")
+        printed = subprocess.run(
+            [
+                Path(sys.executable).with_name("raphtory"),
+                "server",
+                "--work-dir",
+                Path(tmp) / "graphs",
+                "--config-file",
+                config_file,
+                "--max-sparql-result-bytes",
+                "1000",
+                "--print-config",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        )
+    concurrency = json.loads(printed.stdout)["concurrency"]
+    assert concurrency["max_sparql_query_length"] == 100
+    assert concurrency["max_sparql_triple_patterns"] == 5
+    assert concurrency["max_sparql_result_bytes"] == 1000

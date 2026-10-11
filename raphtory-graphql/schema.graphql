@@ -7473,7 +7473,8 @@ type RdfGraph {
 	"""
 	snapshotLatest: RdfGraph!
 	"""
-	View of the events before a time (exclusive).
+	View of the triples that held at some time before `time` (exclusive), including those
+	retracted before it; `at` gives the state at a time.
 	"""
 	before(
 		"""
@@ -7482,7 +7483,7 @@ type RdfGraph {
 		time: TimeInput!
 	): RdfGraph!
 	"""
-	View of the events after a time (exclusive).
+	View of the triples that held at some time after `time` (exclusive).
 	"""
 	after(
 		"""
@@ -7562,7 +7563,12 @@ type RdfGraph {
 	"""
 	Check if a layer with the given name is present in the graph.
 	"""
-	hasLayer(name: String!): Boolean!
+	hasLayer(
+		"""
+		Layer name to look for.
+		"""
+		name: String!
+	): Boolean!
 	"""
 	The same view as a property graph.
 	"""
@@ -7573,10 +7579,10 @@ type RdfGraph {
 	`snapshotAt(time: T)` of the view. The temporal functions (`raphtory:validFrom`,
 	`validTo`, `validFromTime`, `validToTime`) are unavailable when the caller's access to
 	the graph is row-filtered. Disabled when the server sets `disable_lists`. Queries longer
-	than the server's `max_sparql_query_length` (16 KiB by default), with more than
-	`max_sparql_triple_patterns` triple patterns (100 by default) or with brackets nested
-	more than 128 deep are rejected before they run, and a query that runs longer than
-	`sparql_timeout` (30 seconds by default) is stopped with an error.
+	than the server's `max_sparql_query_length`, with more than `max_sparql_triple_patterns`
+	triple patterns or with brackets nested too deep are rejected before they run, and
+	results larger than `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold
+	the results, such as a triple whose predicate does not end in an XML name.
 	"""
 	sparql(
 		"""
@@ -7590,8 +7596,7 @@ type RdfGraph {
 	): String!
 	"""
 	The triples of this view as one RDF document. Disabled when the server sets
-	`disable_lists`. An export that runs longer than `sparql_timeout` (30 seconds by default)
-	is stopped with an error.
+	`disable_lists`; documents larger than `max_sparql_result_bytes` fail.
 	"""
 	toRdf(
 		"""
@@ -7602,8 +7607,7 @@ type RdfGraph {
 	"""
 	Validates the triples of this view against a SHACL shapes graph and returns the W3C
 	`sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-	are rejected. Disabled when the server sets `disable_lists`. A validation that runs
-	longer than `sparql_timeout` (30 seconds by default) is stopped with an error.
+	are rejected. Disabled when the server sets `disable_lists`.
 	"""
 	validateShacl(
 		"""

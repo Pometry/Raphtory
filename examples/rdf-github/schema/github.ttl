@@ -1,6 +1,4 @@
 # The shapes of the GitHub graph built by scripts/build_github_graph.py, as SHACL.
-# `make validate` checks the graph against them now, as of the start of each year, and on the whole
-# history, which holds every triple ever asserted or retracted.
 
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
