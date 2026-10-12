@@ -5107,7 +5107,7 @@ mod test_node_property_filter_agg {
 
     #[track_caller]
     fn apply_assertion(
-        filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+        filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
         expected: &[&str],
     ) {
         assert_filter_nodes_results(
@@ -5121,7 +5121,7 @@ mod test_node_property_filter_agg {
 
     #[track_caller]
     fn apply_assertion_err(
-        filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+        filter: impl TryAsCompositeFilter + CreateFilter + Clone + 'static,
         expected: &str,
     ) {
         assert_filter_nodes_err(
