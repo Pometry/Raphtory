@@ -4776,14 +4776,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "minijinja-contrib"
-version = "2.24.0"
+name = "minijinja"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd3e5f077bc2379f0f7d911e7cfdd921114ed99fc884533dca502944cb355b11"
+checksum = "13345868cfa94eadafc067112ff29271380a820d5594d9ee6ba81a8d00ea5dc2"
+
+[[package]]
+name = "minijinja-contrib"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd9a0180a822fa9c843c36c442dbc9ca4b0d3eca5e501a6fac6a9cc1ed230a49"
 dependencies = [
- "minijinja",
- "serde",
- "time",
+ "jiff",
+ "minijinja 3.0.0",
 ]
 
 [[package]]
@@ -6332,7 +6337,7 @@ dependencies = [
  "iter-enum",
  "itertools 0.15.0",
  "lock_api",
- "minijinja",
+ "minijinja 2.24.0",
  "num-bigint 0.5.1",
  "num-rational",
  "num-traits",
@@ -6621,7 +6626,7 @@ dependencies = [
  "indoc",
  "itertools 0.15.0",
  "lancedb",
- "minijinja",
+ "minijinja 2.24.0",
  "minijinja-contrib",
  "moka",
  "once_cell",
