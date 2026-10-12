@@ -1,17 +1,23 @@
 use crate::{
-    db::api::{
-        properties::internal::{
-            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+    db::{
+        api::{
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
+            view::internal::{
+                GraphView, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+                InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+                Static,
+            },
         },
-        view::internal::{
-            Immutable, InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
-            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-            InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
+        graph::views::filter::leg::{
+            keeps_edge, keeps_edge_layer, keeps_exploded_edge, keeps_node, restricts_edge_layers,
+            restricts_edges, restricts_exploded_edges, restricts_nodes, restricts_view,
         },
     },
     prelude::GraphViewOps,
 };
-use either::Either;
 use raphtory_api::{
     core::{
         entities::{LayerId, LayerIds, ELID},
@@ -64,123 +70,84 @@ impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgePropertySchemaOps
 }
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for OrFilteredGraph<G, L, R> {}
 
-impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps
-    for OrFilteredGraph<G, L, R>
-{
+impl<G, L: GraphView, R: GraphView> InternalNodeFilterOps for OrFilteredGraph<G, L, R> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
-        self.left.internal_nodes_filtered() && self.right.internal_nodes_filtered()
+        restricts_nodes(&self.left) && restricts_nodes(&self.right)
     }
 
     #[inline]
     fn internal_node_list_trusted(&self) -> bool {
-        self.left.internal_node_list_trusted() && self.right.internal_node_list_trusted()
+        self.left.internal_node_list_trusted()
+            && self.right.internal_node_list_trusted()
+            && !restricts_view(&self.left)
+            && !restricts_view(&self.right)
     }
 
     #[inline]
-    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.internal_filter_node(node, layer_ids)
-            || self.right.internal_filter_node(node, layer_ids)
+    fn internal_filter_node(&self, node: NodeStorageRef, _layer_ids: &LayerIds) -> bool {
+        keeps_node(&self.left, node) || keeps_node(&self.right, node)
     }
 }
 
-/// Whether `side` keeps `edge` at all: a side that does not filter edges keeps
-/// every edge. A layer or an update of an edge belongs to the union through the
-/// sides that keep the edge, so a side that drops the edge cannot let its layers
-/// or updates through by not looking at them.
-fn side_keeps_edge<S: InternalEdgeFilterOps>(
-    side: &S,
-    edge: EdgeEntryRef,
-    layer_ids: &LayerIds,
-) -> bool {
-    !side.internal_edge_filtered() || side.internal_filter_edge(edge, layer_ids)
-}
-
-impl<'graph, G: GraphViewOps<'graph>, L, R> InternalEdgeLayerFilterOps for OrFilteredGraph<G, L, R>
-where
-    L: InternalEdgeFilterOps + InternalEdgeLayerFilterOps,
-    R: InternalEdgeFilterOps + InternalEdgeLayerFilterOps,
-{
+/// A layer or an update of an edge belongs to the union through the legs that
+/// keep the edge, so either leg restricting layers or updates can drop one
+/// that the other leg's edge would otherwise let through.
+impl<G, L: GraphView, R: GraphView> InternalEdgeLayerFilterOps for OrFilteredGraph<G, L, R> {
     fn internal_edge_layer_filtered(&self) -> bool {
-        self.left.internal_edge_layer_filtered() || self.right.internal_edge_layer_filtered()
+        restricts_edge_layers(&self.left) || restricts_edge_layers(&self.right)
     }
 
     fn internal_layer_filter_edge_list_trusted(&self) -> bool {
         self.left.internal_layer_filter_edge_list_trusted()
             && self.right.internal_layer_filter_edge_list_trusted()
+            && !restricts_view(&self.left)
+            && !restricts_view(&self.right)
     }
 
     fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        let layer_ids = self.graph.layer_ids();
-        layer_through(&self.left, edge, layer, layer_ids)
-            || layer_through(&self.right, edge, layer, layer_ids)
+        keeps_edge_layer(&self.left, edge, layer) || keeps_edge_layer(&self.right, edge, layer)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, L, R> InternalExplodedEdgeFilterOps
-    for OrFilteredGraph<G, L, R>
-where
-    L: InternalEdgeFilterOps + InternalExplodedEdgeFilterOps,
-    R: InternalEdgeFilterOps + InternalExplodedEdgeFilterOps,
-{
+impl<G, L: GraphView, R: GraphView> InternalExplodedEdgeFilterOps for OrFilteredGraph<G, L, R> {
     fn internal_exploded_edge_filtered(&self) -> bool {
-        self.left.internal_exploded_edge_filtered() || self.right.internal_exploded_edge_filtered()
+        restricts_exploded_edges(&self.left) || restricts_exploded_edges(&self.right)
     }
 
     fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
         self.left.internal_exploded_filter_edge_list_trusted()
             && self.right.internal_exploded_filter_edge_list_trusted()
+            && !restricts_view(&self.left)
+            && !restricts_view(&self.right)
     }
 
-    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
-        let edge = self.graph.core_edge(Either::Left(eid.eid()));
-        exploded_through(&self.left, edge.as_ref(), eid, t, layer_ids)
-            || exploded_through(&self.right, edge.as_ref(), eid, t, layer_ids)
+    fn internal_filter_exploded_edge(
+        &self,
+        eid: ELID,
+        t: EventTime,
+        _layer_ids: &LayerIds,
+    ) -> bool {
+        keeps_exploded_edge(&self.left, eid, t) || keeps_exploded_edge(&self.right, eid, t)
     }
 }
 
-/// Whether `side` lets `layer` of `edge` into the union: it keeps the edge and
-/// either does not filter layers or keeps this one.
-fn layer_through<S: InternalEdgeFilterOps + InternalEdgeLayerFilterOps>(
-    side: &S,
-    edge: EdgeEntryRef,
-    layer: LayerId,
-    layer_ids: &LayerIds,
-) -> bool {
-    side_keeps_edge(side, edge, layer_ids)
-        && (!side.internal_edge_layer_filtered() || side.internal_filter_edge_layer(edge, layer))
-}
-
-/// Whether `side` lets the update of `edge` at `t` into the union: it keeps the
-/// edge and either does not filter updates or keeps this one.
-fn exploded_through<S: InternalEdgeFilterOps + InternalExplodedEdgeFilterOps>(
-    side: &S,
-    edge: EdgeEntryRef,
-    eid: ELID,
-    t: EventTime,
-    layer_ids: &LayerIds,
-) -> bool {
-    side_keeps_edge(side, edge, layer_ids)
-        && (!side.internal_exploded_edge_filtered()
-            || side.internal_filter_exploded_edge(eid, t, layer_ids))
-}
-
-impl<G, L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps
-    for OrFilteredGraph<G, L, R>
-{
+impl<G, L: GraphView, R: GraphView> InternalEdgeFilterOps for OrFilteredGraph<G, L, R> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.left.internal_edge_filtered() && self.right.internal_edge_filtered()
+        restricts_edges(&self.left) && restricts_edges(&self.right)
     }
 
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
-        self.left.internal_edge_list_trusted() && self.right.internal_edge_list_trusted()
+        self.left.internal_edge_list_trusted()
+            && self.right.internal_edge_list_trusted()
+            && !restricts_view(&self.left)
+            && !restricts_view(&self.right)
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
-        self.left.internal_filter_edge(edge, layer_ids)
-            || self.right.internal_filter_edge(edge, layer_ids)
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, _layer_ids: &LayerIds) -> bool {
+        keeps_edge(&self.left, edge) || keeps_edge(&self.right, edge)
     }
 }
