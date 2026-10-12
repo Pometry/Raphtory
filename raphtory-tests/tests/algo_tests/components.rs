@@ -396,7 +396,7 @@ mod in_component_test {
         graph.add_edge(1, 5, 4, NO_PROPS, Some("B")).unwrap();
 
         // Sanity: with A-only filter, 5 should disappear
-        let filter = GraphFilter.layer("A");
+        let filter = GraphFilter.layers("A");
 
         check_node_filtered(&graph, 6, filter.clone(), vec![(4, 1), (2, 2), (1, 3)]);
         check_node_filtered(&graph, 4, filter.clone(), vec![(2, 1), (1, 2)]);
@@ -415,7 +415,7 @@ mod in_component_test {
         graph.add_edge(1, 5, 4, NO_PROPS, Some("B")).unwrap();
 
         test_storage!(&graph, |graph| {
-            let results = in_components_filtered(graph, None, GraphFilter.layer("A")).unwrap();
+            let results = in_components_filtered(graph, None, GraphFilter.layers("A")).unwrap();
 
             let mut correct: HashMap<String, Vec<u64>> = HashMap::new();
             correct.insert("1".to_string(), vec![]);
@@ -458,7 +458,7 @@ mod in_component_test {
         check_node_filtered(
             &graph,
             6,
-            GraphFilter.layer("A"),
+            GraphFilter.layers("A"),
             vec![(4, 1), (2, 2), (3, 2), (1, 3)],
         );
     }
@@ -471,14 +471,15 @@ mod in_component_test {
         graph.add_edge(1, 99, 2, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 100, 99, NO_PROPS, Some("B")).unwrap();
 
-        let result = in_component_filtered(graph.node(4).unwrap(), GraphFilter.layer("A")).unwrap();
+        let result =
+            in_component_filtered(graph.node(4).unwrap(), GraphFilter.layers("A")).unwrap();
         let result = result
             .iter()
             .flat_map(|(n, _)| n.id().as_u64())
             .collect::<Vec<_>>();
         assert_eq!(result, vec![2]);
         let unfiltered_ids: Vec<u64> =
-            in_component_filtered(graph.node(4).unwrap(), GraphFilter.layer("A"))
+            in_component_filtered(graph.node(4).unwrap(), GraphFilter.layers("A"))
                 .unwrap()
                 .nodes()
                 .in_neighbours()
@@ -514,7 +515,7 @@ mod in_component_test {
             .add_edge(1, 11, 4, vec![("p1", Prop::U64(2))], Some("B"))
             .unwrap();
 
-        let filter = EdgeFilter.layer("A").property("p1").ge(3u64);
+        let filter = EdgeFilter.layers("A").property("p1").ge(3u64);
         check_node_filtered(&graph, 6, filter, vec![(3, 2), (4, 1)]);
     }
 }
@@ -671,7 +672,7 @@ mod components_test {
         graph.add_edge(1, 10, 11, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 11, 4, NO_PROPS, Some("B")).unwrap();
 
-        let filter = GraphFilter.layer("A");
+        let filter = GraphFilter.layers("A");
 
         check_node_filtered(&graph, 1, filter.clone(), vec![(2, 1), (3, 2), (4, 3)]);
 
@@ -693,7 +694,7 @@ mod components_test {
         graph.add_edge(1, 1, 99, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
 
-        let filter = GraphFilter.layer("A");
+        let filter = GraphFilter.layers("A");
 
         check_node_filtered(&graph, 1, filter, vec![(2, 1), (3, 1), (4, 2)]);
     }
@@ -711,7 +712,7 @@ mod components_test {
         graph.add_edge(1, 1, 200, NO_PROPS, Some("B")).unwrap();
 
         test_storage!(&graph, |graph| {
-            let results = out_components_filtered(graph, None, GraphFilter.layer("A")).unwrap();
+            let results = out_components_filtered(graph, None, GraphFilter.layers("A")).unwrap();
 
             let mut correct: HashMap<String, Vec<u64>> = HashMap::new();
             correct.insert("1".to_string(), vec![2, 3, 4, 5]);
@@ -748,7 +749,7 @@ mod components_test {
         graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
 
         let unfiltered_ids: Vec<u64> =
-            out_component_filtered(graph.node(1).unwrap(), GraphFilter.layer("A"))
+            out_component_filtered(graph.node(1).unwrap(), GraphFilter.layers("A"))
                 .unwrap()
                 .nodes()
                 .out_neighbours()

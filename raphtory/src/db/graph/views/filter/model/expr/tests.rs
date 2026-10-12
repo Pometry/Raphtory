@@ -1,5 +1,6 @@
 use super::*;
 use crate::{
+    algorithms::alternating_mask::alternating_mask,
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic, Select},
         graph::{
@@ -11,7 +12,6 @@ use crate::{
                         edge_filter::EdgeFilter,
                         exploded_edge_filter::ExplodedEdgeFilter,
                         graph_filter::GraphFilter,
-                        node_expr::Compiled,
                         node_filter::{NodeFilter, NodeFilterFactory},
                         ComposableFilter, EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps,
                         PropertyExprFactory, ViewWrapOps,
@@ -349,7 +349,7 @@ fn edges_endpoints_and_structure() {
     let into_scored = FilterExpr::Edge(dst(Expr::IsSome(Box::new(prop("score")))));
     assert_eq!(edges(&g, &into_scored), ["alice->bob", "carol->dave"]);
     let works = FilterExpr::Edge(Expr::Term(EdgeLeaf::IsActive {
-        views: vec![ViewOp::Layers(vec!["works".into()])],
+        views: vec![ViewOp::Layers("works".into())],
     }));
     assert_eq!(edges(&g, &works), ["bob->carol"]);
     assert_eq!(works.to_string(), "EDGE(LAYER[works](IS_ACTIVE))");
@@ -447,15 +447,15 @@ fn a_view_leg_in_a_select_is_an_existence_test() {
         ids
     }
     let g = graph();
-    let in_window = |start, end, e: NodeExpr| {
-        let mut e = e;
-        e.push_view(window(start, end));
-        e
-    };
-    let score_after_5 = node(cmp(BinaryOp::Gt, in_window(5, 8, prop("score")), c(6.0)));
+    let score_in_5_8 = Expr::Term(NodeLeaf::property(
+        vec![window(5, 8)],
+        "score".into(),
+        false,
+    ));
+    let score_after_5 = node(cmp(BinaryOp::Gt, score_in_5_8, c(6.0)));
     let f = FilterExpr::And(vec![
         FilterExpr::View(vec![window(0, 5)]),
-        FilterExpr::View(vec![ViewOp::Layers(vec!["knows".into()])]),
+        FilterExpr::View(vec![ViewOp::Layers("knows".into())]),
         score_after_5,
     ]);
     let mut names: Vec<String> = g.nodes().select(f.clone()).unwrap().name().collect();
@@ -464,8 +464,7 @@ fn a_view_leg_in_a_select_is_an_existence_test() {
     assert!(nodes(&g, &f).is_empty());
 
     // the same on edges: alice→bob exists in [0,3) and its weight in [3,5) is 2
-    let mut w = edge_prop("w");
-    w.push_view(window(3, 5));
+    let w = Expr::Term(EdgeLeaf::property(vec![window(3, 5)], "w".into(), false));
     let f = FilterExpr::And(vec![
         FilterExpr::View(vec![window(0, 3)]),
         FilterExpr::Edge(cmp(BinaryOp::Gt, w, Expr::Const(1i64.into()))),
@@ -618,7 +617,11 @@ fn numeric_aggregates_refuse_values_that_are_not_numbers() {
 
 #[test]
 fn an_opaque_filter_refuses_to_serialise() {
-    let f = OpaqueFilter::new(NodeFilter.property("tag").is_some().compiled()).into_filter();
+    let g = Graph::new();
+    g.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(1, 2, NO_PROPS, None, None).unwrap();
+    let mask = alternating_mask(&g);
+    let f = NodeFilter::by_column(&mask, "bool_col").unwrap();
     let err = serde_json::to_string(&f).unwrap_err().to_string();
     assert!(err.contains(OPAQUE_FILTER_ERROR));
 }
@@ -1433,7 +1436,7 @@ fn shrink_start_and_shrink_end_agree_with_the_graph_views() {
 #[test]
 fn default_layer_and_exclude_layers_agree_with_the_graph_views() {
     let g = layered_graph().into_dynamic();
-    let names = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    let names = |names: &[&str]| Layer::from(names.to_vec());
     agrees_with_core(&g, &[ViewOp::DefaultLayer], |g| {
         Ok(g.default_layer().into_dynamic())
     });
@@ -1443,8 +1446,13 @@ fn default_layer_and_exclude_layers_agree_with_the_graph_views() {
     agrees_with_core(&g, &[ViewOp::ExcludeLayers(names(&["x", "y"]))], |g| {
         Ok(g.exclude_layers(vec!["x", "y"])?.into_dynamic())
     });
-    agrees_with_core(&g, &[ViewOp::ExcludeLayers(Vec::new())], |g| {
+    agrees_with_core(&g, &[ViewOp::ExcludeLayers(Layer::None)], |g| {
         Ok(g.exclude_layers(Vec::<String>::new())?.into_dynamic())
+    });
+    // Every layer: `layers` restricts nothing, and excluding them leaves none.
+    assert!(GraphFilter.layers(Layer::All).views().is_empty());
+    agrees_with_core(&g, GraphFilter.exclude_layers(Layer::All).views(), |g| {
+        Ok(g.exclude_layers(Layer::All)?.into_dynamic())
     });
     // After a layer selection: exclusion works inside it, and the default
     // layer outside it is nothing.
@@ -1497,7 +1505,7 @@ fn default_layer_and_exclude_layers_agree_with_the_graph_views() {
 #[test]
 fn valid_layers_and_exclude_valid_layers_agree_with_the_graph_views() {
     let g = layered_graph().into_dynamic();
-    let names = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    let names = |names: &[&str]| Layer::from(names.to_vec());
     let edges_through =
         |ops: Vec<ViewOp>| edge_ids_of(&g.filter(FilterExpr::View(ops)).unwrap().into_dynamic());
     // An unknown name is ignored: the known one is kept, or dropped.
@@ -1524,6 +1532,13 @@ fn valid_layers_and_exclude_valid_layers_agree_with_the_graph_views() {
     agrees_with_core(&g, &[ViewOp::ExcludeValidLayers(names(&["nope"]))], |g| {
         Ok(g.exclude_valid_layers("nope").into_dynamic())
     });
+    // Every layer: `valid_layers` restricts nothing, and excluding them leaves none.
+    assert!(GraphFilter.valid_layers(Layer::All).views().is_empty());
+    agrees_with_core(
+        &g,
+        GraphFilter.exclude_valid_layers(Layer::All).views(),
+        |g| Ok(g.exclude_valid_layers(Layer::All).into_dynamic()),
+    );
     // Composed with the strict ops and with time.
     agrees_with_core(
         &g,
@@ -1558,9 +1573,9 @@ fn valid_layers_and_exclude_valid_layers_agree_with_the_graph_views() {
 fn the_new_views_display_and_round_trip_through_json() {
     let ops = vec![
         ViewOp::DefaultLayer,
-        ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
-        ViewOp::ValidLayers(vec!["a".into(), "c".into()]),
-        ViewOp::ExcludeValidLayers(vec!["c".into()]),
+        ViewOp::ExcludeLayers(["a", "b"].into()),
+        ViewOp::ValidLayers(["a", "c"].into()),
+        ViewOp::ExcludeValidLayers("c".into()),
         ViewOp::ShrinkStart(t(3)),
         ViewOp::ShrinkEnd(t(9)),
     ];
@@ -1588,11 +1603,22 @@ fn the_new_views_display_and_round_trip_through_json() {
         .shrink_end(9)
         .into();
     assert_eq!(built, f);
-    let one: FilterExpr = GraphFilter.exclude_layer("a").into();
+    // No layer is the empty list on the wire, and reads back as no layer;
+    // the default layer is its name.
+    let none = FilterExpr::View(vec![ViewOp::Layers(Layer::None)]);
+    let json = serde_json::to_string(&none).unwrap();
+    assert_eq!(json, r#"{"view":[{"layers":[]}]}"#);
+    assert_eq!(serde_json::from_str::<FilterExpr>(&json).unwrap(), none);
+    let default = FilterExpr::View(vec![ViewOp::Layers(Layer::Default)]);
     assert_eq!(
-        one,
-        FilterExpr::View(vec![ViewOp::ExcludeLayers(vec!["a".into()])])
+        serde_json::to_string(&default).unwrap(),
+        r#"{"view":[{"layers":["_default"]}]}"#
     );
+    // Every layer is `null`, and reads back as every layer.
+    let all = FilterExpr::View(vec![ViewOp::Layers(Layer::All)]);
+    let json = serde_json::to_string(&all).unwrap();
+    assert_eq!(json, r#"{"view":[{"layers":null}]}"#);
+    assert_eq!(serde_json::from_str::<FilterExpr>(&json).unwrap(), all);
 }
 
 /// a→b @1 · b→c @3 · c→d @5, deleted @6 · z alone @9; a, b are `person`,
@@ -1760,4 +1786,174 @@ fn the_node_set_views_display_and_round_trip_through_json() {
         .valid()
         .into();
     assert_eq!(built, f);
+}
+
+/// alice [person] score 3@0 7@2 9@6 kind=x · bob [person] score 5@1 2@7
+/// kind=y · carol untyped, no score · dave [org] score 1@2 1@3
+///
+/// ```text
+///                      0    1    2    3    4    5    6    7    8
+/// alice→bob [knows]         ●              ●    ✕                 w=1, w=2; m=x
+/// bob→carol [works]              ●                             ✕  w=1
+/// carol→dave [knows]                                 ●            w=3; m=y
+/// dave→dave [works]                   ●                           w=7
+/// ```
+fn oracle_graph() -> Graph {
+    let g = Graph::new();
+    for (t, name, node_type, score) in [
+        (0, "alice", Some("person"), 3i64),
+        (2, "alice", Some("person"), 7),
+        (6, "alice", Some("person"), 9),
+        (1, "bob", Some("person"), 5),
+        (7, "bob", Some("person"), 2),
+        (2, "dave", Some("org"), 1),
+        (3, "dave", Some("org"), 1),
+    ] {
+        g.add_node(t, name, [("score", score.into_prop())], node_type, None)
+            .unwrap();
+    }
+    g.add_node(0, "carol", NO_PROPS, None, None).unwrap();
+    for (name, kind) in [("alice", "x"), ("bob", "y")] {
+        g.node(name)
+            .unwrap()
+            .add_metadata([("kind", kind)])
+            .unwrap();
+    }
+    for (t, src, dst, layer, w) in [
+        (1, "alice", "bob", "knows", 1i64),
+        (4, "alice", "bob", "knows", 2),
+        (2, "bob", "carol", "works", 1),
+        (6, "carol", "dave", "knows", 3),
+        (3, "dave", "dave", "works", 7),
+    ] {
+        g.add_edge(t, src, dst, [("w", w.into_prop())], Some(layer))
+            .unwrap();
+    }
+    g.delete_edge(5, "alice", "bob", Some("knows")).unwrap();
+    g.delete_edge(8, "bob", "carol", Some("works")).unwrap();
+    for (src, dst, m) in [("alice", "bob", "x"), ("carol", "dave", "y")] {
+        g.edge(src, dst)
+            .unwrap()
+            .add_metadata([("m", m)], Some("knows"))
+            .unwrap();
+    }
+    g
+}
+
+/// The nodes and edges `graph.filter(filter)` keeps, or its refusal.
+fn oracle_kept<F: CreateFilter>(
+    g: &DynamicGraph,
+    filter: F,
+) -> Result<(Vec<String>, Vec<String>), String> {
+    let filtered = g.filter(filter).map_err(|e| e.to_string())?;
+    let mut nodes: Vec<String> = filtered.nodes().name().collect();
+    nodes.sort();
+    Ok((nodes, edge_ids(&filtered)))
+}
+
+/// The nodes `graph.nodes().select(filter)` keeps, or its refusal.
+fn oracle_nodes<F: CreateFilter>(g: &DynamicGraph, filter: F) -> Result<Vec<String>, String> {
+    let mut names: Vec<String> = g
+        .nodes()
+        .select(filter)
+        .map_err(|e| e.to_string())?
+        .name()
+        .collect();
+    names.sort();
+    Ok(names)
+}
+
+/// The edges `graph.edges().select(filter)` keeps, or its refusal.
+fn oracle_edges<F: CreateFilter>(g: &DynamicGraph, filter: F) -> Result<Vec<String>, String> {
+    let mut ids: Vec<String> = g
+        .edges()
+        .select(filter)
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect();
+    ids.sort();
+    Ok(ids)
+}
+
+/// What `expr` is refused with as a filtered graph. An edge selection
+/// refuses it too, though a node tree reaches it through both ends, so the
+/// message can name the `and` it became.
+fn refusal<L: Leaf>(g: &DynamicGraph, expr: &Expr<L>) -> String {
+    assert!(oracle_edges(g, expr.clone()).is_err(), "{expr:?} was kept");
+    oracle_kept(g, expr.clone()).expect_err(&format!("{expr:?} was kept"))
+}
+
+#[test]
+fn an_invalid_tree_is_refused_with_what_is_wrong_with_it() {
+    let g = oracle_graph().into_dynamic();
+    let score = || NodeFilter.property("score");
+    let invalid: Vec<(NodeExpr, &str)> = vec![
+        (NodeFilter.name().eq(1i64), "Invalid filter: value 1 of type I64 cannot be compared with Str"),
+        (NodeFilter.degree().is_some(), "Invalid filter: IS_SOME() is not valid on an expression that always has a value"),
+        (Expr::And(vec![Expr::Const(1i64.into()).is_some(), score().gt(1i64)]), "Invalid filter: IS_SOME() is not valid on an expression that always has a value"),
+        (Expr::Const(1i64.into()).gt(0i64), "Invalid filter: a constant is not a filter"),
+        (score().gt(1i64).any(), "Invalid filter: any()/all() need one yes/no answer per element, which comparing a list or temporal property gives; this expression gives a single yes/no answer, so drop the any()/all()"),
+        (score().sum().gt(1i64), "Invalid filter: sum() is not valid on a scalar expression of type I64"),
+        (score().eq(NodeFilter.name()), "Invalid filter: type mismatch: lhs is I64, rhs is Str"),
+        (score().into(), "Invalid filter: a filter needs a yes/no answer, but this expression has type I64"),
+        (Expr::And(vec![]), "Invalid filter: `and` needs at least one operand"),
+    ];
+    for (expr, message) in &invalid {
+        let refused = refusal(&g, expr);
+        assert_eq!(oracle_nodes(&g, expr.clone()), Err(refused.clone()));
+        assert_eq!(refused, *message, "{expr:?}");
+    }
+    let edge_invalid: Vec<(EdgeExpr, &str)> = vec![
+        (
+            EdgeFilter.property("w").eq("x"),
+            "Invalid filter: value x of type Str cannot be compared with I64",
+        ),
+        (
+            EdgeFilter.property("w").temporal().sum(),
+            "Invalid filter: a filter needs a yes/no answer, but this expression has type I64",
+        ),
+    ];
+    for (expr, message) in &edge_invalid {
+        assert_eq!(refusal(&g, expr), *message, "{expr:?}");
+    }
+}
+
+#[test]
+fn a_constant_under_not_is_refused_as_a_tree() {
+    let g = oracle_graph().into_dynamic();
+    // A constant under `not` is refused as a filter, as a tree or through
+    // `FilterExpr`, on the node question and the edge question alike.
+    let constant: NodeExpr = Expr::Not(Box::new(Expr::Const(true.into())));
+    let refused = oracle_kept(&g, constant.clone()).unwrap_err();
+    assert_eq!(refused, "Invalid filter: a constant is not a filter");
+    assert_eq!(
+        oracle_kept(&g, FilterExpr::from(constant.clone())),
+        Err(refused.clone())
+    );
+    assert_eq!(oracle_edges(&g, constant.clone()), Err(refused.clone()));
+    assert_eq!(oracle_edges(&g, FilterExpr::from(constant)), Err(refused));
+}
+
+/// a→b added @1 w=1, deleted @2 · c→c added @1 w=7
+///
+/// ```text
+///          1    2
+/// a→b      ●    ✕    w=1
+/// c→c      ●         w=7
+/// ```
+#[test]
+#[ignore = "an exploded filter passes every deletion event, so an edge it rejects stays through its deletions"]
+fn an_exploded_filter_drops_the_edges_whose_updates_it_rejects() {
+    let g = Graph::new();
+    g.add_edge(1, "a", "b", [("w", 1i64)], None).unwrap();
+    g.delete_edge(2, "a", "b", None).unwrap();
+    g.add_edge(1, "c", "c", [("w", 7i64)], None).unwrap();
+    let g = g.into_dynamic();
+    let kept = |filter: ExplodedEdgeExpr| oracle_kept(&g, filter).unwrap().1;
+    assert_eq!(kept(ExplodedEdgeFilter.is_self_loop()), vec!["c->c"]);
+    assert_eq!(
+        kept(ExplodedEdgeFilter.property("w").eq(7i64)),
+        vec!["c->c"]
+    );
 }

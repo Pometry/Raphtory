@@ -165,7 +165,7 @@ fn test_edge_layers() {
         .add_edge(0, 3, 4, [("b", 4)], Some("air_nomads"))
         .unwrap();
 
-    let filter_expr = EdgeFilter.layer("fire_nation").is_active();
+    let filter_expr = EdgeFilter.layers("fire_nation").is_active();
     let ids = graph
         .filter(filter_expr)
         .unwrap()
@@ -176,7 +176,7 @@ fn test_edge_layers() {
 
     assert_eq!(ids, ["1->2", "2->3"]);
 
-    let filter_expr = EdgeFilter.layer("air_nomads").is_active();
+    let filter_expr = EdgeFilter.layers("air_nomads").is_active();
     let ids = graph
         .filter(filter_expr)
         .unwrap()

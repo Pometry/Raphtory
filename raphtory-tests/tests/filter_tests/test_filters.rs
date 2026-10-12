@@ -4002,7 +4002,7 @@ mod test_node_property_filter {
     #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_layer_filter() {
         let filter = NodeFilter
-            .layer("_default")
+            .layers("_default")
             .property("p2")
             .temporal()
             .sum()
@@ -4023,7 +4023,7 @@ mod test_node_property_filter {
     fn test_nodes_layer_then_window_ordering() {
         // In layer "fire_nation" within window [1,4), node "1" matches p1 == "shivam_kapoor".
         let filter = NodeFilter
-            .layer("fire_nation")
+            .layers("fire_nation")
             .window(1, 4)
             .property("p1")
             .eq("shivam_kapoor");
@@ -4045,7 +4045,7 @@ mod test_node_property_filter {
         // Same semantics as above, but reversed chaining order.
         let filter = NodeFilter
             .window(1, 4)
-            .layer("fire_nation")
+            .layers("fire_nation")
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -4106,7 +4106,7 @@ mod test_node_property_filter {
     #[test]
     fn test_graph_filter_layer() {
         // Note: Default layer is currently always included for nodes!
-        let filter = GraphFilter.layer("fire_nation");
+        let filter = GraphFilter.layers("fire_nation");
         let expected_results = vec!["1", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_layers_graph,
@@ -4116,7 +4116,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = GraphFilter.layer("air_nomads");
+        let filter = GraphFilter.layers("air_nomads");
         let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_layers_graph,
@@ -4129,7 +4129,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_graph_filter_window_then_layer() {
-        let filter = GraphFilter.window(1, 3).layer("fire_nation");
+        let filter = GraphFilter.window(1, 3).layers("fire_nation");
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_layers_graph,
@@ -4139,7 +4139,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = GraphFilter.window(2, 3).layer("air_nomads");
+        let filter = GraphFilter.window(2, 3).layers("air_nomads");
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
             init_nodes_layers_graph,
@@ -4152,7 +4152,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_graph_filter_layer_then_window() {
-        let filter = GraphFilter.layer("fire_nation").window(1, 3);
+        let filter = GraphFilter.layers("fire_nation").window(1, 3);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_layers_graph,
@@ -4162,7 +4162,7 @@ mod test_node_property_filter {
             TestVariants::All,
         );
 
-        let filter = GraphFilter.layer("air_nomads").window(2, 3);
+        let filter = GraphFilter.layers("air_nomads").window(2, 3);
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
             init_nodes_layers_graph,
@@ -10073,7 +10073,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_edges_layer_filter() {
         let filter = EdgeFilter
-            .layer("fire_nation")
+            .layers("fire_nation")
             .property("p2")
             .temporal()
             .sum()
@@ -10342,7 +10342,7 @@ mod test_edge_property_filter {
     fn test_edges_layer_then_window_ordering() {
         // In layer "fire_nation" within window [1,3), edge 1->2 matches p1 == "shivam_kapoor".
         let filter = EdgeFilter
-            .layer("fire_nation")
+            .layers("fire_nation")
             .window(1, 3)
             .property("p1")
             .eq("shivam_kapoor");
@@ -10363,7 +10363,7 @@ mod test_edge_property_filter {
         // Same semantics, reversed chaining order.
         let filter = EdgeFilter
             .window(1, 3)
-            .layer("fire_nation")
+            .layers("fire_nation")
             .property("p1")
             .eq("shivam_kapoor");
 
@@ -10382,7 +10382,7 @@ mod test_edge_property_filter {
     fn test_edges_latest_layer() {
         let filter = EdgeFilter
             .latest()
-            .layer("fire_nation")
+            .layers("fire_nation")
             .property("p2")
             .temporal()
             .last()
@@ -10402,7 +10402,7 @@ mod test_edge_property_filter {
     #[test]
     fn test_edges_layer_latest() {
         let filter = EdgeFilter
-            .layer("fire_nation")
+            .layers("fire_nation")
             .latest()
             .property("p2")
             .temporal()

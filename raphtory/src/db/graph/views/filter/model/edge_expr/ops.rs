@@ -189,14 +189,13 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
 // TemporalEdgePropOp<G> — all temporal values for a property in the view window
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`TemporalPropExpr::create_edge_op`] — not constructed directly.
+/// The op a temporal edge property term compiles to — not constructed directly.
 ///
 /// Collects the property's history for the edge, one of its layers or one
 /// exploded instance into a `Some(Prop::List([...]))` for a consumer that
 /// needs it as one value. An aggregation or an `any()`/`all()` test written
 /// directly over the history streams it through [`EdgeHistory`] instead.
 ///
-/// [`TemporalPropExpr::create_edge_op`]: crate::db::graph::views::filter::model::node_expr::TemporalPropExpr
 /// [`EdgeHistory`]: crate::db::graph::views::filter::model::expr::EdgeHistory
 #[derive(Clone)]
 pub(crate) struct TemporalEdgePropOp<G> {
@@ -253,9 +252,9 @@ impl<G: GraphView> EdgeOp for TemporalEdgePropOp<G> {
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgeEndpointNodeOp — applies a node op to the src or dst VID of an edge
 //
-// Bridges EdgeEndpointWrapper<T: NodeExpr> into the EdgeExpr system:
-// EdgeFilter::src().name().eq("Alice") compiles the name NodeOp once, then
-// at evaluation time looks up the src VID and applies the node op to it.
+// What an endpoint term compiles to: EdgeFilter::src().name().eq("Alice")
+// compiles the name NodeOp once, then at evaluation time looks up the src
+// VID and applies the node op to it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -310,10 +309,10 @@ impl<'g> EdgeOp for EdgeEndpointNodeOp<'g> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Per-edge predicate ops — produce Some(Prop::Bool(...)) per edge.
-// Used by `CreateOp::create_edge_op` for the expression-mode path of the
-// structural edge predicates (IsActiveEdge, IsValidEdge, IsDeletedEdge,
-// IsSelfLoopEdge).
+// Per-edge predicate ops — produce Some(Prop::Bool(...)) per edge, per layer
+// or per update.
+// What the structural edge terms (`is_active`, `is_valid`, `is_deleted`,
+// `is_self_loop`) compile to.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]

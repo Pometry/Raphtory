@@ -20,17 +20,18 @@
 //!
 //! A read names exactly one of `property`, `temporalProperty`, `metadata` or
 //! `field` (on an edge also `src` or `dst`). Each carries what it reads
-//! (`name`, or for `src`/`dst` a node `expr`) and optional `views`, which
-//! scope that term, applied in order:
+//! (`name`, or for `src`/`dst` a node `expr` whose terms carry their own
+//! views) and, except on `src`/`dst`, optional `views`, which scope that term,
+//! applied in order:
 //! `read: { property: { name: "score", views: [{ window: { start: 0, end: 5 } }] } }`,
 //! `read: { field: { name: NAME } }`,
 //! `read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } }`.
 //! A view is one of `window`, `at`, `after`, `before`, `snapshotAt`, `layers`,
-//! `excludeLayers` (or `excludeLayer` for one name), `validLayers`,
-//! `excludeValidLayers`, `shrinkStart`, `shrinkEnd`, `excludeNodes`,
-//! `subgraph`, `subgraphNodeTypes`, or a `kind` that takes no argument
-//! (`LATEST`, `SNAPSHOT_LATEST`, `VALID`, `DEFAULT_LAYER`), each the graph view
-//! of the same name applied to the view built so far.
+//! `excludeLayers`, `validLayers`, `excludeValidLayers`, `shrinkStart`,
+//! `shrinkEnd`, `excludeNodes`, `subgraph`, `subgraphNodeTypes`, or a `kind`
+//! that takes no argument (`LATEST`, `SNAPSHOT_LATEST`, `VALID`,
+//! `DEFAULT_LAYER`), each the graph view of the same name applied to the view
+//! built so far.
 //!
 //! The serde form is the GraphQL spelling, so the JSON a stored grant holds and
 //! the variables a client sends are the same text as a GraphQL literal.
@@ -51,7 +52,7 @@ use raphtory::{
         graph::views::filter::{
             model::{
                 expr::{
-                    self, Agg, EdgeLeaf, ExplodedEdgeLeaf, Field, Leaf, NodeLeaf, ViewOp,
+                    self, Agg, EdgeKind, EdgeLeaf, ExplodedEdgeLeaf, Field, Leaf, NodeLeaf, ViewOp,
                     OPAQUE_FILTER_ERROR,
                 },
                 filter_operator::{BinaryOp, StringOp},
@@ -62,7 +63,7 @@ use raphtory::{
     errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
+    entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::EventTime,
     utils::time::{InputTime, IntoTime},
     Direction,
@@ -229,10 +230,10 @@ pub enum NodeField {
     IsActive,
 }
 
-impl From<NodeField> for NodeLeaf {
-    fn from(f: NodeField) -> Self {
-        let views = Vec::new();
-        match f {
+impl NodeField {
+    /// The leaf this built-in term is, seen through `views`.
+    fn leaf(self, views: Vec<ViewOp>) -> NodeLeaf {
+        match self {
             NodeField::Name => NodeLeaf::Field {
                 views,
                 field: Field::Name,
@@ -257,7 +258,7 @@ impl From<NodeField> for NodeLeaf {
                 views,
                 direction: Direction::OUT,
             },
-            NodeField::IsActive => NodeLeaf::IsActive { views },
+            NodeField::IsActive => NodeLeaf::is_active(views),
         }
     }
 }
@@ -297,26 +298,15 @@ pub enum EdgeField {
     IsSelfLoop,
 }
 
-impl From<EdgeField> for EdgeLeaf {
-    fn from(f: EdgeField) -> Self {
-        let views = Vec::new();
-        match f {
-            EdgeField::IsActive => EdgeLeaf::IsActive { views },
-            EdgeField::IsValid => EdgeLeaf::IsValid { views },
-            EdgeField::IsDeleted => EdgeLeaf::IsDeleted { views },
-            EdgeField::IsSelfLoop => EdgeLeaf::IsSelfLoop { views },
-        }
-    }
-}
-
-impl From<EdgeField> for ExplodedEdgeLeaf {
-    fn from(f: EdgeField) -> Self {
-        let views = Vec::new();
-        match f {
-            EdgeField::IsActive => ExplodedEdgeLeaf::IsActive { views },
-            EdgeField::IsValid => ExplodedEdgeLeaf::IsValid { views },
-            EdgeField::IsDeleted => ExplodedEdgeLeaf::IsDeleted { views },
-            EdgeField::IsSelfLoop => ExplodedEdgeLeaf::IsSelfLoop { views },
+impl EdgeField {
+    /// The leaf this built-in term is on an edge or an exploded edge, seen
+    /// through `views`.
+    fn leaf<L: EdgeKind>(self, views: Vec<ViewOp>) -> L {
+        match self {
+            EdgeField::IsActive => L::is_active(views),
+            EdgeField::IsValid => L::is_valid(views),
+            EdgeField::IsDeleted => L::is_deleted(views),
+            EdgeField::IsSelfLoop => L::is_self_loop(views),
         }
     }
 }
@@ -371,9 +361,6 @@ pub enum GqlViewOp {
     Layers(Vec<String>),
     /// Every layer except the named ones.
     ExcludeLayers(Vec<String>),
-    /// Every layer except the named one; the same view as `excludeLayers`
-    /// with one name.
-    ExcludeLayer(String),
     /// Only the named layers; a name the graph does not have is ignored,
     /// where `layers` rejects it.
     ValidLayers(Vec<String>),
@@ -408,11 +395,10 @@ impl From<GqlViewOp> for ViewOp {
             GqlViewOp::Before(t) => ViewOp::Before(t.into_time()),
             GqlViewOp::Kind(kind) => kind.into(),
             GqlViewOp::SnapshotAt(t) => ViewOp::SnapshotAt(t.into_time()),
-            GqlViewOp::Layers(names) => ViewOp::Layers(names),
-            GqlViewOp::ExcludeLayers(names) => ViewOp::ExcludeLayers(names),
-            GqlViewOp::ExcludeLayer(name) => ViewOp::ExcludeLayers(vec![name]),
-            GqlViewOp::ValidLayers(names) => ViewOp::ValidLayers(names),
-            GqlViewOp::ExcludeValidLayers(names) => ViewOp::ExcludeValidLayers(names),
+            GqlViewOp::Layers(names) => ViewOp::Layers(names.into()),
+            GqlViewOp::ExcludeLayers(names) => ViewOp::ExcludeLayers(names.into()),
+            GqlViewOp::ValidLayers(names) => ViewOp::ValidLayers(names.into()),
+            GqlViewOp::ExcludeValidLayers(names) => ViewOp::ExcludeValidLayers(names.into()),
             GqlViewOp::ShrinkStart(t) => ViewOp::ShrinkStart(t.into_time()),
             GqlViewOp::ShrinkEnd(t) => ViewOp::ShrinkEnd(t.into_time()),
             GqlViewOp::ExcludeNodes(ids) => {
@@ -432,9 +418,27 @@ fn node_ids(ids: &[GID]) -> Vec<GqlNodeId> {
     ids.iter().cloned().map(GqlNodeId).collect()
 }
 
-impl From<&ViewOp> for GqlViewOp {
-    fn from(op: &ViewOp) -> Self {
-        match op {
+/// The names a layer selection holds. GraphQL's list cannot say every layer,
+/// so `Layer::All` is refused.
+fn layer_names(layer: &Layer) -> Result<Vec<String>, GraphError> {
+    Ok(match layer {
+        Layer::All => {
+            return Err(invalid(
+                "`Layer::All` restricts nothing; leave the view out",
+            ))
+        }
+        Layer::None => Vec::new(),
+        Layer::Default => vec!["_default".to_owned()],
+        Layer::One(name) => vec![name.to_string()],
+        Layer::Multiple(names) => names.iter().map(|name| name.to_string()).collect(),
+    })
+}
+
+impl TryFrom<&ViewOp> for GqlViewOp {
+    type Error = GraphError;
+
+    fn try_from(op: &ViewOp) -> Result<Self, GraphError> {
+        Ok(match op {
             ViewOp::Window { start, end } => GqlViewOp::Window(Window {
                 start: time(*start),
                 end: time(*end),
@@ -445,18 +449,18 @@ impl From<&ViewOp> for GqlViewOp {
             ViewOp::Latest => GqlViewOp::Kind(ViewKind::Latest),
             ViewOp::SnapshotAt(t) => GqlViewOp::SnapshotAt(time(*t)),
             ViewOp::SnapshotLatest => GqlViewOp::Kind(ViewKind::SnapshotLatest),
-            ViewOp::Layers(names) => GqlViewOp::Layers(names.clone()),
+            ViewOp::Layers(layer) => GqlViewOp::Layers(layer_names(layer)?),
             ViewOp::DefaultLayer => GqlViewOp::Kind(ViewKind::DefaultLayer),
-            ViewOp::ExcludeLayers(names) => GqlViewOp::ExcludeLayers(names.clone()),
-            ViewOp::ValidLayers(names) => GqlViewOp::ValidLayers(names.clone()),
-            ViewOp::ExcludeValidLayers(names) => GqlViewOp::ExcludeValidLayers(names.clone()),
+            ViewOp::ExcludeLayers(layer) => GqlViewOp::ExcludeLayers(layer_names(layer)?),
+            ViewOp::ValidLayers(layer) => GqlViewOp::ValidLayers(layer_names(layer)?),
+            ViewOp::ExcludeValidLayers(layer) => GqlViewOp::ExcludeValidLayers(layer_names(layer)?),
             ViewOp::ShrinkStart(t) => GqlViewOp::ShrinkStart(time(*t)),
             ViewOp::ShrinkEnd(t) => GqlViewOp::ShrinkEnd(time(*t)),
             ViewOp::ExcludeNodes(ids) => GqlViewOp::ExcludeNodes(node_ids(ids)),
             ViewOp::Subgraph(ids) => GqlViewOp::Subgraph(node_ids(ids)),
             ViewOp::SubgraphNodeTypes(types) => GqlViewOp::SubgraphNodeTypes(types.clone()),
             ViewOp::Valid => GqlViewOp::Kind(ViewKind::Valid),
-        }
+        })
     }
 }
 
@@ -467,8 +471,15 @@ impl From<&ViewOp> for GqlViewOp {
 /// an `Option`. The tree has one encoding, the empty list, so a read takes an
 /// absent `views` as the empty list. This is used once per read payload and
 /// is the only place an empty list becomes absent.
-fn read_views(views: &[ViewOp]) -> Option<Vec<GqlViewOp>> {
-    (!views.is_empty()).then(|| views.iter().map(GqlViewOp::from).collect())
+fn read_views(views: &[ViewOp]) -> Result<Option<Vec<GqlViewOp>>, GraphError> {
+    if views.is_empty() {
+        return Ok(None);
+    }
+    views
+        .iter()
+        .map(GqlViewOp::try_from)
+        .collect::<Result<_, _>>()
+        .map(Some)
 }
 
 // ── the reads: what a term names on each entity ──────────────────────────────
@@ -487,12 +498,13 @@ pub trait Term: Sized {
     fn from_leaf(leaf: &Self::Leaf) -> Result<Self, GraphError>;
 }
 
-/// `leaf` scoped by a read's views, applied in list order after any it carries.
-fn scoped<L: Leaf>(mut leaf: L, views: Option<Vec<GqlViewOp>>) -> L {
-    for op in views.unwrap_or_default() {
-        leaf.push_view(op.into());
-    }
-    leaf
+/// A read's views as the tree holds them, in list order: none when absent.
+fn view_ops(views: Option<Vec<GqlViewOp>>) -> Vec<ViewOp> {
+    views
+        .unwrap_or_default()
+        .into_iter()
+        .map(ViewOp::from)
+        .collect()
 }
 
 /// A term named by a string: a property or a metadata entry.
@@ -532,12 +544,8 @@ pub struct EdgeFieldRead {
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct EndpointRead {
-    /// The node expression.
+    /// The node expression; each node term inside it carries its own views.
     pub expr: Wrapped<NodeExpr>,
-    /// Views the term is read through, in order; none when absent. They scope
-    /// every node term inside `expr`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub views: Option<Vec<GqlViewOp>>,
 }
 
 /// One node term, read through optional views. Name exactly one of
@@ -560,12 +568,10 @@ impl Term for NodeRead {
 
     fn into_leaf(self) -> Result<NodeLeaf, GraphError> {
         Ok(match self {
-            NodeRead::Property(r) => scoped(NodeLeaf::property(Vec::new(), r.name, false), r.views),
-            NodeRead::TemporalProperty(r) => {
-                scoped(NodeLeaf::property(Vec::new(), r.name, true), r.views)
-            }
-            NodeRead::Metadata(r) => scoped(NodeLeaf::metadata(Vec::new(), r.name), r.views),
-            NodeRead::Field(r) => scoped(r.name.into(), r.views),
+            NodeRead::Property(r) => NodeLeaf::property(view_ops(r.views), r.name, false),
+            NodeRead::TemporalProperty(r) => NodeLeaf::property(view_ops(r.views), r.name, true),
+            NodeRead::Metadata(r) => NodeLeaf::metadata(view_ops(r.views), r.name),
+            NodeRead::Field(r) => r.name.leaf(view_ops(r.views)),
         })
     }
 
@@ -573,11 +579,11 @@ impl Term for NodeRead {
         Ok(match leaf {
             NodeLeaf::Field { views, field } => NodeRead::Field(NodeFieldRead {
                 name: (*field).into(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             NodeLeaf::Degree { views, direction } => NodeRead::Field(NodeFieldRead {
                 name: (*direction).into(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             NodeLeaf::Property {
                 views,
@@ -585,7 +591,7 @@ impl Term for NodeRead {
                 temporal: false,
             } => NodeRead::Property(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             NodeLeaf::Property {
                 views,
@@ -593,16 +599,17 @@ impl Term for NodeRead {
                 temporal: true,
             } => NodeRead::TemporalProperty(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             NodeLeaf::Metadata { views, name } => NodeRead::Metadata(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             NodeLeaf::IsActive { views } => NodeRead::Field(NodeFieldRead {
                 name: NodeField::IsActive,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
+            NodeLeaf::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
         })
     }
 }
@@ -631,20 +638,12 @@ impl Term for EdgeRead {
 
     fn into_leaf(self) -> Result<EdgeLeaf, GraphError> {
         Ok(match self {
-            EdgeRead::Property(r) => scoped(EdgeLeaf::property(Vec::new(), r.name, false), r.views),
-            EdgeRead::TemporalProperty(r) => {
-                scoped(EdgeLeaf::property(Vec::new(), r.name, true), r.views)
-            }
-            EdgeRead::Metadata(r) => scoped(EdgeLeaf::metadata(Vec::new(), r.name), r.views),
-            EdgeRead::Field(r) => scoped(r.name.into(), r.views),
-            EdgeRead::Src(r) => scoped(
-                EdgeLeaf::Src(Box::new(r.expr.into_inner().into_tree()?)),
-                r.views,
-            ),
-            EdgeRead::Dst(r) => scoped(
-                EdgeLeaf::Dst(Box::new(r.expr.into_inner().into_tree()?)),
-                r.views,
-            ),
+            EdgeRead::Property(r) => EdgeLeaf::property(view_ops(r.views), r.name, false),
+            EdgeRead::TemporalProperty(r) => EdgeLeaf::property(view_ops(r.views), r.name, true),
+            EdgeRead::Metadata(r) => EdgeLeaf::metadata(view_ops(r.views), r.name),
+            EdgeRead::Field(r) => r.name.leaf(view_ops(r.views)),
+            EdgeRead::Src(r) => EdgeLeaf::Src(Box::new(r.expr.into_inner().into_tree()?)),
+            EdgeRead::Dst(r) => EdgeLeaf::Dst(Box::new(r.expr.into_inner().into_tree()?)),
         })
     }
 
@@ -656,7 +655,7 @@ impl Term for EdgeRead {
                 temporal: false,
             } => EdgeRead::Property(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             EdgeLeaf::Property {
                 views,
@@ -664,36 +663,33 @@ impl Term for EdgeRead {
                 temporal: true,
             } => EdgeRead::TemporalProperty(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             EdgeLeaf::Metadata { views, name } => EdgeRead::Metadata(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             EdgeLeaf::IsActive { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsActive,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             EdgeLeaf::IsValid { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsValid,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             EdgeLeaf::IsDeleted { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsDeleted,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             EdgeLeaf::IsSelfLoop { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsSelfLoop,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
-            // The endpoint's own terms carry their views; there are none here.
             EdgeLeaf::Src(inner) => EdgeRead::Src(EndpointRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
-                views: None,
             }),
             EdgeLeaf::Dst(inner) => EdgeRead::Dst(EndpointRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
-                views: None,
             }),
         })
     }
@@ -720,18 +716,14 @@ impl Term for ExplodedEdgeRead {
 
     fn into_leaf(self) -> Result<ExplodedEdgeLeaf, GraphError> {
         Ok(match self {
-            ExplodedEdgeRead::Property(r) => scoped(
-                ExplodedEdgeLeaf::property(Vec::new(), r.name, false),
-                r.views,
-            ),
-            ExplodedEdgeRead::TemporalProperty(r) => scoped(
-                ExplodedEdgeLeaf::property(Vec::new(), r.name, true),
-                r.views,
-            ),
-            ExplodedEdgeRead::Metadata(r) => {
-                scoped(ExplodedEdgeLeaf::metadata(Vec::new(), r.name), r.views)
+            ExplodedEdgeRead::Property(r) => {
+                ExplodedEdgeLeaf::property(view_ops(r.views), r.name, false)
             }
-            ExplodedEdgeRead::Field(r) => scoped(r.name.into(), r.views),
+            ExplodedEdgeRead::TemporalProperty(r) => {
+                ExplodedEdgeLeaf::property(view_ops(r.views), r.name, true)
+            }
+            ExplodedEdgeRead::Metadata(r) => ExplodedEdgeLeaf::metadata(view_ops(r.views), r.name),
+            ExplodedEdgeRead::Field(r) => r.name.leaf(view_ops(r.views)),
         })
     }
 
@@ -743,7 +735,7 @@ impl Term for ExplodedEdgeRead {
                 temporal: false,
             } => ExplodedEdgeRead::Property(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             ExplodedEdgeLeaf::Property {
                 views,
@@ -751,27 +743,27 @@ impl Term for ExplodedEdgeRead {
                 temporal: true,
             } => ExplodedEdgeRead::TemporalProperty(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             ExplodedEdgeLeaf::Metadata { views, name } => ExplodedEdgeRead::Metadata(NamedRead {
                 name: name.clone(),
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             ExplodedEdgeLeaf::IsActive { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsActive,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             ExplodedEdgeLeaf::IsValid { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsValid,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             ExplodedEdgeLeaf::IsDeleted { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsDeleted,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
             ExplodedEdgeLeaf::IsSelfLoop { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsSelfLoop,
-                views: read_views(views),
+                views: read_views(views)?,
             }),
         })
     }
@@ -1342,7 +1334,6 @@ pub trait EntityInput: Sized {
         };
         let shape = match e {
             expr::Expr::Const(p) => ExprShape::Const(p.into()),
-            expr::Expr::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
             expr::Expr::Term(leaf) => ExprShape::Read(<Self::Read as Term>::from_leaf(leaf)?),
             expr::Expr::Agg(op, e) => ExprShape::Agg {
                 op: (*op).into(),
@@ -1529,7 +1520,11 @@ impl TryFrom<&expr::FilterExpr> for GqlFilter {
             F::Node(e) => GqlFilter::Node(NodeExpr::from_tree(e)?),
             F::Edge(e) => GqlFilter::Edge(EdgeExpr::from_tree(e)?),
             F::ExplodedEdge(e) => GqlFilter::ExplodedEdge(ExplodedEdgeExpr::from_tree(e)?),
-            F::View(ops) => GqlFilter::View(ops.iter().map(GqlViewOp::from).collect()),
+            F::View(ops) => GqlFilter::View(
+                ops.iter()
+                    .map(GqlViewOp::try_from)
+                    .collect::<Result<_, _>>()?,
+            ),
             F::And(items) => GqlFilter::And(
                 items
                     .iter()
@@ -1603,8 +1598,10 @@ mod tests {
     use dynamic_graphql::{App, Request, ResolvedObject, ResolvedObjectFields};
     use expr::FilterExpr as F;
     use itertools::Itertools;
-    use raphtory::db::graph::views::filter::model::{
-        node_filter::NodeFilter, EntityExprFilterOps, PropertyExprFactory,
+    use raphtory::{
+        algorithms::alternating_mask::alternating_mask,
+        db::graph::views::filter::model::node_filter::{NodeFilter, NodeFilterFactory},
+        prelude::{AdditionOps, Graph, NO_PROPS},
     };
     use serde_json::json;
 
@@ -1682,11 +1679,11 @@ mod tests {
             ViewOp::Latest,
             ViewOp::SnapshotAt(t(4)),
             ViewOp::SnapshotLatest,
-            ViewOp::Layers(vec!["work".into()]),
+            ViewOp::Layers("work".into()),
             ViewOp::DefaultLayer,
-            ViewOp::ExcludeLayers(vec!["a".into(), "b".into()]),
-            ViewOp::ValidLayers(vec!["work".into(), "nope".into()]),
-            ViewOp::ExcludeValidLayers(vec!["a".into(), "nope".into()]),
+            ViewOp::ExcludeLayers(["a", "b"].into()),
+            ViewOp::ValidLayers(["work", "nope"].into()),
+            ViewOp::ExcludeValidLayers(["a", "nope"].into()),
             ViewOp::ShrinkStart(t(3)),
             ViewOp::ShrinkEnd(t(8)),
             ViewOp::ExcludeNodes(vec![GID::Str("a".into()), GID::U64(7)]),
@@ -1792,7 +1789,7 @@ mod tests {
             degree(Direction::IN),
             degree(Direction::OUT),
             NodeLeaf::IsActive {
-                views: vec![ViewOp::Layers(vec!["work".into()])],
+                views: vec![ViewOp::Layers("work".into())],
             },
         ]
     }
@@ -1875,21 +1872,6 @@ mod tests {
             F::Not(Box::new(score())),
         ]))
         .await;
-    }
-
-    #[tokio::test]
-    async fn views_on_an_endpoint_read_scope_the_node_terms_inside() {
-        let outside = json!({ "edge": { "read": { "src": {
-            "expr": { "read": { "property": { "name": "score" } } },
-            "views": [{ "at": 2 }]
-        } } } });
-        let inside = json!({ "edge": { "read": { "src": {
-            "expr": { "read": { "property": { "name": "score", "views": [{ "at": 2 }] } } }
-        } } } });
-        assert_eq!(
-            from_variable(outside).await.unwrap(),
-            from_variable(inside).await.unwrap()
-        );
     }
 
     #[tokio::test]
@@ -2036,7 +2018,7 @@ mod tests {
             ),
         ] {
             assert_eq!(ViewOp::from(GqlViewOp::Kind(kind)), op);
-            let json = serde_json::to_value(GqlViewOp::from(&op)).unwrap();
+            let json = serde_json::to_value(GqlViewOp::try_from(&op).unwrap()).unwrap();
             assert_eq!(json, json!({ "kind": name }));
             let back: GqlViewOp = serde_json::from_value(json).unwrap();
             assert_eq!(ViewOp::from(back), op);
@@ -2050,13 +2032,19 @@ mod tests {
     }
 
     #[test]
-    fn exclude_layer_is_exclude_layers_with_one_name() {
-        let one = ViewOp::from(GqlViewOp::ExcludeLayer("a".into()));
-        let list = ViewOp::from(GqlViewOp::ExcludeLayers(vec!["a".into()]));
-        assert_eq!(one, ViewOp::ExcludeLayers(vec!["a".into()]));
-        assert_eq!(one, list);
-        let json = serde_json::to_value(GqlViewOp::from(&one)).unwrap();
+    fn layer_views_carry_the_names_as_a_list() {
+        let one = ViewOp::from(GqlViewOp::ExcludeLayers(vec!["a".into()]));
+        assert_eq!(one, ViewOp::ExcludeLayers("a".into()));
+        let json = serde_json::to_value(GqlViewOp::try_from(&one).unwrap()).unwrap();
         assert_eq!(json, json!({ "excludeLayers": ["a"] }));
+        // No name is no layer, and back.
+        let none = ViewOp::from(GqlViewOp::Layers(Vec::new()));
+        assert_eq!(none, ViewOp::Layers(Layer::None));
+        let json = serde_json::to_value(GqlViewOp::try_from(&none).unwrap()).unwrap();
+        assert_eq!(json, json!({ "layers": [] }));
+        // Every layer is no view, so it has no spelling.
+        let err = GqlViewOp::try_from(&ViewOp::Layers(Layer::All)).unwrap_err();
+        assert!(err.to_string().contains("restricts nothing"), "{err}");
     }
 
     #[test]
@@ -2065,7 +2053,7 @@ mod tests {
         // `NodeId` scalar: a JSON string or a JSON integer, never the tagged
         // serde form of `GID`.
         let op = ViewOp::ExcludeNodes(vec![GID::Str("7".into()), GID::U64(7)]);
-        let json = serde_json::to_value(GqlViewOp::from(&op)).unwrap();
+        let json = serde_json::to_value(GqlViewOp::try_from(&op).unwrap()).unwrap();
         assert_eq!(json, json!({ "excludeNodes": ["7", 7] }));
         let back: GqlViewOp = serde_json::from_value(json).unwrap();
         assert_eq!(ViewOp::from(back), op);
@@ -2077,14 +2065,11 @@ mod tests {
 
     #[test]
     fn an_opaque_filter_has_no_wire_form() {
-        let opaque = expr::OpaqueFilter::new(
-            NodeFilter
-                .property("score")
-                .is_some()
-                .compile_value()
-                .unwrap(),
-        )
-        .into_filter();
+        let graph = Graph::new();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+        let mask = alternating_mask(&graph);
+        let opaque = NodeFilter::by_column(&mask, "bool_col").unwrap();
         let err = GqlFilter::try_from(&opaque).unwrap_err();
         assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
     }

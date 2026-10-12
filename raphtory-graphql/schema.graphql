@@ -1794,14 +1794,9 @@ A node expression evaluated on one endpoint of an edge.
 """
 input EndpointRead {
 	"""
-	The node expression.
+	The node expression; each node term inside it carries its own views.
 	"""
 	expr: NodeExpr!
-	"""
-	Views the term is read through, in order; none when absent. They scope
-	every node term inside `expr`.
-	"""
-	views: [ViewOp!]
 }
 
 """
@@ -7308,11 +7303,6 @@ input ViewOp @oneOf {
 	Every layer except the named ones.
 	"""
 	excludeLayers: [String!]
-	"""
-	Every layer except the named one; the same view as `excludeLayers`
-	with one name.
-	"""
-	excludeLayer: String
 	"""
 	Only the named layers; a name the graph does not have is ignored,
 	where `layers` rejects it.

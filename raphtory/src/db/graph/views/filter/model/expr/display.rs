@@ -1,16 +1,30 @@
 //! A readable rendering of an expression, for logs, errors and tests.
 
 use super::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp};
-use crate::{
-    db::graph::views::filter::model::{
-        filter_operator::{BinaryOp, StringOp},
-        layered_filter::layer_label,
-        subgraph_filter::id_list,
-    },
-    prelude::Layer,
+use crate::db::graph::views::filter::model::{
+    filter_operator::{BinaryOp, StringOp},
+    layered_filter::layer_label,
+    subgraph_filter::id_list,
 };
 use raphtory_api::core::{storage::timeindex::AsTime, Direction};
 use std::fmt::{self, Display};
+
+/// The aggregate as it is called: `sum`, `avg` and so on.
+impl Display for Agg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Agg::Sum => "sum",
+            Agg::Avg => "avg",
+            Agg::Min => "min",
+            Agg::Max => "max",
+            Agg::First => "first",
+            Agg::Last => "last",
+            Agg::Len => "len",
+            Agg::Earliest => "earliest",
+            Agg::Latest => "latest",
+        })
+    }
+}
 
 impl Display for ViewOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -22,30 +36,12 @@ impl Display for ViewOp {
             ViewOp::Latest => write!(f, "LATEST"),
             ViewOp::SnapshotAt(t) => write!(f, "SNAPSHOT_AT[{}]", t.t()),
             ViewOp::SnapshotLatest => write!(f, "SNAPSHOT_LATEST"),
-            ViewOp::Layers(names) => {
-                write!(f, "LAYER[{}]", layer_label(&Layer::from(names.clone())))
-            }
+            ViewOp::Layers(layer) => write!(f, "LAYER[{}]", layer_label(layer)),
             ViewOp::DefaultLayer => write!(f, "DEFAULT_LAYER"),
-            ViewOp::ExcludeLayers(names) => {
-                write!(
-                    f,
-                    "EXCLUDE_LAYER[{}]",
-                    layer_label(&Layer::from(names.clone()))
-                )
-            }
-            ViewOp::ValidLayers(names) => {
-                write!(
-                    f,
-                    "VALID_LAYER[{}]",
-                    layer_label(&Layer::from(names.clone()))
-                )
-            }
-            ViewOp::ExcludeValidLayers(names) => {
-                write!(
-                    f,
-                    "EXCLUDE_VALID_LAYER[{}]",
-                    layer_label(&Layer::from(names.clone()))
-                )
+            ViewOp::ExcludeLayers(layer) => write!(f, "EXCLUDE_LAYER[{}]", layer_label(layer)),
+            ViewOp::ValidLayers(layer) => write!(f, "VALID_LAYER[{}]", layer_label(layer)),
+            ViewOp::ExcludeValidLayers(layer) => {
+                write!(f, "EXCLUDE_VALID_LAYER[{}]", layer_label(layer))
             }
             ViewOp::ShrinkStart(t) => write!(f, "SHRINK_START[{}]", t.t()),
             ViewOp::ShrinkEnd(t) => write!(f, "SHRINK_END[{}]", t.t()),
@@ -109,6 +105,7 @@ impl Display for NodeLeaf {
             } => property(f, v, name, *temporal),
             NodeLeaf::Metadata { views: v, name } => views(f, v, &format!("METADATA({name})")),
             NodeLeaf::IsActive { views: v } => views(f, v, &"IS_ACTIVE"),
+            NodeLeaf::Opaque(_) => f.write_str("OPAQUE"),
         }
     }
 }
@@ -156,20 +153,7 @@ impl<L: Display> Display for Expr<L> {
         match self {
             Expr::Const(v) => write!(f, "{v}"),
             Expr::Term(leaf) => write!(f, "{leaf}"),
-            Expr::Agg(agg, e) => {
-                let name = match agg {
-                    Agg::Sum => "SUM",
-                    Agg::Avg => "AVG",
-                    Agg::Min => "MIN",
-                    Agg::Max => "MAX",
-                    Agg::First => "FIRST",
-                    Agg::Last => "LAST",
-                    Agg::Len => "LEN",
-                    Agg::Earliest => "EARLIEST",
-                    Agg::Latest => "LATEST",
-                };
-                write!(f, "{name}({e})")
-            }
+            Expr::Agg(agg, e) => write!(f, "{}({e})", agg.to_string().to_uppercase()),
             Expr::Cmp(op, l, r) => {
                 let sym = match op {
                     BinaryOp::Eq => "==",
@@ -216,7 +200,6 @@ impl<L: Display> Display for Expr<L> {
             Expr::And(items) => joined(f, items, " AND "),
             Expr::Or(items) => joined(f, items, " OR "),
             Expr::Not(e) => write!(f, "NOT({e})"),
-            Expr::Opaque(_) => write!(f, "OPAQUE"),
         }
     }
 }

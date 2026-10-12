@@ -95,21 +95,27 @@ fn test_multilayer_edge_select() {
     g.add_edge(1, 1, 2, NO_PROPS, Some("1")).unwrap();
     g.add_edge(2, 2, 3, NO_PROPS, Some("0")).unwrap();
 
-    let layer_0 = g.edges().select(EdgeFilter.layer("0").is_active()).unwrap();
+    let layer_0 = g
+        .edges()
+        .select(EdgeFilter.layers("0").is_active())
+        .unwrap();
     assert_eq!(
         layer_0.id().sorted().collect_vec(),
         [(GID::U64(1), GID::U64(2)), (GID::U64(2), GID::U64(3))]
     );
 
-    let layer_1 = g.edges().select(EdgeFilter.layer("1").is_active()).unwrap();
+    let layer_1 = g
+        .edges()
+        .select(EdgeFilter.layers("1").is_active())
+        .unwrap();
     assert_eq!(layer_1.id().collect_vec(), [(GID::U64(1), GID::U64(2))]);
 
     let filtered = g
         .filter(
             EdgeFilter
-                .layer("0")
+                .layers("0")
                 .is_active()
-                .and(EdgeFilter.layer("1").is_active()),
+                .and(EdgeFilter.layers("1").is_active()),
         )
         .unwrap();
     assert!(filtered.has_edge(1, 2));
@@ -120,9 +126,9 @@ fn test_multilayer_edge_select() {
 
     let chained = g
         .edges()
-        .select(EdgeFilter.layer("1").is_active())
+        .select(EdgeFilter.layers("1").is_active())
         .unwrap()
-        .select(EdgeFilter.layer("0").is_active())
+        .select(EdgeFilter.layers("0").is_active())
         .unwrap();
     assert_eq!(chained.id().collect_vec(), [(GID::U64(1), GID::U64(2))]);
 
@@ -130,9 +136,9 @@ fn test_multilayer_edge_select() {
         .edges()
         .select(
             EdgeFilter
-                .layer("0")
+                .layers("0")
                 .is_active()
-                .and(EdgeFilter.layer("1").is_active()),
+                .and(EdgeFilter.layers("1").is_active()),
         )
         .unwrap();
     assert_eq!(edges.id().collect_vec(), [(GID::U64(1), GID::U64(2))]);

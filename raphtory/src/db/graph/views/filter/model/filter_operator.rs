@@ -196,7 +196,7 @@ impl FilterOperator {
     }
 }
 
-// ── expr-layer operator kinds (consumed by node_expr/edge_expr) ──
+// ── operator kinds of the filter expressions in `expr` ──
 
 pub trait Comparable: Clone + Send + Sync + 'static {
     fn binary_cmp(op: &BinaryOp, left: &Self, right: &Self) -> bool;
@@ -206,7 +206,7 @@ pub trait StringComparable: Clone + Send + Sync + 'static {
     fn string_cmp(op: &StringOp, left: &Self, right: &Self) -> bool;
 }
 
-/// Ordering and equality operators used by `BinaryCmpExpr`.
+/// Ordering and equality operators used by `Expr::Cmp`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BinaryOp {
@@ -218,7 +218,7 @@ pub enum BinaryOp {
     Ge,
 }
 
-/// String-only operators used by `StringExpr`.
+/// String-only operators used by `Expr::Str`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StringOp {
@@ -232,7 +232,7 @@ pub enum StringOp {
     },
 }
 
-/// Unary presence operators used by `UnaryExpr`.
+/// Unary presence operators used by `Expr::IsSome` and `Expr::IsNone`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UnaryOp {
@@ -240,7 +240,7 @@ pub enum UnaryOp {
     IsNone,
 }
 
-/// Set membership operators used by `SetNodeFilter`.
+/// Set membership operators: `is_in` and `is_not_in`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SetOp {

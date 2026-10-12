@@ -1586,7 +1586,7 @@ def test_apply_view_exclude_layer():
       }
     }
     edges {
-      filter(expr: {view: [{excludeLayer: "finds"}]}) {
+      filter(expr: {view: [{excludeLayers: ["finds"]}]}) {
         list {
         history {
           timestamps {
@@ -1603,7 +1603,7 @@ def test_apply_view_exclude_layer():
       }
     }
     edge(src: "6", dst: "7") {
-      filter(expr: {view: [{excludeLayer: "finds"}]}) {
+      filter(expr: {view: [{excludeLayers: ["finds"]}]}) {
       history {
         timestamps {
           list
@@ -2500,7 +2500,7 @@ def test_apply_view_neighbours_exclude_layer():
   graph(path: "g") {
     node(name: "6") {
       neighbours {
-        filter(expr: {view: [{excludeLayer: "finds"}]}) {
+        filter(expr: {view: [{excludeLayers: ["finds"]}]}) {
           list {
             name
             history {

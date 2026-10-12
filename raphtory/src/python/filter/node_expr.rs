@@ -6,14 +6,10 @@ use crate::{
             NodeExpr, NodeLeaf, PropertyTerm,
         },
         filter_operator::{BinaryOp, StringOp},
-        node_expr::{
-            typing::{is_known, qualified_type},
-            DynCreateOp,
-        },
+        node_expr::typing::{is_known, qualified_type},
         node_filter::NodeFilter,
         validate_const_comparable, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
     },
-    errors::GraphError,
     python::{
         filter::{
             filter_expr::{ExprOrFilter, PyFilterExpr},
@@ -35,7 +31,6 @@ use raphtory_api::core::{
     },
     storage::timeindex::EventTime,
 };
-use std::sync::Arc;
 
 /// An expression over one kind of entity. Which kind is fixed by where the
 /// chain started (`filter.Node`, `filter.Edge`, `filter.ExplodedEdge`), so
@@ -87,12 +82,21 @@ impl Typed {
         }
     }
 
-    /// The compiled value, for its statically known type and nullability.
-    fn compile_value(&self) -> Result<Arc<dyn DynCreateOp>, GraphError> {
+    /// The statically known type of the expression.
+    fn prop_type(&self) -> PropType {
         match self {
-            Typed::Node(e) => e.compile_value(),
-            Typed::Edge(e) => e.compile_value(),
-            Typed::ExplodedEdge(e) => e.compile_value(),
+            Typed::Node(e) => e.prop_type(),
+            Typed::Edge(e) => e.prop_type(),
+            Typed::ExplodedEdge(e) => e.prop_type(),
+        }
+    }
+
+    /// Whether the expression can be missing.
+    fn nullable(&self) -> bool {
+        match self {
+            Typed::Node(e) => e.nullable(),
+            Typed::Edge(e) => e.nullable(),
+            Typed::ExplodedEdge(e) => e.nullable(),
         }
     }
 
@@ -149,21 +153,52 @@ pub struct PyExpr(pub(crate) Typed);
     from_py_object
 )]
 #[derive(Clone)]
-pub struct PyPropertyExpr {
-    latest: Typed,
-    history: Typed,
+pub struct PyPropertyExpr(TypedTerm);
+
+/// A property term of one kind of entity, kept as the term so either form,
+/// the latest value or the history, is built by the Rust builder when asked.
+#[derive(Clone)]
+enum TypedTerm {
+    Node(PropertyTerm<NodeLeaf>),
+    Edge(PropertyTerm<EdgeLeaf>),
+    ExplodedEdge(PropertyTerm<ExplodedEdgeLeaf>),
 }
 
-/// Both forms of the property term, as the Rust builder made them.
-impl<L: Leaf> From<PropertyTerm<L>> for PyPropertyExpr
-where
-    Typed: From<Expr<L>>,
-{
-    fn from(term: PropertyTerm<L>) -> Self {
-        PyPropertyExpr {
-            history: term.temporal().into(),
-            latest: Expr::from(term).into(),
+impl TypedTerm {
+    /// The property's latest value.
+    fn latest(&self) -> Typed {
+        match self {
+            TypedTerm::Node(term) => Expr::from(term.clone()).into(),
+            TypedTerm::Edge(term) => Expr::from(term.clone()).into(),
+            TypedTerm::ExplodedEdge(term) => Expr::from(term.clone()).into(),
         }
+    }
+
+    /// The property's history.
+    fn temporal(&self) -> Typed {
+        match self {
+            TypedTerm::Node(term) => term.clone().temporal().into(),
+            TypedTerm::Edge(term) => term.clone().temporal().into(),
+            TypedTerm::ExplodedEdge(term) => term.clone().temporal().into(),
+        }
+    }
+}
+
+impl From<PropertyTerm<NodeLeaf>> for PyPropertyExpr {
+    fn from(term: PropertyTerm<NodeLeaf>) -> Self {
+        PyPropertyExpr(TypedTerm::Node(term))
+    }
+}
+
+impl From<PropertyTerm<EdgeLeaf>> for PyPropertyExpr {
+    fn from(term: PropertyTerm<EdgeLeaf>) -> Self {
+        PyPropertyExpr(TypedTerm::Edge(term))
+    }
+}
+
+impl From<PropertyTerm<ExplodedEdgeLeaf>> for PyPropertyExpr {
+    fn from(term: PropertyTerm<ExplodedEdgeLeaf>) -> Self {
+        PyPropertyExpr(TypedTerm::ExplodedEdge(term))
     }
 }
 
@@ -173,7 +208,7 @@ impl<'py> IntoPyObject<'py> for PyPropertyExpr {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let parent = PyExpr(self.latest.clone());
+        let parent = PyExpr(self.0.latest());
         Bound::new(py, (self, parent))
     }
 }
@@ -190,18 +225,14 @@ enum ExprOrValue {
 /// comparison itself, so a mistyped literal fails where it is written instead
 /// of at some later `filter()` call. Unknown types defer to filter time. The
 /// check is the engine's own; python only asks it early.
-fn static_type(lhs: &Typed) -> PyResult<PropType> {
-    Ok(lhs.compile_value()?.dyn_prop_type())
-}
-
 fn check_value(lhs: &Typed, v: &Prop) -> PyResult<()> {
-    validate_const_comparable(&static_type(lhs)?, Some(v))
+    validate_const_comparable(&lhs.prop_type(), Some(v))
         .map_err(|e| PyTypeError::new_err(e.to_string()))
 }
 
 /// Presence tests only mean something on an expression that can be missing.
 fn check_nullable(lhs: &Typed, op: &str) -> PyResult<()> {
-    if !lhs.compile_value()?.dyn_nullable() {
+    if !lhs.nullable() {
         return Err(PyTypeError::new_err(format!(
             "{op}() is not valid on an expression that always has a value"
         )));
@@ -214,7 +245,7 @@ fn check_nullable(lhs: &Typed, op: &str) -> PyResult<()> {
 /// qualifier is refused where it is written; otherwise it is checked when the
 /// filter is applied.
 fn check_qualifiable(inner: &Typed) -> PyResult<()> {
-    let pt = static_type(inner)?;
+    let pt = inner.prop_type();
     if is_known(&pt) {
         qualified_type(&pt).map_err(|e| PyTypeError::new_err(e.to_string()))?;
     }
@@ -617,11 +648,11 @@ impl PyPropertyExpr {
     /// Returns:
     ///     filter.Expr:
     fn temporal(&self) -> PyExpr {
-        PyExpr(self.history.clone())
+        PyExpr(self.0.temporal())
     }
 
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::typed(py, &self.latest)
+        repr::typed(py, &self.0.latest())
     }
 }
 
@@ -650,7 +681,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
-        PyExpr(self.0.id().into())
+        PyExpr(self.0.clone().id().into())
     }
 
     /// Selects the node name field for filtering.
@@ -658,7 +689,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
-        PyExpr(self.0.name().into())
+        PyExpr(self.0.clone().name().into())
     }
 
     /// Selects the node type field for filtering.
@@ -666,7 +697,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
-        PyExpr(self.0.node_type().into())
+        PyExpr(self.0.clone().node_type().into())
     }
 
     /// Selects incoming node degree for filtering.
@@ -674,7 +705,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn in_degree(&self) -> PyExpr {
-        PyExpr(self.0.in_degree().into())
+        PyExpr(self.0.clone().in_degree().into())
     }
 
     /// Selects total node degree for filtering.
@@ -682,7 +713,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn degree(&self) -> PyExpr {
-        PyExpr(self.0.degree().into())
+        PyExpr(self.0.clone().degree().into())
     }
 
     /// Selects outgoing node degree for filtering.
@@ -690,7 +721,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn out_degree(&self) -> PyExpr {
-        PyExpr(self.0.out_degree().into())
+        PyExpr(self.0.clone().out_degree().into())
     }
 
     /// Filters a node property by name.
@@ -703,7 +734,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.0.property(name).into()
+        self.0.clone().property(name).into()
     }
 
     /// Filters a node metadata field by name.
@@ -716,7 +747,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.0.metadata(name).into())
+        PyExpr(self.0.clone().metadata(name).into())
     }
 
     /// Restricts node evaluation to the given time window.
@@ -801,7 +832,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn layer(&self, layer: String) -> PyNodeFilter {
-        Self(self.0.clone().layer(layer))
+        Self(self.0.clone().layers(layer))
     }
 
     /// Restricts evaluation to nodes belonging to any of the given layers.
@@ -812,7 +843,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        Self(self.0.clone().layer(Vec::<String>::from(layers)))
+        Self(self.0.clone().layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -831,7 +862,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_layer(&self, layer: String) -> PyNodeFilter {
-        Self(self.0.clone().exclude_layer(layer))
+        Self(self.0.clone().exclude_layers([layer]))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -842,7 +873,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        Self(self.0.clone().exclude_layers(layers))
+        Self(self.0.clone().exclude_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the given layers.
@@ -855,7 +886,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn valid_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        Self(self.0.clone().valid_layers(layers))
+        Self(self.0.clone().valid_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -868,7 +899,11 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_valid_layers(&self, layers: FromIterable<String>) -> PyNodeFilter {
-        Self(self.0.clone().exclude_valid_layers(layers))
+        Self(
+            self.0
+                .clone()
+                .exclude_valid_layers(Vec::<String>::from(layers)),
+        )
     }
 
     /// Moves the start of the current window to `start` when that is later.
@@ -950,7 +985,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        PyExpr(self.0.is_active().into())
+        PyExpr(self.0.clone().is_active().into())
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.

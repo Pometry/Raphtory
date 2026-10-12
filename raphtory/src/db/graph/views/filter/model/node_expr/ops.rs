@@ -4,24 +4,23 @@
 //! op holds a reference to the graph view it was compiled against.
 //! `apply(storage, vid)` returns the value in O(1).
 //!
-//! Ops are produced by [`NodeExpr::create_node_op`] — never constructed directly.
+//! Ops are produced by compiling a filter tree (`model::expr`) against a
+//! graph — never constructed directly.
 //!
 //! # Evaluation pipeline
 //!
 //! ```text
-//! NodeFilter.property("age")          ← NodeExpr (pure data)
-//!   .create_node_op(graph)?           ← resolve "age" → prop_id = 3
+//! NodeFilter.property("age")          ← Expr<NodeLeaf> (pure data)
+//!   compiled against graph            ← resolve "age" → prop_id = 3
 //!  ──► NodePropOp { graph, prop_id: 3 }  ← NodeOp: apply() reads column 3 in O(1)
 //!
-//! NodeFilter.property("age").gt(30i64)   ← BinaryCmpExpr (pure data)
-//!   converts to the expression tree (`model::expr`) and compiles there:
+//! NodeFilter.property("age").gt(30i64)   ← Expr::Cmp (pure data)
 //!  ──► a comparison op over NodePropOp and Const(Some(I64(30)))
 //!        apply: Prop::binary_cmp(Gt, age_value, Some(I64(30)))
 //!
-//! NodeFilter.property("score").temporal().sum()  ← SumExpr (pure data)
-//!   .create_node_op(graph)?
-//!  ──► SumNodeOp { inner: TemporalNodePropOp { graph, prop_id: 7 } }
-//!        apply: collect Prop::List temporal values, then aggregate_list_values(Sum)
+//! NodeFilter.property("tags").sum()  ← Expr::Agg (pure data)
+//!  ──► SumNodeOp { inner: NodePropOp { graph, prop_id: 7 } }
+//!        apply: reduce the list value with aggregate_list_values(Sum)
 //! ```
 //!
 //! The tree compiler avoids that list where it can: an aggregation written
@@ -41,7 +40,6 @@
 //! .any()       →  AnyNodeOp reduces the list → Prop::Bool(true)
 //! ```
 
-use super::EdgeOp;
 use crate::{
     db::{
         api::{
@@ -55,6 +53,7 @@ use crate::{
         graph::{
             node::NodeView,
             views::filter::model::{
+                edge_expr::EdgeOp,
                 expr::Agg,
                 node_expr::typing::{truthy, BinaryKernel, UnaryKernel},
                 property_filter::evaluate::{
@@ -80,7 +79,7 @@ use storage::EdgeEntryRef;
 // NodePropOp<G> — latest property value by pre-resolved column ID
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`Property::create_node_op`] — not constructed directly.
+/// The op a node property term compiles to — not constructed directly.
 ///
 /// `Property("age")` resolves `"age"` → `prop_id` once at compile time;
 /// every `apply` call then reads column `prop_id` in O(1).
@@ -137,7 +136,7 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
 // NodeMetaOp<G> — static metadata field by pre-resolved column ID
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`Metadata::create_node_op`] — not constructed directly.
+/// The op a node metadata term compiles to — not constructed directly.
 ///
 /// Same as [`NodePropOp`] but reads from the static metadata column instead of
 /// temporal properties.
@@ -247,7 +246,7 @@ impl NodeOp for NodeIdOp {
 // TemporalNodePropOp<G> — all temporal values for a property within the window
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Internal op produced by [`TemporalPropertyExpr::create_node_op`] — not constructed directly.
+/// The op a temporal node property term compiles to — not constructed directly.
 ///
 /// Collects all recorded values within the current view window into a `Some(Prop::List([...]))`
 /// for a consumer that needs the history as one value. An aggregation or an
@@ -297,14 +296,11 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Aggregator NodeOps — compile-time resolved against a concrete graph view
 //
-// Each is an internal op produced by its corresponding expr's create_node_op:
-//   SumExpr::create_node_op   → SumNodeOp    (Output = Option<Prop>)
-//   AvgExpr::create_node_op   → AvgNodeOp    (Output = Option<Prop>)
-//   MinExpr::create_node_op   → MinNodeOp    (Output = Option<Prop>)
-//   MaxExpr::create_node_op   → MaxNodeOp    (Output = Option<Prop>)
-//   FirstExpr::create_node_op → FirstNodeOp  (Output = Option<Prop>)
-//   LastExpr::create_node_op  → LastNodeOp   (Output = Option<Prop>)
-//   LenExpr::create_node_op   → LenNodeOp    (Output = usize)
+// Each is the op an aggregate of a node tree compiles to:
+//   sum()   → SumNodeOp      avg()  → AvgNodeOp      min() → MinNodeOp
+//   max()   → MaxNodeOp      first() → FirstNodeOp   last() → LastNodeOp
+//   len()   → LenNodeOp      earliest() → EarliestNodeOp
+//   latest() → LatestNodeOp
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Aggregations collapse the innermost list level; outer levels survive so a

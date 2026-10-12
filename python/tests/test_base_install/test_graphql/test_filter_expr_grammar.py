@@ -224,7 +224,7 @@ def test_layer_exclusion_default_layer_and_shrinks_read_as_the_graph_views():
     cases = [
         ([{"kind": "DEFAULT_LAYER"}], g.default_layer(), f.Edge.default_layer()),
         (
-            [{"excludeLayer": "knows"}],
+            [{"excludeLayers": ["knows"]}],
             g.exclude_layer("knows"),
             f.Edge.exclude_layer("knows"),
         ),

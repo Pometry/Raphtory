@@ -46,7 +46,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn id(&self) -> PyExpr {
-        PyExpr(self.0.id().into())
+        PyExpr(self.0.clone().id().into())
     }
 
     /// Selects the endpoint node name field for filtering.
@@ -54,7 +54,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn name(&self) -> PyExpr {
-        PyExpr(self.0.name().into())
+        PyExpr(self.0.clone().name().into())
     }
 
     /// Selects the endpoint node type field for filtering.
@@ -62,7 +62,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn node_type(&self) -> PyExpr {
-        PyExpr(self.0.node_type().into())
+        PyExpr(self.0.clone().node_type().into())
     }
 
     /// Filters an endpoint node property by name.
@@ -73,7 +73,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.0.property(name).into()
+        self.0.clone().property(name).into()
     }
 
     /// Filters an endpoint node metadata field by name.
@@ -84,7 +84,7 @@ impl PyEdgeEndpoint {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.0.metadata(name).into())
+        PyExpr(self.0.clone().metadata(name).into())
     }
 }
 
@@ -113,7 +113,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn src(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(self.0.src())
+        PyEdgeEndpoint(self.0.clone().src())
     }
 
     /// Selects the edge **destination endpoint** for filtering.
@@ -121,7 +121,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeEndpoint:
     fn dst(&self) -> PyEdgeEndpoint {
-        PyEdgeEndpoint(self.0.dst())
+        PyEdgeEndpoint(self.0.clone().dst())
     }
 
     /// Filters an edge property by name.
@@ -132,7 +132,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.0.property(name).into()
+        self.0.clone().property(name).into()
     }
 
     /// Filters an edge metadata field by name.
@@ -143,7 +143,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.0.metadata(name).into())
+        PyExpr(self.0.clone().metadata(name).into())
     }
 
     /// Restricts edge evaluation to the given time window.
@@ -226,7 +226,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn layer(&self, layer: String) -> PyEdgeFilter {
-        Self(self.0.clone().layer(layer))
+        Self(self.0.clone().layers(layer))
     }
 
     /// Restricts evaluation to edges belonging to any of the given layers.
@@ -237,7 +237,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        Self(self.0.clone().layer(Vec::<String>::from(layers)))
+        Self(self.0.clone().layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -256,7 +256,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_layer(&self, layer: String) -> PyEdgeFilter {
-        Self(self.0.clone().exclude_layer(layer))
+        Self(self.0.clone().exclude_layers([layer]))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -267,7 +267,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        Self(self.0.clone().exclude_layers(layers))
+        Self(self.0.clone().exclude_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the given layers.
@@ -280,7 +280,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn valid_layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        Self(self.0.clone().valid_layers(layers))
+        Self(self.0.clone().valid_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -293,7 +293,11 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_valid_layers(&self, layers: FromIterable<String>) -> PyEdgeFilter {
-        Self(self.0.clone().exclude_valid_layers(layers))
+        Self(
+            self.0
+                .clone()
+                .exclude_valid_layers(Vec::<String>::from(layers)),
+        )
     }
 
     /// Moves the start of the current window to `start` when that is later.
@@ -375,7 +379,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        PyExpr(self.0.is_active().into())
+        PyExpr(self.0.clone().is_active().into())
     }
 
     /// Matches edges that are structurally valid in the current view.
@@ -383,7 +387,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_valid(&self) -> PyExpr {
-        PyExpr(self.0.is_valid().into())
+        PyExpr(self.0.clone().is_valid().into())
     }
 
     /// Matches edges that have been deleted.
@@ -391,7 +395,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_deleted(&self) -> PyExpr {
-        PyExpr(self.0.is_deleted().into())
+        PyExpr(self.0.clone().is_deleted().into())
     }
 
     /// Matches edges that are self-loops (source == destination).
@@ -399,7 +403,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_self_loop(&self) -> PyExpr {
-        PyExpr(self.0.is_self_loop().into())
+        PyExpr(self.0.clone().is_self_loop().into())
     }
 }
 

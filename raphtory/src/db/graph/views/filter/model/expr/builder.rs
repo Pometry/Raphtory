@@ -3,14 +3,14 @@
 //! Every builder here produces the filter tree ([`Expr`], [`FilterExpr`]):
 //! the same data the python bindings build and the GraphQL wire type carries,
 //! compiled by the one compiler in `compile.rs`. Nothing a user writes
-//! constructs a typed expression directly; the tree does, once, from data.
+//! builds an op directly; the tree does, once, from data.
 //!
 //! ```rust,ignore
 //! NodeFilter.property("score").gt(4)                       // Expr<NodeLeaf>
 //! NodeFilter.window(1, 5).property("score").temporal().any()
 //! EdgeFilter::src().name().eq("alice")                     // Expr<EdgeLeaf>
 //! NodeFilter.name().eq("b").and(EdgeFilter.is_valid())     // FilterExpr
-//! GraphFilter.window(1, 5).layer("a")                      // a view, FilterExpr::View
+//! GraphFilter.window(1, 5).layers("a")                     // a view, FilterExpr::View
 //! ```
 //!
 //! Each method set exists once, as a trait with default bodies over
@@ -43,9 +43,14 @@ use std::marker::PhantomData;
 
 // ── chains ───────────────────────────────────────────────────────────────────
 
+/// The entity of a view on the graph itself: a graph view has no terms, so it
+/// names no leaf, only the views.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GraphLeaf;
+
 /// A root with views applied: `NodeFilter.window(1, 5)`. The views scope every
-/// term built from it. `L` is the leaf type of the entity, or `()` for a view
-/// on the graph itself.
+/// term built from it. `L` is the leaf type of the entity, or [`GraphLeaf`] for
+/// a view on the graph itself.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Chain<L> {
     views: Vec<ViewOp>,
@@ -65,8 +70,8 @@ impl<L> Chain<L> {
         &self.views
     }
 
-    fn push(mut self, op: Option<ViewOp>) -> Self {
-        self.views.extend(op);
+    fn push(mut self, op: ViewOp) -> Self {
+        self.views.push(op);
         self
     }
 }
@@ -89,112 +94,97 @@ impl From<ExplodedEdgeFilter> for Chain<ExplodedEdgeLeaf> {
     }
 }
 
-impl From<GraphFilter> for Chain<()> {
+impl From<GraphFilter> for Chain<GraphLeaf> {
     fn from(_: GraphFilter) -> Self {
         Chain::new(Vec::new())
     }
 }
 
 /// A view on the graph itself is a filter: the graph seen through it.
-impl From<Chain<()>> for FilterExpr {
-    fn from(chain: Chain<()>) -> Self {
+impl From<Chain<GraphLeaf>> for FilterExpr {
+    fn from(chain: Chain<GraphLeaf>) -> Self {
         FilterExpr::View(chain.views)
     }
-}
-
-/// The view op a layer restriction is; `Layer::All` restricts nothing.
-fn layer_view(layer: Layer) -> Option<ViewOp> {
-    let names = match layer {
-        Layer::All => return None,
-        Layer::None => Vec::new(),
-        Layer::Default => vec!["_default".to_string()],
-        Layer::One(name) => vec![name.to_string()],
-        Layer::Multiple(names) => names.iter().map(ToString::to_string).collect(),
-    };
-    Some(ViewOp::Layers(names))
 }
 
 /// The views: each one scopes what is built after it. Implemented for the four
 /// roots and for the chain they become.
 pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
     fn window<S: IntoTime, E: IntoTime>(self, start: S, end: E) -> Chain<L> {
-        self.into().push(Some(ViewOp::Window {
+        self.into().push(ViewOp::Window {
             start: start.into_time(),
             end: end.into_time(),
-        }))
+        })
     }
 
     fn at<T: IntoTime>(self, time: T) -> Chain<L> {
-        self.into().push(Some(ViewOp::At(time.into_time())))
+        self.into().push(ViewOp::At(time.into_time()))
     }
 
     fn after<T: IntoTime>(self, time: T) -> Chain<L> {
-        self.into().push(Some(ViewOp::After(time.into_time())))
+        self.into().push(ViewOp::After(time.into_time()))
     }
 
     fn before<T: IntoTime>(self, time: T) -> Chain<L> {
-        self.into().push(Some(ViewOp::Before(time.into_time())))
+        self.into().push(ViewOp::Before(time.into_time()))
     }
 
     fn latest(self) -> Chain<L> {
-        self.into().push(Some(ViewOp::Latest))
+        self.into().push(ViewOp::Latest)
     }
 
     fn snapshot_at<T: IntoTime>(self, time: T) -> Chain<L> {
-        self.into().push(Some(ViewOp::SnapshotAt(time.into_time())))
+        self.into().push(ViewOp::SnapshotAt(time.into_time()))
     }
 
     fn snapshot_latest(self) -> Chain<L> {
-        self.into().push(Some(ViewOp::SnapshotLatest))
+        self.into().push(ViewOp::SnapshotLatest)
     }
 
-    fn layer<Ly: Into<Layer>>(self, layer: Ly) -> Chain<L> {
-        self.into().push(layer_view(layer.into()))
+    /// `Layer::All` is every layer, so it restricts nothing.
+    fn layers(self, layers: impl Into<Layer>) -> Chain<L> {
+        match layers.into() {
+            Layer::All => self.into(),
+            layer => self.into().push(ViewOp::Layers(layer)),
+        }
     }
 
     fn default_layer(self) -> Chain<L> {
-        self.into().push(Some(ViewOp::DefaultLayer))
+        self.into().push(ViewOp::DefaultLayer)
     }
 
-    fn exclude_layer(self, layer: impl Into<String>) -> Chain<L> {
-        self.into()
-            .push(Some(ViewOp::ExcludeLayers(vec![layer.into()])))
+    /// Excluding every layer leaves none, as `exclude_layers(Layer::All)`
+    /// does on a graph.
+    fn exclude_layers(self, layers: impl Into<Layer>) -> Chain<L> {
+        match layers.into() {
+            Layer::All => self.into().push(ViewOp::Layers(Layer::None)),
+            layer => self.into().push(ViewOp::ExcludeLayers(layer)),
+        }
     }
 
-    fn exclude_layers<I, S>(self, layers: I) -> Chain<L>
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        let names = layers.into_iter().map(Into::into).collect();
-        self.into().push(Some(ViewOp::ExcludeLayers(names)))
+    /// `Layer::All` is every layer, so it restricts nothing.
+    fn valid_layers(self, layers: impl Into<Layer>) -> Chain<L> {
+        match layers.into() {
+            Layer::All => self.into(),
+            layer => self.into().push(ViewOp::ValidLayers(layer)),
+        }
     }
 
-    fn valid_layers<I, S>(self, layers: I) -> Chain<L>
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        let names = layers.into_iter().map(Into::into).collect();
-        self.into().push(Some(ViewOp::ValidLayers(names)))
-    }
-
-    fn exclude_valid_layers<I, S>(self, layers: I) -> Chain<L>
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        let names = layers.into_iter().map(Into::into).collect();
-        self.into().push(Some(ViewOp::ExcludeValidLayers(names)))
+    /// Excluding every layer leaves none, as `exclude_valid_layers(Layer::All)`
+    /// does on a graph.
+    fn exclude_valid_layers(self, layers: impl Into<Layer>) -> Chain<L> {
+        match layers.into() {
+            Layer::All => self.into().push(ViewOp::Layers(Layer::None)),
+            layer => self.into().push(ViewOp::ExcludeValidLayers(layer)),
+        }
     }
 
     fn shrink_start<T: IntoTime>(self, start: T) -> Chain<L> {
-        self.into()
-            .push(Some(ViewOp::ShrinkStart(start.into_time())))
+        self.into().push(ViewOp::ShrinkStart(start.into_time()))
     }
 
     fn shrink_end<T: IntoTime>(self, end: T) -> Chain<L> {
-        self.into().push(Some(ViewOp::ShrinkEnd(end.into_time())))
+        self.into().push(ViewOp::ShrinkEnd(end.into_time()))
     }
 
     fn exclude_nodes<I, V>(self, nodes: I) -> Chain<L>
@@ -203,7 +193,7 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
         V: Into<GID>,
     {
         let ids = nodes.into_iter().map(Into::into).collect();
-        self.into().push(Some(ViewOp::ExcludeNodes(ids)))
+        self.into().push(ViewOp::ExcludeNodes(ids))
     }
 
     fn subgraph<I, V>(self, nodes: I) -> Chain<L>
@@ -212,7 +202,7 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
         V: Into<GID>,
     {
         let ids = nodes.into_iter().map(Into::into).collect();
-        self.into().push(Some(ViewOp::Subgraph(ids)))
+        self.into().push(ViewOp::Subgraph(ids))
     }
 
     fn subgraph_node_types<I, S>(self, node_types: I) -> Chain<L>
@@ -221,11 +211,11 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
         S: Into<String>,
     {
         let types = node_types.into_iter().map(Into::into).collect();
-        self.into().push(Some(ViewOp::SubgraphNodeTypes(types)))
+        self.into().push(ViewOp::SubgraphNodeTypes(types))
     }
 
     fn valid(self) -> Chain<L> {
-        self.into().push(Some(ViewOp::Valid))
+        self.into().push(ViewOp::Valid)
     }
 }
 
@@ -233,50 +223,69 @@ impl<L> ViewWrapOps<L> for Chain<L> {}
 impl ViewWrapOps<NodeLeaf> for NodeFilter {}
 impl ViewWrapOps<EdgeLeaf> for EdgeFilter {}
 impl ViewWrapOps<ExplodedEdgeLeaf> for ExplodedEdgeFilter {}
-impl ViewWrapOps<()> for GraphFilter {}
+impl ViewWrapOps<GraphLeaf> for GraphFilter {}
 
 // ── terms ────────────────────────────────────────────────────────────────────
 
-/// A property term: its latest value, or its history after `temporal()`.
-/// Both forms are built up front, the way the python bindings do, so the
-/// term can switch without rebuilding its views.
-#[derive(Clone, Debug, PartialEq)]
+impl Endpoint {
+    /// A node expression read on the node at this end of the edge.
+    fn edge_leaf(self, inner: Expr<NodeLeaf>) -> EdgeLeaf {
+        let inner = Box::new(inner);
+        match self {
+            Endpoint::Src => EdgeLeaf::Src(inner),
+            Endpoint::Dst => EdgeLeaf::Dst(inner),
+        }
+    }
+}
+
+/// An edge reads the property of its source node.
+fn src_property(views: Vec<ViewOp>, name: String, temporal: bool) -> EdgeLeaf {
+    Endpoint::Src.edge_leaf(Expr::Term(NodeLeaf::property(views, name, temporal)))
+}
+
+/// An edge reads the property of its destination node.
+fn dst_property(views: Vec<ViewOp>, name: String, temporal: bool) -> EdgeLeaf {
+    Endpoint::Dst.edge_leaf(Expr::Term(NodeLeaf::property(views, name, temporal)))
+}
+
+/// A property term: its latest value, or its history after `temporal()`. It
+/// holds what the term reads, once; the form is chosen when it is used.
+/// `build` makes the leaf that reads `name` through `views`: its latest value,
+/// or its history when `temporal`.
+#[derive(Clone, Debug)]
 pub struct PropertyTerm<L: Leaf> {
-    latest: Expr<L>,
-    history: Expr<L>,
+    views: Vec<ViewOp>,
+    name: String,
+    build: fn(Vec<ViewOp>, String, bool) -> L,
 }
 
 impl<L: Leaf> PropertyTerm<L> {
-    fn new(term: impl Fn(bool) -> Expr<L>) -> Self {
-        PropertyTerm {
-            latest: term(false),
-            history: term(true),
-        }
-    }
-
     /// The property's history: one value per update, inside the views.
-    pub fn temporal(&self) -> Expr<L> {
-        self.history.clone()
+    pub fn temporal(self) -> Expr<L> {
+        Expr::Term((self.build)(self.views, self.name, true))
     }
 }
 
+/// The property's latest value, inside the views.
 impl<L: Leaf> From<PropertyTerm<L>> for Expr<L> {
     fn from(term: PropertyTerm<L>) -> Self {
-        term.latest
+        Expr::Term((term.build)(term.views, term.name, false))
     }
 }
 
 /// Property and metadata terms on an entity. Implemented for the three entity
-/// roots and their chains.
-pub trait PropertyExprFactory<L: Leaf>: Into<Chain<L>> + Clone {
-    fn property(&self, name: impl Into<String>) -> PropertyTerm<L> {
-        let views = self.clone().into().views;
-        let name = name.into();
-        PropertyTerm::new(|temporal| Expr::Term(L::property(views.clone(), name.clone(), temporal)))
+/// roots and their chains; each term takes the chain's views.
+pub trait PropertyExprFactory<L: Leaf>: Into<Chain<L>> {
+    fn property(self, name: impl Into<String>) -> PropertyTerm<L> {
+        PropertyTerm {
+            views: self.into().views,
+            name: name.into(),
+            build: L::property,
+        }
     }
 
-    fn metadata(&self, name: impl Into<String>) -> Expr<L> {
-        Expr::Term(L::metadata(self.clone().into().views, name.into()))
+    fn metadata(self, name: impl Into<String>) -> Expr<L> {
+        Expr::Term(L::metadata(self.into().views, name.into()))
     }
 }
 
@@ -286,48 +295,48 @@ impl PropertyExprFactory<EdgeLeaf> for EdgeFilter {}
 impl PropertyExprFactory<ExplodedEdgeLeaf> for ExplodedEdgeFilter {}
 
 /// The terms only a node offers. Implemented for `NodeFilter` and its chain.
-pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> + Clone {
-    fn id(&self) -> Expr<NodeLeaf> {
+pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
+    fn id(self) -> Expr<NodeLeaf> {
         self.field(Field::Id)
     }
 
-    fn name(&self) -> Expr<NodeLeaf> {
+    fn name(self) -> Expr<NodeLeaf> {
         self.field(Field::Name)
     }
 
-    fn node_type(&self) -> Expr<NodeLeaf> {
+    fn node_type(self) -> Expr<NodeLeaf> {
         self.field(Field::NodeType)
     }
 
-    fn field(&self, field: Field) -> Expr<NodeLeaf> {
+    fn field(self, field: Field) -> Expr<NodeLeaf> {
         Expr::Term(NodeLeaf::Field {
-            views: self.clone().into().views,
+            views: self.into().views,
             field,
         })
     }
 
-    fn degree(&self) -> Expr<NodeLeaf> {
+    fn degree(self) -> Expr<NodeLeaf> {
         self.degree_in(Direction::BOTH)
     }
 
-    fn in_degree(&self) -> Expr<NodeLeaf> {
+    fn in_degree(self) -> Expr<NodeLeaf> {
         self.degree_in(Direction::IN)
     }
 
-    fn out_degree(&self) -> Expr<NodeLeaf> {
+    fn out_degree(self) -> Expr<NodeLeaf> {
         self.degree_in(Direction::OUT)
     }
 
-    fn degree_in(&self, direction: Direction) -> Expr<NodeLeaf> {
+    fn degree_in(self, direction: Direction) -> Expr<NodeLeaf> {
         Expr::Term(NodeLeaf::Degree {
-            views: self.clone().into().views,
+            views: self.into().views,
             direction,
         })
     }
 
     /// Whether the node has an event inside the views.
-    fn is_active(&self) -> Expr<NodeLeaf> {
-        Expr::Term(NodeLeaf::is_active(self.clone().into().views))
+    fn is_active(self) -> Expr<NodeLeaf> {
+        Expr::Term(NodeLeaf::is_active(self.into().views))
     }
 
     /// The nodes a boolean column of a node state marks. Built from
@@ -385,21 +394,21 @@ impl EdgeKind for ExplodedEdgeLeaf {
 
 /// The unit tests of an edge or exploded edge, inside the chain's views.
 /// Implemented for the two edge roots and their chains.
-pub trait EdgeViewFilterOps<L: EdgeKind>: Into<Chain<L>> + Clone {
-    fn is_active(&self) -> Expr<L> {
-        Expr::Term(L::is_active(self.clone().into().views))
+pub trait EdgeViewFilterOps<L: EdgeKind>: Into<Chain<L>> {
+    fn is_active(self) -> Expr<L> {
+        Expr::Term(L::is_active(self.into().views))
     }
 
-    fn is_valid(&self) -> Expr<L> {
-        Expr::Term(L::is_valid(self.clone().into().views))
+    fn is_valid(self) -> Expr<L> {
+        Expr::Term(L::is_valid(self.into().views))
     }
 
-    fn is_deleted(&self) -> Expr<L> {
-        Expr::Term(L::is_deleted(self.clone().into().views))
+    fn is_deleted(self) -> Expr<L> {
+        Expr::Term(L::is_deleted(self.into().views))
     }
 
-    fn is_self_loop(&self) -> Expr<L> {
-        Expr::Term(L::is_self_loop(self.clone().into().views))
+    fn is_self_loop(self) -> Expr<L> {
+        Expr::Term(L::is_self_loop(self.into().views))
     }
 }
 
@@ -435,17 +444,17 @@ impl EdgeFilter {
 
 impl Chain<EdgeLeaf> {
     /// The source node, read inside this chain's views.
-    pub fn src(&self) -> EdgeEndpoint {
+    pub fn src(self) -> EdgeEndpoint {
         EdgeEndpoint {
-            views: self.views.clone(),
+            views: self.views,
             endpoint: Endpoint::Src,
         }
     }
 
     /// The destination node, read inside this chain's views.
-    pub fn dst(&self) -> EdgeEndpoint {
+    pub fn dst(self) -> EdgeEndpoint {
         EdgeEndpoint {
-            views: self.views.clone(),
+            views: self.views,
             endpoint: Endpoint::Dst,
         }
     }
@@ -462,71 +471,48 @@ impl EdgeEndpoint {
         self.endpoint
     }
 
-    /// A node term, evaluated on the node at this end of the edge.
-    fn through(&self, inner: Expr<NodeLeaf>) -> Expr<EdgeLeaf> {
-        let inner = Box::new(inner);
-        Expr::Term(match self.endpoint {
-            Endpoint::Src => EdgeLeaf::Src(inner),
-            Endpoint::Dst => EdgeLeaf::Dst(inner),
-        })
+    /// A node term built inside the views, evaluated on the node at this end
+    /// of the edge.
+    fn through(self, term: impl FnOnce(Chain<NodeLeaf>) -> Expr<NodeLeaf>) -> Expr<EdgeLeaf> {
+        Expr::Term(self.endpoint.edge_leaf(term(Chain::new(self.views))))
     }
 
-    fn node(&self) -> Chain<NodeLeaf> {
-        Chain::new(self.views.clone())
+    pub fn id(self) -> Expr<EdgeLeaf> {
+        self.through(NodeFilterFactory::id)
     }
 
-    pub fn id(&self) -> Expr<EdgeLeaf> {
-        self.through(self.node().id())
+    pub fn name(self) -> Expr<EdgeLeaf> {
+        self.through(NodeFilterFactory::name)
     }
 
-    pub fn name(&self) -> Expr<EdgeLeaf> {
-        self.through(self.node().name())
+    pub fn node_type(self) -> Expr<EdgeLeaf> {
+        self.through(NodeFilterFactory::node_type)
     }
 
-    pub fn node_type(&self) -> Expr<EdgeLeaf> {
-        self.through(self.node().node_type())
+    pub fn property(self, name: impl Into<String>) -> PropertyTerm<EdgeLeaf> {
+        PropertyTerm {
+            views: self.views,
+            name: name.into(),
+            build: match self.endpoint {
+                Endpoint::Src => src_property,
+                Endpoint::Dst => dst_property,
+            },
+        }
     }
 
-    pub fn property(&self, name: impl Into<String>) -> PropertyTerm<EdgeLeaf> {
-        let node = self.node();
-        let name = name.into();
-        PropertyTerm::new(|temporal| {
-            self.through(Expr::Term(NodeLeaf::property(
-                node.views.clone(),
-                name.clone(),
-                temporal,
-            )))
-        })
-    }
-
-    pub fn metadata(&self, name: impl Into<String>) -> Expr<EdgeLeaf> {
-        self.through(self.node().metadata(name))
+    pub fn metadata(self, name: impl Into<String>) -> Expr<EdgeLeaf> {
+        self.through(|node| node.metadata(name))
     }
 }
 
 // ── values ───────────────────────────────────────────────────────────────────
 
-/// The right-hand side of a comparison: another expression on the same
-/// entity, a property term, or a constant.
-pub trait IntoExpr<L: Leaf> {
-    fn into_expr(self) -> Expr<L>;
-}
-
-impl<L: Leaf> IntoExpr<L> for Expr<L> {
-    fn into_expr(self) -> Expr<L> {
-        self
-    }
-}
-
-impl<L: Leaf> IntoExpr<L> for PropertyTerm<L> {
-    fn into_expr(self) -> Expr<L> {
-        self.latest
-    }
-}
-
-impl<L: Leaf, T: Into<Prop>> IntoExpr<L> for T {
-    fn into_expr(self) -> Expr<L> {
-        Expr::Const(self.into())
+/// A constant is an expression on any entity, so the right-hand side of a
+/// test is anything `Into<Expr<L>>`: another expression on the same entity, a
+/// property term (its latest value), or a constant.
+impl<L: Leaf, T: Into<Prop>> From<T> for Expr<L> {
+    fn from(value: T) -> Self {
+        Expr::Const(value.into())
     }
 }
 
@@ -534,57 +520,57 @@ impl<L: Leaf, T: Into<Prop>> IntoExpr<L> for T {
 /// qualifiers over an element-wise result. Implemented for an expression and
 /// for a property term (its latest value).
 pub trait EntityExprFilterOps<L: Leaf>: Into<Expr<L>> + Sized {
-    fn cmp(self, op: BinaryOp, rhs: impl IntoExpr<L>) -> Expr<L> {
-        Expr::Cmp(op, Box::new(self.into()), Box::new(rhs.into_expr()))
+    fn cmp(self, op: BinaryOp, rhs: impl Into<Expr<L>>) -> Expr<L> {
+        Expr::Cmp(op, Box::new(self.into()), Box::new(rhs.into()))
     }
 
-    fn gt(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn gt(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.cmp(BinaryOp::Gt, rhs)
     }
 
-    fn ge(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn ge(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.cmp(BinaryOp::Ge, rhs)
     }
 
-    fn lt(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn lt(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.cmp(BinaryOp::Lt, rhs)
     }
 
-    fn le(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn le(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.cmp(BinaryOp::Le, rhs)
     }
 
-    fn eq(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn eq(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.cmp(BinaryOp::Eq, rhs)
     }
 
-    fn ne(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn ne(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.cmp(BinaryOp::Ne, rhs)
     }
 
-    fn string(self, op: StringOp, rhs: impl IntoExpr<L>) -> Expr<L> {
-        Expr::Str(op, Box::new(self.into()), Box::new(rhs.into_expr()))
+    fn string(self, op: StringOp, rhs: impl Into<Expr<L>>) -> Expr<L> {
+        Expr::Str(op, Box::new(self.into()), Box::new(rhs.into()))
     }
 
-    fn starts_with(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn starts_with(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.string(StringOp::StartsWith, rhs)
     }
 
-    fn ends_with(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn ends_with(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.string(StringOp::EndsWith, rhs)
     }
 
-    fn contains(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn contains(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.string(StringOp::Contains, rhs)
     }
 
-    fn not_contains(self, rhs: impl IntoExpr<L>) -> Expr<L> {
+    fn not_contains(self, rhs: impl Into<Expr<L>>) -> Expr<L> {
         self.string(StringOp::NotContains, rhs)
     }
 
     fn fuzzy_search(
         self,
-        rhs: impl IntoExpr<L>,
+        rhs: impl Into<Expr<L>>,
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> Expr<L> {
@@ -709,4 +695,4 @@ pub trait ComposableFilter: Into<FilterExpr> + Sized {
 
 impl<L: Leaf> ComposableFilter for Expr<L> {}
 impl ComposableFilter for FilterExpr {}
-impl ComposableFilter for Chain<()> {}
+impl ComposableFilter for Chain<GraphLeaf> {}

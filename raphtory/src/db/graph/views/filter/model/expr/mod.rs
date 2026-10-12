@@ -1,9 +1,8 @@
 //! A filter as data, one expression type per entity.
 //!
-//! The typed expression API (`NodeFilter.property("score").gt(4)`) is what
-//! rust callers write and what the engine compiles. Everything that has to
-//! *carry* a filter — a python object, a GraphQL request, a stored permission
-//! grant — needs the same filter as plain data. These enums are that data.
+//! The rust builders (`NodeFilter.property("score").gt(4)`), the python
+//! bindings, a GraphQL request and a stored permission grant all write the
+//! same filter as plain data. These enums are that data.
 //!
 //! [`Expr`] holds what every entity can do: constants, aggregates,
 //! comparisons, string and set tests, presence tests, `any`/`all` over an
@@ -21,9 +20,8 @@
 //! graph is at hand, so that check runs when the filter is built against a
 //! graph.
 //!
-//! The tree is data, not a second compiler: compiling it builds the typed
-//! expressions of the rust API (`BinaryCmpExpr`, `AnyExpr`, …) over erased
-//! terms, and those compile themselves. See [`compile`].
+//! Applying a tree compiles it straight to the ops that evaluate it; see
+//! [`compile`].
 
 pub mod builder;
 mod compile;
@@ -33,18 +31,27 @@ pub(crate) mod stream;
 #[cfg(test)]
 mod tests;
 
-pub use builder::{Chain, EdgeEndpoint, EdgeKind, IntoExpr, PropertyTerm};
+pub use builder::{Chain, EdgeEndpoint, EdgeKind, GraphLeaf, PropertyTerm};
 pub use compile::Leaf;
 pub(crate) use split::{EdgePredicate, Question, SplitFilter};
-pub use stream::{DynCreateHistory, EdgeHistory, NodeHistory, ValueTest};
+pub use stream::{EdgeHistory, NodeHistory, ValueTest};
 
 use super::{
     filter_operator::{BinaryOp, StringOp},
-    node_expr::{CreateOp, DynCreateOp},
-    EntityMarker,
+    node_expr::{
+        pushdown::{IndexQuery, IndexTerm, Pushdown},
+        typing::static_comparison_type,
+    },
+};
+use crate::{
+    db::api::{state::NodeOp, view::internal::DynGraphArc},
+    errors::GraphError,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
+    entities::{
+        properties::prop::{Prop, PropType},
+        Layer, GID,
+    },
     storage::timeindex::EventTime,
     Direction,
 };
@@ -70,18 +77,18 @@ pub enum ViewOp {
     SnapshotAt(EventTime),
     /// `snapshot_latest()`.
     SnapshotLatest,
-    /// `layers(names)`.
-    Layers(Vec<String>),
+    /// `layers(layer)`.
+    Layers(Layer),
     /// `default_layer()`.
     DefaultLayer,
-    /// `exclude_layers(names)`; one name is `exclude_layer(name)`.
-    ExcludeLayers(Vec<String>),
-    /// `valid_layers(names)`: the named layers; a name the graph does not
+    /// `exclude_layers(layer)`.
+    ExcludeLayers(Layer),
+    /// `valid_layers(layer)`: the named layers; a name the graph does not
     /// have is ignored, where `layers` errors on it.
-    ValidLayers(Vec<String>),
-    /// `exclude_valid_layers(names)`: every layer but the named ones; a name
+    ValidLayers(Layer),
+    /// `exclude_valid_layers(layer)`: every layer but the named ones; a name
     /// the graph does not have is ignored, where `exclude_layers` errors on it.
-    ExcludeValidLayers(Vec<String>),
+    ExcludeValidLayers(Layer),
     /// `shrink_start(t)`: the later of `t` and the current start.
     ShrinkStart(EventTime),
     /// `shrink_end(t)`: the earlier of `t` and the current end.
@@ -127,33 +134,48 @@ pub enum Agg {
     Latest,
 }
 
-/// A yes/no expression already built in this process, carried inside a tree:
-/// a filter over in-process state (a node-state column). It runs but does not
-/// serialise: asking for its wire form is an error, not a guess.
+/// Which elements of an element-wise yes/no result must hold.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Quantifier {
+    /// At least one.
+    Any,
+    /// Every one.
+    All,
+}
+
+/// A node value built in this process, from in-process state (a node-state
+/// column) rather than from data: what an [`OpaqueFilter`] carries.
+pub trait OpaqueOp: Send + Sync + 'static {
+    /// The op that reads the value per node against `graph`.
+    fn node_value_op<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError>;
+
+    /// The type of the value, when it is fixed whatever the graph.
+    fn prop_type(&self) -> PropType;
+
+    /// Whether the value can be missing.
+    fn nullable(&self) -> bool;
+}
+
+/// A node value already built in this process, carried inside a tree as a
+/// node term: a value over in-process state (a node-state column). It runs
+/// but does not serialise: asking for its wire form is an error, not a guess.
 #[derive(Clone)]
-pub struct OpaqueFilter(pub Arc<dyn DynCreateOp>);
+pub struct OpaqueFilter(pub Arc<dyn OpaqueOp>);
 
 pub const OPAQUE_FILTER_ERROR: &str =
     "this filter has no server-side form; it was built from in-process state";
 
 impl OpaqueFilter {
-    pub fn new<E: CreateOp>(expr: E) -> Self {
+    pub fn new<E: OpaqueOp>(expr: E) -> Self {
         OpaqueFilter(Arc::new(expr))
     }
 
-    /// The entity the expression answers for.
-    pub fn entity(&self) -> EntityMarker {
-        self.0.dyn_entity()
-    }
-
-    /// The filter this expression is: a predicate on its own entity.
+    /// The filter this value is: a predicate on nodes.
     pub fn into_filter(self) -> FilterExpr {
-        match self.entity() {
-            EntityMarker::Edge => FilterExpr::Edge(Expr::Opaque(self)),
-            EntityMarker::ExplodedEdge => FilterExpr::ExplodedEdge(Expr::Opaque(self)),
-            // a constant is refused where the predicate is built
-            EntityMarker::Node | EntityMarker::Const => FilterExpr::Node(Expr::Opaque(self)),
-        }
+        FilterExpr::Node(Expr::Term(NodeLeaf::Opaque(self)))
     }
 }
 
@@ -203,9 +225,6 @@ pub enum Expr<L> {
     And(Vec<Expr<L>>),
     Or(Vec<Expr<L>>),
     Not(Box<Expr<L>>),
-    /// A yes/no expression built in this process (a node-state column) that
-    /// has no wire form: it runs where it was built and cannot be sent anywhere.
-    Opaque(OpaqueFilter),
     /// A term the entity offers; see [`NodeLeaf`], [`EdgeLeaf`], [`ExplodedEdgeLeaf`].
     /// Serialised as the leaf itself, so the term's name is the key.
     #[serde(untagged)]
@@ -243,6 +262,9 @@ pub enum NodeLeaf {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
+    /// A node value built in this process (a node-state column) that has no
+    /// wire form: it runs where it was built and cannot be sent anywhere.
+    Opaque(OpaqueFilter),
 }
 
 /// What an edge offers: the surface of `EdgeFilter`, plus a look at either
@@ -321,6 +343,174 @@ pub enum ExplodedEdgeLeaf {
 pub type NodeExpr = Expr<NodeLeaf>;
 pub type EdgeExpr = Expr<EdgeLeaf>;
 pub type ExplodedEdgeExpr = Expr<ExplodedEdgeLeaf>;
+
+/// What a tree knows about itself before any graph is at hand: its result
+/// type, whether it can be missing, the constant it is, the side a history
+/// walk would read, and how a node filter on it can start from an index
+/// instead of every node.
+/// Each answer is read off the tree; a term answers for itself through its
+/// [`Leaf`].
+impl<L: Leaf> Expr<L> {
+    /// The result type, when it is known before the filter meets a graph: a
+    /// constant's, a term's, or one yes/no (or one per element) for a
+    /// comparison of known types. Anything else is `Empty`.
+    pub(crate) fn prop_type(&self) -> PropType {
+        match self {
+            Expr::Const(value) => value.dtype(),
+            Expr::Term(leaf) => leaf.prop_type(),
+            Expr::Cmp(op, lhs, rhs) => {
+                static_comparison_type(op, &lhs.prop_type(), &rhs.prop_type())
+            }
+            Expr::Agg(..)
+            | Expr::Str(..)
+            | Expr::In { .. }
+            | Expr::IsSome(_)
+            | Expr::IsNone(_)
+            | Expr::Any(_)
+            | Expr::All(_)
+            | Expr::And(_)
+            | Expr::Or(_)
+            | Expr::Not(_) => PropType::Empty,
+        }
+    }
+
+    /// Whether the value can be missing. A test and a constant always
+    /// answer; an aggregate, `any()`/`all()` and most terms may not have a
+    /// value.
+    pub(crate) fn nullable(&self) -> bool {
+        match self {
+            Expr::Term(leaf) => leaf.nullable(),
+            Expr::Agg(..) | Expr::Any(_) | Expr::All(_) => true,
+            Expr::Const(_)
+            | Expr::Cmp(..)
+            | Expr::Str(..)
+            | Expr::In { .. }
+            | Expr::IsSome(_)
+            | Expr::IsNone(_)
+            | Expr::And(_)
+            | Expr::Or(_)
+            | Expr::Not(_) => false,
+        }
+    }
+
+    /// The value, when this expression is a constant.
+    pub(crate) fn constant(&self) -> Option<Prop> {
+        match self {
+            Expr::Const(value) => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    /// The term a node index covers, when this expression is one. The latest
+    /// update of a history is the property's latest value, so `latest()` of
+    /// an indexed history is indexed too.
+    pub(crate) fn index_term(&self) -> Option<IndexTerm> {
+        match self {
+            Expr::Term(leaf) => leaf.index_term(),
+            Expr::Agg(Agg::Latest, inner) => inner.index_term()?.latest_value(),
+            _ => None,
+        }
+    }
+
+    /// The test a node index can answer with a candidate set: a comparison,
+    /// string test or membership test of an indexed term against a constant.
+    pub(crate) fn index_query(&self) -> Option<IndexQuery> {
+        match self {
+            Expr::Cmp(op, lhs, rhs) => {
+                let (term, op, value) = term_and_constant(*op, lhs, rhs)?;
+                IndexQuery::cmp(term, op, value)
+            }
+            Expr::Str(op, lhs, rhs) => IndexQuery::string(lhs.index_term()?, *op, rhs.constant()?),
+            Expr::In {
+                expr,
+                values,
+                negated: false,
+            } => IndexQuery::members(expr.index_term()?, values),
+            _ => None,
+        }
+    }
+
+    /// Where a node filter on this yes/no expression can start instead of at
+    /// every node: the nodes it names by id, or the index candidates for its
+    /// test. A history test narrows only under `any()`, a latest-value test
+    /// only outside it.
+    pub(crate) fn pushdown(&self) -> Option<Pushdown> {
+        match self {
+            // Equality on the id, or on the name (the node's external id),
+            // names the node outright.
+            Expr::Cmp(op, lhs, rhs) => {
+                if let Some((IndexTerm::Id | IndexTerm::Name, BinaryOp::Eq, value)) =
+                    term_and_constant(*op, lhs, rhs)
+                {
+                    return Some(Pushdown::Ids(vec![value]));
+                }
+                self.latest_value_pushdown()
+            }
+            Expr::In {
+                expr,
+                values,
+                negated: false,
+            } if matches!(expr.index_term(), Some(IndexTerm::Id | IndexTerm::Name)) => {
+                Some(Pushdown::Ids(values.clone()))
+            }
+            Expr::Str(..) | Expr::In { .. } => self.latest_value_pushdown(),
+            // Under `any()` the history test narrows: any value ever held may match.
+            Expr::Any(inner) => inner
+                .index_query()
+                .filter(|query| query.is_history())
+                .map(Pushdown::Index),
+            // Any leg's candidates are a superset of the matches, so the first
+            // leg that can narrow does.
+            Expr::And(items) => items.iter().find_map(Self::pushdown),
+            _ => None,
+        }
+    }
+
+    /// For `any()` / `all()` over this expression: the side tested against a
+    /// constant and the test to apply to each of its values. The side is
+    /// walked when it reads a history (see `Expr::history_op`); otherwise the
+    /// test collapses its list as usual.
+    pub(crate) fn value_test(&self) -> Option<(&Expr<L>, ValueTest)> {
+        match self {
+            Expr::Cmp(op, lhs, rhs) => {
+                if let Some(value) = rhs.constant() {
+                    return Some((lhs, ValueTest::Cmp(*op, value)));
+                }
+                Some((rhs, ValueTest::Cmp(op.flipped(), lhs.constant()?)))
+            }
+            Expr::Str(op, lhs, rhs) => Some((lhs, ValueTest::Str(*op, rhs.constant()?))),
+            Expr::In {
+                expr,
+                values,
+                negated,
+            } => Some((expr, ValueTest::members(values.iter().cloned(), *negated))),
+            _ => None,
+        }
+    }
+
+    /// The index candidates for a test of a term's latest value.
+    fn latest_value_pushdown(&self) -> Option<Pushdown> {
+        self.index_query()
+            .filter(|query| !query.is_history())
+            .map(Pushdown::Index)
+    }
+}
+
+/// The indexed term and the constant it is compared with, the operator turned
+/// round when the constant stands on the left.
+fn term_and_constant<L: Leaf>(
+    op: BinaryOp,
+    lhs: &Expr<L>,
+    rhs: &Expr<L>,
+) -> Option<(IndexTerm, BinaryOp, Prop)> {
+    if let (Some(term), Some(value)) = (lhs.index_term(), rhs.constant()) {
+        return Some((term, op, value));
+    }
+    if let (Some(term), Some(value)) = (rhs.index_term(), lhs.constant()) {
+        return Some((term, op.flipped(), value));
+    }
+    None
+}
 
 /// The filter itself: a yes/no on one kind of entity, a view, or a
 /// combination of filters.

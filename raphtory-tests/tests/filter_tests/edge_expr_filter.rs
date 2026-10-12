@@ -187,7 +187,7 @@ fn band_graph() -> Graph {
 #[test]
 fn test_edge_property_contains_via_expr_filter_ops() {
     let g = band_graph();
-    // generic form: PropertyExpr.contains(Prop::Str(...))
+    // generic form: a property term's contains(Prop::Str(...))
     let filter = EdgeFilter.property("band").contains(Prop::str("Floyd"));
     let result = g.filter(filter).unwrap();
     assert_eq!(sorted_edges(result), vec!["Jimi->John"]);
@@ -276,8 +276,7 @@ fn test_edge_aggregated_first_starts_with_str_convenience() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Set ops — PropValueSetExpr (linear scan, Option<Prop>) and
-//           set membership
+// Set ops — `is_in` / `is_not_in` (`Expr::In`): set membership
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]

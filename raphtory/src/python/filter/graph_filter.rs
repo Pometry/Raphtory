@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        expr::{Chain, FilterExpr},
+        expr::{Chain, FilterExpr, GraphLeaf},
         graph_filter::GraphFilter,
         ViewWrapOps,
     },
@@ -24,7 +24,7 @@ use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
     extends = PyFilterExpr,
     frozen
 )]
-pub struct PyGraphFilter(pub(crate) Chain<()>);
+pub struct PyGraphFilter(pub(crate) Chain<GraphLeaf>);
 
 impl PyGraphFilter {
     pub(crate) fn root() -> Self {
@@ -120,7 +120,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn layer(&self, layer: String) -> PyGraphFilter {
-        Self(self.0.clone().layer(layer))
+        Self(self.0.clone().layers(layer))
     }
 
     /// Restricts evaluation to any of the given layers.
@@ -131,7 +131,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        Self(self.0.clone().layer(Vec::<String>::from(layers)))
+        Self(self.0.clone().layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -150,7 +150,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_layer(&self, layer: String) -> PyGraphFilter {
-        Self(self.0.clone().exclude_layer(layer))
+        Self(self.0.clone().exclude_layers([layer]))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -161,7 +161,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        Self(self.0.clone().exclude_layers(layers))
+        Self(self.0.clone().exclude_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the given layers.
@@ -174,7 +174,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn valid_layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        Self(self.0.clone().valid_layers(layers))
+        Self(self.0.clone().valid_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -187,7 +187,11 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_valid_layers(&self, layers: FromIterable<String>) -> PyGraphFilter {
-        Self(self.0.clone().exclude_valid_layers(layers))
+        Self(
+            self.0
+                .clone()
+                .exclude_valid_layers(Vec::<String>::from(layers)),
+        )
     }
 
     /// Moves the start of the current window to `start` when that is later.

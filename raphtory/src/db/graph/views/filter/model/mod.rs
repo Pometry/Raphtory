@@ -4,17 +4,13 @@ pub use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+                    edge_filter::EdgeFilter,
                     exploded_edge_filter::ExplodedEdgeFilter,
                     filter_operator::{
                         BinaryOp, Comparable, FilterOperator, SetOp, StringComparable, StringOp,
                         UnaryOp,
                     },
-                    node_expr::{
-                        AvgExpr, BinaryCmpExpr, EntityAggOps, FirstExpr, IndexTerm, LastExpr,
-                        LenExpr, MaxExpr, MinExpr, Predicate, PropValueSetExpr, StringExpr,
-                        SumExpr, TemporalPropExpr, UnaryExpr,
-                    },
+                    node_expr::EntityAggOps,
                     node_filter::{NodeFilter, NodeFilterFactory},
                 },
                 CreateFilter,
@@ -27,17 +23,8 @@ pub use crate::{
 };
 use crate::{
     db::{
-        api::{
-            state::NodeOp,
-            view::{internal::IntoDynGraphArc, BoxableGraphView},
-        },
-        graph::views::{
-            filter::model::{
-                layered_filter::Layered,
-                node_expr::{NodeMetaOp, NodePropOp},
-            },
-            layer_graph::LayeredGraph,
-        },
+        api::view::{internal::IntoDynGraphArc, BoxableGraphView},
+        graph::views::{filter::model::layered_filter::Layered, layer_graph::LayeredGraph},
     },
     prelude::LayerOps,
 };
@@ -53,11 +40,6 @@ pub mod exploded_edge_filter;
 pub mod expr;
 pub mod filter_operator;
 pub mod graph_filter;
-pub mod is_active_edge_filter;
-pub mod is_active_node_filter;
-pub mod is_deleted_filter;
-pub mod is_self_loop_filter;
-pub mod is_valid_filter;
 pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_expr;
@@ -72,142 +54,7 @@ pub use expr::builder::{
     ComposableFilter, EdgeViewFilterOps, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
 };
 
-#[derive(Copy, Clone)]
-pub enum EntityMarker {
-    Node,
-    Edge,
-    ExplodedEdge,
-    Const,
-}
-
-#[derive(Clone)]
-pub struct PropertyExpr<E> {
-    pub(crate) view_expr: E,
-    pub(crate) name: String,
-    pub(crate) entity: EntityMarker,
-}
-
-impl<E: CreateView> EntityExpr for PropertyExpr<E> {
-    fn entity(&self) -> EntityMarker {
-        self.entity
-    }
-}
-
-#[derive(Clone)]
-pub struct MetadataExpr<E> {
-    pub(crate) view_expr: E,
-    pub(crate) name: String,
-    pub(crate) entity: EntityMarker,
-}
-
-impl<E: CreateView> EntityExpr for MetadataExpr<E> {
-    fn entity(&self) -> EntityMarker {
-        self.entity
-    }
-}
-
-impl<E: CreateView> CreateOp for PropertyExpr<E> {
-    fn index_term(&self) -> Option<IndexTerm> {
-        if self.view_expr.narrows() {
-            return None;
-        }
-        Some(IndexTerm::Property {
-            name: self.name.clone(),
-            metadata: false,
-            ever: false,
-        })
-    }
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let prop_id = graph
-            .node_meta()
-            .get_prop_id(&self.name, false)
-            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(NodePropOp {
-            graph,
-            prop_id,
-            narrows: self.view_expr.narrows(),
-        }))
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let prop_id = graph
-            .edge_meta()
-            .get_prop_id(&self.name, false)
-            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(EdgePropOp { graph, prop_id }))
-    }
-}
-
-impl<E: CreateView> CreateOp for MetadataExpr<E> {
-    fn index_term(&self) -> Option<IndexTerm> {
-        if self.view_expr.narrows() {
-            return None;
-        }
-        Some(IndexTerm::Property {
-            name: self.name.clone(),
-            metadata: true,
-            ever: false,
-        })
-    }
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let prop_id = graph
-            .node_meta()
-            .get_prop_id(&self.name, true)
-            .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(NodeMetaOp {
-            graph,
-            prop_id,
-            narrows: self.view_expr.narrows(),
-        }))
-    }
-
-    fn create_edge_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        let prop_id = graph
-            .edge_meta()
-            .get_prop_id(&self.name, true)
-            .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
-        let graph = self.view_expr.create_view(graph)?;
-        Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
-    }
-}
-
-impl<E: CreateView> PropertyExpr<E> {
-    pub fn temporal(&self) -> TemporalPropExpr<E> {
-        TemporalPropExpr {
-            view_expr: self.view_expr.clone(),
-            name: self.name.clone(),
-            entity: self.entity,
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PropertyExpr<E> / MetadataExpr<E> — EdgeExpr impls
-// ─────────────────────────────────────────────────────────────────────────────
-
-use crate::db::graph::views::filter::model::{
-    edge_expr::ops::{EdgeMetaOp, EdgePropOp},
-    expr::Agg,
-    node_expr::{CreateOp, EntityExpr},
-};
-use edge_expr::EdgeOp;
+use crate::db::graph::views::filter::model::expr::Agg;
 use raphtory_api::core::entities::properties::prop::PropType;
 
 /// The window `at(t)` means: every event at the timestamp `t`, whatever its
@@ -371,8 +218,8 @@ pub fn not_a_string_error(prop_type: &PropType) -> GraphError {
 
 /// Pick the more specific of the two known prop types.
 ///
-/// Compiled `NodeOp`s and `EntityExpr`s may both have a known prop type, but
-/// expression-level info (e.g. `DegreeExpr::prop_type()` → U64) is not always
+/// A tree and the op it compiles to may both have a known prop type, but
+/// what the tree knows (e.g. a degree term is a `U64`) is not always
 /// propagated through generic wrappers like `Map<Op, V>`. Prefer whichever side
 /// has a concrete type so validation can fire early.
 pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
@@ -415,12 +262,13 @@ pub fn types_mismatch_error(lhs_pt: &PropType, rhs_pt: &PropType) -> GraphError 
 
 /// Reject an aggregate the expression's type cannot support.
 ///
-/// Aggregates collapse a list, so a declared scalar type (`IsActiveNode` ->
-/// `Bool`, `DegreeExpr` -> `U64`) is refused up front. `sum()`, `avg()`,
+/// Aggregates collapse a list, so a declared scalar type (`is_active()` ->
+/// `Bool`, `degree()` -> `U64`) is refused up front. `sum()`, `avg()`,
 /// `min()` and `max()` also need numeric elements, as they always have: a
 /// string or boolean history has no sum and no least value. An unresolved
 /// type (`PropType::Empty`) passes and is checked again once known.
-pub fn require_aggregable(pt: &PropType, agg: Agg, op: &str) -> Result<(), GraphError> {
+pub fn require_aggregable(pt: &PropType, agg: Agg) -> Result<(), GraphError> {
+    let op = format!("{agg}()");
     match pt {
         PropType::Empty => Ok(()),
         PropType::List(_) => {

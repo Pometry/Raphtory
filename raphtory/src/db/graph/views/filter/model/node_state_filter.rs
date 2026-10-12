@@ -2,12 +2,9 @@ use crate::{
     db::{
         api::{
             state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
-            view::internal::{GraphView, NodeList},
+            view::internal::{DynGraphArc, NodeList},
         },
-        graph::views::filter::model::{
-            node_expr::{CreateOp, EntityExpr},
-            EntityMarker,
-        },
+        graph::views::filter::model::expr::OpaqueOp,
     },
     errors::GraphError,
 };
@@ -85,11 +82,14 @@ impl NodeOp for NodeStateBoolColOp {
     }
 }
 
-/// The column as a yes/no node expression, so it combines with other node
+/// The column as a yes/no node value, so it combines with other node
 /// predicates and negates like one.
-impl EntityExpr for NodeStateBoolColOp {
-    fn entity(&self) -> EntityMarker {
-        EntityMarker::Node
+impl OpaqueOp for NodeStateBoolColOp {
+    fn node_value_op<'g>(
+        &self,
+        _graph: DynGraphArc<'g>,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
+        Ok(Arc::new(self.clone().map(|b| Some(Prop::Bool(b)))))
     }
 
     fn prop_type(&self) -> PropType {
@@ -98,14 +98,5 @@ impl EntityExpr for NodeStateBoolColOp {
 
     fn nullable(&self) -> bool {
         false
-    }
-}
-
-impl CreateOp for NodeStateBoolColOp {
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        Ok(Arc::new(self.clone().map(|b| Some(Prop::Bool(b)))))
     }
 }

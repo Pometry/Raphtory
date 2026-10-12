@@ -241,22 +241,58 @@ fn or_of(legs: Vec<Answers>, negated: bool) -> Answers {
 /// answer: the edge's existence in the view stands for its ends'.
 pub(crate) fn closed_edges(nodes: Question<NodeExpr>) -> Question<EdgePredicate> {
     match nodes {
-        Question::Predicate(nodes) => Question::Predicate(EdgePredicate::Edge(Expr::And(vec![
-            Expr::Term(EdgeLeaf::Src(Box::new(nodes.clone()))),
-            Expr::Term(EdgeLeaf::Dst(Box::new(nodes))),
-        ]))),
+        Question::Predicate(nodes) => Question::Predicate(EdgePredicate::Edge(both_ends(nodes))),
         Question::Exists { views, negated } => Question::Exists { views, negated },
         Question::And(legs) => Question::And(legs.into_iter().map(closed_edges).collect()),
         Question::Or(legs) => Question::Or(legs.into_iter().map(closed_edges).collect()),
     }
 }
 
-/// A yes/no expression as the answer to its entity's question, or the
-/// opposite answer when negated. A bare constant is not a filter.
-fn predicate<L: Clone>(expr: &Expr<L>, negated: bool) -> Result<Expr<L>, GraphError> {
-    if matches!(expr, Expr::Const(_)) {
-        return Err(GraphError::invalid_filter("a constant is not a filter"));
+/// The edge test a node predicate answers the edge question with: both ends
+/// pass it.
+pub(crate) fn both_ends(nodes: NodeExpr) -> EdgeExpr {
+    Expr::And(vec![
+        Expr::Term(EdgeLeaf::Src(Box::new(nodes.clone()))),
+        Expr::Term(EdgeLeaf::Dst(Box::new(nodes))),
+    ])
+}
+
+impl<L> Expr<L> {
+    /// Whether this tree is built only from constants. Such a tree answers
+    /// the same for every entity, so it is not a filter.
+    fn is_constant(&self) -> bool {
+        match self {
+            Expr::Const(_) => true,
+            Expr::Not(inner)
+            | Expr::Agg(_, inner)
+            | Expr::Any(inner)
+            | Expr::All(inner)
+            | Expr::IsSome(inner)
+            | Expr::IsNone(inner) => inner.is_constant(),
+            Expr::Cmp(_, lhs, rhs) | Expr::Str(_, lhs, rhs) => {
+                lhs.is_constant() && rhs.is_constant()
+            }
+            Expr::In { expr, .. } => expr.is_constant(),
+            Expr::And(items) | Expr::Or(items) => {
+                !items.is_empty() && items.iter().all(Self::is_constant)
+            }
+            Expr::Term(_) => false,
+        }
     }
+
+    pub(crate) fn refuse_constant(&self) -> Result<(), GraphError> {
+        if self.is_constant() {
+            return Err(GraphError::invalid_filter("a constant is not a filter"));
+        }
+        Ok(())
+    }
+}
+
+/// A yes/no expression as the answer to its entity's question, or the
+/// opposite answer when negated. A tree built only from constants is not a
+/// filter.
+fn predicate<L: Clone>(expr: &Expr<L>, negated: bool) -> Result<Expr<L>, GraphError> {
+    expr.refuse_constant()?;
     Ok(if negated {
         Expr::Not(Box::new(expr.clone()))
     } else {
@@ -266,7 +302,7 @@ fn predicate<L: Clone>(expr: &Expr<L>, negated: bool) -> Result<Expr<L>, GraphEr
 
 /// An empty list has no meaning either way: `and` of nothing is not
 /// "everything", `or` of nothing is not "nothing" the caller asked for.
-fn needs_operand(name: &str) -> GraphError {
+pub(crate) fn needs_operand(name: &str) -> GraphError {
     GraphError::invalid_filter(format!("`{name}` needs at least one operand"))
 }
 

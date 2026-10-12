@@ -4,10 +4,10 @@
 //! A history term on its own still produces a list, because a list is the
 //! only value the engine can hand to an arbitrary consumer. An aggregate
 //! built directly over a history, or `any()`/`all()` over a comparison of a
-//! history with a constant (see `CreateOp::history` and
-//! `CreateOp::value_test`), builds one of the ops here instead: they ask the
-//! history for a stream, from whichever end the question needs, and stop as
-//! soon as the answer is known.
+//! history with a constant (see `Expr::history_op` and `Expr::value_test`),
+//! builds one of the ops here instead: they ask the history for a stream,
+//! from whichever end the question needs, and stop as soon as the answer is
+//! known.
 
 use crate::{
     core::utils::iter::GenLockedIter,
@@ -15,7 +15,7 @@ use crate::{
         api::{
             state::ops::NodeOp,
             view::{
-                internal::{DynGraphArc, GraphView, NodeList},
+                internal::{GraphView, NodeList},
                 BoxedLIter, IntoDynBoxed, NodeViewOps,
             },
         },
@@ -23,7 +23,7 @@ use crate::{
             edge_reads::{self, EdgeAt},
             views::filter::model::{
                 edge_expr::{ops::TemporalEdgePropOp, EdgeOp},
-                edge_filter::{EdgeEndpointWrapper, Endpoint},
+                edge_filter::Endpoint,
                 filter_operator::{BinaryOp, Comparable, StringComparable, StringOp},
                 node_expr::{
                     ops::{agg_out_pt, fold_values, reduce_list, view_node, TemporalNodePropOp},
@@ -33,7 +33,6 @@ use crate::{
             },
         },
     },
-    errors::GraphError,
 };
 use raphtory_api::core::{
     entities::{
@@ -123,9 +122,9 @@ impl<G: GraphView> EdgeHistory for TemporalEdgePropOp<G> {
 }
 
 /// A node history taken at an edge's source or destination.
-struct EndpointHistory<'g> {
-    node: Arc<dyn NodeHistory + 'g>,
-    endpoint: Endpoint,
+pub(crate) struct EndpointHistory<'g> {
+    pub(crate) node: Arc<dyn NodeHistory + 'g>,
+    pub(crate) endpoint: Endpoint,
 }
 
 impl<'g> EndpointHistory<'g> {
@@ -148,58 +147,6 @@ impl<'g> EdgeHistory for EndpointHistory<'g> {
 
     fn values_rev<'a>(&'a self, edge: EdgeEntryRef<'a>, _at: EdgeAt) -> BoxedLIter<'a, Prop> {
         self.node.values_rev(self.node_of(edge))
-    }
-}
-
-/// Builds a history against a graph: the erased form of a temporal term.
-pub trait DynCreateHistory: Send + Sync + 'static {
-    fn create_node_history<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn NodeHistory + 'g>, GraphError>;
-
-    fn create_edge_history<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn EdgeHistory + 'g>, GraphError>;
-}
-
-impl<T: DynCreateHistory + ?Sized> DynCreateHistory for Arc<T> {
-    fn create_node_history<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn NodeHistory + 'g>, GraphError> {
-        self.as_ref().create_node_history(graph)
-    }
-
-    fn create_edge_history<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn EdgeHistory + 'g>, GraphError> {
-        self.as_ref().create_edge_history(graph)
-    }
-}
-
-/// A node history taken through an endpoint is an edge history; it has no
-/// node form.
-impl<T: DynCreateHistory> DynCreateHistory for EdgeEndpointWrapper<T> {
-    fn create_node_history<'g>(
-        &self,
-        _graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn NodeHistory + 'g>, GraphError> {
-        Err(GraphError::InvalidFilter(
-            "an endpoint term is an edge expression".to_string(),
-        ))
-    }
-
-    fn create_edge_history<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn EdgeHistory + 'g>, GraphError> {
-        Ok(Arc::new(EndpointHistory {
-            node: self.inner.create_node_history(graph)?,
-            endpoint: self.endpoint(),
-        }))
     }
 }
 
@@ -534,7 +481,33 @@ impl<'g> EdgeOp for StreamedAllEdgeOp<'g> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        db::{
+            api::view::internal::DynGraphArc,
+            graph::views::filter::model::{
+                expr::{Expr, NodeLeaf},
+                node_expr::typing::list,
+                node_filter::NodeFilter,
+                EntityExprFilterOps, PropertyExprFactory,
+            },
+        },
+        prelude::{AdditionOps, EntityAggOps, Graph},
+    };
     use raphtory_api::core::entities::properties::prop::IntoProp;
+
+    /// A graph holding the `score` and `other` properties the tests read.
+    fn scored() -> DynGraphArc<'static> {
+        let g = Graph::new();
+        g.add_node(1, "n", [("score", 1i64), ("other", 2i64)], None, None)
+            .unwrap();
+        Arc::new(g)
+    }
+
+    /// Whether `any()` over `expr` walks a history instead of the list.
+    fn walks(expr: &Expr<NodeLeaf>) -> bool {
+        expr.value_test()
+            .is_some_and(|(side, _)| side.history_op(scored()).unwrap().is_some())
+    }
 
     fn stream(values: &[i64]) -> BoxedLIter<'static, Prop> {
         values
@@ -661,5 +634,79 @@ mod tests {
         assert_eq!(any_holds(&is_in, stream(&[2, 1])), Some(Prop::Bool(true)));
         assert_eq!(all_hold(&not_in, stream(&[2, 1])), Some(Prop::Bool(false)));
         assert_eq!(all_hold(&not_in, stream(&[2, 3])), Some(Prop::Bool(true)));
+    }
+
+    #[test]
+    fn a_history_term_walks_and_a_latest_value_does_not() {
+        let history = NodeFilter.property("score").temporal();
+        assert!(history.history_op(scored()).unwrap().is_some());
+        let latest = Expr::<NodeLeaf>::from(NodeFilter.property("score"));
+        assert!(latest.history_op(scored()).unwrap().is_none());
+        let summed = NodeFilter.property("score").temporal().sum();
+        assert!(summed.history_op(scored()).unwrap().is_none());
+    }
+
+    #[test]
+    fn a_history_compared_with_a_constant_walks_from_either_side() {
+        let gt = NodeFilter.property("score").temporal().gt(4i64);
+        assert!(matches!(
+            gt.value_test(),
+            Some((_, ValueTest::Cmp(BinaryOp::Gt, Prop::I64(4))))
+        ));
+        let mirrored =
+            Expr::<NodeLeaf>::Const(Prop::I64(4)).lt(NodeFilter.property("score").temporal());
+        assert!(matches!(
+            mirrored.value_test(),
+            Some((_, ValueTest::Cmp(BinaryOp::Gt, Prop::I64(4))))
+        ));
+        let contains = NodeFilter.property("name").temporal().contains("a");
+        assert!(matches!(
+            contains.value_test(),
+            Some((_, ValueTest::Str(StringOp::Contains, _)))
+        ));
+        let is_in = NodeFilter
+            .property("score")
+            .temporal()
+            .is_not_in([1i64.into_prop()]);
+        assert!(matches!(
+            is_in.value_test(),
+            Some((_, ValueTest::In(_, true)))
+        ));
+    }
+
+    #[test]
+    fn anything_else_under_any_keeps_the_list() {
+        assert!(walks(&NodeFilter.property("score").temporal().gt(4i64)));
+        let latest = NodeFilter.property("score").gt(4i64);
+        assert!(!walks(&latest));
+        let two_reads = NodeFilter
+            .property("score")
+            .temporal()
+            .gt(NodeFilter.property("other").temporal());
+        assert!(two_reads.value_test().is_none());
+        let aggregated = NodeFilter.property("score").temporal().sum().gt(4i64);
+        assert!(!walks(&aggregated));
+    }
+
+    #[test]
+    fn only_a_one_answer_per_value_test_walks() {
+        let history = list(PropType::I64);
+        let gt = ValueTest::Cmp(BinaryOp::Gt, 4i64.into_prop());
+        assert!(gt.for_history(&history).is_some());
+        // A constant list compares against the whole history, not each value.
+        let whole = ValueTest::Cmp(BinaryOp::Eq, Prop::list([1i64, 2i64]).unwrap());
+        assert!(whole.for_history(&history).is_none());
+        // A mismatch is left to the list path, which reports it.
+        assert!(gt.for_history(&list(PropType::Str)).is_none());
+        // A history of lists answers per element, not per value.
+        assert!(gt.for_history(&list(list(PropType::I64))).is_none());
+        // A set no value can be in still answers per value, as the list path does.
+        let none = ValueTest::members(vec!["x".into_prop()], false);
+        assert!(
+            matches!(none.for_history(&history), Some(ValueTest::In(members, false)) if members.is_empty())
+        );
+        // An empty set is a whole-history test, which the list path refuses.
+        let empty = ValueTest::members(Vec::new(), false);
+        assert!(empty.for_history(&history).is_none());
     }
 }

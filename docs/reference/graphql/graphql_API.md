@@ -12328,17 +12328,7 @@ A node expression evaluated on one endpoint of an edge.
 <td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-The node expression.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="endpointread.views">views</strong></td>
-<td valign="top">[<a href="#viewop">ViewOp</a>!]</td>
-<td>
-
-Views the term is read through, in order; none when absent. They scope
-every node term inside `expr`.
+The node expression; each node term inside it carries its own views.
 
 </td>
 </tr>
@@ -14612,16 +14602,6 @@ Only the named layers.
 <td>
 
 Every layer except the named ones.
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top"><strong id="viewop.excludelayer">excludeLayer</strong></td>
-<td valign="top"><a href="#string">String</a></td>
-<td>
-
-Every layer except the named one; the same view as `excludeLayers`
-with one name.
 
 </td>
 </tr>

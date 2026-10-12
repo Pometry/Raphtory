@@ -3,14 +3,14 @@
 
 use crate::{
     db::graph::views::filter::model::{
-        expr::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp},
+        expr::{EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp},
         filter_operator::{BinaryOp, StringOp},
     },
     python::filter::node_expr::Typed,
 };
 use pyo3::{prelude::*, types::PyString};
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
+    entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
     Direction,
 };
@@ -150,18 +150,7 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
         Expr::Const(v) => Rendered::chain(literal(py, v)?),
         Expr::Term(leaf) => Rendered::chain(leaf.term(py, entity)?),
         Expr::Agg(agg, e) => {
-            let name = match agg {
-                Agg::Sum => "sum",
-                Agg::Avg => "avg",
-                Agg::Min => "min",
-                Agg::Max => "max",
-                Agg::First => "first",
-                Agg::Last => "last",
-                Agg::Len => "len",
-                Agg::Earliest => "earliest",
-                Agg::Latest => "latest",
-            };
-            Rendered::chain(format!("{}.{name}()", render(py, e, entity)?.receiver()))
+            Rendered::chain(format!("{}.{agg}()", render(py, e, entity)?.receiver()))
         }
         Expr::Cmp(op, l, r) => {
             let sym = match op {
@@ -236,7 +225,6 @@ fn render<L: Leaf>(py: Python<'_>, expr: &Expr<L>, entity: Entity) -> PyResult<R
             " | ",
         )?,
         Expr::Not(e) => Rendered::unary(format!("~{}", render(py, e, entity)?.atom())),
-        Expr::Opaque(_) => Rendered::chain("<a filter with no Python form>".to_owned()),
     })
 }
 
@@ -259,17 +247,23 @@ fn combined(items: impl Iterator<Item = PyResult<Rendered>>, sep: &str) -> PyRes
     Ok(Rendered::compound(parts.join(sep)))
 }
 
+/// What a value built in this process renders as.
+const NO_PYTHON_FORM: &str = "<a filter with no Python form>";
+
 impl Leaf for NodeLeaf {
     fn term(&self, py: Python<'_>, entity: Entity) -> PyResult<String> {
-        let (views, tail) = node_tail(py, self)?;
-        Ok(format!("{}{tail}", factory(py, entity.root(), views)?))
+        Ok(match node_tail(py, self)? {
+            Some((views, tail)) => format!("{}{tail}", factory(py, entity.root(), views)?),
+            None => NO_PYTHON_FORM.to_owned(),
+        })
     }
 }
 
 /// The views a node term carries and the call that reads it, apart, because an
-/// endpoint term puts `.src()` between them.
-fn node_tail<'a>(py: Python<'_>, leaf: &'a NodeLeaf) -> PyResult<(&'a [ViewOp], String)> {
-    Ok(match leaf {
+/// endpoint term puts `.src()` between them; `None` for a value built in this
+/// process, which has neither.
+fn node_tail<'a>(py: Python<'_>, leaf: &'a NodeLeaf) -> PyResult<Option<(&'a [ViewOp], String)>> {
+    Ok(Some(match leaf {
         NodeLeaf::Field { views, field } => {
             let name = match field {
                 Field::Id => "id",
@@ -293,7 +287,8 @@ fn node_tail<'a>(py: Python<'_>, leaf: &'a NodeLeaf) -> PyResult<(&'a [ViewOp], 
         } => (views, property(py, name, *temporal)?),
         NodeLeaf::Metadata { views, name } => (views, format!(".metadata({})", py_str(py, name)?)),
         NodeLeaf::IsActive { views } => (views, ".is_active()".to_owned()),
-    })
+        NodeLeaf::Opaque(_) => return Ok(None),
+    }))
 }
 
 impl Leaf for EdgeLeaf {
@@ -331,15 +326,16 @@ impl Leaf for EdgeLeaf {
 /// `Edge.src()` reads a node field or property; the views on that term are the
 /// edge factory's, so they sit before `.src()`.
 fn endpoint(py: Python<'_>, root: &str, end: &str, inner: &Expr<NodeLeaf>) -> PyResult<String> {
-    Ok(match inner {
-        Expr::Term(leaf) => {
-            let (views, tail) = node_tail(py, leaf)?;
-            format!("{}.{end}(){tail}", factory(py, root, views)?)
-        }
-        other => format!(
+    let tail = match inner {
+        Expr::Term(leaf) => node_tail(py, leaf)?,
+        _ => None,
+    };
+    Ok(match tail {
+        Some((views, tail)) => format!("{}.{end}(){tail}", factory(py, root, views)?),
+        None => format!(
             "{}.{end}()<{}>",
             factory(py, root, &[])?,
-            render(py, other, Entity::Node)?.text
+            render(py, inner, Entity::Node)?.text
         ),
     })
 }
@@ -399,15 +395,13 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
                 ViewOp::Latest => ".latest()".to_owned(),
                 ViewOp::SnapshotAt(t) => format!(".snapshot_at({})", time(t)),
                 ViewOp::SnapshotLatest => ".snapshot_latest()".to_owned(),
-                ViewOp::Layers(names) => layer_call(py, "layer", "layers", names)?,
+                ViewOp::Layers(layer) => layer_call(py, "layer", "layers", layer)?,
                 ViewOp::DefaultLayer => ".default_layer()".to_owned(),
-                ViewOp::ExcludeLayers(names) => {
-                    layer_call(py, "exclude_layer", "exclude_layers", names)?
+                ViewOp::ExcludeLayers(layer) => {
+                    layer_call(py, "exclude_layer", "exclude_layers", layer)?
                 }
-                ViewOp::ValidLayers(names) => format!(".valid_layers([{}])", py_strs(py, names)?),
-                ViewOp::ExcludeValidLayers(names) => {
-                    format!(".exclude_valid_layers([{}])", py_strs(py, names)?)
-                }
+                ViewOp::ValidLayers(layer) => layer_list(py, "valid_layers", layer)?,
+                ViewOp::ExcludeValidLayers(layer) => layer_list(py, "exclude_valid_layers", layer)?,
                 ViewOp::ShrinkStart(t) => format!(".shrink_start({})", time(t)),
                 ViewOp::ShrinkEnd(t) => format!(".shrink_end({})", time(t)),
                 ViewOp::ExcludeNodes(ids) => format!(".exclude_nodes([{}])", node_ids(py, ids)?),
@@ -423,19 +417,43 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
 }
 
 /// A layer selection as a call: the one-name form for one name, the list form
-/// otherwise.
-fn layer_call(py: Python<'_>, one: &str, many: &str, names: &[String]) -> PyResult<String> {
-    Ok(match names {
+/// otherwise. Every layer restricts nothing, so it is no call.
+fn layer_call(py: Python<'_>, one: &str, many: &str, layer: &Layer) -> PyResult<String> {
+    let Some(names) = names(layer) else {
+        return Ok(String::new());
+    };
+    Ok(match names.as_slice() {
         [name] => format!(".{one}({})", py_str(py, name)?),
         names => format!(".{many}([{}])", py_strs(py, names)?),
     })
 }
 
+/// A layer selection as a list-form call. Every layer restricts nothing, so
+/// it is no call.
+fn layer_list(py: Python<'_>, method: &str, layer: &Layer) -> PyResult<String> {
+    let Some(names) = names(layer) else {
+        return Ok(String::new());
+    };
+    Ok(format!(".{method}([{}])", py_strs(py, &names)?))
+}
+
+/// The names a layer selection holds, as the filter methods take them, or
+/// `None` for every layer, which no list of names spells.
+fn names(layer: &Layer) -> Option<Vec<&str>> {
+    Some(match layer {
+        Layer::All => return None,
+        Layer::None => Vec::new(),
+        Layer::Default => vec!["_default"],
+        Layer::One(name) => vec![&**name],
+        Layer::Multiple(names) => names.iter().map(|name| &**name).collect(),
+    })
+}
+
 /// Strings as a comma-separated run of Python literals.
-fn py_strs(py: Python<'_>, strs: &[String]) -> PyResult<String> {
+fn py_strs(py: Python<'_>, strs: &[impl AsRef<str>]) -> PyResult<String> {
     Ok(strs
         .iter()
-        .map(|s| py_str(py, s))
+        .map(|s| py_str(py, s.as_ref()))
         .collect::<PyResult<Vec<_>>>()?
         .join(", "))
 }

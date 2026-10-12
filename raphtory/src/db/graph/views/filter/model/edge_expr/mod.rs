@@ -1,16 +1,14 @@
-//! Edge expressions — what value an edge can produce.
+//! The per-edge evaluator an edge tree compiles to: [`EdgeOp`], the edge
+//! counterpart of [`NodeOp`], with the ops that implement it in [`ops`].
 //!
-//! Mirrors [`node_expr`] exactly, but the subject is an edge rather than a node.
-//! All expressions produce `Option<Prop>` — no associated output type.
-//!
-//! # Two-phase pipeline (same as node_expr)
+//! # Two-phase pipeline (same as for a node tree)
 //!
 //! ```text
 //! ┌─ Build phase (pure data, no graph) ──────────────────────┐
-//! │  EdgeFilter.property("weight")    ← EdgeExpr              │
-//! │  .eq(5.0f64)                      ← BinaryCmpExpr   │
+//! │  EdgeFilter.property("weight")    ← PropertyTerm<EdgeLeaf>│
+//! │  .eq(5.0f64)                      ← Expr::Cmp             │
 //! └──────────────────────────────────────────────────────────┘
-//!          │  create_edge_op(graph)?   ← resolve name → prop_id
+//!          │  compiled against graph   ← resolve name → prop_id
 //!          ▼
 //! ┌─ Compile phase (graph-bound op) ─────────────────────────┐
 //! │  EdgePropOp { graph, prop_id }   ← EdgeOp                │

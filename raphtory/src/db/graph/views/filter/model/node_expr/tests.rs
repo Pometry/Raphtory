@@ -54,7 +54,7 @@ where
     names
 }
 
-// ── DegreeExpr comparison operators ──────────────────────────────────────
+// ── degree comparison operators ──────────────────────────────────────────
 
 #[test]
 fn degree_ge_2_keeps_all_nodes() {
@@ -102,15 +102,6 @@ fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
         filtered_names(NodeFilter.degree().gt(NodeFilter.in_degree()), g),
         vec!["a", "b"]
     );
-}
-
-// ── ConstExpr for custom output types ────────────────────────────────────
-
-#[test]
-fn const_expr_works() {
-    let filter = Expr::<NodeLeaf>::Const(Prop::U64(2)).eq(2usize);
-    let g = build_test_graph();
-    assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);
 }
 
 #[test]
@@ -282,7 +273,7 @@ fn node_filter_temporal_property_entry_point() {
 
 #[test]
 fn temporal_expr_ops_blanket_any() {
-    // Using EntityAggOps / EntityExprFilterOps on TemporalExpr directly
+    // Using EntityAggOps / EntityExprFilterOps on a temporal term directly
     let g = build_temporal_graph();
     let filter = NodeFilter.property("score").temporal().eq(10i64).any();
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
@@ -418,7 +409,7 @@ fn layered_temporal_any_restricts_to_layer_a_updates() {
     // any == 5 → only alice qualifies
     let g = build_layered_temporal_graph();
     let filter = NodeFilter
-        .layer("layer_a")
+        .layers("layer_a")
         .property("score")
         .temporal()
         .eq(5i64)
@@ -432,7 +423,7 @@ fn layered_temporal_any_restricts_to_layer_b_updates() {
     // any > 2 → bob qualifies (score=3 > 2), alice and carol do not
     let g = build_layered_temporal_graph();
     let filter = NodeFilter
-        .layer("layer_b")
+        .layers("layer_b")
         .property("score")
         .temporal()
         .gt(2i64)
@@ -446,7 +437,7 @@ fn layered_temporal_sum_is_layer_scoped() {
     // layer_a sum > 10 → alice (16 > 10); carol (no score) excluded
     let g = build_layered_temporal_graph();
     let filter = NodeFilter
-        .layer("layer_a")
+        .layers("layer_a")
         .property("score")
         .temporal()
         .sum()

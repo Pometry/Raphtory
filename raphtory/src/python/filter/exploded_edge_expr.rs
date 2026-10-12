@@ -46,7 +46,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.PropertyExpr:
     fn property(&self, name: String) -> PyPropertyExpr {
-        self.0.property(name).into()
+        self.0.clone().property(name).into()
     }
 
     /// Filters an exploded edge metadata field by name.
@@ -59,7 +59,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn metadata(&self, name: String) -> PyExpr {
-        PyExpr(self.0.metadata(name).into())
+        PyExpr(self.0.clone().metadata(name).into())
     }
 
     /// Restricts exploded edge evaluation to the given time window.
@@ -144,7 +144,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn layer(&self, layer: String) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().layer(layer))
+        Self(self.0.clone().layers(layer))
     }
 
     /// Restricts evaluation to exploded edges belonging to any of the given layers.
@@ -155,7 +155,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn layers(&self, layers: FromIterable<String>) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().layer(Vec::<String>::from(layers)))
+        Self(self.0.clone().layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the default layer only.
@@ -174,7 +174,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn exclude_layer(&self, layer: String) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().exclude_layer(layer))
+        Self(self.0.clone().exclude_layers([layer]))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -185,7 +185,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn exclude_layers(&self, layers: FromIterable<String>) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().exclude_layers(layers))
+        Self(self.0.clone().exclude_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of the given layers.
@@ -198,7 +198,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn valid_layers(&self, layers: FromIterable<String>) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().valid_layers(layers))
+        Self(self.0.clone().valid_layers(Vec::<String>::from(layers)))
     }
 
     /// Reads through a view of every layer except the given ones.
@@ -211,7 +211,11 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn exclude_valid_layers(&self, layers: FromIterable<String>) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().exclude_valid_layers(layers))
+        Self(
+            self.0
+                .clone()
+                .exclude_valid_layers(Vec::<String>::from(layers)),
+        )
     }
 
     /// Moves the start of the current window to `start` when that is later.
@@ -293,7 +297,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_active(&self) -> PyExpr {
-        PyExpr(self.0.is_active().into())
+        PyExpr(self.0.clone().is_active().into())
     }
 
     /// Matches exploded edges that are structurally valid in the current view.
@@ -301,7 +305,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_valid(&self) -> PyExpr {
-        PyExpr(self.0.is_valid().into())
+        PyExpr(self.0.clone().is_valid().into())
     }
 
     /// Matches exploded edges that have been deleted.
@@ -309,7 +313,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_deleted(&self) -> PyExpr {
-        PyExpr(self.0.is_deleted().into())
+        PyExpr(self.0.clone().is_deleted().into())
     }
 
     /// Matches exploded edges that are self-loops (source == destination).
@@ -317,7 +321,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.Expr:
     fn is_self_loop(&self) -> PyExpr {
-        PyExpr(self.0.is_self_loop().into())
+        PyExpr(self.0.clone().is_self_loop().into())
     }
 }
 
