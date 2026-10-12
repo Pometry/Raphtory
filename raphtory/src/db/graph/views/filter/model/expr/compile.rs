@@ -66,7 +66,10 @@ use crate::{
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt::Debug, sync::Arc};
-
+use crate::db::graph::views::filter::edge_expr_filtered_graph::EdgeExprFilteredGraph;
+use crate::db::graph::views::filter::exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph;
+use crate::db::graph::views::filter::node_filtered_graph::NodeFilteredGraph;
+use crate::prelude::{GraphViewOps, LayerOps, TimeOps};
 // ── leaves ───────────────────────────────────────────────────────────────────
 
 /// The terms an entity offers. Implemented by the leaf enum of each entity.
@@ -490,34 +493,6 @@ impl<L: Leaf> Expr<L> {
     }
 }
 
-// ── filters ──────────────────────────────────────────────────────────────────
-
-impl SplitFilter {
-    /// The graph seen through every view leg in turn, erased so every part
-    /// of the filter builds over the one `Arc`.
-    fn viewed<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        if self.views.is_empty() {
-            Ok(graph.into_dyn_graph_arc())
-        } else {
-            through(&self.views.concat(), graph.into_dyn_graph_arc())
-        }
-    }
-
-    /// The graph seen through each view leg on its own, for the existence
-    /// tests a node or edge filter asks.
-    fn each_view<'graph>(
-        &self,
-        graph: &DynGraphArc<'graph>,
-    ) -> Result<Vec<DynGraphArc<'graph>>, GraphError> {
-        self.views
-            .iter()
-            .map(|leg| through(leg, graph.clone()))
-            .collect()
-    }
-}
 
 /// A yes/no node expression as the node filter it is.
 fn node_filter<'graph>(
@@ -662,93 +637,6 @@ impl Question<EdgePredicate> {
     }
 }
 
-/// The filter a split filter is: the graph seen through its view legs, then
-/// its node answer and its edge answer side by side, one of them alone, or
-/// the viewed graph when nothing constrains either. As a per-node or per-edge
-/// test it asks that the entity exist in each view leg and pass the answers
-/// on the collection's own graph: there a view leg is a test like any other.
-impl CreateFilter for SplitFilter {
-    type FilteredGraph<'graph, G>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type EdgeFilter<'graph, G>
-        = DynEdgeFilter<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_graph_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        let graph = self.viewed(graph)?;
-        let nodes = self
-            .nodes
-            .map(|nodes| nodes.create_graph_filter(graph.clone()))
-            .transpose()?;
-        let edges = self
-            .edges
-            .map(|edges| edges.create_graph_filter(graph.clone()))
-            .transpose()?;
-        Ok(match (nodes, edges) {
-            (Some(nodes), Some(edges)) => {
-                AndFilteredGraph::new(graph, nodes, edges).into_dyn_graph_arc()
-            }
-            (Some(answer), None) | (None, Some(answer)) => answer,
-            (None, None) => graph,
-        })
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let graph = graph.into_dyn_graph_arc();
-        let views = self.each_view(&graph)?;
-        let test: Arc<dyn NodeOp<Output = bool> + 'graph> = match &self.nodes {
-            Some(nodes) => nodes.create_node_filter(graph.clone())?,
-            None if views.is_empty() => return Ok(Arc::new(NodeExistsOp::new(graph))),
-            None => Arc::new(NodeExistsOp::new(graph)),
-        };
-        Ok(views.into_iter().rev().fold(test, |test, view| {
-            Arc::new(NodeExistsOp::new(view).and(test))
-        }))
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        let graph = graph.into_dyn_graph_arc();
-        let views = self.each_view(&graph)?;
-        let answer = match (self.nodes.map(closed_edges), self.edges) {
-            (Some(nodes), Some(edges)) => Some(nodes.and(edges)),
-            (Some(answer), None) | (None, Some(answer)) => Some(answer),
-            (None, None) => None,
-        };
-        let test: DynEdgeFilter<'graph> = match answer {
-            Some(answer) => answer.create_edge_filter(graph.clone())?,
-            None if views.is_empty() => return Ok(Arc::new(EdgeExistsOp::new(graph))),
-            None => Arc::new(EdgeExistsOp::new(graph)),
-        };
-        Ok(views.into_iter().rev().fold(test, |test, view| {
-            Arc::new(AndEdgeOp {
-                left: EdgeExistsOp::new(view),
-                right: test,
-            })
-        }))
-    }
-}
-
 /// A tree is a filter in its own right: applying it splits it by question
 /// first.
 impl CreateFilter for FilterExpr {
@@ -774,7 +662,110 @@ impl CreateFilter for FilterExpr {
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.split()?.create_graph_filter(graph)
+        match self {
+            FilterExpr::Node(node) => {
+                Ok(Arc::new(NodeFilteredGraph::new(graph.clone(), node.create_node_filter(graph)?)))
+            }
+            FilterExpr::Edge(edge) => {
+                Ok(Arc::new(EdgeExprFilteredGraph::new(graph.clone(), edge.create_edge_filter(graph)?)))
+            }
+            FilterExpr::ExplodedEdge(exploded) => {
+                Ok(Arc::new(ExplodedEdgeExprFilteredGraph::new(graph.clone(), exploded.create_edge_filter(graph))?))
+            }
+            FilterExpr::View(views) => {
+                let mut graph: DynGraphArc<'graph> = Arc::new(graph);
+                for view in views {
+                    match view {
+                        ViewOp::Window { start, end } => {
+                            graph = Arc::new(graph.window(start, end))
+                        }
+                        ViewOp::At(t) => {
+                            graph = Arc::new(graph.at(t))
+                        }
+                        ViewOp::After(t) => {
+                            graph = Arc::new(graph.after(t))
+                        }
+                        ViewOp::Before(t) => {
+                            graph = Arc::new(graph.before(t))
+                        }
+                        ViewOp::Latest => {
+                            graph = Arc::new(graph.latest())
+                        }
+                        ViewOp::SnapshotAt(t) => {
+                            graph = Arc::new(graph.snapshot_at(t))
+                        }
+                        ViewOp::SnapshotLatest => {
+                            graph = Arc::new(graph.snapshot_latest())
+                        }
+                        ViewOp::Layers(layers) => {
+                            graph = Arc::new(graph.layers(layers)?)
+                        }
+                        ViewOp::DefaultLayer => {
+                            graph = Arc::new(graph.default_layer())
+                        }
+                        ViewOp::ExcludeLayers(layers) => {
+                            graph = Arc::new(graph.exclude_layers(layers)?)
+                        }
+                        ViewOp::ValidLayers(layers) => {
+                            graph = Arc::new(graph.valid_layers(layers))
+                        }
+                        ViewOp::ExcludeValidLayers(layers) => {
+                            graph = Arc::new(graph.exclude_valid_layers(layers))
+                        }
+                        ViewOp::ShrinkStart(t) => {
+                            graph = Arc::new(graph.shrink_start(t))
+                        }
+                        ViewOp::ShrinkEnd(t) => {
+                            graph = Arc::new(graph.shrink_end(t))
+                        }
+                        ViewOp::ExcludeNodes(nodes) => {
+                            graph = Arc::new(graph.exclude_nodes(nodes))
+                        }
+                        ViewOp::Subgraph(nodes) => {
+                            graph = Arc::new(graph.subgraph(nodes))
+                        }
+                        ViewOp::SubgraphNodeTypes(node_types) => {
+                            graph = Arc::new(graph.subgraph_node_types(node_types))
+                        }
+                        ViewOp::Valid => {
+                            graph = Arc::new(graph.valid())
+                        }
+                    }
+                }
+                Ok(graph)
+            }
+            FilterExpr::And(mut exprs) => {
+                let graph = match exprs.len() {
+                    0 => Err(GraphError::invalid_filter("And cannot be empty"))?,
+                    1 => exprs[0].create_graph_filter(graph)?,
+                    _ => {
+                        // TODO: probably shouldn't actually do this recursively, build this directly...
+                        let rhs = exprs.pop().unwrap().create_graph_filter(graph.clone())?;
+                        let lhs = FilterExpr::And(exprs).create_graph_filter(graph.clone())?;
+                        Arc::new(AndFilteredGraph::new(graph, lhs, rhs))
+                    }
+                };
+                Ok(graph)
+
+            }
+            FilterExpr::Or(mut exprs) => {
+                let graph = match exprs.len() {
+                    0 => Err(GraphError::invalid_filter("And cannot be empty"))?,
+                    1 => exprs[0].create_graph_filter(graph)?,
+                    _ => {
+                        // TODO: probably shouldn't actually do this recursively, build this directly...
+                        let rhs = exprs.pop().unwrap().create_graph_filter(graph.clone())?;
+                        let lhs = FilterExpr::And(exprs).create_graph_filter(graph.clone())?;
+                        Arc::new(OrFilteredGraph::new(graph, lhs, rhs))
+                    }
+                };
+                Ok(graph)
+            }
+            FilterExpr::Not(expr) => {
+                // TODO: implement this properly by pushing down the Not in the optimisation step (can we bring back the NotFilteredGraph?)
+                Err(GraphError::invalid_filter("not not supported on graph"))
+            }
+        }
     }
 
     /// An edge test says nothing about which nodes belong in a node
