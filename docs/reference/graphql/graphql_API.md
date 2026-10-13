@@ -279,6 +279,26 @@ Graph path relative to the root namespace.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.rdfgraph">rdfGraph</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a></td>
+<td>
+
+Returns a stored graph, event or persistent, viewed as RDF with persistent semantics:
+one triple per edge and layer (source, layer, destination), where a retraction is a
+deletion. Null if the caller cannot read the graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Graph path relative to the root namespace.
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -11179,6 +11199,580 @@ The value's exact type, for type-directed decoding of `value`.
 </tbody>
 </table>
 
+### RdfGraph
+
+A graph viewed as RDF, with persistent semantics: one triple per visible edge and layer
+(source, layer, destination). A node name that is not an IRI, a blank node or a literal is an
+IRI under `raphtory:`, a prefix every query can use, and the layer of a predicate IRI is the
+IRI with `%`, `/`, `:`, `?` and `*` written `%25`, `%2F`, `%3A`, `%3F` and `%2A` (the
+predicate `<http://ex/knows>` is the layer `http%3A%2F%2Fex%2Fknows`). Every view field
+returns an RDF view, and the RDF fields see exactly the triples of the view: under `valid`
+the current state, under `at(time: T)` the state as of T, and on the whole graph every triple
+ever asserted or retracted.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.defaultlayer">defaultLayer</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to the default layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.layers">layers</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to the named layers.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.excludelayers">excludeLayers</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View with the named layers hidden.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">names</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Layer names to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.layer">layer</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to a single layer.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.excludelayer">excludeLayer</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View with one layer hidden.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">name</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Layer name to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.subgraph">subgraph</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to a set of nodes and the edges between them.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to keep.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.valid">valid</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples valid at the end of this view: on the whole graph, the current
+state.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.subgraphnodetypes">subgraphNodeTypes</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View restricted to nodes with the given node types.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodeTypes</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td>
+
+Node types to include.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.excludenodes">excludeNodes</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View with a set of nodes removed, along with their edges.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top">[<a href="#nodeid">NodeId</a>!]!</td>
+<td>
+
+Node ids to exclude.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.rolling">rolling</strong></td>
+<td valign="top"><a href="#rdfgraphwindowset">RdfGraphWindowSet</a>!</td>
+<td>
+
+Windows of a fixed size that move forward by a step, as `Graph.rolling`; each window is
+an `RdfGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">window</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td>
+
+Width of each window, as in `Graph.rolling`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">step</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a></td>
+<td>
+
+Gap between the starts of consecutive windows; defaults to `window`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td>
+
+Unit to align the window boundaries to, as in `Graph.rolling`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.expanding">expanding</strong></td>
+<td valign="top"><a href="#rdfgraphwindowset">RdfGraphWindowSet</a>!</td>
+<td>
+
+Windows that grow by a step, as `Graph.expanding`; each window is an `RdfGraph`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">step</td>
+<td valign="top"><a href="#windowduration">WindowDuration</a>!</td>
+<td>
+
+How much the window grows by on each step.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">alignmentUnit</td>
+<td valign="top"><a href="#alignmentunit">AlignmentUnit</a></td>
+<td>
+
+Unit to align the window boundaries to, as in `Graph.expanding`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.window">window</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples that held at some point between start and end.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Inclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.at">at</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the state at a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant to pin the view to.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.latest">latest</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the state at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples valid at a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Instant at which triples must be valid.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples valid at the latest time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.before">before</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples that held at some time before `time` (exclusive), including those
+retracted before it; `at` gives the state at a time.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive upper bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.after">after</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View of the triples that held at some time after `time` (exclusive).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">time</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Exclusive lower bound.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.shrinkstart">shrinkStart</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+Sets the start of the window to the larger of the given time and the current start.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">start</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new start; has no effect if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.shrinkend">shrinkEnd</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+Sets the end of the window to the smaller of the given time and the current end.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">end</td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td>
+
+Proposed new end; has no effect if it would widen the window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.filter">filter</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+View narrowed by a node or edge filter expression, as `Graph.filter`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#gqlfilter">GqlFilter</a></td>
+<td>
+
+Filter expression; if omitted, applies the identity filter.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.applyviews">applyViews</strong></td>
+<td valign="top"><a href="#rdfgraph">RdfGraph</a>!</td>
+<td>
+
+Applies a list of view operations in order, as `Graph.applyViews`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">views</td>
+<td valign="top">[<a href="#graphviewcollection">GraphViewCollection</a>!]!</td>
+<td>
+
+Ordered list of view operations.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.graph">graph</strong></td>
+<td valign="top"><a href="#graph">Graph</a>!</td>
+<td>
+
+The same view as a property graph.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.sparql">sparql</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
+and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
+`before(time: T + 1) { valid }` of the view. Queries longer than the server's
+`max_sparql_query_length`, with more than `max_sparql_triple_patterns` triple patterns or
+with brackets nested too deep are rejected before they run, and results larger than
+`max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold the results, such as a
+triple whose predicate does not end in an XML name. Null if the query fails unexpectedly.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">query</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The SPARQL 1.1 query.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">format</td>
+<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
+<td>
+
+The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraph.validateshacl">validateShacl</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Validates the triples of this view against a SHACL shapes graph and returns the W3C
+`sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
+are rejected. Null if the validation fails unexpectedly.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">shapes</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+The shapes graph, as an RDF document.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">format</td>
+<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
+<td>
+
+The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">reportFormat</td>
+<td valign="top"><a href="#sparqlformat">SparqlFormat</a></td>
+<td>
+
+The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### RdfGraphWindowSet
+
+The windows of `rolling` or `expanding` on an `RdfGraph`, each an `RdfGraph`.
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraphwindowset.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of windows in this set.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraphwindowset.page">page</strong></td>
+<td valign="top">[<a href="#rdfgraph">RdfGraph</a>!]!</td>
+<td>
+
+One page of windows, as `GraphWindowSet.page`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">limit</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Maximum number of items to return on this page.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">offset</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Extra items to skip on top of `pageIndex` paging (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">pageIndex</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td>
+
+Zero-based page number; multiplies `limit` to determine where to start (default 0).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="rdfgraphwindowset.list">list</strong></td>
+<td valign="top">[<a href="#rdfgraph">RdfGraph</a>!]!</td>
+<td>
+
+Every window, as `GraphWindowSet.list`. Rejected when the server sets `disable_lists`.
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### TemporalProperties
 
 The temporal-only view of an entity's properties. Each entry is a
@@ -16162,6 +16756,110 @@ Latest time
 <td>
 
 Earliest time
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### SparqlFormat
+
+A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
+CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
+
+<table>
+<thead>
+<tr>
+<th align="left">Value</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top"><strong>JSON</strong></td>
+<td>
+
+SPARQL 1.1 Query Results JSON; JSON-LD for CONSTRUCT and DESCRIBE.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>XML</strong></td>
+<td>
+
+SPARQL Query Results XML; RDF/XML for CONSTRUCT and DESCRIBE.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>CSV</strong></td>
+<td>
+
+SPARQL 1.1 Query Results CSV.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>TSV</strong></td>
+<td>
+
+SPARQL 1.1 Query Results TSV.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>TURTLE</strong></td>
+<td>
+
+Turtle.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>N_TRIPLES</strong></td>
+<td>
+
+N-Triples.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>N_QUADS</strong></td>
+<td>
+
+N-Quads.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>TRIG</strong></td>
+<td>
+
+TriG.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>RDF_XML</strong></td>
+<td>
+
+RDF/XML.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>JSON_LD</strong></td>
+<td>
+
+JSON-LD.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>N3</strong></td>
+<td>
+
+N3.
 
 </td>
 </tr>

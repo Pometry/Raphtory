@@ -1,5 +1,5 @@
-# W3C conformance tests for raphtory-rdf (separate crate so the W3C suites stay out of raphtory-rdf).
-# The feature is off by default, so workspace builds skip the tests.
+# Conformance tests and benchmarks for raphtory-rdf (separate crate so the W3C suites and the benchmark
+# data stay out of raphtory-rdf). The features are off by default, so workspace builds skip them.
 
 [package]
 name = "raphtory-rdf-tests"
@@ -19,8 +19,16 @@ publish = false
 [dependencies]
 raphtory = { workspace = true, features = ["panic-on-drop"] }
 raphtory-rdf = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
 oxigraph = { workspace = true, optional = true }
 spargebra = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+zip = { workspace = true, optional = true }
+tar = { workspace = true, optional = true }
+criterion = { workspace = true, optional = true }
+bzip2 = { workspace = true, optional = true }
+csv = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
 rustc-hash = { workspace = true, optional = true }
 rudof_rdf = { workspace = true, optional = true }
 
@@ -32,8 +40,19 @@ rdf = [
     "dep:raphtory-rdf",
     "dep:oxigraph",
     "dep:spargebra",
+    "dep:flate2",
+    "dep:zip",
+    "dep:tar",
+    "dep:bzip2",
     "dep:rudof_rdf",
     "dep:rustc-hash",
+    "dep:rayon",
+]
+bench = [
+    "rdf",
+    "dep:criterion",
+    "dep:csv",
+    "dep:regex",
 ]
 
 # The W3C SPARQL and Turtle test suites (test-suites/rdf-tests).
@@ -45,3 +64,36 @@ required-features = ["rdf"]
 [[test]]
 name = "shacl_w3c"
 required-features = ["rdf"]
+
+# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b (`make bear-b-fetch`).
+[[test]]
+name = "bear"
+required-features = ["rdf"]
+
+# BSBM, read from $RAPHTORY_RDF_DATA/bsbm (`make bsbm-fetch`).
+[[test]]
+name = "bsbm"
+required-features = ["rdf"]
+
+[[bench]]
+name = "load"
+harness = false
+required-features = ["bench"]
+
+# BEAR-B, read from $RAPHTORY_RDF_DATA/bear-b.
+[[bench]]
+name = "temporal"
+harness = false
+required-features = ["bench"]
+
+# BSBM and Sparqloscope, read from $RAPHTORY_RDF_DATA/bsbm.
+[[bench]]
+name = "sparql"
+harness = false
+required-features = ["bench"]
+
+# The Gene Ontology, read from $RAPHTORY_RDF_DATA/go.
+[[bench]]
+name = "go"
+harness = false
+required-features = ["bench"]

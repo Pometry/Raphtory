@@ -148,7 +148,7 @@ pub(crate) fn layer_name_of(t: TermRef<'_>) -> Option<String> {
 
 /// The layer name of an IRI that is not under [`RESERVED_NS`]: `%`, `/`, `:`, `?` and `*` as
 /// `%25`, `%2F`, `%3A`, `%3F` and `%2A`.
-fn escape_layer(iri: &str) -> Cow<'_, str> {
+pub(crate) fn escape_layer(iri: &str) -> Cow<'_, str> {
     if !iri.contains(LAYER_ESCAPED) {
         return Cow::Borrowed(iri);
     }
