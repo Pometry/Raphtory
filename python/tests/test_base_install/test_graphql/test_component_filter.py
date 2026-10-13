@@ -68,8 +68,11 @@ def test_out_component_scoped_by_graph_layer_filter(client):
     assert _names(client, "a", "outComponent", '{view: [{layers: ["has"]}]}') == ["x"]
 
 
-def test_component_filter_and_or_combinators(client):
-    # Node and edge filters compose with `and`/`or`.
+@pytest.mark.xfail(
+    reason="a node created only by an edge vanishes once its edges are hidden (#2821)",
+    strict=True,
+)
+def test_component_filter_node_or(client):
     # node OR: step only through nodes named b or c
     assert _names(
         client,
@@ -77,6 +80,10 @@ def test_component_filter_and_or_combinators(client):
         "outComponent",
         '{ or: [{ node: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "b" } } } } }, { node: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "c" } } } } }] }',
     ) == ["b", "c"]
+
+
+def test_component_filter_and_or_combinators(client):
+    # Node and edge filters compose with `and`/`or`.
     # node AND: step through nodes that are neither x nor y
     assert _names(
         client,

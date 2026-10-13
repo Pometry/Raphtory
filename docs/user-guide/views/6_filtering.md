@@ -251,7 +251,7 @@ assert [(e.src.name, e.dst.name) for e in g.filter(in_works).edges] == [("bob", 
 |---|---|
 | `graph.filter(expr)` | a graph view with only the matching nodes, or only the matching edges. A node filter keeps the edges between the remaining nodes; an edge filter keeps every node. |
 | `graph.filter(filter.Graph.window(0, 2))` | the graph seen through the view; the same as `graph.window(0, 2)` |
-| `graph.filter(filter.Graph.window(0, 2) & expr)` | the view first, then `expr` inside it: the same as `graph.window(0, 2).filter(expr)`. Here a view combines with `&` only: there is no graph that is "windowed or filtered", so `\|` and `~` on a view are refused |
+| `graph.filter(filter.Graph.window(0, 2) & expr)` | what exists in the window and matches `expr`. Each leg is read on the base graph, so `expr` is not read inside the window; to filter inside a window use `graph.window(0, 2).filter(expr)`. Here a view combines with `&` only, so `\|` and `~` on a view are refused |
 | `graph.nodes[filter.Graph.window(0, 2) & expr]` | the nodes that exist in the window and match `expr` on the graph itself. On a collection a view leg is a test like any other, so `&` here is plain intersection and `expr` is not read inside the window |
 | `graph.nodes.filter(expr)` | every node stays, but each node's edges and neighbours are narrowed to the ones that match |
 | `node.filter(expr)` | the node with its edges and neighbours narrowed the same way |

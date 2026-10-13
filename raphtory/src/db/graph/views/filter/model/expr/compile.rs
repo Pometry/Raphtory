@@ -1184,7 +1184,7 @@ impl FilterExpr {
     /// combine into one node predicate first, so `name == "b" | name == "c"`
     /// keeps the edge b→c.
     fn edge_test<'g>(&self, graph: DynGraphArc<'g>) -> Result<DynEdgeFilter<'g>, GraphError> {
-        if let Some(nodes) = self.node_only() {
+        if let Some(nodes) = self.node_only()? {
             return NodeLeaf::edge_filter(&nodes, graph);
         }
         match self {
@@ -1209,17 +1209,27 @@ impl FilterExpr {
         }
     }
 
-    /// This filter as one node predicate, when it tests nodes only.
-    fn node_only(&self) -> Option<NodeExpr> {
-        let all =
-            |legs: &[FilterExpr]| legs.iter().map(Self::node_only).collect::<Option<Vec<_>>>();
-        match self {
-            FilterExpr::Node(expr) => Some(expr.clone()),
-            FilterExpr::And(legs) => all(legs).map(Expr::And),
-            FilterExpr::Or(legs) => all(legs).map(Expr::Or),
-            FilterExpr::Not(inner) => inner.node_only().map(|expr| Expr::Not(Box::new(expr))),
+    /// This filter as one node predicate, when it tests nodes only. A
+    /// constant leg is refused before the legs merge, as it is on its own.
+    fn node_only(&self) -> Result<Option<NodeExpr>, GraphError> {
+        let all = |legs: &[FilterExpr]| -> Result<Option<Vec<NodeExpr>>, GraphError> {
+            Ok(legs
+                .iter()
+                .map(Self::node_only)
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .collect())
+        };
+        Ok(match self {
+            FilterExpr::Node(expr) => {
+                expr.refuse_constant()?;
+                Some(expr.clone())
+            }
+            FilterExpr::And(legs) => all(legs)?.map(Expr::And),
+            FilterExpr::Or(legs) => all(legs)?.map(Expr::Or),
+            FilterExpr::Not(inner) => inner.node_only()?.map(|expr| Expr::Not(Box::new(expr))),
             FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) | FilterExpr::View(_) => None,
-        }
+        })
     }
 }
 

@@ -90,8 +90,8 @@ def test_node_collection_combinations_follow_set_algebra():
         cases = []
         views = {"window", "before", "layer"}
         # On `nodes[]` a view leg is an existence test, so it follows set algebra under `&`,
-        # `|` and `~`. On `filter()` the view applies first and `X` runs inside it (pinned
-        # below), and `|` or `~` on a view is refused.
+        # `|` and `~`. On `filter()` each leg is read on the base graph (pinned below), and
+        # `|` or `~` on a view is refused.
         select_only = set()
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
@@ -113,9 +113,10 @@ def test_node_collection_combinations_follow_set_algebra():
             ):
                 mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
-        # `view & X` on `filter()`: the view first, then `X` inside it. On `nodes[]` the
-        # view is one test among the others: c exists in the window through the edge at
-        # 10, and its score of 30 is read on the graph, so `window & prop` keeps b and c.
+        # Each leg is read on the base graph; to filter inside a window use
+        # graph.window(..).filter(..). On `nodes[]` the view is one test among the others:
+        # c exists in the window through the edge at 10, and its score of 30 is read on the
+        # graph, so `window & prop` keeps b and c.
         view_ref = {
             "window": graph.window(3, 12),
             "before": graph.before(12),
@@ -123,9 +124,11 @@ def test_node_collection_combinations_follow_set_algebra():
         }
         for v, viewed in view_ref.items():
             for name in ("name", "prop"):
-                inside = frozenset(viewed.nodes[atoms[name]].name)
+                both = frozenset(viewed.nodes.name) & frozenset(
+                    graph.filter(atoms[name]).nodes.name
+                )
                 assert (
-                    frozenset(graph.filter(atoms[v] & atoms[name]).nodes.name) == inside
+                    frozenset(graph.filter(atoms[v] & atoms[name]).nodes.name) == both
                 ), f"{v} & {name}"
                 exists_and = frozenset(viewed.nodes.name) & frozenset(
                     graph.nodes[atoms[name]].name

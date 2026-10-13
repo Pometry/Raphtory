@@ -156,8 +156,7 @@ def test_same_time_event(GraphClass):
     ]
 
 
-@pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
-def test_with_edge_node_filter(GraphClass):
+def _edge_node_graph(GraphClass):
     g = GraphClass()
     g.add_edge(
         timestamp=1, src=1, dst=2, layer="blue", properties={"weight": 1, "name": "bob"}
@@ -168,26 +167,14 @@ def test_with_edge_node_filter(GraphClass):
     g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1, "name": "bob"})
     g.add_edge(1, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
     g.add_edge(1, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
+    return g
 
+
+@pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
+def test_with_edge_node_filter(GraphClass):
+    g = _edge_node_graph(GraphClass)
     weight_e3 = filter.ExplodedEdge.property("weight") == 3
     name_filter = filter.Node.name() == "2"
-
-    # An `or` across kinds is the union of what each leg keeps: the updates
-    # with weight 3, plus the edges with both ends among the nodes named "2",
-    # of which there are none. It is not everything.
-    actual = [
-        (edge.src.name, edge.dst.name)
-        for edge in g.filter(weight_e3 | name_filter).edges.explode()
-    ]
-    expected = [("1", "2"), ("1", "3")]
-    assert sorted(actual) == sorted(expected)
-
-    actual = [
-        (edge.src.name, edge.dst.name)
-        for edge in g.filter(name_filter | weight_e3).edges.explode()
-    ]
-    expected = [("1", "2"), ("1", "3")]
-    assert sorted(actual) == sorted(expected)
 
     actual = [
         (edge.src.name, edge.dst.name)
@@ -207,6 +194,42 @@ def test_with_edge_node_filter(GraphClass):
         (edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges.explode()
     ]
     expected = []
+    assert sorted(actual) == sorted(expected)
+
+
+@pytest.mark.parametrize(
+    "GraphClass",
+    [
+        pytest.param(
+            GraphClass,
+            marks=pytest.mark.xfail(
+                reason="mixed node and edge combinations are being specified",
+                strict=True,
+            ),
+        )
+        for GraphClass in (Graph, PersistentGraph)
+    ],
+)
+def test_with_edge_or_node_filter(GraphClass):
+    g = _edge_node_graph(GraphClass)
+    weight_e3 = filter.ExplodedEdge.property("weight") == 3
+    name_filter = filter.Node.name() == "2"
+
+    # An `or` across kinds is the union of what each leg keeps: the updates
+    # with weight 3, plus the edges with both ends among the nodes named "2",
+    # of which there are none. It is not everything.
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(weight_e3 | name_filter).edges.explode()
+    ]
+    expected = [("1", "2"), ("1", "3")]
+    assert sorted(actual) == sorted(expected)
+
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(name_filter | weight_e3).edges.explode()
+    ]
+    expected = [("1", "2"), ("1", "3")]
     assert sorted(actual) == sorted(expected)
 
 

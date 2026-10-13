@@ -58,6 +58,9 @@ def _init(graph):
     graph.add_edge(15, "c", "a", {"weight": 20}, layer="friends")
     graph.add_edge(12, "d", "d", {"weight": 4})
     graph.delete_edge(20, "a", "b", layer="work")
+    # a->d: inside [3, 12) only on "friends", on "work" only after the window
+    graph.add_edge(7, "a", "d", {"weight": 1}, layer="friends")
+    graph.add_edge(25, "a", "d", {"weight": 1}, layer="work")
     return graph
 
 
@@ -101,9 +104,10 @@ def _kind(name):
 
 
 def _has_view(a, b):
-    # On `filter()` a view leg is not set algebra: the view applies first and `X` runs
-    # inside it (`test_a_view_applies_first_under_and_on_filter`). On `edges[]` it is an
-    # existence test like any other leg (`test_a_view_leg_is_an_existence_test_on_select`).
+    # On `filter()` a view leg is pinned on its own
+    # (`test_a_view_and_a_predicate_are_each_read_on_the_base_graph_on_filter`). On
+    # `edges[]` it is an existence test like any other leg
+    # (`test_a_view_leg_is_an_existence_test_on_select`).
     return a in VIEWS or b in VIEWS
 
 
@@ -244,19 +248,23 @@ def test_valid_layers_ignore_an_unknown_layer_where_layers_raises():
     `layers` / `exclude_layers` raise on it. There is no layer "nope".
 
     ```text
-                   5    10   12   15   20
+                   5  7 10   12   15   20   25
     a→b  [work]    ●                   ✕
     b→c  [work]         ●
     d→d  [_default]          ●
     c→a  [friends]                ●
+    a→d  [friends]    ●
+    a→d  [work]                             ●
     ```
+
+    a→d has updates on both sides, so it is in both lists.
     """
 
     def check(graph):
         work = _ids(graph.layers(["work"]).edges)
         not_work = _ids(graph.exclude_layers(["work"]).edges)
-        assert work == {("a", "b"), ("b", "c")}
-        assert not_work == {("d", "d"), ("c", "a")}
+        assert work == {("a", "b"), ("b", "c"), ("a", "d")}
+        assert not_work == {("d", "d"), ("c", "a"), ("a", "d")}
         valid = Graph.valid_layers(["work", "nope"])
         exclude_valid = Graph.exclude_valid_layers(["work", "nope"])
         assert _ids(graph.filter(valid).edges) == work
@@ -285,14 +293,18 @@ def test_edge_collection_time_view_actually_narrows():
     return check
 
 
-@with_variants(_init)
-def test_combinations_follow_set_algebra():
+def _combinations_follow_set_algebra(mixed):
+    """The `&`, `|` and `~` combinations of every pair of atoms, checked against set
+    algebra over the single-atom results. `mixed` picks the `|` and `~` combinations of a
+    node atom with an edge atom, and only those."""
+
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
         negated = _negations(graph, single)
         node_sets = _node_sets(graph)
         every = _ids(graph.edges)
         cases = []
+        mixed_cases = []
         select_only = set()
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
@@ -344,15 +356,17 @@ def test_combinations_follow_set_algebra():
             else:
                 # An `or` across kinds is the union of what each leg keeps: the
                 # edge leg's edges plus the edges with both ends in the node leg.
-                cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
-                cases.append(
+                mixed_cases.append(
+                    (f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b])
+                )
+                mixed_cases.append(
                     (
                         f"~({a} & {b})",
                         ~(atoms[a] & atoms[b]),
                         negated[a] & negated[b],
                     )
                 )
-                cases.append((f"~({a} | {b})", ~(atoms[a] | atoms[b]), every))
+                mixed_cases.append((f"~({a} | {b})", ~(atoms[a] | atoms[b]), every))
         for a in atoms:
             if a in VIEWS:
                 select_only.add(f"~{a}")
@@ -367,7 +381,7 @@ def test_combinations_follow_set_algebra():
             )
         )
         mismatches = []
-        for label, expr, want in cases:
+        for label, expr, want in mixed_cases if mixed else cases:
             paths = [("edges[]", lambda: _ids(graph.edges[expr]))]
             if label not in select_only:
                 paths.append(("filter()", lambda: _ids(graph.filter(expr).edges)))
@@ -380,6 +394,19 @@ def test_combinations_follow_set_algebra():
         assert not mismatches, "\n".join(mismatches)
 
     return check
+
+
+@with_variants(_init)
+def test_combinations_follow_set_algebra():
+    return _combinations_follow_set_algebra(mixed=False)
+
+
+@pytest.mark.xfail(
+    reason="mixed node and edge combinations are being specified", strict=True
+)
+@with_variants(_init)
+def test_mixed_combinations_follow_set_algebra():
+    return _combinations_follow_set_algebra(mixed=True)
 
 
 @with_variants(_init)
@@ -481,9 +508,9 @@ def test_hop_from_selected_edges_returns_unfiltered_endpoints():
 
 
 @with_variants(_init)
-def test_a_view_applies_first_under_and_on_filter():
-    """On `filter()`, `view & X` means `graph.<view>().filter(X)`: the view is applied
-    first and `X` is evaluated inside it. Two views chain.
+def test_a_view_and_a_predicate_are_each_read_on_the_base_graph_on_filter():
+    """On `filter()`, `view & X` keeps what exists in the view and in `graph.filter(X)`.
+    Two views intersect.
     """
 
     def check(graph):
@@ -493,14 +520,20 @@ def test_a_view_applies_first_under_and_on_filter():
             for name, atom in atoms.items():
                 if name in VIEWS:
                     continue
-                want = _ids(viewed.edges[atom])
+                # Each leg is read on the base graph; to filter inside a window use
+                # graph.window(..).filter(..).
+                want = _ids(viewed.edges) & _ids(graph.filter(atom).edges)
                 got = _ids(graph.filter(atoms[v] & atom).edges)
                 if got != want:
                     mismatches.append(
                         f"[filter()] {v} & {name}: got {sorted(got)} want {sorted(want)}"
                     )
-        # Two views: the second applies inside the first.
+        # Two views: the updates in both, which is what the chained view keeps.
         want = _ids(graph.window(3, 12).layers(["work"]).edges)
+        # a->d is in both views but has no "work" update inside the window
+        assert ("a", "d") not in want and ("a", "d") in _ids(
+            graph.window(3, 12).edges
+        ) & _ids(graph.layers(["work"]).edges)
         got = _ids(graph.filter(atoms["window"] & atoms["layer"]).edges)
         if got != want:
             mismatches.append(

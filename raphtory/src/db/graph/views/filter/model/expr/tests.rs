@@ -494,7 +494,6 @@ fn a_view_leg_in_a_select_is_an_existence_test() {
 /// and `not`: "exists in the view", "does not exist in it". The same filters
 /// have no graph to produce and are refused on `graph.filter`.
 #[test]
-#[ignore = "`~` of a view is refused until views compose with time semantics"]
 fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     fn selected<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<String> {
         let mut ids: Vec<String> = edges
@@ -1087,13 +1086,30 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
 /// The edge b→c is kept by `name == "b" | name == "c"` because each end
 /// passes one leg.
 #[test]
-#[ignore = "a node created only by an edge vanishes once its edges are hidden (#2821)"]
 fn a_typed_or_of_node_legs_keeps_an_edge_whose_ends_pass_different_legs() {
     let g = chain();
     let name_is = |n: &'static str| NodeFilter.name().eq(n);
 
     let or = name_is("b").or(name_is("c"));
     assert_eq!(selected_edges(&g, &or), ["b->c"], "or: edges.select");
+
+    let not_or = name_is("b").or(name_is("c")).not();
+    assert!(
+        selected_edges(&g, &not_or).is_empty(),
+        "not(or): edges.select"
+    );
+    let names: Vec<String> = g.nodes().select(not_or).unwrap().name().collect();
+    assert_eq!(names, ["a"], "not(or): nodes.select");
+}
+
+/// The same on the filtered graph.
+#[test]
+#[ignore = "a node created only by an edge vanishes once its edges are hidden (#2821)"]
+fn a_typed_or_of_node_legs_keeps_an_edge_whose_ends_pass_different_legs_on_the_graph() {
+    let g = chain();
+    let name_is = |n: &'static str| NodeFilter.name().eq(n);
+
+    let or = name_is("b").or(name_is("c"));
     assert_eq!(
         edge_ids(&g.filter(or.clone()).unwrap()),
         ["b->c"],
@@ -1102,15 +1118,9 @@ fn a_typed_or_of_node_legs_keeps_an_edge_whose_ends_pass_different_legs() {
 
     let not_or = name_is("b").or(name_is("c")).not();
     assert!(
-        selected_edges(&g, &not_or).is_empty(),
-        "not(or): edges.select"
-    );
-    assert!(
-        edge_ids(&g.filter(not_or.clone()).unwrap()).is_empty(),
+        edge_ids(&g.filter(not_or).unwrap()).is_empty(),
         "not(or): filter"
     );
-    let names: Vec<String> = g.nodes().select(not_or).unwrap().name().collect();
-    assert_eq!(names, ["a"], "not(or): nodes.select");
 }
 
 /// The union of what each leg keeps: no edge has both ends at b, so only the
@@ -1974,6 +1984,31 @@ fn a_constant_under_not_is_refused_as_a_tree() {
     );
     assert_eq!(oracle_edges(&g, constant.clone()), Err(refused.clone()));
     assert_eq!(oracle_edges(&g, FilterExpr::from(constant)), Err(refused));
+}
+
+#[test]
+fn a_constant_leg_of_a_node_and_or_or_is_refused() {
+    let g = oracle_graph().into_dynamic();
+    let alice = || NodeFilter.name().eq("alice");
+    let constant = || Expr::<NodeLeaf>::Const(true.into());
+    let refused: Result<(), String> = Err("Invalid filter: a constant is not a filter".into());
+    for expr in [alice().and(constant()), alice().or(constant())] {
+        assert_eq!(
+            oracle_kept(&g, expr.clone()).map(|_| ()),
+            refused,
+            "{expr:?}: filter"
+        );
+        assert_eq!(
+            oracle_nodes(&g, expr.clone()).map(|_| ()),
+            refused,
+            "{expr:?}: nodes"
+        );
+        assert_eq!(
+            oracle_edges(&g, expr.clone()).map(|_| ()),
+            refused,
+            "{expr:?}: edges"
+        );
+    }
 }
 
 /// a→b added @1 w=1, deleted @2 · c→c added @1 w=7

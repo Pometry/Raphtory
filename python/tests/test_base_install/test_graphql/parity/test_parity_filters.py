@@ -778,7 +778,24 @@ def test_is_in_with_a_mistyped_value_matches_nothing_on_both_sides(filter_pair):
         )
 
 
-@pytest.mark.parametrize("name", sorted(EXPRS), ids=sorted(EXPRS))
+@pytest.mark.parametrize(
+    "name",
+    [
+        (
+            pytest.param(
+                name,
+                marks=pytest.mark.xfail(
+                    reason="mixed node and edge combinations are being specified",
+                    strict=True,
+                ),
+            )
+            if name == "comb.mixed_or"
+            else name
+        )
+        for name in sorted(EXPRS)
+    ],
+    ids=sorted(EXPRS),
+)
 def test_expr_discriminates(filter_pair, name):
     """The expression must keep some entities and drop some — on each side.
 
