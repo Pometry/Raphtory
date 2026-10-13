@@ -1,0 +1,110 @@
+use raphtory::{
+    db::{
+        api::view::Filter,
+        graph::views::filter::model::{
+            expr::NodeExpr, node_filter::NodeFilter, EntityExprFilterOps, PropertyExprFactory,
+        },
+    },
+    prelude::{AdditionOps, Graph, NO_PROPS},
+};
+use raphtory_api::core::entities::properties::prop::Prop;
+
+/// n: flag=true, score=3, ints=[1, 2], nested_ints=[[1], [2]],
+/// nested_strs=[["a"], ["b"]] · m: no properties
+fn graph() -> Graph {
+    let g = Graph::new();
+    let ints = || Prop::list([1i64, 2]).unwrap();
+    let nested_ints =
+        Prop::list([Prop::list([1i64]).unwrap(), Prop::list([2i64]).unwrap()]).unwrap();
+    let nested_strs = Prop::list([
+        Prop::list([Prop::str("a")]).unwrap(),
+        Prop::list([Prop::str("b")]).unwrap(),
+    ])
+    .unwrap();
+    g.add_node(
+        0,
+        "n",
+        [
+            ("flag", Prop::Bool(true)),
+            ("score", Prop::I64(3)),
+            ("ints", ints()),
+            ("nested_ints", nested_ints),
+            ("nested_strs", nested_strs),
+        ],
+        None,
+        None,
+    )
+    .unwrap();
+    g.add_node(0, "m", NO_PROPS, None, None).unwrap();
+    g
+}
+
+fn refused(g: &Graph, expr: NodeExpr) -> String {
+    match g.filter(expr.clone()) {
+        Ok(_) => panic!("expected {expr:?} to be refused"),
+        Err(e) => e.to_string(),
+    }
+}
+
+#[test]
+fn any_and_all_collapse_only_an_elementwise_bool() {
+    let g = graph();
+    let prop = |name: &str| NodeFilter.property(name);
+    // A List<Bool> collapses to one answer; a List<List<Bool>> needs one
+    // any()/all() per level.
+    assert!(g.filter(prop("ints").gt(1i64).any()).is_ok());
+    assert!(g.filter(prop("nested_ints").gt(1i64).any().all()).is_ok());
+    let needs = "Invalid filter: any()/all() need one boolean answer per element, which \
+                 comparing a list or temporal property gives; ";
+    assert_eq!(
+        refused(&g, prop("flag").eq(true).any()),
+        format!("{needs}this expression gives a single boolean answer, so drop the any()/all()")
+    );
+    // A list whose innermost type is not a boolean is not an element-wise answer.
+    assert_eq!(
+        refused(&g, prop("nested_strs").any()),
+        format!(
+            "{needs}this expression gives the list itself (List<List<Str>>), so compare it \
+             first and put any()/all() after the comparison"
+        )
+    );
+    assert_eq!(
+        refused(&g, prop("ints").any()),
+        format!(
+            "{needs}this expression gives the list itself (List<I64>), so compare it first \
+             and put any()/all() after the comparison"
+        )
+    );
+    assert_eq!(
+        refused(&g, prop("score").any()),
+        format!("{needs}this expression gives a single I64, so compare it without any()/all()")
+    );
+}
+
+#[test]
+fn a_filter_needs_one_bool_and_says_when_to_add_a_qualifier() {
+    let g = graph();
+    let prop = |name: &str| NodeFilter.property(name);
+    assert!(g.filter(NodeExpr::from(prop("flag"))).is_ok());
+    let per_element = |pt: &str| {
+        format!(
+            "Invalid filter: a filter needs one boolean answer, but comparing a list or \
+             temporal property gives one per element ({pt}); add any() or all() to say \
+             whether any or every element must match"
+        )
+    };
+    assert_eq!(
+        refused(&g, prop("ints").gt(1i64)),
+        per_element("List<Bool>")
+    );
+    assert_eq!(
+        refused(&g, prop("nested_ints").gt(1i64)),
+        per_element("List<List<Bool>>")
+    );
+    // A list of strings is not an element-wise boolean, so the hint does not apply.
+    assert_eq!(
+        refused(&g, prop("nested_strs").into()),
+        "Invalid filter: a filter needs a boolean answer, but this expression has type \
+         List<List<Str>>"
+    );
+}

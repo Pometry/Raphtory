@@ -1,11 +1,17 @@
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 
 mod cached_view;
+mod edge_collections;
 mod edge_expr_filter;
 mod edge_property_filter;
 mod exploded_edge_property_filter;
+mod expr_tree;
+mod filter_combinators;
+mod filter_type_errors;
+mod node_expr;
 mod node_property_filter;
 mod node_type_filter_index;
+mod property_filter_matches;
 mod subgraph_tests;
 mod test_filters;
 mod test_layers;

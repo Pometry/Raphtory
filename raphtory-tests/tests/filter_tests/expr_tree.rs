@@ -1,5 +1,4 @@
-use super::*;
-use crate::{
+use raphtory::{
     algorithms::alternating_mask::alternating_mask,
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic, Select},
@@ -11,6 +10,12 @@ use crate::{
                     model::{
                         edge_filter::EdgeFilter,
                         exploded_edge_filter::ExplodedEdgeFilter,
+                        expr::{
+                            Agg, Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf,
+                            Expr, Field, FilterExpr, Leaf, NodeExpr, NodeLeaf, ViewOp,
+                            OPAQUE_FILTER_ERROR,
+                        },
+                        filter_operator::{BinaryOp, StringOp},
                         graph_filter::GraphFilter,
                         node_filter::{NodeFilter, NodeFilterFactory},
                         ComposableFilter, EdgeViewFilterOps, EntityAggOps, EntityExprFilterOps,
@@ -28,7 +33,10 @@ use crate::{
     },
 };
 use raphtory_api::core::{
-    entities::{properties::prop::IntoProp, GID},
+    entities::{
+        properties::prop::{IntoProp, Prop},
+        Layer, GID,
+    },
     storage::timeindex::{AsTime, EventTime},
     Direction,
 };

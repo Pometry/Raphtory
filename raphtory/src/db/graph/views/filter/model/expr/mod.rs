@@ -26,8 +26,6 @@
 pub mod builder;
 mod compile;
 mod display;
-#[cfg(test)]
-mod tests;
 pub mod typing;
 
 pub use builder::{Chain, EdgeEndpoint, EdgeKind, GraphLeaf, PropertyTerm};

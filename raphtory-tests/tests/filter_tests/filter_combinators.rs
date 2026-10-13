@@ -1,4 +1,4 @@
-use crate::{
+use raphtory::{
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic},
         graph::views::filter::{

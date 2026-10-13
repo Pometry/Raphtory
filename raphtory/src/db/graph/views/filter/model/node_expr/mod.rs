@@ -1,8 +1,5 @@
 pub mod ops;
 
-#[cfg(test)]
-mod tests;
-
 pub use crate::db::graph::views::filter::model::expr::builder::EntityAggOps;
 pub use ops::*;
 

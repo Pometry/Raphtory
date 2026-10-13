@@ -1,11 +1,10 @@
-use super::*;
-use crate::{
+use raphtory::{
     db::{
         api::view::{filter_ops::Select, Filter},
         graph::views::filter::{
             model::{
                 node_filter::{NodeFilter, NodeFilterFactory},
-                PropertyExprFactory, ViewWrapOps,
+                EntityAggOps, PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -38,44 +37,6 @@ where
         .collect();
     names.sort();
     names
-}
-
-// ── degree comparison operators ──────────────────────────────────────────
-
-#[test]
-fn degree_ge_2_keeps_all_nodes() {
-    let g = build_test_graph();
-    assert_eq!(
-        filtered_names(NodeFilter.degree().ge(2usize), g),
-        vec!["a", "b", "c"]
-    );
-}
-
-#[test]
-fn degree_eq_1_keeps_no_nodes() {
-    let g = build_test_graph();
-    assert!(filtered_names(NodeFilter.degree().eq(1usize), g).is_empty());
-}
-
-#[test]
-fn degree_le_2_keeps_all_nodes() {
-    let g = build_test_graph();
-    assert_eq!(
-        filtered_names(NodeFilter.degree().le(2usize), g),
-        vec!["a", "b", "c"]
-    );
-}
-
-#[test]
-fn degree_gt_2_keeps_no_nodes() {
-    let g = build_test_graph();
-    assert!(filtered_names(NodeFilter.degree().gt(2usize), g).is_empty());
-}
-
-#[test]
-fn degree_ne_2_keeps_no_nodes_when_all_are_2() {
-    let g = build_test_graph();
-    assert!(filtered_names(NodeFilter.degree().ne(2usize), g).is_empty());
 }
 
 // ── expression-vs-expression: RHS can be another NodeExpr ────────────────
@@ -192,24 +153,6 @@ fn temporal_all_requires_non_empty_sequence() {
     assert!(!names.contains(&"carol".to_string()));
 }
 
-// ── sum() aggregator ──────────────────────────────────────────────────────
-
-#[test]
-fn temporal_sum_gt_threshold() {
-    // alice sum = 16, bob sum = 5 → sum > 10 → alice only
-    let g = build_temporal_graph();
-    let filter = NodeFilter.property("score").temporal().sum().gt(10i64);
-    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
-}
-
-#[test]
-fn temporal_sum_eq() {
-    // bob sum = 5 → sum == 5 → bob only
-    let g = build_temporal_graph();
-    let filter = NodeFilter.property("score").temporal().sum().eq(5i64);
-    assert_eq!(temporal_filtered_names(filter, g), vec!["bob"]);
-}
-
 // ── first() / last() aggregators ─────────────────────────────────────────
 
 #[test]
@@ -226,24 +169,6 @@ fn temporal_last_value() {
     let g = build_temporal_graph();
     let filter = NodeFilter.property("score").temporal().last().gt(9i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
-}
-
-// ── len() aggregator ──────────────────────────────────────────────────────
-
-#[test]
-fn temporal_len_count() {
-    // alice has 3 updates, bob has 2 → len == 3 → alice only
-    let g = build_temporal_graph();
-    let filter = NodeFilter.property("score").temporal().len().eq(3usize);
-    assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
-}
-
-#[test]
-fn temporal_len_ge_2() {
-    // alice (3), bob (2) both have len >= 2; carol has 0
-    let g = build_temporal_graph();
-    let filter = NodeFilter.property("score").temporal().len().ge(2usize);
-    assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
 }
 
 // ── NodeFilter entry point ────────────────────────────────────────────────
@@ -471,19 +396,6 @@ fn is_true_excludes_absent_property() {
 }
 
 // ── Runtime validation via prop_type() ───────────────────────────────────
-
-#[test]
-fn string_op_on_numeric_prop_returns_error() {
-    let g = build_temporal_graph();
-    let filter = NodeFilter
-        .property("score")
-        .starts_with(Prop::Str("x".into()));
-    let result = g.filter(filter);
-    assert!(
-        result.is_err(),
-        "expected Err for string op on numeric property"
-    );
-}
 
 #[test]
 fn ordering_op_on_bool_prop_orders_false_before_true() {

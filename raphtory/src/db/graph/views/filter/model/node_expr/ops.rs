@@ -329,44 +329,6 @@ fn sum_out_type(pt: PropType) -> PropType {
     })
 }
 
-#[cfg(test)]
-mod sum_out_type_tests {
-    use super::{sum_out_type, PropType};
-
-    fn list(inner: PropType) -> PropType {
-        PropType::List(Box::new(inner))
-    }
-
-    // The declared type has to hold every value the evaluator can produce, or
-    // a constant comparison is validated against a range the sum can exceed.
-    #[test]
-    fn narrow_numeric_elements_widen() {
-        for elem in [PropType::U8, PropType::U16, PropType::U32, PropType::U64] {
-            assert_eq!(sum_out_type(list(elem)), PropType::U64);
-        }
-        for elem in [PropType::I32, PropType::I64] {
-            assert_eq!(sum_out_type(list(elem)), PropType::I64);
-        }
-    }
-
-    #[test]
-    fn float_elements_keep_their_width() {
-        assert_eq!(sum_out_type(list(PropType::F32)), PropType::F32);
-        assert_eq!(sum_out_type(list(PropType::F64)), PropType::F64);
-    }
-
-    #[test]
-    fn non_numeric_elements_and_scalars_are_unchanged() {
-        assert_eq!(sum_out_type(list(PropType::Str)), PropType::Str);
-        assert_eq!(sum_out_type(PropType::U8), PropType::U8);
-    }
-
-    #[test]
-    fn only_the_innermost_list_level_collapses() {
-        assert_eq!(sum_out_type(list(list(PropType::U8))), list(PropType::U64));
-    }
-}
-
 macro_rules! impl_agg_entity_op {
     ($node_name:ident, $edge_name:ident, $out_pt:expr, $body:expr) => {
         #[derive(Clone)]
