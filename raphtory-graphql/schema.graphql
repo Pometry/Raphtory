@@ -7290,36 +7290,6 @@ type QueryRoot {
 }
 
 """
-An RDF format.
-"""
-enum RdfFormat {
-	"""
-	Turtle.
-	"""
-	TURTLE
-	"""
-	N-Triples.
-	"""
-	N_TRIPLES
-	"""
-	N-Quads.
-	"""
-	N_QUADS
-	"""
-	TriG.
-	"""
-	TRIG
-	"""
-	RDF/XML.
-	"""
-	RDF_XML
-	"""
-	JSON-LD.
-	"""
-	JSON_LD
-}
-
-"""
 A graph viewed as RDF, with persistent semantics: one triple per visible edge and layer
 (source, layer, destination). A node name that is not an IRI, a blank node or a literal is an
 IRI under `raphtory:`, a prefix every query can use, and the layer of a predicate IRI is the
@@ -7528,61 +7498,17 @@ type RdfGraph {
 		views: [GraphViewCollection!]!
 	): RdfGraph!
 	"""
-	Returns the graph name.
-	"""
-	name: String!
-	"""
-	Returns the path of the graph.
-	"""
-	path: String!
-	"""
-	Returns the time entry of the earliest activity in the view.
-	"""
-	earliestTime: EventTime!
-	"""
-	Returns the time entry of the latest activity in the view.
-	"""
-	latestTime: EventTime!
-	"""
-	Returns the start time of the window. Errors if there is no window.
-	"""
-	start: EventTime!
-	"""
-	Returns the end time of the window. Errors if there is no window.
-	"""
-	end: EventTime!
-	"""
-	Returns the size of the window covered by this view (`end - start`), or None if the view
-	is unbounded.
-	"""
-	windowSize: Int
-	"""
-	Returns the names of the layers with an edge event visible in this view.
-	"""
-	uniqueLayers: [String!]!
-	"""
-	Check if a layer with the given name is present in the graph.
-	"""
-	hasLayer(
-		"""
-		Layer name to look for.
-		"""
-		name: String!
-	): Boolean!
-	"""
 	The same view as a property graph.
 	"""
 	graph: Graph!
 	"""
 	Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
 	and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
-	`snapshotAt(time: T)` of the view. The temporal functions (`raphtory:validFrom`,
-	`validTo`, `validFromTime`, `validToTime`) are unavailable when the caller's access to
-	the graph is row-filtered. Disabled when the server sets `disable_lists`. Queries longer
-	than the server's `max_sparql_query_length`, with more than `max_sparql_triple_patterns`
-	triple patterns or with brackets nested too deep are rejected before they run, and
-	results larger than `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold
-	the results, such as a triple whose predicate does not end in an XML name.
+	`before(time: T + 1) { valid }` of the view. Queries longer than the server's
+	`max_sparql_query_length`, with more than `max_sparql_triple_patterns` triple patterns or
+	with brackets nested too deep are rejected before they run, and results larger than
+	`max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold the results, such as a
+	triple whose predicate does not end in an XML name. Null if the query fails unexpectedly.
 	"""
 	sparql(
 		"""
@@ -7593,21 +7519,11 @@ type RdfGraph {
 		The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error.
 		"""
 		format: SparqlFormat
-	): String!
-	"""
-	The triples of this view as one RDF document. Disabled when the server sets
-	`disable_lists`; documents larger than `max_sparql_result_bytes` fail.
-	"""
-	toRdf(
-		"""
-		The RDF format of the document; N_TRIPLES by default.
-		"""
-		format: RdfFormat
-	): String!
+	): String
 	"""
 	Validates the triples of this view against a SHACL shapes graph and returns the W3C
 	`sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-	are rejected. Disabled when the server sets `disable_lists`.
+	are rejected. Null if the validation fails unexpectedly.
 	"""
 	validateShacl(
 		"""
@@ -7615,14 +7531,14 @@ type RdfGraph {
 		"""
 		shapes: String!,
 		"""
-		The RDF format of the shapes; TURTLE by default.
+		The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
 		"""
-		format: RdfFormat,
+		format: SparqlFormat,
 		"""
-		The RDF format of the report; TURTLE by default.
+		The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors.
 		"""
-		reportFormat: RdfFormat
-	): String!
+		reportFormat: SparqlFormat
+	): String
 }
 
 """
@@ -7687,7 +7603,7 @@ enum SortByTime {
 
 """
 A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
-CONSTRUCT and DESCRIBE.
+CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
 """
 enum SparqlFormat {
 	"""
@@ -7730,6 +7646,10 @@ enum SparqlFormat {
 	JSON-LD.
 	"""
 	JSON_LD
+	"""
+	N3.
+	"""
+	N3
 }
 
 """

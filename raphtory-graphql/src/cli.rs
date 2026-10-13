@@ -125,8 +125,8 @@ pub struct ConfigArgs {
     #[arg(
         long,
         env = "RAPHTORY_HEAVY_QUERY_LIMIT",
-        help = "Restricts how many queries can execute simultaneously.",
-        long_help = "Every GraphQL query and every SPARQL endpoint query takes a slot. Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
+        help = "Restricts how many expensive graph traversal queries can execute simultaneously.",
+        long_help = "Covers operations like connected components, edge traversals, and neighbour lookups (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
     )]
     pub(crate) heavy_query_limit: Option<usize>,
 
@@ -185,7 +185,7 @@ pub struct ConfigArgs {
     #[arg(
         long,
         env = "RAPHTORY_MAX_SPARQL_RESULT_BYTES",
-        help = help_with_default!("Maximum size in bytes of the results of a SPARQL query or an RDF export (the `sparql` and `toRdf` fields or the `/sparql` endpoint). Larger results fail.", DEFAULT_MAX_SPARQL_RESULT_BYTES)
+        help = help_with_default!("Maximum size in bytes of the results of a SPARQL query (the `sparql` field or the `/sparql` endpoint). Larger results fail.", DEFAULT_MAX_SPARQL_RESULT_BYTES)
     )]
     pub(crate) max_sparql_result_bytes: Option<usize>,
 

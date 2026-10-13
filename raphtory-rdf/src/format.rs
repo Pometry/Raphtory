@@ -1,9 +1,10 @@
 //! The RDF and SPARQL results formats of the RDF APIs.
+use crate::RdfError;
 use oxigraph::{
     io::{JsonLdProfileSet, RdfFormat as OxRdfFormat},
     sparql::results::QueryResultsFormat as OxQueryResultsFormat,
 };
-use std::fmt;
+use std::{fmt, path::Path};
 
 /// An RDF serialization format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -25,6 +26,27 @@ pub enum RdfFormat {
 }
 
 impl RdfFormat {
+    /// Parses a format from a file extension, a name or a media type, such as `"ttl"`, `".ttl"`,
+    /// `"turtle"`, `"text/turtle"`, `"nt"`, `"n-triples"`, `"nq"`, `"trig"`, `"rdf"`, `"xml"`,
+    /// `"jsonld"` or `"n3"` (case-insensitive). Fails with [`RdfError::UnknownFormat`].
+    pub fn parse(s: &str) -> Result<Self, RdfError> {
+        let t = s.trim();
+        let t = t.strip_prefix('.').unwrap_or(t);
+        Self::from_extension(t)
+            .or_else(|| Self::from_media_type(t))
+            .or_else(|| Self::from_media_type(&format!("application/{t}")))
+            .ok_or_else(|| RdfError::UnknownFormat(s.to_owned()))
+    }
+
+    /// The format named by the extension of a file, read as [`parse`](Self::parse) reads a
+    /// name. Fails with [`RdfError::NoPathFormat`] if the path has no extension or one that
+    /// names no format.
+    pub fn from_path(path: &Path) -> Result<Self, RdfError> {
+        path.extension()
+            .and_then(|extension| Self::parse(extension.to_str()?).ok())
+            .ok_or_else(|| RdfError::NoPathFormat(path.to_owned()))
+    }
+
     /// The format of a file extension such as `ttl`, `nt`, `rdf` or `jsonld`
     /// (case-insensitive), or `None` if it names none.
     pub fn from_extension(extension: &str) -> Option<Self> {
@@ -50,11 +72,6 @@ impl RdfFormat {
     /// The IANA media type, such as `text/turtle`.
     pub fn media_type(self) -> &'static str {
         self.to_oxigraph().media_type()
-    }
-
-    /// The IRI of the format, such as `http://www.w3.org/ns/formats/Turtle`.
-    pub fn iri(self) -> &'static str {
-        self.to_oxigraph().iri()
     }
 
     /// The name of the format, such as `Turtle`.
@@ -125,11 +142,6 @@ impl QueryResultsFormat {
     /// The IANA media type, such as `application/sparql-results+json`.
     pub fn media_type(self) -> &'static str {
         self.to_oxigraph().media_type()
-    }
-
-    /// The IRI of the format, such as `http://www.w3.org/ns/formats/SPARQL_Results_JSON`.
-    pub fn iri(self) -> &'static str {
-        self.to_oxigraph().iri()
     }
 
     /// The name of the format, such as `SPARQL Results in JSON`.

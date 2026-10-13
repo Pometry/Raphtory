@@ -1,7 +1,6 @@
 //! Serialising the triples visible in a view.
 use crate::{
-    mapping::{layer_predicate, term_of},
-    scan::EdgeScan,
+    mapping::{edge_predicate, term_of},
     RdfError, RdfFormat, WriteStats,
 };
 use oxigraph::{
@@ -11,8 +10,8 @@ use oxigraph::{
         NamedOrBlankNodeRef, Term, TermRef, TripleRef,
     },
 };
-use raphtory::db::api::view::{internal::CoreGraphOps, DynamicGraph};
-use raphtory_api::core::entities::{LayerId, VID};
+use raphtory::{db::api::view::DynamicGraph, prelude::*};
+use raphtory_api::core::entities::LayerId;
 use rustc_hash::FxHashMap;
 use std::io::{self, BufWriter, Write};
 
@@ -22,32 +21,24 @@ pub(crate) fn write_rdf<W: Write>(
     view: DynamicGraph,
     writer: W,
     format: RdfFormat,
-    prefixes: &[(&str, &str)],
 ) -> Result<WriteStats, RdfError> {
-    let mut sink = TripleSink::new(
-        serializer_with_prefixes(format, prefixes.iter().copied())?,
-        writer,
-    );
-    let mut predicates: FxHashMap<LayerId, Option<NamedNode>> = FxHashMap::default();
-    // The scan is grouped by subject, so cache the last subject term.
-    let mut subject: Option<(VID, Option<NamedOrBlankNode>)> = None;
-    let scan = EdgeScan::all_by_nodes(view.clone(), None);
-    for (s, l, o) in scan {
-        if subject.as_ref().is_none_or(|(v, _)| *v != s) {
-            let term = NamedOrBlankNode::try_from(term_of(&view.node_name(s))).ok();
-            subject = Some((s, term));
-        }
-        let subject_term = subject.as_ref().and_then(|(_, t)| t.as_ref());
-        let predicate = predicates
-            .entry(l)
-            .or_insert_with(|| layer_iri(&view, l))
-            .as_ref();
-        match (subject_term, predicate) {
-            (Some(subject_term), Some(predicate)) => {
-                let object = term_of(&view.node_name(o));
-                sink.push(subject_term.as_ref(), predicate.as_ref(), object.as_ref())?;
+    let mut sink = TripleSink::new(RdfSerializer::from_format(format.to_oxigraph()), writer);
+    let mut predicates: FxHashMap<Option<LayerId>, Option<NamedNode>> = FxHashMap::default();
+    for node in view.nodes() {
+        let mut subject = None;
+        for edge in node.out_edges().explode_layers() {
+            let subject = subject
+                .get_or_insert_with(|| NamedOrBlankNode::try_from(term_of(&node.name())).ok());
+            let predicate = predicates
+                .entry(edge.edge.layer())
+                .or_insert_with(|| edge_predicate(&edge));
+            match (subject, predicate) {
+                (Some(subject), Some(predicate)) => {
+                    let object = term_of(&edge.dst().name());
+                    sink.push(subject.as_ref(), predicate.as_ref(), object.as_ref())?;
+                }
+                _ => sink.skip(),
             }
-            _ => sink.skip(),
         }
     }
     Ok(sink.finish()?)
@@ -165,13 +156,6 @@ impl<W: Write> TripleSink<W> {
     }
 }
 
-/// The predicate IRI of a layer, or `None` if the layer's term is not an IRI. Resolved lazily
-/// by id, so layers created during the export are handled (a lookup by id takes no lock that a
-/// writer creating a layer waits for).
-fn layer_iri(view: &DynamicGraph, layer: LayerId) -> Option<NamedNode> {
-    layer_predicate(&view.get_layer_name(layer))
-}
-
 /// The RDF/XML syntax terms, which the RDF/XML serializer refuses as predicates (with an I/O
 /// error once it has started the subject's element, so they must be skipped beforehand).
 const RDF_XML_SYNTAX_TERMS: [&str; 9] = [
@@ -271,63 +255,4 @@ fn is_ncname_start_char(c: char) -> bool {
 fn is_ncname_char(c: char) -> bool {
     is_ncname_start_char(c)
         || matches!(c, '-' | '.' | '0'..='9' | '\u{B7}' | '\u{300}'..='\u{36F}' | '\u{203F}'..='\u{2040}')
-}
-
-/// Why `name` cannot be a prefix name in `format`, or `None` if it can.
-fn invalid_prefix_name(format: RdfFormat, name: &str) -> Option<&'static str> {
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return None; // the empty prefix (`:local` in Turtle, the default namespace in RDF/XML)
-    };
-    match format {
-        // PN_PREFIX: a letter, then letters, digits, `_`, `-`, `.` (and a few combining
-        // characters), not ending with `.`
-        RdfFormat::Turtle | RdfFormat::TriG | RdfFormat::N3 => (first == '_'
-            || !is_ncname_start_char(first)
-            || !chars.all(is_ncname_char)
-            || name.ends_with('.'))
-        .then_some(
-            "it must be empty, or start with a letter, contain only letters, digits, '_', '-' \
-             and '.', and not end with '.'",
-        ),
-        // an NCName that does not redefine the reserved `xml` and `xmlns` prefixes
-        RdfFormat::RdfXml => {
-            if !is_ncname_start_char(first) || !chars.all(is_ncname_char) {
-                Some(
-                    "it must be empty, or start with a letter or '_' and contain only letters, \
-                     digits, '_', '-' and '.'",
-                )
-            } else if name == "xml" || name == "xmlns" {
-                Some("'xml' and 'xmlns' are reserved")
-            } else {
-                None
-            }
-        }
-        // these formats have no prefixes
-        RdfFormat::NTriples | RdfFormat::NQuads | RdfFormat::JsonLd => None,
-    }
-}
-
-/// Builds an [`RdfSerializer`] for `format` with the given prefixes (the serializer chooses the
-/// order in which they are written; a repeated name keeps its last IRI).
-///
-/// Unlike [`RdfSerializer::with_prefix`], which only parses the IRI, this also checks that each
-/// prefix name can be written in `format`, failing with [`RdfError::InvalidPrefix`] on the first
-/// invalid one. Formats without prefixes (N-Triples, N-Quads, JSON-LD) ignore them.
-pub(crate) fn serializer_with_prefixes<'a>(
-    format: RdfFormat,
-    prefixes: impl IntoIterator<Item = (&'a str, &'a str)>,
-) -> Result<RdfSerializer, RdfError> {
-    let mut serializer = RdfSerializer::from_format(format.to_oxigraph());
-    for (name, iri) in prefixes {
-        if let Some(reason) = invalid_prefix_name(format, name) {
-            return Err(RdfError::InvalidPrefix {
-                name: name.to_owned(),
-                format,
-                reason,
-            });
-        }
-        serializer = serializer.with_prefix(name, iri)?;
-    }
-    Ok(serializer)
 }

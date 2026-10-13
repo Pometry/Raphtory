@@ -1,4 +1,4 @@
-from raphtory import EventTime, RdfGraph, ShaclWarning
+from raphtory import RdfGraph, ShaclWarning
 
 SH = "http://www.w3.org/ns/shacl#"
 XSD = "http://www.w3.org/2001/XMLSchema#"
@@ -81,16 +81,10 @@ def test_report_dict():
     assert nt.count(f"<{SH}result>") == 3
 
 
-def test_snapshots_and_validate_at():
+def test_views():
     rg = people()
-    # an int, a date-time string and a time from Raphtory's own APIs
-    reports = rg.validate_shacl_at(
-        SHAPES, [1, "1970-01-01T00:00:00.006Z", EventTime(7, 3)]
-    )
-    assert [t.as_tuple for t, _ in reports] == [(1, 0), (6, 0), (7, 3)]
-    assert [len(report["results"]) for _, report in reports] == [0, 1, 2]
-    for t, report in reports:
-        assert report == rg.snapshot_at(t).validate_shacl(SHAPES)
+    reports = [rg.at(t).validate_shacl(SHAPES) for t in [1, 6, 7]]
+    assert [len(report["results"]) for report in reports] == [0, 1, 2]
 
 
 def test_warnings():

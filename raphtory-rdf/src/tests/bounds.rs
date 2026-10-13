@@ -1,7 +1,7 @@
-//! Bounding the size of a query: `SparqlOptions::with_max_triple_patterns`.
+//! Bounding a query and its results: the limits of `SparqlOptions`.
 use crate::{
-    limits::count_triple_patterns, query::parse, QueryResultsFormat, RdfError, RdfGraph,
-    SparqlOptions,
+    limits::count_triple_patterns, query::parse, QueryResultsFormat, RdfError, RdfFormat, RdfGraph,
+    SparqlFormat, SparqlOptions,
 };
 use raphtory::prelude::*;
 
@@ -107,4 +107,40 @@ fn queries_with_too_many_triple_patterns_are_rejected() {
     assert!(out.is_empty());
     // without a limit, any number
     assert!(g.sparql(&star(101), &SparqlOptions::default()).is_ok());
+}
+
+/// A query longer than the limit is rejected, and results larger than the limit fail with at
+/// most the limit written.
+#[test]
+fn long_queries_and_large_results_are_rejected() {
+    let g = small_graph();
+    let query = star(3);
+    let length = SparqlOptions::default().with_max_query_length(query.len() - 1);
+    match g.sparql(&query, &length) {
+        Err(RdfError::QueryTooLong { length, max }) => {
+            assert_eq!((length, max), (query.len(), query.len() - 1))
+        }
+        other => panic!("{other:?}"),
+    }
+
+    for (query, format) in [
+        (query.as_str(), SparqlFormat::from(QueryResultsFormat::Json)),
+        ("CONSTRUCT WHERE { ?s ?p ?o }", RdfFormat::RdfXml.into()),
+    ] {
+        let write = |options: SparqlOptions| {
+            let mut out = Vec::new();
+            let written = g.sparql_to_writer(query, &mut out, format, &options);
+            (written, out)
+        };
+        let (_, all) = write(SparqlOptions::default());
+        let (written, out) = write(SparqlOptions::default().with_max_result_bytes(all.len()));
+        assert!(written.is_ok() && out == all);
+        let max = all.len() - 1;
+        let (written, out) = write(SparqlOptions::default().with_max_result_bytes(max));
+        assert!(
+            matches!(written, Err(RdfError::ResultsTooLarge { max: m }) if m == max),
+            "{written:?}"
+        );
+        assert!(out.len() < all.len());
+    }
 }

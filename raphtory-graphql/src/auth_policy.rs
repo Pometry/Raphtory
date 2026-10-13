@@ -75,16 +75,6 @@ impl GraphPermission {
     pub fn at_least_write(self) -> Option<Self> {
         self.is_write().then_some(self)
     }
-
-    /// Whether reads are restricted by a row filter (hiding nodes, edges, layers or times);
-    /// property redaction alone does not count. Fails closed: `Introspect` counts as filtered.
-    pub fn has_row_filter(&self) -> bool {
-        match self {
-            GraphPermission::Read { filter: Some(f) } => f.filter.is_some(),
-            GraphPermission::Read { filter: None } | GraphPermission::Write => false,
-            GraphPermission::Introspect => true,
-        }
-    }
 }
 
 impl PartialEq for GraphPermission {

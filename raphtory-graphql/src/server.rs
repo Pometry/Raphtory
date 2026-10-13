@@ -1,5 +1,5 @@
 #[cfg(feature = "rdf")]
-use crate::sparql::endpoint::SparqlEndpoint;
+use crate::sparql::{endpoint::SparqlEndpoint, sparql_options};
 use crate::{
     auth::{AuthenticatedGraphQL, KeyResolver, MutationAuth},
     auth_policy::AuthorizationPolicy,
@@ -26,10 +26,12 @@ use opentelemetry_sdk::{
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},
-    middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
+    middleware::{Compression, Cors},
     web::CompressionLevel,
-    EndpointExt, Route, Server,
+    Endpoint, EndpointExt, Route, Server,
 };
+#[cfg(feature = "rdf")]
+use poem::{http::header::VARY, middleware::SetHeader};
 use raphtory::db::api::storage::storage::Args;
 use serde_json::json;
 use std::{
@@ -389,7 +391,7 @@ impl GraphServer {
     pub(crate) async fn generate_endpoint(
         self,
         tracer: Option<Tracer>,
-    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+    ) -> Result<impl Endpoint, ServerError> {
         let config = self.config.clone();
         let key_resolver = self.key_resolver.clone();
         let schema = self.build_schema(tracer).await?;
@@ -409,13 +411,20 @@ impl GraphServer {
                 ),
             )
             .at("/health", get(health))
-            .at("/version", get(version));
+            .at("/version", get(version))
+            .with(Cors::new());
+        // `Cors` replaces `Vary`, so the SPARQL answers, whose format depends on the `Accept`
+        // header, add `Vary: Accept` outside it
         #[cfg(feature = "rdf")]
-        let app = app.at("/sparql/*path", SparqlEndpoint::new(graphql));
-        let app = app
-            .with(Cors::new())
-            .with(Compression::new().with_quality(CompressionLevel::Fastest));
-        Ok(app)
+        let app = Route::new()
+            .at(
+                "/sparql/*path",
+                SparqlEndpoint::new(graphql, sparql_options(&config.concurrency))
+                    .with(Cors::new())
+                    .with(SetHeader::new().appending(VARY, "Accept")),
+            )
+            .nest_no_strip("/", app);
+        Ok(app.with(Compression::new().with_quality(CompressionLevel::Fastest)))
     }
 
     /// Run the server on the default port until completion.

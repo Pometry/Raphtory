@@ -3,7 +3,7 @@
 //! The suite is read from the git submodule `raphtory-rdf-tests/test-suites/data-shapes`, a
 //! checkout of <https://github.com/w3c/data-shapes> (W3C Software and Document License, see
 //! `LICENSE.md` in the checkout). `make w3c-tests-init` checks the submodule out and
-//! `make rust-test-shacl-w3c` runs these tests.
+//! `make rust-test-rdf-w3c` runs these tests.
 //!
 //! The data graph is stored with [`add_triple`](raphtory_rdf::RdfGraph::add_triple), which
 //! keeps blank-node labels, so data, shapes and expected report share their blank nodes.
@@ -14,7 +14,7 @@ use oxigraph::{
     model::{Graph as OxGraph, NamedOrBlankNode},
 };
 use raphtory_rdf::{
-    shacl::{self, ShaclFeature, ShaclReport, ShaclShapes},
+    shacl::{self, ShaclFeature, ShaclOptions, ShaclReport, ShaclShapes},
     Literal, NamedNode, RdfError, RdfGraph, Term, Triple,
 };
 use shacl_report::{actual, expected, list, objects, one};
@@ -136,9 +136,10 @@ fn run_suite(manifest: &Path) -> BTreeMap<String, Outcome> {
                 for triple in &data {
                     g.add_triple(1, triple)?;
                 }
-                g.validate_shacl(&ShaclShapes::from_triples(
-                    shapes.iter().map(Triple::as_ref),
-                )?)
+                g.validate_shacl(
+                    &ShaclShapes::from_triples(shapes.iter().map(Triple::as_ref))?,
+                    &ShaclOptions::default(),
+                )
             })();
             let failure_expected = result == Term::from(nn(SHT, "Failure"));
             let outcome = match validated {

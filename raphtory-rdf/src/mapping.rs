@@ -19,16 +19,16 @@
 //! RDF 1.2 terms are never the term of a name. `name_of(term_of(n).as_ref()) == Some(n)` and
 //! `layer_name_of(layer_term(n).as_ref()) == Some(n)` for every `n`, and the inverses return
 //! `Some` only for terms their mapping can produce.
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDateTime, Utc};
 use oxigraph::model::{
     vocab::rdf, BlankNode, Literal, LiteralRef, NamedNode, NamedNodeRef, Term, TermRef,
 };
 use percent_encoding::{
     percent_decode_str, utf8_percent_encode, AsciiSet, PercentEncode, NON_ALPHANUMERIC,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use spareval::ExpressionTerm;
+use raphtory::db::{
+    api::view::{DynamicGraph, EdgeViewOps},
+    graph::edge::EdgeView,
+};
 use std::{borrow::Cow, str::FromStr};
 
 /// The IRI prefix used for Raphtory names that are not themselves RDF terms.
@@ -93,6 +93,20 @@ pub fn name_of(t: TermRef<'_>) -> Option<String> {
     (term_of(&candidate).as_ref() == t).then_some(candidate)
 }
 
+/// The Raphtory name of a term ([`name_of`]), or its N-Triples form if no name maps to it, such
+/// as a time graph IRI a query builds.
+///
+/// # Example
+/// ```
+/// use raphtory_rdf::{term_name, term_of, NamedNode};
+/// assert_eq!(term_name(term_of("Alice").as_ref()), "Alice");
+/// let time_graph = NamedNode::new("raphtory:asof:5").unwrap();
+/// assert_eq!(term_name(time_graph.as_ref().into()), "<raphtory:asof:5>");
+/// ```
+pub fn term_name(term: TermRef<'_>) -> String {
+    name_of(term).unwrap_or_else(|| term.to_string())
+}
+
 /// Maps a layer name to its RDF term. Total and injective.
 ///
 /// A name that is the [`escape_layer`] of an IRI outside `raphtory:` is that IRI, names
@@ -134,7 +148,7 @@ pub(crate) fn layer_name_of(t: TermRef<'_>) -> Option<String> {
 
 /// The layer name of an IRI that is not under [`RESERVED_NS`]: `%`, `/`, `:`, `?` and `*` as
 /// `%25`, `%2F`, `%3A`, `%3F` and `%2A`.
-pub(crate) fn escape_layer(iri: &str) -> Cow<'_, str> {
+fn escape_layer(iri: &str) -> Cow<'_, str> {
     if !iri.contains(LAYER_ESCAPED) {
         return Cow::Borrowed(iri);
     }
@@ -170,6 +184,14 @@ pub(crate) fn layer_predicate(name: &str) -> Option<NamedNode> {
         Term::NamedNode(iri) => Some(iri),
         _ => None,
     }
+}
+
+/// The predicate IRI of the layer of `edge`, or `None` if its term is not an IRI (see
+/// [`layer_predicate`]).
+pub(crate) fn edge_predicate(edge: &EdgeView<DynamicGraph>) -> Option<NamedNode> {
+    edge.layer_name()
+        .ok()
+        .and_then(|name| layer_predicate(&name))
 }
 
 /// Whether `literal` is an RDF 1.2 directional language-tagged string (`"hi"@en--ltr`).
@@ -212,44 +234,4 @@ fn pct_decode(s: &str) -> Option<String> {
         .decode_utf8()
         .ok()
         .map(Cow::into_owned)
-}
-
-/// Converts a literal to a Raphtory [`Prop`] by its value, or `None` if its datatype is not
-/// supported or its lexical form is invalid.
-///
-/// | Literal | `Prop` |
-/// |---|---|
-/// | simple, `xsd:string`, language-tagged (tag dropped) | `Str` |
-/// | `xsd:boolean` | `Bool` |
-/// | `xsd:integer` and its subtypes (when it fits in an `i64`, so not an `xsd:unsignedLong` above `i64::MAX`) | `I64` |
-/// | `xsd:decimal` (when it has at most 18 digits after the decimal point, ignoring trailing zeros, at most 38 significant digits and an absolute value below 1.7 × 10^20) | `Decimal` |
-/// | `xsd:float`, `xsd:double` | `F64` |
-/// | `xsd:dateTime` | `DTime` with a timezone, otherwise `NDTime` |
-pub(crate) fn literal_to_prop(literal: &Literal) -> Option<Prop> {
-    match ExpressionTerm::from(Term::Literal(literal.clone())) {
-        ExpressionTerm::StringLiteral(value) => Some(Prop::str(value)),
-        ExpressionTerm::LangStringLiteral { value, .. } => Some(Prop::str(value)),
-        ExpressionTerm::BooleanLiteral(value) => Some(Prop::Bool(value.into())),
-        ExpressionTerm::IntegerLiteral(value) => Some(Prop::I64(value.into())),
-        // spareval's decimal is an i128 with 18 fractional digits; `Prop::Decimal` holds 38.
-        ExpressionTerm::DecimalLiteral(value) => Prop::try_from_bd(
-            BigDecimal::new(i128::from_be_bytes(value.to_be_bytes()).into(), 18).normalized(),
-        )
-        .ok(),
-        ExpressionTerm::FloatLiteral(value) => Some(Prop::F64(value.into())),
-        ExpressionTerm::DoubleLiteral(value) => Some(Prop::F64(value.into())),
-        ExpressionTerm::DateTimeLiteral(value) => {
-            let lexical = value.to_string();
-            if value.timezone().is_some() {
-                DateTime::parse_from_rfc3339(&lexical)
-                    .ok()
-                    .map(|dt| Prop::DTime(dt.with_timezone(&Utc)))
-            } else {
-                NaiveDateTime::parse_from_str(&lexical, "%Y-%m-%dT%H:%M:%S%.f")
-                    .ok()
-                    .map(Prop::NDTime)
-            }
-        }
-        _ => None,
-    }
 }

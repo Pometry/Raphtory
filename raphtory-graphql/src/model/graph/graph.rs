@@ -57,7 +57,7 @@ use std::{
 #[graphql(name = "Graph")]
 pub struct GqlGraph {
     path: UnlockedGraphFolder,
-    graph: DynamicGraph,
+    pub(crate) graph: DynamicGraph,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -72,12 +72,6 @@ impl GqlGraph {
             path,
             graph: graph.into_dynamic(),
         }
-    }
-
-    /// The view this object resolves on, with the caller's access filter already applied.
-    #[cfg(feature = "rdf")]
-    pub(crate) fn graph(&self) -> &DynamicGraph {
-        &self.graph
     }
 
     fn apply<F, G>(&self, graph_operation: F) -> Self

@@ -1,4 +1,4 @@
-//! RDF import and export and SPARQL queries for Raphtory graphs.
+//! RDF import and export, SPARQL queries and SHACL validation for Raphtory graphs.
 //!
 //! RDF terms are oxigraph's model types, re-exported here by name ([`Term`], [`Triple`],
 //! [`NamedNode`], ...). Formats ([`RdfFormat`], [`QueryResultsFormat`]) and errors
@@ -56,14 +56,12 @@
 //!
 //! // As of t = 3 both triples hold.
 //! let mut as_of_3 = Vec::new();
-//! let stats = rg.at(3).to_rdf(&mut as_of_3, RdfFormat::NTriples, &[]).unwrap();
+//! let stats = rg.at(3).to_rdf(&mut as_of_3, RdfFormat::NTriples).unwrap();
 //! assert_eq!(stats.written, 2);
 //!
 //! // Now only the age is left.
-//! let mut now = Vec::new();
-//! rg.valid().to_rdf(&mut now, RdfFormat::NTriples, &[]).unwrap();
 //! assert_eq!(
-//!     String::from_utf8(now).unwrap(),
+//!     rg.valid().to_rdf_string(RdfFormat::NTriples).unwrap(),
 //!     "<http://ex/alice> <http://ex/age> \"42\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n"
 //! );
 //! ```
@@ -110,10 +108,11 @@
 //!
 //! # Time travel inside a query
 //!
-//! The named graph `<raphtory:asof:T>` ([`TimeGraph`]) holds the triples visible as of `T`:
-//! `GRAPH <raphtory:asof:T> { .. }` matches its patterns against `view.snapshot_at(T)`, so one
-//! query can compare several times. `T` is epoch milliseconds (`raphtory:asof:1704067200000`)
-//! or a date-time (`raphtory:asof:2024-01-01`, `raphtory:asof:2024-01-01T00:00:00Z`).
+//! The named graph `<raphtory:asof:T>` ([`TimeGraph`]) holds the triples of the view that hold at
+//! `T`: `GRAPH <raphtory:asof:T> { .. }` matches its patterns against
+//! `view.before(T + 1).valid()`, so one query can compare several times. `T` is epoch
+//! milliseconds (`raphtory:asof:1704067200000`) or a date-time (`raphtory:asof:2024-01-01`,
+//! `raphtory:asof:2024-01-01T00:00:00Z`).
 //!
 //! - `FROM <raphtory:asof:T>` makes a time graph the default graph. With several `FROM`
 //!   clauses spareval concatenates the graphs instead of merging them, so a triple visible in
@@ -167,11 +166,10 @@
 //! # Since when? Temporal functions
 //!
 //! Queries can call four functions that read the history of a triple: [`VALID_FROM`]
-//! (`raphtory:validFrom(?s, ?p, ?o)`) is the time since which a visible triple has held and
-//! [`VALID_TO`] the time it stopped holding, as `xsd:dateTime` values; [`VALID_FROM_TIME`] and
+//! (`raphtory:validFrom(?s, ?p, ?o)`) is when its latest run started and [`VALID_TO`] the
+//! retraction that ended it, as `xsd:dateTime` values; [`VALID_FROM_TIME`] and
 //! [`VALID_TO_TIME`] are the same as Raphtory times (`xsd:integer`). An optional fourth argument
-//! is the reference time, such as the `?g` of a time graph (see
-//! [the rules](#the-rules-of-the-temporal-functions)).
+//! is a time graph (see [the rules](#the-rules-of-the-temporal-functions)).
 //!
 //! ```
 //! use raphtory_rdf::{RdfFormat, RdfGraph, SparqlOptions, SparqlResults, Term};
@@ -185,9 +183,9 @@
 //!     .sparql(
 //!         "PREFIX ex: <http://ex/>
 //!         SELECT ?since ?until {
-//!             GRAPH raphtory:asof:2022-01-01 { ?who ex:worksFor ex:acme }
-//!             BIND(raphtory:validFrom(?who, ex:worksFor, ex:acme, raphtory:asof:2022-01-01) AS ?since)
-//!             BIND(raphtory:validTo(?who, ex:worksFor, ex:acme, raphtory:asof:2022-01-01) AS ?until)
+//!             ?who ex:worksFor ex:acme
+//!             BIND(raphtory:validFrom(?who, ex:worksFor, ex:acme) AS ?since)
+//!             BIND(raphtory:validTo(?who, ex:worksFor, ex:acme) AS ?until)
 //!         }",
 //!         &SparqlOptions::default(),
 //!     )
@@ -204,66 +202,42 @@
 //!
 //! ## The rules of the temporal functions
 //!
-//! Each function takes a triple `?s ?p ?o` and an optional reference time `?ref`, and returns
-//! one end of the *validity interval* (the run) of the triple that contains the reference time:
-//! `validFrom` when it started to hold and `validTo` when it was retracted. `validFrom` and
-//! `validTo` return an `xsd:dateTime` (UTC, milliseconds), `validFromTime` and `validToTime` the
-//! Raphtory time as an `xsd:integer`. [`SparqlOptions::with_temporal_functions`] turns them off.
+//! `raphtory:validFrom(?s, ?p, ?o [, ?g])` and the other functions follow Raphtory's
+//! persistent semantics on their *scope*: the view the query runs on or, with `?g` a time graph
+//! `<raphtory:asof:T>`, that time graph (`view.before(T + 1).valid()`, see [`TimeGraph`]).
 //!
-//! Arguments:
+//! - The result is unbound unless the triple is visible in the scope.
+//! - `validFrom` is when the latest run of the triple in the scope started, or the start of the
+//!   scope if the triple already held there (unbound if the triple never held in the scope).
+//!   `validTo` is the retraction that ended that run, unbound if the triple still holds at the
+//!   end of the scope.
+//! - Asserting a triple that holds does not restart its run; retracting a triple that does not
+//!   hold changes nothing. Events at the same time are ordered by event id.
+//! - `validFrom` and `validTo` are `xsd:dateTime` values (UTC, milliseconds), unbound outside the
+//!   years 1 to 9999; `validFromTime` and `validToTime` are `xsd:integer` Raphtory times.
+//! - SPARQL passes xsd value literals in canonical form, so a literal object is matched by
+//!   canonical form among the objects of `?s` in layer `?p` (several matches give an unbound
+//!   result). A subject or predicate that is an xsd value literal (a number, boolean,
+//!   date-time, ...), a fourth argument that is not a time graph, or another number of
+//!   arguments gives an unbound result: the functions never make a query fail.
 //!
-//! - `?s ?p ?o` are the terms of the triple. SPARQL passes xsd value literals in canonical form,
-//!   so a literal object is matched by canonical form among the objects of `?s` in layer `?p`
-//!   (matching is by canonical value, so derived integer types such as `xsd:int` match
-//!   `xsd:integer` and another timezone does not; several matching objects in the view give an
-//!   unbound result). Pass the object bound by the pattern. A literal subject or predicate gives
-//!   an unbound result.
-//! - `?ref`, if given, is a time graph IRI `<raphtory:asof:T>` (see [`TimeGraph`]), an integer
-//!   (epoch milliseconds) or an `xsd:dateTime` (UTC if it has no timezone). Without it, the
-//!   reference time is the end of the view.
-//!
-//! Any other argument, or a call with other than 3 or 4 arguments, gives an unbound result. The
-//! functions never make a query fail.
-//!
-//! Semantics: let `H` be the end of the view (no end for a view without a time window) and `R`
-//! the persistent graph of the view without its window and filters, keeping only the events
-//! before `H`.
-//!
-//! 1. **Scope.** The result is unbound unless the triple is visible in the view (without
-//!    `?ref`) or in `view.snapshot_at(T)` (with `?ref` `T`), so hidden triples are never
-//!    revealed. Same rules as `GRAPH <raphtory:asof:T>` on the view (see [`TimeGraph`]).
-//! 2. **Run.** The largest interval `[from, to)` containing the reference time (capped at `H`)
-//!    in which the triple is in `R.snapshot_at(t)`. `validTo` is unbound if the run is still
-//!    open at `H` (so always without `?ref`). History before the window counts; events at or
-//!    after `H` do not.
-//! 3. **Holding.** A triple holds at `t` if its latest event at or before `t` (by time, then
-//!    event id) is an assertion; a retraction and an assertion with the identical time and event
-//!    id count as a retraction. So a duplicate assertion does not restart a run.
-//! 4. **Return values.** `validFrom` and `validTo` are unbound outside the years 1 to 9999;
-//!    `validFromTime` and `validToTime` still answer.
-//!
-//! Functions cannot see the active `GRAPH` or `FROM`: a 3-argument call inside
-//! `GRAPH <raphtory:asof:T> { .. }` uses the present of the view, not `T`. Pass the graph as
-//! `?ref` instead, in a `BIND` after the `GRAPH` pattern (inside it `?g` is not bound yet):
+//! Functions cannot see the active `GRAPH` or `FROM`: inside `GRAPH <raphtory:asof:T> { .. }` a
+//! 3-argument call answers for the view, not the time graph. Pass the graph as `?g`, in a `BIND`
+//! after the `GRAPH` pattern (inside it `?g` is not bound yet):
 //!
 //! ```sparql
-//! SELECT ?who ?since ?until FROM NAMED raphtory:asof:2023-01-01 {
+//! SELECT ?who ?since FROM NAMED raphtory:asof:2023-01-01 {
 //!   GRAPH ?g { ?who ex:worksFor ex:acme }
 //!   BIND(raphtory:validFrom(?who, ex:worksFor, ex:acme, ?g) AS ?since)
-//!   BIND(raphtory:validTo(?who, ex:worksFor, ex:acme, ?g) AS ?until)
 //! }
 //! ```
-//!
-//! Results are computed when the function is called, with no snapshot isolation. For a
-//! consistent result, wrap a view of `graph.read_only()`, e.g.
-//! `RdfGraph::from(rg.graph().read_only())` (writers wait until it is dropped).
 //!
 //! # Serialized results
 //!
 //! [`RdfView::sparql_to_writer`] streams the results of a query in a SPARQL results format
 //! (JSON, XML, CSV or TSV) for `SELECT` and `ASK`, or an RDF format for `CONSTRUCT` and
-//! `DESCRIBE`; [`SparqlResults::write`] writes collected results the same way. The output holds
-//! RDF terms, not Raphtory names (use [`name_of`] to get a name back).
+//! `DESCRIBE`. The output holds RDF terms, not Raphtory names (use [`name_of`] or
+//! [`term_name`] to get a name back).
 mod algebra;
 mod dataset;
 mod error;
@@ -279,7 +253,6 @@ pub mod python;
 mod query;
 mod results;
 mod scan;
-#[cfg(feature = "shacl")]
 pub mod shacl;
 mod time_graph;
 
@@ -287,39 +260,19 @@ mod time_graph;
 mod tests;
 
 pub use error::RdfError;
-#[cfg(feature = "python")]
-pub(crate) use export::serializer_with_prefixes;
 pub use format::{QueryResultsFormat, RdfFormat};
 pub use functions::{VALID_FROM, VALID_FROM_TIME, VALID_TO, VALID_TO_TIME};
 pub use graph::{RdfGraph, RdfView};
-#[cfg(feature = "python")]
-pub(crate) use mapping::literal_to_prop;
-pub use mapping::{name_of, term_of, RESERVED_NS};
+pub use mapping::{name_of, term_name, term_of, RESERVED_NS};
 pub use oxigraph::{
     model::{Literal, NamedNode, Term, TermRef, Triple, TripleRef},
     sparql::Variable,
 };
-pub use query::{
-    QueryForm, QueryOutline, SparqlDataset, SparqlOptions, SparqlResults, MAX_SPARQL_NESTING,
-};
+pub use query::{QueryForm, QueryOutline, SparqlOptions, SparqlResults, MAX_SPARQL_NESTING};
 pub use results::SparqlFormat;
 pub use time_graph::{TimeGraph, ASOF_NS};
 
-/// Parses an RDF format from a file extension, a format name or a media type.
-///
-/// Accepts for example `"ttl"`, `".ttl"`, `"turtle"`, `"text/turtle"`, `"nt"`, `"n-triples"`,
-/// `"nq"`, `"trig"`, `"rdf"`, `"xml"`, `"jsonld"` and `"n3"` (case-insensitive).
-pub(crate) fn parse_rdf_format(s: &str) -> Result<RdfFormat, RdfError> {
-    let t = s.trim();
-    let t = t.strip_prefix('.').unwrap_or(t);
-    RdfFormat::from_extension(t)
-        .or_else(|| RdfFormat::from_media_type(t))
-        .or_else(|| RdfFormat::from_media_type(&format!("application/{t}")))
-        .ok_or_else(|| RdfError::UnknownFormat(s.to_owned()))
-}
-
-/// Counts returned by [`RdfView::to_rdf`], [`RdfView::sparql_to_writer`] and
-/// [`SparqlResults::write`].
+/// Counts returned by [`RdfView::to_rdf`] and [`RdfView::sparql_to_writer`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct WriteStats {
     /// Number of solutions (`SELECT`) or triples written; 0 for `ASK`.

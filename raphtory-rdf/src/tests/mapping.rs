@@ -1,18 +1,13 @@
-//! The name <-> term bijections (node names and layer names) and `literal_to_prop`.
+//! The name <-> term bijections (node names and layer names).
 use crate::{
-    mapping::{layer_name_of, layer_term, literal_to_prop},
+    mapping::{layer_name_of, layer_term},
     name_of, term_of, Literal, NamedNode, RdfFormat, Term, Triple, RESERVED_NS,
 };
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDate, Utc};
 use oxigraph::{
     io::RdfParser,
-    model::{vocab::xsd, BlankNode, NamedNodeRef, NamedOrBlankNode},
+    model::{vocab::xsd, BlankNode, NamedOrBlankNode},
 };
 use proptest::prelude::*;
-use raphtory::prelude::Prop;
-use spareval::ExpressionTerm;
-use std::str::FromStr;
 
 fn iri(s: &str) -> Term {
     NamedNode::new(s).unwrap().into()
@@ -293,63 +288,4 @@ fn mapping_table() {
         term_of("\"042\"^^<http://www.w3.org/2001/XMLSchema#integer>"),
         term_of("\"42\"^^<http://www.w3.org/2001/XMLSchema#integer>")
     );
-}
-
-fn typed(value: &str, datatype: NamedNodeRef<'_>) -> Literal {
-    Literal::new_typed_literal(value, datatype)
-}
-
-/// `literal_to_prop`.
-#[test]
-fn literal_to_prop_conversions() {
-    let utc = |s: &str| DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc);
-    let too_long = typed("123456789012345678901.123456789012345678", xsd::DECIMAL);
-    let cases: Vec<(Literal, Option<Prop>)> = vec![
-        (Literal::new_simple_literal("x"), Some(Prop::str("x"))),
-        (
-            Literal::new_language_tagged_literal("x", "en").unwrap(),
-            Some(Prop::str("x")),
-        ),
-        (typed("true", xsd::BOOLEAN), Some(Prop::Bool(true))),
-        (typed("042", xsd::INTEGER), Some(Prop::I64(42))),
-        (
-            typed("1.50", xsd::DECIMAL),
-            Some(Prop::Decimal(BigDecimal::from_str("1.5").unwrap())),
-        ),
-        // 38 significant digits fit in a `Prop::Decimal`
-        (
-            typed("12345678901234567890.123456789012345678", xsd::DECIMAL),
-            Some(Prop::Decimal(
-                BigDecimal::from_str("12345678901234567890.123456789012345678").unwrap(),
-            )),
-        ),
-        // 39 do not
-        (too_long.clone(), None),
-        (typed("1.5E0", xsd::DOUBLE), Some(Prop::F64(1.5))),
-        (
-            typed("2024-01-01T00:00:00Z", xsd::DATE_TIME),
-            Some(Prop::DTime(utc("2024-01-01T00:00:00Z"))),
-        ),
-        (
-            typed("2024-01-01T12:34:56", xsd::DATE_TIME),
-            Some(Prop::NDTime(
-                NaiveDate::from_ymd_opt(2024, 1, 1)
-                    .unwrap()
-                    .and_hms_opt(12, 34, 56)
-                    .unwrap(),
-            )),
-        ),
-        (
-            typed("x", NamedNode::new("http://ex/type").unwrap().as_ref()),
-            None,
-        ),
-    ];
-    for (literal, expected) in cases {
-        assert_eq!(literal_to_prop(&literal), expected, "{literal}");
-    }
-    // the 39-digit decimal is a valid `xsd:decimal`, so its `None` comes from the size check
-    assert!(matches!(
-        ExpressionTerm::from(Term::from(too_long)),
-        ExpressionTerm::DecimalLiteral(_)
-    ));
 }

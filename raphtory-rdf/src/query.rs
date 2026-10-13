@@ -3,12 +3,11 @@ use crate::{
     algebra::{walk, Node},
     dataset::RaphtoryDataset,
     functions::temporal_functions_of,
-    limits::check_triple_patterns,
+    limits::{check_query_length, check_triple_patterns},
     time_graph::time_graphs_in,
     RdfError, TimeGraph, RESERVED_NS,
 };
 use indexmap::IndexSet;
-use itertools::Itertools;
 use oxigraph::{
     model::{NamedNode, Term, Triple},
     sparql::{
@@ -24,7 +23,7 @@ use spargebra::{
     term::NamedNodePattern,
     Query, SparqlParser,
 };
-use std::{panic, thread};
+use std::thread;
 
 /// A [`SparqlEvaluator`] that refuses SPARQL `SERVICE` calls with
 /// [`QueryEvaluationError::UnsupportedService`] (`SERVICE SILENT` gives one empty solution), so
@@ -139,14 +138,15 @@ pub struct QueryOutline {
     /// Whether the query reads a time graph: one is in `FROM` or `FROM NAMED`, the query names
     /// one and has a `GRAPH` pattern, or it has a `GRAPH ?g` pattern and builds an IRI with
     /// `IRI()`, as in `IRI(CONCAT("raphtory:asof:", ?t))`. A time graph that is only the
-    /// argument of a function, such as the reference time of `raphtory:validFrom`, is not read.
+    /// argument of a function, such as the fourth argument of `raphtory:validFrom`, is not read.
     pub reads_time_graphs: bool,
 }
 
 impl QueryOutline {
-    /// Parses `query` as [`RdfView::sparql`](crate::RdfView::sparql) does, and fails with
-    /// the same syntax errors.
-    pub fn parse(query: &str) -> Result<Self, RdfError> {
+    /// Parses `query` as [`RdfView::sparql`](crate::RdfView::sparql) does with `options`, and
+    /// fails with the same length and syntax errors.
+    pub fn parse(query: &str, options: &SparqlOptions) -> Result<Self, RdfError> {
+        check_query_length(query, options.max_query_length)?;
         on_query_stack(query, || {
             let query = parse(query)?;
             let (Query::Select { dataset, .. }
@@ -184,8 +184,12 @@ impl QueryOutline {
 /// # Bounding the work of a query
 ///
 /// By default a query runs until it is done. To run queries you do not control, bound them:
+/// - [`with_max_query_length`](Self::with_max_query_length) rejects a query that is too long
+///   before it is parsed,
 /// - [`with_max_triple_patterns`](Self::with_max_triple_patterns) rejects a query that is too
-///   large before it is planned (planning grows steeply with the number of joined patterns).
+///   large before it is planned (planning grows steeply with the number of joined patterns),
+/// - [`with_max_result_bytes`](Self::with_max_result_bytes) stops writing results that are too
+///   large.
 ///
 /// # Example
 /// ```
@@ -196,52 +200,24 @@ impl QueryOutline {
 /// rg.graph().add_edge(1, "Alice", "Bob", NO_PROPS, Some("knows")).unwrap();
 ///
 /// // bounded queries, as a server would run them
-/// let options = SparqlOptions::default().with_max_triple_patterns(100);
+/// let options = SparqlOptions::default()
+///     .with_max_query_length(10_000)
+///     .with_max_triple_patterns(100)
+///     .with_max_result_bytes(1 << 20);
 /// assert!(rg.sparql("ASK { ?s raphtory:knows ?o }", &options).is_ok());
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SparqlOptions {
-    pub(crate) temporal_functions: bool,
+    pub(crate) max_query_length: Option<usize>,
     pub(crate) max_triple_patterns: Option<usize>,
-    pub(crate) dataset: Option<SparqlDataset>,
-}
-
-/// An RDF dataset for [`SparqlOptions::with_dataset`]: the graphs merged into the default graph
-/// and the named graphs `GRAPH` can match. Only the default graph of the view and the time
-/// graphs `<raphtory:asof:T>` hold triples; other IRIs name empty graphs.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct SparqlDataset {
-    /// The graphs merged into the default graph; none is an empty default graph.
-    pub default_graphs: Vec<NamedNode>,
-    /// The graphs a `GRAPH` pattern can match; none means `GRAPH` matches nothing.
-    pub named_graphs: Vec<NamedNode>,
-}
-
-impl Default for SparqlOptions {
-    fn default() -> Self {
-        Self {
-            temporal_functions: true,
-            max_triple_patterns: None,
-            dataset: None,
-        }
-    }
+    pub(crate) max_result_bytes: Option<usize>,
 }
 
 impl SparqlOptions {
-    /// Whether queries can call the temporal functions [`VALID_FROM`], [`VALID_TO`],
-    /// [`VALID_FROM_TIME`] and [`VALID_TO_TIME`] (see
-    /// [the rules](crate#the-rules-of-the-temporal-functions)). Defaults to `true`.
-    /// Without them, a query that calls one fails with [`RdfError::SparqlEvaluation`].
-    ///
-    /// They read a triple's full history without the view's filters (but never report a triple
-    /// the view hides), so a server that restricts callers with filters may turn them off.
-    ///
-    /// [`VALID_FROM`]: crate::VALID_FROM
-    /// [`VALID_TO`]: crate::VALID_TO
-    /// [`VALID_FROM_TIME`]: crate::VALID_FROM_TIME
-    /// [`VALID_TO_TIME`]: crate::VALID_TO_TIME
-    pub fn with_temporal_functions(mut self, on: bool) -> Self {
-        self.temporal_functions = on;
+    /// The longest query, in bytes, or `None` for no limit (the default); a longer one fails
+    /// with [`RdfError::QueryTooLong`] before it is parsed.
+    pub fn with_max_query_length(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_query_length = max.into();
         self
     }
 
@@ -256,11 +232,12 @@ impl SparqlOptions {
         self
     }
 
-    /// The RDF dataset of the query, replacing the one its `FROM` and `FROM NAMED` clauses
-    /// give, as the `default-graph-uri` and `named-graph-uri` parameters of the SPARQL 1.1
-    /// Protocol do, or `None` for the query's own dataset (the default).
-    pub fn with_dataset(mut self, dataset: impl Into<Option<SparqlDataset>>) -> Self {
-        self.dataset = dataset.into();
+    /// The most bytes of results [`sparql_to_writer`](crate::RdfView::sparql_to_writer) writes,
+    /// or `None` for no limit (the default); larger results fail with
+    /// [`RdfError::ResultsTooLarge`], and the writer holds at most that many bytes of them.
+    /// [`sparql`](crate::RdfView::sparql), which writes nothing, ignores it.
+    pub fn with_max_result_bytes(mut self, max: impl Into<Option<usize>>) -> Self {
+        self.max_result_bytes = max.into();
         self
     }
 }
@@ -288,9 +265,10 @@ pub(crate) fn dedup_triples<'a>(
 pub const MAX_SPARQL_NESTING: usize = 128;
 
 /// Runs `f`, which parses and evaluates `query`, on a thread with a stack of 16 MiB plus 8 KiB
-/// per byte of the query, and re-raises its panic. A stack overflow aborts the process, and
-/// long flat queries (such as `?s ?p (1 1 1 ...)`) recurse deeply too, so a query of a few
-/// kilobytes can overflow a default stack. Only the stack the query uses is memory.
+/// per byte of the query; a panic becomes [`RdfError::Panicked`]. A stack overflow
+/// aborts the process, and long flat queries (such as `?s ?p (1 1 1 ...)`) recurse deeply too,
+/// so a query of a few kilobytes can overflow a default stack. Only the stack the query uses is
+/// memory.
 ///
 /// A query whose brackets nest deeper than [`MAX_SPARQL_NESTING`] fails before the thread is
 /// spawned.
@@ -306,7 +284,7 @@ pub(crate) fn on_query_stack<R: Send>(
             .stack_size(stack_size)
             .spawn_scoped(scope, f)?
             .join()
-            .unwrap_or_else(|panic| panic::resume_unwind(panic))
+            .unwrap_or_else(|panic| Err(RdfError::panicked("the query", panic)))
     })
 }
 
@@ -432,35 +410,8 @@ pub(crate) fn execute<R>(
     // `GRAPH ?g` with `?g` unbound visits the time graphs the query names (unless it has
     // `FROM NAMED`).
     let dataset = RaphtoryDataset::new(view.clone()).with_time_graphs(time_graphs_in(&query));
-    let evaluator = if options.temporal_functions {
-        temporal_functions_of(evaluator(), view.clone())
-    } else {
-        evaluator()
-    };
-    let mut prepared = evaluator.for_query(query);
-    if let Some(graphs) = &options.dataset {
-        // spareval keeps duplicates, but a graph named twice counts once
-        let spec = prepared.dataset_mut();
-        spec.set_default_graph(
-            graphs
-                .default_graphs
-                .iter()
-                .unique()
-                .cloned()
-                .map(Into::into)
-                .collect(),
-        );
-        spec.set_available_named_graphs(
-            graphs
-                .named_graphs
-                .iter()
-                .unique()
-                .cloned()
-                .map(Into::into)
-                .collect(),
-        );
-    }
-    let results = prepared
+    let results = temporal_functions_of(evaluator(), view.clone())
+        .for_query(query)
         .on_queryable_dataset(dataset)
         .execute()
         .map_err(RdfError::from)?;
@@ -473,6 +424,7 @@ pub(crate) fn sparql(
     query: &str,
     options: &SparqlOptions,
 ) -> Result<SparqlResults, RdfError> {
+    check_query_length(query, options.max_query_length)?;
     on_query_stack(query, || {
         execute(
             view,

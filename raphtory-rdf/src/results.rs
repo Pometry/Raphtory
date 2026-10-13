@@ -2,10 +2,8 @@
 //! `ASK`, RDF formats for `CONSTRUCT` and `DESCRIBE`.
 use crate::{
     export::{xml_text_safe, TripleSink},
-    parse_rdf_format,
-    query::{
-        dedup_triples, execute, on_query_stack, parse, QueryForm, SparqlOptions, SparqlResults,
-    },
+    limits::{check_query_length, Capped},
+    query::{dedup_triples, execute, on_query_stack, parse, QueryForm, SparqlOptions},
     QueryResultsFormat, RdfError, RdfFormat, WriteStats,
 };
 use indexmap::{IndexMap, IndexSet};
@@ -13,8 +11,7 @@ use oxigraph::{
     io::RdfSerializer,
     model::{NamedNode, NamedOrBlankNode, Term, TermRef, Triple},
     sparql::{
-        results::QueryResultsSerializer, QueryEvaluationError, QueryResults, QuerySolutionIter,
-        QueryTripleIter,
+        results::QueryResultsSerializer, QueryEvaluationError, QueryResults, QueryTripleIter,
     },
 };
 use raphtory::db::api::view::DynamicGraph;
@@ -86,11 +83,115 @@ impl SparqlFormat {
         let results = QueryResultsFormat::from_extension(t)
             .or_else(|| QueryResultsFormat::from_media_type(t))
             .or_else(|| QueryResultsFormat::from_media_type(&format!("application/{t}")));
-        let graph = parse_rdf_format(s).ok();
+        let graph = RdfFormat::parse(s).ok();
         if results.is_none() && graph.is_none() {
             return Err(RdfError::UnknownSparqlFormat(s.to_owned()));
         }
         Ok(Self { results, graph })
+    }
+
+    /// The format of the results of a query of `form` for the first of `media_ranges` (the
+    /// ranges of an `Accept` header with their quality, the preferred first) that names one,
+    /// with the media type it is served as, or `None` if none does: a SPARQL results format for
+    /// `SELECT` and `ASK`, an RDF format for `CONSTRUCT` and `DESCRIBE`, as
+    /// [`QueryResultsFormat::from_media_type`] and [`RdfFormat::from_media_type`] read them.
+    /// Only the slot for `form` is set.
+    ///
+    /// `*/*` and `type/*` stand for the first of these formats served for a media type in the
+    /// range: JSON, XML, CSV, TSV for `SELECT` and `ASK`; Turtle, N-Triples, RDF/XML, JSON-LD,
+    /// N-Quads, TriG for `CONSTRUCT` and `DESCRIBE`. A range of quality 0 is never chosen, and
+    /// a media type that a more specific range gives a lower quality is skipped, so
+    /// `text/xml;q=0, text/csv;q=0, text/*` gives TSV for `SELECT`.
+    ///
+    /// # Example
+    /// ```
+    /// use raphtory_rdf::{QueryForm, QueryResultsFormat, RdfFormat, SparqlFormat};
+    ///
+    /// let accepted = [("text/html", 1.0), ("text/csv", 1.0), ("*/*", 0.5)];
+    /// let (select, media_type) =
+    ///     SparqlFormat::from_media_types(QueryForm::Select, accepted).unwrap();
+    /// assert_eq!(select.results, Some(QueryResultsFormat::Csv));
+    /// assert_eq!(media_type, "text/csv; charset=utf-8");
+    /// let (construct, media_type) =
+    ///     SparqlFormat::from_media_types(QueryForm::Construct, accepted).unwrap();
+    /// assert_eq!(construct.graph, Some(RdfFormat::Turtle));
+    /// assert_eq!(media_type, "text/turtle");
+    /// ```
+    pub fn from_media_types<'a>(
+        form: QueryForm,
+        media_ranges: impl IntoIterator<Item = (&'a str, f32)>,
+    ) -> Option<(Self, String)> {
+        // each format with the media types it is served for, the preferred first
+        const RESULTS: [(QueryResultsFormat, &str); 7] = [
+            (QueryResultsFormat::Json, "application/sparql-results+json"),
+            (QueryResultsFormat::Json, "application/json"),
+            (QueryResultsFormat::Xml, "application/sparql-results+xml"),
+            (QueryResultsFormat::Xml, "application/xml"),
+            (QueryResultsFormat::Xml, "text/xml"),
+            (QueryResultsFormat::Csv, "text/csv"),
+            (QueryResultsFormat::Tsv, "text/tab-separated-values"),
+        ];
+        const GRAPH: [(RdfFormat, &str); 11] = [
+            (RdfFormat::Turtle, "text/turtle"),
+            (RdfFormat::Turtle, "application/x-turtle"),
+            (RdfFormat::Turtle, "application/turtle"),
+            (RdfFormat::NTriples, "application/n-triples"),
+            (RdfFormat::RdfXml, "application/rdf+xml"),
+            (RdfFormat::RdfXml, "application/xml"),
+            (RdfFormat::RdfXml, "text/xml"),
+            (RdfFormat::JsonLd, "application/ld+json"),
+            (RdfFormat::JsonLd, "application/json"),
+            (RdfFormat::NQuads, "application/n-quads"),
+            (RdfFormat::TriG, "application/trig"),
+        ];
+        let ranges: Vec<(String, f32)> = media_ranges
+            .into_iter()
+            .map(|(range, q)| {
+                let essence = range.split(';').next().unwrap_or_default().trim();
+                (essence.to_ascii_lowercase(), q)
+            })
+            .collect();
+        ranges
+            .iter()
+            .filter(|(_, q)| *q > 0.0)
+            .find_map(|(range, q)| {
+                let Some(kind) = wildcard(range) else {
+                    let format = if form.is_graph() {
+                        RdfFormat::from_media_type(range).map(Self::from)
+                    } else {
+                        QueryResultsFormat::from_media_type(range).map(Self::from)
+                    };
+                    return format.map(|format| (format, range.as_str()));
+                };
+                // a more specific range of lower quality decides for the media types it names
+                let served = |media_type: &str| {
+                    (kind == "*/" || media_type.starts_with(kind))
+                        && !ranges.iter().any(|(other, other_q)| {
+                            other_q < q
+                                && (other == media_type
+                                    || (kind == "*/"
+                                        && wildcard(other).is_some_and(|other| {
+                                            other != "*/" && media_type.starts_with(other)
+                                        })))
+                        })
+                };
+                if form.is_graph() {
+                    let (format, media_type) = GRAPH.into_iter().find(|(_, m)| served(m))?;
+                    Some((Self::from(format), media_type))
+                } else {
+                    let (format, media_type) = RESULTS.into_iter().find(|(_, m)| served(m))?;
+                    Some((Self::from(format), media_type))
+                }
+            })
+            .map(|(format, media_type)| {
+                // the format's own media type keeps its parameters, such as `charset=utf-8`
+                let own = format
+                    .results
+                    .map(QueryResultsFormat::media_type)
+                    .or(format.graph.map(RdfFormat::media_type))
+                    .filter(|own| own.split(';').next() == Some(media_type));
+                (format, own.unwrap_or(media_type).to_owned())
+            })
     }
 
     /// Checks that this has a format for the results of `form`.
@@ -126,44 +227,9 @@ impl SparqlFormat {
     }
 }
 
-impl SparqlResults {
-    /// Writes the results in `format`: a SPARQL results format for `Solutions` and `Boolean`,
-    /// an RDF format for `Graph`. Byte-identical to
-    /// [`RdfView::sparql_to_writer`](crate::RdfView::sparql_to_writer) for the same query.
-    ///
-    /// # Example
-    /// ```
-    /// use raphtory::prelude::*;
-    /// use raphtory_rdf::{QueryResultsFormat, RdfGraph, SparqlOptions};
-    ///
-    /// let g = Graph::new();
-    /// g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("knows")).unwrap();
-    /// let query = "SELECT ?who { raphtory:Alice raphtory:knows ?who }";
-    /// let results = RdfGraph::from(g).sparql(query, &SparqlOptions::default()).unwrap();
-    /// let mut csv = Vec::new();
-    /// results.write(&mut csv, QueryResultsFormat::Csv).unwrap();
-    /// assert_eq!(String::from_utf8(csv).unwrap(), "who\r\nraphtory:Bob\r\n");
-    /// ```
-    pub fn write<W: Write>(
-        &self,
-        writer: W,
-        format: impl Into<SparqlFormat>,
-    ) -> Result<WriteStats, RdfError> {
-        let format = format.into();
-        let results = match self {
-            Self::Solutions { variables, rows } => {
-                QueryResults::Solutions(QuerySolutionIter::from_tuples(
-                    variables.clone().into(),
-                    rows.iter().cloned().map(Ok),
-                ))
-            }
-            Self::Boolean(value) => QueryResults::Boolean(*value),
-            Self::Graph(triples) => {
-                QueryResults::Graph(QueryTripleIter::new(triples.iter().cloned().map(Ok)))
-            }
-        };
-        write_query_results(results, writer, &format)
-    }
+/// `type/` for the media range `type/*`, `*/` for `*/*`, `None` for a media type.
+fn wildcard(range: &str) -> Option<&str> {
+    range.strip_suffix('*').filter(|kind| kind.ends_with('/'))
 }
 
 /// Body of [`RdfView::sparql_to_writer`](crate::RdfView::sparql_to_writer).
@@ -174,6 +240,7 @@ pub(crate) fn sparql_to_writer<W: Write + Send>(
     format: SparqlFormat,
     options: &SparqlOptions,
 ) -> Result<WriteStats, RdfError> {
+    check_query_length(query, options.max_query_length)?;
     on_query_stack(query, || {
         let query = parse(query)?;
         format.check(QueryForm::of(&query))?;
@@ -185,16 +252,19 @@ pub(crate) fn sparql_to_writer<W: Write + Send>(
                 }
                 results => results,
             };
-            write_query_results(results, writer, &format)
+            let mut out = Capped::new(writer, options.max_result_bytes);
+            let written = write_query_results(results, &mut out, &format, options.max_result_bytes);
+            out.check(written)
         })
     })
 }
 
-/// Writes query results; shared by [`SparqlResults::write`] and [`sparql_to_writer`].
+/// Writes query results in `format`, at most `max_bytes` of them.
 fn write_query_results<W: Write>(
     results: QueryResults<'_>,
     mut writer: W,
     format: &SparqlFormat,
+    max_bytes: Option<usize>,
 ) -> Result<WriteStats, RdfError> {
     let mut stats = WriteStats::default();
     match results {
@@ -238,21 +308,24 @@ fn write_query_results<W: Write>(
             stats = if graph_format == RdfFormat::RdfXml {
                 // `TripleSink` needs the triples of a subject to be consecutive.
                 let subjects = group_by_subject(triples).map_err(RdfError::from)?;
-                let mut document = Vec::new();
-                let mut sink = TripleSink::new(serializer, &mut document);
-                for (subject, properties) in &subjects {
-                    for (predicate, object) in properties {
-                        sink.push(subject.as_ref(), predicate.as_ref(), object.as_ref())?;
+                let mut document = Capped::new(Vec::new(), max_bytes);
+                let built = (|| {
+                    let mut sink = TripleSink::new(serializer, &mut document);
+                    for (subject, properties) in &subjects {
+                        for (predicate, object) in properties {
+                            sink.push(subject.as_ref(), predicate.as_ref(), object.as_ref())?;
+                        }
                     }
-                }
-                let stats = sink.finish()?;
+                    sink.finish()
+                })();
+                let stats = document.check(built.map_err(RdfError::from))?;
                 if stats.skipped > 0 {
                     return Err(RdfError::RdfXmlSkipped {
                         skipped: stats.skipped,
                         triples: stats.written + stats.skipped,
                     });
                 }
-                writer.write_all(&document)?;
+                writer.write_all(&document.into_inner())?;
                 writer.flush()?;
                 stats
             } else {

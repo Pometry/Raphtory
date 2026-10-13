@@ -1,21 +1,31 @@
 //! The SPARQL dataset of a graph view.
 use crate::{
     mapping::{layer_name_of, layer_term, name_of, term_of},
-    scan::{view_layers, EdgeScan},
+    scan::matching,
     time_graph::TimeGraph,
     RdfError,
 };
 use oxigraph::model::Term;
 use raphtory::{
-    core::entities::{nodes::node_ref::NodeRef, GidRef},
-    db::api::view::{internal::CoreGraphOps, DynamicGraph, IntoDynamic},
+    db::{
+        api::view::{BoxedIter, DynamicGraph},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::*,
 };
-use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, VID};
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use raphtory_api::core::{
+    entities::{LayerId, VID},
+    storage::arc_str::ArcStr,
+};
 use rustc_hash::FxHashMap;
 use spareval::{InternalQuad, QueryableDataset};
-use std::{cell::RefCell, sync::Arc};
+use std::{
+    cell::RefCell,
+    fmt,
+    hash::{Hash, Hasher},
+    rc::Rc,
+    sync::Arc,
+};
 
 /// Maximum number of entries in the per-dataset cache of internal terms.
 const CACHE_CAP: usize = 1 << 20;
@@ -24,27 +34,58 @@ const CACHE_CAP: usize = 1 << 20;
 ///
 /// Every RDF term has exactly one internal value, so equality of internal terms is SPARQL
 /// `sameTerm`. In order of precedence, a term is:
-/// 1. [`Node`](RdfTerm::Node) if it is the term of a node name ([`term_of`]),
-/// 2. otherwise [`Layer`](RdfTerm::Layer) if it is the term of a layer name ([`layer_term`]),
+/// 1. [`Node`](RdfTerm::Node) if it is the term ([`term_of`]) of a node of the view,
+/// 2. otherwise [`Layer`](RdfTerm::Layer) if it is the term ([`layer_term`]) of a layer of the
+///    view,
 /// 3. otherwise [`TimeGraph`](RdfTerm::TimeGraph) if it is an IRI under
 ///    [`ASOF_NS`](crate::ASOF_NS). One whose time does not parse is an error,
 ///    [`RdfError::InvalidTimeGraph`], which aborts the query,
 /// 4. otherwise [`Other`](RdfTerm::Other).
 ///
-/// So a predicate IRI that is also a node name is the `Node` in every position, and the two join.
-/// The internal value of each layer's term is fixed when the [`RaphtoryDataset`] is built.
+/// So a predicate IRI that is also a node's term is the `Node` in every position, and the two
+/// join.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum RdfTerm {
-    /// A node of the graph. Its RDF term is `term_of(node_name)`.
-    Node(VID),
+    /// A node of the view. Its RDF term is `term_of(node_name)`.
+    Node(NodeTerm),
     /// A layer whose term is not also the term of a node. Its RDF term is
     /// `layer_term(layer_name)`.
-    Layer(LayerId),
+    Layer(ArcStr),
     /// A time graph `<raphtory:asof:T>`. Its RDF term is its IRI, as written in the query.
     TimeGraph(Arc<TimeGraph>),
-    /// A term that names neither a node nor a layer of the graph nor a time graph, for example
+    /// A term that names neither a node nor a layer of the view nor a time graph, for example
     /// a constant of the query that is not in the data.
     Other(Term),
+}
+
+/// A node of the view; equal to the same node read from any view of the graph.
+#[derive(Clone)]
+pub(crate) struct NodeTerm(pub(crate) NodeView<'static, DynamicGraph>);
+
+impl NodeTerm {
+    fn vid(&self) -> VID {
+        self.0.node
+    }
+}
+
+impl PartialEq for NodeTerm {
+    fn eq(&self, other: &Self) -> bool {
+        self.vid() == other.vid()
+    }
+}
+
+impl Eq for NodeTerm {}
+
+impl Hash for NodeTerm {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.vid().hash(state)
+    }
+}
+
+impl fmt::Debug for NodeTerm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NodeTerm({:?})", self.vid())
+    }
 }
 
 /// A graph view as a SPARQL dataset, for use with an [`evaluator`](crate::query::evaluator)
@@ -55,81 +96,42 @@ pub(crate) enum RdfTerm {
 /// - The only named graphs are the time graphs ([`TimeGraph`]).
 /// - Generalized triples (literal subject, or non-IRI layer term) are matched like any other.
 ///   `CONSTRUCT` drops them, and `DESCRIBE` can be incomplete on such views.
-/// - No storage lock is held between results, so the graph can be written to during a query,
-///   with no snapshot isolation: writes may or may not be seen, and triples in layers created
-///   after the dataset was built are skipped. For a consistent result query a view of
-///   `graph.read_only()` (writers wait until it is dropped; writing on the same thread
-///   deadlocks).
 ///
-/// A dataset is meant for one query. It caches internal terms, so a term keeps the same
-/// internal value for the whole query even while the graph is written to.
+/// A dataset is meant for one query.
 pub(crate) struct RaphtoryDataset {
-    /// The caller's view.
-    base: DynamicGraph,
-    preds: Arc<PredTable>,
+    inner: Rc<Inner>,
     /// The time graphs `GRAPH ?g` visits when `?g` is unbound.
     named: Vec<Arc<TimeGraph>>,
+}
+
+/// What the scans of a [`RaphtoryDataset`] share with it.
+struct Inner {
+    /// The caller's view.
+    base: DynamicGraph,
     /// `internalize_term`, memoised (up to [`CACHE_CAP`] entries).
     memo: RefCell<FxHashMap<Term, RdfTerm>>,
-}
-
-/// The predicate term of every layer of the view, fixed when the dataset is built.
-#[derive(Default)]
-struct PredTable {
-    /// `Node(v)` if a node has the layer's term, else `Layer(l)` (the same precedence as
-    /// `internalize_term`).
-    term: FxHashMap<LayerId, RdfTerm>,
-    /// Layers whose term is a node's term, by that node.
-    by_node: FxHashMap<VID, LayerId>,
-}
-
-impl PredTable {
-    fn new(g: &DynamicGraph) -> Self {
-        let mut table = Self::default();
-        for (l, name) in view_layers(g) {
-            let node = name_of(layer_term(&name).as_ref()).and_then(|node| lookup_node(g, &node));
-            let term = match node {
-                Some(v) => {
-                    table.by_node.insert(v, l);
-                    RdfTerm::Node(v)
-                }
-                None => RdfTerm::Layer(l),
-            };
-            table.term.insert(l, term);
-        }
-        table
-    }
-}
-
-/// The node named `name`, ignoring the filters of the view.
-pub(crate) fn lookup_node(g: &DynamicGraph, name: &str) -> Option<VID> {
-    let v = g.internalise_node(NodeRef::External(GidRef::Str(name)))?;
-    // A locked view may not hold a node whose name was resolved after it was locked (reading
-    // its name would panic).
-    let node = g.core_graph().try_core_node(v)?;
-    // On a u64-id graph a string that is not a number is looked up by its hash, so check the
-    // name of what was found.
-    (node.as_ref().name() == name).then_some(v)
+    /// The predicate term of each layer read so far.
+    predicates: RefCell<FxHashMap<Option<LayerId>, RdfTerm>>,
 }
 
 /// The bound terms of a quad pattern, resolved: the subject and object nodes and the layer of
 /// the predicate (`None`: unbound).
-#[derive(Clone, Copy)]
 struct Bound {
     subject: Option<VID>,
-    layer: Option<LayerId>,
+    layer: Option<ArcStr>,
     object: Option<VID>,
 }
 
 impl RaphtoryDataset {
     /// Builds the dataset of `view`, listing no time graph.
     pub(crate) fn new(base: DynamicGraph) -> Self {
-        let preds = Arc::new(PredTable::new(&base));
         Self {
-            base,
-            preds,
+            inner: Rc::new(Inner {
+                base,
+                memo: RefCell::default(),
+                predicates: RefCell::default(),
+            }),
             named: Vec::new(),
-            memo: RefCell::default(),
         }
     }
 
@@ -140,17 +142,8 @@ impl RaphtoryDataset {
         self
     }
 
-    /// The layer a bound predicate stands for, if any.
-    fn layer_of(&self, predicate: &RdfTerm) -> Option<LayerId> {
-        match predicate {
-            RdfTerm::Layer(l) => self.preds.term.contains_key(l).then_some(*l),
-            RdfTerm::Node(v) => self.preds.by_node.get(v).copied(),
-            RdfTerm::TimeGraph(_) | RdfTerm::Other(_) => None,
-        }
-    }
-
     /// The bound terms of a pattern, or `None` if it can match nothing: a bound subject or
-    /// object must be a node, and a bound predicate a layer of the view.
+    /// object must be a node, and a bound predicate a layer.
     fn bind(
         &self,
         subject: Option<&RdfTerm>,
@@ -163,7 +156,7 @@ impl RaphtoryDataset {
                 None => None,
             },
             layer: match predicate {
-                Some(t) => Some(self.layer_of(t)?),
+                Some(t) => Some(layer_of(t)?),
                 None => None,
             },
             object: match object {
@@ -174,20 +167,14 @@ impl RaphtoryDataset {
     }
 
     /// The quads matching a pattern in the default graph (`graph = None`) or in a time graph.
-    fn scan(&self, bound: Bound, graph: Option<&Arc<TimeGraph>>) -> QuadIter {
-        let Bound {
-            subject,
-            layer,
-            object,
-        } = bound;
-        // `GRAPH <raphtory:asof:T>` is the view as of `T`.
+    fn scan(&self, bound: &Bound, graph: Option<&Arc<TimeGraph>>) -> QuadIter {
         let view = match graph {
-            None => self.base.clone(),
-            Some(graph) => self.base.snapshot_at(graph.at).into_dynamic(),
+            None => self.inner.base.clone(),
+            Some(graph) => graph.view_of(&self.inner.base),
         };
         QuadIter {
-            triples: EdgeScan::matching(view, subject, layer, object),
-            preds: self.preds.clone(),
+            edges: matching(&view, bound.subject, bound.layer.as_deref(), bound.object),
+            dataset: self.inner.clone(),
             graph_name: graph.map(|graph| RdfTerm::TimeGraph(graph.clone())),
         }
     }
@@ -204,32 +191,41 @@ impl RaphtoryDataset {
             return Vec::new();
         };
         match graph_name {
-            Some(None) => vec![self.scan(bound, None)],
-            Some(Some(RdfTerm::TimeGraph(graph))) => vec![self.scan(bound, Some(graph))],
+            Some(None) => vec![self.scan(&bound, None)],
+            Some(Some(RdfTerm::TimeGraph(graph))) => vec![self.scan(&bound, Some(graph))],
             // Other named graphs are never stored.
             Some(Some(_)) => Vec::new(),
             // Every named graph: time graphs cannot be enumerated, so the listed ones.
             None => self
                 .named
                 .iter()
-                .map(|graph| self.scan(bound, Some(graph)))
+                .map(|graph| self.scan(&bound, Some(graph)))
                 .collect(),
         }
     }
+}
 
-    fn internalize(&self, term: &Term) -> Result<RdfTerm, RdfError> {
-        let layer = layer_name_of(term.as_ref())
-            .and_then(|name| self.base.get_layer_id(&name))
-            .filter(|l| *l != STATIC_GRAPH_LAYER_ID);
-        // A layer's predicate term is fixed at build time and wins over a newer node.
-        if let Some(predicate) = layer.and_then(|l| self.preds.term.get(&l)) {
-            return Ok(predicate.clone());
+impl Inner {
+    fn internalize(&self, term: Term) -> Result<RdfTerm, RdfError> {
+        if let Some(internal) = self.memo.borrow().get(&term) {
+            return Ok(internal.clone());
         }
-        if let Some(v) = name_of(term.as_ref()).and_then(|name| lookup_node(&self.base, &name)) {
-            return Ok(RdfTerm::Node(v));
+        let internal = self.resolve(&term)?;
+        let mut memo = self.memo.borrow_mut();
+        if memo.len() < CACHE_CAP {
+            memo.insert(term, internal.clone());
         }
-        if let Some(l) = layer {
-            return Ok(RdfTerm::Layer(l));
+        Ok(internal)
+    }
+
+    fn resolve(&self, term: &Term) -> Result<RdfTerm, RdfError> {
+        if let Some(node) = name_of(term.as_ref()).and_then(|name| self.base.node(name)) {
+            return Ok(RdfTerm::Node(NodeTerm(node)));
+        }
+        if let Some(layer) =
+            layer_name_of(term.as_ref()).filter(|name| self.base.has_layer(name.as_str()))
+        {
+            return Ok(RdfTerm::Layer(layer.into()));
         }
         if let Term::NamedNode(iri) = term {
             if let Some(graph) = TimeGraph::parse(iri)? {
@@ -239,19 +235,41 @@ impl RaphtoryDataset {
         // Unknown terms are accepted: they are constants or computed values of the query.
         Ok(RdfTerm::Other(term.clone()))
     }
+
+    /// The predicate term of the layer of `edge`, so the internal value of its term.
+    fn predicate(&self, edge: &EdgeView<DynamicGraph>) -> Result<RdfTerm, RdfError> {
+        let layer = edge.edge.layer();
+        if let Some(predicate) = self.predicates.borrow().get(&layer) {
+            return Ok(predicate.clone());
+        }
+        let predicate = self.internalize(layer_term(&edge.layer_name()?))?;
+        self.predicates
+            .borrow_mut()
+            .insert(layer, predicate.clone());
+        Ok(predicate)
+    }
 }
 
 fn node_of(term: &RdfTerm) -> Option<VID> {
     match term {
-        RdfTerm::Node(v) => Some(*v),
+        RdfTerm::Node(node) => Some(node.vid()),
         _ => None,
     }
 }
 
-/// Turns scanned `(src, layer, dst)` items into quads. Owns everything it uses.
+/// The layer a bound predicate stands for, if any.
+fn layer_of(predicate: &RdfTerm) -> Option<ArcStr> {
+    match predicate {
+        RdfTerm::Layer(layer) => Some(layer.clone()),
+        RdfTerm::Node(node) => layer_name_of(term_of(&node.0.name()).as_ref()).map(Into::into),
+        RdfTerm::TimeGraph(_) | RdfTerm::Other(_) => None,
+    }
+}
+
+/// Turns the matching `(edge, layer)` pairs into quads. Owns everything it uses.
 struct QuadIter {
-    triples: EdgeScan,
-    preds: Arc<PredTable>,
+    edges: BoxedIter<EdgeView<DynamicGraph>>,
+    dataset: Rc<Inner>,
     graph_name: Option<RdfTerm>,
 }
 
@@ -259,18 +277,13 @@ impl Iterator for QuadIter {
     type Item = Result<InternalQuad<RdfTerm>, RdfError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let (s, l, o) = self.triples.next()?;
-            // A layer created after the dataset was built has no predicate term: skip it.
-            if let Some(predicate) = self.preds.term.get(&l) {
-                return Some(Ok(InternalQuad {
-                    subject: RdfTerm::Node(s),
-                    predicate: predicate.clone(),
-                    object: RdfTerm::Node(o),
-                    graph_name: self.graph_name.clone(),
-                }));
-            }
-        }
+        let edge = self.edges.next()?;
+        Some(self.dataset.predicate(&edge).map(|predicate| InternalQuad {
+            subject: RdfTerm::Node(NodeTerm(edge.src())),
+            predicate,
+            object: RdfTerm::Node(NodeTerm(edge.dst())),
+            graph_name: self.graph_name.clone(),
+        }))
     }
 }
 
@@ -306,21 +319,13 @@ impl<'a> QueryableDataset<'a> for RaphtoryDataset {
     }
 
     fn internalize_term(&self, term: Term) -> Result<RdfTerm, RdfError> {
-        if let Some(internal) = self.memo.borrow().get(&term) {
-            return Ok(internal.clone());
-        }
-        let internal = self.internalize(&term)?;
-        let mut memo = self.memo.borrow_mut();
-        if memo.len() < CACHE_CAP {
-            memo.insert(term, internal.clone());
-        }
-        Ok(internal)
+        self.inner.internalize(term)
     }
 
     fn externalize_term(&self, term: RdfTerm) -> Result<Term, RdfError> {
         Ok(match term {
-            RdfTerm::Node(v) => term_of(&self.base.node_name(v)),
-            RdfTerm::Layer(l) => layer_term(&self.base.get_layer_name(l)),
+            RdfTerm::Node(node) => term_of(&node.0.name()),
+            RdfTerm::Layer(layer) => layer_term(&layer),
             RdfTerm::TimeGraph(graph) => graph.iri.clone().into(),
             RdfTerm::Other(t) => t,
         })

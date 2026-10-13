@@ -60,7 +60,6 @@ indexmap = { workspace = true }
 dyn-clone = { workspace = true }
 inventory = { workspace = true }
 raphtory-rdf = { workspace = true, optional = true }
-oxigraph = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -74,6 +73,7 @@ parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow = { workspace = true }
+oxigraph = { workspace = true }
 parquet = { workspace = true }
 # The deny_unknown_fields lint test parses source with syn.
 syn = { version = "2", features = ["full"] }
@@ -83,10 +83,8 @@ quote = "1"
 [features]
 default = []
 vectors = ["raphtory/vectors"]
-# `rdfGraph`: graphs viewed as RDF, with SPARQL queries and the `/sparql` endpoint
-rdf = ["dep:raphtory-rdf", "dep:oxigraph"]
-# `RdfGraph.validateShacl`
-shacl = ["rdf", "raphtory-rdf/shacl"]
+# `rdfGraph`: graphs viewed as RDF, with SPARQL queries, SHACL validation and the `/sparql` endpoint
+rdf = ["dep:raphtory-rdf"]
 integration-test = ["opentelemetry_sdk/testing"]
 python = ["dep:pyo3", "dep:pythonize", "raphtory/python"]
 panic-on-drop = ["raphtory/panic-on-drop"]

@@ -4,7 +4,7 @@ use async_graphql::{
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
-    BatchRequest, Context, Executor, Request as GqlRequest, ServerError, ServerResult, Variables,
+    BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::{future::BoxFuture, StreamExt};
@@ -15,7 +15,7 @@ use poem::{
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
-use std::{collections::HashMap, future::Future, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, warn};
 
@@ -177,74 +177,6 @@ impl<E> AuthenticatedGraphQL<E> {
             key_resolver,
         }
     }
-
-    /// The caller of `req`, read from its `Authorization` header. Fails with 401 when reads
-    /// require a valid token and `req` has none.
-    pub(crate) async fn authenticate(&self, req: &Request) -> Result<Caller> {
-        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let auth = &self.config.auth;
-        let (access, roles, claims) = match &self.key_resolver {
-            // if auth is not setup, we give write access to all requests
-            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
-            Some(resolver) => {
-                let claims = match req.header(AUTHORIZATION) {
-                    Some(header) => {
-                        extract_claims(
-                            header,
-                            resolver.as_ref(),
-                            auth.audience.as_deref(),
-                            auth.issuer.as_deref(),
-                            auth.role_claim.as_deref(),
-                        )
-                        .await
-                    }
-                    None => None,
-                };
-                match claims {
-                    Some((access, roles, other)) => {
-                        debug!(roles = ?roles, "JWT validated successfully");
-                        (access, Roles(roles), TokenClaimValues(other))
-                    }
-                    None => {
-                        if auth.require_auth_for_reads {
-                            warn!(
-                                "Request missing valid JWT — rejecting (require_auth_for_reads=true)"
-                            );
-                            return Err(Unauthorized(AuthError::RequireRead));
-                        } else {
-                            debug!(
-                                "No valid JWT but require_auth_for_reads=false — granting read access"
-                            );
-                            (Access::Ro, Roles::default(), TokenClaimValues::default())
-                        }
-                    }
-                }
-            }
-        };
-        Ok(Caller {
-            access,
-            roles,
-            claims,
-        })
-    }
-}
-
-/// The caller of a request: the access, roles and token claims its `Authorization` header
-/// carries.
-pub(crate) struct Caller {
-    access: Access,
-    roles: Roles,
-    claims: TokenClaimValues,
-}
-
-impl Caller {
-    /// Puts the caller in the data of `request`, where resolvers and authorization policies
-    /// read it.
-    pub(crate) fn attach(&self, request: &mut GqlRequest) {
-        request.data.insert(self.access.clone());
-        request.data.insert(self.roles.clone());
-        request.data.insert(self.claims.clone());
-    }
 }
 
 impl<E> AuthenticatedGraphQL<E>
@@ -255,28 +187,25 @@ where
         GraphQLBatchResponse(self.executor.execute_batch(request).await).into_response()
     }
 
-    /// Runs `f` as a read: holding the read side of the `exclusive_writes` lock and, if `heavy`,
-    /// a `heavy_query_limit` slot.
-    pub(crate) async fn read<R>(&self, heavy: bool, f: impl Future<Output = R>) -> Result<R> {
-        let _guard = match &self.lock {
-            Some(lock) => Some(lock.read().await),
-            None => None,
+    async fn execute_read_query(&self, req: BatchRequest) -> Result<Response> {
+        let is_heavy = match &req {
+            BatchRequest::Single(request) => is_query_heavy(&request.query),
+            BatchRequest::Batch(requests) => requests
+                .iter()
+                .any(|request| is_query_heavy(&request.query)),
         };
-        let _permit = match &self.semaphore {
-            Some(semaphore) if heavy => Some(semaphore.acquire().await.map_err(TooManyRequests)?),
-            _ => None,
-        };
-        Ok(f.await)
-    }
-
-    #[cfg(feature = "rdf")]
-    pub(crate) fn executor(&self) -> &E {
-        &self.executor
-    }
-
-    #[cfg(feature = "rdf")]
-    pub(crate) fn config(&self) -> &AppConfig {
-        &self.config
+        if is_heavy {
+            if let Some(semaphore) = &self.semaphore {
+                match semaphore.acquire().await {
+                    Ok(_permit) => Ok(self.execute(req).await),
+                    Err(error) => Err(TooManyRequests(error)),
+                }
+            } else {
+                Ok(self.execute(req).await)
+            }
+        } else {
+            Ok(self.execute(req).await)
+        }
     }
 }
 
@@ -310,7 +239,42 @@ where
     type Output = Response;
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
-        let caller = self.authenticate(&req).await?;
+        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
+        let auth = &self.config.auth;
+        let (access, roles, claim_values) = match &self.key_resolver {
+            // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
+            Some(resolver) => {
+                let claims = match req.header(AUTHORIZATION) {
+                    Some(header) => {
+                        extract_claims(
+                            header,
+                            resolver.as_ref(),
+                            auth.audience.as_deref(),
+                            auth.issuer.as_deref(),
+                            auth.role_claim.as_deref(),
+                        )
+                        .await
+                    }
+                    None => None,
+                };
+                match claims {
+                    Some((access, roles, other)) => {
+                        debug!(roles = ?roles, "JWT validated successfully");
+                        (access, Roles(roles), TokenClaimValues(other))
+                    }
+                    None => {
+                        if auth.require_auth_for_reads {
+                            warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
+                            return Err(Unauthorized(AuthError::RequireRead));
+                        } else {
+                            debug!("No valid JWT but require_auth_for_reads=false — granting read access");
+                            (Access::Ro, Roles::default(), TokenClaimValues::default())
+                        }
+                    }
+                }
+            }
+        };
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -319,8 +283,8 @@ where
 
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
-            let mut req = GraphQLRequest::from_request(&req, &mut body).await?.0;
-            caller.attach(&mut req);
+            let req = GraphQLRequest::from_request(&req, &mut body).await?;
+            let req = req.0.data(access).data(roles).data(claim_values);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -330,7 +294,7 @@ where
                 )))
         } else {
             let (req, mut body) = req.split();
-            let mut batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
+            let batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
 
             if let BatchRequest::Batch(requests) = &batch_req {
                 if self.config.concurrency.disable_batching {
@@ -344,11 +308,9 @@ where
                 }
             }
 
-            batch_req
-                .iter_mut()
-                .for_each(|request| caller.attach(request));
+            let req = batch_req.data(access).data(roles).data(claim_values);
 
-            let contains_update = match &batch_req {
+            let contains_update = match &req {
                 BatchRequest::Single(request) => is_exclusive_write(&request.query),
                 BatchRequest::Batch(requests) => requests
                     .iter()
@@ -357,18 +319,17 @@ where
             if contains_update {
                 if let Some(lock) = &self.lock {
                     let _guard = lock.write().await;
-                    Ok(self.execute(batch_req).await)
+                    Ok(self.execute(req).await)
                 } else {
-                    Ok(self.execute(batch_req).await)
+                    Ok(self.execute(req).await)
                 }
             } else {
-                let heavy = match &batch_req {
-                    BatchRequest::Single(request) => is_query_heavy(&request.query),
-                    BatchRequest::Batch(requests) => requests
-                        .iter()
-                        .any(|request| is_query_heavy(&request.query)),
-                };
-                self.read(heavy, self.execute(batch_req)).await
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.read().await;
+                    self.execute_read_query(req).await
+                } else {
+                    self.execute_read_query(req).await
+                }
             }
         }
     }
@@ -384,9 +345,18 @@ fn is_operation(query: &str, op: &str) -> bool {
         .any(|token| token == op)
 }
 
-/// Every GraphQL request takes a `heavy_query_limit` slot.
-fn is_query_heavy(_query: &str) -> bool {
-    true
+fn is_query_heavy(query: &str) -> bool {
+    query.contains("outComponent")
+        || query.contains("inComponent")
+        || query.contains("edges")
+        || query.contains("outEdges")
+        || query.contains("inEdges")
+        || query.contains("neighbours")
+        || query.contains("outNeighbours")
+        || query.contains("inNeighbours")
+        || query.contains("algorithm")
+        || query.contains("sparql")
+        || query.contains("validateShacl")
 }
 
 /// Verify a bearer token: select the decoding key via the [`KeyResolver`] (by the token's `kid`),

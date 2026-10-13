@@ -1,7 +1,5 @@
 import json
-from datetime import datetime, timezone
 
-import pytest
 from raphtory import Graph, GraphView, PersistentGraph, RdfGraph, RdfView
 from raphtory import filter
 
@@ -56,29 +54,15 @@ def test_wrapping_a_graph_shares_its_storage():
     assert isinstance(rg.window(0, 2).graph, GraphView)
 
 
-def test_load_stored_graph(tmp_path):
-    for g in [Graph(), PersistentGraph()]:
-        g.add_edge(1, "Alice", "Bob", layer="knows")
-        path = tmp_path / type(g).__name__
-        g.save_to_file(path)
-        rg = RdfGraph.load(path)
-        assert rg.sparql("ASK { raphtory:Alice raphtory:knows raphtory:Bob }") is True
-
-
 def test_load_rdf_sources(tmp_path):
     (tmp_path / "doc.ttl").write_bytes(DOC)
     (tmp_path / "doc.nt").write_bytes(DOC_NT)
-    for source, fmt in [
-        (str(tmp_path / "doc.ttl"), None),
-        (tmp_path / "doc.nt", None),
-        (DOC, None),
-        (DOC_NT, "nt"),
-    ]:
-        assert RdfGraph().load_rdf(1, source, format=fmt) == 4
+    for source in [str(tmp_path / "doc.ttl"), tmp_path / "doc.nt", DOC, DOC_NT]:
+        assert RdfGraph().load_rdf(1, source) == 4
 
     rg = RdfGraph()
     rg.load_rdf(1, DOC)
-    assert rg.retract_rdf(5, DOC_NT, format="nt") == 4
+    assert rg.retract_rdf(5, DOC_NT) == 4
     assert rg.valid().sparql("ASK { ?s ?p ?o }") is False
     assert rg.at(3).sparql("ASK { ?s ?p ?o }") is True
 
@@ -108,60 +92,39 @@ def test_sparql_results():
     assert len(results["results"]["bindings"]) == 4
 
 
+def test_event_id_orders_writes_at_the_same_time():
+    rg = RdfGraph()
+    rg.add_triple(10, A, P, B, event_id=2)
+    rg.retract_triple(timestamp=10, subject=A, predicate=P, object=B, event_id=1)
+    assert rg.valid().sparql(f"ASK {{ <{A}> <{P}> <{B}> }}") is True
+
+
+def test_temporal_functions():
+    row = history().window(15, 35).sparql(f"""
+        SELECT ?from ?to {{
+            BIND(raphtory:validFromTime(<{A}>, <{P}>, <{B}>) AS ?from)
+            BIND(raphtory:validToTime(<{A}>, <{P}>, <{B}>) AS ?to)
+        }}
+        """)[0]
+    assert row == {"from": f'"15"^^<{XSD}integer>', "to": f'"30"^^<{XSD}integer>'}
+
+
 def test_views():
     rg = history()
-    rows = rg.at(25).sparql(
-        """
-        SELECT ?p ?since {
-            <http://ex/a> ?p ?o .
-            BIND(raphtory:validFromTime(<http://ex/a>, ?p, ?o) AS ?since)
-        } ORDER BY ?p
-        """,
-        decode_literals=True,
-    )
-    # as of 25, a p b has held since 10
-    assert [(row["p"], row["since"]) for row in rows] == [(P, 10), (Q, 5)]
-
     views = [
         rg.valid(),
         rg.subgraph(["http://ex/a", "http://ex/c"]),
         rg.subgraph_node_types(["_default"]),
         rg.exclude_nodes(["http://ex/b"]),
+        rg.cache_view(),
         rg.window(15, 35),
         rg.layers(["http%3A%2F%2Fex%2Fq"]),
         rg.filter(filter.Node.name() != "http://ex/b"),
     ]
     assert all(isinstance(view, RdfView) for view in views)
-
-
-def test_decode_literals():
-    rg = RdfGraph()
-    rg.load_rdf(
-        1,
-        b"""
-        @prefix ex: <http://ex/> .
-        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-        ex:a ex:int 42 ;
-            ex:datetime "2024-01-02T03:04:05Z"^^xsd:dateTime ;
-            ex:year0 "0000-01-01T00:00:00Z"^^xsd:dateTime ;
-            ex:nanos "2024-01-01T00:00:00.0000001Z"^^xsd:dateTime ;
-            ex:iri ex:b .
-        """,
-    )
-    decoded = {
-        row["p"].removeprefix("http://ex/"): row["o"]
-        for row in rg.sparql(
-            "SELECT ?p ?o { <http://ex/a> ?p ?o }", decode_literals=True
-        )
-    }
-    assert decoded == {
-        "int": 42,
-        "datetime": datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
-        # a datetime holds the years 1 to 9999, in whole microseconds
-        "year0": f'"0000-01-01T00:00:00Z"^^<{XSD}dateTime>',
-        "nanos": f'"2024-01-01T00:00:00.0000001Z"^^<{XSD}dateTime>',
-        "iri": "http://ex/b",
-    }
+    assert rg.layers(["http%3A%2F%2Fex%2Fq"]).sparql("SELECT ?o { ?s ?p ?o }") == [
+        {"o": C}
+    ]
 
 
 def test_to_rdf(tmp_path):
@@ -169,19 +132,7 @@ def test_to_rdf(tmp_path):
     rg.load_rdf(1, DOC)
     nt = rg.to_rdf()
     assert sorted(nt.splitlines()) == sorted(DOC_NT.decode().splitlines())
-    ttl = rg.to_rdf(format="turtle", prefixes={"foaf": FOAF})
-    assert "@prefix foaf: <http://xmlns.com/foaf/0.1/> ." in ttl
+    ttl = rg.to_rdf(format="turtle")
     path = tmp_path / "out.ttl"
-    assert rg.to_rdf(path, prefixes={"foaf": FOAF}) is None
+    assert rg.to_rdf(path) is None
     assert path.read_text() == ttl
-
-
-def test_sparql_limits():
-    g = Graph()
-    for i in range(20):
-        g.add_edge(i, str(i), str(i + 1), layer="p")
-    rg = RdfGraph(g)
-    star = "SELECT ?s { " + " ".join(f"?s ?p{i} ?o{i} ." for i in range(5)) + " }"
-    assert rg.sparql(star, max_triple_patterns=5) == rg.sparql(star)
-    with pytest.raises(ValueError):
-        rg.sparql(star, max_triple_patterns=4)

@@ -30,10 +30,9 @@ auth = { workspace = true }
 
 
 [features]
-default = ["datafusion", "vectors", "rdf", "shacl"]
+default = ["datafusion", "vectors", "rdf"]
 datafusion = ["raphtory/datafusion"]
 rdf = ["dep:raphtory-rdf", "raphtory-rdf/python", "raphtory-graphql/rdf"]
-shacl = ["rdf", "raphtory-rdf/shacl", "raphtory-graphql/shacl"]
 # search = ["raphtory/search", "raphtory-graphql/search"]
 vectors = ["raphtory/vectors", "raphtory-graphql/vectors"]
 test = ["raphtory/panic-on-drop"]

@@ -16,18 +16,18 @@ pub const DEFAULT_MAX_SPARQL_QUERY_LENGTH: usize = 16 * 1024;
 /// patterns.
 #[cfg(feature = "rdf")]
 pub const DEFAULT_MAX_SPARQL_TRIPLE_PATTERNS: usize = 100;
-/// Default cap on the size of SPARQL results and RDF exports, in bytes (see
-/// `max_sparql_result_bytes`).
+/// Default cap on the size of SPARQL results, in bytes (see `max_sparql_result_bytes`).
 #[cfg(feature = "rdf")]
 pub const DEFAULT_MAX_SPARQL_RESULT_BYTES: usize = 256 << 20;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
 #[derive(Debug, Deserialize, PartialEq, Clone, Serialize, FieldName)]
 pub struct ConcurrencyConfig {
-    /// Restricts how many queries can execute simultaneously. Every GraphQL query and every
-    /// SPARQL endpoint query takes a slot. Once the limit is exceeded, queries are parked on a
-    /// semaphore and wait until a slot becomes available before executing. `None` means
-    /// unlimited.
+    /// Restricts how many expensive graph traversal queries can execute simultaneously.
+    /// Covers operations like connected components, edge traversals, and neighbour lookups
+    /// (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours,
+    /// inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and
+    /// wait until a slot becomes available before executing. `None` means unlimited.
     pub heavy_query_limit: Option<usize>,
 
     /// Ensures only one ingestion/write operation runs at a time and blocks reads until
@@ -45,8 +45,7 @@ pub struct ConcurrencyConfig {
     /// to `disable_batching`).
     pub max_batch_size: Option<usize>,
 
-    /// When true, completely disables bulk list endpoints (e.g. `list` on a collection, and
-    /// SPARQL queries, RDF exports and SHACL validation with feature `rdf`).
+    /// When true, completely disables bulk list endpoints (e.g. `list` on a collection).
     /// Essential for large graphs where unbounded list queries could return billions of
     /// results and exhaust server resources. Clients should use `page` instead.
     pub disable_lists: bool,
@@ -57,7 +56,7 @@ pub struct ConcurrencyConfig {
     pub max_page_size: Option<usize>,
 
     /// Maximum length in bytes of a SPARQL query, of the `sparql` field of `RdfGraph` or the
-    /// SPARQL endpoint (feature `rdf`). Longer queries are rejected before they are parsed.
+    /// SPARQL endpoint. Longer queries are rejected before they are parsed.
     /// Defaults to `DEFAULT_MAX_SPARQL_QUERY_LENGTH`; `None` means unlimited.
     #[cfg(feature = "rdf")]
     pub max_sparql_query_length: Option<usize>,
@@ -68,10 +67,9 @@ pub struct ConcurrencyConfig {
     #[cfg(feature = "rdf")]
     pub max_sparql_triple_patterns: Option<usize>,
 
-    /// Maximum size in bytes of the serialized results of a SPARQL query or of an RDF export, of
-    /// the `sparql` and `toRdf` fields of `RdfGraph` or the SPARQL endpoint (feature `rdf`).
-    /// Larger results fail. Defaults to `DEFAULT_MAX_SPARQL_RESULT_BYTES`; `None` means
-    /// unlimited.
+    /// Maximum size in bytes of the serialized results of a SPARQL query, of the `sparql` field
+    /// of `RdfGraph` or the SPARQL endpoint. Larger results fail. Defaults to
+    /// `DEFAULT_MAX_SPARQL_RESULT_BYTES`; `None` means unlimited.
     #[cfg(feature = "rdf")]
     pub max_sparql_result_bytes: Option<usize>,
 

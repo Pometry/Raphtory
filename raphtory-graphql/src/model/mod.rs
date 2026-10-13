@@ -44,8 +44,6 @@ use tracing::{error, warn};
 
 #[cfg(feature = "rdf")]
 pub use crate::model::graph::rdf_graph::RdfGraphQuery;
-#[cfg(feature = "shacl")]
-pub use crate::model::graph::rdf_graph::RdfGraphShacl;
 #[cfg(feature = "vectors")]
 pub use crate::model::graph::vectorised_graph::VectorQuery;
 use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
@@ -786,7 +784,6 @@ pub struct App(
     MutRoot,
     #[cfg(feature = "vectors")] VectorQuery<'static>,
     #[cfg(feature = "rdf")] RdfGraphQuery<'static>,
-    #[cfg(feature = "shacl")] RdfGraphShacl<'static>,
     Mut,
     Plugins,
 );

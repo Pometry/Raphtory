@@ -1,5 +1,7 @@
 //! Queries that would overflow the stack: `MAX_SPARQL_NESTING` and the query's own stack.
-use crate::{RdfError, RdfGraph, SparqlOptions, SparqlResults, MAX_SPARQL_NESTING};
+use crate::{
+    query::on_query_stack, RdfError, RdfGraph, SparqlOptions, SparqlResults, MAX_SPARQL_NESTING,
+};
 use raphtory::prelude::*;
 use std::thread;
 
@@ -155,18 +157,6 @@ fn every_reading_of_the_query_is_checked() {
     }
 }
 
-/// The parser does not decode `\u0028` outside strings, as the nesting scan assumes.
-#[test]
-fn the_parser_does_not_decode_escapes_outside_strings() {
-    let error = graph()
-        .sparql(
-            "SELECT * { FILTER \\u0028 true ) }",
-            &SparqlOptions::default(),
-        )
-        .unwrap_err();
-    assert!(matches!(error, RdfError::SparqlSyntax(_)), "{error:?}");
-}
-
 /// A long flat query runs on a stack sized to it, whatever the stack of the caller.
 #[test]
 fn long_flat_queries_run_on_a_sparql_stack() {
@@ -183,4 +173,14 @@ fn long_flat_queries_run_on_a_sparql_stack() {
         SparqlResults::Solutions { rows, .. } => assert_eq!(rows.len(), 9_001),
         other => panic!("{other:?}"),
     }
+}
+
+/// A panic on the query's stack is an error of the query.
+#[test]
+fn a_panic_is_an_error() {
+    let result = on_query_stack("ASK {}", || -> Result<(), RdfError> { panic!("boom") });
+    assert!(
+        matches!(&result, Err(RdfError::Panicked(message)) if message.contains("boom")),
+        "{result:?}"
+    );
 }

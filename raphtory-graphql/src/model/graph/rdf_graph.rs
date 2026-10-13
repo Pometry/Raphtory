@@ -1,5 +1,5 @@
-//! The `rdfGraph` field of the query root and the `RdfGraph` object (feature `rdf`): a stored
-//! graph viewed as RDF, with persistent semantics.
+//! The `rdfGraph` field of the query root and the `RdfGraph` object: a stored graph viewed as
+//! RDF, with persistent semantics.
 use crate::{
     config::concurrency_config::ConcurrencyConfig,
     data::{Data, GqlGraphType},
@@ -8,26 +8,24 @@ use crate::{
             filtering::{GqlFilter, GraphViewCollection},
             graph::GqlGraph,
             node_id::GqlNodeId,
-            timeindex::{GqlEventTime, GqlTimeInput},
+            timeindex::GqlTimeInput,
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
         QueryRoot,
     },
-    paths::PathValidationError,
-    sparql::{run_limited, run_sparql, write_capped, SparqlError},
+    sparql::run_limited,
 };
 use async_graphql::Context;
 use dynamic_graphql::{
     Enum, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, Result,
 };
 use raphtory::errors::GraphError;
-#[cfg(feature = "shacl")]
-use raphtory_rdf::shacl::ShaclShapes;
-use raphtory_rdf::{QueryResultsFormat, RdfError, RdfFormat, RdfView, SparqlFormat};
-use std::sync::{Arc, OnceLock};
+use raphtory_rdf::{
+    shacl::{ShaclOptions, ShaclShapes},
+    QueryForm, RdfError, RdfFormat, RdfView, SparqlFormat,
+};
 
-/// Adds the `rdfGraph` field to the query root.
 #[derive(ExpandObject)]
 pub struct RdfGraphQuery<'a>(&'a QueryRoot);
 
@@ -41,37 +39,10 @@ impl<'a> RdfGraphQuery<'a> {
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
     ) -> Result<Option<GqlRdfGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        let Some((folder, graph, permission)) = data
-            .get_graph_and_read_permission(ctx, path, Some(GqlGraphType::Persistent))
-            .await?
-        else {
-            return Ok(None);
-        };
-        let rdf_graph = GqlRdfGraph {
-            graph: GqlGraph::new(folder, graph),
-            // The temporal functions read unfiltered history, which a row filter must hide.
-            temporal_functions: !permission.has_row_filter(),
-        };
-        if let Some(lookup) = ctx.data_opt::<Arc<RdfGraphLookup>>() {
-            lookup.set(&rdf_graph);
-        }
-        Ok(Some(rdf_graph))
-    }
-}
-
-/// Where `rdfGraph` puts the graph it reads, when the request carries one: the SPARQL endpoint
-/// reads the graph through a GraphQL request, because permissions are resolved from the GraphQL
-/// context (`AuthorizationPolicy` takes a `Context`), then runs the query itself.
-#[derive(Default)]
-pub(crate) struct RdfGraphLookup(OnceLock<GqlRdfGraph>);
-
-impl RdfGraphLookup {
-    fn set(&self, graph: &GqlRdfGraph) {
-        self.0.get_or_init(|| graph.clone());
-    }
-
-    pub(crate) fn get(&self) -> Option<GqlRdfGraph> {
-        self.0.get().cloned()
+        let graph = data
+            .get_graph_with_read_permission(ctx, path, Some(GqlGraphType::Persistent))
+            .await?;
+        Ok(graph.map(|(folder, graph)| GqlGraph::new(folder, graph).into()))
     }
 }
 
@@ -87,32 +58,17 @@ impl RdfGraphLookup {
 #[graphql(name = "RdfGraph")]
 pub struct GqlRdfGraph {
     graph: GqlGraph,
-    temporal_functions: bool,
+}
+
+impl From<GqlGraph> for GqlRdfGraph {
+    fn from(graph: GqlGraph) -> Self {
+        Self { graph }
+    }
 }
 
 impl GqlRdfGraph {
-    fn with(&self, graph: GqlGraph) -> Self {
-        Self {
-            graph,
-            temporal_functions: self.temporal_functions,
-        }
-    }
-
-    fn windows(&self, windows: GqlGraphWindowSet) -> GqlRdfGraphWindowSet {
-        GqlRdfGraphWindowSet {
-            windows,
-            rdf_graph: self.clone(),
-        }
-    }
-
-    pub(crate) fn view(&self) -> Result<RdfView, RdfError> {
-        RdfView::from_view(self.graph.graph().clone())
-    }
-
-    /// Whether queries may call the temporal functions: not when the caller's read is
-    /// row-filtered.
-    pub(crate) fn temporal_functions(&self) -> bool {
-        self.temporal_functions
+    fn view(&self) -> Result<RdfView, RdfError> {
+        RdfView::from_view(self.graph.graph.clone())
     }
 }
 
@@ -120,7 +76,7 @@ impl GqlRdfGraph {
 impl GqlRdfGraph {
     /// View restricted to the default layer.
     async fn default_layer(&self) -> Self {
-        self.with(self.graph.default_layer().await)
+        self.graph.default_layer().await.into()
     }
 
     /// View restricted to the named layers.
@@ -128,7 +84,7 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
     ) -> Self {
-        self.with(self.graph.layers(names).await)
+        self.graph.layers(names).await.into()
     }
 
     /// View with the named layers hidden.
@@ -136,12 +92,12 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
     ) -> Self {
-        self.with(self.graph.exclude_layers(names).await)
+        self.graph.exclude_layers(names).await.into()
     }
 
     /// View restricted to a single layer.
     async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
-        self.with(self.graph.layer(name).await)
+        self.graph.layer(name).await.into()
     }
 
     /// View with one layer hidden.
@@ -149,18 +105,18 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
     ) -> Self {
-        self.with(self.graph.exclude_layer(name).await)
+        self.graph.exclude_layer(name).await.into()
     }
 
     /// View restricted to a set of nodes and the edges between them.
     async fn subgraph(&self, #[graphql(desc = "Node ids to keep.")] nodes: Vec<GqlNodeId>) -> Self {
-        self.with(self.graph.subgraph(nodes).await)
+        self.graph.subgraph(nodes).await.into()
     }
 
     /// View of the triples valid at the end of this view: on the whole graph, the current
     /// state.
     async fn valid(&self) -> Self {
-        self.with(self.graph.valid().await)
+        self.graph.valid().await.into()
     }
 
     /// View restricted to nodes with the given node types.
@@ -168,7 +124,7 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Node types to include.")] node_types: Vec<String>,
     ) -> Self {
-        self.with(self.graph.subgraph_node_types(node_types).await)
+        self.graph.subgraph_node_types(node_types).await.into()
     }
 
     /// View with a set of nodes removed, along with their edges.
@@ -176,7 +132,7 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Node ids to exclude.")] nodes: Vec<GqlNodeId>,
     ) -> Self {
-        self.with(self.graph.exclude_nodes(nodes).await)
+        self.graph.exclude_nodes(nodes).await.into()
     }
 
     /// Windows of a fixed size that move forward by a step, as `Graph.rolling`; each window is
@@ -189,7 +145,8 @@ impl GqlRdfGraph {
         #[graphql(desc = "Unit to align the window boundaries to, as in `Graph.rolling`.")]
         alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlRdfGraphWindowSet, GraphError> {
-        Ok(self.windows(self.graph.rolling(window, step, alignment_unit).await?))
+        let windows = self.graph.rolling(window, step, alignment_unit).await?;
+        Ok(GqlRdfGraphWindowSet { windows })
     }
 
     /// Windows that grow by a step, as `Graph.expanding`; each window is an `RdfGraph`.
@@ -199,7 +156,8 @@ impl GqlRdfGraph {
         #[graphql(desc = "Unit to align the window boundaries to, as in `Graph.expanding`.")]
         alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlRdfGraphWindowSet, GraphError> {
-        Ok(self.windows(self.graph.expanding(step, alignment_unit).await?))
+        let windows = self.graph.expanding(step, alignment_unit).await?;
+        Ok(GqlRdfGraphWindowSet { windows })
     }
 
     /// View of the triples that held at some point between start and end.
@@ -208,7 +166,7 @@ impl GqlRdfGraph {
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
         #[graphql(desc = "Exclusive upper bound.")] end: GqlTimeInput,
     ) -> Self {
-        self.with(self.graph.window(start, end).await)
+        self.graph.window(start, end).await.into()
     }
 
     /// View of the state at a time.
@@ -216,12 +174,12 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
     ) -> Self {
-        self.with(self.graph.at(time).await)
+        self.graph.at(time).await.into()
     }
 
     /// View of the state at the latest time.
     async fn latest(&self) -> Self {
-        self.with(self.graph.latest().await)
+        self.graph.latest().await.into()
     }
 
     /// View of the triples valid at a time.
@@ -229,23 +187,23 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Instant at which triples must be valid.")] time: GqlTimeInput,
     ) -> Self {
-        self.with(self.graph.snapshot_at(time).await)
+        self.graph.snapshot_at(time).await.into()
     }
 
     /// View of the triples valid at the latest time.
     async fn snapshot_latest(&self) -> Self {
-        self.with(self.graph.snapshot_latest().await)
+        self.graph.snapshot_latest().await.into()
     }
 
     /// View of the triples that held at some time before `time` (exclusive), including those
     /// retracted before it; `at` gives the state at a time.
     async fn before(&self, #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput) -> Self {
-        self.with(self.graph.before(time).await)
+        self.graph.before(time).await.into()
     }
 
     /// View of the triples that held at some time after `time` (exclusive).
     async fn after(&self, #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput) -> Self {
-        self.with(self.graph.after(time).await)
+        self.graph.after(time).await.into()
     }
 
     /// Sets the start of the window to the larger of the given time and the current start.
@@ -254,7 +212,7 @@ impl GqlRdfGraph {
         #[graphql(desc = "Proposed new start; has no effect if it would widen the window.")]
         start: GqlTimeInput,
     ) -> Self {
-        self.with(self.graph.shrink_start(start).await)
+        self.graph.shrink_start(start).await.into()
     }
 
     /// Sets the end of the window to the smaller of the given time and the current end.
@@ -263,7 +221,7 @@ impl GqlRdfGraph {
         #[graphql(desc = "Proposed new end; has no effect if it would widen the window.")]
         end: GqlTimeInput,
     ) -> Self {
-        self.with(self.graph.shrink_end(end).await)
+        self.graph.shrink_end(end).await.into()
     }
 
     /// View narrowed by a node or edge filter expression, as `Graph.filter`.
@@ -272,7 +230,7 @@ impl GqlRdfGraph {
         #[graphql(desc = "Filter expression; if omitted, applies the identity filter.")]
         expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {
-        Ok(self.with(self.graph.filter(expr).await?))
+        Ok(self.graph.filter(expr).await?.into())
     }
 
     /// Applies a list of view operations in order, as `Graph.applyViews`.
@@ -280,53 +238,7 @@ impl GqlRdfGraph {
         &self,
         #[graphql(desc = "Ordered list of view operations.")] views: Vec<GraphViewCollection>,
     ) -> Result<Self, GraphError> {
-        Ok(self.with(self.graph.apply_views(views).await?))
-    }
-
-    /// Returns the graph name.
-    async fn name(&self) -> Result<String, PathValidationError> {
-        self.graph.name().await
-    }
-
-    /// Returns the path of the graph.
-    async fn path(&self) -> String {
-        self.graph.path().await
-    }
-
-    /// Returns the time entry of the earliest activity in the view.
-    async fn earliest_time(&self) -> Result<GqlEventTime> {
-        self.graph.earliest_time().await
-    }
-
-    /// Returns the time entry of the latest activity in the view.
-    async fn latest_time(&self) -> Result<GqlEventTime> {
-        self.graph.latest_time().await
-    }
-
-    /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Result<GqlEventTime> {
-        self.graph.start().await
-    }
-
-    /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Result<GqlEventTime> {
-        self.graph.end().await
-    }
-
-    /// Returns the size of the window covered by this view (`end - start`), or None if the view
-    /// is unbounded.
-    async fn window_size(&self) -> Option<i64> {
-        self.graph.window_size().await
-    }
-
-    /// Returns the names of the layers with an edge event visible in this view.
-    async fn unique_layers(&self) -> Vec<String> {
-        self.graph.unique_layers().await
-    }
-
-    /// Check if a layer with the given name is present in the graph.
-    async fn has_layer(&self, #[graphql(desc = "Layer name to look for.")] name: String) -> bool {
-        self.graph.has_layer(name).await
+        Ok(self.graph.apply_views(views).await?.into())
     }
 
     /// The same view as a property graph.
@@ -336,13 +248,11 @@ impl GqlRdfGraph {
 
     /// Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
     /// and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
-    /// `snapshotAt(time: T)` of the view. The temporal functions (`raphtory:validFrom`,
-    /// `validTo`, `validFromTime`, `validToTime`) are unavailable when the caller's access to
-    /// the graph is row-filtered. Disabled when the server sets `disable_lists`. Queries longer
-    /// than the server's `max_sparql_query_length`, with more than `max_sparql_triple_patterns`
-    /// triple patterns or with brackets nested too deep are rejected before they run, and
-    /// results larger than `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold
-    /// the results, such as a triple whose predicate does not end in an XML name.
+    /// `before(time: T + 1) { valid }` of the view. Queries longer than the server's
+    /// `max_sparql_query_length`, with more than `max_sparql_triple_patterns` triple patterns or
+    /// with brackets nested too deep are rejected before they run, and results larger than
+    /// `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold the results, such as a
+    /// triple whose predicate does not end in an XML name. Null if the query fails unexpectedly.
     async fn sparql(
         &self,
         ctx: &Context<'_>,
@@ -351,39 +261,42 @@ impl GqlRdfGraph {
             desc = "The format of the results: JSON (the default), XML, CSV or TSV for SELECT and ASK; an RDF format for CONSTRUCT and DESCRIBE (N_TRIPLES by default), where JSON is JSON-LD and XML is RDF/XML. A format that does not fit the query is an error."
         )]
         format: Option<GqlSparqlFormat>,
-    ) -> Result<String> {
-        let format = format.map_or_else(SparqlFormat::default, SparqlFormat::from);
-        let results = run_sparql(
-            ctx.data_opt::<ConcurrencyConfig>(),
-            self,
-            query,
-            None,
-            move |view, query, options, config| {
-                into_string(write_capped(config, |out| {
-                    view.sparql_to_writer(query, out, format, options)
-                })?)
-            },
-        )
-        .await?;
-        Ok(results)
+    ) -> Result<Option<String>> {
+        let view = self.view()?;
+        let format = format.map_or(Ok(SparqlFormat::default()), GqlSparqlFormat::sparql_format)?;
+        run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |options| {
+            view.sparql_to_string(&query, format, options)
+        })
+        .await
     }
 
-    /// The triples of this view as one RDF document. Disabled when the server sets
-    /// `disable_lists`; documents larger than `max_sparql_result_bytes` fail.
-    async fn to_rdf(
+    /// Validates the triples of this view against a SHACL shapes graph and returns the W3C
+    /// `sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
+    /// are rejected. Null if the validation fails unexpectedly.
+    async fn validate_shacl(
         &self,
         ctx: &Context<'_>,
-        #[graphql(desc = "The RDF format of the document; N_TRIPLES by default.")] format: Option<
-            GqlRdfFormat,
-        >,
-    ) -> Result<String> {
+        #[graphql(desc = "The shapes graph, as an RDF document.")] shapes: String,
+        #[graphql(
+            desc = "The RDF format of the shapes, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors."
+        )]
+        format: Option<GqlSparqlFormat>,
+        #[graphql(
+            desc = "The RDF format of the report, TURTLE by default; JSON is JSON-LD, XML is RDF/XML, and CSV and TSV are errors."
+        )]
+        report_format: Option<GqlSparqlFormat>,
+    ) -> Result<Option<String>> {
         let view = self.view()?;
-        let format = format.map_or(RdfFormat::NTriples, RdfFormat::from);
-        let document = run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |config| {
-            into_string(write_capped(config, |out| view.to_rdf(out, format, &[]))?)
+        let format = format.map(GqlSparqlFormat::rdf_format).transpose()?;
+        let report_format =
+            report_format.map_or(Ok(RdfFormat::Turtle), GqlSparqlFormat::rdf_format)?;
+        run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |_| {
+            let shapes = ShaclShapes::parse(shapes.as_bytes(), format, None)?;
+            let options = ShaclOptions::default().with_reject_recursive_shapes(true);
+            view.validate_shacl(&shapes, &options)?
+                .to_rdf_string(report_format)
         })
-        .await?;
-        Ok(document)
+        .await
     }
 }
 
@@ -392,17 +305,6 @@ impl GqlRdfGraph {
 #[graphql(name = "RdfGraphWindowSet")]
 pub struct GqlRdfGraphWindowSet {
     windows: GqlGraphWindowSet,
-    /// The graph the windows are taken from.
-    rdf_graph: GqlRdfGraph,
-}
-
-impl GqlRdfGraphWindowSet {
-    fn rdf_graphs(&self, graphs: Vec<GqlGraph>) -> Vec<GqlRdfGraph> {
-        graphs
-            .into_iter()
-            .map(|graph| self.rdf_graph.with(graph))
-            .collect()
-    }
 }
 
 #[ResolvedObjectFields]
@@ -425,93 +327,18 @@ impl GqlRdfGraphWindowSet {
         page_index: Option<usize>,
     ) -> Result<Vec<GqlRdfGraph>> {
         let graphs = self.windows.page(ctx, limit, offset, page_index).await?;
-        Ok(self.rdf_graphs(graphs))
+        Ok(graphs.into_iter().map(GqlRdfGraph::from).collect())
     }
 
     /// Every window, as `GraphWindowSet.list`. Rejected when the server sets `disable_lists`.
     async fn list(&self, ctx: &Context<'_>) -> Result<Vec<GqlRdfGraph>> {
         let graphs = self.windows.list(ctx).await?;
-        Ok(self.rdf_graphs(graphs))
-    }
-}
-
-/// Adds the `validateShacl` field to `RdfGraph`.
-#[cfg(feature = "shacl")]
-#[derive(ExpandObject)]
-pub struct RdfGraphShacl<'a>(&'a GqlRdfGraph);
-
-#[cfg(feature = "shacl")]
-#[ExpandObjectFields]
-impl<'a> RdfGraphShacl<'a> {
-    /// Validates the triples of this view against a SHACL shapes graph and returns the W3C
-    /// `sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-    /// are rejected. Disabled when the server sets `disable_lists`.
-    async fn validate_shacl(
-        &self,
-        ctx: &Context<'_>,
-        #[graphql(desc = "The shapes graph, as an RDF document.")] shapes: String,
-        #[graphql(desc = "The RDF format of the shapes; TURTLE by default.")] format: Option<
-            GqlRdfFormat,
-        >,
-        #[graphql(desc = "The RDF format of the report; TURTLE by default.")] report_format: Option<
-            GqlRdfFormat,
-        >,
-    ) -> Result<String> {
-        let view = self.0.view()?;
-        let format = format.map_or(RdfFormat::Turtle, RdfFormat::from);
-        let report_format = report_format.map_or(RdfFormat::Turtle, RdfFormat::from);
-        let report = run_limited(ctx.data_opt::<ConcurrencyConfig>(), move |_| {
-            let shapes = ShaclShapes::parse(shapes.as_bytes(), format, None)?;
-            if shapes.is_recursive() {
-                return Err(SparqlError::RecursiveShapes);
-            }
-            let mut report = Vec::new();
-            view.validate_shacl(&shapes)?
-                .write(&mut report, report_format, &[])?;
-            into_string(report)
-        })
-        .await?;
-        Ok(report)
-    }
-}
-
-fn into_string(document: Vec<u8>) -> Result<String, SparqlError> {
-    Ok(String::from_utf8(document).map_err(RdfError::from)?)
-}
-
-/// An RDF format.
-#[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
-#[graphql(name = "RdfFormat")]
-pub enum GqlRdfFormat {
-    /// Turtle.
-    Turtle,
-    /// N-Triples.
-    NTriples,
-    /// N-Quads.
-    NQuads,
-    /// TriG.
-    Trig,
-    /// RDF/XML.
-    RdfXml,
-    /// JSON-LD.
-    JsonLd,
-}
-
-impl From<GqlRdfFormat> for RdfFormat {
-    fn from(format: GqlRdfFormat) -> Self {
-        match format {
-            GqlRdfFormat::Turtle => RdfFormat::Turtle,
-            GqlRdfFormat::NTriples => RdfFormat::NTriples,
-            GqlRdfFormat::NQuads => RdfFormat::NQuads,
-            GqlRdfFormat::Trig => RdfFormat::TriG,
-            GqlRdfFormat::RdfXml => RdfFormat::RdfXml,
-            GqlRdfFormat::JsonLd => RdfFormat::JsonLd,
-        }
+        Ok(graphs.into_iter().map(GqlRdfGraph::from).collect())
     }
 }
 
 /// A format of SPARQL results: a SPARQL results format for SELECT and ASK, an RDF format for
-/// CONSTRUCT and DESCRIBE.
+/// CONSTRUCT and DESCRIBE. As the format of a SHACL shapes graph or report, an RDF format.
 #[derive(Enum, Clone, Copy, Debug, PartialEq, Eq)]
 #[graphql(name = "SparqlFormat")]
 pub enum GqlSparqlFormat {
@@ -535,35 +362,67 @@ pub enum GqlSparqlFormat {
     RdfXml,
     /// JSON-LD.
     JsonLd,
+    /// N3.
+    N3,
 }
 
-impl From<GqlSparqlFormat> for SparqlFormat {
-    fn from(format: GqlSparqlFormat) -> Self {
-        let rdf = |format: GqlRdfFormat| RdfFormat::from(format).into();
-        // as `SparqlFormat::parse` reads the names `json` and `xml`
-        let both = |results, graph: GqlRdfFormat| SparqlFormat {
-            results: Some(results),
-            graph: Some(graph.into()),
-        };
-        match format {
-            GqlSparqlFormat::Json => both(QueryResultsFormat::Json, GqlRdfFormat::JsonLd),
-            GqlSparqlFormat::Xml => both(QueryResultsFormat::Xml, GqlRdfFormat::RdfXml),
-            GqlSparqlFormat::Csv => QueryResultsFormat::Csv.into(),
-            GqlSparqlFormat::Tsv => QueryResultsFormat::Tsv.into(),
-            GqlSparqlFormat::Turtle => rdf(GqlRdfFormat::Turtle),
-            GqlSparqlFormat::NTriples => rdf(GqlRdfFormat::NTriples),
-            GqlSparqlFormat::NQuads => rdf(GqlRdfFormat::NQuads),
-            GqlSparqlFormat::Trig => rdf(GqlRdfFormat::Trig),
-            GqlSparqlFormat::RdfXml => rdf(GqlRdfFormat::RdfXml),
-            GqlSparqlFormat::JsonLd => rdf(GqlRdfFormat::JsonLd),
+impl GqlSparqlFormat {
+    const ALL: [Self; 11] = [
+        Self::Json,
+        Self::Xml,
+        Self::Csv,
+        Self::Tsv,
+        Self::Turtle,
+        Self::NTriples,
+        Self::NQuads,
+        Self::Trig,
+        Self::RdfXml,
+        Self::JsonLd,
+        Self::N3,
+    ];
+
+    /// The name of the format, as [`SparqlFormat::parse`] and [`RdfFormat::parse`] read it.
+    fn name(self) -> &'static str {
+        match self {
+            Self::Json => "json",
+            Self::Xml => "xml",
+            Self::Csv => "csv",
+            Self::Tsv => "tsv",
+            Self::Turtle => "ttl",
+            Self::NTriples => "nt",
+            Self::NQuads => "nq",
+            Self::Trig => "trig",
+            Self::RdfXml => "rdf",
+            Self::JsonLd => "jsonld",
+            Self::N3 => "n3",
         }
+    }
+
+    fn sparql_format(self) -> Result<SparqlFormat, RdfError> {
+        SparqlFormat::parse(self.name())
+    }
+
+    fn rdf_format(self) -> Result<RdfFormat, RdfError> {
+        RdfFormat::parse(self.name())
+    }
+
+    /// The value that names `format` for the results of a query of `form`.
+    pub(crate) fn naming(form: QueryForm, format: SparqlFormat) -> Option<Self> {
+        Self::ALL.into_iter().find(|name| {
+            name.sparql_format().is_ok_and(|named| {
+                if form.is_graph() {
+                    named.graph == format.graph
+                } else {
+                    named.results == format.results
+                }
+            })
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "shacl")]
-    use crate::test_support::rdf::ex;
+    use super::GqlSparqlFormat;
     use crate::{
         auth_policy::{
             auth_policy_tests::FakePolicy, AuthorizationPolicy, GraphPermission,
@@ -574,19 +433,22 @@ mod tests {
         sparql::SparqlError,
         test_support::{
             rdf::{
-                graph, pairs, people, rows, without_carol, AS_OF_3, COUNT, KNOWN_BY, KNOWN_BY_NOW,
-                KNOWS, NOW, SINCE,
+                ex, graph, pairs, people, rows, without_carol, AS_OF_3, COUNT, KNOWN_BY,
+                KNOWN_BY_NOW, KNOWS, NOW,
             },
             setup_with_graphs, setup_with_policy,
         },
     };
     use async_graphql::{dynamic::Schema, ServerError};
     use dynamic_graphql::{Request, Variables};
-    #[cfg(feature = "shacl")]
-    use oxigraph::model::NamedNodeRef;
-    use oxigraph::{io::RdfFormat, model::Literal, sparql::QueryEvaluationError};
+    use oxigraph::{
+        io::RdfFormat as OxRdfFormat,
+        model::{Literal, NamedNodeRef},
+    };
     use raphtory::db::api::view::MaterializedGraph;
-    use raphtory_rdf::RdfError;
+    use raphtory_rdf::{
+        shacl::ShaclLimit, QueryForm, QueryResultsFormat, RdfError, RdfFormat, SparqlFormat,
+    };
     use serde_json::{json, Value as Json};
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -650,28 +512,68 @@ mod tests {
             .to_owned())
     }
 
+    fn rdf_error(error: &ServerError) -> Option<&RdfError> {
+        match error.source::<SparqlError>() {
+            Some(SparqlError::Query(error)) => Some(error),
+            _ => None,
+        }
+    }
+
+    /// Every format the endpoint can choose has a value that names it.
+    #[test]
+    fn every_format_has_a_value() {
+        let named = |form, format: SparqlFormat| {
+            GqlSparqlFormat::naming(form, format)
+                .unwrap()
+                .sparql_format()
+                .unwrap()
+        };
+        for format in [
+            QueryResultsFormat::Json,
+            QueryResultsFormat::Xml,
+            QueryResultsFormat::Csv,
+            QueryResultsFormat::Tsv,
+        ] {
+            assert_eq!(
+                named(QueryForm::Select, format.into()).results,
+                Some(format)
+            );
+        }
+        for format in [
+            RdfFormat::Turtle,
+            RdfFormat::NTriples,
+            RdfFormat::NQuads,
+            RdfFormat::TriG,
+            RdfFormat::RdfXml,
+            RdfFormat::JsonLd,
+            RdfFormat::N3,
+        ] {
+            assert_eq!(
+                named(QueryForm::Construct, format.into()).graph,
+                Some(format)
+            );
+        }
+    }
+
     #[tokio::test]
     async fn view_chains_end_in_sparql() {
         let work_dir = TempDir::new().unwrap();
         let schema = setup(&work_dir).await;
-        let document = r#"query Q($knows: String!, $since: String!, $knownBy: String!) {
+        let document = r#"query Q($knows: String!, $knownBy: String!) {
             rdfGraph(path: "pg") {
                 all: sparql(query: $knows)
                 valid { sparql(query: $knows) }
                 at(time: 3) { sparql(query: $knows) }
                 window(start: 3, end: 6) { valid { sparql(query: $knows) } }
-                since: valid { sparql(query: $since) }
                 knownBy: valid { sparql(query: $knownBy, format: TURTLE) }
-                export: valid { toRdf }
                 rolling(window: { epoch: 10 }) { list { valid { sparql(query: $knows) } } }
             }
             events: rdfGraph(path: "eg") { valid { sparql(query: $knows) } }
         }"#;
-        let variables = json!({ "knows": KNOWS, "since": SINCE, "knownBy": KNOWN_BY });
+        let variables = json!({ "knows": KNOWS, "knownBy": KNOWN_BY });
         let data = execute(&schema, document, variables).await.unwrap();
         let fields = &data["rdfGraph"];
         let rows_of = |value: &Json| rows(value.as_str().unwrap());
-        let graph_of = |value: &Json, format| graph(value.as_str().unwrap(), format);
 
         let all = [("alice", "bob"), ("bob", "carol"), ("dave", "alice")];
         assert_eq!(rows_of(&fields["all"]), pairs(&all));
@@ -682,22 +584,11 @@ mod tests {
             pairs(&[("bob", "carol")])
         );
         assert_eq!(
-            rows_of(&fields["since"]["sparql"]),
-            [[Some(Literal::from(1).into())]]
-        );
-        assert_eq!(
-            graph_of(&fields["knownBy"]["sparql"], RdfFormat::Turtle),
-            graph(KNOWN_BY_NOW, RdfFormat::NTriples)
-        );
-        let export = r#"
-            <http://ex/alice> <http://ex/age> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .
-            <http://ex/bob> <http://ex/knows> <http://ex/carol> .
-            <http://ex/carol> <http://ex/name> "Carol" .
-            <http://ex/dave> <http://ex/knows> <http://ex/alice> .
-        "#;
-        assert_eq!(
-            graph_of(&fields["export"]["toRdf"], RdfFormat::NTriples),
-            graph(export, RdfFormat::NTriples)
+            graph(
+                fields["knownBy"]["sparql"].as_str().unwrap(),
+                OxRdfFormat::Turtle
+            ),
+            graph(KNOWN_BY_NOW, OxRdfFormat::NTriples)
         );
         let windows = fields["rolling"]["list"].as_array().unwrap();
         assert_eq!(
@@ -708,7 +599,6 @@ mod tests {
         assert_eq!(rows_of(&data["events"]["valid"]["sparql"]), pairs(NOW));
     }
 
-    #[cfg(feature = "shacl")]
     #[tokio::test]
     async fn views_validate_against_shacl_shapes() {
         let work_dir = TempDir::new().unwrap();
@@ -724,7 +614,7 @@ mod tests {
             .unwrap();
         let report = graph(
             data["rdfGraph"]["at"]["validateShacl"].as_str().unwrap(),
-            RdfFormat::NTriples,
+            OxRdfFormat::NTriples,
         );
         let focus_node = NamedNodeRef::new_unchecked("http://www.w3.org/ns/shacl#focusNode");
         // as of 3, bob knows carol but has no age
@@ -735,62 +625,39 @@ mod tests {
                 .collect::<Vec<_>>(),
             [ex("bob").into()]
         );
-    }
 
-    #[cfg(feature = "shacl")]
-    #[tokio::test]
-    async fn recursive_shapes_are_refused() {
-        let work_dir = TempDir::new().unwrap();
-        let schema = setup(&work_dir).await;
-        let shapes = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
+        let recursive = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> .
             ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
                 sh:property [ sh:path ex:knows ; sh:node ex:S ] .";
         let document = r#"query Q($shapes: String!) {
             rdfGraph(path: "pg") { validateShacl(shapes: $shapes) }
         }"#;
-        let error = execute(&schema, document, json!({ "shapes": shapes }))
+        let error = execute(&schema, document, json!({ "shapes": recursive }))
             .await
             .unwrap_err();
         assert!(matches!(
-            error.source::<SparqlError>(),
-            Some(SparqlError::RecursiveShapes)
+            rdf_error(&error),
+            Some(RdfError::ShaclLimit(ShaclLimit::RecursiveShapes))
         ));
     }
 
+    /// The caller's access filter applies, and a graph the caller may only introspect, one it
+    /// has no grant on and one that does not exist look the same.
     #[tokio::test]
-    async fn a_row_filter_turns_off_the_temporal_functions() {
-        let work_dir = TempDir::new().unwrap();
-        let schema = setup_as(&work_dir, GraphPermission::Read { filter: None }).await;
-        assert_eq!(
-            rows(&sparql(&schema, SINCE).await.unwrap()),
-            [[Some(Literal::from(1).into())]]
-        );
-
+    async fn reads_follow_the_permissions() {
         let work_dir = TempDir::new().unwrap();
         let schema = setup_as(&work_dir, without_carol()).await;
         assert_eq!(
             rows(&sparql(&schema, KNOWS).await.unwrap()),
             pairs(&[("dave", "alice")])
         );
-        let error = sparql(&schema, SINCE).await.unwrap_err();
-        assert!(matches!(
-            error.source::<SparqlError>(),
-            Some(SparqlError::Query(RdfError::SparqlEvaluation(
-                QueryEvaluationError::UnsupportedCustomFunction(_)
-            )))
-        ));
-    }
 
-    /// A graph the caller may only introspect, one it has no grant on and one that does not
-    /// exist look the same.
-    #[tokio::test]
-    async fn a_denied_read_looks_like_a_missing_graph() {
         let work_dir = TempDir::new().unwrap();
         let schema = setup_as(&work_dir, GraphPermission::Introspect).await;
         let document = r#"{
-            introspect: rdfGraph(path: "pg") { path }
-            noGrant: rdfGraph(path: "eg") { path }
-            missing: rdfGraph(path: "missing") { path }
+            introspect: rdfGraph(path: "pg") { graph { path } }
+            noGrant: rdfGraph(path: "eg") { graph { path } }
+            missing: rdfGraph(path: "missing") { graph { path } }
         }"#;
         let data = execute(&schema, document, json!({})).await.unwrap();
         assert_eq!(
@@ -804,8 +671,6 @@ mod tests {
         let work_dir = TempDir::new().unwrap();
         let config = ConcurrencyConfig {
             max_sparql_query_length: Some(COUNT.len()),
-            // `(COUNT(*) AS ?n)` counts one
-            max_sparql_triple_patterns: Some(2),
             ..Default::default()
         };
         let schema = setup_with_config(&work_dir, config).await;
@@ -815,35 +680,8 @@ mod tests {
         );
         let error = sparql(&schema, &format!("{COUNT} ")).await.unwrap_err();
         assert!(matches!(
-            error.source::<SparqlError>(),
-            Some(SparqlError::TooLong { length, max })
-                if *length == COUNT.len() + 1 && *max == COUNT.len()
+            rdf_error(&error),
+            Some(RdfError::QueryTooLong { .. })
         ));
-        let error = sparql(&schema, "ASK{?a ?b ?c.?c ?d ?e.?e ?f ?g}")
-            .await
-            .unwrap_err();
-        assert!(matches!(
-            error.source::<SparqlError>(),
-            Some(SparqlError::Query(RdfError::TooManyPatterns { .. }))
-        ));
-
-        let work_dir = TempDir::new().unwrap();
-        let config = ConcurrencyConfig {
-            disable_lists: true,
-            ..Default::default()
-        };
-        let schema = setup_with_config(&work_dir, config).await;
-        let disabled = |error: ServerError| {
-            matches!(error.source::<SparqlError>(), Some(SparqlError::Disabled))
-        };
-        assert!(disabled(sparql(&schema, "ASK {}").await.unwrap_err()));
-        let export = execute(&schema, r#"{ rdfGraph(path: "pg") { toRdf } }"#, json!({})).await;
-        assert!(disabled(export.unwrap_err()));
-        #[cfg(feature = "shacl")]
-        {
-            let document = r#"{ rdfGraph(path: "pg") { validateShacl(shapes: "") } }"#;
-            let validation = execute(&schema, document, json!({})).await;
-            assert!(disabled(validation.unwrap_err()));
-        }
     }
 }

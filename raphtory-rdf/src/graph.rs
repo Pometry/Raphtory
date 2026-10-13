@@ -1,9 +1,8 @@
 //! [`RdfView`] and [`RdfGraph`]: the RDF APIs over a graph viewed with persistent semantics.
-#[cfg(feature = "shacl")]
-use crate::shacl::{ShaclReport, ShaclShapes};
 use crate::{
-    export, import, query, results, RdfError, RdfFormat, SparqlFormat, SparqlOptions,
-    SparqlResults, TripleRef, WriteStats,
+    export, import, query, results,
+    shacl::{ShaclOptions, ShaclReport, ShaclShapes},
+    RdfError, RdfFormat, SparqlFormat, SparqlOptions, SparqlResults, TripleRef, WriteStats,
 };
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
@@ -16,17 +15,19 @@ use raphtory::{
             },
         },
         graph::views::{
-            filter::node_filtered_graph::NodeFilteredGraph, node_subgraph::NodeSubgraph,
-            valid_graph::ValidGraph,
+            cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
+            node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
         },
     },
+    errors::GraphError,
     prelude::*,
 };
-use raphtory_api::{
-    core::{storage::graph_folder::GraphPaths, utils::time::TryIntoInputTime},
-    GraphType,
+use raphtory_api::{core::utils::time::TryIntoInputTime, GraphType};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    path::Path,
 };
-use std::io::{Read, Write};
 
 /// A graph viewed as RDF, with persistent semantics: the place to load, retract and query
 /// triples.
@@ -45,11 +46,10 @@ use std::io::{Read, Write};
 /// ever retracted or was retracted again; `valid()` and `at(t)` do not.
 ///
 /// Every triple `s p o` is one edge `name(s) -> name(o)` in the layer of the predicate IRI `p`
-/// (see the [module documentation](crate)). Writes need a graph with string node ids (or
-/// an empty graph); a graph with u64 ids gives [`RdfError::NonStringIds`] before anything is
-/// written. A term that cannot be stored (an IRI under `raphtory:` that is not the canonical
-/// encoding of a name) gives [`RdfError::NonCanonicalTerm`], and a predicate whose layer name
-/// is not safe as a file name gives [`RdfError::UnsafeLayerName`]. Writes go through the normal
+/// (see the [module documentation](crate)). Writes need a graph with string node ids. A term
+/// that cannot be stored (an IRI under `raphtory:` that is not the canonical encoding of a
+/// name) gives [`RdfError::NonCanonicalTerm`], and a predicate whose layer name is not safe as
+/// a file name gives [`RdfError::UnsafeLayerName`]. Writes go through the normal
 /// `add_edge`/`delete_edge` calls, so they are safe to run while other threads query or write
 /// the graph.
 pub type RdfGraph = RdfView<PersistentGraph>;
@@ -68,19 +68,9 @@ impl RdfGraph {
         Self(PersistentGraph::new())
     }
 
-    /// Opens the graph stored at `path`, event or persistent, whether saved to disk or encoded.
-    /// An event graph is wrapped as with `RdfGraph::from(g)`.
-    pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, RdfError> {
-        let graph = if path.read_metadata()?.is_diskgraph {
-            MaterializedGraph::load(path)?
-        } else {
-            MaterializedGraph::decode(path)?
-        };
-        Ok(graph.into())
-    }
-
     /// Asserts every triple of the document at `time` and returns the number of triples read.
     ///
+    /// The document is read in `format`, or Turtle (which also reads N-Triples) if it is `None`.
     /// Every triple becomes one edge event at `time` (any time `add_edge` accepts), in document
     /// order, so for equal `t` the later write wins. Blank nodes are renamed to fresh random
     /// labels, so two loads never collide. Named graphs are rejected ([`RdfError::Parse`]). The
@@ -89,28 +79,58 @@ impl RdfGraph {
         &self,
         time: T,
         data: impl Read,
-        format: RdfFormat,
+        format: impl Into<Option<RdfFormat>>,
         base_iri: Option<&str>,
     ) -> Result<usize, RdfError> {
         let time = time.try_into_input_time()?;
+        let format = format.into().unwrap_or(RdfFormat::Turtle);
         import::read_document(&self.0, time, data, format, base_iri, false)
+    }
+
+    /// Asserts every triple of the file at `path`, as [`load_rdf`](Self::load_rdf) does. The
+    /// file is read in `format`, or the format its extension names
+    /// ([`RdfFormat::from_path`]).
+    pub fn load_rdf_path<T: TryIntoInputTime>(
+        &self,
+        time: T,
+        path: impl AsRef<Path>,
+        format: impl Into<Option<RdfFormat>>,
+        base_iri: Option<&str>,
+    ) -> Result<usize, RdfError> {
+        let (file, format) = import::open_document(path.as_ref(), format.into())?;
+        self.load_rdf(time, file, format, base_iri)
     }
 
     /// Retracts every triple of the document at `time` and returns the number of triples read.
     ///
-    /// Blank-node labels are used as written, so a retraction document must use the stored
-    /// labels (as returned by [`to_rdf`](RdfView::to_rdf)). A retraction is always recorded,
-    /// even if the triple does not hold (see [`RdfGraph`] for which views then show it). The
-    /// retraction streams and is not atomic: triples before an error stay retracted.
+    /// The document is read as in [`load_rdf`](Self::load_rdf). Blank-node labels are used as
+    /// written, so a retraction document must use the stored labels (as returned by
+    /// [`to_rdf`](RdfView::to_rdf)). A retraction is always recorded, even if the triple does
+    /// not hold (see [`RdfGraph`] for which views then show it). The retraction streams and is
+    /// not atomic: triples before an error stay retracted.
     pub fn retract_rdf<T: TryIntoInputTime>(
         &self,
         time: T,
         data: impl Read,
-        format: RdfFormat,
+        format: impl Into<Option<RdfFormat>>,
         base_iri: Option<&str>,
     ) -> Result<usize, RdfError> {
         let time = time.try_into_input_time()?;
+        let format = format.into().unwrap_or(RdfFormat::Turtle);
         import::read_document(&self.0, time, data, format, base_iri, true)
+    }
+
+    /// Retracts every triple of the file at `path`, read as in
+    /// [`load_rdf_path`](Self::load_rdf_path).
+    pub fn retract_rdf_path<T: TryIntoInputTime>(
+        &self,
+        time: T,
+        path: impl AsRef<Path>,
+        format: impl Into<Option<RdfFormat>>,
+        base_iri: Option<&str>,
+    ) -> Result<usize, RdfError> {
+        let (file, format) = import::open_document(path.as_ref(), format.into())?;
+        self.retract_rdf(time, file, format, base_iri)
     }
 
     /// Asserts one triple at `time`. Blank-node labels are used as written.
@@ -120,7 +140,7 @@ impl RdfGraph {
         triple: impl Into<TripleRef<'a>>,
     ) -> Result<(), RdfError> {
         let time = time.try_into_input_time()?;
-        import::write_single(&self.0, time, triple.into(), false)
+        import::write_triple(&self.0, time, triple.into(), false)
     }
 
     /// Retracts one triple at `time`. Blank-node labels are used as written.
@@ -130,7 +150,7 @@ impl RdfGraph {
         triple: impl Into<TripleRef<'a>>,
     ) -> Result<(), RdfError> {
         let time = time.try_into_input_time()?;
-        import::write_single(&self.0, time, triple.into(), true)
+        import::write_triple(&self.0, time, triple.into(), true)
     }
 }
 
@@ -206,6 +226,11 @@ impl<G: StaticGraphViewOps> RdfView<G> {
     ) -> RdfView<NodeSubgraph<G>> {
         RdfView(self.0.exclude_nodes(nodes))
     }
+
+    /// The view with its visible nodes and edges precomputed ([`GraphViewOps::cache_view`]).
+    pub fn cache_view(&self) -> RdfView<CachedView<G>> {
+        RdfView(self.0.cache_view())
+    }
 }
 
 impl<'graph, G: GraphView + 'graph> InternalFilter<'graph> for RdfView<G> {
@@ -225,13 +250,12 @@ impl<'graph, G: GraphView + 'graph> InternalFilter<'graph> for RdfView<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
-    /// Serialises the triples of the view in `format`: one triple per visible `(edge, layer)`
-    /// pair, from the term of its source ([`term_of`](crate::term_of)) through the
-    /// predicate IRI of its layer to the term of its destination.
+    /// Serialises the triples of the view in `format` (N-Triples if it is `None`): one triple
+    /// per visible `(edge, layer)` pair, from the term of its source
+    /// ([`term_of`](crate::term_of)) through the predicate IRI of its layer to the term of its
+    /// destination.
     ///
-    /// `prefixes` are the prefix names and IRIs that formats which support them (Turtle, TriG,
-    /// RDF/XML) abbreviate IRIs with; a name the format cannot write gives
-    /// [`RdfError::InvalidPrefix`]. Output is buffered and flushed before returning. Order is
+    /// IRIs are written in full. Output is buffered and flushed before returning. Order is
     /// deterministic for a given storage (by source, then destination, then layer) but not
     /// lexical. Generalized triples (literal subjects, layers whose term is not an IRI) are
     /// skipped and counted.
@@ -253,19 +277,46 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
     /// let doc = "<http://ex/a> <http://ex/p> <http://ex/b> .";
     /// rg.load_rdf(1, doc.as_bytes(), RdfFormat::NTriples, None).unwrap();
     /// let mut out = Vec::new();
-    /// rg.to_rdf(&mut out, RdfFormat::Turtle, &[("ex", "http://ex/")]).unwrap();
+    /// rg.to_rdf(&mut out, RdfFormat::Turtle).unwrap();
     /// assert_eq!(
     ///     String::from_utf8(out).unwrap(),
-    ///     "@prefix ex: <http://ex/> .\nex:a ex:p ex:b .\n"
+    ///     "<http://ex/a> <http://ex/p> <http://ex/b> .\n"
     /// );
     /// ```
     pub fn to_rdf<W: Write>(
         &self,
         writer: W,
-        format: RdfFormat,
-        prefixes: &[(&str, &str)],
+        format: impl Into<Option<RdfFormat>>,
     ) -> Result<WriteStats, RdfError> {
-        export::write_rdf(self.0.clone().into_dynamic(), writer, format, prefixes)
+        let format = format.into().unwrap_or(RdfFormat::NTriples);
+        export::write_rdf(self.0.clone().into_dynamic(), writer, format)
+    }
+
+    /// The triples of the view as a document, as [`to_rdf`](Self::to_rdf) writes them.
+    pub fn to_rdf_string(&self, format: impl Into<Option<RdfFormat>>) -> Result<String, RdfError> {
+        let mut document = Vec::new();
+        self.to_rdf(&mut document, format)?;
+        Ok(String::from_utf8(document)?)
+    }
+
+    /// Writes the triples of the view to the file at `path`, created or truncated, as
+    /// [`to_rdf`](Self::to_rdf) does, in `format`, else the format its extension names
+    /// ([`RdfFormat::from_path`]), else (without an extension) N-Triples.
+    pub fn to_rdf_path(
+        &self,
+        path: impl AsRef<Path>,
+        format: impl Into<Option<RdfFormat>>,
+    ) -> Result<WriteStats, RdfError> {
+        let path = path.as_ref();
+        let format = match format.into() {
+            Some(format) => format,
+            None if path.extension().is_none_or(|e| e.is_empty()) => RdfFormat::NTriples,
+            None => RdfFormat::from_path(path)?,
+        };
+        let file = File::create(path).map_err(|error| {
+            GraphError::IOErrorMsg(format!("cannot create '{}': {error}", path.display()))
+        })?;
+        self.to_rdf(file, format)
     }
 
     /// Runs a SPARQL 1.1 query on the triples of the view and returns the fully collected
@@ -275,8 +326,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
     /// [`TimeGraph`](crate::TimeGraph)) and the pre-registered `raphtory:` prefix; results
     /// use the terms of [`term_of`](crate::term_of) for nodes and the predicate IRIs of the
     /// layers. Evaluation runs on its own thread, with a stack sized to the query, while the
-    /// caller waits; it holds no storage lock between results, so concurrent writes may or may
-    /// not be seen.
+    /// caller waits.
     ///
     /// Generalized triples (a literal subject, or a layer whose term is not an IRI) are matched
     /// by patterns, dropped by `CONSTRUCT`, and silently end a `DESCRIBE` result early; on such
@@ -287,10 +337,11 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
     /// [`VALID_TO_TIME`](crate::VALID_TO_TIME) return when a visible triple started and
     /// stopped holding (see [the rules](crate#the-rules-of-the-temporal-functions)).
     ///
-    /// `options` can bound the number of triple patterns of the query or turn off the temporal
-    /// functions (see [`SparqlOptions`]); `&SparqlOptions::default()` does neither.
+    /// `options` can bound the length and the number of triple patterns of the query (see
+    /// [`SparqlOptions`]); `&SparqlOptions::default()` does not.
     ///
-    /// Errors: [`RdfError::SparqlSyntax`];
+    /// Errors: [`RdfError::QueryTooLong`], before parsing, for a query longer than
+    /// [`SparqlOptions::with_max_query_length`] allows; [`RdfError::SparqlSyntax`];
     /// [`RdfError::SparqlTooDeep`] if brackets nest deeper than
     /// [`MAX_SPARQL_NESTING`](crate::MAX_SPARQL_NESTING); [`RdfError::TooManyPatterns`],
     /// before planning, for a query with more triple patterns than
@@ -303,7 +354,8 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
 
     /// Runs a SPARQL 1.1 query like [`sparql`](Self::sparql) and streams its results to
     /// `writer`, serialised in `format`, with the `options` of `sparql`. Returns how many
-    /// solutions or triples were written.
+    /// solutions or triples were written. Results larger than
+    /// [`SparqlOptions::with_max_result_bytes`] allows fail with [`RdfError::ResultsTooLarge`].
     ///
     /// `format` is a [`QueryResultsFormat`](crate::QueryResultsFormat) for `SELECT` and
     /// `ASK` queries, an [`RdfFormat`] for `CONSTRUCT` and `DESCRIBE` queries, or a
@@ -312,8 +364,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
     /// fit the form of the query gives [`RdfError::WrongResultsFormat`] before the query is
     /// evaluated, so nothing is written.
     ///
-    /// The output holds RDF terms ([`term_of`](crate::term_of)), and is byte-identical to
-    /// [`SparqlResults::write`] on the results of [`sparql`](Self::sparql):
+    /// The output holds RDF terms ([`term_of`](crate::term_of)):
     /// - `SELECT`: one solution per result, unbound variables left out. SPARQL Results XML
     ///   fails with [`RdfError::XmlUnsafeLiteral`] on a literal with a character XML cannot hold
     ///   (as in [`to_rdf`](Self::to_rdf)) and with [`RdfError::XmlTripleTerm`] on an RDF 1.2
@@ -362,13 +413,30 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
         )
     }
 
+    /// The results of a SPARQL query as a document, as
+    /// [`sparql_to_writer`](Self::sparql_to_writer) writes them.
+    pub fn sparql_to_string(
+        &self,
+        query: &str,
+        format: impl Into<SparqlFormat>,
+        options: &SparqlOptions,
+    ) -> Result<String, RdfError> {
+        let mut document = Vec::new();
+        self.sparql_to_writer(query, &mut document, format, options)?;
+        Ok(String::from_utf8(document)?)
+    }
+
     /// Validates the triples of the view (the triples [`to_rdf`](Self::to_rdf) writes) against
-    /// a SHACL shapes graph (see the [`shacl`](crate::shacl) module). Feature `shacl`.
+    /// a SHACL shapes graph (see the [`shacl`](crate::shacl) module), with the `options` of
+    /// [`ShaclOptions`].
     ///
     /// Runs on a shared pool of large-stack threads while the caller waits; a validator panic
-    /// becomes [`RdfError::Shacl`].
-    #[cfg(feature = "shacl")]
-    pub fn validate_shacl(&self, shapes: &ShaclShapes) -> Result<ShaclReport, RdfError> {
-        shapes.validate(self.0.clone().into_dynamic())
+    /// becomes [`RdfError::Panicked`].
+    pub fn validate_shacl(
+        &self,
+        shapes: &ShaclShapes,
+        options: &ShaclOptions,
+    ) -> Result<ShaclReport, RdfError> {
+        shapes.validate(self.0.clone().into_dynamic(), options)
     }
 }

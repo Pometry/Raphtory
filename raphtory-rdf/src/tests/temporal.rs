@@ -43,38 +43,6 @@ pub(super) fn spo<G: StaticGraphViewOps + IntoDynamic>(
     set
 }
 
-/// Every triple of the default graph of the view, in N-Triples form.
-pub(super) fn triples<G: StaticGraphViewOps + IntoDynamic>(
-    view: &RdfView<G>,
-) -> BTreeSet<[String; 3]> {
-    spo(view, "SELECT ?s ?p ?o { ?s ?p ?o }")
-}
-
 pub(super) fn nt(spo: [&str; 3]) -> [String; 3] {
     spo.map(|t| format!("<{t}>"))
-}
-
-/// One event of an assert/retract log: assert or retract `LOG_TRIPLES[triple]` at time `t`.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct Event {
-    pub(super) t: i64,
-    pub(super) assert: bool,
-    pub(super) triple: usize,
-}
-
-/// The triples an assert/retract log writes.
-pub(super) const LOG_TRIPLES: [[&str; 3]; 3] = [[S, P, O], [S, Q, O], [O, P, S]];
-
-/// The graph with only the events of `log` before `end`, written in log order (so events at the
-/// same time keep their order).
-pub(super) fn root_until(log: &[Event], end: Option<i64>) -> RdfGraph {
-    let g = RdfGraph::new();
-    for e in log.iter().filter(|e| end.is_none_or(|end| e.t < end)) {
-        if e.assert {
-            assert_at(&g, e.t, LOG_TRIPLES[e.triple]);
-        } else {
-            retract_at(&g, e.t, LOG_TRIPLES[e.triple]);
-        }
-    }
-    g
 }

@@ -3,9 +3,9 @@
 //! The differential tests evaluate each query twice with the same evaluator: on the graph, and
 //! on an `oxrdf::Dataset` holding the same triples. The `Dataset` keeps terms exactly as
 //! written (an oxigraph `Store` would normalise literals such as `"042"^^xsd:integer`).
-use super::{ask, layer_of, select, sorted_rows, within_60s, BLANK_NODES, DATATYPES, FOAF, SOCIAL};
+use super::{ask, layer_of, select, sorted_rows, BLANK_NODES, DATATYPES, FOAF, SOCIAL};
 use crate::{
-    dataset::{RaphtoryDataset, RdfTerm},
+    dataset::{NodeTerm, RaphtoryDataset, RdfTerm},
     query::{evaluator, parse as parse_sparql},
     Literal, NamedNode, RdfFormat, RdfGraph, SparqlOptions, SparqlResults, Term, Triple,
 };
@@ -13,20 +13,9 @@ use oxigraph::{
     io::RdfParser,
     model::{Dataset, GraphNameRef},
 };
-use raphtory::{
-    db::api::view::{internal::CoreGraphOps, IntoDynamic},
-    prelude::*,
-};
-use raphtory_api::core::utils::hashing::calculate_hash;
+use raphtory::{db::api::view::IntoDynamic, prelude::*};
 use spareval::QueryableDataset;
-use std::{
-    collections::BTreeSet,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
-    },
-    thread,
-};
+use std::collections::BTreeSet;
 use Kind::{Empty, Rows};
 
 const PREFIXES: &str = "PREFIX ex: <http://ex/>
@@ -312,36 +301,26 @@ fn internal_terms_are_canonical() {
 <http://ex/knows> <http://ex/label> \"knows\" .";
     rg.load_rdf(1, doc.as_bytes(), RdfFormat::NTriples, None)
         .unwrap();
-    let dataset = RaphtoryDataset::new(rg.graph().clone().into_dynamic());
+    let view = rg.graph().clone().into_dynamic();
+    let dataset = RaphtoryDataset::new(view.clone());
     let term = |s: &str| -> Term { NamedNode::new(s).unwrap().into() };
-    let knows_node = rg.graph().node("http://ex/knows").unwrap().node;
-    let label_layer = rg
-        .graph()
-        .get_layer_id(&layer_of("http://ex/label"))
-        .unwrap();
+    let node = |s: &str| RdfTerm::Node(NodeTerm(view.node(s).unwrap()));
 
     let knows = dataset.internalize_term(term("http://ex/knows")).unwrap();
-    assert_eq!(knows, RdfTerm::Node(knows_node));
+    assert_eq!(knows, node("http://ex/knows"));
     let label = dataset.internalize_term(term("http://ex/label")).unwrap();
-    assert_eq!(label, RdfTerm::Layer(label_layer));
+    assert_eq!(label, RdfTerm::Layer(layer_of("http://ex/label").into()));
     let unknown = dataset.internalize_term(term("http://ex/zzz")).unwrap();
     assert_eq!(unknown, RdfTerm::Other(term("http://ex/zzz")));
     let literal: Term = Literal::new_simple_literal("knows").into();
-    assert!(matches!(
+    assert_eq!(
         dataset.internalize_term(literal.clone()).unwrap(),
-        RdfTerm::Node(_)
-    ));
+        node("\"knows\"")
+    );
     let other_literal: Term = Literal::new_simple_literal("nope").into();
     assert_eq!(
         dataset.internalize_term(other_literal.clone()).unwrap(),
         RdfTerm::Other(other_literal)
-    );
-    // `_static_graph` (layer 0) is private: it is not a layer of the dataset
-    assert_eq!(
-        dataset
-            .internalize_term(term("raphtory:_static_graph"))
-            .unwrap(),
-        RdfTerm::Other(term("raphtory:_static_graph"))
     );
     // a non-canonical spelling of a name is another term
     assert!(matches!(
@@ -378,16 +357,13 @@ fn internal_terms_are_canonical() {
     assert!(!dataset.contains_internal_graph_name(&unknown).unwrap());
     // a bound subject or object that is not a node, or a predicate that is not a layer,
     // matches nothing
+    let a = node("http://ex/a");
     for (s, p, o) in [
         (Some(&unknown), None, None),
         (Some(&label), None, None),
         (None, None, Some(&unknown)),
         (None, Some(&unknown), None),
-        (
-            None,
-            Some(&RdfTerm::Node(rg.graph().node("http://ex/a").unwrap().node)),
-            None,
-        ),
+        (None, Some(&a), None),
     ] {
         assert_eq!(
             dataset
@@ -416,249 +392,17 @@ fn internal_terms_are_canonical() {
         dataset.internalize_term(term("http://ex/zzz")).unwrap(),
         RdfTerm::Other(term("http://ex/zzz"))
     );
-    // and its layer (`_default`) is not in the dataset, so its triple is skipped
-    assert_eq!(
-        dataset
-            .internal_quads_for_pattern(None, None, None, Some(None))
-            .count(),
-        2
-    );
-    assert_eq!(select(&rg, "SELECT * { ?s ?p ?o }").len(), 3);
 
-    // the predicate terms are fixed when the dataset is built: a node named like a layer,
-    // created later, does not hide the layer's triples
-    let rg = RdfGraph::new();
-    rg.load_rdf(
-        1,
-        "<http://ex/a> <http://ex/knows> <http://ex/b> .".as_bytes(),
-        RdfFormat::NTriples,
-        None,
-    )
-    .unwrap();
-    let knows_layer = rg
-        .graph()
-        .get_layer_id(&layer_of("http://ex/knows"))
-        .unwrap();
-    let (dataset, queried) = (
-        RaphtoryDataset::new(rg.graph().clone().into_dynamic()),
-        RaphtoryDataset::new(rg.graph().clone().into_dynamic()),
-    );
-    rg.load_rdf(
-        2,
-        "<http://ex/x> <http://ex/mentions> <http://ex/knows> .".as_bytes(),
-        RdfFormat::NTriples,
-        None,
-    )
-    .unwrap();
-    let knows_node = rg.graph().node("http://ex/knows").unwrap().node;
-    let query = "SELECT ?s ?o { ?s <http://ex/knows> ?o }";
-    let results = evaluator()
-        .for_query(parse_sparql(query).unwrap())
-        .on_queryable_dataset(queried)
-        .execute()
-        .unwrap();
-    let SparqlResults::Solutions { rows, .. } = SparqlResults::from_query_results(results).unwrap()
-    else {
-        panic!("{query}: not a SELECT result")
-    };
+    // a node the view hides is not a node of the query
     assert_eq!(
-        rows,
-        vec![vec![Some(term("http://ex/a")), Some(term("http://ex/b"))]]
+        RaphtoryDataset::new(
+            rg.subgraph(["http://ex/a", "http://ex/knows"])
+                .graph()
+                .clone()
+                .into_dynamic()
+        )
+        .internalize_term(term("http://ex/b"))
+        .unwrap(),
+        RdfTerm::Other(term("http://ex/b"))
     );
-    let knows = term("http://ex/knows");
-    assert_eq!(
-        dataset.internalize_term(knows.clone()).unwrap(),
-        RdfTerm::Layer(knows_layer)
-    );
-    assert_eq!(
-        dataset
-            .externalize_term(RdfTerm::Layer(knows_layer))
-            .unwrap(),
-        knows
-    );
-    // a dataset built now has the node as the predicate term, and the node joins
-    assert_eq!(
-        RaphtoryDataset::new(rg.graph().clone().into_dynamic())
-            .internalize_term(knows)
-            .unwrap(),
-        RdfTerm::Node(knows_node)
-    );
-    assert_eq!(
-        select(
-            &rg,
-            "SELECT ?x ?s ?o { ?x <http://ex/mentions> ?p . ?s ?p ?o }"
-        ),
-        vec![vec![
-            "<http://ex/x>".to_owned(),
-            "<http://ex/a>".to_owned(),
-            "<http://ex/b>".to_owned()
-        ]]
-    );
-
-    // on a u64-id graph, `raphtory:abc` must not match the node its hash resolves to
-    let hash = calculate_hash("abc");
-    let g = Graph::new();
-    g.add_edge(1, hash, 43u64, NO_PROPS, None).unwrap();
-    // Raphtory itself resolves "abc" to that node
-    assert_eq!(g.node("abc").unwrap().name(), hash.to_string());
-    let g = RdfGraph::from(g);
-    assert!(!ask(&g, "ASK { raphtory:abc ?p ?o }"));
-    assert!(!ask(
-        &g,
-        "ASK { raphtory:abc raphtory:_default raphtory:43 }"
-    ));
-    assert!(!ask(
-        &g,
-        "ASK { ?s ?p ?o FILTER(sameTerm(?s, raphtory:abc)) }"
-    ));
-    assert_eq!(
-        select(&g, "SELECT ?s { ?s ?p raphtory:43 }"),
-        vec![vec![format!("<raphtory:{hash}>")]]
-    );
-    assert!(ask(
-        &g,
-        &format!("ASK {{ raphtory:{hash} raphtory:_default raphtory:43 }}")
-    ));
-}
-
-/// Queries run while a writer adds nodes, layers and deletions, without deadlocking.
-#[test]
-fn queries_run_while_the_graph_is_written() {
-    const N: usize = 2000;
-    let p = layer_of("http://ex/p");
-    let node = |i: usize| format!("http://ex/n{}", i % N);
-    let pg = PersistentGraph::new();
-    for i in 0..N {
-        pg.add_edge(0, node(i), node(i + 1), NO_PROPS, Some(p.as_str()))
-            .unwrap();
-    }
-    for i in 0..3000 {
-        let layer = layer_of(&format!("http://ex/l{i}"));
-        pg.add_edge(0, "http://ex/a", "http://ex/b", NO_PROPS, Some(&layer))
-            .unwrap();
-    }
-    let stop = Arc::new(AtomicBool::new(false));
-    let progress = Arc::new(AtomicUsize::new(0));
-    let writer = {
-        let pg = pg.clone();
-        let stop = stop.clone();
-        let progress = progress.clone();
-        thread::spawn(move || {
-            let p = Some(p.as_str());
-            // bounded so that a slow machine does not grow the graph without limit
-            for i in 0..5_000_000usize {
-                if stop.load(Ordering::Relaxed) {
-                    break;
-                }
-                let t = i as i64 + 1;
-                pg.add_edge(t, node(i), node(i + 1), NO_PROPS, p).unwrap();
-                if i.is_multiple_of(3) {
-                    pg.delete_edge(t, node(i + 7), node(i + 8), p).unwrap();
-                }
-                if i.is_multiple_of(5) {
-                    // new nodes (and node segments), a bounded number of them
-                    let new = format!("http://ex/new{}", i % (3 * N));
-                    pg.add_edge(t, new, node(i), NO_PROPS, p).unwrap();
-                }
-                // new layers throughout the run, a bounded number of them
-                if i.is_multiple_of(64) && i < 128_000 {
-                    let layer = layer_of(&format!("http://ex/new{i}"));
-                    pg.add_edge(t, "http://ex/a", "http://ex/c", NO_PROPS, Some(&layer))
-                        .unwrap();
-                }
-                progress.store(i + 1, Ordering::Relaxed);
-            }
-        })
-    };
-    let rg = RdfGraph::from(pg);
-    let results = within_60s({
-        let rg = rg.clone();
-        let progress = progress.clone();
-        move || {
-            (0..60)
-                .map(|i| {
-                    let before = progress.load(Ordering::Relaxed);
-                    let query = match i % 3 {
-                        0 => "SELECT * { ?a ?p ?b . ?b ?q ?c }".to_owned(),
-                        // read from the edges of the layer
-                        1 => "SELECT * { ?s <http://ex/p> ?o }".to_owned(),
-                        _ => format!(
-                            "SELECT * {{ GRAPH <raphtory:asof:{before}> {{ ?s <http://ex/p> ?o }} }}"
-                        ),
-                    };
-                    let rows = select(&rg, &query).len();
-                    (rows, progress.load(Ordering::Relaxed) > before)
-                })
-                .collect::<Vec<_>>()
-        }
-    });
-    stop.store(true, Ordering::Relaxed);
-    writer.join().unwrap();
-    assert!(results.iter().all(|(rows, _)| *rows > 0), "{results:?}");
-    // the writer really did write while queries ran
-    assert!(results.iter().any(|(_, written)| *written), "{results:?}");
-    assert!(ask(
-        &rg,
-        "ASK { <http://ex/a> <http://ex/l1> <http://ex/b> }"
-    ));
-}
-
-/// A query on a `read_only()` view sees the locked graph, not the names a waiting writer resolved.
-#[test]
-fn read_only_view_is_queried_while_a_writer_waits() {
-    let rg = RdfGraph::new();
-    rg.load_rdf(
-        1,
-        "<http://e/a> <http://e/p> <http://e/b> .".as_bytes(),
-        RdfFormat::NTriples,
-        None,
-    )
-    .unwrap();
-    let handle = RdfGraph::from(rg.graph().read_only());
-    let writer = {
-        let rg = rg.clone();
-        thread::spawn(move || {
-            let doc = "<http://e/c> <http://e/p> <http://e/d> .
-                       <http://e/a> <http://e/q> <http://e/b> .";
-            rg.load_rdf(2, doc.as_bytes(), RdfFormat::NTriples, None)
-                .unwrap();
-        })
-    };
-    // the writer registers layer q before it writes the second triple into the locked storage
-    within_60s({
-        let g = rg.graph().clone();
-        move || {
-            while g.get_layer_id(&layer_of("http://e/q")).is_none() {
-                thread::yield_now()
-            }
-        }
-    });
-    assert!(!writer.is_finished(), "the writer did not wait");
-    let (new_subject, new_object, new_predicate, all, layer, layer_asof) = within_60s(move || {
-        let results = (
-            ask(&handle, "ASK { <http://e/c> ?p ?o }"),
-            ask(&handle, "ASK { ?s ?p <http://e/d> }"),
-            ask(&handle, "ASK { ?s <http://e/q> ?o }"),
-            select(&handle, "SELECT ?s ?p ?o { ?s ?p ?o }"),
-            // read from the edges of the layer in the locked storage
-            select(&handle, "SELECT ?s ?o { ?s <http://e/p> ?o }"),
-            select(
-                &handle,
-                "SELECT ?s ?o { GRAPH <raphtory:asof:5> { ?s <http://e/p> ?o } }",
-            ),
-        );
-        drop(handle);
-        results
-    });
-    assert!(!new_subject && !new_object && !new_predicate);
-    assert_eq!(
-        all,
-        vec![vec!["<http://e/a>", "<http://e/p>", "<http://e/b>"]]
-    );
-    assert_eq!(layer, vec![vec!["<http://e/a>", "<http://e/b>"]]);
-    assert_eq!(layer_asof, layer);
-    // the writer goes ahead once the view is dropped
-    writer.join().unwrap();
-    assert!(ask(&rg, "ASK { <http://e/c> <http://e/p> <http://e/d> }"));
-    assert!(ask(&rg, "ASK { <http://e/a> <http://e/q> <http://e/b> }"));
 }

@@ -1,16 +1,14 @@
 //! Python bindings for RDF: the `RdfGraph` and `RdfView` classes.
 //!
 //! RDF terms cross to and from Python as the Raphtory node names they stand for (see
-//! [`name_of`] and [`term_of`]), predicates included, so a value returned by `sparql` can be
+//! [`term_name`] and [`term_of`]), predicates included, so a value returned by `sparql` can be
 //! passed straight to `rg.graph.node(..)` or `add_triple`.
 use crate::{
-    literal_to_prop, name_of, parse_rdf_format, serializer_with_prefixes, term_of, RdfError,
-    RdfFormat, RdfGraph, RdfView, SparqlFormat, SparqlOptions, SparqlResults, Term, TermRef,
-    Triple,
+    term_name, term_of, RdfError, RdfFormat, RdfGraph, RdfView, SparqlFormat, SparqlOptions,
+    SparqlResults, Triple,
 };
-use chrono::{Datelike, Timelike};
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::PyValueError,
     prelude::*,
     pybacked::PyBackedBytes,
     types::{PyDict, PyList, PyString},
@@ -26,26 +24,22 @@ use raphtory::{
             },
         },
         graph::views::{
-            filter::node_filtered_graph::NodeFilteredGraph, node_subgraph::NodeSubgraph,
-            valid_graph::ValidGraph,
+            cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
+            node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
         },
     },
-    errors::GraphError,
     impl_filter_ops, impl_layerops, impl_timeops,
     prelude::*,
-    python::{config::PyArgs, types::iterable::FromIterable, utils::PyNodeRef},
+    python::{types::iterable::FromIterable, utils::PyNodeRef},
 };
 use raphtory_api::{
-    core::storage::arc_str::ArcStr,
+    core::{
+        storage::arc_str::ArcStr,
+        utils::time::{InputTime, TryIntoInputTime},
+    },
     python::{error::adapt_err_value, timeindex::EventTimeComponent},
 };
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::Read,
-    ops::RangeInclusive,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 impl From<RdfError> for PyErr {
     fn from(err: RdfError) -> Self {
@@ -53,116 +47,33 @@ impl From<RdfError> for PyErr {
             RdfError::Graph(err) => err.into(),
             RdfError::SparqlSyntax(_)
             | RdfError::SparqlTooDeep { .. }
-            | RdfError::TooManyPatterns { .. }
             | RdfError::Parse(_)
             | RdfError::UnknownFormat(_)
+            | RdfError::NoPathFormat(_)
             | RdfError::UnknownSparqlFormat(_)
-            | RdfError::WrongResultsFormat { .. }
-            | RdfError::InvalidPrefix { .. } => PyValueError::new_err(err.to_string()),
-            RdfError::NonStringIds | RdfError::NotPersistent => {
-                PyTypeError::new_err(err.to_string())
-            }
+            | RdfError::WrongResultsFormat { .. } => PyValueError::new_err(err.to_string()),
             err => adapt_err_value(&err),
         }
     }
 }
 
-// An RDF document passed from Python: its content or the path of a file.
 #[derive(FromPyObject)]
 pub(crate) enum RdfSource {
     Bytes(PyBackedBytes),
     Path(PathBuf),
 }
 
-impl RdfSource {
-    // The format to read: `format` if given, else the extension of a path (an unknown one is
-    // an error), else Turtle (which also reads N-Triples), for bytes and for a path without an
-    // extension, like the N-Triples that `to_rdf` writes to such a path.
-    pub(crate) fn format(&self, format: Option<&str>) -> Result<RdfFormat, RdfError> {
-        match (format, self) {
-            (Some(format), _) => parse_rdf_format(format),
-            (None, Self::Bytes(_)) => Ok(RdfFormat::Turtle),
-            (None, Self::Path(path)) => path_format(path).unwrap_or(Ok(RdfFormat::Turtle)),
-        }
-    }
-
-    pub(crate) fn read<R>(
-        &self,
-        read: impl FnOnce(&mut dyn Read) -> Result<R, RdfError>,
-    ) -> Result<R, RdfError> {
-        match self {
-            Self::Bytes(bytes) => read(&mut bytes.as_ref()),
-            Self::Path(path) => {
-                if path.is_dir() {
-                    return Err(GraphError::IOErrorMsg(format!(
-                        "cannot open '{}': it is a directory",
-                        path.display()
-                    ))
-                    .into());
-                }
-                let mut file = File::open(path).map_err(|error| {
-                    GraphError::IOErrorMsg(format!("cannot open '{}': {error}", path.display()))
-                })?;
-                read(&mut file)
-            }
-        }
-    }
-}
-
-// The RDF format named by the extension of `path`, if it has one (`doc.` and `.nt` have none).
-fn path_format(path: &Path) -> Option<Result<RdfFormat, RdfError>> {
-    path.extension()
-        .filter(|extension| !extension.is_empty())
-        .map(|extension| parse_rdf_format(&extension.to_string_lossy()))
-}
-
-// SPARQL results converted to `Send` Raphtory values, ready to become Python objects.
 enum PySparqlResults {
     Rows {
         variables: Vec<String>,
-        rows: Vec<Vec<Option<Prop>>>,
+        rows: Vec<Vec<Option<String>>>,
     },
     Boolean(bool),
-    Triples(Vec<(String, String, Prop)>),
-}
-
-// The Raphtory name of a term, or its N-Triples form if it has none (only possible for terms
-// built by the query, such as a time graph IRI).
-pub(crate) fn term_name(term: TermRef<'_>) -> String {
-    name_of(term).unwrap_or_else(|| term.to_string())
-}
-
-// The Python value of a term: its name, or the literal's value if `decode_literals` is set and
-// the literal's datatype is supported (and the value fits the Python type).
-fn term_value(term: &Term, decode_literals: bool) -> Prop {
-    if decode_literals {
-        if let Term::Literal(literal) = term {
-            if let Some(value) = literal_to_prop(literal).filter(fits_python) {
-                return value;
-            }
-        }
-    }
-    Prop::str(term_name(term.as_ref()))
-}
-
-// Whether a decoded literal can be converted to Python without loss: a `datetime` only holds the
-// years 1 to 9999 (after the conversion to UTC for a date-time with a timezone), in whole
-// microseconds.
-fn fits_python(value: &Prop) -> bool {
-    const PYTHON_YEARS: RangeInclusive<i32> = 1..=9999;
-    match value {
-        Prop::DTime(value) => {
-            PYTHON_YEARS.contains(&value.year()) && value.nanosecond() % 1000 == 0
-        }
-        Prop::NDTime(value) => {
-            PYTHON_YEARS.contains(&value.year()) && value.nanosecond() % 1000 == 0
-        }
-        _ => true,
-    }
+    Triples(Vec<(String, String, String)>),
 }
 
 impl PySparqlResults {
-    fn new(results: SparqlResults, decode_literals: bool) -> Self {
+    fn new(results: SparqlResults) -> Self {
         match results {
             SparqlResults::Solutions { variables, rows } => Self::Rows {
                 variables: variables.iter().map(|v| v.as_str().to_owned()).collect(),
@@ -170,7 +81,7 @@ impl PySparqlResults {
                     .into_iter()
                     .map(|row| {
                         row.into_iter()
-                            .map(|v| v.map(|t| term_value(&t, decode_literals)))
+                            .map(|v| v.map(|t| term_name(t.as_ref())))
                             .collect()
                     })
                     .collect(),
@@ -183,7 +94,7 @@ impl PySparqlResults {
                         (
                             term_name(triple.subject.as_ref().into()),
                             term_name(triple.predicate.as_ref().into()),
-                            term_value(&triple.object, decode_literals),
+                            term_name(triple.object.as_ref()),
                         )
                     })
                     .collect(),
@@ -219,11 +130,21 @@ fn triple_of(subject: &str, predicate: &str, object: &str) -> Result<Triple, Rdf
     )?)
 }
 
+fn input_time(
+    timestamp: EventTimeComponent,
+    event_id: Option<usize>,
+) -> Result<InputTime, RdfError> {
+    Ok(match event_id {
+        None => timestamp.try_into_input_time()?,
+        Some(event_id) => (timestamp, event_id).try_into_input_time()?,
+    })
+}
+
 /// A view of an RdfGraph: the RDF triples of a persistent graph view, one per edge and layer
 /// visible in it.
 ///
 /// Every view method (window, at, latest, before, after, layers, filter, valid, subgraph, ...)
-/// returns an RdfView, and sparql, to_rdf and the SHACL methods see exactly the triples of the
+/// returns an RdfView, and sparql, to_rdf and validate_shacl see exactly the triples of the
 /// view: under valid() the triples valid at the end of the view (on the whole graph, the current
 /// state), under at(t) the state as of t, under a window every triple that held in it, and on the
 /// whole graph every triple ever asserted or retracted.
@@ -309,6 +230,14 @@ impl PyRdfView {
         self.view.exclude_nodes(nodes)
     }
 
+    /// Return a view with the nodes and edges visible in this view precomputed.
+    ///
+    /// Returns:
+    ///     RdfView: The view.
+    fn cache_view(&self) -> RdfView<CachedView<DynamicGraph>> {
+        self.view.cache_view()
+    }
+
     /// Runs a SPARQL 1.1 query on the RDF triples of this view.
     ///
     /// Every edge is one triple per layer, src layer dst, where node names are RDF terms: an
@@ -323,24 +252,25 @@ impl PyRdfView {
     ///
     /// The query sees exactly the triples of this view: rg.valid().sparql(..) queries the
     /// current state and rg.at(t).sparql(..) the state as of t. Inside a query,
-    /// GRAPH <raphtory:asof:T> { .. } matches its patterns against snapshot_at(T) of this view,
-    /// where T is epoch milliseconds or a date-time such as 2024-01-01.
+    /// GRAPH <raphtory:asof:T> { .. } matches its patterns against before(T + 1).valid() of this
+    /// view, where T is epoch milliseconds or a date-time such as 2024-01-01. On rg.valid() a
+    /// time graph holds only the triples that held at T and still hold at the end of the view,
+    /// so compare times on a view without valid().
     ///
-    /// raphtory:validFrom(s, p, o) returns the time since which a triple visible in this view
-    /// has held, and raphtory:validTo(s, p, o) the time it stopped holding, as xsd:dateTime
-    /// values in UTC (a datetime with decode_literals); raphtory:validFromTime and
+    /// raphtory:validFrom(s, p, o) returns when the latest run of a triple visible in this view
+    /// started (or the start of the view, if it already held there), and raphtory:validTo(s, p, o)
+    /// the retraction that ended that run (unbound if it still holds at the end of the view), as
+    /// xsd:dateTime values in UTC; raphtory:validFromTime and
     /// raphtory:validToTime return the same times as integers (Raphtory times). An optional
-    /// fourth argument is the reference time: a time graph such as raphtory:asof:2024-01-01 (or
-    /// the ?g of GRAPH ?g, in a BIND after the GRAPH pattern), an integer or an xsd:dateTime.
-    /// Without it they answer for the end of the view, so validTo is unbound for a triple that
-    /// still holds. They are unbound for a triple the view (as of the reference time) does not
-    /// show, and for arguments they do not accept.
+    /// fourth argument, a time graph such as raphtory:asof:2024-01-01 (or the ?g of GRAPH ?g, in
+    /// a BIND after the GRAPH pattern), makes them answer in that time graph instead. They are
+    /// unbound for a triple they do not see, and for arguments they do not accept.
     ///
     /// SERVICE calls (SPARQL federated queries) are not supported: a query that calls a service
     /// raises a GraphError, and no query ever makes a network request.
     ///
-    /// Every value is returned as the node name of its term (a str), so it can be passed to
-    /// graph.node(); an IRI predicate of a CONSTRUCT or DESCRIBE triple is returned as its IRI.
+    /// Every value, predicates included, is returned as the name of its term (a str), so a node
+    /// can be passed to graph.node().
     /// IRIs under raphtory: that do not encode a name, such as the time graphs
     /// <raphtory:asof:T>, are returned in N-Triples form, with angle brackets.
     ///
@@ -350,55 +280,26 @@ impl PyRdfView {
     /// SELECT and ASK and JSON-LD for CONSTRUCT and DESCRIBE, and "xml" is SPARQL Results XML or
     /// RDF/XML. Serialized results hold RDF terms, as to_rdf() writes them, not Raphtory names.
     ///
-    /// By default a query runs until it is done. To run queries you do not control, bound them
-    /// with max_triple_patterns, which rejects a query that is too large before it is planned.
-    /// Each triple pattern counts one, a property path one per predicate it names, a BIND or a
-    /// SELECT or GROUP BY expression one, and a VALUES block one plus one per variable and per
-    /// 100 rows.
-    ///
     /// Arguments:
     ///     query (str): The SPARQL query.
-    ///     decode_literals (bool): If True, literals are returned as Python values (str, bool, int, float, Decimal or datetime) where their datatype is supported and the value fits the Python type (a datetime from year 1 to 9999, in whole microseconds), instead of their names; language tags are dropped. Cannot be combined with format. Defaults to False.
     ///     format (str, optional): If given, the results are returned as a document in this format, as a file extension, name or media type (such as "json", "xml", "csv", "tsv" or "application/sparql-results+json" for SELECT and ASK, and "nt", "ttl", "jsonld", "rdf" or "text/turtle" for CONSTRUCT and DESCRIBE). Defaults to None.
-    ///     max_triple_patterns (int, optional): If given, a query with more triple patterns raises a ValueError before it runs. Defaults to None.
     ///
     /// Returns:
-    ///     list[dict[str, Any]] | bool | list[tuple[str, str, Any]] | str: For SELECT, one dict per solution mapping every variable (in the order of the SELECT clause, or sorted by name for SELECT *) to its value (None if unbound); for ASK, a bool; for CONSTRUCT and DESCRIBE, one (subject, predicate, object) tuple per triple; with format, the serialized results.
+    ///     Union[list[dict[str, Optional[str]]], bool, list[tuple[str, str, str]], str]: For SELECT, one dict per solution mapping every variable (in the order of the SELECT clause, or sorted by name for SELECT *) to its value (None if unbound); for ASK, a bool; for CONSTRUCT and DESCRIBE, one (subject, predicate, object) tuple per triple; with format, the serialized results.
     ///
     /// Raises:
     ///     GraphError: If the evaluation of the query fails, or if SPARQL Results XML cannot hold a value or RDF/XML a triple (such as one whose predicate does not end in an XML name).
-    ///     ValueError: If the query does not parse or has more than max_triple_patterns triple patterns, if format is unknown or does not fit the form of the query, or if both decode_literals and format are given.
-    #[pyo3(signature = (query, decode_literals = false, format = None, max_triple_patterns = None))]
-    fn sparql(
-        &self,
-        py: Python<'_>,
-        query: &str,
-        decode_literals: bool,
-        format: Option<&str>,
-        max_triple_patterns: Option<usize>,
-    ) -> PyResult<Py<PyAny>> {
-        let options = SparqlOptions::default().with_max_triple_patterns(max_triple_patterns);
+    ///     ValueError: If the query does not parse, or if format is unknown or does not fit the form of the query.
+    #[pyo3(signature = (query, format = None))]
+    fn sparql(&self, py: Python<'_>, query: &str, format: Option<&str>) -> PyResult<Py<PyAny>> {
+        let options = SparqlOptions::default();
         let Some(format) = format else {
-            let results = py.detach(|| {
-                self.view
-                    .sparql(query, &options)
-                    .map(|results| PySparqlResults::new(results, decode_literals))
-            })?;
+            let results =
+                py.detach(|| self.view.sparql(query, &options).map(PySparqlResults::new))?;
             return results.into_python(py);
         };
-        if decode_literals {
-            return Err(PyValueError::new_err(
-                "decode_literals cannot be combined with format: serialized results hold RDF \
-                 terms, not Python values",
-            ));
-        }
         let format = SparqlFormat::parse(format)?;
-        let document = py.detach(|| {
-            let mut document = Vec::new();
-            self.view
-                .sparql_to_writer(query, &mut document, format, &options)?;
-            String::from_utf8(document).map_err(RdfError::from)
-        })?;
+        let document = py.detach(|| self.view.sparql_to_string(query, format, &options))?;
         document.into_py_any(py)
     }
 
@@ -417,48 +318,27 @@ impl PyRdfView {
     /// Arguments:
     ///     path (str | PathLike, optional): The file to write. If not given, the document is returned as a string instead. Defaults to None.
     ///     format (str, optional): The RDF format, as a file extension, name or media type (such as "nt", "ttl", "turtle", "trig" or "rdf"). If not given, it is taken from the extension of path (an unknown extension raises an error), and is N-Triples if there is no path or it has no extension. Defaults to None.
-    ///     prefixes (dict[str, str], optional): Prefix names mapped to IRIs, used by formats that support them (Turtle, TriG, RDF/XML). A name must be empty or a valid prefix name of the format, such as a letter followed by letters, digits, '_', '-' or '.' (not ending with '.'). Defaults to None.
     ///
     /// Returns:
     ///     Optional[str]: The document if path is not given, otherwise None.
     ///
     /// Raises:
-    ///     GraphError: If a prefix IRI is invalid or writing fails.
-    ///     ValueError: If the format is unknown or a prefix name is invalid.
-    #[pyo3(signature = (path = None, format = None, prefixes = None))]
+    ///     GraphError: If writing fails.
+    ///     ValueError: If the format is unknown.
+    #[pyo3(signature = (path = None, format = None))]
     fn to_rdf(
         &self,
         py: Python<'_>,
         path: Option<PathBuf>,
         format: Option<&str>,
-        prefixes: Option<HashMap<String, String>>,
     ) -> Result<Option<String>, RdfError> {
-        let format = match (format, &path) {
-            (Some(format), _) => parse_rdf_format(format)?,
-            (None, Some(path)) => path_format(path).unwrap_or(Ok(RdfFormat::NTriples))?,
-            (None, None) => RdfFormat::NTriples,
-        };
-        let mut prefixes: Vec<(&str, &str)> = prefixes
-            .iter()
-            .flatten()
-            .map(|(name, iri)| (name.as_str(), iri.as_str()))
-            .collect();
-        prefixes.sort();
+        let format = format.map(RdfFormat::parse).transpose()?;
         py.detach(|| match path {
             Some(path) => {
-                // before the file is truncated
-                serializer_with_prefixes(format, prefixes.iter().copied()).map(drop)?;
-                let mut file = File::create(&path).map_err(|error| {
-                    GraphError::IOErrorMsg(format!("cannot create '{}': {error}", path.display()))
-                })?;
-                self.view.to_rdf(&mut file, format, &prefixes)?;
+                self.view.to_rdf_path(path, format)?;
                 Ok(None)
             }
-            None => {
-                let mut document = Vec::new();
-                self.view.to_rdf(&mut document, format, &prefixes)?;
-                Ok(Some(String::from_utf8(document).map_err(RdfError::from)?))
-            }
+            None => Ok(Some(self.view.to_rdf_string(format)?)),
         })
     }
 }
@@ -497,47 +377,6 @@ impl PyRdfGraph {
         Self::initializer(graph.map_or_else(RdfGraph::new, RdfGraph::from))
     }
 
-    /// Opens the graph stored at path, event or persistent, as an RdfGraph.
-    ///
-    /// A graph saved to disk is opened and an encoded graph is decoded. config and read_only
-    /// apply to a graph saved to disk.
-    ///
-    /// Arguments:
-    ///     path (str | PathLike): The path of the graph folder.
-    ///     config (dict[str, Any], optional): specify a new config to override the values saved for the graph
-    ///                                (note that page sizes cannot be overridden; providing them raises an error)
-    ///     read_only (bool): open as a read-only snapshot. Defaults to False.
-    ///                       Multiple processes can hold a read-only handle to the same graph
-    ///                       directory concurrently. Mutating the returned graph will fail.
-    ///
-    /// Returns:
-    ///     RdfGraph: The graph.
-    ///
-    /// Raises:
-    ///     GraphError: If path is not a stored graph or cannot be read.
-    #[staticmethod]
-    #[pyo3(signature = (path, config = None, read_only = false))]
-    fn load(
-        py: Python<'_>,
-        path: PathBuf,
-        config: Option<PyArgs>,
-        read_only: bool,
-    ) -> PyResult<Py<Self>> {
-        let graph = py.detach(|| -> Result<_, RdfError> {
-            Ok(match (config, read_only) {
-                (None, false) => RdfGraph::load(&path)?,
-                (Some(PyArgs(args)), false) => {
-                    PersistentGraph::load_with_config(&path, args)?.into()
-                }
-                (None, true) => PersistentGraph::load_read_only(&path)?.into(),
-                (Some(PyArgs(args)), true) => {
-                    PersistentGraph::load_read_only_with_config(&path, args)?.into()
-                }
-            })
-        })?;
-        Py::new(py, Self::initializer(graph))
-    }
-
     /// The graph as a property graph, sharing its storage.
     ///
     /// Returns:
@@ -547,7 +386,7 @@ impl PyRdfGraph {
         self.graph.graph().clone()
     }
 
-    /// Asserts every triple of an RDF document at time.
+    /// Asserts every triple of an RDF document at timestamp.
     ///
     /// Each triple s p o is added as an edge from s to o in the layer of p. Node names are RDF
     /// terms: IRIs as written, blank nodes as _:label (renamed to fresh labels on every load) and
@@ -556,16 +395,17 @@ impl PyRdfGraph {
     /// the IRI with %, /, :, ? and * percent-escaped as %25, %2F, %3A, %3F and %2A, so that layer
     /// names are safe as file names: the layer of <http://ex/knows> is http%3A%2F%2Fex%2Fknows.
     /// The layer of <raphtory:x> is x percent-decoded, and a predicate whose layer would be blank
-    /// or contain a control character or any of / \ : * ? " < > | raises an error. Named graphs
-    /// are rejected. Each triple is written as one edge event, in document order, so a load can
-    /// run while other threads query or write the graph; it is not atomic: triples read before
-    /// an error stay in the graph.
+    /// or contain a control character, a backslash or any of / : * ? " < > | raises an error.
+    /// Named graphs are rejected. Each triple is written as one edge event, in document order, so
+    /// a load can run while other threads query or write the graph; it is not atomic: triples
+    /// read before an error stay in the graph.
     ///
     /// Arguments:
-    ///     time (TimeInput): The time at which the triples are asserted.
+    ///     timestamp (TimeInput): The time at which the triples are asserted.
     ///     source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
-    ///     format (str, optional): The RDF format, as a file extension, name or media type (such as "ttl", "nt", "turtle", "text/turtle", "trig" or "rdf"). If not given, it is taken from the extension of a path (an unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes and for a path without an extension. Defaults to None.
+    ///     format (str, optional): The RDF format, as a file extension, name or media type (such as "ttl", "nt", "turtle", "text/turtle", "trig" or "rdf"). If not given, it is taken from the extension of a path (a missing or unknown extension raises an error), and is Turtle (which also reads N-Triples) for bytes. Defaults to None.
     ///     base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+    ///     event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     int: The number of triples read.
@@ -573,34 +413,40 @@ impl PyRdfGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     ///     ValueError: If the format is unknown or the document does not parse.
-    ///     TypeError: If source is neither bytes nor a path, or the graph uses integer node ids.
-    #[pyo3(signature = (time, source, format = None, base_iri = None))]
+    ///     TypeError: If source is neither bytes nor a path.
+    #[pyo3(signature = (timestamp, source, format = None, base_iri = None, event_id = None))]
     fn load_rdf(
         &self,
         py: Python<'_>,
-        time: EventTimeComponent,
+        timestamp: EventTimeComponent,
         source: RdfSource,
         format: Option<&str>,
         base_iri: Option<&str>,
-    ) -> PyResult<usize> {
-        let format = source.format(format)?;
-        Ok(py.detach(|| source.read(|data| self.graph.load_rdf(time, data, format, base_iri)))?)
+        event_id: Option<usize>,
+    ) -> Result<usize, RdfError> {
+        let time = input_time(timestamp, event_id)?;
+        let format = format.map(RdfFormat::parse).transpose()?;
+        py.detach(|| match source {
+            RdfSource::Bytes(bytes) => self.graph.load_rdf(time, bytes.as_ref(), format, base_iri),
+            RdfSource::Path(path) => self.graph.load_rdf_path(time, path, format, base_iri),
+        })
     }
 
-    /// Retracts every triple of an RDF document at time.
+    /// Retracts every triple of an RDF document at timestamp.
     ///
     /// Each triple s p o is deleted from the layer of p of the edge from s to o, with names
-    /// mapped as in load_rdf(), so from time on it does not hold (until it is asserted again). A
-    /// retraction is recorded even if the triple was never asserted. Blank-node labels are used
-    /// as written, so they must be the stored labels (as returned by to_rdf() or sparql()). Each
-    /// triple is written as one edge event, in document order. The retraction streams and is not
-    /// atomic: triples before an error stay retracted.
+    /// mapped as in load_rdf(), so from timestamp on it does not hold (until it is asserted
+    /// again). A retraction is recorded even if the triple was never asserted. Blank-node labels
+    /// are used as written, so they must be the stored labels (as returned by to_rdf() or
+    /// sparql()). Each triple is written as one edge event, in document order. The retraction
+    /// streams and is not atomic: triples before an error stay retracted.
     ///
     /// Arguments:
-    ///     time (TimeInput): The time at which the triples are retracted.
+    ///     timestamp (TimeInput): The time at which the triples are retracted.
     ///     source (bytes | str | PathLike): The document as bytes, or the path of a file to read.
     ///     format (str, optional): The RDF format, as in load_rdf(). Defaults to None.
     ///     base_iri (str, optional): The IRI against which relative IRIs are resolved. Defaults to None.
+    ///     event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     int: The number of triples read.
@@ -608,75 +454,90 @@ impl PyRdfGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     ///     ValueError: If the format is unknown or the document does not parse.
-    ///     TypeError: If source is neither bytes nor a path, or the graph uses integer node ids.
-    #[pyo3(signature = (time, source, format = None, base_iri = None))]
+    ///     TypeError: If source is neither bytes nor a path.
+    #[pyo3(signature = (timestamp, source, format = None, base_iri = None, event_id = None))]
     fn retract_rdf(
         &self,
         py: Python<'_>,
-        time: EventTimeComponent,
+        timestamp: EventTimeComponent,
         source: RdfSource,
         format: Option<&str>,
         base_iri: Option<&str>,
-    ) -> PyResult<usize> {
-        let format = source.format(format)?;
-        Ok(py.detach(|| source.read(|data| self.graph.retract_rdf(time, data, format, base_iri)))?)
+        event_id: Option<usize>,
+    ) -> Result<usize, RdfError> {
+        let time = input_time(timestamp, event_id)?;
+        let format = format.map(RdfFormat::parse).transpose()?;
+        py.detach(|| match source {
+            RdfSource::Bytes(bytes) => {
+                self.graph
+                    .retract_rdf(time, bytes.as_ref(), format, base_iri)
+            }
+            RdfSource::Path(path) => self.graph.retract_rdf_path(time, path, format, base_iri),
+        })
     }
 
-    /// Asserts one triple at time.
+    /// Asserts one triple at timestamp.
     ///
-    /// The terms are given as the node names sparql() returns, so its values can be passed
-    /// straight back: an absolute IRI as written (http://ex/alice), _:label for a blank node
-    /// (used as written), a literal in its N-Triples form ("Bob" or
-    /// "42"^^<http://www.w3.org/2001/XMLSchema#integer>), and any other name as raphtory: followed
-    /// by the percent-encoded name (Alice is raphtory:Alice).
+    /// The terms are names, as sparql() returns them, so its values can be passed straight back:
+    /// an absolute IRI as written (http://ex/alice), _:label for a blank node (used as written),
+    /// a literal in its N-Triples form ("Bob" or "42"^^<http://www.w3.org/2001/XMLSchema#integer>),
+    /// and any other name as it is (Alice).
     ///
     /// Arguments:
-    ///     time (TimeInput): The time at which the triple is asserted.
+    ///     timestamp (TimeInput): The time at which the triple is asserted.
     ///     subject (str): The subject, such as http://ex/alice or _:b0.
     ///     predicate (str): The predicate, such as http://ex/knows.
     ///     object (str): The object, such as http://ex/bob or "Bob".
+    ///     event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None:
     ///
     /// Raises:
     ///     GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
-    ///     TypeError: If the graph uses integer node ids.
+    #[pyo3(signature = (timestamp, subject, predicate, object, event_id = None))]
     fn add_triple(
         &self,
-        time: EventTimeComponent,
+        timestamp: EventTimeComponent,
         subject: &str,
         predicate: &str,
         object: &str,
+        event_id: Option<usize>,
     ) -> Result<(), RdfError> {
-        self.graph
-            .add_triple(time, &triple_of(subject, predicate, object)?)
+        self.graph.add_triple(
+            input_time(timestamp, event_id)?,
+            &triple_of(subject, predicate, object)?,
+        )
     }
 
-    /// Retracts one triple at time.
+    /// Retracts one triple at timestamp.
     ///
     /// Terms are given as in add_triple().
     ///
     /// Arguments:
-    ///     time (TimeInput): The time at which the triple is retracted.
+    ///     timestamp (TimeInput): The time at which the triple is retracted.
     ///     subject (str): The subject, such as http://ex/alice or _:b0.
     ///     predicate (str): The predicate, such as http://ex/knows.
     ///     object (str): The object, such as http://ex/bob or "Bob".
+    ///     event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None:
     ///
     /// Raises:
     ///     GraphError: If a term cannot be in its position (such as a literal subject), or the triple cannot be stored.
-    ///     TypeError: If the graph uses integer node ids.
+    #[pyo3(signature = (timestamp, subject, predicate, object, event_id = None))]
     fn retract_triple(
         &self,
-        time: EventTimeComponent,
+        timestamp: EventTimeComponent,
         subject: &str,
         predicate: &str,
         object: &str,
+        event_id: Option<usize>,
     ) -> Result<(), RdfError> {
-        self.graph
-            .retract_triple(time, &triple_of(subject, predicate, object)?)
+        self.graph.retract_triple(
+            input_time(timestamp, event_id)?,
+            &triple_of(subject, predicate, object)?,
+        )
     }
 }

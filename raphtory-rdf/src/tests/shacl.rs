@@ -1,4 +1,4 @@
-//! SHACL validation of graph views (feature `shacl`).
+//! SHACL validation of graph views.
 use super::{
     layer_of,
     shacl_report::{actual, expected, key, multiset, Key},
@@ -6,8 +6,8 @@ use super::{
 use crate::{
     name_of,
     shacl::{
-        run_guarded, Proc, ShaclPath, ShaclReport, ShaclShapes, ShaclWarning, MAX_LIST_LENGTH,
-        MAX_NESTING,
+        run_guarded, Proc, ShaclLimit, ShaclOptions, ShaclPath, ShaclReport, ShaclShapes,
+        ShaclWarning, MAX_LIST_LENGTH, MAX_NESTING,
     },
     Literal, NamedNode, RdfError, RdfFormat, RdfGraph, RdfView, Term, Triple,
 };
@@ -104,8 +104,7 @@ fn validate_export<G: StaticGraphViewOps + IntoDynamic>(
     shapes_ttl: &str,
 ) -> (bool, FxHashMap<Summary, usize>) {
     let mut document = Vec::new();
-    view.to_rdf(&mut document, RdfFormat::NTriples, &[])
-        .unwrap();
+    view.to_rdf(&mut document, RdfFormat::NTriples).unwrap();
     let store = OxigraphInMemory::from_reader(
         &mut document.as_slice(),
         "raphtory",
@@ -141,7 +140,9 @@ fn validate_checked<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
     shapes_ttl: &str,
 ) -> ShaclReport {
-    let report = view.validate_shacl(&shapes(shapes_ttl)).unwrap();
+    let report = view
+        .validate_shacl(&shapes(shapes_ttl), &ShaclOptions::default())
+        .unwrap();
     assert_eq!(
         (report.conforms, multiset(results(&report))),
         validate_export(view, shapes_ttl),
@@ -309,13 +310,13 @@ fn subclass_reasoning_is_partial() {
         .unwrap();
     assert!(g
         .valid()
-        .validate_shacl(&shapes(CLASS))
+        .validate_shacl(&shapes(CLASS), &ShaclOptions::default())
         .unwrap()
         .warnings
         .is_empty());
     assert!(!g
         .snapshot_at(1)
-        .validate_shacl(&shapes(CLASS))
+        .validate_shacl(&shapes(CLASS), &ShaclOptions::default())
         .unwrap()
         .warnings
         .is_empty());
@@ -324,7 +325,9 @@ fn subclass_reasoning_is_partial() {
         r#"@prefix sh: <http://www.w3.org/ns/shacl#> .
         <http://ex/S> sh:targetNode <http://ex/x> ; sh:property [ sh:path <http://ex/knows> ; sh:minCount 1 ] ."#,
     );
-    let report = subclass_graph().validate_shacl(&s).unwrap();
+    let report = subclass_graph()
+        .validate_shacl(&s, &ShaclOptions::default())
+        .unwrap();
     assert!(report.conforms && report.warnings.is_empty());
 }
 
@@ -354,7 +357,9 @@ fn literal_values() {
         <http://ex/S> sh:targetNode <http://ex/a> , <http://ex/b> , <http://ex/c> ;
             sh:property [ sh:path <http://ex/v> ; sh:in ( ) ] .
         <http://ex/T> sh:targetObjectsOf <http://ex/w> ; sh:datatype <http://ex/none> ."#;
-    let report = g.validate_shacl(&shapes(in_nothing)).unwrap();
+    let report = g
+        .validate_shacl(&shapes(in_nothing), &ShaclOptions::default())
+        .unwrap();
     let values = |focus: Term| -> Vec<Term> {
         report
             .results
@@ -394,7 +399,7 @@ fn literal_values() {
         <http://ex/V> sh:targetNode "1"^^xsd:boolean , "02"^^xsd:short ;
             sh:property [ sh:path [ sh:inversePath <http://ex/w> ] ; sh:minCount 1 ] ."#,
     );
-    let report = g.validate_shacl(&s).unwrap();
+    let report = g.validate_shacl(&s, &ShaclOptions::default()).unwrap();
     assert_eq!(
         results(&report),
         [result(
@@ -426,7 +431,10 @@ fn rewritten_literals_follow_the_view() {
             sh:property [ sh:path [ sh:inversePath <http://ex/w> ] ; sh:minCount 1 ] .
         <http://ex/S> sh:targetNode <http://ex/d> ; sh:property [ sh:path <http://ex/w> ; sh:in ( ) ] ."#,
     );
-    let before = g.at(2).validate_shacl(&s).unwrap();
+    let before = g
+        .at(2)
+        .validate_shacl(&s, &ShaclOptions::default())
+        .unwrap();
     assert_eq!(
         results(&before),
         [result(
@@ -445,7 +453,12 @@ fn rewritten_literals_follow_the_view() {
         None,
     )
     .unwrap();
-    assert_eq!(g.at(2).validate_shacl(&s).unwrap(), before);
+    assert_eq!(
+        g.at(2)
+            .validate_shacl(&s, &ShaclOptions::default())
+            .unwrap(),
+        before
+    );
 }
 
 /// Property shapes apply to literal focus nodes, which have no values.
@@ -474,7 +487,7 @@ fn literal_focus_nodes_have_no_values() {
         )
     };
     assert_eq!(
-        results(&g.validate_shacl(&s).unwrap()),
+        results(&g.validate_shacl(&s, &ShaclOptions::default()).unwrap()),
         [
             min_count(typed("042", xsd::LONG)),
             min_count(typed("5", xsd::INTEGER))
@@ -521,12 +534,12 @@ fn unsupported_features_are_rejected() {
 fn validator_panics_are_errors() {
     assert!(matches!(
         run_guarded::<()>("the SHACL validator", || panic!("boom")),
-        Err(RdfError::Shacl(_))
+        Err(RdfError::Panicked(_))
     ));
     assert!(
         temporal_graph()
             .snapshot_at(3)
-            .validate_shacl(&shapes(SHAPES))
+            .validate_shacl(&shapes(SHAPES), &ShaclOptions::default())
             .unwrap()
             .conforms
     );
@@ -572,7 +585,8 @@ fn recursive_shapes_on_cycles() {
         "ex:S sh:targetNode ex:alice ; sh:property ex:P . ex:P sh:path ex:knows ; sh:node ex:S ; sh:maxCount 0 .",
         "ex:S sh:targetNode ex:alice ; sh:node _:s . _:s sh:property [ sh:path ex:knows ; sh:node _:s ; sh:maxCount 0 ] .",
     ] {
-        let report = g.validate_shacl(&shapes(&format!("{prefix} {shapes_ttl}")))
+        let report = g
+            .validate_shacl(&shapes(&format!("{prefix} {shapes_ttl}")), &ShaclOptions::default())
             .unwrap();
         assert!(!report.conforms, "{shapes_ttl}");
         assert_eq!(report.warnings, [ShaclWarning::RecursiveShapes], "{shapes_ttl}");
@@ -582,8 +596,16 @@ fn recursive_shapes_on_cycles() {
         "{prefix} ex:Person a sh:NodeShape , <http://www.w3.org/2000/01/rdf-schema#Class> ;
             sh:property [ sh:path ex:knows ; sh:class ex:Person ; sh:maxCount 0 ] ."
     ));
-    let report = g.validate_shacl(&s).unwrap();
+    let report = g.validate_shacl(&s, &ShaclOptions::default()).unwrap();
     assert!(!report.conforms && report.warnings.is_empty());
+
+    // a validation can reject recursive shapes, and only those
+    let reject = ShaclOptions::default().with_reject_recursive_shapes(true);
+    assert!(matches!(
+        g.validate_shacl(&shapes(recursive), &reject),
+        Err(RdfError::ShaclLimit(ShaclLimit::RecursiveShapes))
+    ));
+    assert!(g.validate_shacl(&s, &reject).is_ok());
 }
 
 fn assert_rejected(ttl: &str) {
@@ -612,7 +634,7 @@ fn limits_of_the_validator() {
         )
     };
     assert!(
-        g.validate_shacl(&shapes(&in_list(MAX_LIST_LENGTH)))
+        g.validate_shacl(&shapes(&in_list(MAX_LIST_LENGTH)), &ShaclOptions::default())
             .unwrap()
             .conforms
     );
@@ -627,12 +649,14 @@ fn limits_of_the_validator() {
         )
     };
     // (ex:S is one deeper than its property shape, as deep as its path)
-    let report = g.validate_shacl(&shapes(&nested(MAX_NESTING - 1))).unwrap();
+    let report = g
+        .validate_shacl(&shapes(&nested(MAX_NESTING - 1)), &ShaclOptions::default())
+        .unwrap();
     assert_eq!(report.results.len(), 1);
     let path = report.results[0].path.as_ref().unwrap().to_string();
     assert_eq!(path.matches('?').count(), MAX_NESTING - 1, "{path}");
     let mut out = Vec::new();
-    report.write(&mut out, RdfFormat::Turtle, &[]).unwrap();
+    report.write(&mut out, RdfFormat::Turtle).unwrap();
     drop(report);
     assert_rejected(&nested(100_000));
     // nested property shapes count too
@@ -644,7 +668,7 @@ fn limits_of_the_validator() {
         )
     };
     assert!(
-        g.validate_shacl(&shapes(&properties(MAX_NESTING)))
+        g.validate_shacl(&shapes(&properties(MAX_NESTING)), &ShaclOptions::default())
             .unwrap()
             .conforms
     );
@@ -657,7 +681,7 @@ fn limits_of_the_validator() {
         format!("{prefix} ex:S0 sh:targetNode ex:a . {chain}")
     };
     assert!(
-        g.validate_shacl(&shapes(&named(MAX_NESTING)))
+        g.validate_shacl(&shapes(&named(MAX_NESTING)), &ShaclOptions::default())
             .unwrap()
             .conforms
     );
@@ -704,7 +728,11 @@ fn limits_of_the_validator() {
         "{prefix} ex:S sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:maxCount 1 ] .
         _:p sh:zeroOrMorePath _:p . _:q sh:inversePath ( ex:p ex:q ) ."
     );
-    assert!(g.validate_shacl(&shapes(&unused)).unwrap().conforms);
+    assert!(
+        g.validate_shacl(&shapes(&unused), &ShaclOptions::default())
+            .unwrap()
+            .conforms
+    );
 }
 
 /// Parsing a shapes document twice gives the same blank-node labels, so reports are deterministic.
@@ -723,9 +751,15 @@ fn blank_node_shapes_are_deterministic() {
         ex:S sh:targetNode ex:a ;
           sh:property [ sh:path ex:p ; sh:maxInclusive 1 ; sh:message "first" ] ;
           sh:property [ sh:path ex:p ; sh:maxInclusive 2 ; sh:message "second" ] ."#;
-    let first = g.validate_shacl(&shapes(ttl)).unwrap();
+    let first = g
+        .validate_shacl(&shapes(ttl), &ShaclOptions::default())
+        .unwrap();
     assert_eq!(first.results.len(), 2);
-    assert_eq!(g.validate_shacl(&shapes(ttl)).unwrap(), first);
+    assert_eq!(
+        g.validate_shacl(&shapes(ttl), &ShaclOptions::default())
+            .unwrap(),
+        first
+    );
     assert_ne!(first.results[0].source_shape, first.results[1].source_shape);
 }
 
@@ -776,13 +810,19 @@ fn paths() {
         .unwrap();
     assert_eq!(info.severity.as_str(), ShaclVocab::SH_INFO);
     assert_eq!(info.messages, [Literal::new_simple_literal("none allowed")]);
+    let names = info.names();
+    assert_eq!(names.focus_node, "http://ex/b");
+    assert_eq!(names.path.as_deref(), Some("^<http://ex/p>"));
+    assert_eq!(names.severity, ShaclVocab::SH_INFO);
+    assert_eq!(names.messages, ["none allowed"]);
+    assert_eq!(predicate("p").unwrap().name(), "http://ex/p");
     assert_write_round_trip(&report, RdfFormat::Turtle);
 }
 
 /// Writes a report, reads it back and checks it holds the same results.
 fn assert_write_round_trip(report: &ShaclReport, format: RdfFormat) {
     let mut out = Vec::new();
-    let written = report.write(&mut out, format, &[]).unwrap();
+    let written = report.write(&mut out, format).unwrap();
     let triples: Vec<Triple> = RdfParser::from_format(format.to_oxigraph())
         .for_slice(&out)
         .map(|quad| quad.map(Triple::from))
@@ -824,7 +864,7 @@ fn rdf_xml_reports_fail_on_literals_xml_cannot_hold() {
     let report = validate_checked(&g, &max_length("a"));
     assert_eq!(report.results.len(), 1);
     let mut out = Vec::new();
-    match report.write(&mut out, RdfFormat::RdfXml, &[]) {
+    match report.write(&mut out, RdfFormat::RdfXml) {
         Err(RdfError::XmlUnsafeReport(term)) => {
             assert_eq!(term, Term::from(Literal::new_simple_literal("cr\rx")))
         }

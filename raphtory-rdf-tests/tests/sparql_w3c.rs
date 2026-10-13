@@ -27,24 +27,25 @@
 //! they agree, it comes from spareval or from the test suite, and the test must be listed in
 //! [`KNOWN_FAILURES`] with the reason. A listed test that passes fails the run, so the list is
 //! pruned when, for example, an oxigraph upgrade fixes one.
-#[path = "common/oracle.rs"]
-mod oracle;
-
 use oxigraph::{
     io::{RdfFormat as OxRdfFormat, RdfParser},
     model::{
         dataset::CanonicalizationAlgorithm, vocab::rdf, BlankNode, Dataset, Graph as OxGraph,
         GraphName, NamedNodeRef, NamedOrBlankNodeRef, Quad,
     },
-    sparql::results::{QueryResultsFormat, QueryResultsParser, ReaderQueryResultsParserOutput},
+    sparql::{
+        results::{QueryResultsFormat, QueryResultsParser, ReaderQueryResultsParserOutput},
+        QueryResults, SparqlEvaluator,
+    },
 };
 use raphtory::prelude::*;
 use raphtory_rdf::{
     NamedNode, RdfError, RdfFormat, RdfGraph, SparqlOptions, SparqlResults, Term, TermRef, Triple,
-    Variable,
+    Variable, RESERVED_NS,
 };
 use spargebra::{Query, SparqlParser};
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     sync::mpsc,
@@ -756,7 +757,7 @@ impl Eval {
                 ));
             }
         }
-        oracle::evaluate(&dataset, &self.query)
+        evaluate(&dataset, &self.query)
     }
 
     fn outcome(&self) -> Outcome {
@@ -792,13 +793,44 @@ impl Eval {
     }
 }
 
+/// The results of `query` on `dataset`, with the `raphtory:` prefix registered and collected as
+/// `RdfView::sparql` collects them (the triples of `CONSTRUCT` and `DESCRIBE` without duplicates).
+fn evaluate(dataset: &Dataset, query: &str) -> Result<SparqlResults, String> {
+    let results = SparqlEvaluator::new()
+        .with_prefix("raphtory", RESERVED_NS)
+        .map_err(|e| e.to_string())?
+        .parse_query(query)
+        .map_err(|e| e.to_string())?
+        .on_queryable_dataset(dataset)
+        .execute()
+        .map_err(|e| e.to_string())?;
+    let collected = match results {
+        QueryResults::Solutions(solutions) => {
+            let variables = solutions.variables().to_vec();
+            let rows = solutions
+                .map(|solution| solution.map(|solution| solution.values().to_vec()))
+                .collect::<Result<_, _>>();
+            rows.map(|rows| SparqlResults::Solutions { variables, rows })
+        }
+        QueryResults::Boolean(value) => Ok(SparqlResults::Boolean(value)),
+        QueryResults::Graph(triples) => {
+            let mut seen = HashSet::new();
+            triples
+                .filter(|triple| triple.as_ref().map_or(true, |t| seen.insert(t.clone())))
+                .collect::<Result<_, _>>()
+                .map(SparqlResults::Graph)
+        }
+    };
+    collected.map_err(|e| e.to_string())
+}
+
 /// Adds history around the data of `rg` (asserted at `T`) that is not visible as of `T`: for
 /// every triple `s p o`, `s p <decoy>` and `s <decoy> o` asserted at 5 and retracted at 7,
 /// `<decoy> p o` asserted at 20, and the triple itself asserted at 3, retracted at 5 and
 /// retracted again at 20; and a triple of decoy terms asserted at 5 and retracted at 7.
 fn add_decoys(rg: &RdfGraph) -> Result<(), RdfError> {
     let mut doc = Vec::new();
-    rg.to_rdf(&mut doc, RdfFormat::NTriples, &[])?;
+    rg.to_rdf(&mut doc, RdfFormat::NTriples)?;
     let triples = parse_triples(&doc, RdfFormat::NTriples, TESTS_URL)
         .expect("to_rdf writes N-Triples that parse");
     let decoy = |local: String| NamedNode::new_unchecked(format!("{DECOY}{local}"));
@@ -840,7 +872,7 @@ fn turtle_eval_test(files: &Files, test: &TestCase) -> Result<TestRun, String> {
         let mut out = Vec::new();
         let stats = g
             .at(T)
-            .to_rdf(&mut out, RdfFormat::NTriples, &[])
+            .to_rdf(&mut out, RdfFormat::NTriples)
             .map_err(|e| e.to_string())?;
         if stats.skipped > 0 {
             return Err(format!("to_rdf skipped {} triples", stats.skipped));

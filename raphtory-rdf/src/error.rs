@@ -1,20 +1,17 @@
-#[cfg(feature = "shacl")]
-use crate::shacl::{ShaclFeature, ShaclLimit};
-use crate::{QueryForm, RdfFormat};
-#[cfg(feature = "shacl")]
-use oxigraph::model::Term;
+use crate::{
+    shacl::{ShaclFeature, ShaclLimit},
+    QueryForm,
+};
 use oxigraph::{
     io::RdfParseError,
-    model::{IriParseError, NamedNode, TermParseError, TryFromTermError},
+    model::{IriParseError, NamedNode, Term, TryFromTermError},
     sparql::{QueryEvaluationError, SparqlSyntaxError},
 };
 use raphtory::errors::GraphError;
-use raphtory_api::core::{storage::graph_folder::GraphFolderError, utils::time::ParseTimeError};
-#[cfg(feature = "shacl")]
-use std::error::Error;
-use std::{io, string::FromUtf8Error};
+use raphtory_api::core::utils::time::ParseTimeError;
+use std::{any::Any, error::Error, io, path::PathBuf, string::FromUtf8Error};
 
-/// Errors raised by RDF import, export and SPARQL evaluation.
+/// Errors raised by RDF import, export, SPARQL evaluation and SHACL validation.
 ///
 /// Each message includes the error it wraps, which `source()` does not return again, so an
 /// error chain prints it once.
@@ -48,6 +45,28 @@ pub enum RdfError {
     #[error("SPARQL evaluation error: {0}")]
     SparqlEvaluation(QueryEvaluationError),
 
+    /// A query longer than [`SparqlOptions::with_max_query_length`] allows; rejected before
+    /// parsing.
+    ///
+    /// [`SparqlOptions::with_max_query_length`]: crate::SparqlOptions::with_max_query_length
+    #[error("SPARQL query too long: {length} bytes, the limit is {max} bytes")]
+    QueryTooLong {
+        /// The length of the query, in bytes.
+        length: usize,
+        /// The longest query allowed, in bytes.
+        max: usize,
+    },
+
+    /// Results larger than [`SparqlOptions::with_max_result_bytes`] allows; the writer holds
+    /// at most that many bytes of them.
+    ///
+    /// [`SparqlOptions::with_max_result_bytes`]: crate::SparqlOptions::with_max_result_bytes
+    #[error("SPARQL results larger than {max} bytes")]
+    ResultsTooLarge {
+        /// The most bytes of results allowed.
+        max: usize,
+    },
+
     /// A query with more triple patterns than [`SparqlOptions::with_max_triple_patterns`]
     /// allows; rejected after parsing, before planning.
     ///
@@ -67,14 +86,8 @@ pub enum RdfError {
     #[error("invalid IRI: {0}")]
     Iri(IriParseError),
 
-    #[error("invalid RDF term: {0}")]
-    Term(TermParseError),
-
     #[error("invalid RDF triple: {0}")]
     Triple(TryFromTermError),
-
-    #[error("RDF import needs a graph with string node ids; this graph uses u64 ids")]
-    NonStringIds,
 
     /// [`RdfView::from_view`](crate::RdfView::from_view) of a view of an event graph.
     #[error("RDF views need a view of a persistent graph")]
@@ -104,14 +117,10 @@ pub enum RdfError {
     #[error("unknown RDF format '{0}'")]
     UnknownFormat(String),
 
-    /// A prefix name that the serializer of `format` would write as is, giving a document that
-    /// does not parse (see [`RdfView::to_rdf`](crate::RdfView::to_rdf)).
-    #[error("invalid prefix name '{name}' for {format}: {reason}")]
-    InvalidPrefix {
-        name: String,
-        format: RdfFormat,
-        reason: &'static str,
-    },
+    /// A file without a format whose extension names none (see
+    /// [`RdfFormat::from_path`](crate::RdfFormat::from_path)).
+    #[error("cannot tell the RDF format of '{}' from its extension: give the format", .0.display())]
+    NoPathFormat(PathBuf),
 
     /// An IRI under [`ASOF_NS`](crate::ASOF_NS) whose time does not parse. A query that
     /// uses one fails with [`SparqlEvaluation`](Self::SparqlEvaluation) wrapping this error in
@@ -184,14 +193,12 @@ pub enum RdfError {
 
     /// A SHACL shapes graph that does not compile, or a validation that failed (see
     /// [`ShaclShapes`](crate::shacl::ShaclShapes)).
-    #[cfg(feature = "shacl")]
     #[error("SHACL error: {0}")]
     Shacl(Box<dyn Error + Send + Sync>),
 
     /// A SHACL report with a literal RDF/XML cannot hold unchanged (see
     /// [`ShaclReport::write`](crate::shacl::ShaclReport::write)); raised before anything
     /// is written.
-    #[cfg(feature = "shacl")]
     #[error(
         "{0} cannot be written in an RDF/XML SHACL report, which cannot hold its control \
          characters unchanged; use Turtle, N-Triples or JSON-LD"
@@ -200,7 +207,6 @@ pub enum RdfError {
 
     /// A SHACL shapes graph that uses a feature the validator does not support (see the
     /// [`shacl`](crate::shacl) module); rejected when the shapes are compiled.
-    #[cfg(feature = "shacl")]
     #[error("unsupported SHACL feature {term}: {feature}")]
     ShaclUnsupported {
         /// The term of the shapes graph that uses it.
@@ -209,17 +215,30 @@ pub enum RdfError {
     },
 
     /// A SHACL shapes graph the validator would read past one of its limits, overflowing its
-    /// stack or its memory; rejected when the shapes are compiled.
-    #[cfg(feature = "shacl")]
+    /// stack or its memory; rejected when the shapes are compiled, or for recursive shapes
+    /// before a validation that rejects them.
     #[error("SHACL error: {0}")]
     ShaclLimit(ShaclLimit),
+
+    /// A panic of SPARQL evaluation or SHACL validation, with its message.
+    #[error("{0}")]
+    Panicked(String),
 }
 
-#[cfg(feature = "shacl")]
 impl RdfError {
     /// A [`Shacl`](Self::Shacl) error from an error or a message.
     pub(crate) fn shacl(error: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
         Self::Shacl(error.into())
+    }
+
+    /// A [`Panicked`](Self::Panicked) error of `what` from the payload of its panic.
+    pub(crate) fn panicked(what: &str, panic: Box<dyn Any + Send>) -> Self {
+        let message = panic
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("unknown panic");
+        Self::Panicked(format!("{what} panicked: {message}"))
     }
 }
 
@@ -240,10 +259,8 @@ rdf_error_from!(
     SparqlSyntax(SparqlSyntaxError),
     SparqlEvaluation(QueryEvaluationError),
     Iri(IriParseError),
-    Term(TermParseError),
     Triple(TryFromTermError),
     NotUtf8(FromUtf8Error),
     Graph(io::Error),
-    Graph(GraphFolderError),
     Graph(ParseTimeError),
 );

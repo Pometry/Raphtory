@@ -4,6 +4,10 @@ use crate::{
     RdfError,
 };
 use oxigraph::model::{vocab::xsd, NamedNode};
+use raphtory::{
+    db::api::view::{DynamicGraph, IntoDynamic},
+    prelude::*,
+};
 use raphtory_api::core::{
     storage::timeindex::AsTime,
     utils::time::{ParseTimeError, TryIntoTime},
@@ -21,13 +25,12 @@ use spargebra::{
 /// after `raphtory:` (see [`term_of`](crate::term_of)).
 pub const ASOF_NS: &str = "raphtory:asof:";
 
-/// A time graph: the virtual named graph `<raphtory:asof:T>` of the triples visible as of `T`.
+/// A time graph: the virtual named graph `<raphtory:asof:T>` of the triples that hold at `T`.
 ///
-/// In a query on a view, `GRAPH <raphtory:asof:T> { .. }` matches its patterns against
-/// `view.snapshot_at(T)`: on a view without `valid()`, the state as of `T`. Every filter of the
-/// view applies: windows intersect, so a time outside the view's window gives an empty graph,
-/// and on `rg.valid()` the graph holds only the triples that held at `T` and still hold now. To
-/// compare times in one query, run it on a view without `valid()`.
+/// In a query on a view, `GRAPH <raphtory:asof:T> { .. }` (or `FROM <raphtory:asof:T>`) matches
+/// its patterns against `view.before(T + 1).valid()`, so every filter and window of the view
+/// applies. On a `valid()` view a time graph holds only the triples that hold at `T` and still
+/// hold at the end of the view, so compare times on a view without `valid()`.
 ///
 /// `T` is an integer (epoch milliseconds) or a date-time Raphtory parses: RFC 3339
 /// (`2024-01-01T00:00:00Z`), `%Y-%m-%d` (midnight UTC) or `%Y-%m-%dT%H:%M:%S%.3f` (UTC). `T` is
@@ -36,9 +39,9 @@ pub const ASOF_NS: &str = "raphtory:asof:";
 ///
 /// Time graphs cannot be enumerated, so with [`RdfView::sparql`](crate::RdfView::sparql)
 /// `GRAPH ?g { .. }` with an unbound `?g` visits the `FROM NAMED` graphs or else the time graphs
-/// the query writes as constants (as in `VALUES ?g { .. }`). A computed IRI such as `IRI(CONCAT("raphtory:asof:", ?t))`
-/// only matches where `?g` is bound before the pattern, e.g. `LATERAL { GRAPH ?g { .. } }`
-/// after the `BIND`.
+/// the query writes as constants (as in `VALUES ?g { .. }`). A computed IRI such as
+/// `IRI(CONCAT("raphtory:asof:", ?t))` only matches where `?g` is bound before the pattern,
+/// e.g. `LATERAL { GRAPH ?g { .. } }` after the `BIND`.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TimeGraph {
     /// The IRI of the graph, as written in the query.
@@ -74,6 +77,13 @@ impl TimeGraph {
             Ok(at) => Ok(at),
             Err(_) => Ok(time.try_into_time()?.t()),
         }
+    }
+
+    /// The view of this time graph in a query on `view`.
+    pub(crate) fn view_of(&self, view: &DynamicGraph) -> DynamicGraph {
+        view.before(self.at.saturating_add(1))
+            .valid()
+            .into_dynamic()
     }
 }
 

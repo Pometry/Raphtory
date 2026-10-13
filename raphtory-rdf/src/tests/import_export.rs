@@ -1,25 +1,19 @@
-//! RDF import and export, storage semantics, scans and formats.
-use super::{exported, layer_of, parse_graph, within_60s, BLANK_NODES, DATATYPES, FOAF};
-use crate::{
-    parse_rdf_format, Literal, QueryResultsFormat, RdfError, RdfFormat, RdfGraph, RdfView,
-    SparqlOptions,
-};
+//! RDF import and export, storage semantics and formats.
+use super::{exported, layer_of, parse_graph, BLANK_NODES, DATATYPES, FOAF};
+use crate::{shacl::ShaclShapes, Literal, RdfError, RdfFormat, RdfGraph, RdfView};
 use raphtory::{
     db::api::view::{IntoDynamic, StaticGraphViewOps},
     prelude::*,
 };
-use std::{collections::BTreeSet, io};
+use std::{collections::BTreeSet, fs, path::Path};
 
 const XSD_INTEGER: &str = "http://www.w3.org/2001/XMLSchema#integer";
 
 fn export<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
     format: RdfFormat,
-    prefixes: &[(&str, &str)],
 ) -> Result<String, RdfError> {
-    let mut out = Vec::new();
-    view.to_rdf(&mut out, format, prefixes)?;
-    Ok(String::from_utf8(out).unwrap())
+    view.to_rdf_string(format)
 }
 
 fn node_names<G: StaticGraphViewOps>(g: &G) -> BTreeSet<String> {
@@ -113,16 +107,8 @@ fn blank_nodes() {
     assert!(rg.graph().node(label.as_str()).is_some());
 }
 
-/// An RDF view needs persistent semantics, so a view of an event graph is refused.
-#[test]
-fn views_of_event_graphs_are_refused() {
-    assert!(matches!(
-        RdfView::from_view(Graph::new()),
-        Err(RdfError::NotPersistent)
-    ));
-}
-
-/// An integer-id graph is refused before any write; a load stops at the first triple it cannot store and keeps the triples before it.
+/// A load stops at the first triple it cannot store and keeps the triples before it; on an
+/// integer-id graph that is the first triple.
 #[test]
 fn failed_loads_keep_earlier_triples() {
     let g = Graph::new();
@@ -131,7 +117,7 @@ fn failed_loads_keep_earlier_triples() {
     let err = RdfGraph::from(g.clone())
         .load_rdf(1, doc.as_bytes(), RdfFormat::NTriples, None)
         .unwrap_err();
-    assert!(matches!(err, RdfError::NonStringIds), "{err:?}");
+    assert!(matches!(err, RdfError::Graph(_)), "{err:?}");
     assert_eq!(g.count_edges(), 1);
 
     let doc = "<http://ex/a> <http://ex/p> <http://ex/b> .
@@ -173,7 +159,7 @@ fn export_round_trips_blank_free_fixtures() {
 
         assert_eq!(exported(&rg).len(), input.len());
         for format in [RdfFormat::NTriples, RdfFormat::RdfXml] {
-            let doc = export(&rg, format, &[]).unwrap();
+            let doc = export(&rg, format).unwrap();
             assert_eq!(parse_graph(&doc, format), input, "{format}");
         }
     }
@@ -216,7 +202,7 @@ fn plain_graph_round_trip() {
     u64_graph.add_edge(3, 2, 2, NO_PROPS, None).unwrap();
 
     for original in [RdfGraph::from(g), RdfGraph::from(u64_graph)] {
-        let first = export(&original, RdfFormat::NTriples, &[]).unwrap();
+        let first = export(&original, RdfFormat::NTriples).unwrap();
         assert_eq!(first.lines().count(), original.graph().count_edges());
 
         let reloaded = RdfGraph::new();
@@ -280,7 +266,7 @@ fn rdf_xml_export_is_well_formed() {
     edge("http://ex/w", &literal("tab\tnewline\n"), "http://ex/p");
     let g = RdfGraph::from(g);
 
-    let all = export(&g, RdfFormat::NTriples, &[]).unwrap();
+    let all = export(&g, RdfFormat::NTriples).unwrap();
     // the `rdf:type` triple of `s` comes first
     let s_type = format!("<http://ex/s> <{RDF_TYPE}> <http://ex/42> .");
     assert!(
@@ -305,159 +291,11 @@ fn rdf_xml_export_is_well_formed() {
     let expected = parse_graph(&expected, RdfFormat::NTriples);
 
     let mut out = Vec::new();
-    let stats = g.to_rdf(&mut out, RdfFormat::RdfXml, &[]).unwrap();
+    let stats = g.to_rdf(&mut out, RdfFormat::RdfXml).unwrap();
     let doc = String::from_utf8(out).unwrap();
     assert_eq!((stats.written, stats.skipped), (9, 5), "{doc}");
     assert!(!doc.contains("<xmlns:"), "{doc}");
     assert_eq!(parse_graph(&doc, RdfFormat::RdfXml), expected, "{doc}");
-}
-
-/// `to_rdf` rejects the prefix names a format cannot write.
-#[test]
-fn prefix_names_are_checked() {
-    let g = Graph::new();
-    g.add_edge(
-        1,
-        "http://ex/a",
-        "http://ex/b",
-        NO_PROPS,
-        Some("http%3A%2F%2Fex%2Fp"),
-    )
-    .unwrap();
-    let g = RdfGraph::from(g);
-    let nt = export(&g, RdfFormat::NTriples, &[]).unwrap();
-    let expected = parse_graph(&nt, RdfFormat::NTriples);
-
-    for (format, name) in [
-        (RdfFormat::Turtle, "ex"),
-        (RdfFormat::Turtle, ""),
-        (RdfFormat::RdfXml, "_x"),
-    ] {
-        let doc = export(&g, format, &[(name, "http://ex/")])
-            .unwrap_or_else(|e| panic!("{format} {name:?}: {e}"));
-        assert_eq!(
-            parse_graph(&doc, format),
-            expected,
-            "{format} {name:?}: {doc}"
-        );
-    }
-    let err = export(&g, RdfFormat::Turtle, &[("_x", "http://ex/")]).unwrap_err();
-    assert!(matches!(err, RdfError::InvalidPrefix { .. }), "{err:?}");
-
-    // N-Triples has no prefixes, so any name is ignored
-    assert_eq!(
-        export(&g, RdfFormat::NTriples, &[("a b", "http://ex/")]).unwrap(),
-        nt
-    );
-}
-
-/// Within one document, writes get increasing event ids in document order.
-#[test]
-fn document_order_decides_ties() {
-    let rg = RdfGraph::new();
-    let in_order = [
-        "<http://ex/s> <http://ex/p> <http://ex/o> .",
-        "<http://ex/s> <http://ex/q> <http://ex/o> .",
-        "<http://ex/s> <http://ex/p> <http://ex/o> .",
-        "<http://ex/s> <http://ex/r> <http://ex/o> .",
-    ]
-    .join("\n");
-    rg.load_rdf(1, in_order.as_bytes(), RdfFormat::NTriples, None)
-        .unwrap();
-    let e = rg.graph().edge("http://ex/s", "http://ex/o").unwrap();
-    let ids = |p: &str| {
-        e.layers(layer_of(p).as_str())
-            .unwrap()
-            .history()
-            .event_id()
-            .collect()
-    };
-    let (p_ids, q_ids, r_ids) = (ids("http://ex/p"), ids("http://ex/q"), ids("http://ex/r"));
-    assert_eq!((p_ids.len(), q_ids.len(), r_ids.len()), (2, 1, 1));
-    assert!(
-        p_ids[0] < q_ids[0] && q_ids[0] < p_ids[1] && p_ids[1] < r_ids[0],
-        "{p_ids:?} {q_ids:?} {r_ids:?}"
-    );
-}
-
-/// Scans hold no storage lock while they write, so the output can write to the graph.
-#[test]
-fn scans_allow_writes_between_items() {
-    struct WritingSink(Graph, usize);
-    impl io::Write for WritingSink {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.1 += 1;
-            self.0
-                .add_edge(
-                    2000,
-                    format!("sink{}", self.1),
-                    "n0".to_string(),
-                    NO_PROPS,
-                    Some("p"),
-                )
-                .map_err(io::Error::other)?;
-            Ok(buf.len())
-        }
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    let g = Graph::new();
-    for i in 0..200u64 {
-        g.add_edge(
-            i as i64,
-            format!("n{i}"),
-            format!("n{}", (i + 1) % 200),
-            NO_PROPS,
-            Some("p"),
-        )
-        .unwrap();
-    }
-    let edges = g.count_edges();
-    let (stats, writes) = within_60s({
-        let g = g.clone();
-        move || {
-            let mut sink = WritingSink(g.clone(), 0);
-            let stats = RdfGraph::from(g)
-                .to_rdf(&mut sink, RdfFormat::NTriples, &[])
-                .unwrap();
-            (stats, sink.1)
-        }
-    });
-    assert_eq!(stats.written, edges);
-    assert_eq!(stats.skipped, 0);
-    // the buffered writer wrote to the sink (and so to the graph) during the scan
-    assert!(writes > 1, "{writes}");
-
-    let edges = g.count_edges();
-    let (stats, writes) = within_60s({
-        let g = g.clone();
-        move || {
-            let mut sink = WritingSink(g.clone(), 0);
-            let stats = RdfGraph::from(g)
-                .sparql_to_writer(
-                    "SELECT ?s ?o { ?s ?p ?o }",
-                    &mut sink,
-                    QueryResultsFormat::Json,
-                    &SparqlOptions::default(),
-                )
-                .unwrap();
-            (stats, sink.1)
-        }
-    });
-    assert_eq!(stats.written, edges);
-    assert!(writes > 1, "{writes}");
-}
-
-/// A retraction is recorded even if its triple does not hold, and the whole graph shows it.
-#[test]
-fn retracting_a_triple_that_does_not_hold() {
-    let never = "<http://ex/a> <http://ex/p> <http://ex/b> .";
-    let rg = RdfGraph::new();
-    rg.retract_rdf(5, never.as_bytes(), RdfFormat::NTriples, None)
-        .unwrap();
-    assert_eq!(exported(&rg), [never]);
 }
 
 #[test]
@@ -467,13 +305,55 @@ fn rdf_formats() {
         ("n-triples", RdfFormat::NTriples),
         ("text/turtle; charset=utf-8", RdfFormat::Turtle),
     ] {
-        assert_eq!(parse_rdf_format(s).unwrap(), expected, "{s}");
+        assert_eq!(RdfFormat::parse(s).unwrap(), expected, "{s}");
     }
     // a lone `"` as a parameter value would make oxigraph panic
     let s = "text/turtle;profile=\"";
-    let err = parse_rdf_format(s).unwrap_err();
+    let err = RdfFormat::parse(s).unwrap_err();
     assert!(
         matches!(&err, RdfError::UnknownFormat(f) if f == s),
         "{err:?}"
     );
+}
+
+/// A file is read and written in the format its extension names unless one is given, and
+/// written as N-Triples without an extension.
+#[test]
+fn files() {
+    let dir = tempfile::tempdir().unwrap();
+    let ttl = dir.path().join("foaf.ttl");
+    let bare = dir.path().join("foaf");
+    let rg = RdfGraph::new();
+    let n = rg
+        .load_rdf(1, FOAF.as_bytes(), RdfFormat::Turtle, None)
+        .unwrap();
+    rg.to_rdf_path(&ttl, None).unwrap();
+    rg.to_rdf_path(&bare, None).unwrap();
+    let read = |path: &Path| fs::read_to_string(path).unwrap();
+    assert_ne!(read(&ttl), read(&bare));
+    assert_eq!(
+        parse_graph(&read(&ttl), RdfFormat::Turtle),
+        parse_graph(&read(&bare), RdfFormat::NTriples)
+    );
+    assert_eq!(RdfFormat::from_path(&ttl).unwrap(), RdfFormat::Turtle);
+
+    let copy = RdfGraph::new();
+    let error = copy.load_rdf_path(1, &bare, None, None).unwrap_err();
+    assert!(matches!(error, RdfError::NoPathFormat(_)), "{error:?}");
+    assert_eq!(
+        copy.load_rdf_path(1, &bare, RdfFormat::NTriples, None)
+            .unwrap(),
+        n
+    );
+    assert_eq!(exported(&copy), exported(&rg));
+    assert_eq!(copy.retract_rdf_path(2, &ttl, None, None).unwrap(), n);
+    assert!(exported(&copy.valid()).is_empty());
+
+    let shapes = dir.path().join("shapes.ttl");
+    fs::write(
+        &shapes,
+        "<http://ex/S> a <http://www.w3.org/ns/shacl#NodeShape> .",
+    )
+    .unwrap();
+    assert!(ShaclShapes::parse_path(&shapes, None, None).is_ok());
 }

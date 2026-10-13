@@ -4,8 +4,8 @@ use super::{
     temporal::{assert_at, nt, retract_at, spo, O, O2, P, Q, S, SPO},
 };
 use crate::{
-    query::parse, time_graph::time_graphs_in, NamedNode, QueryForm, QueryOutline, RdfError,
-    RdfFormat, RdfGraph, RdfView, SparqlDataset, SparqlOptions, SparqlResults, ASOF_NS,
+    query::parse, time_graph::time_graphs_in, QueryForm, QueryOutline, RdfError, RdfGraph, RdfView,
+    SparqlOptions, ASOF_NS,
 };
 use oxigraph::sparql::QueryEvaluationError;
 use raphtory::{
@@ -19,10 +19,6 @@ fn asof(t: impl Display) -> String {
     format!("<{ASOF_NS}{t}>")
 }
 
-fn iri(s: &str) -> NamedNode {
-    NamedNode::new(s).unwrap()
-}
-
 /// The triples of the time graph `T` of the view, read with `GRAPH`.
 fn in_graph<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
@@ -32,51 +28,41 @@ fn in_graph<G: StaticGraphViewOps + IntoDynamic>(
     spo(view, &query)
 }
 
-/// An invalid time graph is an error.
-#[test]
-fn invalid_time_graph() {
-    let rg = RdfGraph::new();
-    assert_at(&rg, 1, SPO);
-    let graph = format!("{ASOF_NS}garbage");
-    let query = format!("SELECT * {{ GRAPH <{graph}> {{ ?s ?p ?o }} }}");
-    let Err(RdfError::SparqlEvaluation(QueryEvaluationError::Dataset(e))) =
-        rg.sparql(&query, &SparqlOptions::default())
-    else {
-        panic!("{query}")
-    };
-    assert!(matches!(
-        e.downcast_ref::<RdfError>(),
-        Some(RdfError::InvalidTimeGraph { iri, .. }) if iri.as_str() == graph
-    ));
-}
-
 #[test]
 fn query_outlines() {
+    let options = SparqlOptions::default();
     let outline = QueryOutline::parse(
         "CONSTRUCT { ?s ?p ?o } FROM raphtory:asof:3 FROM NAMED raphtory:asof:5 \
          WHERE { GRAPH raphtory:asof:5 { ?s ?p ?o } }",
+        &options,
     )
     .unwrap();
     assert_eq!(outline.form, QueryForm::Construct);
     assert!(outline.reads_time_graphs);
-    let outline = QueryOutline::parse("SELECT * { ?s ?p ?o }").unwrap();
+    let outline = QueryOutline::parse("SELECT * { ?s ?p ?o }", &options).unwrap();
     assert_eq!(outline.form, QueryForm::Select);
     // a time graph built by the query
     let outline = QueryOutline::parse(
         "SELECT ?s ?o { VALUES ?t {\"3\"} BIND(IRI(CONCAT(\"raphtory:asof:\", ?t)) AS ?g) \
          LATERAL { GRAPH ?g { ?s <http://ex/knows> ?o } } }",
+        &options,
     )
     .unwrap();
     assert!(outline.reads_time_graphs);
-    // a reference time of a temporal function names a time graph but reads none
+    // a time graph argument of a temporal function names a time graph but reads none
     let outline = QueryOutline::parse(
         "SELECT * { ?s ?p ?o BIND(raphtory:validFrom(?s, ?p, ?o, raphtory:asof:3) AS ?t) }",
+        &options,
     )
     .unwrap();
     assert!(!outline.reads_time_graphs);
     assert!(matches!(
-        QueryOutline::parse("SELECT * {"),
+        QueryOutline::parse("SELECT * {", &options),
         Err(RdfError::SparqlSyntax(_))
+    ));
+    assert!(matches!(
+        QueryOutline::parse("SELECT * {", &options.with_max_query_length(5)),
+        Err(RdfError::QueryTooLong { .. })
     ));
 }
 
@@ -158,15 +144,18 @@ fn time_graphs_named_by_a_query() {
     );
 }
 
-/// Time graphs of a windowed view intersect with its window.
+/// A time graph of a view is `view.before(T + 1).valid()`.
 #[test]
-fn time_graphs_of_windows() {
+fn time_graphs_are_valid_before() {
     let rg = RdfGraph::new();
-    assert_at(&rg, 1, SPO);
-    let window = rg.window(3, 7);
-    assert!(in_graph(&window, 2).is_empty());
-    assert_eq!(in_graph(&window, 5), BTreeSet::from([nt(SPO)]));
-    assert!(in_graph(&window, 7).is_empty());
+    assert_at(&rg, 10, SPO);
+    retract_at(&rg, 30, SPO);
+    assert_at(&rg, 50, SPO);
+    assert_at(&rg, 20, [S, Q, O]);
+    let sqo = nt([S, Q, O]);
+    assert_eq!(in_graph(&rg, 25), BTreeSet::from([nt(SPO), sqo.clone()]));
+    assert_eq!(in_graph(&rg, 30), BTreeSet::from([sqo.clone()]));
+    assert_eq!(in_graph(&rg.window(15, 35), 60), BTreeSet::from([sqo]));
 }
 
 /// Time graphs keep the layer and node filters of the view.
@@ -188,7 +177,7 @@ fn time_graphs_of_other_views() {
 }
 
 /// Each spelling of an instant is its own time graph, named as written, with the same triples;
-/// every time graph exists.
+/// every time graph exists, and a time that does not parse is an error.
 #[test]
 fn spellings_of_an_instant() {
     let rg = RdfGraph::new();
@@ -214,70 +203,9 @@ fn spellings_of_an_instant() {
     expected.sort();
     assert_eq!(rows, expected);
     assert!(ask(&rg, "ASK { GRAPH raphtory:asof:7 { } }"));
-}
-
-/// `SparqlOptions::dataset` replaces the `FROM` and `FROM NAMED` clauses of the query.
-#[test]
-fn a_dataset_option_replaces_the_dataset_of_the_query() {
-    // `alice knows bob` holds from 1 to 5, `bob knows carol` from 3 on
-    let rg = RdfGraph::new();
-    let knows = |s: &str, o: &str| format!("<http://ex/{s}> <http://ex/knows> <http://ex/{o}> .");
-    let load = |t: i64, doc: String| rg.load_rdf(t, doc.as_bytes(), RdfFormat::NTriples, None);
-    load(1, knows("alice", "bob")).unwrap();
-    load(3, knows("bob", "carol")).unwrap();
-    rg.retract_rdf(
-        5,
-        knows("alice", "bob").as_bytes(),
-        RdfFormat::NTriples,
-        None,
-    )
-    .unwrap();
-    let with = |default: &[&str], named: &[&str]| {
-        SparqlOptions::default().with_dataset(SparqlDataset {
-            default_graphs: default.iter().map(|g| iri(g)).collect(),
-            named_graphs: named.iter().map(|g| iri(g)).collect(),
-        })
-    };
-    let subjects = |query: &str, options: &SparqlOptions| -> Vec<String> {
-        let SparqlResults::Solutions { rows, .. } = rg.sparql(query, options).unwrap() else {
-            panic!("{query}: not a SELECT result")
-        };
-        let mut subjects: Vec<String> = rows
-            .iter()
-            .map(|row| row[0].as_ref().unwrap().to_string())
-            .collect();
-        subjects.sort();
-        subjects
-    };
-    let s = |names: &[&str]| -> Vec<String> {
-        names.iter().map(|n| format!("<http://ex/{n}>")).collect()
-    };
-    let default = "SELECT ?s { ?s ?p ?o }";
-
-    assert_eq!(
-        subjects(default, &SparqlOptions::default()),
-        s(&["alice", "bob"])
-    );
-    assert_eq!(
-        subjects(default, &with(&["raphtory:asof:2"], &[])),
-        s(&["alice"])
-    );
-    // it replaces `FROM`
-    let from_4 = "SELECT ?s FROM raphtory:asof:4 { ?s ?p ?o }";
-    assert_eq!(
-        subjects(from_4, &SparqlOptions::default()),
-        s(&["alice", "bob"])
-    );
-    assert_eq!(
-        subjects(from_4, &with(&["raphtory:asof:2"], &[])),
-        s(&["alice"])
-    );
-    // a graph that is not a time graph is an empty one
-    assert_eq!(subjects(default, &with(&["http://ex/g"], &[])), s(&[]));
-    let from_named = "SELECT ?s FROM NAMED raphtory:asof:6 { GRAPH ?g { ?s ?p ?o } }";
-    assert_eq!(subjects(from_named, &SparqlOptions::default()), s(&["bob"]));
-    assert_eq!(
-        subjects(from_named, &with(&[], &["raphtory:asof:2"])),
-        s(&["alice"])
-    );
+    let query = format!("SELECT * {{ GRAPH {} {{ ?s ?p ?o }} }}", asof("garbage"));
+    assert!(matches!(
+        rg.sparql(&query, &SparqlOptions::default()),
+        Err(RdfError::SparqlEvaluation(QueryEvaluationError::Dataset(_)))
+    ));
 }

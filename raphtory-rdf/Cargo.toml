@@ -13,33 +13,27 @@ rust-version.workspace = true
 edition.workspace = true
 categories.workspace = true
 
-[package.metadata.docs.rs]
-features = ["shacl"]
-
 [dependencies]
-raphtory = { workspace = true, features = ["io"] }
+raphtory.workspace = true
 raphtory-api.workspace = true
-raphtory-storage.workspace = true
 oxigraph = { workspace = true, features = ["rdf-12"] }
 spareval.workspace = true
 spargebra.workspace = true
 oxiri.workspace = true
 percent-encoding.workspace = true
-bigdecimal.workspace = true
 chrono.workspace = true
 dashmap.workspace = true
-either.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
 thiserror.workspace = true
 
-# shacl optional dependencies
-shacl = { workspace = true, optional = true }
-rudof_rdf = { workspace = true, optional = true }
-prefixmap = { workspace = true, optional = true }
-rudof_iri = { workspace = true, optional = true }
+# rudof's SHACL validator; it also turns on oxigraph's HTTP client, but queries refuse SERVICE calls
+shacl.workspace = true
+rudof_rdf.workspace = true
+prefixmap.workspace = true
+rudof_iri.workspace = true
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -48,11 +42,9 @@ raphtory-core = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
+tempfile.workspace = true
 
 [features]
-# SHACL validation of graph views (via rudof's `shacl` crate). It also turns on oxigraph's HTTP
-# client (SERVICE calls are still refused).
-shacl = ["dep:shacl", "dep:rudof_rdf", "dep:prefixmap", "dep:rudof_iri"]
 python = [
     "dep:pyo3",
     "dep:raphtory-core",

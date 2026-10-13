@@ -2,15 +2,12 @@ mod bounds;
 mod functions;
 mod import_export;
 mod limits;
-mod loading;
 mod mapping;
 mod oracle;
 mod rdf12;
 mod results;
 mod scan_equivalence;
-#[cfg(feature = "shacl")]
 mod shacl;
-#[cfg(feature = "shacl")]
 mod shacl_report;
 mod temporal;
 mod time_graph;
@@ -22,12 +19,6 @@ use crate::{
 
 use oxigraph::{io::RdfParser, model::Graph as OxGraph};
 use raphtory::db::api::view::{IntoDynamic, StaticGraphViewOps};
-use std::{
-    panic,
-    sync::mpsc::{self, RecvTimeoutError},
-    thread,
-    time::Duration,
-};
 
 const FOAF: &str = include_str!("fixtures/foaf.ttl");
 const DATATYPES: &str = include_str!("fixtures/datatypes.nt");
@@ -82,7 +73,7 @@ fn ask<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>, query: &str) -> b
 /// The sorted N-Triples lines `to_rdf` writes for a view.
 fn exported<G: StaticGraphViewOps + IntoDynamic>(view: &RdfView<G>) -> Vec<String> {
     let mut out = Vec::new();
-    view.to_rdf(&mut out, RdfFormat::NTriples, &[]).unwrap();
+    view.to_rdf(&mut out, RdfFormat::NTriples).unwrap();
     let mut lines: Vec<String> = String::from_utf8(out)
         .unwrap()
         .lines()
@@ -98,15 +89,4 @@ fn parse_graph(doc: &str, format: RdfFormat) -> OxGraph {
         .for_reader(doc.as_bytes())
         .map(|quad| Triple::from(quad.unwrap_or_else(|e| panic!("{e}: {doc}"))))
         .collect()
-}
-
-/// Runs `f` on another thread and fails (instead of hanging) if it does not finish in time.
-fn within_60s<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
-    let (tx, rx) = mpsc::channel();
-    let handle = thread::spawn(move || tx.send(f()).unwrap());
-    match rx.recv_timeout(Duration::from_secs(60)) {
-        Ok(v) => v,
-        Err(RecvTimeoutError::Disconnected) => panic::resume_unwind(handle.join().unwrap_err()),
-        Err(RecvTimeoutError::Timeout) => panic!("deadlock: did not finish within 60 s"),
-    }
 }

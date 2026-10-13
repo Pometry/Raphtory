@@ -1,5 +1,6 @@
 //! Shared GraphQL test scaffolding: schema/fixture builders and single-mutation
-//! runners used by the in-crate tests. Gated by `#[cfg(test)]`.
+//! runners used by the integration-style tests in `lib.rs`. Gated by `#[cfg(test)]`
+//! and only intended for in-crate consumers.
 
 #![allow(dead_code)]
 
@@ -112,9 +113,6 @@ pub(crate) mod rdf {
     pub(crate) const KNOWN_BY_NOW: &str = "\
         <http://ex/alice> <http://ex/knownBy> <http://ex/dave> .
         <http://ex/carol> <http://ex/knownBy> <http://ex/bob> .";
-    /// When `bob knows carol` started holding: at 1.
-    pub(crate) const SINCE: &str = "PREFIX ex: <http://ex/> \
-        SELECT (raphtory:validFromTime(ex:bob, ex:knows, ex:carol) AS ?t) {}";
     /// The `knows` pairs of [`people`] now.
     pub(crate) const NOW: &[(&str, &str)] = &[("bob", "carol"), ("dave", "alice")];
     /// The `knows` pairs of [`people`] as of 3.
