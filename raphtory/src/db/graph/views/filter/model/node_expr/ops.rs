@@ -48,8 +48,10 @@ use crate::{
             node::NodeView,
             views::filter::model::{
                 edge_expr::EdgeOp,
-                expr::Agg,
-                node_expr::typing::{truthy, BinaryKernel, UnaryKernel},
+                expr::{
+                    typing::{truthy, BinaryKernel, UnaryKernel},
+                    Agg,
+                },
                 property_filter::evaluate::{
                     aggregate_list_values, scan_f64_sum_count, scan_i64_sum, scan_u64_sum,
                 },

@@ -28,14 +28,13 @@ mod compile;
 mod display;
 #[cfg(test)]
 mod tests;
+pub mod typing;
 
 pub use builder::{Chain, EdgeEndpoint, EdgeKind, GraphLeaf, PropertyTerm};
+pub(super) use compile::EdgeOps;
 pub use compile::Leaf;
 
-use super::{
-    filter_operator::{BinaryOp, StringOp},
-    node_expr::typing::static_comparison_type,
-};
+use super::filter_operator::{BinaryOp, StringOp};
 use crate::{
     db::api::{state::NodeOp, view::internal::DynGraphArc},
     errors::GraphError,
@@ -50,6 +49,7 @@ use raphtory_api::core::{
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
+use typing::static_comparison_type;
 
 /// One view restriction, in the order it was applied. Each one is the graph
 /// view method of the same name applied to the view built so far.

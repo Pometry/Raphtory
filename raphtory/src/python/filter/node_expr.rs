@@ -2,11 +2,11 @@ use crate::{
     db::graph::views::filter::model::{
         expr::{
             builder::{EntityAggOps, NodeFilterFactory},
+            typing::{is_known, qualified_type},
             Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, FilterExpr, Leaf,
             NodeExpr, NodeLeaf, PropertyTerm,
         },
         filter_operator::{BinaryOp, StringOp},
-        node_expr::typing::{is_known, qualified_type},
         node_filter::NodeFilter,
         validate_const_comparable, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
     },

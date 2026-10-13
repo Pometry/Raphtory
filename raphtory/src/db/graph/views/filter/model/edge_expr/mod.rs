@@ -17,14 +17,40 @@
 //! └──────────────────────────────────────────────────────────┘
 //! ```
 
+use crate::{
+    db::{
+        api::view::internal::DynGraphArc,
+        graph::views::filter::{
+            model::expr::{typing::require_bool, EdgeOps, Expr, Leaf},
+            DynEdgeFilter,
+        },
+    },
+    errors::GraphError,
+};
+use ops::TruthyEdgeOp;
 use raphtory_api::core::{
     entities::{properties::prop::PropType, LayerId},
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::graph::GraphStorage;
+use std::sync::Arc;
 use storage::EdgeEntryRef;
 
 pub mod ops;
+
+impl<L: Leaf<Ops = EdgeOps>> Expr<L> {
+    /// The per-edge test this boolean tree is; a tree built only from
+    /// constants is refused.
+    pub(super) fn edge_test<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<DynEdgeFilter<'g>, GraphError> {
+        self.refuse_constant()?;
+        let op = self.value_op(graph)?;
+        require_bool(&self.resolved_type(&op), "a filter")?;
+        Ok(Arc::new(TruthyEdgeOp { inner: op }))
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EdgeOp — compiled evaluator: storage entry → typed value

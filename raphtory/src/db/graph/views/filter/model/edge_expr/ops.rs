@@ -24,7 +24,7 @@ use crate::db::{
     api::state::ops::NodeOp,
     graph::views::filter::model::{
         edge_filter::Endpoint,
-        node_expr::typing::{truthy, BinaryKernel, UnaryKernel},
+        expr::typing::{truthy, BinaryKernel, UnaryKernel},
     },
 };
 use std::sync::Arc;

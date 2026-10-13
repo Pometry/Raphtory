@@ -38,26 +38,24 @@ use crate::{
                         AllOfEdgeOp, AndEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
                         EdgeExistsOp, EdgeMetaOp, EdgePropOp, IsActiveEdgePropOp,
                         IsDeletedEdgePropOp, IsSelfLoopEdgePropOp, IsValidEdgePropOp, NotEdgeOp,
-                        OrEdgeOp, TemporalEdgePropOp, TruthyEdgeOp, UnaryValueEdgeOp,
+                        OrEdgeOp, TemporalEdgePropOp, UnaryValueEdgeOp,
                     },
                     EdgeOp,
                 },
                 edge_filter::Endpoint,
+                expr::typing::{
+                    cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type,
+                    require_bool, set_kernel, set_shape, str_kernel, string_shape, BinaryKernel,
+                    SetMembers, Shape, ShapeError, UnaryKernel,
+                },
                 filter_operator::UnaryOp,
-                node_expr::{
-                    ops::{
-                        AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
-                        AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
-                        FirstEdgeOp, FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp,
-                        LatestNodeOp, LenEdgeOp, LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp,
-                        MinNodeOp, NodeIdOp, NodeMetaOp, NodePropOp, ShownNodeOp, SumEdgeOp,
-                        SumNodeOp, TemporalNodePropOp, UnaryValueNodeOp,
-                    },
-                    typing::{
-                        cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type,
-                        require_bool, set_kernel, set_shape, str_kernel, string_shape, truthy,
-                        BinaryKernel, SetMembers, Shape, ShapeError, UnaryKernel,
-                    },
+                node_expr::ops::{
+                    AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
+                    AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
+                    FirstEdgeOp, FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp, LatestNodeOp,
+                    LenEdgeOp, LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp, MinNodeOp, NodeIdOp,
+                    NodeMetaOp, NodePropOp, ShownNodeOp, SumEdgeOp, SumNodeOp, TemporalNodePropOp,
+                    UnaryValueNodeOp,
                 },
                 require_aggregable, resolved_prop_type,
             },
@@ -917,7 +915,7 @@ impl<L: Leaf> Expr<L> {
 
     /// The type of this expression compiled to `op`: the one known before the
     /// graph when there is one, else the one the op reports.
-    fn resolved_type(&self, op: &<L::Ops as OpFamily>::Value<'_>) -> PropType {
+    pub(crate) fn resolved_type(&self, op: &<L::Ops as OpFamily>::Value<'_>) -> PropType {
         resolved_prop_type(self.prop_type(), L::Ops::prop_type(op))
     }
 
@@ -1006,31 +1004,6 @@ impl<L: Leaf> Expr<L> {
                 Ok(op)
             })
             .collect()
-    }
-}
-
-impl NodeExpr {
-    /// The per-node test this boolean tree is. A tree built only from
-    /// constants answers the same for every node, so it is refused.
-    fn node_test<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'g>, GraphError> {
-        self.refuse_constant()?;
-        let op = self.value_op(graph)?;
-        require_bool(&self.resolved_type(&op), "a filter")?;
-        Ok(Arc::new(op.map(|v| truthy(&v))))
-    }
-}
-
-impl<L: Leaf<Ops = EdgeOps>> Expr<L> {
-    /// The per-edge test this boolean tree is; a tree built only from
-    /// constants is refused.
-    fn edge_test<'g>(&self, graph: DynGraphArc<'g>) -> Result<DynEdgeFilter<'g>, GraphError> {
-        self.refuse_constant()?;
-        let op = self.value_op(graph)?;
-        require_bool(&self.resolved_type(&op), "a filter")?;
-        Ok(Arc::new(TruthyEdgeOp { inner: op }))
     }
 }
 
