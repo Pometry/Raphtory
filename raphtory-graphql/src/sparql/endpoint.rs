@@ -15,12 +15,12 @@ use crate::{
     rayon::blocking_compute,
     sparql::{config::CODE_RESULTS_TOO_LARGE, format::GqlSparqlFormat, SparqlError},
 };
-use async_graphql::{Executor, Name, Request as GraphQLRequest, Value, Variables};
+use async_graphql::{Executor, Value};
 use itertools::Itertools;
 use poem::{
     error::ResponseError,
     http::{
-        header::{HeaderValue, ALLOW},
+        header::{HeaderValue, ALLOW, AUTHORIZATION},
         Method, StatusCode,
     },
     web::{headers::Mime, Accept},
@@ -28,11 +28,17 @@ use poem::{
 };
 use raphtory_api::core::utils::time::ParseTimeError;
 use raphtory_rdf::{QueryForm, QueryOutline, SparqlFormat, SparqlOptions, TimeGraph};
+use serde_json::{json, Value as Json};
 use std::sync::Arc;
 use thiserror::Error;
 use url::form_urlencoded;
 
 const ALLOWED: &str = "GET, POST, OPTIONS";
+
+/// The GraphQL request the endpoint runs: the `sparql` field of `rdfGraph(path:)` under `views`.
+const QUERY: &str = "query SparqlEndpoint($path: String!, $views: [GraphViewCollection!]!, \
+                     $query: String!, $format: SparqlFormat!) { rdfGraph(path: $path) { \
+                     applyViews(views: $views) { sparql(query: $query, format: $format) } } }";
 
 /// The accepted media types with their q values, best first; `*/*` when the header is missing.
 fn media_ranges(accept: &[Mime]) -> Vec<(&str, f32)> {
@@ -67,13 +73,6 @@ enum EndpointError {
          application/sparql-query"
     )]
     UnsupportedMediaType,
-    #[error("SPARQL Update is not supported: this endpoint answers queries only")]
-    UpdateNotSupported,
-    #[error(
-        "`default-graph-uri` and `named-graph-uri` are not supported: name time graphs \
-         <raphtory:asof:T> in the query"
-    )]
-    DatasetNotSupported,
     #[error("the request has no `query`")]
     NoQuery,
     #[error("invalid `asof`: {0}")]
@@ -98,13 +97,11 @@ impl ResponseError for EndpointError {
         match self {
             Self::DuplicateParam(_)
             | Self::QueryNotUtf8
-            | Self::DatasetNotSupported
             | Self::NoQuery
             | Self::InvalidAsof(_)
             | Self::Query(_) => StatusCode::BAD_REQUEST,
             Self::GraphQL(status, _) => *status,
             Self::UnsupportedMediaType => StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            Self::UpdateNotSupported => StatusCode::NOT_IMPLEMENTED,
             Self::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
             Self::GraphNotFound(_) => StatusCode::NOT_FOUND,
             Self::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
@@ -115,8 +112,6 @@ impl ResponseError for EndpointError {
 #[derive(Default)]
 struct Params {
     query: Option<String>,
-    update: bool,
-    dataset: bool,
     asof: Option<String>,
 }
 
@@ -131,8 +126,6 @@ impl Params {
         };
         match name {
             "query" => once(&mut self.query, "query", value)?,
-            "update" => self.update = true,
-            "default-graph-uri" | "named-graph-uri" => self.dataset = true,
             "asof" => once(&mut self.asof, "asof", value)?,
             // other parameters (such as the `format` and `output` of some clients) are ignored
             _ => {}
@@ -199,7 +192,6 @@ impl<E: Executor> SparqlEndpoint<E> {
                 .content_type()
                 .and_then(|value| value.parse::<Mime>().ok());
             match content_type.as_ref().map(Mime::essence_str) {
-                Some("application/sparql-update") => params.update = true,
                 Some("application/x-www-form-urlencoded") => {
                     params.add_form(&req.take_body().into_vec().await?)?
                 }
@@ -210,12 +202,6 @@ impl<E: Executor> SparqlEndpoint<E> {
                 }
                 _ => return Err(EndpointError::UnsupportedMediaType.into()),
             }
-        }
-        if params.update {
-            return Err(EndpointError::UpdateNotSupported.into());
-        }
-        if params.dataset {
-            return Err(EndpointError::DatasetNotSupported.into());
         }
         let query = params.query.ok_or(EndpointError::NoQuery)?;
         let asof = params
@@ -236,62 +222,58 @@ impl<E: Executor> SparqlEndpoint<E> {
                 })
                 .ok_or(EndpointError::NotAcceptable(outline.form))?;
 
-        let sparql = "sparql(query: $query, format: $format)";
-        let (view, results): (_, &[&str]) = match asof {
-            Some(time) => (
-                format!(
-                    "before(time: {}) {{ valid {{ {sparql} }} }}",
-                    time.saturating_add(1)
-                ),
-                &["rdfGraph", "before", "valid", "sparql"],
-            ),
-            None if outline.reads_time_graphs => (sparql.to_owned(), &["rdfGraph", "sparql"]),
-            None => (
-                format!("valid {{ {sparql} }}"),
-                &["rdfGraph", "valid", "sparql"],
-            ),
+        let views = match asof {
+            Some(time) => json!([{ "before": time.saturating_add(1) }, { "valid": true }]),
+            None if outline.reads_time_graphs => json!([]),
+            None => json!([{ "valid": true }]),
         };
-        let variables = [
-            ("path", Value::from(path.as_str())),
-            ("query", Value::from(query)),
-            ("format", Value::from(&format)),
-        ]
-        .into_iter()
-        .map(|(name, value)| (Name::new(name), value))
-        .collect();
-        let request = GraphQLRequest::new(format!(
-            "query SparqlEndpoint($path: String!, $query: String!, $format: SparqlFormat!) \
-             {{ rdfGraph(path: $path) {{ {view} }} }}"
-        ))
-        .variables(Variables::from_value(Value::Object(variables)));
-        let response = self.graphql.execute(req.headers(), request).await?;
+        let body = json!({
+            "query": QUERY,
+            "variables": {
+                "path": path,
+                "views": views,
+                "query": query,
+                "format": Value::from(&format),
+            },
+        });
+        let mut graphql = Request::builder()
+            .method(Method::POST)
+            .content_type("application/json");
+        if let Some(authorization) = req.headers().get(AUTHORIZATION) {
+            graphql = graphql.header(AUTHORIZATION, authorization.clone());
+        }
+        let mut response: Json = self
+            .graphql
+            .call(graphql.body(body.to_string()))
+            .await?
+            .into_body()
+            .into_json()
+            .await?;
 
-        if let Some(error) = response.errors.first() {
+        if let Some(errors) = response["errors"]
+            .as_array()
+            .filter(|errors| !errors.is_empty())
+        {
             // `rdfGraph` is the only root field, so no data means it failed (a missing graph or
             // one that cannot be loaded); an error below it leaves data
-            let code = error.extensions.as_ref().and_then(|e| e.get("code"));
-            let status = if response.data == Value::Null {
+            let status = if response["data"].is_null() {
                 StatusCode::NOT_FOUND
-            } else if code == Some(&Value::from(CODE_RESULTS_TOO_LARGE)) {
+            } else if errors[0]["extensions"]["code"] == CODE_RESULTS_TOO_LARGE {
                 StatusCode::PAYLOAD_TOO_LARGE
             } else {
                 StatusCode::BAD_REQUEST
             };
-            let messages = response
-                .errors
+            let messages = errors
                 .iter()
-                .map(|error| &error.message)
+                .filter_map(|error| error["message"].as_str())
                 .join("\n");
             return Err(EndpointError::GraphQL(status, messages).into());
         }
-        let results = results
-            .iter()
-            .try_fold(response.data, |value, field| match value {
-                Value::Object(mut fields) => fields.swap_remove(*field),
-                _ => None,
-            });
-        match results {
-            Some(Value::String(results)) => {
+        match response
+            .pointer_mut("/data/rdfGraph/applyViews/sparql")
+            .map(Json::take)
+        {
+            Some(Json::String(results)) => {
                 Ok(Response::builder().content_type(media_type).body(results))
             }
             // `rdfGraph` is null: the caller cannot read the graph

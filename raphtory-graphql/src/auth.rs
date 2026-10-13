@@ -11,12 +11,11 @@ use futures_util::{future::BoxFuture, StreamExt};
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use poem::{
     error::{BadRequest, TooManyRequests, Unauthorized},
-    http::HeaderMap,
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
-use std::{collections::HashMap, future::Future, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, warn};
 
@@ -184,89 +183,29 @@ impl<E> AuthenticatedGraphQL<E>
 where
     E: Executor,
 {
-    /// Executes `request` as this endpoint executes a request with `headers`: authenticated by
-    /// their `Authorization` header, under the same locks and limits, and with the caller's
-    /// access, roles and claims in its context.
-    pub async fn execute(
-        &self,
-        headers: &HeaderMap,
-        request: async_graphql::Request,
-    ) -> Result<async_graphql::Response> {
-        let (access, roles, claim_values) = self.authenticate(headers).await?;
-        let request = request.data(access).data(roles).data(claim_values);
-        let write = is_exclusive_write(&request.query);
-        let heavy = is_query_heavy(&request.query);
-        self.guarded(write, heavy, || self.executor.execute(request))
-            .await
+    async fn execute(&self, request: BatchRequest) -> Response {
+        GraphQLBatchResponse(self.executor.execute_batch(request).await).into_response()
     }
 
-    /// The access, roles and claims of the token in the `Authorization` header of `headers`.
-    async fn authenticate(&self, headers: &HeaderMap) -> Result<(Access, Roles, TokenClaimValues)> {
-        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let auth = &self.config.auth;
-        Ok(match &self.key_resolver {
-            // if auth is not setup, we give write access to all requests
-            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
-            Some(resolver) => {
-                let claims = match headers
-                    .get(AUTHORIZATION)
-                    .and_then(|value| value.to_str().ok())
-                {
-                    Some(header) => {
-                        extract_claims(
-                            header,
-                            resolver.as_ref(),
-                            auth.audience.as_deref(),
-                            auth.issuer.as_deref(),
-                            auth.role_claim.as_deref(),
-                        )
-                        .await
-                    }
-                    None => None,
-                };
-                match claims {
-                    Some((access, roles, other)) => {
-                        debug!(roles = ?roles, "JWT validated successfully");
-                        (access, Roles(roles), TokenClaimValues(other))
-                    }
-                    None => {
-                        if auth.require_auth_for_reads {
-                            warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
-                            return Err(Unauthorized(AuthError::RequireRead));
-                        } else {
-                            debug!("No valid JWT but require_auth_for_reads=false — granting read access");
-                            (Access::Ro, Roles::default(), TokenClaimValues::default())
-                        }
-                    }
+    async fn execute_read_query(&self, req: BatchRequest) -> Result<Response> {
+        let is_heavy = match &req {
+            BatchRequest::Single(request) => is_query_heavy(&request.query),
+            BatchRequest::Batch(requests) => requests
+                .iter()
+                .any(|request| is_query_heavy(&request.query)),
+        };
+        if is_heavy {
+            if let Some(semaphore) = &self.semaphore {
+                match semaphore.acquire().await {
+                    Ok(_permit) => Ok(self.execute(req).await),
+                    Err(error) => Err(TooManyRequests(error)),
                 }
+            } else {
+                Ok(self.execute(req).await)
             }
-        })
-    }
-
-    /// Runs `execution` holding the exclusive-write lock for a `write`, and otherwise the shared
-    /// lock and, if `heavy`, a heavy-query slot.
-    async fn guarded<F: Future>(
-        &self,
-        write: bool,
-        heavy: bool,
-        execution: impl FnOnce() -> F,
-    ) -> Result<F::Output> {
-        if write {
-            let _guard = match &self.lock {
-                Some(lock) => Some(lock.write().await),
-                None => None,
-            };
-            return Ok(execution().await);
+        } else {
+            Ok(self.execute(req).await)
         }
-        let _guard = match &self.lock {
-            Some(lock) => Some(lock.read().await),
-            None => None,
-        };
-        let _permit = match &self.semaphore {
-            Some(semaphore) if heavy => Some(semaphore.acquire().await.map_err(TooManyRequests)?),
-            _ => None,
-        };
-        Ok(execution().await)
     }
 }
 
@@ -300,7 +239,42 @@ where
     type Output = Response;
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
-        let (access, roles, claim_values) = self.authenticate(req.headers()).await?;
+        // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
+        let auth = &self.config.auth;
+        let (access, roles, claim_values) = match &self.key_resolver {
+            // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, Roles::default(), TokenClaimValues::default()),
+            Some(resolver) => {
+                let claims = match req.header(AUTHORIZATION) {
+                    Some(header) => {
+                        extract_claims(
+                            header,
+                            resolver.as_ref(),
+                            auth.audience.as_deref(),
+                            auth.issuer.as_deref(),
+                            auth.role_claim.as_deref(),
+                        )
+                        .await
+                    }
+                    None => None,
+                };
+                match claims {
+                    Some((access, roles, other)) => {
+                        debug!(roles = ?roles, "JWT validated successfully");
+                        (access, Roles(roles), TokenClaimValues(other))
+                    }
+                    None => {
+                        if auth.require_auth_for_reads {
+                            warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
+                            return Err(Unauthorized(AuthError::RequireRead));
+                        } else {
+                            debug!("No valid JWT but require_auth_for_reads=false — granting read access");
+                            (Access::Ro, Roles::default(), TokenClaimValues::default())
+                        }
+                    }
+                }
+            }
+        };
 
         let is_accept_multipart_mixed = req
             .header("accept")
@@ -335,12 +309,28 @@ where
             }
 
             let req = batch_req.data(access).data(roles).data(claim_values);
-            let write = req.iter().any(|request| is_exclusive_write(&request.query));
-            let heavy = req.iter().any(|request| is_query_heavy(&request.query));
-            let response = self
-                .guarded(write, heavy, || self.executor.execute_batch(req))
-                .await?;
-            Ok(GraphQLBatchResponse(response).into_response())
+
+            let contains_update = match &req {
+                BatchRequest::Single(request) => is_exclusive_write(&request.query),
+                BatchRequest::Batch(requests) => requests
+                    .iter()
+                    .any(|request| is_exclusive_write(&request.query)),
+            };
+            if contains_update {
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.write().await;
+                    Ok(self.execute(req).await)
+                } else {
+                    Ok(self.execute(req).await)
+                }
+            } else {
+                if let Some(lock) = &self.lock {
+                    let _guard = lock.read().await;
+                    self.execute_read_query(req).await
+                } else {
+                    self.execute_read_query(req).await
+                }
+            }
         }
     }
 }
@@ -538,31 +528,7 @@ impl Extension for MutationAuth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_graphql::{EmptyMutation, EmptySubscription, Object, Schema};
     use serde_json::json;
-    use tokio::time::timeout;
-
-    struct Query;
-
-    #[Object]
-    impl Query {
-        async fn ok(&self) -> bool {
-            true
-        }
-    }
-
-    #[tokio::test]
-    async fn heavy_queries_wait_for_a_heavy_query_slot() {
-        let mut config = AppConfig::default();
-        config.concurrency.heavy_query_limit = Some(0);
-        let schema = Schema::new(Query, EmptyMutation, EmptySubscription);
-        let graphql = AuthenticatedGraphQL::new(schema, config, None);
-        let headers = HeaderMap::new();
-        let heavy = graphql.execute(&headers, "query sparql { ok }".into());
-        assert!(timeout(Duration::from_millis(200), heavy).await.is_err());
-        let light = graphql.execute(&headers, "{ ok }".into()).await.unwrap();
-        assert!(light.errors.is_empty());
-    }
 
     fn claims(role: Option<serde_json::Value>, other: &[(&str, serde_json::Value)]) -> TokenClaims {
         TokenClaims {

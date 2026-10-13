@@ -157,7 +157,6 @@ def test_a_missing_graph_is_not_found(server):
 
 
 def test_rdflib_sparqlstore(endpoint):
-    # without an IRI identifier, so rdflib sends no `default-graph-uri`
     graph = rdflib.Graph(store=SPARQLStore(query_endpoint=endpoint))
     assert [(str(s), str(o)) for s, o in graph.query(KNOWS)] == [
         ("http://ex/bob", "http://ex/carol")
