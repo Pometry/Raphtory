@@ -79,27 +79,19 @@ pub fn load_nodes_from_df_prefetch<
         num_rows,
     } = df_view;
 
-    LOAD_POOL.install(|| {
-        rayon::scope(|s| {
-            let (tx, rx) = mpsc::sync_channel(2);
+    let mut result: Result<(), GraphError> = Ok(());
+    LOAD_POOL.in_place_scope(|s| {
+        let (sender, rx) = mpsc::sync_channel(2);
 
-            s.spawn(move |_| {
-                let sender = tx;
-                for chunk in chunks {
-                    if let Err(e) = sender.send(chunk) {
-                        eprintln!("Error sending chunk to loader: {}", e);
-                        break;
-                    }
-                }
-            });
+        let df_view_prefetch = DFView {
+            names,
+            chunks: rx.into_iter(),
+            num_rows,
+        };
+        let result = &mut result;
 
-            let df_view_prefetch = DFView {
-                names,
-                chunks: rx.into_iter(),
-                num_rows,
-            };
-
-            load_nodes_from_df(
+        s.spawn(move |_| {
+            *result = load_nodes_from_df(
                 df_view_prefetch,
                 time,
                 secondary_index,
@@ -114,12 +106,17 @@ pub fn load_nodes_from_df_prefetch<
                 layer,
                 layer_col,
                 layer_id_col,
-            )?;
-            Ok::<(), GraphError>(())
-        })?;
+            );
+        });
 
-        Ok(())
-    })
+        for chunk in chunks {
+            if let Err(e) = sender.send(chunk) {
+                eprintln!("Error sending chunk to loader: {}", e);
+                break;
+            }
+        }
+    });
+    result
 }
 
 #[allow(clippy::too_many_arguments)]
