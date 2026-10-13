@@ -1,23 +1,16 @@
 //! From expression data to a filter the engine can apply.
 //!
-//! A tree compiles straight to the ops that evaluate it: a term's views fold
-//! into a view chain over the graph and the term becomes the op that reads
-//! through it, and every other node of a value expression becomes one op
-//! over the ops of its children, built by the entity's [`OpFamily`]. A
-//! `Bool`-typed value is a filter on its entity through its [`Leaf`]; this
-//! module adds what only a whole filter knows: which entities each leg
-//! answers for, how `and`, `or` and `not` combine those answers, and where a
-//! view applies.
+//! A tree compiles straight to the ops that evaluate it: a term's views apply
+//! to the graph in order and the term becomes the op that reads the viewed
+//! graph, and every other node of a value expression becomes one op over the
+//! ops of its children, built by the entity's [`OpFamily`]. A `Bool`-typed
+//! value is a filter on its entity through its [`Leaf`]; a whole filter is the
+//! graph its legs keep, combined by `and`, `or` and `not`.
 
 use super::{
     builder::{Chain, GraphLeaf},
-    split::{both_ends, closed_edges, needs_operand, view_below_top_level},
-    stream::{
-        EdgeHistory, EndpointHistory, NodeHistory, StreamedAggEdgeOp, StreamedAggNodeOp,
-        StreamedAllEdgeOp, StreamedAllNodeOp, StreamedAnyEdgeOp, StreamedAnyNodeOp,
-    },
-    Agg, EdgeExpr, EdgeLeaf, EdgePredicate, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field,
-    FilterExpr, NodeExpr, NodeLeaf, Quantifier, Question, SplitFilter, ValueTest, ViewOp,
+    Agg, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeExpr,
+    NodeLeaf, Quantifier, ViewOp,
 };
 use crate::{
     db::{
@@ -30,14 +23,16 @@ use crate::{
                 },
                 NodeOp,
             },
-            view::internal::{DynGraphArc, GraphView, IntoDynGraphArc},
+            view::{
+                internal::{DynGraphArc, GraphView, IntoDynGraphArc},
+                GraphViewOps, LayerOps, TimeOps,
+            },
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             edge_expr_filtered_graph::EdgeExprFilteredGraph,
             exploded_edge_expr_filtered_graph::ExplodedEdgeExprFilteredGraph,
             model::{
-                after_bounds, at_bounds, before_bounds,
                 edge_expr::{
                     ops::{
                         AndEdgeOp, AndValueEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
@@ -48,48 +43,34 @@ use crate::{
                     },
                     EdgeOp,
                 },
-                edge_filter::{EdgeFilter, Endpoint},
-                exploded_edge_filter::ExplodedEdgeFilter,
+                edge_filter::Endpoint,
                 filter_operator::UnaryOp,
-                graph_filter::GraphFilter,
-                latest_filter::Latest,
-                layered_filter::{
-                    DefaultLayer, ExcludeLayers, ExcludeValidLayers, Layered, ValidLayers,
-                },
                 node_expr::{
                     ops::{
                         AllEdgeOp, AllNodeOp, AndValueNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp,
-                        AvgNodeOp, BinaryValueNodeOp, DomainNodeOp, EarliestEdgeOp, EarliestNodeOp,
-                        FirstEdgeOp, FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp,
-                        LatestNodeOp, LenEdgeOp, LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp,
-                        MinNodeOp, NodeIdOp, NodeMetaOp, NodePropOp, OrValueNodeOp, ShownNodeOp,
-                        SumEdgeOp, SumNodeOp, TemporalNodePropOp, UnaryValueNodeOp,
+                        AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp, FirstEdgeOp,
+                        FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp, LatestNodeOp, LenEdgeOp,
+                        LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp, MinNodeOp, NodeIdOp,
+                        NodeMetaOp, NodePropOp, OrValueNodeOp, ShownNodeOp, SumEdgeOp, SumNodeOp,
+                        TemporalNodePropOp, UnaryValueNodeOp,
                     },
-                    pushdown::IndexTerm,
                     typing::{
                         cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type,
                         require_bool, set_kernel, set_shape, str_kernel, string_shape, truthy,
                         BinaryKernel, SetMembers, Shape, ShapeError, UnaryKernel,
                     },
                 },
-                node_filter::NodeFilter,
                 require_aggregable, resolved_prop_type,
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                subgraph_filter::{ExcludeNodes, Subgraph, SubgraphNodeTypes, Valid},
-                windowed_filter::{ShrinkEnd, ShrinkStart, Windowed},
-                CreateView, DynCreateView,
             },
             node_filtered_graph::NodeFilteredGraph,
+            not_filtered_graph::NotFilteredGraph,
             or_filtered_graph::OrFilteredGraph,
             CreateFilter, DynEdgeFilter,
         },
     },
     errors::GraphError,
 };
-use raphtory_api::core::{
-    entities::properties::prop::{IntoProp, Prop, PropType},
-    storage::timeindex::EventTime,
-};
+use raphtory_api::core::entities::properties::prop::{IntoProp, Prop, PropType};
 use std::{
     fmt::Debug,
     sync::{Arc, LazyLock},
@@ -108,14 +89,6 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
         &self,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<<Self::Ops as OpFamily>::Value<'g>>, GraphError>;
-
-    /// The history this term reads against `graph`, for a consumer that walks
-    /// the values instead of taking them as one list: `None` unless the term
-    /// is a temporal property.
-    fn history_op<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Option<Arc<<Self::Ops as OpFamily>::History<'g>>>, GraphError>;
 
     // What a yes/no tree over this leaf type is as a filter; see
     // `CreateFilter for Expr`.
@@ -167,81 +140,23 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
         true
     }
 
-    /// The term a node index covers, when this is one read without a view.
-    fn index_term(&self) -> Option<IndexTerm> {
-        None
-    }
-}
-
-/// A view chain over the graph, as the tree's view ops describe it, over the
-/// identity view `root`, applied in order. A window inside a window narrows and
-/// never widens, because the graph's own `window` intersects with the view it
-/// is applied to, as `graph.window(..).window(..)` does.
-fn view_chain(root: Arc<dyn DynCreateView>, views: &[ViewOp]) -> Arc<dyn DynCreateView> {
-    views.iter().fold(root, |chain, op| match op {
-        ViewOp::Window { start, end } => window((*start, *end), chain),
-        ViewOp::At(t) => window(at_bounds(*t), chain),
-        ViewOp::After(t) => window(after_bounds(*t), chain),
-        ViewOp::Before(t) => window(before_bounds(*t), chain),
-        ViewOp::Latest => Arc::new(Latest::new(chain)),
-        ViewOp::SnapshotAt(t) => Arc::new(SnapshotAt::new(*t, chain)),
-        ViewOp::SnapshotLatest => Arc::new(SnapshotLatest::new(chain)),
-        ViewOp::Layers(layer) => Arc::new(Layered::new(layer.clone(), chain)),
-        ViewOp::DefaultLayer => Arc::new(DefaultLayer::new(chain)),
-        ViewOp::ExcludeLayers(layer) => Arc::new(ExcludeLayers::new(layer.clone(), chain)),
-        ViewOp::ValidLayers(layer) => Arc::new(ValidLayers::new(layer.clone(), chain)),
-        ViewOp::ExcludeValidLayers(layer) => {
-            Arc::new(ExcludeValidLayers::new(layer.clone(), chain))
-        }
-        ViewOp::ShrinkStart(t) => Arc::new(ShrinkStart::new(*t, chain)),
-        ViewOp::ShrinkEnd(t) => Arc::new(ShrinkEnd::new(*t, chain)),
-        ViewOp::ExcludeNodes(ids) => Arc::new(ExcludeNodes::new(ids.clone(), chain)),
-        ViewOp::Subgraph(ids) => Arc::new(Subgraph::new(ids.clone(), chain)),
-        ViewOp::SubgraphNodeTypes(types) => Arc::new(SubgraphNodeTypes::new(types.clone(), chain)),
-        ViewOp::Valid => Arc::new(Valid::new(chain)),
-    })
-}
-
-fn window(
-    (start, end): (EventTime, EventTime),
-    chain: Arc<dyn DynCreateView>,
-) -> Arc<dyn DynCreateView> {
-    Arc::new(Windowed::new(start, end, chain))
-}
-
-fn node_chain(views: &[ViewOp]) -> Arc<dyn DynCreateView> {
-    view_chain(Arc::new(NodeFilter), views)
-}
-
-fn edge_chain(exploded: bool, views: &[ViewOp]) -> Arc<dyn DynCreateView> {
-    if exploded {
-        view_chain(Arc::new(ExplodedEdgeFilter), views)
-    } else {
-        view_chain(Arc::new(EdgeFilter), views)
+    /// Whether the term reads a property's history, whose updates
+    /// `earliest()` and `latest()` pick from.
+    fn reads_history(&self) -> bool {
+        false
     }
 }
 
 /// Whether a term read through `views` can miss an entity the incoming graph
-/// shows, as `CreateView::narrows` of the chain over `views` answers: every
-/// view can hide one, and the bare entity root hides none.
+/// shows: every view can hide one.
 fn narrows(views: &[ViewOp]) -> bool {
     !views.is_empty()
 }
 
-/// A property or metadata entry as the term an index covers. A view can hide
-/// what the index holds, so a term read through one is not covered.
-fn indexed(views: &[ViewOp], name: &str, metadata: bool, ever: bool) -> Option<IndexTerm> {
-    (!narrows(views)).then(|| IndexTerm::Property {
-        name: name.to_owned(),
-        metadata,
-        ever,
-    })
-}
-
-/// A node property read through `chain`: the graph through the chain, the
-/// property's id, and whether the chain can hide a node.
+/// A node property read through `views`: the graph through the views, the
+/// property's id, and whether the views can hide a node.
 fn node_property<'g>(
-    chain: Arc<dyn DynCreateView>,
+    views: &[ViewOp],
     name: &str,
     graph: DynGraphArc<'g>,
 ) -> Result<(DynGraphArc<'g>, usize, bool), GraphError> {
@@ -249,32 +164,17 @@ fn node_property<'g>(
         .node_meta()
         .get_prop_id(name, false)
         .ok_or_else(|| GraphError::PropertyMissingError(name.to_owned()))?;
-    let narrows = chain.narrows();
-    Ok((chain.create_view(graph)?, prop_id, narrows))
+    Ok((apply_views(graph, views)?, prop_id, narrows(views)))
 }
 
-/// A node property read through `chain`, as its history.
-fn node_history_op<'g>(
-    chain: Arc<dyn DynCreateView>,
-    name: &str,
-    graph: DynGraphArc<'g>,
-) -> Result<TemporalNodePropOp<DynGraphArc<'g>>, GraphError> {
-    let (graph, prop_id, narrows) = node_property(chain, name, graph)?;
-    Ok(TemporalNodePropOp {
-        graph,
-        prop_id,
-        narrows,
-    })
-}
-
-/// A node property read through `chain`: its latest value, or its history.
+/// A node property read through `views`: its latest value, or its history.
 fn node_property_op<'g>(
-    chain: Arc<dyn DynCreateView>,
+    views: &[ViewOp],
     name: &str,
     temporal: bool,
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
-    let (graph, prop_id, narrows) = node_property(chain, name, graph)?;
+    let (graph, prop_id, narrows) = node_property(views, name, graph)?;
     Ok(if temporal {
         Arc::new(TemporalNodePropOp {
             graph,
@@ -290,9 +190,9 @@ fn node_property_op<'g>(
     })
 }
 
-/// A node metadata entry read through `chain`.
+/// A node metadata entry read through `views`.
 fn node_metadata_op<'g>(
-    chain: Arc<dyn DynCreateView>,
+    views: &[ViewOp],
     name: &str,
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
@@ -300,19 +200,17 @@ fn node_metadata_op<'g>(
         .node_meta()
         .get_prop_id(name, true)
         .ok_or_else(|| GraphError::MetadataMissingError(name.to_owned()))?;
-    let narrows = chain.narrows();
-    let graph = chain.create_view(graph)?;
     Ok(Arc::new(NodeMetaOp {
-        graph,
+        graph: apply_views(graph, views)?,
         prop_id,
-        narrows,
+        narrows: narrows(views),
     }))
 }
 
-/// An edge property read through `chain`: the graph through the chain and
+/// An edge property read through `views`: the graph through the views and
 /// the property's id.
 fn edge_property<'g>(
-    chain: Arc<dyn DynCreateView>,
+    views: &[ViewOp],
     name: &str,
     graph: DynGraphArc<'g>,
 ) -> Result<(DynGraphArc<'g>, usize), GraphError> {
@@ -320,27 +218,17 @@ fn edge_property<'g>(
         .edge_meta()
         .get_prop_id(name, false)
         .ok_or_else(|| GraphError::PropertyMissingError(name.to_owned()))?;
-    Ok((chain.create_view(graph)?, prop_id))
+    Ok((apply_views(graph, views)?, prop_id))
 }
 
-/// An edge property read through `chain`, as its history.
-fn edge_history_op<'g>(
-    chain: Arc<dyn DynCreateView>,
-    name: &str,
-    graph: DynGraphArc<'g>,
-) -> Result<TemporalEdgePropOp<DynGraphArc<'g>>, GraphError> {
-    let (graph, prop_id) = edge_property(chain, name, graph)?;
-    Ok(TemporalEdgePropOp { graph, prop_id })
-}
-
-/// An edge property read through `chain`: its latest value, or its history.
+/// An edge property read through `views`: its latest value, or its history.
 fn edge_property_op<'g>(
-    chain: Arc<dyn DynCreateView>,
+    views: &[ViewOp],
     name: &str,
     temporal: bool,
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-    let (graph, prop_id) = edge_property(chain, name, graph)?;
+    let (graph, prop_id) = edge_property(views, name, graph)?;
     Ok(if temporal {
         Arc::new(TemporalEdgePropOp { graph, prop_id })
     } else {
@@ -348,9 +236,9 @@ fn edge_property_op<'g>(
     })
 }
 
-/// An edge metadata entry read through `chain`.
+/// An edge metadata entry read through `views`.
 fn edge_metadata_op<'g>(
-    chain: Arc<dyn DynCreateView>,
+    views: &[ViewOp],
     name: &str,
     graph: DynGraphArc<'g>,
 ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
@@ -358,7 +246,7 @@ fn edge_metadata_op<'g>(
         .edge_meta()
         .get_prop_id(name, true)
         .ok_or_else(|| GraphError::MetadataMissingError(name.to_owned()))?;
-    let graph = chain.create_view(graph)?;
+    let graph = apply_views(graph, views)?;
     Ok(Arc::new(EdgeMetaOp { graph, prop_id }))
 }
 
@@ -389,14 +277,13 @@ impl Leaf for NodeLeaf {
             },
             // A degree read through a view that can hide the node is 0 there.
             NodeLeaf::Degree { views, direction } => {
-                let chain = node_chain(views);
-                let view = chain.create_view(graph)?;
+                let view = apply_views(graph, views)?;
                 let degree = Degree {
                     dir: *direction,
                     view: view.clone(),
                 }
                 .map(|a| Some(Prop::U64(a as u64)));
-                if chain.narrows() {
+                if narrows(views) {
                     Arc::new(ShownNodeOp {
                         graph: view,
                         term: degree,
@@ -410,11 +297,11 @@ impl Leaf for NodeLeaf {
                 views,
                 name,
                 temporal,
-            } => node_property_op(node_chain(views), name, *temporal, graph)?,
-            NodeLeaf::Metadata { views, name } => node_metadata_op(node_chain(views), name, graph)?,
+            } => node_property_op(views, name, *temporal, graph)?,
+            NodeLeaf::Metadata { views, name } => node_metadata_op(views, name, graph)?,
             // A node the view hides is not active in it.
             NodeLeaf::IsActive { views } => {
-                let graph = node_chain(views).create_view(graph)?;
+                let graph = apply_views(graph, views)?;
                 Arc::new(ShownNodeOp {
                     graph: graph.clone(),
                     term: HistoryOp::new(graph).map(|h| Some(Prop::Bool(!h.is_empty()))),
@@ -422,20 +309,6 @@ impl Leaf for NodeLeaf {
                 })
             }
             NodeLeaf::Opaque(value) => value.0.node_value_op(graph)?,
-        })
-    }
-
-    fn history_op<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Option<Arc<dyn NodeHistory + 'g>>, GraphError> {
-        Ok(match self {
-            NodeLeaf::Property {
-                views,
-                name,
-                temporal: true,
-            } => Some(Arc::new(node_history_op(node_chain(views), name, graph)?)),
-            _ => None,
         })
     }
 
@@ -513,30 +386,14 @@ impl Leaf for NodeLeaf {
         }
     }
 
-    /// A field has no views that matter (see `value_op`), so the id and the
-    /// name are always covered.
-    fn index_term(&self) -> Option<IndexTerm> {
-        match self {
-            NodeLeaf::Field {
-                field: Field::Id, ..
-            } => Some(IndexTerm::Id),
-            NodeLeaf::Field {
-                field: Field::Name, ..
-            } => Some(IndexTerm::Name),
-            NodeLeaf::Property {
-                views,
-                name,
-                temporal,
-            } => indexed(views, name, false, *temporal),
-            NodeLeaf::Metadata { views, name } => indexed(views, name, true, false),
-            _ => None,
-        }
+    fn reads_history(&self) -> bool {
+        matches!(self, NodeLeaf::Property { temporal: true, .. })
     }
 }
 
 /// A term an edge and an exploded edge both offer, or an endpoint term, which
 /// only an edge offers, borrowed from either leaf so that one body serves
-/// both. `exploded` says which entity's view chain the term's views build on.
+/// both.
 enum EdgeTerm<'a> {
     Property {
         views: &'a [ViewOp],
@@ -557,7 +414,6 @@ enum EdgeTerm<'a> {
 impl EdgeTerm<'_> {
     fn value_op<'g>(
         self,
-        exploded: bool,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Ok(match self {
@@ -565,18 +421,16 @@ impl EdgeTerm<'_> {
                 views,
                 name,
                 temporal,
-            } => edge_property_op(edge_chain(exploded, views), name, temporal, graph)?,
-            EdgeTerm::Metadata { views, name } => {
-                edge_metadata_op(edge_chain(exploded, views), name, graph)?
-            }
+            } => edge_property_op(views, name, temporal, graph)?,
+            EdgeTerm::Metadata { views, name } => edge_metadata_op(views, name, graph)?,
             EdgeTerm::IsActive(views) => Arc::new(IsActiveEdgePropOp {
-                graph: edge_chain(exploded, views).create_view(graph)?,
+                graph: apply_views(graph, views)?,
             }),
             EdgeTerm::IsValid(views) => Arc::new(IsValidEdgePropOp {
-                graph: edge_chain(exploded, views).create_view(graph)?,
+                graph: apply_views(graph, views)?,
             }),
             EdgeTerm::IsDeleted(views) => Arc::new(IsDeletedEdgePropOp {
-                graph: edge_chain(exploded, views).create_view(graph)?,
+                graph: apply_views(graph, views)?,
             }),
             // Whether an edge is a self loop does not depend on any view.
             EdgeTerm::IsSelfLoop => Arc::new(IsSelfLoopEdgePropOp),
@@ -589,27 +443,13 @@ impl EdgeTerm<'_> {
         })
     }
 
-    /// An endpoint term reads the history on the node at that end.
-    fn history_op<'g>(
-        self,
-        exploded: bool,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Option<Arc<dyn EdgeHistory + 'g>>, GraphError> {
-        Ok(match self {
-            EdgeTerm::Property {
-                views,
-                name,
-                temporal: true,
-            } => Some(Arc::new(edge_history_op(
-                edge_chain(exploded, views),
-                name,
-                graph,
-            )?)),
-            EdgeTerm::Endpoint(inner, endpoint) => inner.history_op(graph)?.map(|node| {
-                Arc::new(EndpointHistory { node, endpoint }) as Arc<dyn EdgeHistory + 'g>
-            }),
-            _ => None,
-        })
+    /// An endpoint term reads the history the node at that end reads.
+    fn reads_history(&self) -> bool {
+        match self {
+            EdgeTerm::Property { temporal, .. } => *temporal,
+            EdgeTerm::Endpoint(inner, _) => inner.reads_history(),
+            _ => false,
+        }
     }
 
     fn prop_type(&self) -> PropType {
@@ -629,20 +469,6 @@ impl EdgeTerm<'_> {
             self,
             EdgeTerm::Property { .. } | EdgeTerm::Metadata { .. } | EdgeTerm::Endpoint(..)
         )
-    }
-
-    /// An endpoint does not forward its node's index term, since an edge
-    /// predicate never narrows by a node index.
-    fn index_term(&self) -> Option<IndexTerm> {
-        match self {
-            EdgeTerm::Property {
-                views,
-                name,
-                temporal,
-            } => indexed(views, name, false, *temporal),
-            EdgeTerm::Metadata { views, name } => indexed(views, name, true, false),
-            _ => None,
-        }
     }
 }
 
@@ -697,14 +523,7 @@ impl Leaf for EdgeLeaf {
         &self,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.edge_term().value_op(false, graph)
-    }
-
-    fn history_op<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Option<Arc<dyn EdgeHistory + 'g>>, GraphError> {
-        self.edge_term().history_op(false, graph)
+        self.edge_term().value_op(graph)
     }
 
     fn edge_filter<'g>(
@@ -750,8 +569,8 @@ impl Leaf for EdgeLeaf {
         self.edge_term().nullable()
     }
 
-    fn index_term(&self) -> Option<IndexTerm> {
-        self.edge_term().index_term()
+    fn reads_history(&self) -> bool {
+        self.edge_term().reads_history()
     }
 }
 
@@ -762,14 +581,7 @@ impl Leaf for ExplodedEdgeLeaf {
         &self,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>, GraphError> {
-        self.edge_term().value_op(true, graph)
-    }
-
-    fn history_op<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Option<Arc<dyn EdgeHistory + 'g>>, GraphError> {
-        self.edge_term().history_op(true, graph)
+        self.edge_term().value_op(graph)
     }
 
     /// An edge stays when the filtered graph keeps an update of it.
@@ -818,8 +630,8 @@ impl Leaf for ExplodedEdgeLeaf {
         self.edge_term().nullable()
     }
 
-    fn index_term(&self) -> Option<IndexTerm> {
-        self.edge_term().index_term()
+    fn reads_history(&self) -> bool {
+        self.edge_term().reads_history()
     }
 }
 
@@ -837,17 +649,11 @@ pub trait OpFamily {
     /// A value per entity.
     type Value<'g>: ?Sized + 'g;
 
-    /// A property's history per entity, walked rather than taken as one list.
-    type History<'g>: ?Sized + 'g;
-
     /// The type `op` reports.
     fn prop_type(op: &Self::Value<'_>) -> PropType;
 
     /// The value of `op`, when it answers the same for every entity.
     fn const_value(op: &Self::Value<'_>) -> Option<Prop>;
-
-    /// The type `history` has when read as one value.
-    fn history_type(history: &Self::History<'_>) -> PropType;
 
     /// The same value for every entity.
     fn constant<'g>(value: Prop) -> Arc<Self::Value<'g>>;
@@ -882,16 +688,6 @@ pub trait OpFamily {
 
     /// `any()` or `all()` over the element-wise yes/no value of `inner`.
     fn quantified<'g>(inner: Arc<Self::Value<'g>>, quantifier: Quantifier) -> Arc<Self::Value<'g>>;
-
-    /// `agg` walking `history`.
-    fn streamed_aggregate<'g>(history: Arc<Self::History<'g>>, agg: Agg) -> Arc<Self::Value<'g>>;
-
-    /// `any()` or `all()` of `test` walking `history`.
-    fn streamed_quantified<'g>(
-        history: Arc<Self::History<'g>>,
-        test: ValueTest,
-        quantifier: Quantifier,
-    ) -> Arc<Self::Value<'g>>;
 }
 
 /// The ops of a node tree.
@@ -899,7 +695,6 @@ pub struct NodeOps;
 
 impl OpFamily for NodeOps {
     type Value<'g> = dyn NodeOp<Output = Option<Prop>> + 'g;
-    type History<'g> = dyn NodeHistory + 'g;
 
     fn prop_type(op: &Self::Value<'_>) -> PropType {
         NodeOp::prop_type(op)
@@ -907,10 +702,6 @@ impl OpFamily for NodeOps {
 
     fn const_value(op: &Self::Value<'_>) -> Option<Prop> {
         NodeOp::const_value(op).flatten()
-    }
-
-    fn history_type(history: &Self::History<'_>) -> PropType {
-        NodeHistory::history_type(history)
     }
 
     fn constant<'g>(value: Prop) -> Arc<Self::Value<'g>> {
@@ -975,21 +766,6 @@ impl OpFamily for NodeOps {
             Quantifier::All => Arc::new(AllNodeOp { inner }),
         }
     }
-
-    fn streamed_aggregate<'g>(history: Arc<Self::History<'g>>, agg: Agg) -> Arc<Self::Value<'g>> {
-        Arc::new(StreamedAggNodeOp::new(history, agg))
-    }
-
-    fn streamed_quantified<'g>(
-        history: Arc<Self::History<'g>>,
-        test: ValueTest,
-        quantifier: Quantifier,
-    ) -> Arc<Self::Value<'g>> {
-        match quantifier {
-            Quantifier::Any => Arc::new(StreamedAnyNodeOp { history, test }),
-            Quantifier::All => Arc::new(StreamedAllNodeOp { history, test }),
-        }
-    }
 }
 
 /// The ops of an edge or exploded-edge tree.
@@ -997,7 +773,6 @@ pub struct EdgeOps;
 
 impl OpFamily for EdgeOps {
     type Value<'g> = dyn EdgeOp<Output = Option<Prop>> + 'g;
-    type History<'g> = dyn EdgeHistory + 'g;
 
     fn prop_type(op: &Self::Value<'_>) -> PropType {
         EdgeOp::prop_type(op)
@@ -1005,10 +780,6 @@ impl OpFamily for EdgeOps {
 
     fn const_value(op: &Self::Value<'_>) -> Option<Prop> {
         EdgeOp::const_value(op).flatten()
-    }
-
-    fn history_type(history: &Self::History<'_>) -> PropType {
-        EdgeHistory::history_type(history)
     }
 
     fn constant<'g>(value: Prop) -> Arc<Self::Value<'g>> {
@@ -1071,21 +842,6 @@ impl OpFamily for EdgeOps {
         match quantifier {
             Quantifier::Any => Arc::new(AnyEdgeOp { inner }),
             Quantifier::All => Arc::new(AllEdgeOp { inner }),
-        }
-    }
-
-    fn streamed_aggregate<'g>(history: Arc<Self::History<'g>>, agg: Agg) -> Arc<Self::Value<'g>> {
-        Arc::new(StreamedAggEdgeOp::new(history, agg))
-    }
-
-    fn streamed_quantified<'g>(
-        history: Arc<Self::History<'g>>,
-        test: ValueTest,
-        quantifier: Quantifier,
-    ) -> Arc<Self::Value<'g>> {
-        match quantifier {
-            Quantifier::Any => Arc::new(StreamedAnyEdgeOp { history, test }),
-            Quantifier::All => Arc::new(StreamedAllEdgeOp { history, test }),
         }
     }
 }
@@ -1155,17 +911,9 @@ impl<L: Leaf> Expr<L> {
         })
     }
 
-    /// The history this expression reads as is, against `graph`, for a
-    /// consumer that walks the values instead of taking them as one list:
-    /// `None` unless it is a term that reads one.
-    pub(crate) fn history_op<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Option<Arc<<L::Ops as OpFamily>::History<'g>>>, GraphError> {
-        match self {
-            Expr::Term(leaf) => leaf.history_op(graph),
-            _ => Ok(None),
-        }
+    /// Whether this expression is a term that reads a property's history.
+    pub(crate) fn reads_history(&self) -> bool {
+        matches!(self, Expr::Term(leaf) if leaf.reads_history())
     }
 
     /// The type of this expression compiled to `op`: the one known before the
@@ -1215,39 +963,27 @@ impl<L: Leaf> Expr<L> {
         ))
     }
 
-    /// `agg` over this expression. Over a history it walks the values instead
-    /// of taking them as one list; over anything else it reduces the list
-    /// value.
+    /// `agg` over the list value of this expression. Only a history has
+    /// updates for `earliest()` and `latest()` to pick.
     fn aggregate_op<'g>(
         &self,
         agg: Agg,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
-        if let Some(history) = self.history_op(graph.clone())? {
-            require_aggregable(&L::Ops::history_type(&history), agg)?;
-            return Ok(L::Ops::streamed_aggregate(history, agg));
+        if !self.reads_history() {
+            require_list_input(agg)?;
         }
-        require_list_input(agg)?;
         let op = self.value_op(graph)?;
         require_aggregable(&self.resolved_type(&op), agg)?;
         Ok(L::Ops::aggregate(op, agg))
     }
 
-    /// `any()` or `all()` over this element-wise yes/no expression. A test of
-    /// a history against a constant walks the history and stops at the first
-    /// value that decides the answer; anything else collapses the list.
+    /// `any()` or `all()` over this element-wise yes/no expression.
     fn quantified_op<'g>(
         &self,
         quantifier: Quantifier,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
-        if let Some((side, test)) = self.value_test() {
-            if let Some(history) = side.history_op(graph.clone())? {
-                if let Some(test) = test.for_history(&L::Ops::history_type(&history)) {
-                    return Ok(L::Ops::streamed_quantified(history, test, quantifier));
-                }
-            }
-        }
         let op = self.value_op(graph)?;
         qualified_type(&self.resolved_type(&op))?;
         Ok(L::Ops::quantified(op, quantifier))
@@ -1275,23 +1011,16 @@ impl<L: Leaf> Expr<L> {
 }
 
 impl NodeExpr {
-    /// The per-node test this yes/no tree is. It starts from the nodes the
-    /// tree names by id, or the index candidates for its test, when it can.
-    /// A tree built only from constants answers the same for every node, so
-    /// it is refused.
+    /// The per-node test this yes/no tree is. A tree built only from
+    /// constants answers the same for every node, so it is refused.
     fn node_test<'g>(
         &self,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'g>, GraphError> {
         self.refuse_constant()?;
-        let op = self.value_op(graph.clone())?;
-        let nodes = self.pushdown().and_then(|pushdown| pushdown.domain(&graph));
+        let op = self.value_op(graph)?;
         require_bool(&self.resolved_type(&op), "a filter")?;
-        let test: Arc<dyn NodeOp<Output = bool> + 'g> = Arc::new(op.map(|v| truthy(&v)));
-        Ok(match nodes {
-            Some(nodes) => Arc::new(DomainNodeOp { nodes, inner: test }),
-            None => test,
-        })
+        Ok(Arc::new(op.map(|v| truthy(&v))))
     }
 }
 
@@ -1308,241 +1037,36 @@ impl<L: Leaf<Ops = EdgeOps>> Expr<L> {
 
 // ── filters ──────────────────────────────────────────────────────────────────
 
-impl SplitFilter {
-    /// The graph seen through every view leg in turn, erased so every part
-    /// of the filter builds over the one `Arc`.
-    fn viewed<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        if self.views.is_empty() {
-            Ok(graph.into_dyn_graph_arc())
-        } else {
-            through(&self.views.concat(), graph.into_dyn_graph_arc())
-        }
-    }
-
-    /// The graph seen through each view leg on its own, for the existence
-    /// tests a node or edge filter asks.
-    fn each_view<'graph>(
-        &self,
-        graph: &DynGraphArc<'graph>,
-    ) -> Result<Vec<DynGraphArc<'graph>>, GraphError> {
-        self.views
-            .iter()
-            .map(|leg| through(leg, graph.clone()))
-            .collect()
-    }
+/// The edge test a node predicate is: both ends pass it.
+pub(crate) fn both_ends(nodes: NodeExpr) -> EdgeExpr {
+    Expr::And(vec![
+        Expr::Term(EdgeLeaf::Src(Box::new(nodes.clone()))),
+        Expr::Term(EdgeLeaf::Dst(Box::new(nodes))),
+    ])
 }
 
-/// The graph seen through one view leg.
-fn through<'graph>(
-    views: &[ViewOp],
-    graph: DynGraphArc<'graph>,
-) -> Result<DynGraphArc<'graph>, GraphError> {
-    view_chain(Arc::new(GraphFilter), views).create_view(graph)
+/// An empty list has no meaning either way: `and` of nothing is not
+/// "everything", `or` of nothing is not "nothing" the caller asked for.
+pub(crate) fn needs_operand(name: &str) -> GraphError {
+    GraphError::invalid_filter(format!("`{name}` needs at least one operand"))
 }
 
-/// The legs built one by one over the same graph and joined pairwise, left
-/// to right.
-fn fold<'graph, Q, T>(
-    legs: &[Q],
-    graph: &DynGraphArc<'graph>,
-    build: impl Fn(&Q, DynGraphArc<'graph>) -> Result<T, GraphError>,
-    join: impl Fn(T, T) -> T,
-) -> Result<T, GraphError> {
-    let Some((first, rest)) = legs.split_first() else {
-        return Err(GraphError::invalid_filter(
-            "an answer needs at least one leg",
-        ));
-    };
-    rest.iter()
-        .try_fold(build(first, graph.clone())?, |acc, leg| {
-            Ok(join(acc, build(leg, graph.clone())?))
-        })
+/// A view leg with no view in it is not "no restriction".
+pub(crate) fn needs_view() -> GraphError {
+    GraphError::invalid_filter("a view filter needs at least one view")
 }
 
-impl<P> Question<P> {
-    /// The graph that keeps what this answer keeps, `predicate` giving the
-    /// graph of each predicate. Existence in a view has no graph below the
-    /// top level.
-    fn create_graph_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-        predicate: &impl Fn(&P, DynGraphArc<'graph>) -> Result<DynGraphArc<'graph>, GraphError>,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        let build = |leg: &Self, graph| leg.create_graph_filter(graph, predicate);
-        match self {
-            Question::Predicate(p) => predicate(p, graph),
-            Question::Exists { .. } => Err(view_below_top_level()),
-            Question::And(legs) => fold(legs, &graph, build, |l, r| {
-                AndFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc()
-            }),
-            Question::Or(legs) => fold(legs, &graph, build, |l, r| {
-                OrFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc()
-            }),
-        }
-    }
+/// A view under `or` or `not` is refused: the union with a view, or the
+/// complement of one, waits until views compose with time semantics.
+pub(crate) fn view_below_top_level() -> GraphError {
+    GraphError::invalid_filter(
+        "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
+         not under `or` or `not`",
+    )
 }
 
-impl Question<NodeExpr> {
-    /// The per-node test for the nodes this answer keeps.
-    fn create_node_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
-        match self {
-            Question::Predicate(nodes) => NodeLeaf::node_filter(nodes, graph),
-            Question::Exists { views, negated } => {
-                let exists = NodeExistsOp::new(through(views, graph)?);
-                Ok(if *negated {
-                    Arc::new(exists.not())
-                } else {
-                    Arc::new(exists)
-                })
-            }
-            Question::And(legs) => fold(legs, &graph, Self::create_node_filter, |l, r| {
-                Arc::new(l.and(r))
-            }),
-            Question::Or(legs) => fold(legs, &graph, Self::create_node_filter, |l, r| {
-                Arc::new(l.or(r))
-            }),
-        }
-    }
-}
-
-impl EdgePredicate {
-    /// The graph with the edges this predicate keeps, as its tree's
-    /// [`Leaf`] answers.
-    fn graph_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynGraphArc<'graph>, GraphError> {
-        match self {
-            EdgePredicate::Edge(e) => EdgeLeaf::graph_filter(e, graph),
-            EdgePredicate::Exploded(e) => ExplodedEdgeLeaf::graph_filter(e, graph),
-        }
-    }
-}
-
-impl Question<EdgePredicate> {
-    /// The per-edge test for the edges this answer keeps.
-    fn create_edge_filter<'graph>(
-        &self,
-        graph: DynGraphArc<'graph>,
-    ) -> Result<DynEdgeFilter<'graph>, GraphError> {
-        match self {
-            Question::Predicate(EdgePredicate::Edge(e)) => EdgeLeaf::edge_filter(e, graph),
-            Question::Predicate(EdgePredicate::Exploded(e)) => {
-                ExplodedEdgeLeaf::edge_filter(e, graph)
-            }
-            Question::Exists { views, negated } => {
-                let exists = EdgeExistsOp::new(through(views, graph)?);
-                Ok(if *negated {
-                    Arc::new(NotEdgeOp(exists))
-                } else {
-                    Arc::new(exists)
-                })
-            }
-            Question::And(legs) => fold(legs, &graph, Self::create_edge_filter, |l, r| {
-                Arc::new(AndEdgeOp { left: l, right: r })
-            }),
-            Question::Or(legs) => fold(legs, &graph, Self::create_edge_filter, |l, r| {
-                Arc::new(OrEdgeOp { left: l, right: r })
-            }),
-        }
-    }
-}
-
-/// The filter a split filter is: the graph seen through its view legs, then
-/// its node answer and its edge answer side by side, one of them alone, or
-/// the viewed graph when nothing constrains either. As a per-node or per-edge
-/// test it asks that the entity exist in each view leg and pass the answers
-/// on the collection's own graph: there a view leg is a test like any other.
-impl CreateFilter for SplitFilter {
-    type FilteredGraph<'graph, G>
-        = DynGraphArc<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type NodeFilter<'graph, G>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    type EdgeFilter<'graph, G>
-        = DynEdgeFilter<'graph>
-    where
-        Self: 'graph,
-        G: GraphView + 'graph;
-
-    fn create_graph_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        let graph = self.viewed(graph)?;
-        let nodes = self
-            .nodes
-            .map(|nodes| nodes.create_graph_filter(graph.clone(), &NodeLeaf::graph_filter))
-            .transpose()?;
-        let edges = self
-            .edges
-            .map(|edges| edges.create_graph_filter(graph.clone(), &EdgePredicate::graph_filter))
-            .transpose()?;
-        Ok(match (nodes, edges) {
-            (Some(nodes), Some(edges)) => {
-                AndFilteredGraph::new(graph, nodes, edges).into_dyn_graph_arc()
-            }
-            (Some(answer), None) | (None, Some(answer)) => answer,
-            (None, None) => graph,
-        })
-    }
-
-    fn create_node_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let graph = graph.into_dyn_graph_arc();
-        let views = self.each_view(&graph)?;
-        let test: Arc<dyn NodeOp<Output = bool> + 'graph> = match &self.nodes {
-            Some(nodes) => nodes.create_node_filter(graph.clone())?,
-            None if views.is_empty() => return Ok(Arc::new(NodeExistsOp::new(graph))),
-            None => Arc::new(NodeExistsOp::new(graph)),
-        };
-        Ok(views.into_iter().rev().fold(test, |test, view| {
-            Arc::new(NodeExistsOp::new(view).and(test))
-        }))
-    }
-
-    fn create_edge_filter<'graph, G: GraphView + 'graph>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        let graph = graph.into_dyn_graph_arc();
-        let views = self.each_view(&graph)?;
-        let answer = match (self.nodes.map(closed_edges), self.edges) {
-            (Some(nodes), Some(edges)) => Some(nodes.and(edges)),
-            (Some(answer), None) | (None, Some(answer)) => Some(answer),
-            (None, None) => None,
-        };
-        let test: DynEdgeFilter<'graph> = match answer {
-            Some(answer) => answer.create_edge_filter(graph.clone())?,
-            None if views.is_empty() => return Ok(Arc::new(EdgeExistsOp::new(graph))),
-            None => Arc::new(EdgeExistsOp::new(graph)),
-        };
-        Ok(views.into_iter().rev().fold(test, |test, view| {
-            Arc::new(AndEdgeOp {
-                left: EdgeExistsOp::new(view),
-                right: test,
-            })
-        }))
-    }
-}
-
-/// A tree is a filter in its own right: applying it splits it by question
-/// first.
+/// A filter is the graph its legs keep, each leg read on the same base graph.
+/// On a collection it is a test of each item instead.
 impl CreateFilter for FilterExpr {
     type FilteredGraph<'graph, G>
         = DynGraphArc<'graph>
@@ -1562,16 +1086,50 @@ impl CreateFilter for FilterExpr {
         Self: 'graph,
         G: GraphView + 'graph;
 
+    /// The graph that keeps what the filter keeps. A leaf keeps what its
+    /// tree keeps; a view is the graph seen through it; the legs of `and` and
+    /// `or` each run on the same graph and their graphs combine. A view under
+    /// `or` or `not` is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.split()?.create_graph_filter(graph)
+        let graph = graph.into_dyn_graph_arc();
+        match self {
+            FilterExpr::Node(expr) => NodeLeaf::graph_filter(&expr, graph),
+            FilterExpr::Edge(expr) => EdgeLeaf::graph_filter(&expr, graph),
+            FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::graph_filter(&expr, graph),
+            FilterExpr::View(views) if views.is_empty() => Err(needs_view()),
+            FilterExpr::View(views) => apply_views(graph, &views),
+            FilterExpr::And(legs) => fold_legs(
+                &legs,
+                "and",
+                |leg| leg.clone().create_graph_filter(graph.clone()),
+                |l, r| AndFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc(),
+            ),
+            FilterExpr::Or(legs) => {
+                if legs.iter().any(FilterExpr::has_view) {
+                    return Err(view_below_top_level());
+                }
+                fold_legs(
+                    &legs,
+                    "or",
+                    |leg| leg.clone().create_graph_filter(graph.clone()),
+                    |l, r| OrFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc(),
+                )
+            }
+            FilterExpr::Not(inner) => {
+                if inner.has_view() {
+                    return Err(view_below_top_level());
+                }
+                let inner = inner.create_graph_filter(graph.clone())?;
+                Ok(NotFilteredGraph::new(graph, inner).into_dyn_graph_arc())
+            }
+        }
     }
 
     /// An edge test says nothing about which nodes belong in a node
-    /// collection, so a filter that tests edges anywhere is refused here,
-    /// whatever it splits into.
+    /// collection, so a filter that tests edges anywhere is refused here.
     fn create_node_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -1579,15 +1137,139 @@ impl CreateFilter for FilterExpr {
         if self.tests_edges() {
             return Err(GraphError::NotNodeFilter);
         }
-        self.split()?.create_node_filter(graph)
+        self.node_test(graph.into_dyn_graph_arc())
     }
 
     fn create_edge_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
-        self.split()?.create_edge_filter(graph)
+        self.edge_test(graph.into_dyn_graph_arc())
     }
+}
+
+impl FilterExpr {
+    /// The test of each node of a collection: a node predicate tests the node,
+    /// a view asks that it exist in the view, and `and`, `or` and `not`
+    /// combine the legs' tests.
+    fn node_test<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<dyn NodeOp<Output = bool> + 'g>, GraphError> {
+        match self {
+            FilterExpr::Node(expr) => NodeLeaf::node_filter(expr, graph),
+            FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => Err(GraphError::NotNodeFilter),
+            FilterExpr::View(views) if views.is_empty() => Err(needs_view()),
+            FilterExpr::View(views) => Ok(Arc::new(NodeExistsOp::new(apply_views(graph, views)?))),
+            FilterExpr::And(legs) => fold_legs(
+                legs,
+                "and",
+                |leg| leg.node_test(graph.clone()),
+                |l, r| Arc::new(l.and(r)),
+            ),
+            FilterExpr::Or(legs) => fold_legs(
+                legs,
+                "or",
+                |leg| leg.node_test(graph.clone()),
+                |l, r| Arc::new(l.or(r)),
+            ),
+            FilterExpr::Not(inner) => Ok(Arc::new(inner.node_test(graph)?.not())),
+        }
+    }
+
+    /// The test of each edge of a collection, or of each update on an
+    /// exploded one: an edge predicate tests the item, a node predicate asks
+    /// that both ends pass, a view asks that the item exist in the view, and
+    /// `and`, `or` and `not` combine the legs' tests. Legs that only test nodes
+    /// combine into one node predicate first, so `name == "b" | name == "c"`
+    /// keeps the edge b→c.
+    fn edge_test<'g>(&self, graph: DynGraphArc<'g>) -> Result<DynEdgeFilter<'g>, GraphError> {
+        if let Some(nodes) = self.node_only() {
+            return NodeLeaf::edge_filter(&nodes, graph);
+        }
+        match self {
+            FilterExpr::Node(expr) => NodeLeaf::edge_filter(expr, graph),
+            FilterExpr::Edge(expr) => EdgeLeaf::edge_filter(expr, graph),
+            FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::edge_filter(expr, graph),
+            FilterExpr::View(views) if views.is_empty() => Err(needs_view()),
+            FilterExpr::View(views) => Ok(Arc::new(EdgeExistsOp::new(apply_views(graph, views)?))),
+            FilterExpr::And(legs) => fold_legs(
+                legs,
+                "and",
+                |leg| leg.edge_test(graph.clone()),
+                |left, right| Arc::new(AndEdgeOp { left, right }),
+            ),
+            FilterExpr::Or(legs) => fold_legs(
+                legs,
+                "or",
+                |leg| leg.edge_test(graph.clone()),
+                |left, right| Arc::new(OrEdgeOp { left, right }),
+            ),
+            FilterExpr::Not(inner) => Ok(Arc::new(NotEdgeOp(inner.edge_test(graph)?))),
+        }
+    }
+
+    /// This filter as one node predicate, when it tests nodes only.
+    fn node_only(&self) -> Option<NodeExpr> {
+        let all =
+            |legs: &[FilterExpr]| legs.iter().map(Self::node_only).collect::<Option<Vec<_>>>();
+        match self {
+            FilterExpr::Node(expr) => Some(expr.clone()),
+            FilterExpr::And(legs) => all(legs).map(Expr::And),
+            FilterExpr::Or(legs) => all(legs).map(Expr::Or),
+            FilterExpr::Not(inner) => inner.node_only().map(|expr| Expr::Not(Box::new(expr))),
+            FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) | FilterExpr::View(_) => None,
+        }
+    }
+}
+
+/// The legs tested one by one and joined pairwise, left to right. `and` or
+/// `or` of nothing is refused.
+fn fold_legs<T>(
+    legs: &[FilterExpr],
+    name: &str,
+    test: impl Fn(&FilterExpr) -> Result<T, GraphError>,
+    join: impl Fn(T, T) -> T,
+) -> Result<T, GraphError> {
+    let (first, rest) = legs.split_first().ok_or_else(|| needs_operand(name))?;
+    rest.iter()
+        .try_fold(test(first)?, |acc, leg| Ok(join(acc, test(leg)?)))
+}
+
+/// The graph seen through `views`, applied in order with the graph's own view
+/// methods, as `graph.window(..).layers(..)` does.
+fn apply_views<'g>(
+    graph: DynGraphArc<'g>,
+    views: &[ViewOp],
+) -> Result<DynGraphArc<'g>, GraphError> {
+    views.iter().try_fold(graph, |graph, view| {
+        Ok(match view {
+            ViewOp::Window { start, end } => graph.window(*start, *end).into_dyn_graph_arc(),
+            ViewOp::At(t) => graph.at(*t).into_dyn_graph_arc(),
+            ViewOp::After(t) => graph.after(*t).into_dyn_graph_arc(),
+            ViewOp::Before(t) => graph.before(*t).into_dyn_graph_arc(),
+            ViewOp::Latest => graph.latest().into_dyn_graph_arc(),
+            ViewOp::SnapshotAt(t) => graph.snapshot_at(*t).into_dyn_graph_arc(),
+            ViewOp::SnapshotLatest => graph.snapshot_latest().into_dyn_graph_arc(),
+            ViewOp::Layers(layer) => graph.layers(layer.clone())?.into_dyn_graph_arc(),
+            ViewOp::DefaultLayer => graph.default_layer().into_dyn_graph_arc(),
+            ViewOp::ExcludeLayers(layer) => {
+                graph.exclude_layers(layer.clone())?.into_dyn_graph_arc()
+            }
+            ViewOp::ValidLayers(layer) => graph.valid_layers(layer.clone()).into_dyn_graph_arc(),
+            ViewOp::ExcludeValidLayers(layer) => graph
+                .exclude_valid_layers(layer.clone())
+                .into_dyn_graph_arc(),
+            ViewOp::ShrinkStart(t) => graph.shrink_start(*t).into_dyn_graph_arc(),
+            ViewOp::ShrinkEnd(t) => graph.shrink_end(*t).into_dyn_graph_arc(),
+            ViewOp::ExcludeNodes(ids) => graph.exclude_nodes(ids).into_dyn_graph_arc(),
+            ViewOp::Subgraph(ids) => graph.subgraph(ids).into_dyn_graph_arc(),
+            ViewOp::SubgraphNodeTypes(types) => {
+                graph.subgraph_node_types(types).into_dyn_graph_arc()
+            }
+            ViewOp::Valid => graph.valid().into_dyn_graph_arc(),
+        })
+    })
 }
 
 /// A yes/no expression is a filter on its entity. A node tree answers which

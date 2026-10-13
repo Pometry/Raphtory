@@ -332,19 +332,6 @@ impl<T: StringComparable> StringComparable for Option<T> {
     }
 }
 
-impl BinaryOp {
-    /// The comparison with its sides swapped.
-    pub fn flipped(self) -> BinaryOp {
-        match self {
-            BinaryOp::Lt => BinaryOp::Gt,
-            BinaryOp::Le => BinaryOp::Ge,
-            BinaryOp::Gt => BinaryOp::Lt,
-            BinaryOp::Ge => BinaryOp::Le,
-            same => same,
-        }
-    }
-}
-
 impl Display for BinaryOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

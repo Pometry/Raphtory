@@ -26,22 +26,15 @@
 pub mod builder;
 mod compile;
 mod display;
-mod split;
-pub(crate) mod stream;
 #[cfg(test)]
 mod tests;
 
 pub use builder::{Chain, EdgeEndpoint, EdgeKind, GraphLeaf, PropertyTerm};
 pub use compile::Leaf;
-pub(crate) use split::{EdgePredicate, Question, SplitFilter};
-pub use stream::{EdgeHistory, NodeHistory, ValueTest};
 
 use super::{
     filter_operator::{BinaryOp, StringOp},
-    node_expr::{
-        pushdown::{IndexQuery, IndexTerm, Pushdown},
-        typing::static_comparison_type,
-    },
+    node_expr::typing::static_comparison_type,
 };
 use crate::{
     db::api::{state::NodeOp, view::internal::DynGraphArc},
@@ -345,9 +338,7 @@ pub type EdgeExpr = Expr<EdgeLeaf>;
 pub type ExplodedEdgeExpr = Expr<ExplodedEdgeLeaf>;
 
 /// What a tree knows about itself before any graph is at hand: its result
-/// type, whether it can be missing, the constant it is, the side a history
-/// walk would read, and how a node filter on it can start from an index
-/// instead of every node.
+/// type and whether it can be missing.
 /// Each answer is read off the tree; a term answers for itself through its
 /// [`Leaf`].
 impl<L: Leaf> Expr<L> {
@@ -392,137 +383,47 @@ impl<L: Leaf> Expr<L> {
             | Expr::Not(_) => false,
         }
     }
-
-    /// The value, when this expression is a constant.
-    pub(crate) fn constant(&self) -> Option<Prop> {
-        match self {
-            Expr::Const(value) => Some(value.clone()),
-            _ => None,
-        }
-    }
-
-    /// The term a node index covers, when this expression is one. The latest
-    /// update of a history is the property's latest value, so `latest()` of
-    /// an indexed history is indexed too.
-    pub(crate) fn index_term(&self) -> Option<IndexTerm> {
-        match self {
-            Expr::Term(leaf) => leaf.index_term(),
-            Expr::Agg(Agg::Latest, inner) => inner.index_term()?.latest_value(),
-            _ => None,
-        }
-    }
-
-    /// The test a node index can answer with a candidate set: a comparison,
-    /// string test or membership test of an indexed term against a constant.
-    pub(crate) fn index_query(&self) -> Option<IndexQuery> {
-        match self {
-            Expr::Cmp(op, lhs, rhs) => {
-                let (term, op, value) = term_and_constant(*op, lhs, rhs)?;
-                IndexQuery::cmp(term, op, value)
-            }
-            Expr::Str(op, lhs, rhs) => IndexQuery::string(lhs.index_term()?, *op, rhs.constant()?),
-            Expr::In {
-                expr,
-                values,
-                negated: false,
-            } => IndexQuery::members(expr.index_term()?, values),
-            _ => None,
-        }
-    }
-
-    /// Where a node filter on this yes/no expression can start instead of at
-    /// every node: the nodes it names by id, or the index candidates for its
-    /// test. A history test narrows only under `any()`, a latest-value test
-    /// only outside it.
-    pub(crate) fn pushdown(&self) -> Option<Pushdown> {
-        match self {
-            // Equality on the id, or on the name (the node's external id),
-            // names the node outright.
-            Expr::Cmp(op, lhs, rhs) => {
-                if let Some((IndexTerm::Id | IndexTerm::Name, BinaryOp::Eq, value)) =
-                    term_and_constant(*op, lhs, rhs)
-                {
-                    return Some(Pushdown::Ids(vec![value]));
-                }
-                self.latest_value_pushdown()
-            }
-            Expr::In {
-                expr,
-                values,
-                negated: false,
-            } if matches!(expr.index_term(), Some(IndexTerm::Id | IndexTerm::Name)) => {
-                Some(Pushdown::Ids(values.clone()))
-            }
-            Expr::Str(..) | Expr::In { .. } => self.latest_value_pushdown(),
-            // Under `any()` the history test narrows: any value ever held may match.
-            Expr::Any(inner) => inner
-                .index_query()
-                .filter(|query| query.is_history())
-                .map(Pushdown::Index),
-            // Any leg's candidates are a superset of the matches, so the first
-            // leg that can narrow does.
-            Expr::And(items) => items.iter().find_map(Self::pushdown),
-            _ => None,
-        }
-    }
-
-    /// For `any()` / `all()` over this expression: the side tested against a
-    /// constant and the test to apply to each of its values. The side is
-    /// walked when it reads a history (see `Expr::history_op`); otherwise the
-    /// test collapses its list as usual.
-    pub(crate) fn value_test(&self) -> Option<(&Expr<L>, ValueTest)> {
-        match self {
-            Expr::Cmp(op, lhs, rhs) => {
-                if let Some(value) = rhs.constant() {
-                    return Some((lhs, ValueTest::Cmp(*op, value)));
-                }
-                Some((rhs, ValueTest::Cmp(op.flipped(), lhs.constant()?)))
-            }
-            Expr::Str(op, lhs, rhs) => Some((lhs, ValueTest::Str(*op, rhs.constant()?))),
-            Expr::In {
-                expr,
-                values,
-                negated,
-            } => Some((expr, ValueTest::members(values.iter().cloned(), *negated))),
-            _ => None,
-        }
-    }
-
-    /// The index candidates for a test of a term's latest value.
-    fn latest_value_pushdown(&self) -> Option<Pushdown> {
-        self.index_query()
-            .filter(|query| !query.is_history())
-            .map(Pushdown::Index)
-    }
 }
 
-/// The indexed term and the constant it is compared with, the operator turned
-/// round when the constant stands on the left.
-fn term_and_constant<L: Leaf>(
-    op: BinaryOp,
-    lhs: &Expr<L>,
-    rhs: &Expr<L>,
-) -> Option<(IndexTerm, BinaryOp, Prop)> {
-    if let (Some(term), Some(value)) = (lhs.index_term(), rhs.constant()) {
-        return Some((term, op, value));
+impl<L> Expr<L> {
+    /// Whether this tree is built only from constants. Such a tree answers
+    /// the same for every entity, so it is not a filter.
+    fn is_constant(&self) -> bool {
+        match self {
+            Expr::Const(_) => true,
+            Expr::Not(inner)
+            | Expr::Agg(_, inner)
+            | Expr::Any(inner)
+            | Expr::All(inner)
+            | Expr::IsSome(inner)
+            | Expr::IsNone(inner) => inner.is_constant(),
+            Expr::Cmp(_, lhs, rhs) | Expr::Str(_, lhs, rhs) => {
+                lhs.is_constant() && rhs.is_constant()
+            }
+            Expr::In { expr, .. } => expr.is_constant(),
+            Expr::And(items) | Expr::Or(items) => {
+                !items.is_empty() && items.iter().all(Self::is_constant)
+            }
+            Expr::Term(_) => false,
+        }
     }
-    if let (Some(term), Some(value)) = (rhs.index_term(), lhs.constant()) {
-        return Some((term, op.flipped(), value));
+
+    pub(crate) fn refuse_constant(&self) -> Result<(), GraphError> {
+        if self.is_constant() {
+            return Err(GraphError::invalid_filter("a constant is not a filter"));
+        }
+        Ok(())
     }
-    None
 }
 
 /// The filter itself: a yes/no on one kind of entity, a view, or a
 /// combination of filters.
 ///
-/// A filtered graph answers two questions, which nodes stay and which edges
-/// stay. A node predicate answers the first directly and the second by "both
-/// ends stayed"; an edge predicate the reverse. `And`, `Or` and `Not` combine
-/// the direct answers question by question: `name == "b" | name == "c"` keeps
-/// the edge b→c, `Not` of a node predicate keeps the nodes that fail it and the
-/// edges between them, `Not(And(node, edge))` negates each answer, and an `Or`
-/// between a node predicate and an edge predicate keeps every node and the
-/// edges either leg keeps: the union of the two.
+/// A filter is a graph: a node predicate keeps the nodes that pass it, an edge
+/// predicate the edges, and a view is the graph seen through it. The legs of
+/// `And` and `Or` are each read on the same base graph and their graphs
+/// combine; `Not` keeps what its leg drops. A node or an edge stays in a
+/// collection when it exists in that graph.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterExpr {

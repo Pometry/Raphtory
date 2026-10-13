@@ -4595,7 +4595,7 @@ expression and narrows nodes, edges, and their properties to what matches.
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently and the results intersected. A `view` leg applies first and the other legs run inside it, like `graph.window(..).filter(expr)`; it must stand alone or in the top-level `and` (not under `or` or `not`). If omitted, applies the identity filter.
+Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently on the same graph and the results intersected. A `view` leg keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter.
 
 </td>
 </tr>
@@ -12807,7 +12807,7 @@ A graph-level view with no predicate: the result is the view.
 <td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
 <td>
 
-Every leg holds. A view leg applies first and the others run inside it.
+Every leg holds, each read on the same graph.
 
 </td>
 </tr>

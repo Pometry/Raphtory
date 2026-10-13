@@ -192,11 +192,8 @@ impl<G: GraphView> EdgeOp for EdgeMetaOp<G> {
 /// The op a temporal edge property term compiles to — not constructed directly.
 ///
 /// Collects the property's history for the edge, one of its layers or one
-/// exploded instance into a `Some(Prop::List([...]))` for a consumer that
-/// needs it as one value. An aggregation or an `any()`/`all()` test written
-/// directly over the history streams it through [`EdgeHistory`] instead.
-///
-/// [`EdgeHistory`]: crate::db::graph::views::filter::model::expr::EdgeHistory
+/// exploded instance into a `Some(Prop::List([...]))` that aggregations and
+/// `any()`/`all()` tests read.
 #[derive(Clone)]
 pub(crate) struct TemporalEdgePropOp<G> {
     pub(crate) graph: G,

@@ -1,10 +1,7 @@
 use crate::{
     db::{
         api::state::ops::{filter::NodeExistsOp, GraphView},
-        graph::views::filter::{
-            model::{edge_expr::ops::EdgeExistsOp, CreateView},
-            CreateFilter,
-        },
+        graph::views::filter::{model::edge_expr::ops::EdgeExistsOp, CreateFilter},
     },
     errors::GraphError,
 };
@@ -15,22 +12,6 @@ pub struct GraphFilter;
 impl std::fmt::Display for GraphFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "GRAPH")
-    }
-}
-
-/// The unfiltered graph is the view that changes nothing.
-impl CreateView for GraphFilter {
-    type View<'graph, G: GraphView + 'graph> = G;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        Ok(view)
-    }
-
-    fn narrows(&self) -> bool {
-        false
     }
 }
 

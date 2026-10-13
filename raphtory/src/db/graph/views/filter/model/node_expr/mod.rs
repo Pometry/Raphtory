@@ -1,5 +1,4 @@
 pub mod ops;
-pub mod pushdown;
 pub mod typing;
 
 #[cfg(test)]

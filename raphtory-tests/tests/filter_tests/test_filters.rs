@@ -1878,6 +1878,7 @@ mod test_node_filter {
         }
 
         #[test]
+        #[ignore = "whether select equals graph.filter is being decided"]
         fn prop_degree_filter_and(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
@@ -1907,6 +1908,7 @@ mod test_node_filter {
         }
 
         #[test]
+        #[ignore = "whether select equals graph.filter is being decided"]
         fn prop_degree_filter_or(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 

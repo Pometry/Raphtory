@@ -1,38 +1,23 @@
 pub use crate::{
     db::{
         api::view::internal::GraphView,
-        graph::views::{
-            filter::{
-                model::{
-                    edge_filter::EdgeFilter,
-                    exploded_edge_filter::ExplodedEdgeFilter,
-                    filter_operator::{
-                        BinaryOp, Comparable, FilterOperator, SetOp, StringComparable, StringOp,
-                        UnaryOp,
-                    },
-                    node_expr::EntityAggOps,
-                    node_filter::{NodeFilter, NodeFilterFactory},
+        graph::views::filter::{
+            model::{
+                edge_filter::EdgeFilter,
+                exploded_edge_filter::ExplodedEdgeFilter,
+                filter_operator::{
+                    BinaryOp, Comparable, FilterOperator, SetOp, StringComparable, StringOp,
+                    UnaryOp,
                 },
-                CreateFilter,
+                node_expr::EntityAggOps,
+                node_filter::{NodeFilter, NodeFilterFactory},
             },
-            window_graph::WindowedGraph,
+            CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, TimeOps},
 };
-use crate::{
-    db::{
-        api::view::{internal::IntoDynGraphArc, BoxableGraphView},
-        graph::views::{filter::model::layered_filter::Layered, layer_graph::LayeredGraph},
-    },
-    prelude::LayerOps,
-};
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-};
-use std::{ops::Deref, sync::Arc};
+use raphtory_api::core::entities::properties::prop::Prop;
 
 pub mod edge_expr;
 pub mod edge_filter;
@@ -40,15 +25,10 @@ pub mod exploded_edge_filter;
 pub mod expr;
 pub mod filter_operator;
 pub mod graph_filter;
-pub mod latest_filter;
-pub mod layered_filter;
 pub mod node_expr;
 pub mod node_filter;
 pub mod node_state_filter;
 pub mod property_filter;
-pub mod snapshot_filter;
-pub mod subgraph_filter;
-pub mod windowed_filter;
 
 pub use expr::builder::{
     ComposableFilter, EdgeViewFilterOps, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
@@ -56,136 +36,6 @@ pub use expr::builder::{
 
 use crate::db::graph::views::filter::model::expr::Agg;
 use raphtory_api::core::entities::properties::prop::PropType;
-
-/// The window `at(t)` means: every event at the timestamp `t`, whatever its
-/// position within that timestamp.
-pub(crate) fn at_bounds(t: EventTime) -> (EventTime, EventTime) {
-    (
-        EventTime::start(t.t()),
-        EventTime::start(t.t().saturating_add(1)),
-    )
-}
-
-/// The window `after(t)` means: everything strictly after `t`.
-pub(crate) fn after_bounds(t: EventTime) -> (EventTime, EventTime) {
-    (
-        EventTime::start(t.t().saturating_add(1)),
-        EventTime::end(i64::MAX),
-    )
-}
-
-/// The window `before(t)` means: everything strictly before `t`. Events at
-/// the timestamp `t` itself are excluded, matching `GraphViewOps::before`.
-pub(crate) fn before_bounds(t: EventTime) -> (EventTime, EventTime) {
-    (EventTime::start(i64::MIN), EventTime::start(t.t()))
-}
-
-pub trait CreateView: Clone + Send + Sync + 'static {
-    type View<'graph, G: GraphView + 'graph>: GraphView + 'graph;
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError>;
-
-    /// Whether the view can hide an entity the incoming graph shows. A term
-    /// through a view that cannot is only ever asked about entities the
-    /// enclosing filter has already found in that graph, so it need not check
-    /// them again.
-    fn narrows(&self) -> bool {
-        true
-    }
-}
-
-pub trait DynCreateView: Send + Sync + 'static {
-    fn dyn_create_view<'graph>(
-        &self,
-        view: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
-
-    fn dyn_narrows(&self) -> bool;
-}
-
-impl<T: CreateView> DynCreateView for T {
-    fn dyn_create_view<'graph>(
-        &self,
-        view: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
-        Ok(self.create_view(view)?.into_dyn_graph_arc())
-    }
-
-    fn dyn_narrows(&self) -> bool {
-        self.narrows()
-    }
-}
-
-impl<T: DynCreateView + ?Sized> CreateView for Arc<T> {
-    type View<'graph, G: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        self.deref().dyn_create_view(view.into_dyn_graph_arc())
-    }
-
-    fn narrows(&self) -> bool {
-        self.deref().dyn_narrows()
-    }
-}
-
-impl CreateView for NodeFilter {
-    type View<'graph, G: GraphView + 'graph> = G;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        Ok(view)
-    }
-    fn narrows(&self) -> bool {
-        false
-    }
-}
-
-impl CreateView for EdgeFilter {
-    type View<'graph, G: GraphView + 'graph> = G;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        Ok(view)
-    }
-    fn narrows(&self) -> bool {
-        false
-    }
-}
-
-impl CreateView for ExplodedEdgeFilter {
-    type View<'graph, G: GraphView + 'graph> = G;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<Self::View<'graph, G>, GraphError> {
-        Ok(view)
-    }
-    fn narrows(&self) -> bool {
-        false
-    }
-}
-
-impl<T: CreateView> CreateView for Layered<T> {
-    type View<'graph, G: GraphView + 'graph> = LayeredGraph<T::View<'graph, G>>;
-
-    fn create_view<'graph, G: GraphView + 'graph>(
-        &self,
-        view: G,
-    ) -> Result<LayeredGraph<T::View<'graph, G>>, GraphError> {
-        let inner = self.inner.create_view(view)?;
-        inner.layers(self.layer.clone())
-    }
-}
 
 /// Reject ordering operators on a type that has no ordering.
 ///

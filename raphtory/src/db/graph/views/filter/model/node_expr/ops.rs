@@ -23,12 +23,6 @@
 //!        apply: reduce the list value with aggregate_list_values(Sum)
 //! ```
 //!
-//! The tree compiler avoids that list where it can: an aggregation written
-//! directly over a history, or `any()`/`all()` over a comparison of one with a
-//! constant, becomes a streamed op (`model::expr::stream`) that walks the
-//! history's values and shares the reduction kernels below (`fold_values`,
-//! `reduce_list`).
-//!
 //! # Quantified evaluation
 //!
 //! A comparison against a list-valued side gives one answer per element;
@@ -68,7 +62,7 @@ use bigdecimal::BigDecimal;
 use raphtory_api::core::{
     entities::{
         properties::prop::{IntoProp, Prop, PropType},
-        GidType, LayerId, GID, VID,
+        GidType, LayerId, VID,
     },
     storage::timeindex::EventTime,
 };
@@ -249,11 +243,7 @@ impl NodeOp for NodeIdOp {
 /// The op a temporal node property term compiles to — not constructed directly.
 ///
 /// Collects all recorded values within the current view window into a `Some(Prop::List([...]))`
-/// for a consumer that needs the history as one value. An aggregation or an
-/// `any()`/`all()` test written directly over the history does not go through
-/// this list: the compiler pairs it with the op's [`NodeHistory`] stream instead.
-///
-/// [`NodeHistory`]: crate::db::graph::views::filter::model::expr::NodeHistory
+/// that aggregations and `any()`/`all()` tests read.
 #[derive(Clone)]
 pub(crate) struct TemporalNodePropOp<G> {
     pub(crate) graph: G,
@@ -660,71 +650,6 @@ pub fn broadcast_binary(
         )
         .ok(),
         (l, r) => op(Some(l), Some(r)),
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DomainNodeOp — a filter whose domain was worked out when it was built
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// The GID to look up for an id comparison against `value`, or `None` when the
-/// constant's type does not match the graph's id type. `domain` must be a
-/// superset of the matches, so a constant that only compares equal after value
-/// coercion falls back to the unrestricted domain instead of guessing.
-pub(crate) fn gid_for_id_lookup(id_type: Option<GidType>, value: &Prop) -> Option<GID> {
-    let aligned = match (id_type?, value) {
-        (GidType::Str, Prop::Str(_)) => true,
-        (GidType::U64, v) => v.is_numeric(),
-        _ => false,
-    };
-    aligned.then(|| prop_as_gid(value)).flatten()
-}
-
-/// The GID a constant names, by its own variant: a string is a string id, and
-/// any integer that fits is a numeric id.
-pub(crate) fn prop_as_gid(value: &Prop) -> Option<GID> {
-    match value {
-        Prop::Str(s) => Some(GID::Str(s.to_string())),
-        Prop::U64(n) => Some(GID::U64(*n)),
-        Prop::U32(n) => Some(GID::U64(*n as u64)),
-        Prop::U16(n) => Some(GID::U64(*n as u64)),
-        Prop::U8(n) => Some(GID::U64(*n as u64)),
-        Prop::I64(n) => u64::try_from(*n).ok().map(GID::U64),
-        Prop::I32(n) => u64::try_from(*n).ok().map(GID::U64),
-        _ => None,
-    }
-}
-
-/// Wraps a compiled boolean filter whose matches all lie in `nodes`, worked out
-/// when the filter was built from the ids it names or a property index: `domain`
-/// hands them over instead of scanning every node, and `apply` still decides.
-#[derive(Clone)]
-pub struct DomainNodeOp<'g> {
-    pub(crate) nodes: NodeList,
-    pub(crate) inner: Arc<dyn NodeOp<Output = bool> + 'g>,
-}
-
-impl<'g> NodeOp for DomainNodeOp<'g> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        self.inner.apply(storage, node)
-    }
-
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        self.nodes.clone()
-    }
-
-    fn const_value(&self) -> Option<Self::Output> {
-        self.inner.const_value()
-    }
-
-    fn const_value_in_domain(&self, storage: &GraphStorage) -> Option<Self::Output> {
-        self.inner.const_value_in_domain(storage)
-    }
-
-    fn prop_type(&self) -> PropType {
-        self.inner.prop_type()
     }
 }
 

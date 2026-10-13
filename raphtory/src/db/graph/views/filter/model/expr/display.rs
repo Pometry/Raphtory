@@ -1,13 +1,37 @@
 //! A readable rendering of an expression, for logs, errors and tests.
 
 use super::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp};
-use crate::db::graph::views::filter::model::{
-    filter_operator::{BinaryOp, StringOp},
-    layered_filter::layer_label,
-    subgraph_filter::id_list,
+use crate::db::graph::views::filter::model::filter_operator::{BinaryOp, StringOp};
+use raphtory_api::core::{
+    entities::{Layer, GID},
+    storage::timeindex::AsTime,
+    Direction,
 };
-use raphtory_api::core::{storage::timeindex::AsTime, Direction};
 use std::fmt::{self, Display};
+
+/// The layer selection as a reader would write it: the names themselves,
+/// `*` for every layer, `none` for no layer.
+fn layer_label(layer: &Layer) -> String {
+    match layer {
+        Layer::All => "*".to_string(),
+        Layer::None => "none".to_string(),
+        Layer::Default => "_default".to_string(),
+        Layer::One(name) => name.to_string(),
+        Layer::Multiple(names) => names
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+    }
+}
+
+/// Node ids as a comma-separated list.
+fn id_list(ids: &[GID]) -> String {
+    ids.iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
 
 /// The aggregate as it is called: `sum`, `avg` and so on.
 impl Display for Agg {

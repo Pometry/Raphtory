@@ -1473,7 +1473,7 @@ pub enum GqlFilter {
     ExplodedEdge(ExplodedEdgeExpr),
     /// A graph-level view with no predicate: the result is the view.
     View(Vec<GqlViewOp>),
-    /// Every leg holds. A view leg applies first and the others run inside it.
+    /// Every leg holds, each read on the same graph.
     And(Vec<GqlFilter>),
     /// Any leg holds. Node legs combine on nodes and edge legs on edges; a leg
     /// of the other kind leaves that side unconstrained. No view legs.
