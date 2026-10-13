@@ -1,6 +1,6 @@
 use crate::{
     model::schema::{
-        cache::SchemaCache, collect_variants, property_schema::PropertySchema, DEFAULT_NODE_TYPE,
+        collect_variants, property_schema::PropertySchema, DEFAULT_NODE_TYPE,
         MAX_DETAILED_SCHEMA_ENTITIES, MAX_NODE_VARIANTS,
     },
     rayon::blocking_compute,
@@ -18,26 +18,21 @@ use raphtory::{
 };
 use raphtory_api::core::entities::{properties::meta::PropMapper, LayerIds};
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::sync::Arc;
 
 /// Describes nodes of a specific type in a graph — its property keys and
 /// observed value types (and, for string-valued properties, the set of
 /// distinct values seen). One `NodeSchema` per node type.
 #[derive(Clone, ResolvedObject)]
 pub(crate) struct NodeSchema {
-    /// node type id; also the schema-cache lookup key
-    type_id: usize,
+    pub(crate) type_id: usize,
     graph: DynamicGraph,
-    // schema cache for the base graph, `None` for filtered/derived views
-    cache: Option<Arc<SchemaCache>>,
 }
 
 impl NodeSchema {
-    pub fn new(node_type: usize, graph: DynamicGraph, cache: Option<Arc<SchemaCache>>) -> Self {
+    pub fn new(node_type: usize, graph: DynamicGraph) -> Self {
         Self {
             type_id: node_type,
             graph,
-            cache,
         }
     }
 }
@@ -54,35 +49,15 @@ impl NodeSchema {
     /// ever set on a node of this type, with its observed `PropertyType` and (for
     /// string-valued properties) the set of distinct values.
     pub async fn properties(&self) -> Vec<PropertySchema> {
-        if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.node().get_properties(self.type_id) {
-                return hit;
-            }
-        }
-        // not found in cache, so calculate it and cache it
         let self_clone = self.clone();
-        let result = blocking_compute(move || self_clone.properties_inner()).await;
-        if let Some(cache) = &self.cache {
-            cache.node().store_properties(self.type_id, result.clone());
-        }
-        result
+        blocking_compute(move || self_clone.properties_inner()).await
     }
 
     /// Metadata schemas seen on nodes of this type — like `properties`, but
     /// covering metadata fields rather than temporal properties.
     pub async fn metadata(&self) -> Vec<PropertySchema> {
-        if let Some(cache) = &self.cache {
-            if let Some(hit) = cache.node().get_metadata(self.type_id) {
-                return hit;
-            }
-        }
-        // not found in cache, so calculate it and cache it
         let self_clone = self.clone();
-        let result = blocking_compute(move || self_clone.metadata_inner()).await;
-        if let Some(cache) = &self.cache {
-            cache.node().store_metadata(self.type_id, result.clone());
-        }
-        result
+        blocking_compute(move || self_clone.metadata_inner()).await
     }
 }
 
@@ -221,7 +196,7 @@ mod test {
     }
 
     fn check_schema(g: &Graph) {
-        let gs = GraphSchema::new(&g.clone().into_dynamic(), None);
+        let gs = GraphSchema::new(&g.clone().into_dynamic());
 
         let mut actual: Vec<(String, Vec<PropertySchema>, Vec<PropertySchema>)> = gs
             .nodes
@@ -307,7 +282,7 @@ mod test {
         assert!(node_meta.metadata_mapper().get_id("dropped_meta").is_some());
 
         // ...but only the key with values inside the window is reported
-        let gs = GraphSchema::new(&mat.into_dynamic(), None);
+        let gs = GraphSchema::new(&mat.into_dynamic());
         let t = gs
             .nodes
             .iter()

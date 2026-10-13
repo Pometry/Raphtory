@@ -2,7 +2,6 @@ use crate::model::schema::property_schema::PropertySchema;
 use raphtory::prelude::PropertiesOps;
 use raphtory_api::core::entities::properties::meta::PropMapper;
 
-pub(crate) mod cache;
 pub(crate) mod graph_schema;
 pub(crate) mod layer_schema;
 pub(crate) mod node_schema;

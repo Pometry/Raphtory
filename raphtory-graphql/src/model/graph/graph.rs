@@ -15,7 +15,7 @@ use crate::{
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
-        schema::{cache::SchemaCache, graph_schema::GraphSchema},
+        schema::graph_schema::GraphSchema,
     },
     paths::{PathValidationError, UnlockedGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
@@ -48,7 +48,6 @@ use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
-    sync::Arc,
 };
 
 /// A view of a Raphtory graph. Every field here returns either data from the
@@ -59,9 +58,6 @@ use std::{
 pub struct GqlGraph {
     path: UnlockedGraphFolder,
     graph: DynamicGraph,
-    /// Shared schema cache, set only for the unfiltered native base graph.
-    /// Any derived view (window/layer/filter/...) drops it so it recomputes.
-    schema_cache: Option<Arc<SchemaCache>>,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -75,21 +71,6 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
-            schema_cache: None,
-        }
-    }
-
-    /// Carries the base graph's schema cache. Used only for the top-level, unfiltered (e.g. materialized) graph view
-    /// `cache` is `None` when the view is redacted or type-overridden.
-    pub fn new_cached<G: StaticGraphViewOps + IntoDynamic>(
-        path: UnlockedGraphFolder,
-        graph: G,
-        cache: Option<Arc<SchemaCache>>,
-    ) -> Self {
-        Self {
-            path,
-            graph: graph.into_dynamic(),
-            schema_cache: cache,
         }
     }
 
@@ -101,8 +82,6 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-            // a derived view's schema differs from the base, so don't use the cache
-            schema_cache: None,
         }
     }
 }
@@ -653,10 +632,7 @@ impl GqlGraph {
     /// Returns the graph schema.
     pub async fn schema(&self) -> Result<GraphSchema> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
-            GraphSchema::new(&self_clone.graph, self_clone.schema_cache.clone())
-        })
-        .await)
+        Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
 
     /// Access the algorithms that can be run on this graph view.
