@@ -1,6 +1,9 @@
 use raphtory::{
     db::{
-        api::view::{filter_ops::Select, Filter},
+        api::{
+            state::ops::NodeOp,
+            view::{filter_ops::Select, internal::NodeList, Filter},
+        },
         graph::views::filter::{
             model::{
                 node_filter::{NodeFilter, NodeFilterFactory},
@@ -11,7 +14,11 @@ use raphtory::{
     },
     prelude::{AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
-use raphtory_api::core::entities::properties::prop::{IntoProp, Prop};
+use raphtory_api::core::entities::{
+    properties::prop::{IntoProp, Prop},
+    VID,
+};
+use raphtory_storage::core_ops::CoreGraphOps;
 
 // Test graph: a→b, a→c, b→c
 // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
@@ -545,4 +552,82 @@ fn windowed_temporal_term_skips_node_absent_from_window() {
         .len()
         .eq(Prop::U64(0));
     assert_eq!(filtered_names(filter, g), vec!["late"]);
+}
+
+// ── Domain narrowing for id comparisons ──────────────────────────────────
+//
+// These pin that an id test starts from the nodes it names instead of
+// visiting every node. They fail until domain narrowing returns.
+
+/// The nodes a compiled node filter will actually visit.
+fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
+where
+    F: CreateFilter,
+    for<'g> F::NodeFilter<'g, Graph>: NodeOp<Output = bool>,
+{
+    let op = filter.create_node_filter(g.clone()).unwrap();
+    op.domain(&g.core_graph().lock())
+}
+
+#[test]
+fn id_eq_visits_only_the_named_node() {
+    let g = build_test_graph();
+    let vid = g.node("b").unwrap().node;
+    match filter_domain(NodeFilter.id().eq("b"), &g) {
+        NodeList::List { elems } => {
+            assert_eq!(elems.into_iter().collect::<Vec<_>>(), vec![vid])
+        }
+        other => panic!("id equality should narrow the domain, got {other:?}"),
+    }
+}
+
+#[test]
+fn id_is_in_visits_only_the_named_nodes() {
+    let g = build_test_graph();
+    let mut expected: Vec<VID> = ["a", "c"].iter().map(|n| g.node(n).unwrap().node).collect();
+    expected.sort();
+    match filter_domain(
+        NodeFilter
+            .id()
+            .is_in(vec!["a".into_prop(), "c".into_prop()]),
+        &g,
+    ) {
+        NodeList::List { elems } => {
+            let mut got: Vec<VID> = elems.into_iter().collect();
+            got.sort();
+            assert_eq!(got, expected);
+        }
+        other => panic!("id set membership should narrow the domain, got {other:?}"),
+    }
+}
+
+#[test]
+fn id_eq_for_an_absent_node_visits_nothing() {
+    let g = build_test_graph();
+    match filter_domain(NodeFilter.id().eq("nope"), &g) {
+        NodeList::List { elems } => {
+            assert!(elems.into_iter().next().is_none())
+        }
+        other => panic!("an absent id should narrow to nothing, got {other:?}"),
+    }
+}
+
+#[test]
+fn non_id_and_inequality_filters_keep_the_full_domain() {
+    let g = build_test_graph();
+    // Only equality and set membership on the id or the name name specific
+    // nodes; everything else has to be evaluated per node.
+    for (label, domain) in [
+        ("id != b", filter_domain(NodeFilter.id().ne("b"), &g)),
+        ("name != b", filter_domain(NodeFilter.name().ne("b"), &g)),
+        (
+            "degree == 2",
+            filter_domain(NodeFilter.degree().eq(2usize), &g),
+        ),
+    ] {
+        assert!(
+            matches!(domain, NodeList::All),
+            "{label} must keep the full domain, got {domain:?}"
+        );
+    }
 }
