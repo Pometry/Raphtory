@@ -437,6 +437,36 @@ pub enum FilterExpr {
 }
 
 impl FilterExpr {
+    /// Refuses a view leg with no view in it: it is not "no restriction".
+    pub fn needs_view(views: &[ViewOp]) -> Result<(), GraphError> {
+        if views.is_empty() {
+            return Err(GraphError::invalid_filter(
+                "a view filter needs at least one view",
+            ));
+        }
+        Ok(())
+    }
+
+    /// The first leg of `and` or `or` (`name`) and the rest, of a filter or
+    /// of an expression. An `and` or `or` with no legs is refused.
+    pub fn needs_operand<'a, T>(name: &str, legs: &'a [T]) -> Result<(&'a T, &'a [T]), GraphError> {
+        legs.split_first().ok_or_else(|| {
+            GraphError::invalid_filter(format!("`{name}` needs at least one operand"))
+        })
+    }
+
+    /// Refuses a view in this leg of `or` or `not`: the union with a view, or
+    /// the complement of one, waits until views compose with time semantics.
+    pub(crate) fn no_view_below_top_level(&self) -> Result<(), GraphError> {
+        if self.has_view() {
+            return Err(GraphError::invalid_filter(
+                "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
+                 not under `or` or `not`",
+            ));
+        }
+        Ok(())
+    }
+
     /// Whether a graph-level view appears anywhere in this filter.
     pub fn has_view(&self) -> bool {
         match self {

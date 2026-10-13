@@ -993,9 +993,7 @@ impl<L: Leaf> Expr<L> {
         graph: DynGraphArc<'g>,
         name: &str,
     ) -> Result<Vec<Arc<<L::Ops as OpFamily>::Value<'g>>>, GraphError> {
-        if items.is_empty() {
-            return Err(needs_operand(name));
-        }
+        FilterExpr::needs_operand(name, items)?;
         items
             .iter()
             .map(|item| {
@@ -1015,26 +1013,6 @@ pub(crate) fn both_ends(nodes: NodeExpr) -> EdgeExpr {
         Expr::Term(EdgeLeaf::Src(Box::new(nodes.clone()))),
         Expr::Term(EdgeLeaf::Dst(Box::new(nodes))),
     ])
-}
-
-/// An empty list has no meaning either way: `and` of nothing is not
-/// "everything", `or` of nothing is not "nothing" the caller asked for.
-pub(crate) fn needs_operand(name: &str) -> GraphError {
-    GraphError::invalid_filter(format!("`{name}` needs at least one operand"))
-}
-
-/// A view leg with no view in it is not "no restriction".
-pub(crate) fn needs_view() -> GraphError {
-    GraphError::invalid_filter("a view filter needs at least one view")
-}
-
-/// A view under `or` or `not` is refused: the union with a view, or the
-/// complement of one, waits until views compose with time semantics.
-pub(crate) fn view_below_top_level() -> GraphError {
-    GraphError::invalid_filter(
-        "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
-         not under `or` or `not`",
-    )
 }
 
 /// A filter is the graph its legs keep, each leg read on the same base graph.
@@ -1071,8 +1049,7 @@ impl CreateFilter for FilterExpr {
             FilterExpr::Node(expr) => NodeLeaf::graph_filter(&expr, graph),
             FilterExpr::Edge(expr) => EdgeLeaf::graph_filter(&expr, graph),
             FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::graph_filter(&expr, graph),
-            FilterExpr::View(views) if views.is_empty() => Err(needs_view()),
-            FilterExpr::View(views) => apply_views(graph, &views),
+            FilterExpr::View(views) => view_leg(graph, &views),
             FilterExpr::And(legs) => fold_legs(
                 &legs,
                 "and",
@@ -1080,9 +1057,8 @@ impl CreateFilter for FilterExpr {
                 |l, r| AndFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc(),
             ),
             FilterExpr::Or(legs) => {
-                if legs.iter().any(FilterExpr::has_view) {
-                    return Err(view_below_top_level());
-                }
+                legs.iter()
+                    .try_for_each(FilterExpr::no_view_below_top_level)?;
                 fold_legs(
                     &legs,
                     "or",
@@ -1091,9 +1067,7 @@ impl CreateFilter for FilterExpr {
                 )
             }
             FilterExpr::Not(inner) => {
-                if inner.has_view() {
-                    return Err(view_below_top_level());
-                }
+                inner.no_view_below_top_level()?;
                 let inner = inner.create_graph_filter(graph.clone())?;
                 Ok(NotFilteredGraph::new(graph, inner).into_dyn_graph_arc())
             }
@@ -1131,8 +1105,7 @@ impl FilterExpr {
         match self {
             FilterExpr::Node(expr) => NodeLeaf::node_filter(expr, graph),
             FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => Err(GraphError::NotNodeFilter),
-            FilterExpr::View(views) if views.is_empty() => Err(needs_view()),
-            FilterExpr::View(views) => Ok(Arc::new(NodeExistsOp::new(apply_views(graph, views)?))),
+            FilterExpr::View(views) => Ok(Arc::new(NodeExistsOp::new(view_leg(graph, views)?))),
             FilterExpr::And(legs) => fold_legs(
                 legs,
                 "and",
@@ -1163,8 +1136,7 @@ impl FilterExpr {
             FilterExpr::Node(expr) => NodeLeaf::edge_filter(expr, graph),
             FilterExpr::Edge(expr) => EdgeLeaf::edge_filter(expr, graph),
             FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::edge_filter(expr, graph),
-            FilterExpr::View(views) if views.is_empty() => Err(needs_view()),
-            FilterExpr::View(views) => Ok(Arc::new(EdgeExistsOp::new(apply_views(graph, views)?))),
+            FilterExpr::View(views) => Ok(Arc::new(EdgeExistsOp::new(view_leg(graph, views)?))),
             FilterExpr::And(legs) => fold_legs(
                 legs,
                 "and",
@@ -1209,9 +1181,15 @@ fn fold_legs<T>(
     test: impl Fn(&FilterExpr) -> Result<T, GraphError>,
     join: impl Fn(T, T) -> T,
 ) -> Result<T, GraphError> {
-    let (first, rest) = legs.split_first().ok_or_else(|| needs_operand(name))?;
+    let (first, rest) = FilterExpr::needs_operand(name, legs)?;
     rest.iter()
         .try_fold(test(first)?, |acc, leg| Ok(join(acc, test(leg)?)))
+}
+
+/// The graph a view leg keeps. A leg with no view is refused.
+fn view_leg<'g>(graph: DynGraphArc<'g>, views: &[ViewOp]) -> Result<DynGraphArc<'g>, GraphError> {
+    FilterExpr::needs_view(views)?;
+    apply_views(graph, views)
 }
 
 /// The graph seen through `views`, applied in order with the graph's own view

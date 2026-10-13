@@ -536,6 +536,41 @@ async fn every_layer_is_sent_as_the_view_it_means() {
     assert_eq!(serde_json::to_value(empty).unwrap(), json!({ "view": [] }));
 }
 
+/// An empty view leg, `and` or `or` is refused while it is decoded, with the
+/// message the filter itself refuses it with, by GraphQL and by serde.
+#[tokio::test]
+async fn empty_legs_are_refused_when_decoded() {
+    for (filter, message) in [
+        (
+            json!({ "view": [] }),
+            "Invalid filter: a view filter needs at least one view",
+        ),
+        (
+            json!({ "and": [] }),
+            "Invalid filter: `and` needs at least one operand",
+        ),
+        (
+            json!({ "or": [] }),
+            "Invalid filter: `or` needs at least one operand",
+        ),
+        (
+            json!({ "not": { "and": [] } }),
+            "Invalid filter: `and` needs at least one operand",
+        ),
+        (
+            json!({ "and": [{ "view": [] }, { "view": [{ "kind": "LATEST" }] }] }),
+            "Invalid filter: a view filter needs at least one view",
+        ),
+    ] {
+        assert_eq!(
+            from_variable(filter.clone()).await.unwrap_err(),
+            message,
+            "{filter}"
+        );
+        assert_eq!(from_json(filter.clone()).unwrap_err(), message, "{filter}");
+    }
+}
+
 #[test]
 fn node_ids_take_the_scalar_spelling_and_keep_their_type() {
     // The wire form is the variables a client sends, so a node id is the

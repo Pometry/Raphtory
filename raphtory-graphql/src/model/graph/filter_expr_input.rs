@@ -1494,19 +1494,29 @@ impl TryFrom<GqlFilter> for expr::FilterExpr {
             GqlFilter::Node(e) => F::Node(e.into_tree()?),
             GqlFilter::Edge(e) => F::Edge(e.into_tree()?),
             GqlFilter::ExplodedEdge(e) => F::ExplodedEdge(e.into_tree()?),
-            GqlFilter::View(ops) => F::View(ops.into_iter().map(ViewOp::from).collect()),
-            GqlFilter::And(items) => F::And(
-                items
-                    .into_iter()
-                    .map(F::try_from)
-                    .collect::<Result<Vec<_>, _>>()?,
-            ),
-            GqlFilter::Or(items) => F::Or(
-                items
-                    .into_iter()
-                    .map(F::try_from)
-                    .collect::<Result<Vec<_>, _>>()?,
-            ),
+            GqlFilter::View(ops) => {
+                let views: Vec<ViewOp> = ops.into_iter().map(ViewOp::from).collect();
+                F::needs_view(&views)?;
+                F::View(views)
+            }
+            GqlFilter::And(items) => {
+                F::needs_operand("and", &items)?;
+                F::And(
+                    items
+                        .into_iter()
+                        .map(F::try_from)
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            }
+            GqlFilter::Or(items) => {
+                F::needs_operand("or", &items)?;
+                F::Or(
+                    items
+                        .into_iter()
+                        .map(F::try_from)
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            }
             GqlFilter::Not(inner) => F::Not(Box::new(inner.into_inner().try_into()?)),
         })
     }
