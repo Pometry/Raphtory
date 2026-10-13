@@ -1184,13 +1184,9 @@ impl FilterExpr {
     /// This filter as one node predicate, when it tests nodes only. A
     /// constant leg is refused before the legs merge, as it is on its own.
     fn node_only(&self) -> Result<Option<NodeExpr>, GraphError> {
+        // The legs' node predicates when every leg has one, `None` when one does not.
         let all = |legs: &[FilterExpr]| -> Result<Option<Vec<NodeExpr>>, GraphError> {
-            Ok(legs
-                .iter()
-                .map(Self::node_only)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter()
-                .collect())
+            legs.iter().map(Self::node_only).collect()
         };
         Ok(match self {
             FilterExpr::Node(expr) => {
