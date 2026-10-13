@@ -278,7 +278,7 @@ impl Graph {
 
     /// Get persistent graph
     pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_storage(self.inner.clone())
+        PersistentGraph::from(self.inner.clone())
     }
 }
 

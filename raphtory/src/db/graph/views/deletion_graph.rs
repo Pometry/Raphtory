@@ -223,10 +223,6 @@ impl PersistentGraph {
         )?)))
     }
 
-    pub fn from_storage(storage: Arc<Storage>) -> Self {
-        Self(storage)
-    }
-
     /// Return a read-only handle to this graph. Mutations on the returned
     /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
     /// `TemporalGraph` is shared — this is not a snapshot.
