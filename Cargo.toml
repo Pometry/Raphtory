@@ -209,8 +209,8 @@ inventory = "0.3.24"
 # RDF / SPARQL support. The oxigraph crates pin each other with `=` versions, so
 # spareval and spargebra must match the versions oxigraph depends on.
 oxigraph = { version = "0.5.11", default-features = false }
-spareval = { version = "=0.2.7", features = ["sep-0002", "sep-0006", "calendar-ext"] }
-spargebra = { version = "=0.4.7", features = ["sep-0002", "sep-0006"] }
+spareval = { version = "=0.2.7" }
+spargebra = { version = "=0.4.7", features = ["sep-0006"] }
 # names the IRI type of spareval's `DefaultServiceHandler` (the handler that refuses SERVICE calls)
 oxiri = "0.2.11"
 percent-encoding = "2.3"

@@ -98,8 +98,7 @@ class GraphServer(object):
                                    reject batched GraphQL requests), `max_batch_size` (int, cap
                                    on the number of queries in a batched request; null for
                                    unlimited), `disable_lists` (bool, disable bulk `list`
-                                   endpoints so clients must use `page`, and `sparql`,
-                                   `validateShacl` and the `/sparql` endpoint), `max_page_size`
+                                   endpoints so clients must use `page`), `max_page_size`
                                    (int), `max_sparql_query_length` (int, maximum length in bytes
                                    of a SPARQL query; default 16384, null for unlimited),
                                    `max_sparql_triple_patterns` (int, maximum number of triple

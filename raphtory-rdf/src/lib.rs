@@ -165,11 +165,11 @@
 //!
 //! # Since when? Temporal functions
 //!
-//! Queries can call four functions that read the history of a triple: [`VALID_FROM`]
-//! (`raphtory:validFrom(?s, ?p, ?o)`) is when its latest run started and [`VALID_TO`] the
-//! retraction that ended it, as `xsd:dateTime` values; [`VALID_FROM_TIME`] and
-//! [`VALID_TO_TIME`] are the same as Raphtory times (`xsd:integer`). An optional fourth argument
-//! is a time graph (see [the rules](#the-rules-of-the-temporal-functions)).
+//! Queries can call four functions that read the history of a triple:
+//! `raphtory:validFrom(?s, ?p, ?o)` is when its latest run started and `raphtory:validTo` the
+//! retraction that ended it, as `xsd:dateTime` values; `raphtory:validFromTime` and
+//! `raphtory:validToTime` are the same as Raphtory times (`xsd:integer`). An optional fourth
+//! argument is a time graph (see [the rules](#the-rules-of-the-temporal-functions)).
 //!
 //! ```
 //! use raphtory_rdf::{RdfFormat, RdfGraph, SparqlOptions, SparqlResults, Term};
@@ -261,7 +261,6 @@ mod tests;
 
 pub use error::RdfError;
 pub use format::{QueryResultsFormat, RdfFormat};
-pub use functions::{VALID_FROM, VALID_FROM_TIME, VALID_TO, VALID_TO_TIME};
 pub use graph::{RdfGraph, RdfView};
 pub use mapping::{name_of, term_name, term_of, RESERVED_NS};
 pub use oxigraph::{

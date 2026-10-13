@@ -44,8 +44,8 @@ pub(crate) fn write_rdf<W: Write>(
     Ok(sink.finish()?)
 }
 
-/// Writes triples with an [`RdfSerializer`], counting them. Shared by [`write_rdf`] and
-/// CONSTRUCT/DESCRIBE results of `sparql_to_writer`.
+/// Writes triples with an [`RdfSerializer`], counting them. Shared by [`write_rdf`], the
+/// CONSTRUCT/DESCRIBE results of `sparql_to_writer` and `ShaclReport::write`.
 ///
 /// Other formats write every triple as given. RDF/XML:
 /// - skips triples whose predicate cannot be a property element ([`xml_predicate_safe`]),

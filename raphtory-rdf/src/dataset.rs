@@ -145,7 +145,6 @@ impl RaphtoryDataset {
     /// The bound terms of a pattern, or `None` if it can match nothing: a bound subject or
     /// object must be a node, and a bound predicate a layer.
     fn bind(
-        &self,
         subject: Option<&RdfTerm>,
         predicate: Option<&RdfTerm>,
         object: Option<&RdfTerm>,
@@ -187,7 +186,7 @@ impl RaphtoryDataset {
         object: Option<&RdfTerm>,
         graph_name: Option<Option<&RdfTerm>>,
     ) -> Vec<QuadIter> {
-        let Some(bound) = self.bind(subject, predicate, object) else {
+        let Some(bound) = Self::bind(subject, predicate, object) else {
             return Vec::new();
         };
         match graph_name {

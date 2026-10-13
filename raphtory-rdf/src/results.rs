@@ -281,9 +281,7 @@ fn write_query_results<W: Write>(
                         solution.iter().find(|(_, v)| !xml_text_safe(v.as_ref()))
                     {
                         return Err(match value.as_ref() {
-                            TermRef::NamedNode(_) | TermRef::BlankNode(_) | TermRef::Literal(_) => {
-                                RdfError::XmlUnsafeLiteral(value.to_string())
-                            }
+                            TermRef::Literal(_) => RdfError::XmlUnsafeLiteral(value.to_string()),
                             // RDF 1.2 triple terms (see `xml_text_safe`)
                             _ => RdfError::XmlTripleTerm(value.to_string()),
                         });

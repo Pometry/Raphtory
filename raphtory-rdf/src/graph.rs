@@ -332,9 +332,8 @@ impl<G: StaticGraphViewOps + IntoDynamic> RdfView<G> {
     /// by patterns, dropped by `CONSTRUCT`, and silently end a `DESCRIBE` result early; on such
     /// views use `CONSTRUCT { ?s ?p ?o } WHERE { .. }` instead.
     ///
-    /// The temporal functions [`VALID_FROM`](crate::VALID_FROM),
-    /// [`VALID_TO`](crate::VALID_TO), [`VALID_FROM_TIME`](crate::VALID_FROM_TIME) and
-    /// [`VALID_TO_TIME`](crate::VALID_TO_TIME) return when a visible triple started and
+    /// The temporal functions `raphtory:validFrom`, `raphtory:validTo`,
+    /// `raphtory:validFromTime` and `raphtory:validToTime` return when a visible triple started and
     /// stopped holding (see [the rules](crate#the-rules-of-the-temporal-functions)).
     ///
     /// `options` can bound the length and the number of triple patterns of the query (see

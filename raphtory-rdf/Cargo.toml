@@ -49,6 +49,4 @@ python = [
     "dep:pyo3",
     "dep:raphtory-core",
     "raphtory/python",
-    "raphtory-api/python",
 ]
-panic-on-drop = ["raphtory/panic-on-drop"]
