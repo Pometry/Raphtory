@@ -272,11 +272,6 @@ impl Graph {
         Stage::new(self).map_err(GraphError::from)
     }
 
-    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
-        let inner = Arc::new(Storage::from(graph_storage));
-        Self { inner }
-    }
-
     pub fn event_graph(&self) -> Graph {
         self.clone()
     }

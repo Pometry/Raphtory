@@ -44,8 +44,6 @@ use {
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by event id) is a deletion,
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
-///
-///
 #[derive(Clone, Debug)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
@@ -227,10 +225,6 @@ impl PersistentGraph {
 
     pub fn from_storage(storage: Arc<Storage>) -> Self {
         Self(storage)
-    }
-
-    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from(internal_graph)))
     }
 
     /// Return a read-only handle to this graph. Mutations on the returned

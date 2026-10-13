@@ -238,10 +238,10 @@ pub trait InternalMaterialize {
     fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         match self.graph_type() {
             GraphType::EventGraph => {
-                MaterializedGraph::EventGraph(Graph::from_internal_graph(graph))
+                MaterializedGraph::EventGraph(Graph::from(graph))
             }
             GraphType::PersistentGraph => {
-                MaterializedGraph::PersistentGraph(PersistentGraph::from_internal_graph(graph))
+                MaterializedGraph::PersistentGraph(PersistentGraph::from(graph))
             }
         }
     }
