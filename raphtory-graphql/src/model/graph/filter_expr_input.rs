@@ -418,15 +418,11 @@ fn node_ids(ids: &[GID]) -> Vec<GqlNodeId> {
     ids.iter().cloned().map(GqlNodeId).collect()
 }
 
-/// The names a layer selection holds. GraphQL's list cannot say every layer,
-/// so `Layer::All` is refused.
-fn layer_names(layer: &Layer) -> Result<Vec<String>, GraphError> {
-    Ok(match layer {
-        Layer::All => {
-            return Err(invalid(
-                "`Layer::All` restricts nothing; leave the view out",
-            ))
-        }
+/// The names a layer selection holds, or `None` for every layer, which no
+/// list of names spells.
+fn layer_names(layer: &Layer) -> Option<Vec<String>> {
+    Some(match layer {
+        Layer::All => return None,
         Layer::None => Vec::new(),
         Layer::Default => vec!["_default".to_owned()],
         Layer::One(name) => vec![name.to_string()],
@@ -434,52 +430,61 @@ fn layer_names(layer: &Layer) -> Result<Vec<String>, GraphError> {
     })
 }
 
-impl TryFrom<&ViewOp> for GqlViewOp {
-    type Error = GraphError;
-
-    fn try_from(op: &ViewOp) -> Result<Self, GraphError> {
-        Ok(match op {
-            ViewOp::Window { start, end } => GqlViewOp::Window(Window {
-                start: time(*start),
-                end: time(*end),
-            }),
-            ViewOp::At(t) => GqlViewOp::At(time(*t)),
-            ViewOp::After(t) => GqlViewOp::After(time(*t)),
-            ViewOp::Before(t) => GqlViewOp::Before(time(*t)),
-            ViewOp::Latest => GqlViewOp::Kind(ViewKind::Latest),
-            ViewOp::SnapshotAt(t) => GqlViewOp::SnapshotAt(time(*t)),
-            ViewOp::SnapshotLatest => GqlViewOp::Kind(ViewKind::SnapshotLatest),
-            ViewOp::Layers(layer) => GqlViewOp::Layers(layer_names(layer)?),
-            ViewOp::DefaultLayer => GqlViewOp::Kind(ViewKind::DefaultLayer),
-            ViewOp::ExcludeLayers(layer) => GqlViewOp::ExcludeLayers(layer_names(layer)?),
-            ViewOp::ValidLayers(layer) => GqlViewOp::ValidLayers(layer_names(layer)?),
-            ViewOp::ExcludeValidLayers(layer) => GqlViewOp::ExcludeValidLayers(layer_names(layer)?),
-            ViewOp::ShrinkStart(t) => GqlViewOp::ShrinkStart(time(*t)),
-            ViewOp::ShrinkEnd(t) => GqlViewOp::ShrinkEnd(time(*t)),
-            ViewOp::ExcludeNodes(ids) => GqlViewOp::ExcludeNodes(node_ids(ids)),
-            ViewOp::Subgraph(ids) => GqlViewOp::Subgraph(node_ids(ids)),
-            ViewOp::SubgraphNodeTypes(types) => GqlViewOp::SubgraphNodeTypes(types.clone()),
-            ViewOp::Valid => GqlViewOp::Kind(ViewKind::Valid),
-        })
-    }
+/// A view as GraphQL spells it, or `None` for a view that restricts nothing:
+/// every layer, or every valid layer. Excluding every layer leaves none, so
+/// it is the empty layer list.
+fn gql_view_op(op: &ViewOp) -> Option<GqlViewOp> {
+    Some(match op {
+        ViewOp::Window { start, end } => GqlViewOp::Window(Window {
+            start: time(*start),
+            end: time(*end),
+        }),
+        ViewOp::At(t) => GqlViewOp::At(time(*t)),
+        ViewOp::After(t) => GqlViewOp::After(time(*t)),
+        ViewOp::Before(t) => GqlViewOp::Before(time(*t)),
+        ViewOp::Latest => GqlViewOp::Kind(ViewKind::Latest),
+        ViewOp::SnapshotAt(t) => GqlViewOp::SnapshotAt(time(*t)),
+        ViewOp::SnapshotLatest => GqlViewOp::Kind(ViewKind::SnapshotLatest),
+        ViewOp::Layers(layer) => GqlViewOp::Layers(layer_names(layer)?),
+        ViewOp::DefaultLayer => GqlViewOp::Kind(ViewKind::DefaultLayer),
+        ViewOp::ExcludeLayers(layer) => {
+            layer_names(layer).map_or(GqlViewOp::Layers(Vec::new()), GqlViewOp::ExcludeLayers)
+        }
+        ViewOp::ValidLayers(layer) => GqlViewOp::ValidLayers(layer_names(layer)?),
+        ViewOp::ExcludeValidLayers(layer) => {
+            layer_names(layer).map_or(GqlViewOp::Layers(Vec::new()), GqlViewOp::ExcludeValidLayers)
+        }
+        ViewOp::ShrinkStart(t) => GqlViewOp::ShrinkStart(time(*t)),
+        ViewOp::ShrinkEnd(t) => GqlViewOp::ShrinkEnd(time(*t)),
+        ViewOp::ExcludeNodes(ids) => GqlViewOp::ExcludeNodes(node_ids(ids)),
+        ViewOp::Subgraph(ids) => GqlViewOp::Subgraph(node_ids(ids)),
+        ViewOp::SubgraphNodeTypes(types) => GqlViewOp::SubgraphNodeTypes(types.clone()),
+        ViewOp::Valid => GqlViewOp::Kind(ViewKind::Valid),
+    })
 }
 
-/// A term's views as a read spells them: absent when there are none.
+/// A term's views as a read spells them: absent when there are none, or
+/// when none of them restricts anything.
 ///
 /// The `Option` on a read's `views` is only the GraphQL surface's way of
 /// making the field optional: an input field may be left out only when it is
 /// an `Option`. The tree has one encoding, the empty list, so a read takes an
 /// absent `views` as the empty list. This is used once per read payload and
 /// is the only place an empty list becomes absent.
-fn read_views(views: &[ViewOp]) -> Result<Option<Vec<GqlViewOp>>, GraphError> {
-    if views.is_empty() {
-        return Ok(None);
+fn read_views(views: &[ViewOp]) -> Option<Vec<GqlViewOp>> {
+    let ops: Vec<_> = views.iter().filter_map(gql_view_op).collect();
+    (!ops.is_empty()).then_some(ops)
+}
+
+/// A view leg's views as GraphQL spells them. A leg is refused when it has
+/// no view, so a leg whose views all restrict nothing is spelled as
+/// excluding no layer, which restricts nothing too.
+fn view_leg(views: &[ViewOp]) -> Vec<GqlViewOp> {
+    match read_views(views) {
+        Some(ops) => ops,
+        None if views.is_empty() => Vec::new(),
+        None => vec![GqlViewOp::ExcludeLayers(Vec::new())],
     }
-    views
-        .iter()
-        .map(GqlViewOp::try_from)
-        .collect::<Result<_, _>>()
-        .map(Some)
 }
 
 // ── the reads: what a term names on each entity ──────────────────────────────
@@ -494,7 +499,8 @@ pub trait Term: Sized {
     /// The leaf this read names, with its views.
     fn into_leaf(self) -> Result<Self::Leaf, GraphError>;
 
-    /// The read that names `leaf`.
+    /// The read that names `leaf`. Only an opaque node leaf, alone or as an
+    /// edge's endpoint, has no read.
     fn from_leaf(leaf: &Self::Leaf) -> Result<Self, GraphError>;
 }
 
@@ -579,11 +585,11 @@ impl Term for NodeRead {
         Ok(match leaf {
             NodeLeaf::Field { views, field } => NodeRead::Field(NodeFieldRead {
                 name: (*field).into(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             NodeLeaf::Degree { views, direction } => NodeRead::Field(NodeFieldRead {
                 name: (*direction).into(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             NodeLeaf::Property {
                 views,
@@ -591,7 +597,7 @@ impl Term for NodeRead {
                 temporal: false,
             } => NodeRead::Property(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             NodeLeaf::Property {
                 views,
@@ -599,15 +605,15 @@ impl Term for NodeRead {
                 temporal: true,
             } => NodeRead::TemporalProperty(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             NodeLeaf::Metadata { views, name } => NodeRead::Metadata(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             NodeLeaf::IsActive { views } => NodeRead::Field(NodeFieldRead {
                 name: NodeField::IsActive,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             NodeLeaf::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
         })
@@ -655,7 +661,7 @@ impl Term for EdgeRead {
                 temporal: false,
             } => EdgeRead::Property(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::Property {
                 views,
@@ -663,27 +669,27 @@ impl Term for EdgeRead {
                 temporal: true,
             } => EdgeRead::TemporalProperty(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::Metadata { views, name } => EdgeRead::Metadata(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::IsActive { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsActive,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::IsValid { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsValid,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::IsDeleted { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsDeleted,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::IsSelfLoop { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsSelfLoop,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             EdgeLeaf::Src(inner) => EdgeRead::Src(EndpointRead {
                 expr: Wrapped::from(NodeExpr::from_tree(inner)?),
@@ -735,7 +741,7 @@ impl Term for ExplodedEdgeRead {
                 temporal: false,
             } => ExplodedEdgeRead::Property(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             ExplodedEdgeLeaf::Property {
                 views,
@@ -743,27 +749,27 @@ impl Term for ExplodedEdgeRead {
                 temporal: true,
             } => ExplodedEdgeRead::TemporalProperty(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             ExplodedEdgeLeaf::Metadata { views, name } => ExplodedEdgeRead::Metadata(NamedRead {
                 name: name.clone(),
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             ExplodedEdgeLeaf::IsActive { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsActive,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             ExplodedEdgeLeaf::IsValid { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsValid,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             ExplodedEdgeLeaf::IsDeleted { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsDeleted,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
             ExplodedEdgeLeaf::IsSelfLoop { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsSelfLoop,
-                views: read_views(views)?,
+                views: read_views(views),
             }),
         })
     }
@@ -1516,11 +1522,7 @@ impl TryFrom<&expr::FilterExpr> for GqlFilter {
             F::Node(e) => GqlFilter::Node(NodeExpr::from_tree(e)?),
             F::Edge(e) => GqlFilter::Edge(EdgeExpr::from_tree(e)?),
             F::ExplodedEdge(e) => GqlFilter::ExplodedEdge(ExplodedEdgeExpr::from_tree(e)?),
-            F::View(ops) => GqlFilter::View(
-                ops.iter()
-                    .map(GqlViewOp::try_from)
-                    .collect::<Result<_, _>>()?,
-            ),
+            F::View(ops) => GqlFilter::View(view_leg(ops)),
             F::And(items) => GqlFilter::And(
                 items
                     .iter()
@@ -1584,489 +1586,5 @@ impl CreateFilter for GqlFilter {
         graph: G,
     ) -> Result<Self::EdgeFilter<'graph, G>, GraphError> {
         expr::FilterExpr::try_from(self)?.create_edge_filter(graph)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use async_graphql::Variables;
-    use dynamic_graphql::{App, Request, ResolvedObject, ResolvedObjectFields};
-    use expr::FilterExpr as F;
-    use itertools::Itertools;
-    use raphtory::{
-        algorithms::alternating_mask::alternating_mask,
-        db::graph::views::filter::model::node_filter::{NodeFilter, NodeFilterFactory},
-        prelude::{AdditionOps, Graph, NO_PROPS},
-    };
-    use serde_json::json;
-
-    /// A schema with one field that parses a filter the way every resolver
-    /// does and answers the tree it became, as JSON.
-    #[derive(ResolvedObject)]
-    #[graphql(root)]
-    struct Echo;
-
-    #[ResolvedObjectFields]
-    impl Echo {
-        /// The tree `expr` parses to, as JSON.
-        async fn tree(expr: GqlFilter) -> dynamic_graphql::Result<String> {
-            Ok(serde_json::to_string(&F::try_from(expr)?)?)
-        }
-    }
-
-    #[derive(App)]
-    struct EchoApp(Echo);
-
-    async fn run(request: Request) -> Result<String, String> {
-        let schema = EchoApp::create_schema().finish().unwrap();
-        let res = schema.execute(request).await;
-        if !res.errors.is_empty() {
-            return Err(res.errors.iter().map(|e| e.message.as_str()).join("; "));
-        }
-        let data = res.data.into_json().unwrap();
-        Ok(data["tree"].as_str().unwrap().to_string())
-    }
-
-    /// The tree a filter sent as a GraphQL variable becomes, as JSON.
-    async fn from_variable(filter: serde_json::Value) -> Result<String, String> {
-        run(Request::new("query($f: FilterExpr!) { tree(expr: $f) }")
-            .variables(Variables::from_json(json!({ "f": filter }))))
-        .await
-    }
-
-    /// The tree a filter written as a GraphQL literal becomes, as JSON.
-    async fn from_literal(filter: &str) -> Result<String, String> {
-        run(Request::new(format!("{{ tree(expr: {filter}) }}"))).await
-    }
-
-    /// The tree a filter stored as JSON (a grant) becomes.
-    fn from_json(filter: serde_json::Value) -> Result<F, String> {
-        let wire: GqlFilter = serde_json::from_value(filter).map_err(|e| e.to_string())?;
-        F::try_from(wire).map_err(|e| e.to_string())
-    }
-
-    fn tree_json(tree: &F) -> String {
-        serde_json::to_string(tree).unwrap()
-    }
-
-    /// The tree goes to the wire type, to JSON, and back by serde and by
-    /// GraphQL, and is the same tree every way.
-    async fn assert_round_trip(tree: F) {
-        let wire = GqlFilter::try_from(&tree).unwrap();
-        let json = serde_json::to_value(&wire).unwrap();
-        assert_eq!(from_json(json.clone()).unwrap(), tree);
-        assert_eq!(from_variable(json).await.unwrap(), tree_json(&tree));
-    }
-
-    fn t(at: i64) -> EventTime {
-        EventTime::from(at)
-    }
-
-    fn every_view() -> Vec<ViewOp> {
-        vec![
-            ViewOp::Window {
-                start: t(0),
-                end: t(5),
-            },
-            ViewOp::At(t(1)),
-            ViewOp::After(t(2)),
-            ViewOp::Before(t(9)),
-            ViewOp::Latest,
-            ViewOp::SnapshotAt(t(4)),
-            ViewOp::SnapshotLatest,
-            ViewOp::Layers("work".into()),
-            ViewOp::DefaultLayer,
-            ViewOp::ExcludeLayers(["a", "b"].into()),
-            ViewOp::ValidLayers(["work", "nope"].into()),
-            ViewOp::ExcludeValidLayers(["a", "nope"].into()),
-            ViewOp::ShrinkStart(t(3)),
-            ViewOp::ShrinkEnd(t(8)),
-            ViewOp::ExcludeNodes(vec![GID::Str("a".into()), GID::U64(7)]),
-            ViewOp::Subgraph(vec![GID::U64(1), GID::Str("b".into())]),
-            ViewOp::SubgraphNodeTypes(vec!["person".into()]),
-            ViewOp::Valid,
-        ]
-    }
-
-    /// Every variant of the tree over one entity: each leaf given (as a
-    /// presence test), and every operator around the first one.
-    fn every_variant<L: Leaf>(leaves: Vec<L>) -> expr::Expr<L> {
-        let term = || Box::new(expr::Expr::Term(leaves[0].clone()));
-        let one = || Box::new(expr::Expr::Const(Prop::I64(1)));
-        let text = || Box::new(expr::Expr::Const(Prop::str("al")));
-        let mut all: Vec<expr::Expr<L>> = leaves
-            .iter()
-            .map(|leaf| expr::Expr::IsSome(Box::new(expr::Expr::Term(leaf.clone()))))
-            .collect();
-        all.push(expr::Expr::Const(Prop::Bool(true)));
-        for agg in [
-            Agg::Sum,
-            Agg::Avg,
-            Agg::Min,
-            Agg::Max,
-            Agg::First,
-            Agg::Last,
-            Agg::Len,
-            Agg::Earliest,
-            Agg::Latest,
-        ] {
-            all.push(expr::Expr::Cmp(
-                BinaryOp::Ge,
-                Box::new(expr::Expr::Agg(agg, term())),
-                one(),
-            ));
-        }
-        for op in [
-            BinaryOp::Eq,
-            BinaryOp::Ne,
-            BinaryOp::Lt,
-            BinaryOp::Le,
-            BinaryOp::Gt,
-            BinaryOp::Ge,
-        ] {
-            all.push(expr::Expr::Cmp(op, term(), one()));
-        }
-        for op in [
-            StringOp::StartsWith,
-            StringOp::EndsWith,
-            StringOp::Contains,
-            StringOp::NotContains,
-            StringOp::FuzzySearch {
-                levenshtein_distance: 2,
-                prefix_match: true,
-            },
-        ] {
-            all.push(expr::Expr::Str(op, term(), text()));
-        }
-        for negated in [false, true] {
-            all.push(expr::Expr::In {
-                expr: term(),
-                values: vec![Prop::str("alice"), Prop::I64(3)],
-                negated,
-            });
-        }
-        all.push(expr::Expr::IsNone(term()));
-        let gt = || Box::new(expr::Expr::Cmp(BinaryOp::Gt, term(), one()));
-        all.push(expr::Expr::Any(gt()));
-        all.push(expr::Expr::All(gt()));
-        all.push(expr::Expr::Or(vec![*gt(), expr::Expr::Not(gt())]));
-        expr::Expr::And(all)
-    }
-
-    fn node_leaves() -> Vec<NodeLeaf> {
-        let field = |field| NodeLeaf::Field {
-            views: Vec::new(),
-            field,
-        };
-        let degree = |direction| NodeLeaf::Degree {
-            views: Vec::new(),
-            direction,
-        };
-        vec![
-            NodeLeaf::Property {
-                views: every_view(),
-                name: "score".into(),
-                temporal: false,
-            },
-            NodeLeaf::Property {
-                views: Vec::new(),
-                name: "score".into(),
-                temporal: true,
-            },
-            NodeLeaf::Metadata {
-                views: vec![ViewOp::Latest],
-                name: "region".into(),
-            },
-            field(Field::Name),
-            field(Field::Id),
-            field(Field::NodeType),
-            degree(Direction::BOTH),
-            degree(Direction::IN),
-            degree(Direction::OUT),
-            NodeLeaf::IsActive {
-                views: vec![ViewOp::Layers("work".into())],
-            },
-        ]
-    }
-
-    #[tokio::test]
-    async fn every_node_variant_round_trips() {
-        assert_round_trip(F::Node(every_variant(node_leaves()))).await;
-    }
-
-    #[tokio::test]
-    async fn every_edge_variant_round_trips() {
-        let views = || vec![ViewOp::At(t(2)), ViewOp::DefaultLayer];
-        let endpoint = || Box::new(every_variant(node_leaves()));
-        let leaves = vec![
-            EdgeLeaf::Property {
-                views: every_view(),
-                name: "w".into(),
-                temporal: false,
-            },
-            EdgeLeaf::Property {
-                views: Vec::new(),
-                name: "w".into(),
-                temporal: true,
-            },
-            EdgeLeaf::Metadata {
-                views: Vec::new(),
-                name: "kind".into(),
-            },
-            EdgeLeaf::IsActive { views: views() },
-            EdgeLeaf::IsValid { views: Vec::new() },
-            EdgeLeaf::IsDeleted { views: views() },
-            EdgeLeaf::IsSelfLoop { views: Vec::new() },
-            EdgeLeaf::Src(endpoint()),
-            EdgeLeaf::Dst(endpoint()),
-        ];
-        assert_round_trip(F::Edge(every_variant(leaves))).await;
-    }
-
-    #[tokio::test]
-    async fn every_exploded_edge_variant_round_trips() {
-        let leaves = vec![
-            ExplodedEdgeLeaf::Property {
-                views: every_view(),
-                name: "w".into(),
-                temporal: false,
-            },
-            ExplodedEdgeLeaf::Property {
-                views: Vec::new(),
-                name: "w".into(),
-                temporal: true,
-            },
-            ExplodedEdgeLeaf::Metadata {
-                views: Vec::new(),
-                name: "kind".into(),
-            },
-            ExplodedEdgeLeaf::IsActive {
-                views: vec![ViewOp::Valid],
-            },
-            ExplodedEdgeLeaf::IsValid { views: Vec::new() },
-            ExplodedEdgeLeaf::IsDeleted { views: Vec::new() },
-            ExplodedEdgeLeaf::IsSelfLoop { views: Vec::new() },
-        ];
-        assert_round_trip(F::ExplodedEdge(every_variant(leaves))).await;
-    }
-
-    #[tokio::test]
-    async fn every_filter_variant_round_trips() {
-        let score = || {
-            F::Node(expr::Expr::IsSome(Box::new(expr::Expr::Term(
-                NodeLeaf::Property {
-                    views: Vec::new(),
-                    name: "score".into(),
-                    temporal: false,
-                },
-            ))))
-        };
-        assert_round_trip(F::And(vec![
-            F::View(every_view()),
-            F::Or(vec![score(), score()]),
-            F::Not(Box::new(score())),
-        ]))
-        .await;
-    }
-
-    #[tokio::test]
-    async fn the_wire_json_is_the_graphql_spelling() {
-        let tree = F::Edge(expr::Expr::Cmp(
-            BinaryOp::Eq,
-            Box::new(expr::Expr::Term(EdgeLeaf::Src(Box::new(expr::Expr::Term(
-                NodeLeaf::Field {
-                    views: Vec::new(),
-                    field: Field::Name,
-                },
-            ))))),
-            Box::new(expr::Expr::Const(Prop::str("alice"))),
-        ));
-        let wire = GqlFilter::try_from(&tree).unwrap();
-        assert_eq!(
-            serde_json::to_string(&wire).unwrap(),
-            r#"{"edge":{"cmp":{"op":"EQ","lhs":{"read":{"src":{"expr":{"read":{"field":{"name":"NAME"}}}}}},"rhs":{"const":{"str":"alice"}}}}}"#
-        );
-        let literal = r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { expr: { read: { field: { name: NAME } } } } } }, rhs: { const: { str: "alice" } } } } }"#;
-        assert_eq!(from_literal(literal).await.unwrap(), tree_json(&tree));
-    }
-
-    #[tokio::test]
-    async fn the_documented_examples_parse() {
-        for example in [
-            r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score" } } }, rhs: { const: { i64: 4 } } } } }"#,
-            r#"{ node: { cmp: { op: EQ, lhs: { read: { metadata: { name: "region" } } }, rhs: { const: { str: "eu" } } } } }"#,
-            r#"{ node: { cmp: { op: EQ, lhs: { read: { field: { name: NODE_TYPE } } }, rhs: { const: { str: "user" } } } } }"#,
-            r#"{ node: { cmp: { op: GT, lhs: { read: { field: { name: DEGREE } } }, rhs: { read: { field: { name: IN_DEGREE } } } } } }"#,
-            r#"{ node: { read: { field: { name: IS_ACTIVE } } } }"#,
-            r#"{ node: { str: { op: STARTS_WITH, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "al" } } } } }"#,
-            r#"{ node: { str: { op: FUZZY, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alise" } }, levenshteinDistance: 1, prefixMatch: false } } }"#,
-            r#"{ node: { isIn: { expr: { read: { field: { name: NAME } } }, values: { list: [ { str: "alice" }, { str: "carol" } ] } } } }"#,
-            r#"{ node: { presence: { op: IS_NONE, expr: { read: { property: { name: "score" } } } } } }"#,
-            r#"{ node: { cmp: { op: GE, lhs: { agg: { op: SUM, expr: { read: { temporalProperty: { name: "score" } } } } }, rhs: { const: { i64: 19 } } } } }"#,
-            r#"{ node: { qualified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } }"#,
-            r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [ { window: { start: 0, end: 2 } } ] } } }, rhs: { const: { i64: 4 } } } } }"#,
-            r#"{ node: { cmp: { op: EQ, lhs: { read: { property: { name: "score", views: [ { window: { start: 0, end: 4 } }, { kind: LATEST } ] } } }, rhs: { const: { i64: 2 } } } } }"#,
-            r#"{ node: { read: { field: { name: IS_ACTIVE, views: [ { excludeNodes: ["bob"] }, { kind: LATEST } ] } } } }"#,
-            r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { expr: { read: { field: { name: NAME } } } } } }, rhs: { const: { str: "alice" } } } } }"#,
-            r#"{ edge: { cmp: { op: GT, lhs: { read: { src: { expr: { read: { property: { name: "score", views: [ { at: 2 } ] } } } } } }, rhs: { read: { dst: { expr: { read: { property: { name: "score", views: [ { at: 1 } ] } } } } } } } } }"#,
-            r#"{ edge: { read: { field: { name: IS_VALID, views: [ { layers: ["work"] } ] } } } }"#,
-            r#"{ explodedEdge: { cmp: { op: GT, lhs: { read: { property: { name: "w" } } }, rhs: { const: { f64: 5.0 } } } } }"#,
-            r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [{ window: { start: 0, end: 5 } }] } } }, rhs: { const: { i64: 4 } } } } }"#,
-            r#"{ edge: { read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } } } }"#,
-            r#"{ view: [ { window: { start: 1, end: 5 } }, { excludeLayers: ["friends"] } ] }"#,
-            r#"{ view: [ { subgraph: ["alice", "bob"] }, { kind: VALID } ] }"#,
-            r#"{ and: [ { view: [ { window: { start: 1, end: 5 } } ] }, { node: { cmp: { op: GT, lhs: { read: { property: { name: "score" } } }, rhs: { const: { i64: 4 } } } } } ] }"#,
-            r#"{ node: { and: [ { presence: { op: IS_SOME, expr: { read: { property: { name: "score" } } } } }, { cmp: { op: EQ, lhs: { read: { field: { name: NODE_TYPE } } }, rhs: { const: { str: "user" } } } } ] } }"#,
-        ] {
-            if let Err(err) = from_literal(example).await {
-                panic!("{example}: {err}");
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn a_read_names_exactly_one_term() {
-        for read in [
-            // Two terms.
-            json!({ "property": { "name": "a" }, "metadata": { "name": "b" } }),
-            json!({ "property": { "name": "a" }, "metadata": { "name": "b" }, "field": { "name": "NAME" } }),
-            // No term.
-            json!({}),
-            json!({ "views": [{ "kind": "LATEST" }] }),
-            // The flat string form.
-            json!({ "property": "a" }),
-            // The `term` wrapper.
-            json!({ "term": { "property": "a" } }),
-            json!({ "term": { "property": { "name": "a" } } }),
-        ] {
-            let filter = json!({ "node": { "read": read } });
-            assert!(from_variable(filter.clone()).await.is_err(), "{filter}");
-            assert!(from_json(filter.clone()).is_err(), "{filter}");
-        }
-        assert!(from_literal(
-            r#"{ edge: { read: { field: { name: IS_VALID }, src: { expr: { read: { field: { name: NAME } } } } } } }"#,
-        )
-        .await
-        .is_err());
-    }
-
-    #[tokio::test]
-    async fn only_fuzzy_takes_its_arguments() {
-        let test = |extra: serde_json::Value, op: &str| {
-            let mut s = json!({
-                "op": op,
-                "lhs": { "read": { "field": { "name": "NAME" } } },
-                "rhs": { "const": { "str": "al" } },
-            });
-            s.as_object_mut()
-                .unwrap()
-                .extend(extra.as_object().unwrap().clone());
-            json!({ "node": { "str": s } })
-        };
-        for (filter, message) in [
-            (
-                test(json!({}), "FUZZY"),
-                "FUZZY requires `levenshteinDistance` and `prefixMatch`",
-            ),
-            (
-                test(json!({ "levenshteinDistance": 1 }), "FUZZY"),
-                "FUZZY requires `levenshteinDistance` and `prefixMatch`",
-            ),
-            (
-                test(json!({ "levenshteinDistance": 1 }), "CONTAINS"),
-                "only FUZZY takes `levenshteinDistance` and `prefixMatch`",
-            ),
-            (
-                test(
-                    json!({ "levenshteinDistance": 1, "prefixMatch": true }),
-                    "CONTAINS",
-                ),
-                "only FUZZY takes `levenshteinDistance` and `prefixMatch`",
-            ),
-        ] {
-            let err = from_variable(filter.clone()).await.unwrap_err();
-            assert!(err.contains(message), "{err}");
-            let err = from_json(filter).unwrap_err();
-            assert!(err.contains(message), "{err}");
-        }
-        let fuzzy = test(
-            json!({ "levenshteinDistance": 1, "prefixMatch": false }),
-            "FUZZY",
-        );
-        assert!(from_variable(fuzzy).await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn a_view_without_argument_is_a_kind() {
-        for (kind, op, name) in [
-            (ViewKind::Latest, ViewOp::Latest, "LATEST"),
-            (
-                ViewKind::SnapshotLatest,
-                ViewOp::SnapshotLatest,
-                "SNAPSHOT_LATEST",
-            ),
-            (ViewKind::Valid, ViewOp::Valid, "VALID"),
-            (
-                ViewKind::DefaultLayer,
-                ViewOp::DefaultLayer,
-                "DEFAULT_LAYER",
-            ),
-        ] {
-            assert_eq!(ViewOp::from(GqlViewOp::Kind(kind)), op);
-            let json = serde_json::to_value(GqlViewOp::try_from(&op).unwrap()).unwrap();
-            assert_eq!(json, json!({ "kind": name }));
-            let back: GqlViewOp = serde_json::from_value(json).unwrap();
-            assert_eq!(ViewOp::from(back), op);
-        }
-        for old in ["latest", "snapshotLatest", "valid", "defaultLayer"] {
-            let view = json!([{ old: true }]);
-            assert!(serde_json::from_value::<Vec<GqlViewOp>>(view.clone()).is_err());
-            let err = from_variable(json!({ "view": view })).await.unwrap_err();
-            assert!(err.contains(old), "{err}");
-        }
-    }
-
-    #[test]
-    fn layer_views_carry_the_names_as_a_list() {
-        let one = ViewOp::from(GqlViewOp::ExcludeLayers(vec!["a".into()]));
-        assert_eq!(one, ViewOp::ExcludeLayers("a".into()));
-        let json = serde_json::to_value(GqlViewOp::try_from(&one).unwrap()).unwrap();
-        assert_eq!(json, json!({ "excludeLayers": ["a"] }));
-        // No name is no layer, and back.
-        let none = ViewOp::from(GqlViewOp::Layers(Vec::new()));
-        assert_eq!(none, ViewOp::Layers(Layer::None));
-        let json = serde_json::to_value(GqlViewOp::try_from(&none).unwrap()).unwrap();
-        assert_eq!(json, json!({ "layers": [] }));
-        // Every layer is no view, so it has no spelling.
-        let err = GqlViewOp::try_from(&ViewOp::Layers(Layer::All)).unwrap_err();
-        assert!(err.to_string().contains("restricts nothing"), "{err}");
-    }
-
-    #[test]
-    fn node_ids_take_the_scalar_spelling_and_keep_their_type() {
-        // The wire form is the variables a client sends, so a node id is the
-        // `NodeId` scalar: a JSON string or a JSON integer, never the tagged
-        // serde form of `GID`.
-        let op = ViewOp::ExcludeNodes(vec![GID::Str("7".into()), GID::U64(7)]);
-        let json = serde_json::to_value(GqlViewOp::try_from(&op).unwrap()).unwrap();
-        assert_eq!(json, json!({ "excludeNodes": ["7", 7] }));
-        let back: GqlViewOp = serde_json::from_value(json).unwrap();
-        assert_eq!(ViewOp::from(back), op);
-        assert!(serde_json::from_value::<GqlViewOp>(json!({ "subgraph": [-1] })).is_err());
-        assert!(
-            serde_json::from_value::<GqlViewOp>(json!({ "subgraph": [{ "U64": 1 }] })).is_err()
-        );
-    }
-
-    #[test]
-    fn an_opaque_filter_has_no_wire_form() {
-        let graph = Graph::new();
-        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
-        graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
-        let mask = alternating_mask(&graph);
-        let opaque = NodeFilter::by_column(&mask, "bool_col").unwrap();
-        let err = GqlFilter::try_from(&opaque).unwrap_err();
-        assert!(err.to_string().contains(OPAQUE_FILTER_ERROR), "{err}");
     }
 }

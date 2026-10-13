@@ -1508,9 +1508,24 @@ fn default_layer_and_exclude_layers_agree_with_the_graph_views() {
     agrees_with_core(&g, &[ViewOp::ExcludeLayers(Layer::None)], |g| {
         Ok(g.exclude_layers(Vec::<String>::new())?.into_dynamic())
     });
-    // Every layer: `layers` restricts nothing, and excluding them leaves none.
-    assert!(GraphFilter.layers(Layer::All).views().is_empty());
+    // Every layer: the builder keeps the view, which restricts nothing, and
+    // excluding every layer leaves none.
+    assert_eq!(
+        GraphFilter.layers(Layer::All).views(),
+        [ViewOp::Layers(Layer::All)]
+    );
+    agrees_with_core(&g, GraphFilter.layers(Layer::All).views(), |g| {
+        Ok(g.layers(Layer::All)?.into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::Layers(Layer::All)], |g| Ok(g.clone()));
+    assert_eq!(
+        GraphFilter.exclude_layers(Layer::All).views(),
+        [ViewOp::ExcludeLayers(Layer::All)]
+    );
     agrees_with_core(&g, GraphFilter.exclude_layers(Layer::All).views(), |g| {
+        Ok(g.exclude_layers(Layer::All)?.into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::Layers(Layer::None)], |g| {
         Ok(g.exclude_layers(Layer::All)?.into_dynamic())
     });
     // After a layer selection: exclusion works inside it, and the default
@@ -1591,8 +1606,23 @@ fn valid_layers_and_exclude_valid_layers_agree_with_the_graph_views() {
     agrees_with_core(&g, &[ViewOp::ExcludeValidLayers(names(&["nope"]))], |g| {
         Ok(g.exclude_valid_layers("nope").into_dynamic())
     });
-    // Every layer: `valid_layers` restricts nothing, and excluding them leaves none.
-    assert!(GraphFilter.valid_layers(Layer::All).views().is_empty());
+    // Every layer: the builder keeps the view, which restricts nothing, and
+    // excluding every layer leaves none.
+    assert_eq!(
+        GraphFilter.valid_layers(Layer::All).views(),
+        [ViewOp::ValidLayers(Layer::All)]
+    );
+    agrees_with_core(&g, GraphFilter.valid_layers(Layer::All).views(), |g| {
+        Ok(g.valid_layers(Layer::All).into_dynamic())
+    });
+    agrees_with_core(&g, &[ViewOp::ValidLayers(Layer::All)], |g| Ok(g.clone()));
+    assert_eq!(
+        GraphFilter.exclude_valid_layers(Layer::All).views(),
+        [ViewOp::ExcludeValidLayers(Layer::All)]
+    );
+    agrees_with_core(&g, &[ViewOp::Layers(Layer::None)], |g| {
+        Ok(g.exclude_valid_layers(Layer::All).into_dynamic())
+    });
     agrees_with_core(
         &g,
         GraphFilter.exclude_valid_layers(Layer::All).views(),

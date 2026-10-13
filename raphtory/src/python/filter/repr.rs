@@ -397,6 +397,10 @@ fn view_chain(py: Python<'_>, views: &[ViewOp]) -> PyResult<String> {
                 ViewOp::SnapshotLatest => ".snapshot_latest()".to_owned(),
                 ViewOp::Layers(layer) => layer_call(py, "layer", "layers", layer)?,
                 ViewOp::DefaultLayer => ".default_layer()".to_owned(),
+                // Excluding every layer leaves none: the call that keeps no layer.
+                ViewOp::ExcludeLayers(Layer::All) | ViewOp::ExcludeValidLayers(Layer::All) => {
+                    ".layers([])".to_owned()
+                }
                 ViewOp::ExcludeLayers(layer) => {
                     layer_call(py, "exclude_layer", "exclude_layers", layer)?
                 }

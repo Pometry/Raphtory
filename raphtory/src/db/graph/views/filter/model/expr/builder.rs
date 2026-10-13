@@ -141,42 +141,24 @@ pub trait ViewWrapOps<L>: Into<Chain<L>> + Sized {
         self.into().push(ViewOp::SnapshotLatest)
     }
 
-    /// `Layer::All` is every layer, so it restricts nothing.
     fn layers(self, layers: impl Into<Layer>) -> Chain<L> {
-        match layers.into() {
-            Layer::All => self.into(),
-            layer => self.into().push(ViewOp::Layers(layer)),
-        }
+        self.into().push(ViewOp::Layers(layers.into()))
     }
 
     fn default_layer(self) -> Chain<L> {
         self.into().push(ViewOp::DefaultLayer)
     }
 
-    /// Excluding every layer leaves none, as `exclude_layers(Layer::All)`
-    /// does on a graph.
     fn exclude_layers(self, layers: impl Into<Layer>) -> Chain<L> {
-        match layers.into() {
-            Layer::All => self.into().push(ViewOp::Layers(Layer::None)),
-            layer => self.into().push(ViewOp::ExcludeLayers(layer)),
-        }
+        self.into().push(ViewOp::ExcludeLayers(layers.into()))
     }
 
-    /// `Layer::All` is every layer, so it restricts nothing.
     fn valid_layers(self, layers: impl Into<Layer>) -> Chain<L> {
-        match layers.into() {
-            Layer::All => self.into(),
-            layer => self.into().push(ViewOp::ValidLayers(layer)),
-        }
+        self.into().push(ViewOp::ValidLayers(layers.into()))
     }
 
-    /// Excluding every layer leaves none, as `exclude_valid_layers(Layer::All)`
-    /// does on a graph.
     fn exclude_valid_layers(self, layers: impl Into<Layer>) -> Chain<L> {
-        match layers.into() {
-            Layer::All => self.into().push(ViewOp::Layers(Layer::None)),
-            layer => self.into().push(ViewOp::ExcludeValidLayers(layer)),
-        }
+        self.into().push(ViewOp::ExcludeValidLayers(layers.into()))
     }
 
     fn shrink_start<T: IntoTime>(self, start: T) -> Chain<L> {
