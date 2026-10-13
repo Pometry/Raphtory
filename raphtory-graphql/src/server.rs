@@ -1,5 +1,5 @@
 #[cfg(feature = "rdf")]
-use crate::sparql::{endpoint::SparqlEndpoint, sparql_options};
+use crate::sparql::{config::sparql_options, endpoint::SparqlEndpoint};
 use crate::{
     auth::{AuthenticatedGraphQL, KeyResolver, MutationAuth},
     auth_policy::AuthorizationPolicy,
@@ -388,10 +388,7 @@ impl GraphServer {
         .map_err(|e| SchemaError(e.to_string()))
     }
 
-    pub(crate) async fn generate_endpoint(
-        self,
-        tracer: Option<Tracer>,
-    ) -> Result<impl Endpoint, ServerError> {
+    async fn generate_endpoint(self, tracer: Option<Tracer>) -> Result<impl Endpoint, ServerError> {
         let config = self.config.clone();
         let key_resolver = self.key_resolver.clone();
         let schema = self.build_schema(tracer).await?;

@@ -22,9 +22,7 @@ impl PyRdfView {
     ///
     /// The data graph is the triples to_rdf() writes and sparql() matches: one per edge and
     /// layer visible in this view, so rg.valid().validate_shacl(..) validates the current state
-    /// and rg.at(t).validate_shacl(..) the state as of t. Node and layer names are RDF terms as
-    /// described in sparql(): the node Alice of a graph that was not loaded from RDF is the IRI
-    /// raphtory:Alice, which shapes can name with @prefix raphtory: <raphtory:> .
+    /// and rg.at(t).validate_shacl(..) the state as of t.
     ///
     /// SHACL Core is supported, and shapes that use other parts of SHACL raise an error.
     ///

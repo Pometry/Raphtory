@@ -1,20 +1,16 @@
 //! The SPARQL 1.1 Protocol endpoint at `/sparql/<graph path>`, and how the RDF fields of
 //! `RdfGraph` run: with the server's limits, on the compute pool.
-mod accept;
+pub(crate) mod config;
 pub(crate) mod endpoint;
-#[cfg(test)]
-mod tests;
+pub(crate) mod format;
 
+use self::config::{sparql_options, CODE_RESULTS_TOO_LARGE};
 use crate::{
     config::concurrency_config::ConcurrencyConfig, data::gql_error_with_code,
     rayon::blocking_compute,
 };
 use raphtory_rdf::{RdfError, SparqlOptions};
 use thiserror::Error;
-
-/// The `extensions.code` of an RDF field's error that is not the caller's fault; the SPARQL
-/// endpoint answers it with 413 rather than 400.
-pub(crate) const CODE_RESULTS_TOO_LARGE: &str = "RESULTS_TOO_LARGE";
 
 /// Why an RDF field failed. The messages are the errors of the GraphQL fields.
 #[derive(Debug, Error)]
@@ -42,14 +38,6 @@ fn limit_setting(error: &RdfError) -> &'static str {
         RdfError::ResultsTooLarge { .. } => " (`max_sparql_result_bytes`)",
         _ => "",
     }
-}
-
-/// The options of SPARQL queries on a server with `config`.
-pub(crate) fn sparql_options(config: &ConcurrencyConfig) -> SparqlOptions {
-    SparqlOptions::default()
-        .with_max_query_length(config.max_sparql_query_length)
-        .with_max_triple_patterns(config.max_sparql_triple_patterns)
-        .with_max_result_bytes(config.max_sparql_result_bytes)
 }
 
 /// Runs `f` on the compute pool with the SPARQL options of `config` (the defaults if the server

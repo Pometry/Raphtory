@@ -183,10 +183,7 @@ impl PyRdfView {
         self.view.graph().clone()
     }
 
-    /// Return a view of the triples valid at the end of this view.
-    ///
-    /// On the whole graph that is the current state. The order of views matters: x.valid() is
-    /// the state at the end of x, and valid().x is the current state further restricted to x.
+    /// Return a view of only the triples still valid at the end of this view.
     ///
     /// Returns:
     ///     RdfView: The view.
@@ -240,16 +237,6 @@ impl PyRdfView {
 
     /// Runs a SPARQL 1.1 query on the RDF triples of this view.
     ///
-    /// Every edge is one triple per layer, src layer dst, where node names are RDF terms: an
-    /// absolute IRI is kept as written, _:label is a blank node, a name in N-Triples literal form
-    /// (such as "42"^^<http://www.w3.org/2001/XMLSchema#integer>) is that literal, and any other
-    /// name is the IRI raphtory: followed by the percent-encoded name (the raphtory: prefix is
-    /// pre-registered, so the node Alice is raphtory:Alice). Layer names must be safe as file
-    /// names, so the layer of a predicate IRI is the IRI with %, /, :, ? and * percent-escaped as
-    /// %25, %2F, %3A, %3F and %2A (the predicate <http://ex/knows> is the layer
-    /// http%3A%2F%2Fex%2Fknows), and any other layer name is raphtory: followed by the
-    /// percent-encoded name (the default layer is raphtory:_default).
-    ///
     /// The query sees exactly the triples of this view: rg.valid().sparql(..) queries the
     /// current state and rg.at(t).sparql(..) the state as of t. Inside a query,
     /// GRAPH <raphtory:asof:T> { .. } matches its patterns against before(T + 1).valid() of this
@@ -271,8 +258,6 @@ impl PyRdfView {
     ///
     /// Every value, predicates included, is returned as the name of its term (a str), so a node
     /// can be passed to graph.node().
-    /// IRIs under raphtory: that do not encode a name, such as the time graphs
-    /// <raphtory:asof:T>, are returned in N-Triples form, with angle brackets.
     ///
     /// With format, the results are instead returned serialized, as one str: for SELECT and ASK
     /// in a SPARQL results format ("json", "xml", "csv" or "tsv"), for CONSTRUCT and DESCRIBE in
@@ -305,15 +290,13 @@ impl PyRdfView {
 
     /// Exports the RDF triples of this view, the same triples sparql() sees.
     ///
-    /// Every edge visible in this view is written as one triple per layer, src layer dst, with
-    /// node and layer names mapped to RDF terms as described in sparql(). Edges that are not
-    /// valid RDF (from a node named by a literal, or in a layer named by a literal or a blank
-    /// node) are skipped. RDF/XML also skips triples it cannot represent: those whose predicate
-    /// IRI does not end in an XML name, is in the xmlns namespace or is an RDF/XML syntax term
-    /// such as rdf:li, an rdf:type triple whose object IRI cannot name an element when it is its
-    /// subject's only triple, and literals with a control character other than tab and line
-    /// feed; a blank node label starting with a digit is written with an x in front (_:1 is x1).
-    /// Only the state of the view is exported, not its history.
+    /// Every edge visible in this view is written as one triple per layer, src layer dst. Edges
+    /// that are not valid RDF (from a node named by a literal, or in a layer named by a literal or
+    /// a blank node) are skipped. RDF/XML also skips triples it cannot represent: those whose
+    /// predicate IRI does not end in an XML name, is in the xmlns namespace or is an RDF/XML syntax
+    /// term such as rdf:li, an rdf:type triple whose object IRI cannot name an element when it is
+    /// its subject's only triple, and literals with a control character other than tab and line
+    /// feed. Only the state of the view is exported, not its history.
     ///
     /// Arguments:
     ///     path (str | PathLike, optional): The file to write. If not given, the document is returned as a string instead. Defaults to None.
@@ -343,15 +326,13 @@ impl PyRdfView {
     }
 }
 
-/// A graph viewed as RDF, with persistent semantics: the place to load, retract and query
-/// triples.
+/// A graph viewed as RDF: the place to load, retract and query triples. It always uses
+/// persistent semantics.
 ///
 /// Each triple s p o is an edge from s to o in the layer of p, and a retraction is a deletion.
 /// Wrapping a Graph shares its storage, so nothing is copied and writes through either handle
-/// are seen by both. On an event Graph a retraction is a deletion event: it ends nothing, so
-/// event views still show the triple, and a triple that was only retracted appears as an edge
-/// (g.valid() drops it). The whole graph shows every triple ever asserted or retracted: valid()
-/// is the current state and at(t) the state as of t.
+/// are seen by both. The whole graph shows every triple ever asserted or retracted: valid() is
+/// the current state and at(t) the state as of t.
 ///
 /// Arguments:
 ///     graph (Graph | PersistentGraph, optional): The graph to view as RDF. If not given, a new empty graph is created. Defaults to None.
@@ -388,17 +369,10 @@ impl PyRdfGraph {
 
     /// Asserts every triple of an RDF document at timestamp.
     ///
-    /// Each triple s p o is added as an edge from s to o in the layer of p. Node names are RDF
-    /// terms: IRIs as written, blank nodes as _:label (renamed to fresh labels on every load) and
-    /// literals in their N-Triples form, such as "42"^^<http://www.w3.org/2001/XMLSchema#integer>,
-    /// so identical literals share a node. The layer of a predicate IRI not under raphtory: is
-    /// the IRI with %, /, :, ? and * percent-escaped as %25, %2F, %3A, %3F and %2A, so that layer
-    /// names are safe as file names: the layer of <http://ex/knows> is http%3A%2F%2Fex%2Fknows.
-    /// The layer of <raphtory:x> is x percent-decoded, and a predicate whose layer would be blank
-    /// or contain a control character, a backslash or any of / : * ? " < > | raises an error.
-    /// Named graphs are rejected. Each triple is written as one edge event, in document order, so
-    /// a load can run while other threads query or write the graph; it is not atomic: triples
-    /// read before an error stay in the graph.
+    /// Each triple s p o is added as an edge from s to o in the layer of p. Blank nodes get fresh
+    /// labels on every load. Named graphs are rejected. Each triple is written as one edge event,
+    /// in document order, so a load can run while other threads query or write the graph; it is not
+    /// atomic: triples read before an error stay in the graph.
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triples are asserted.
@@ -434,12 +408,12 @@ impl PyRdfGraph {
 
     /// Retracts every triple of an RDF document at timestamp.
     ///
-    /// Each triple s p o is deleted from the layer of p of the edge from s to o, with names
-    /// mapped as in load_rdf(), so from timestamp on it does not hold (until it is asserted
-    /// again). A retraction is recorded even if the triple was never asserted. Blank-node labels
-    /// are used as written, so they must be the stored labels (as returned by to_rdf() or
-    /// sparql()). Each triple is written as one edge event, in document order. The retraction
-    /// streams and is not atomic: triples before an error stay retracted.
+    /// Each triple s p o is deleted from the layer of p of the edge from s to o, so from timestamp
+    /// on it does not hold (until it is asserted again). A retraction is recorded even if the
+    /// triple was never asserted. Blank-node labels are used as written, so they must be the stored
+    /// labels (as returned by to_rdf() or sparql()). Each triple is written as one edge event, in
+    /// document order. The retraction streams and is not atomic: triples before an error stay
+    /// retracted.
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triples are retracted.
@@ -478,10 +452,7 @@ impl PyRdfGraph {
 
     /// Asserts one triple at timestamp.
     ///
-    /// The terms are names, as sparql() returns them, so its values can be passed straight back:
-    /// an absolute IRI as written (http://ex/alice), _:label for a blank node (used as written),
-    /// a literal in its N-Triples form ("Bob" or "42"^^<http://www.w3.org/2001/XMLSchema#integer>),
-    /// and any other name as it is (Alice).
+    /// The terms are names, as sparql() returns them, so its values can be passed straight back.
     ///
     /// Arguments:
     ///     timestamp (TimeInput): The time at which the triple is asserted.

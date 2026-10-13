@@ -53,7 +53,7 @@ fn nn(namespace: &str, local: &str) -> NamedNode {
 }
 
 // blank-node labels are kept, so data, shapes and expected report share their blank nodes
-fn parse(iri: &str) -> OxGraph {
+fn parse(iri: &str) -> Vec<Triple> {
     let path = Url::parse(iri).unwrap().to_file_path().unwrap();
     let data = fs::read(&path).unwrap_or_else(|e| panic!("{iri}: {e}; run make w3c-tests-init"));
     RdfParser::from_format(RdfFormat::Turtle)
@@ -65,7 +65,7 @@ fn parse(iri: &str) -> OxGraph {
 }
 
 fn read_manifest(iri: &str, outcomes: &mut Vec<(String, Outcome)>) {
-    let graph = parse(iri);
+    let graph: OxGraph = parse(iri).into_iter().collect();
     let manifest = NamedOrBlankNode::from(NamedNode::new_unchecked(iri));
     for include in objects(&graph, manifest.clone(), &nn(MF, "include")) {
         read_manifest(NamedNode::try_from(include).unwrap().as_str(), outcomes);
@@ -81,7 +81,7 @@ fn read_manifest(iri: &str, outcomes: &mut Vec<(String, Outcome)>) {
 
 fn run_test(graph: &OxGraph, entry: &NamedOrBlankNode) -> Result<(), Box<dyn Error>> {
     let action = NamedOrBlankNode::try_from(one(graph, entry, &nn(MF, "action")).unwrap())?;
-    let file = |local| -> Result<OxGraph, Box<dyn Error>> {
+    let file = |local| -> Result<Vec<Triple>, Box<dyn Error>> {
         let iri = NamedNode::try_from(one(graph, &action, &nn(SHT, local)).unwrap())?;
         Ok(parse(iri.as_str()))
     };
@@ -94,13 +94,13 @@ fn run_test(graph: &OxGraph, entry: &NamedOrBlankNode) -> Result<(), Box<dyn Err
     Err(format!("expected {expected:#?}\ngot {actual:#?}").into())
 }
 
-fn validate(data: &OxGraph, shapes: &OxGraph) -> Result<ShaclReport, RdfError> {
+fn validate(data: &[Triple], shapes: &[Triple]) -> Result<ShaclReport, RdfError> {
     let g = RdfGraph::new();
     for triple in data {
         g.add_triple(1, triple)?;
     }
     g.validate_shacl(
-        &ShaclShapes::from_triples(shapes)?,
+        &ShaclShapes::from_triples(shapes.iter().map(Triple::as_ref))?,
         &ShaclOptions::default(),
     )
 }

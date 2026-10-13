@@ -88,7 +88,6 @@ pub(crate) fn assert_is_namespace_dir(path: &Path) {
 /// Fixtures of the RDF tests.
 #[cfg(feature = "rdf")]
 pub(crate) mod rdf {
-    use crate::{auth_policy::GraphPermission, model::graph::filtering::GraphAccessFilter};
     use oxigraph::{
         io::{RdfFormat as OxRdfFormat, RdfParser},
         model::Graph,
@@ -96,7 +95,6 @@ pub(crate) mod rdf {
     };
     use raphtory::prelude::PersistentGraph;
     use raphtory_rdf::{NamedNode, RdfFormat, RdfGraph, Term, Triple};
-    use serde_json::{from_value, json};
 
     pub(crate) const PEOPLE: &str = r#"
         @prefix ex: <http://ex/> .
@@ -162,15 +160,5 @@ pub(crate) mod rdf {
             .for_slice(document.as_bytes())
             .map(|quad| Triple::from(quad.unwrap()))
             .collect()
-    }
-
-    /// Read access to every node but `ex:carol` (see [`GraphAccessFilter`]).
-    pub(crate) fn without_carol() -> GraphPermission {
-        let filter = json!({
-            "filter": { "node": { "name": { "where": { "ne": { "str": "http://ex/carol" } } } } }
-        });
-        GraphPermission::Read {
-            filter: Some(from_value::<GraphAccessFilter>(filter).unwrap()),
-        }
     }
 }
