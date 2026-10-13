@@ -127,9 +127,9 @@ pub enum Agg {
     Latest,
 }
 
-/// Which elements of an element-wise yes/no result must hold.
+/// Which elements of an element-wise boolean result must hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Quantifier {
+pub enum Qualifier {
     /// At least one.
     Any,
     /// Every one.
@@ -343,7 +343,7 @@ pub type ExplodedEdgeExpr = Expr<ExplodedEdgeLeaf>;
 /// [`Leaf`].
 impl<L: Leaf> Expr<L> {
     /// The result type, when it is known before the filter meets a graph: a
-    /// constant's, a term's, or one yes/no (or one per element) for a
+    /// constant's, a term's, or one boolean (or one per element) for a
     /// comparison of known types. Anything else is `Empty`.
     pub(crate) fn prop_type(&self) -> PropType {
         match self {
@@ -416,7 +416,7 @@ impl<L> Expr<L> {
     }
 }
 
-/// The filter itself: a yes/no on one kind of entity, a view, or a
+/// The filter itself: a boolean on one kind of entity, a view, or a
 /// combination of filters.
 ///
 /// A filter is a graph: a node predicate keeps the nodes that pass it, an edge

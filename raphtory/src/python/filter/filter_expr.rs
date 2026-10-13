@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// A filter as a tree. The same tree runs locally, is sent to a server, and is
 /// what `repr` prints, so there is nothing to keep in step.
 ///
-/// Anywhere a filter is expected, a yes/no `Expr` is accepted too: it is the
+/// Anywhere a filter is expected, a boolean `Expr` is accepted too: it is the
 /// filter on its own entity.
 ///
 /// `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
@@ -56,7 +56,7 @@ impl<'py> FromPyObject<'_, 'py> for PyFilterExpr {
     }
 }
 
-/// Either side of `&`, `|`: a yes/no expression or a filter.
+/// Either side of `&`, `|`: a boolean expression or a filter.
 #[derive(FromPyObject)]
 pub(crate) enum ExprOrFilter {
     Expr(PyExpr),

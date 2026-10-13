@@ -565,7 +565,7 @@ impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for AndEdgeOp<L,
     }
 }
 
-/// The opposite of a yes/no edge op.
+/// The opposite of a boolean edge op.
 #[derive(Debug, Clone)]
 pub struct NotEdgeOp<T>(pub(crate) T);
 
@@ -808,7 +808,7 @@ mod tests {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Value ops — a yes/no (or element-wise yes/no) built from other values
+// Value ops — a boolean (or element-wise boolean) built from other values
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Two values combined by `kernel` with the test's `param`, producing a value
@@ -907,12 +907,12 @@ impl<'g, P: Send + Sync> EdgeOp for UnaryValueEdgeOp<'g, P> {
     }
 }
 
-/// `and` over yes/no values, stopping at the first that does not hold.
-pub struct AndValueEdgeOp<'g> {
+/// `and` over boolean values, stopping at the first that does not hold.
+pub struct AllOfEdgeOp<'g> {
     pub(crate) items: Vec<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>>,
 }
 
-impl<'g> EdgeOp for AndValueEdgeOp<'g> {
+impl<'g> EdgeOp for AllOfEdgeOp<'g> {
     type Output = Option<Prop>;
 
     fn prop_type(&self) -> PropType {
@@ -955,12 +955,12 @@ impl<'g> EdgeOp for AndValueEdgeOp<'g> {
     }
 }
 
-/// `or` over yes/no values, stopping at the first that holds.
-pub struct OrValueEdgeOp<'g> {
+/// `or` over boolean values, stopping at the first that holds.
+pub struct AnyOfEdgeOp<'g> {
     pub(crate) items: Vec<Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>>,
 }
 
-impl<'g> EdgeOp for OrValueEdgeOp<'g> {
+impl<'g> EdgeOp for AnyOfEdgeOp<'g> {
     type Output = Option<Prop>;
 
     fn prop_type(&self) -> PropType {
@@ -1003,7 +1003,7 @@ impl<'g> EdgeOp for OrValueEdgeOp<'g> {
     }
 }
 
-/// Adapts a yes/no edge value to the plain boolean the filtered graphs consume.
+/// Adapts a boolean edge value to the plain boolean the filtered graphs consume.
 pub struct TruthyEdgeOp<'g> {
     pub(crate) inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
 }

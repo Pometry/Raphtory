@@ -14,7 +14,7 @@
 //! filter(expr: { node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [{ window: { start: 0, end: 5 } }] } } }, rhs: { const: { i64: 4 } } } } })
 //! filter(expr: { node: { cmp: { op: GT, lhs: { read: { field: { name: DEGREE } } }, rhs: { read: { field: { name: IN_DEGREE } } } } } })
 //! filter(expr: { node: { str: { op: FUZZY, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alise" } }, levenshteinDistance: 1, prefixMatch: false } } })
-//! filter(expr: { node: { quantified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } })
+//! filter(expr: { node: { qualified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } })
 //! filter(expr: { edge: { read: { src: { expr: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "alice" } } } } } } } })
 //! ```
 //!
@@ -200,13 +200,13 @@ pub enum PresenceOp {
     IsNone,
 }
 
-/// How an element-wise yes/no over a list becomes one yes/no.
+/// How an element-wise boolean over a list becomes one boolean.
 #[derive(Enum, Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Quantifier {
-    /// Holds when the yes/no inside holds for any element.
+pub enum Qualifier {
+    /// Holds when the boolean inside holds for any element.
     Any,
-    /// Holds when the yes/no inside holds for every element.
+    /// Holds when the boolean inside holds for every element.
     All,
 }
 
@@ -771,7 +771,7 @@ impl Term for ExplodedEdgeRead {
 
 // ── node expressions ─────────────────────────────────────────────────────────
 
-/// A value or a yes/no on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+/// A value or a boolean on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of booleans.
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NodeExpr {
@@ -791,13 +791,13 @@ pub enum NodeExpr {
     IsNotIn(NodeMembership),
     /// Whether a value is there.
     Presence(NodePresence),
-    /// An element-wise yes/no over a list, made one.
-    Quantified(NodeQuantified),
-    /// Every yes/no inside holds.
+    /// An element-wise boolean over a list, made one.
+    Qualified(NodeQualified),
+    /// Every boolean inside holds.
     And(Vec<NodeExpr>),
-    /// Any yes/no inside holds.
+    /// Any boolean inside holds.
     Or(Vec<NodeExpr>),
-    /// The yes/no inside does not hold.
+    /// The boolean inside does not hold.
     Not(Wrapped<NodeExpr>),
 }
 
@@ -855,14 +855,14 @@ pub struct NodePresence {
     pub expr: Wrapped<NodeExpr>,
 }
 
-/// An element-wise yes/no over a list, made one yes/no.
+/// An element-wise boolean over a list, made one boolean.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
-pub struct NodeQuantified {
+pub struct NodeQualified {
     /// Any element or every element.
-    pub op: Quantifier,
-    /// The element-wise yes/no.
+    pub op: Qualifier,
+    /// The element-wise boolean.
     pub expr: Wrapped<NodeExpr>,
 }
 
@@ -890,7 +890,7 @@ macro_rules! entity_input {
         str: $str:ident,
         members: $members:ident,
         presence: $presence:ident,
-        quantified: $quantified:ident $(,)?
+        qualified: $qualified:ident $(,)?
     ) => {
         impl EntityInput for $expr {
             type Leaf = $leaf;
@@ -920,9 +920,7 @@ macro_rules! entity_input {
                         ExprShape::IsNotIn { expr, values }
                     }
                     $expr::Presence($presence { op, expr }) => ExprShape::Presence { op, expr },
-                    $expr::Quantified($quantified { op, expr }) => {
-                        ExprShape::Quantified { op, expr }
-                    }
+                    $expr::Qualified($qualified { op, expr }) => ExprShape::Qualified { op, expr },
                     $expr::And(items) => ExprShape::And(items),
                     $expr::Or(items) => ExprShape::Or(items),
                     $expr::Not(e) => ExprShape::Not(e),
@@ -953,9 +951,7 @@ macro_rules! entity_input {
                         $expr::IsNotIn($members { expr, values })
                     }
                     ExprShape::Presence { op, expr } => $expr::Presence($presence { op, expr }),
-                    ExprShape::Quantified { op, expr } => {
-                        $expr::Quantified($quantified { op, expr })
-                    }
+                    ExprShape::Qualified { op, expr } => $expr::Qualified($qualified { op, expr }),
                     ExprShape::And(items) => $expr::And(items),
                     ExprShape::Or(items) => $expr::Or(items),
                     ExprShape::Not(e) => $expr::Not(e),
@@ -974,12 +970,12 @@ entity_input!(
     str: NodeStringTest,
     members: NodeMembership,
     presence: NodePresence,
-    quantified: NodeQuantified,
+    qualified: NodeQualified,
 );
 
 // ── edge expressions ─────────────────────────────────────────────────────────
 
-/// A value or a yes/no on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+/// A value or a boolean on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of booleans.
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EdgeExpr {
@@ -999,13 +995,13 @@ pub enum EdgeExpr {
     IsNotIn(EdgeMembership),
     /// Whether a value is there.
     Presence(EdgePresence),
-    /// An element-wise yes/no over a list, made one.
-    Quantified(EdgeQuantified),
-    /// Every yes/no inside holds.
+    /// An element-wise boolean over a list, made one.
+    Qualified(EdgeQualified),
+    /// Every boolean inside holds.
     And(Vec<EdgeExpr>),
-    /// Any yes/no inside holds.
+    /// Any boolean inside holds.
     Or(Vec<EdgeExpr>),
-    /// The yes/no inside does not hold.
+    /// The boolean inside does not hold.
     Not(Wrapped<EdgeExpr>),
 }
 
@@ -1063,14 +1059,14 @@ pub struct EdgePresence {
     pub expr: Wrapped<EdgeExpr>,
 }
 
-/// An element-wise yes/no over a list, made one yes/no.
+/// An element-wise boolean over a list, made one boolean.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
-pub struct EdgeQuantified {
+pub struct EdgeQualified {
     /// Any element or every element.
-    pub op: Quantifier,
-    /// The element-wise yes/no.
+    pub op: Qualifier,
+    /// The element-wise boolean.
     pub expr: Wrapped<EdgeExpr>,
 }
 
@@ -1094,12 +1090,12 @@ entity_input!(
     str: EdgeStringTest,
     members: EdgeMembership,
     presence: EdgePresence,
-    quantified: EdgeQuantified,
+    qualified: EdgeQualified,
 );
 
 // ── exploded-edge expressions ────────────────────────────────────────────────
 
-/// A value or a yes/no on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+/// A value or a boolean on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of booleans.
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ExplodedEdgeExpr {
@@ -1119,13 +1115,13 @@ pub enum ExplodedEdgeExpr {
     IsNotIn(ExplodedEdgeMembership),
     /// Whether a value is there.
     Presence(ExplodedEdgePresence),
-    /// An element-wise yes/no over a list, made one.
-    Quantified(ExplodedEdgeQuantified),
-    /// Every yes/no inside holds.
+    /// An element-wise boolean over a list, made one.
+    Qualified(ExplodedEdgeQualified),
+    /// Every boolean inside holds.
     And(Vec<ExplodedEdgeExpr>),
-    /// Any yes/no inside holds.
+    /// Any boolean inside holds.
     Or(Vec<ExplodedEdgeExpr>),
-    /// The yes/no inside does not hold.
+    /// The boolean inside does not hold.
     Not(Wrapped<ExplodedEdgeExpr>),
 }
 
@@ -1183,14 +1179,14 @@ pub struct ExplodedEdgePresence {
     pub expr: Wrapped<ExplodedEdgeExpr>,
 }
 
-/// An element-wise yes/no over a list, made one yes/no.
+/// An element-wise boolean over a list, made one boolean.
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
-pub struct ExplodedEdgeQuantified {
+pub struct ExplodedEdgeQualified {
     /// Any element or every element.
-    pub op: Quantifier,
-    /// The element-wise yes/no.
+    pub op: Qualifier,
+    /// The element-wise boolean.
     pub expr: Wrapped<ExplodedEdgeExpr>,
 }
 
@@ -1214,7 +1210,7 @@ entity_input!(
     str: ExplodedEdgeStringTest,
     members: ExplodedEdgeMembership,
     presence: ExplodedEdgePresence,
-    quantified: ExplodedEdgeQuantified,
+    qualified: ExplodedEdgeQualified,
 );
 
 // ── the conversion, written once for every entity ────────────────────────────
@@ -1255,8 +1251,8 @@ pub enum ExprShape<E: EntityInput> {
         op: PresenceOp,
         expr: Wrapped<E>,
     },
-    Quantified {
-        op: Quantifier,
+    Qualified {
+        op: Qualifier,
         expr: Wrapped<E>,
     },
     And(Vec<E>),
@@ -1317,9 +1313,9 @@ pub trait EntityInput: Sized {
                 PresenceOp::IsSome => expr::Expr::IsSome(subtree(expr)?),
                 PresenceOp::IsNone => expr::Expr::IsNone(subtree(expr)?),
             },
-            ExprShape::Quantified { op, expr } => match op {
-                Quantifier::Any => expr::Expr::Any(subtree(expr)?),
-                Quantifier::All => expr::Expr::All(subtree(expr)?),
+            ExprShape::Qualified { op, expr } => match op {
+                Qualifier::Any => expr::Expr::Any(subtree(expr)?),
+                Qualifier::All => expr::Expr::All(subtree(expr)?),
             },
             ExprShape::And(items) => expr::Expr::And(all(items)?),
             ExprShape::Or(items) => expr::Expr::Or(all(items)?),
@@ -1384,12 +1380,12 @@ pub trait EntityInput: Sized {
                 op: PresenceOp::IsNone,
                 expr: wire(e)?,
             },
-            expr::Expr::Any(e) => ExprShape::Quantified {
-                op: Quantifier::Any,
+            expr::Expr::Any(e) => ExprShape::Qualified {
+                op: Qualifier::Any,
                 expr: wire(e)?,
             },
-            expr::Expr::All(e) => ExprShape::Quantified {
-                op: Quantifier::All,
+            expr::Expr::All(e) => ExprShape::Qualified {
+                op: Qualifier::All,
                 expr: wire(e)?,
             },
             expr::Expr::And(items) => ExprShape::And(all(items)?),
@@ -1460,16 +1456,16 @@ fn string_op(
 
 // ── the filter ───────────────────────────────────────────────────────────────
 
-/// The filter itself: a yes/no over one kind of entity, a view, or a combination.
+/// The filter itself: a boolean over one kind of entity, a view, or a combination.
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[graphql(name = "FilterExpr")]
 pub enum GqlFilter {
-    /// A yes/no over nodes.
+    /// A boolean over nodes.
     Node(NodeExpr),
-    /// A yes/no over edges.
+    /// A boolean over edges.
     Edge(EdgeExpr),
-    /// A yes/no over exploded edges, one per update of an edge.
+    /// A boolean over exploded edges, one per update of an edge.
     ExplodedEdge(ExplodedEdgeExpr),
     /// A graph-level view with no predicate: the result is the view.
     View(Vec<GqlViewOp>),
@@ -1908,7 +1904,7 @@ mod tests {
             r#"{ node: { isIn: { expr: { read: { field: { name: NAME } } }, values: { list: [ { str: "alice" }, { str: "carol" } ] } } } }"#,
             r#"{ node: { presence: { op: IS_NONE, expr: { read: { property: { name: "score" } } } } } }"#,
             r#"{ node: { cmp: { op: GE, lhs: { agg: { op: SUM, expr: { read: { temporalProperty: { name: "score" } } } } }, rhs: { const: { i64: 19 } } } } }"#,
-            r#"{ node: { quantified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } }"#,
+            r#"{ node: { qualified: { op: ANY, expr: { cmp: { op: GT, lhs: { read: { temporalProperty: { name: "score" } } }, rhs: { const: { i64: 8 } } } } } } }"#,
             r#"{ node: { cmp: { op: GT, lhs: { read: { property: { name: "score", views: [ { window: { start: 0, end: 2 } } ] } } }, rhs: { const: { i64: 4 } } } } }"#,
             r#"{ node: { cmp: { op: EQ, lhs: { read: { property: { name: "score", views: [ { window: { start: 0, end: 4 } }, { kind: LATEST } ] } } }, rhs: { const: { i64: 2 } } } } }"#,
             r#"{ node: { read: { field: { name: IS_ACTIVE, views: [ { excludeNodes: ["bob"] }, { kind: LATEST } ] } } } }"#,

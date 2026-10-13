@@ -341,7 +341,7 @@ fn test_edge_aggregated_last_is_not_in_prop_values() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quantified string ops (any/all after contains/starts_with/ends_with)
+// Qualified string ops (any/all after contains/starts_with/ends_with)
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn genre_graph() -> Graph {
@@ -362,7 +362,7 @@ fn genre_graph() -> Graph {
 }
 
 #[test]
-fn test_edge_quantified_any_contains() {
+fn test_edge_qualified_any_contains() {
     let g = genre_graph();
     // any temporal value of "tag" contains "rock"
     let filter = EdgeFilter.property("tag").temporal().contains("rock").any();
@@ -372,7 +372,7 @@ fn test_edge_quantified_any_contains() {
 }
 
 #[test]
-fn test_edge_quantified_any_starts_with() {
+fn test_edge_qualified_any_starts_with() {
     let g = genre_graph();
     let filter = EdgeFilter
         .property("tag")
@@ -384,7 +384,7 @@ fn test_edge_quantified_any_starts_with() {
 }
 
 #[test]
-fn test_edge_quantified_any_ends_with() {
+fn test_edge_qualified_any_ends_with() {
     let g = genre_graph();
     let filter = EdgeFilter
         .property("tag")
@@ -396,7 +396,7 @@ fn test_edge_quantified_any_ends_with() {
 }
 
 #[test]
-fn test_edge_quantified_any_not_contains() {
+fn test_edge_qualified_any_not_contains() {
     let g = genre_graph();
     // any temporal value of "tag" does NOT contain "rock"
     // A->B: "metal" and "rock-n-roll" don't, but "rock" does → any not_contains is true for A->B
@@ -412,7 +412,7 @@ fn test_edge_quantified_any_not_contains() {
 }
 
 #[test]
-fn test_edge_quantified_all_contains() {
+fn test_edge_qualified_all_contains() {
     let g = Graph::new();
     // A->B: all tags contain "rock"
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None)
@@ -431,7 +431,7 @@ fn test_edge_quantified_all_contains() {
 }
 
 #[test]
-fn test_edge_quantified_all_starts_with() {
+fn test_edge_qualified_all_starts_with() {
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None)
         .unwrap();
@@ -452,11 +452,11 @@ fn test_edge_quantified_all_starts_with() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quantified set ops (any/all after is_in/is_not_in)
+// Qualified set ops (any/all after is_in/is_not_in)
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_edge_quantified_any_is_in() {
+fn test_edge_qualified_any_is_in() {
     let g = genre_graph();
     // any temporal value of "tag" is in {"metal", "blues"}
     let filter = EdgeFilter
@@ -470,7 +470,7 @@ fn test_edge_quantified_any_is_in() {
 }
 
 #[test]
-fn test_edge_quantified_any_is_not_in() {
+fn test_edge_qualified_any_is_not_in() {
     let g = genre_graph();
     // any temporal value of "tag" is NOT in {"metal", "blues"}
     let filter = EdgeFilter
@@ -485,7 +485,7 @@ fn test_edge_quantified_any_is_not_in() {
 }
 
 #[test]
-fn test_edge_quantified_all_is_in() {
+fn test_edge_qualified_all_is_in() {
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None)
         .unwrap();
@@ -508,7 +508,7 @@ fn test_edge_quantified_all_is_in() {
 }
 
 #[test]
-fn test_edge_quantified_all_is_not_in() {
+fn test_edge_qualified_all_is_not_in() {
     let g = Graph::new();
     g.add_edge(1, "A", "B", [("tag", Prop::str("rock"))], None)
         .unwrap();
@@ -876,7 +876,7 @@ fn test_edge_property_is_false() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
-fn test_edge_quantified_any_sum_gt() {
+fn test_edge_qualified_any_sum_gt() {
     let g = Graph::new();
     // A->B: t=1 has a list whose sum = 11 (> 5); t=2 has a list whose sum = 3
     g.add_edge(
@@ -932,7 +932,7 @@ fn test_edge_quantified_any_sum_gt() {
 }
 
 #[test]
-fn test_edge_quantified_all_min_ge() {
+fn test_edge_qualified_all_min_ge() {
     let g = Graph::new();
     // A->B: t=1 min = 3, t=2 min = 5 (all ≥ 3)
     g.add_edge(
@@ -988,7 +988,7 @@ fn test_edge_quantified_all_min_ge() {
 }
 
 #[test]
-fn test_edge_quantified_any_any_contains() {
+fn test_edge_qualified_any_any_contains() {
     let g = Graph::new();
     // A->B: t=1 list has "rock" (any element contains "rock")
     g.add_edge(
@@ -1049,7 +1049,7 @@ fn test_edge_quantified_any_any_contains() {
 }
 
 #[test]
-fn test_edge_quantified_any_last_is_in() {
+fn test_edge_qualified_any_last_is_in() {
     let g = Graph::new();
     // A->B: the latest update (t=2) has "metal" as an element, not as its
     // last element, so the last element of each update (what .last() would

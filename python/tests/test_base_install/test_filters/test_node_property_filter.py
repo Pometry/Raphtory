@@ -10,7 +10,7 @@ import re
 ONE_ANSWER_PER_ELEMENT = (
     "^"
     + re.escape(
-        "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+        "Invalid filter: a filter needs one boolean answer, but comparing a list or "
         "temporal property gives one per element (List<Bool>); add any() or all() "
         "to say whether any or every element must match"
     )
@@ -18,14 +18,14 @@ ONE_ANSWER_PER_ELEMENT = (
 )
 
 # The whole refusal of any()/all() written after a test that gives a single
-# yes/no answer. A property's type is only known once the filter meets a
+# boolean answer. A property's type is only known once the filter meets a
 # graph, so these are refused when the filter is applied.
 QUALIFIER_ON_ONE_ANSWER = (
     "^"
     + re.escape(
-        "Invalid filter: any()/all() need one yes/no answer per element, which "
+        "Invalid filter: any()/all() need one boolean answer per element, which "
         "comparing a list or temporal property gives; this expression gives a "
-        "single yes/no answer, so drop the any()/all()"
+        "single boolean answer, so drop the any()/all()"
     )
     + "$"
 )
@@ -832,7 +832,7 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
 def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
         # Presence is a whole-value question; a qualifier has nothing to
-        # collapse on a single yes/no.
+        # collapse on a single boolean.
         filter_expr = filter.Node.property("prop8").is_some().any()
         with pytest.raises(Exception, match=QUALIFIER_ON_ONE_ANSWER):
             graph.filter(filter_expr).nodes.id

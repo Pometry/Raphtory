@@ -68,7 +68,7 @@ def test_graph_node_property_filter_equal_type_error(graph):
     }
     """
     expected_error_message = (
-        "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+        "Invalid filter: a filter needs one boolean answer, but comparing a list or "
         "temporal property gives one per element (List<Bool>); add any() or all() "
         "to say whether any or every element must match"
     )
@@ -813,7 +813,7 @@ def test_graph_nodes_property_filter_starts_with_temporal_any(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           str: {

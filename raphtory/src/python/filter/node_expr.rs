@@ -100,7 +100,7 @@ impl Typed {
         }
     }
 
-    /// The filter this yes/no expression is, on its entity.
+    /// The filter this boolean expression is, on its entity.
     pub(crate) fn into_filter(self) -> FilterExpr {
         match self {
             Typed::Node(e) => NodeLeaf::filter(e),
@@ -129,10 +129,10 @@ impl From<ExplodedEdgeExpr> for Typed {
 }
 
 /// A value expression: a field, degree, property, metadata entry, an aggregate
-/// over one, or a yes/no built from them. Comparing it to a value or to another
-/// expression gives a yes/no `Expr`, which is a filter on its entity.
+/// over one, or a boolean built from them. Comparing it to a value or to another
+/// expression gives a boolean `Expr`, which is a filter on its entity.
 ///
-/// `~` on a yes/no is the opposite yes/no: a node without the property fails
+/// `~` on a boolean is the opposite boolean: a node without the property fails
 /// `property("score") > 4`, so it passes `~(property("score") > 4)`.
 #[pyclass(
     frozen,
@@ -240,7 +240,7 @@ fn check_nullable(lhs: &Typed, op: &str) -> PyResult<()> {
     Ok(())
 }
 
-/// `any()`/`all()` only follow a comparison that gives one yes/no per
+/// `any()`/`all()` only follow a comparison that gives one boolean per
 /// element. When the expression's type is already known and is not that, the
 /// qualifier is refused where it is written; otherwise it is checked when the
 /// filter is applied.

@@ -298,7 +298,7 @@ fn qualifiers_follow_the_comparison() {
         "{}",
         error(&g, &bare)
     );
-    // any()/all() over a plain yes/no has nothing to collapse.
+    // any()/all() over a plain boolean has nothing to collapse.
     let scalar = node(Expr::Any(Box::new(cmp(
         BinaryOp::Gt,
         prop("score"),
@@ -374,7 +374,7 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
             node(cmp(BinaryOp::Gt, prop("score"), c("x"))),
             "cannot be compared with F64",
         ),
-        (node(prop("score")), "needs a yes/no answer"),
+        (node(prop("score")), "needs a boolean answer"),
         (
             node(Expr::IsSome(Box::new(degree(Direction::BOTH)))),
             "always has a value",
@@ -401,7 +401,7 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
         ),
         (
             node(Expr::And(vec![prop("score"), c(true)])),
-            "and needs a yes/no answer",
+            "and needs a boolean answer",
         ),
         (node(Expr::And(vec![])), "needs at least one operand"),
     ];
@@ -1944,10 +1944,10 @@ fn an_invalid_tree_is_refused_with_what_is_wrong_with_it() {
         (NodeFilter.degree().is_some(), "Invalid filter: IS_SOME() is not valid on an expression that always has a value"),
         (Expr::And(vec![Expr::Const(1i64.into()).is_some(), score().gt(1i64)]), "Invalid filter: IS_SOME() is not valid on an expression that always has a value"),
         (Expr::Const(1i64.into()).gt(0i64), "Invalid filter: a constant is not a filter"),
-        (score().gt(1i64).any(), "Invalid filter: any()/all() need one yes/no answer per element, which comparing a list or temporal property gives; this expression gives a single yes/no answer, so drop the any()/all()"),
+        (score().gt(1i64).any(), "Invalid filter: any()/all() need one boolean answer per element, which comparing a list or temporal property gives; this expression gives a single boolean answer, so drop the any()/all()"),
         (score().sum().gt(1i64), "Invalid filter: sum() is not valid on a scalar expression of type I64"),
         (score().eq(NodeFilter.name()), "Invalid filter: type mismatch: lhs is I64, rhs is Str"),
-        (score().into(), "Invalid filter: a filter needs a yes/no answer, but this expression has type I64"),
+        (score().into(), "Invalid filter: a filter needs a boolean answer, but this expression has type I64"),
         (Expr::And(vec![]), "Invalid filter: `and` needs at least one operand"),
     ];
     for (expr, message) in &invalid {
@@ -1962,7 +1962,7 @@ fn an_invalid_tree_is_refused_with_what_is_wrong_with_it() {
         ),
         (
             EdgeFilter.property("w").temporal().sum(),
-            "Invalid filter: a filter needs a yes/no answer, but this expression has type I64",
+            "Invalid filter: a filter needs a boolean answer, but this expression has type I64",
         ),
     ];
     for (expr, message) in &edge_invalid {

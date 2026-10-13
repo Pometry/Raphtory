@@ -11825,7 +11825,7 @@ The right side.
 
 ### EdgeExpr
 
-A value or a yes/no on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+A value or a boolean on an edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of booleans.
 
 <table>
 <thead>
@@ -11909,11 +11909,11 @@ Whether a value is there.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgeexpr.quantified">quantified</strong></td>
-<td valign="top"><a href="#edgequantified">EdgeQuantified</a></td>
+<td colspan="2" valign="top"><strong id="edgeexpr.qualified">qualified</strong></td>
+<td valign="top"><a href="#edgequalified">EdgeQualified</a></td>
 <td>
 
-An element-wise yes/no over a list, made one.
+An element-wise boolean over a list, made one.
 
 </td>
 </tr>
@@ -11922,7 +11922,7 @@ An element-wise yes/no over a list, made one.
 <td valign="top">[<a href="#edgeexpr">EdgeExpr</a>!]</td>
 <td>
 
-Every yes/no inside holds.
+Every boolean inside holds.
 
 </td>
 </tr>
@@ -11931,7 +11931,7 @@ Every yes/no inside holds.
 <td valign="top">[<a href="#edgeexpr">EdgeExpr</a>!]</td>
 <td>
 
-Any yes/no inside holds.
+Any boolean inside holds.
 
 </td>
 </tr>
@@ -11940,7 +11940,7 @@ Any yes/no inside holds.
 <td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
 <td>
 
-The yes/no inside does not hold.
+The boolean inside does not hold.
 
 </td>
 </tr>
@@ -12049,9 +12049,9 @@ The value.
 </tbody>
 </table>
 
-### EdgeQuantified
+### EdgeQualified
 
-An element-wise yes/no over a list, made one yes/no.
+An element-wise boolean over a list, made one boolean.
 
 <table>
 <thead>
@@ -12063,8 +12063,8 @@ An element-wise yes/no over a list, made one yes/no.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="edgequantified.op">op</strong></td>
-<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td colspan="2" valign="top"><strong id="edgequalified.op">op</strong></td>
+<td valign="top"><a href="#qualifier">Qualifier</a>!</td>
 <td>
 
 Any element or every element.
@@ -12072,11 +12072,11 @@ Any element or every element.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="edgequantified.expr">expr</strong></td>
+<td colspan="2" valign="top"><strong id="edgequalified.expr">expr</strong></td>
 <td valign="top"><a href="#edgeexpr">EdgeExpr</a>!</td>
 <td>
 
-The element-wise yes/no.
+The element-wise boolean.
 
 </td>
 </tr>
@@ -12414,7 +12414,7 @@ The right side.
 
 ### ExplodedEdgeExpr
 
-A value or a yes/no on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+A value or a boolean on an exploded edge: a literal, a read of a term, an aggregate, a comparison or test, or a combination of booleans.
 
 <table>
 <thead>
@@ -12498,11 +12498,11 @@ Whether a value is there.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgeexpr.quantified">quantified</strong></td>
-<td valign="top"><a href="#explodededgequantified">ExplodedEdgeQuantified</a></td>
+<td colspan="2" valign="top"><strong id="explodededgeexpr.qualified">qualified</strong></td>
+<td valign="top"><a href="#explodededgequalified">ExplodedEdgeQualified</a></td>
 <td>
 
-An element-wise yes/no over a list, made one.
+An element-wise boolean over a list, made one.
 
 </td>
 </tr>
@@ -12511,7 +12511,7 @@ An element-wise yes/no over a list, made one.
 <td valign="top">[<a href="#explodededgeexpr">ExplodedEdgeExpr</a>!]</td>
 <td>
 
-Every yes/no inside holds.
+Every boolean inside holds.
 
 </td>
 </tr>
@@ -12520,7 +12520,7 @@ Every yes/no inside holds.
 <td valign="top">[<a href="#explodededgeexpr">ExplodedEdgeExpr</a>!]</td>
 <td>
 
-Any yes/no inside holds.
+Any boolean inside holds.
 
 </td>
 </tr>
@@ -12529,7 +12529,7 @@ Any yes/no inside holds.
 <td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
 <td>
 
-The yes/no inside does not hold.
+The boolean inside does not hold.
 
 </td>
 </tr>
@@ -12604,9 +12604,9 @@ The value.
 </tbody>
 </table>
 
-### ExplodedEdgeQuantified
+### ExplodedEdgeQualified
 
-An element-wise yes/no over a list, made one yes/no.
+An element-wise boolean over a list, made one boolean.
 
 <table>
 <thead>
@@ -12618,8 +12618,8 @@ An element-wise yes/no over a list, made one yes/no.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgequantified.op">op</strong></td>
-<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td colspan="2" valign="top"><strong id="explodededgequalified.op">op</strong></td>
+<td valign="top"><a href="#qualifier">Qualifier</a>!</td>
 <td>
 
 Any element or every element.
@@ -12627,11 +12627,11 @@ Any element or every element.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="explodededgequantified.expr">expr</strong></td>
+<td colspan="2" valign="top"><strong id="explodededgequalified.expr">expr</strong></td>
 <td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a>!</td>
 <td>
 
-The element-wise yes/no.
+The element-wise boolean.
 
 </td>
 </tr>
@@ -12755,7 +12755,7 @@ The string it is tested against.
 
 ### FilterExpr
 
-The filter itself: a yes/no over one kind of entity, a view, or a combination.
+The filter itself: a boolean over one kind of entity, a view, or a combination.
 
 <table>
 <thead>
@@ -12771,7 +12771,7 @@ The filter itself: a yes/no over one kind of entity, a view, or a combination.
 <td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
 <td>
 
-A yes/no over nodes.
+A boolean over nodes.
 
 </td>
 </tr>
@@ -12780,7 +12780,7 @@ A yes/no over nodes.
 <td valign="top"><a href="#edgeexpr">EdgeExpr</a></td>
 <td>
 
-A yes/no over edges.
+A boolean over edges.
 
 </td>
 </tr>
@@ -12789,7 +12789,7 @@ A yes/no over edges.
 <td valign="top"><a href="#explodededgeexpr">ExplodedEdgeExpr</a></td>
 <td>
 
-A yes/no over exploded edges, one per update of an edge.
+A boolean over exploded edges, one per update of an edge.
 
 </td>
 </tr>
@@ -13364,7 +13364,7 @@ The right side.
 
 ### NodeExpr
 
-A value or a yes/no on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of yes/nos.
+A value or a boolean on a node: a literal, a read of a term, an aggregate, a comparison or test, or a combination of booleans.
 
 <table>
 <thead>
@@ -13448,11 +13448,11 @@ Whether a value is there.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodeexpr.quantified">quantified</strong></td>
-<td valign="top"><a href="#nodequantified">NodeQuantified</a></td>
+<td colspan="2" valign="top"><strong id="nodeexpr.qualified">qualified</strong></td>
+<td valign="top"><a href="#nodequalified">NodeQualified</a></td>
 <td>
 
-An element-wise yes/no over a list, made one.
+An element-wise boolean over a list, made one.
 
 </td>
 </tr>
@@ -13461,7 +13461,7 @@ An element-wise yes/no over a list, made one.
 <td valign="top">[<a href="#nodeexpr">NodeExpr</a>!]</td>
 <td>
 
-Every yes/no inside holds.
+Every boolean inside holds.
 
 </td>
 </tr>
@@ -13470,7 +13470,7 @@ Every yes/no inside holds.
 <td valign="top">[<a href="#nodeexpr">NodeExpr</a>!]</td>
 <td>
 
-Any yes/no inside holds.
+Any boolean inside holds.
 
 </td>
 </tr>
@@ -13479,7 +13479,7 @@ Any yes/no inside holds.
 <td valign="top"><a href="#nodeexpr">NodeExpr</a></td>
 <td>
 
-The yes/no inside does not hold.
+The boolean inside does not hold.
 
 </td>
 </tr>
@@ -13588,9 +13588,9 @@ The value.
 </tbody>
 </table>
 
-### NodeQuantified
+### NodeQualified
 
-An element-wise yes/no over a list, made one yes/no.
+An element-wise boolean over a list, made one boolean.
 
 <table>
 <thead>
@@ -13602,8 +13602,8 @@ An element-wise yes/no over a list, made one yes/no.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="nodequantified.op">op</strong></td>
-<td valign="top"><a href="#quantifier">Quantifier</a>!</td>
+<td colspan="2" valign="top"><strong id="nodequalified.op">op</strong></td>
+<td valign="top"><a href="#qualifier">Qualifier</a>!</td>
 <td>
 
 Any element or every element.
@@ -13611,11 +13611,11 @@ Any element or every element.
 </td>
 </tr>
 <tr>
-<td colspan="2" valign="top"><strong id="nodequantified.expr">expr</strong></td>
+<td colspan="2" valign="top"><strong id="nodequalified.expr">expr</strong></td>
 <td valign="top"><a href="#nodeexpr">NodeExpr</a>!</td>
 <td>
 
-The element-wise yes/no.
+The element-wise boolean.
 
 </td>
 </tr>
@@ -15217,9 +15217,9 @@ The value is absent.
 </tbody>
 </table>
 
-### Quantifier
+### Qualifier
 
-How an element-wise yes/no over a list becomes one yes/no.
+How an element-wise boolean over a list becomes one boolean.
 
 <table>
 <thead>
@@ -15233,7 +15233,7 @@ How an element-wise yes/no over a list becomes one yes/no.
 <td valign="top"><strong>ANY</strong></td>
 <td>
 
-Holds when the yes/no inside holds for any element.
+Holds when the boolean inside holds for any element.
 
 </td>
 </tr>
@@ -15241,7 +15241,7 @@ Holds when the yes/no inside holds for any element.
 <td valign="top"><strong>ALL</strong></td>
 <td>
 
-Holds when the yes/no inside holds for every element.
+Holds when the boolean inside holds for every element.
 
 </td>
 </tr>

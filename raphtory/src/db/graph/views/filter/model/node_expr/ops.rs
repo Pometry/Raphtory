@@ -23,7 +23,7 @@
 //!        apply: reduce the list value with aggregate_list_values(Sum)
 //! ```
 //!
-//! # Quantified evaluation
+//! # Qualified evaluation
 //!
 //! A comparison against a list-valued side gives one answer per element;
 //! `.any()` / `.all()` written after it collapse that list:
@@ -654,7 +654,7 @@ pub fn broadcast_binary(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Value ops — a yes/no (or element-wise yes/no) built from other values
+// Value ops — a boolean (or element-wise boolean) built from other values
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Two values combined by `kernel` with the test's `param`, producing a value
@@ -712,12 +712,12 @@ impl<'g, P: Send + Sync> NodeOp for UnaryValueNodeOp<'g, P> {
     }
 }
 
-/// `and` over yes/no values, stopping at the first that does not hold.
-pub struct AndValueNodeOp<'g> {
+/// `and` over boolean values, stopping at the first that does not hold.
+pub struct AllOfNodeOp<'g> {
     pub(crate) items: Vec<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>>,
 }
 
-impl<'g> NodeOp for AndValueNodeOp<'g> {
+impl<'g> NodeOp for AllOfNodeOp<'g> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
@@ -737,12 +737,12 @@ impl<'g> NodeOp for AndValueNodeOp<'g> {
     }
 }
 
-/// `or` over yes/no values, stopping at the first that holds.
-pub struct OrValueNodeOp<'g> {
+/// `or` over boolean values, stopping at the first that holds.
+pub struct AnyOfNodeOp<'g> {
     pub(crate) items: Vec<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>>,
 }
 
-impl<'g> NodeOp for OrValueNodeOp<'g> {
+impl<'g> NodeOp for AnyOfNodeOp<'g> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {

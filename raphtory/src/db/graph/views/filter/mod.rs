@@ -69,7 +69,7 @@ impl CreateFilter for Exists {
 
 /// How a filter is applied. Each entry point compiles the filter against the graph
 /// it is handed and answers for one kind of entity: the graph with the failing
-/// entities hidden, a yes/no operation per node, or a yes/no operation per edge.
+/// entities hidden, a boolean operation per node, or a boolean operation per edge.
 /// Every filter has a per-edge answer, since a filtered graph always decides which
 /// edges it keeps; only a node predicate has a per-node one, and an edge predicate
 /// refuses that entry point.

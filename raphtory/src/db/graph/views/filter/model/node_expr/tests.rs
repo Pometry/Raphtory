@@ -138,7 +138,7 @@ where
     names
 }
 
-// ── any() quantifier ─────────────────────────────────────────────────────
+// ── any() qualifier ─────────────────────────────────────────────────────
 
 #[test]
 fn temporal_any_eq_selects_nodes_with_matching_value() {
@@ -165,7 +165,7 @@ fn temporal_any_gt_both_nodes_qualify() {
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
 }
 
-// ── all() quantifier ─────────────────────────────────────────────────────
+// ── all() qualifier ─────────────────────────────────────────────────────
 
 #[test]
 fn temporal_all_gt_requires_every_value() {

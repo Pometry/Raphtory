@@ -124,7 +124,7 @@ def test_temporal_aggregates_and_qualifiers():
     # The qualifier follows the comparison: one answer per update, any must hold.
     any_high = node(
         {
-            "quantified": {
+            "qualified": {
                 "op": "ANY",
                 "expr": cmp("GT", history, const({"f64": 4.0})),
             }

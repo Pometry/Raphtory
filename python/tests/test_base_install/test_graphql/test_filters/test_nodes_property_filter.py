@@ -143,7 +143,7 @@ def test_node_property_filter_equal_type_error(graph):
     }
     """
     expected_error_message = (
-        "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+        "Invalid filter: a filter needs one boolean answer, but comparing a list or "
         "temporal property gives one per element (List<Bool>); add any() or all() "
         "to say whether any or every element must match"
     )
@@ -929,7 +929,7 @@ def test_nodes_property_filter_temporal_all_starts_with(graph):
         nodes {
           select(expr: {
                          node: {
-                           quantified: {
+                           qualified: {
                              op: ANY
                              expr: {
                                str: {
@@ -999,7 +999,7 @@ def test_nodes_property_filter_list_qualifier(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1078,7 +1078,7 @@ def test_nodes_temporal_property_filter_any_avg(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1458,7 +1458,7 @@ def test_nodes_temporal_property_filter_any_avg_with_window(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1510,7 +1510,7 @@ def test_node_property_layer_filter_not_supported(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1561,7 +1561,7 @@ def test_nodes_at_temporal_property(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1607,7 +1607,7 @@ def test_nodes_before_temporal_property(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1655,7 +1655,7 @@ def test_nodes_after_temporal_property(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1703,7 +1703,7 @@ def test_nodes_latest_temporal_property(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1749,7 +1749,7 @@ def test_nodes_snapshot_at_temporal_property(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1797,7 +1797,7 @@ def test_nodes_snapshot_latest_temporal_property(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1848,7 +1848,7 @@ def test_nodes_layer_then_latest(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {
@@ -1896,7 +1896,7 @@ def test_nodes_latest_then_layer(graph):
       graph(path: "g") {
         filterNodes: filter(expr: {
                                     node: {
-                                      quantified: {
+                                      qualified: {
                                         op: ANY
                                         expr: {
                                           cmp: {

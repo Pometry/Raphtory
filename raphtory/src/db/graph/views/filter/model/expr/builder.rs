@@ -607,12 +607,12 @@ pub trait EntityExprFilterOps<L: Leaf>: Into<Expr<L>> + Sized {
         Expr::IsNone(Box::new(self.into()))
     }
 
-    /// Some element of an element-wise yes/no holds.
+    /// Some element of an element-wise boolean holds.
     fn any(self) -> Expr<L> {
         Expr::Any(Box::new(self.into()))
     }
 
-    /// Every element of an element-wise yes/no holds.
+    /// Every element of an element-wise boolean holds.
     fn all(self) -> Expr<L> {
         Expr::All(Box::new(self.into()))
     }
@@ -670,7 +670,7 @@ impl<L: Leaf> EntityAggOps<L> for PropertyTerm<L> {}
 
 // ── filters ──────────────────────────────────────────────────────────────────
 
-/// A yes/no expression is a filter on its entity.
+/// A boolean expression is a filter on its entity.
 impl<L: Leaf> From<Expr<L>> for FilterExpr {
     fn from(expr: Expr<L>) -> Self {
         L::filter(expr)

@@ -1,7 +1,7 @@
-//! The type rules of the yes/no expressions, and the kernels that evaluate
+//! The type rules of the boolean expressions, and the kernels that evaluate
 //! them once a graph has fixed the property types.
 //!
-//! A comparison of two comparable values is one yes/no answer. A comparison of
+//! A comparison of two comparable values is one boolean answer. A comparison of
 //! a list-valued side against a value its elements are comparable with is one
 //! answer per element, a `List<Bool>`, which `any()` or `all()` turn into one.
 //! The shape is decided here, from the types alone, when the expression is
@@ -114,7 +114,7 @@ pub(crate) fn set_shape(lhs: &PropType, values: &[Prop]) -> (PropType, Shape, Ve
     (PropType::Bool, Shape::Whole, whole)
 }
 
-/// Whether `pt` is one yes/no per element, at any list depth: a `List<Bool>`,
+/// Whether `pt` is one boolean per element, at any list depth: a `List<Bool>`,
 /// or a list of those, with `Bool` innermost.
 fn is_elementwise_bool(pt: &PropType) -> bool {
     match pt {
@@ -124,11 +124,11 @@ fn is_elementwise_bool(pt: &PropType) -> bool {
 }
 
 /// What `any()`/`all()` take, the opening of every refusal of a misplaced one.
-const QUALIFIER_NEEDS: &str = "any()/all() need one yes/no answer per element, which comparing \
+const QUALIFIER_NEEDS: &str = "any()/all() need one boolean answer per element, which comparing \
                                a list or temporal property gives";
 
 /// The type `any()`/`all()` produce over `inner`: one list level fewer, and
-/// only over an element-wise yes/no result. A refusal says what the
+/// only over an element-wise boolean result. A refusal says what the
 /// expression gives instead and what to write.
 pub(crate) fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
     match inner {
@@ -136,7 +136,7 @@ pub(crate) fn qualified_type(inner: &PropType) -> Result<PropType, GraphError> {
             Ok((**elem).clone())
         }
         PropType::Bool => Err(GraphError::invalid_filter(format!(
-            "{QUALIFIER_NEEDS}; this expression gives a single yes/no answer, so drop the \
+            "{QUALIFIER_NEEDS}; this expression gives a single boolean answer, so drop the \
              any()/all()"
         ))),
         PropType::List(_) => Err(GraphError::invalid_filter(format!(
@@ -177,13 +177,13 @@ pub(crate) fn require_bool(pt: &PropType, what: &str) -> Result<(), GraphError> 
         PropType::Bool => Ok(()),
         elementwise if is_elementwise_bool(elementwise) => {
             Err(GraphError::invalid_filter(format!(
-                "{what} needs one yes/no answer, but comparing a list or temporal property gives \
+                "{what} needs one boolean answer, but comparing a list or temporal property gives \
              one per element ({pt}); add any() or all() to say whether any or every element \
              must match"
             )))
         }
         other => Err(GraphError::invalid_filter(format!(
-            "{what} needs a yes/no answer, but this expression has type {other}"
+            "{what} needs a boolean answer, but this expression has type {other}"
         ))),
     }
 }
@@ -193,7 +193,7 @@ mod shape_tests {
     use super::*;
 
     #[test]
-    fn any_and_all_collapse_only_an_elementwise_yes_no() {
+    fn any_and_all_collapse_only_an_elementwise_bool() {
         assert_eq!(
             qualified_type(&list(PropType::Bool)).unwrap(),
             PropType::Bool
@@ -202,14 +202,16 @@ mod shape_tests {
             qualified_type(&list(list(PropType::Bool))).unwrap(),
             list(PropType::Bool)
         );
-        let needs = "Invalid filter: any()/all() need one yes/no answer per element, which \
+        let needs = "Invalid filter: any()/all() need one boolean answer per element, which \
                      comparing a list or temporal property gives; ";
         let refused = |pt: PropType| qualified_type(&pt).unwrap_err().to_string();
         assert_eq!(
             refused(PropType::Bool),
-            format!("{needs}this expression gives a single yes/no answer, so drop the any()/all()")
+            format!(
+                "{needs}this expression gives a single boolean answer, so drop the any()/all()"
+            )
         );
-        // A list whose innermost type is not a yes/no is not an element-wise answer.
+        // A list whose innermost type is not a boolean is not an element-wise answer.
         assert_eq!(
             refused(list(list(PropType::Str))),
             format!(
@@ -231,12 +233,12 @@ mod shape_tests {
     }
 
     #[test]
-    fn a_filter_needs_one_yes_no_and_says_when_to_add_a_qualifier() {
+    fn a_filter_needs_one_bool_and_says_when_to_add_a_qualifier() {
         assert!(require_bool(&PropType::Bool, "a filter").is_ok());
         let refused = |pt: PropType| require_bool(&pt, "a filter").unwrap_err().to_string();
         let per_element = |pt: &str| {
             format!(
-                "Invalid filter: a filter needs one yes/no answer, but comparing a list or \
+                "Invalid filter: a filter needs one boolean answer, but comparing a list or \
                  temporal property gives one per element ({pt}); add any() or all() to say \
                  whether any or every element must match"
             )
@@ -246,10 +248,10 @@ mod shape_tests {
             refused(list(list(PropType::Bool))),
             per_element("List<List<Bool>>")
         );
-        // A list of strings is not an element-wise yes/no, so the hint does not apply.
+        // A list of strings is not an element-wise boolean, so the hint does not apply.
         assert_eq!(
             refused(list(list(PropType::Str))),
-            "Invalid filter: a filter needs a yes/no answer, but this expression has type \
+            "Invalid filter: a filter needs a boolean answer, but this expression has type \
              List<List<Str>>"
         );
     }
@@ -378,7 +380,7 @@ pub(crate) fn presence_kernel(op: &UnaryOp, v: Option<Prop>) -> Option<Prop> {
     }))
 }
 
-/// The opposite of a yes/no value.
+/// The opposite of a boolean value.
 pub(crate) fn not_kernel(_: &(), v: Option<Prop>) -> Option<Prop> {
     Some(Prop::Bool(!truthy(&v)))
 }

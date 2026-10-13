@@ -9,7 +9,7 @@ from datetime import datetime
 # The whole refusal of a test on a list property that does not say whether any
 # or every element must match.
 ONE_ANSWER_PER_ELEMENT = (
-    "Invalid filter: a filter needs one yes/no answer, but comparing a list or "
+    "Invalid filter: a filter needs one boolean answer, but comparing a list or "
     "temporal property gives one per element (List<Bool>); add any() or all() "
     "to say whether any or every element must match"
 )

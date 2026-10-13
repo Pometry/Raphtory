@@ -82,7 +82,7 @@ impl NodeOp for NodeStateBoolColOp {
     }
 }
 
-/// The column as a yes/no node value, so it combines with other node
+/// The column as a boolean node value, so it combines with other node
 /// predicates and negates like one.
 impl OpaqueOp for NodeStateBoolColOp {
     fn node_value_op<'g>(

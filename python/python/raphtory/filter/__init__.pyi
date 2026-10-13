@@ -49,7 +49,7 @@ class FilterExpr(object):
     A filter as a tree. The same tree runs locally, is sent to a server, and is
     what `repr` prints, so there is nothing to keep in step.
 
-    Anywhere a filter is expected, a yes/no `Expr` is accepted too: it is the
+    Anywhere a filter is expected, a boolean `Expr` is accepted too: it is the
     filter on its own entity.
 
     `&`, `|` and `~` combine filters. `~` keeps what the filter drops: a negated
@@ -79,10 +79,10 @@ class FilterExpr(object):
 class Expr(object):
     """
     A value expression: a field, degree, property, metadata entry, an aggregate
-    over one, or a yes/no built from them. Comparing it to a value or to another
-    expression gives a yes/no `Expr`, which is a filter on its entity.
+    over one, or a boolean built from them. Comparing it to a value or to another
+    expression gives a boolean `Expr`, which is a filter on its entity.
 
-    `~` on a yes/no is the opposite yes/no: a node without the property fails
+    `~` on a boolean is the opposite boolean: a node without the property fails
     `property("score") > 4`, so it passes `~(property("score") > 4)`.
     """
 

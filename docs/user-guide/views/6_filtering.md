@@ -50,12 +50,12 @@ From a node, or from the end of an edge (`filter.Edge.src()` and `filter.Edge.ds
 | `.property("score")` | the latest value of a temporal property |
 | `.metadata("owner")` | a metadata (constant) value |
 
-Edges and exploded edges offer `.property(...)` and `.metadata(...)` too, and have yes/no tests of
+Edges and exploded edges offer `.property(...)` and `.metadata(...)` too, and have boolean tests of
 their own: `.is_valid()`, `.is_deleted()`, `.is_active()`, `.is_self_loop()`.
 
 ## How you compare
 
-A term is an [Expr][raphtory.filter.Expr]. Comparing it gives a yes/no `Expr`, which is accepted anywhere a filter is.
+A term is an [Expr][raphtory.filter.Expr]. Comparing it gives a boolean `Expr`, which is accepted anywhere a filter is.
 
 | compare with | meaning |
 |---|---|

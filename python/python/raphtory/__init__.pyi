@@ -310,7 +310,7 @@ class GraphView(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             GraphView: The filtered view
@@ -2431,7 +2431,7 @@ class Node(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Node: The filtered view
@@ -2925,7 +2925,7 @@ class Nodes(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Nodes: The filtered view
@@ -3440,7 +3440,7 @@ class PathFromNode(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromNode: The filtered view
@@ -3915,7 +3915,7 @@ class PathFromGraph(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             PathFromGraph: The filtered view
@@ -4475,7 +4475,7 @@ class Edge(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edge: The filtered view
@@ -4945,7 +4945,7 @@ class Edges(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             Edges: The filtered view
@@ -5456,7 +5456,7 @@ class NestedEdges(object):
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr | filter.Expr): The filter to apply; a yes/no expression is the filter on its entity.
+            filter (filter.FilterExpr | filter.Expr): The filter to apply; a boolean expression is the filter on its entity.
 
         Returns:
             NestedEdges: The filtered view

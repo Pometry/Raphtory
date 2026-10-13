@@ -345,7 +345,7 @@ def _degree(direction, op, value=None, over=None):
             f"{{ cmp: {{ op: {_CMP_OP[op]}, lhs: {lhs}, rhs: {{ const: {value} }} }} }}"
         )
     if over in ("any", "all"):
-        pred = f"{{ quantified: {{ op: {over.upper()}, expr: {pred} }} }}"
+        pred = f"{{ qualified: {{ op: {over.upper()}, expr: {pred} }} }}"
     return f"{{ node: {pred} }}"
 
 

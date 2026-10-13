@@ -977,12 +977,12 @@ def test_filter_nodes_by_column():
 
 
 def test_filter_nodes_for_node_name_all_is_invalid():
-    # A name is a single string, so comparing it gives one yes/no answer and
+    # A name is a single string, so comparing it gives one boolean answer and
     # all() is refused where it is written, before any graph is involved.
     msg = (
-        "Invalid filter: any()/all() need one yes/no answer per element, which "
+        "Invalid filter: any()/all() need one boolean answer per element, which "
         "comparing a list or temporal property gives; this expression gives a "
-        "single yes/no answer, so drop the any()/all()"
+        "single boolean answer, so drop the any()/all()"
     )
     with pytest.raises(TypeError, match="^" + re.escape(msg) + "$"):
         (filter.Node.name() == "N1").all()

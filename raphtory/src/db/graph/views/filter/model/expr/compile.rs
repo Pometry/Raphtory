@@ -10,7 +10,7 @@
 use super::{
     builder::{Chain, GraphLeaf},
     Agg, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeExpr,
-    NodeLeaf, Quantifier, ViewOp,
+    NodeLeaf, Qualifier, ViewOp,
 };
 use crate::{
     db::{
@@ -35,11 +35,10 @@ use crate::{
             model::{
                 edge_expr::{
                     ops::{
-                        AndEdgeOp, AndValueEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
+                        AllOfEdgeOp, AndEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
                         EdgeExistsOp, EdgeMetaOp, EdgePropOp, IsActiveEdgePropOp,
                         IsDeletedEdgePropOp, IsSelfLoopEdgePropOp, IsValidEdgePropOp, NotEdgeOp,
-                        OrEdgeOp, OrValueEdgeOp, TemporalEdgePropOp, TruthyEdgeOp,
-                        UnaryValueEdgeOp,
+                        OrEdgeOp, TemporalEdgePropOp, TruthyEdgeOp, UnaryValueEdgeOp,
                     },
                     EdgeOp,
                 },
@@ -47,12 +46,12 @@ use crate::{
                 filter_operator::UnaryOp,
                 node_expr::{
                     ops::{
-                        AllEdgeOp, AllNodeOp, AndValueNodeOp, AnyEdgeOp, AnyNodeOp, AvgEdgeOp,
-                        AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp, FirstEdgeOp,
-                        FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp, LatestNodeOp, LenEdgeOp,
-                        LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp, MinNodeOp, NodeIdOp,
-                        NodeMetaOp, NodePropOp, OrValueNodeOp, ShownNodeOp, SumEdgeOp, SumNodeOp,
-                        TemporalNodePropOp, UnaryValueNodeOp,
+                        AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
+                        AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
+                        FirstEdgeOp, FirstNodeOp, LastEdgeOp, LastNodeOp, LatestEdgeOp,
+                        LatestNodeOp, LenEdgeOp, LenNodeOp, MaxEdgeOp, MaxNodeOp, MinEdgeOp,
+                        MinNodeOp, NodeIdOp, NodeMetaOp, NodePropOp, ShownNodeOp, SumEdgeOp,
+                        SumNodeOp, TemporalNodePropOp, UnaryValueNodeOp,
                     },
                     typing::{
                         cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type,
@@ -90,7 +89,7 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<<Self::Ops as OpFamily>::Value<'g>>, GraphError>;
 
-    // What a yes/no tree over this leaf type is as a filter; see
+    // What a boolean tree over this leaf type is as a filter; see
     // `CreateFilter for Expr`.
 
     /// The per-node test the tree is. Only a node tree says which nodes
@@ -124,7 +123,7 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// Whether the entity is active inside `views`.
     fn is_active(views: Vec<ViewOp>) -> Self;
 
-    /// The filter a yes/no expression over this leaf type is, as data.
+    /// The filter a boolean expression over this leaf type is, as data.
     fn filter(expr: Expr<Self>) -> FilterExpr;
 
     // What a term knows about itself before any graph is at hand; see
@@ -677,17 +676,17 @@ pub trait OpFamily {
         out: PropType,
     ) -> Arc<Self::Value<'g>>;
 
-    /// `and` of yes/no values.
+    /// `and` of boolean values.
     fn all_of<'g>(items: Vec<Arc<Self::Value<'g>>>) -> Arc<Self::Value<'g>>;
 
-    /// `or` of yes/no values.
+    /// `or` of boolean values.
     fn any_of<'g>(items: Vec<Arc<Self::Value<'g>>>) -> Arc<Self::Value<'g>>;
 
     /// `agg` over the list value of `inner`.
     fn aggregate<'g>(inner: Arc<Self::Value<'g>>, agg: Agg) -> Arc<Self::Value<'g>>;
 
-    /// `any()` or `all()` over the element-wise yes/no value of `inner`.
-    fn quantified<'g>(inner: Arc<Self::Value<'g>>, quantifier: Quantifier) -> Arc<Self::Value<'g>>;
+    /// `any()` or `all()` over the element-wise boolean value of `inner`.
+    fn qualified<'g>(inner: Arc<Self::Value<'g>>, qualifier: Qualifier) -> Arc<Self::Value<'g>>;
 }
 
 /// The ops of a node tree.
@@ -739,11 +738,11 @@ impl OpFamily for NodeOps {
     }
 
     fn all_of<'g>(items: Vec<Arc<Self::Value<'g>>>) -> Arc<Self::Value<'g>> {
-        Arc::new(AndValueNodeOp { items })
+        Arc::new(AllOfNodeOp { items })
     }
 
     fn any_of<'g>(items: Vec<Arc<Self::Value<'g>>>) -> Arc<Self::Value<'g>> {
-        Arc::new(OrValueNodeOp { items })
+        Arc::new(AnyOfNodeOp { items })
     }
 
     fn aggregate<'g>(inner: Arc<Self::Value<'g>>, agg: Agg) -> Arc<Self::Value<'g>> {
@@ -760,10 +759,10 @@ impl OpFamily for NodeOps {
         }
     }
 
-    fn quantified<'g>(inner: Arc<Self::Value<'g>>, quantifier: Quantifier) -> Arc<Self::Value<'g>> {
-        match quantifier {
-            Quantifier::Any => Arc::new(AnyNodeOp { inner }),
-            Quantifier::All => Arc::new(AllNodeOp { inner }),
+    fn qualified<'g>(inner: Arc<Self::Value<'g>>, qualifier: Qualifier) -> Arc<Self::Value<'g>> {
+        match qualifier {
+            Qualifier::Any => Arc::new(AnyNodeOp { inner }),
+            Qualifier::All => Arc::new(AllNodeOp { inner }),
         }
     }
 }
@@ -817,11 +816,11 @@ impl OpFamily for EdgeOps {
     }
 
     fn all_of<'g>(items: Vec<Arc<Self::Value<'g>>>) -> Arc<Self::Value<'g>> {
-        Arc::new(AndValueEdgeOp { items })
+        Arc::new(AllOfEdgeOp { items })
     }
 
     fn any_of<'g>(items: Vec<Arc<Self::Value<'g>>>) -> Arc<Self::Value<'g>> {
-        Arc::new(OrValueEdgeOp { items })
+        Arc::new(AnyOfEdgeOp { items })
     }
 
     fn aggregate<'g>(inner: Arc<Self::Value<'g>>, agg: Agg) -> Arc<Self::Value<'g>> {
@@ -838,10 +837,10 @@ impl OpFamily for EdgeOps {
         }
     }
 
-    fn quantified<'g>(inner: Arc<Self::Value<'g>>, quantifier: Quantifier) -> Arc<Self::Value<'g>> {
-        match quantifier {
-            Quantifier::Any => Arc::new(AnyEdgeOp { inner }),
-            Quantifier::All => Arc::new(AllEdgeOp { inner }),
+    fn qualified<'g>(inner: Arc<Self::Value<'g>>, qualifier: Qualifier) -> Arc<Self::Value<'g>> {
+        match qualifier {
+            Qualifier::Any => Arc::new(AnyEdgeOp { inner }),
+            Qualifier::All => Arc::new(AllEdgeOp { inner }),
         }
     }
 }
@@ -899,10 +898,10 @@ impl<L: Leaf> Expr<L> {
             }
             Expr::IsSome(inner) => inner.presence_op(UnaryOp::IsSome, graph)?,
             Expr::IsNone(inner) => inner.presence_op(UnaryOp::IsNone, graph)?,
-            Expr::Any(inner) => inner.quantified_op(Quantifier::Any, graph)?,
-            Expr::All(inner) => inner.quantified_op(Quantifier::All, graph)?,
-            Expr::And(items) => L::Ops::all_of(Self::yes_no_operands(items, graph, "and")?),
-            Expr::Or(items) => L::Ops::any_of(Self::yes_no_operands(items, graph, "or")?),
+            Expr::Any(inner) => inner.qualified_op(Qualifier::Any, graph)?,
+            Expr::All(inner) => inner.qualified_op(Qualifier::All, graph)?,
+            Expr::And(items) => L::Ops::all_of(Self::bool_operands(items, graph, "and")?),
+            Expr::Or(items) => L::Ops::any_of(Self::bool_operands(items, graph, "or")?),
             Expr::Not(inner) => {
                 let op = inner.value_op(graph)?;
                 require_bool(&inner.resolved_type(&op), "not")?;
@@ -978,20 +977,20 @@ impl<L: Leaf> Expr<L> {
         Ok(L::Ops::aggregate(op, agg))
     }
 
-    /// `any()` or `all()` over this element-wise yes/no expression.
-    fn quantified_op<'g>(
+    /// `any()` or `all()` over this element-wise boolean expression.
+    fn qualified_op<'g>(
         &self,
-        quantifier: Quantifier,
+        qualifier: Qualifier,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
         let op = self.value_op(graph)?;
         qualified_type(&self.resolved_type(&op))?;
-        Ok(L::Ops::quantified(op, quantifier))
+        Ok(L::Ops::qualified(op, qualifier))
     }
 
     /// The ops of the operands of `and` or `or`, each checked to answer
-    /// yes/no. An empty list is refused.
-    fn yes_no_operands<'g>(
+    /// boolean. An empty list is refused.
+    fn bool_operands<'g>(
         items: &[Self],
         graph: DynGraphArc<'g>,
         name: &str,
@@ -1011,7 +1010,7 @@ impl<L: Leaf> Expr<L> {
 }
 
 impl NodeExpr {
-    /// The per-node test this yes/no tree is. A tree built only from
+    /// The per-node test this boolean tree is. A tree built only from
     /// constants answers the same for every node, so it is refused.
     fn node_test<'g>(
         &self,
@@ -1025,7 +1024,7 @@ impl NodeExpr {
 }
 
 impl<L: Leaf<Ops = EdgeOps>> Expr<L> {
-    /// The per-edge test this yes/no tree is; a tree built only from
+    /// The per-edge test this boolean tree is; a tree built only from
     /// constants is refused.
     fn edge_test<'g>(&self, graph: DynGraphArc<'g>) -> Result<DynEdgeFilter<'g>, GraphError> {
         self.refuse_constant()?;
@@ -1282,7 +1281,7 @@ fn apply_views<'g>(
     })
 }
 
-/// A yes/no expression is a filter on its entity. A node tree answers which
+/// A boolean expression is a filter on its entity. A node tree answers which
 /// nodes stay, and which edges by "both ends stayed"; an edge tree answers
 /// which edges stay; an exploded-edge tree which updates stay, and so which
 /// edges keep one. Each answer is the one the tree's [`Leaf`] gives.
