@@ -70,7 +70,7 @@ impl From<Arc<Storage>> for Graph {
 impl From<GraphStorage> for Graph {
     fn from(inner: GraphStorage) -> Self {
         Self {
-            inner: Arc::new(Storage::from_inner(inner)),
+            inner: Arc::new(Storage::from(inner)),
         }
     }
 }
@@ -273,7 +273,7 @@ impl Graph {
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
-        let inner = Arc::new(Storage::from_inner(graph_storage));
+        let inner = Arc::new(Storage::from(graph_storage));
         Self { inner }
     }
 

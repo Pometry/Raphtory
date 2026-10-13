@@ -48,7 +48,7 @@ pub struct Storage {
 
 impl From<GraphStorage> for Storage {
     fn from(graph: GraphStorage) -> Self {
-        Self::from_inner(graph)
+        Self { graph }
     }
 }
 
@@ -78,10 +78,6 @@ impl Storage {
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
         })
-    }
-
-    pub(crate) fn from_inner(graph: GraphStorage) -> Self {
-        Self { graph }
     }
 
     /// Produce a read-only handle backed by the same `TemporalGraph` as

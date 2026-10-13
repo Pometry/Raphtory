@@ -53,7 +53,7 @@ impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(value)))
+        Self(Arc::new(Storage::from(value)))
     }
 }
 
@@ -230,7 +230,7 @@ impl PersistentGraph {
     }
 
     pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(internal_graph)))
+        Self(Arc::new(Storage::from(internal_graph)))
     }
 
     /// Return a read-only handle to this graph. Mutations on the returned
