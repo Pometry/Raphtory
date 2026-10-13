@@ -5,10 +5,10 @@ use iter_enum::{
     ParallelExtend, ParallelIterator,
 };
 use rayon::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    iter::{self, Copied},
+    iter::Copied,
     sync::Arc,
 };
 
@@ -76,29 +76,6 @@ impl Layer {
             1 => Layer::One(names.next().unwrap().name()),
             _ => Layer::Multiple(names.map(|s| s.name()).collect::<Vec<_>>().into()),
         }
-    }
-}
-
-/// A layer selection as data: `null` for every layer, otherwise the names it
-/// holds.
-impl Serialize for Layer {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Layer::All => serializer.serialize_none(),
-            Layer::None => serializer.collect_seq(iter::empty::<&str>()),
-            Layer::Default => serializer.collect_seq(["_default"]),
-            Layer::One(name) => serializer.collect_seq([&**name]),
-            Layer::Multiple(names) => serializer.collect_seq(names.iter().map(|name| &**name)),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Layer {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(match Option::<Vec<String>>::deserialize(deserializer)? {
-            None => Layer::All,
-            Some(names) => names.into(),
-        })
     }
 }
 
@@ -292,29 +269,5 @@ impl From<Vec<usize>> for Multiple {
         v.sort();
         v.dedup();
         Multiple(v.into())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Layer;
-    use serde_json::{from_value, json, to_value};
-
-    #[test]
-    fn layer_serde_round_trip() {
-        for (layer, wire) in [
-            (Layer::All, json!(null)),
-            (Layer::None, json!([])),
-            (Layer::from("a"), json!(["a"])),
-            (Layer::from(["a", "b"]), json!(["a", "b"])),
-        ] {
-            assert_eq!(to_value(&layer).unwrap(), wire);
-            assert_eq!(from_value::<Layer>(wire).unwrap(), layer);
-        }
-    }
-
-    #[test]
-    fn default_layer_serializes_as_its_name() {
-        assert_eq!(to_value(Layer::Default).unwrap(), json!(["_default"]));
     }
 }

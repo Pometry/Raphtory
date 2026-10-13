@@ -1,5 +1,4 @@
 use raphtory::{
-    algorithms::alternating_mask::alternating_mask,
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic, Select},
         graph::{
@@ -13,7 +12,6 @@ use raphtory::{
                         expr::{
                             Agg, Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf,
                             Expr, Field, FilterExpr, Leaf, NodeExpr, NodeLeaf, ViewOp,
-                            OPAQUE_FILTER_ERROR,
                         },
                         filter_operator::{BinaryOp, StringOp},
                         graph_filter::GraphFilter,
@@ -545,38 +543,6 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
 }
 
 #[test]
-fn trees_round_trip_through_json_with_the_term_as_the_key() {
-    let f = FilterExpr::And(vec![
-        node(Expr::Any(Box::new(cmp(
-            BinaryOp::Gt,
-            Expr::Term(NodeLeaf::Property {
-                views: vec![window(0, 5)],
-                name: "score".into(),
-                temporal: true,
-            }),
-            c(4.0),
-        )))),
-        FilterExpr::Edge(cmp(
-            BinaryOp::Eq,
-            src(field(Field::Name)),
-            Expr::Const("alice".into()),
-        )),
-    ]);
-    let json = serde_json::to_string(&f).unwrap();
-    assert!(
-        json.contains(r#""property":{"views":[{"window":"#),
-        "{json}"
-    );
-    assert!(
-        json.contains(r#""src":{"field":{"field":"name"}}"#),
-        "{json}"
-    );
-    assert!(!json.contains("term"), "{json}");
-    let back: FilterExpr = serde_json::from_str(&json).unwrap();
-    assert_eq!(back, f);
-}
-
-#[test]
 fn numeric_aggregates_refuse_values_that_are_not_numbers() {
     let g = Graph::new();
     g.add_node(
@@ -622,17 +588,6 @@ fn numeric_aggregates_refuse_values_that_are_not_numbers() {
         .filter(NodeFilter.property("n").temporal().sum().eq(5i64))
         .unwrap();
     assert_eq!(summed.nodes().name().collect::<Vec<_>>(), vec!["m"]);
-}
-
-#[test]
-fn an_opaque_filter_refuses_to_serialise() {
-    let g = Graph::new();
-    g.add_node(1, 1, NO_PROPS, None, None).unwrap();
-    g.add_node(1, 2, NO_PROPS, None, None).unwrap();
-    let mask = alternating_mask(&g);
-    let f = NodeFilter::by_column(&mask, "bool_col").unwrap();
-    let err = serde_json::to_string(&f).unwrap_err().to_string();
-    assert!(err.contains(OPAQUE_FILTER_ERROR));
 }
 
 #[test]
@@ -1659,7 +1614,7 @@ fn valid_layers_and_exclude_valid_layers_agree_with_the_graph_views() {
 }
 
 #[test]
-fn the_new_views_display_and_round_trip_through_json() {
+fn the_new_views_display_and_the_builder_spells_them() {
     let ops = vec![
         ViewOp::DefaultLayer,
         ViewOp::ExcludeLayers(["a", "b"].into()),
@@ -1674,14 +1629,6 @@ fn the_new_views_display_and_round_trip_through_json() {
         "VIEW(DEFAULT_LAYER . EXCLUDE_LAYER[a, b] . VALID_LAYER[a, c] . \
          EXCLUDE_VALID_LAYER[c] . SHRINK_START[3] . SHRINK_END[9])"
     );
-    let json = serde_json::to_string(&f).unwrap();
-    assert!(json.contains(r#""default_layer""#), "{json}");
-    assert!(json.contains(r#""exclude_layers":["a","b"]"#), "{json}");
-    assert!(json.contains(r#""valid_layers":["a","c"]"#), "{json}");
-    assert!(json.contains(r#""exclude_valid_layers":["c"]"#), "{json}");
-    assert!(json.contains(r#""shrink_start":"#), "{json}");
-    let back: FilterExpr = serde_json::from_str(&json).unwrap();
-    assert_eq!(back, f);
     // The builder spells the same ops.
     let built: FilterExpr = GraphFilter
         .default_layer()
@@ -1692,22 +1639,6 @@ fn the_new_views_display_and_round_trip_through_json() {
         .shrink_end(9)
         .into();
     assert_eq!(built, f);
-    // No layer is the empty list on the wire, and reads back as no layer;
-    // the default layer is its name.
-    let none = FilterExpr::View(vec![ViewOp::Layers(Layer::None)]);
-    let json = serde_json::to_string(&none).unwrap();
-    assert_eq!(json, r#"{"view":[{"layers":[]}]}"#);
-    assert_eq!(serde_json::from_str::<FilterExpr>(&json).unwrap(), none);
-    let default = FilterExpr::View(vec![ViewOp::Layers(Layer::Default)]);
-    assert_eq!(
-        serde_json::to_string(&default).unwrap(),
-        r#"{"view":[{"layers":["_default"]}]}"#
-    );
-    // Every layer is `null`, and reads back as every layer.
-    let all = FilterExpr::View(vec![ViewOp::Layers(Layer::All)]);
-    let json = serde_json::to_string(&all).unwrap();
-    assert_eq!(json, r#"{"view":[{"layers":null}]}"#);
-    assert_eq!(serde_json::from_str::<FilterExpr>(&json).unwrap(), all);
 }
 
 /// a→b @1 · b→c @3 · c→d @5, deleted @6 · z alone @9; a, b are `person`,
@@ -1839,7 +1770,7 @@ fn exclude_nodes_before_latest_is_not_latest_before_exclude_nodes() {
 }
 
 #[test]
-fn the_node_set_views_display_and_round_trip_through_json() {
+fn the_node_set_views_display_and_the_builder_spells_them() {
     let ops = vec![
         ViewOp::ExcludeNodes(vec![GID::Str("a".into()), GID::U64(7)]),
         ViewOp::Subgraph(vec![GID::U64(1), GID::Str("b".into())]),
@@ -1851,22 +1782,6 @@ fn the_node_set_views_display_and_round_trip_through_json() {
         f.to_string(),
         "VIEW(EXCLUDE_NODES[a, 7] . SUBGRAPH[1, b] . SUBGRAPH_NODE_TYPES[person, org] . VALID)"
     );
-    let json = serde_json::to_string(&f).unwrap();
-    assert!(
-        json.contains(r#""exclude_nodes":[{"Str":"a"},{"U64":7}]"#),
-        "{json}"
-    );
-    assert!(
-        json.contains(r#""subgraph":[{"U64":1},{"Str":"b"}]"#),
-        "{json}"
-    );
-    assert!(
-        json.contains(r#""subgraph_node_types":["person","org"]"#),
-        "{json}"
-    );
-    assert!(json.contains(r#""valid""#), "{json}");
-    let back: FilterExpr = serde_json::from_str(&json).unwrap();
-    assert_eq!(back, f);
     // The builder spells the same ops.
     let built: FilterExpr = GraphFilter
         .exclude_nodes([GID::Str("a".into()), GID::U64(7)])

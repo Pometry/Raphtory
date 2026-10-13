@@ -23,41 +23,43 @@ use raphtory_api::core::{
 use raphtory_graphql::model::graph::filter_expr_input::{GqlFilter, GqlViewOp, ViewKind};
 use serde_json::json;
 /// A schema with one field that parses a filter the way every resolver
-/// does and answers the tree it became, as JSON.
+/// does, refuses what the server refuses, and answers the filter it
+/// received as JSON.
 #[derive(ResolvedObject)]
 #[graphql(root)]
 struct Echo;
 
 #[ResolvedObjectFields]
 impl Echo {
-    /// The tree `expr` parses to, as JSON.
+    /// The filter `expr` received, as JSON, once it parses to a tree.
     async fn tree(expr: GqlFilter) -> dynamic_graphql::Result<String> {
-        Ok(serde_json::to_string(&F::try_from(expr)?)?)
+        F::try_from(expr.clone())?;
+        Ok(serde_json::to_string(&expr)?)
     }
 }
 
 #[derive(App)]
 struct EchoApp(Echo);
 
-async fn run(request: Request) -> Result<String, String> {
+async fn run(request: Request) -> Result<F, String> {
     let schema = EchoApp::create_schema().finish().unwrap();
     let res = schema.execute(request).await;
     if !res.errors.is_empty() {
         return Err(res.errors.iter().map(|e| e.message.as_str()).join("; "));
     }
     let data = res.data.into_json().unwrap();
-    Ok(data["tree"].as_str().unwrap().to_string())
+    from_json(serde_json::from_str(data["tree"].as_str().unwrap()).unwrap())
 }
 
-/// The tree a filter sent as a GraphQL variable becomes, as JSON.
-async fn from_variable(filter: serde_json::Value) -> Result<String, String> {
+/// The tree a filter sent as a GraphQL variable becomes.
+async fn from_variable(filter: serde_json::Value) -> Result<F, String> {
     run(Request::new("query($f: FilterExpr!) { tree(expr: $f) }")
         .variables(Variables::from_json(json!({ "f": filter }))))
     .await
 }
 
-/// The tree a filter written as a GraphQL literal becomes, as JSON.
-async fn from_literal(filter: &str) -> Result<String, String> {
+/// The tree a filter written as a GraphQL literal becomes.
+async fn from_literal(filter: &str) -> Result<F, String> {
     run(Request::new(format!("{{ tree(expr: {filter}) }}"))).await
 }
 
@@ -67,17 +69,13 @@ fn from_json(filter: serde_json::Value) -> Result<F, String> {
     F::try_from(wire).map_err(|e| e.to_string())
 }
 
-fn tree_json(tree: &F) -> String {
-    serde_json::to_string(tree).unwrap()
-}
-
 /// The tree goes to the wire type, to JSON, and back by serde and by
 /// GraphQL, and is the same tree every way.
 async fn assert_round_trip(tree: F) {
     let wire = GqlFilter::try_from(&tree).unwrap();
     let json = serde_json::to_value(&wire).unwrap();
     assert_eq!(from_json(json.clone()).unwrap(), tree);
-    assert_eq!(from_variable(json).await.unwrap(), tree_json(&tree));
+    assert_eq!(from_variable(json).await.unwrap(), tree);
 }
 
 /// How one view is sent: the single view of a view leg holding only it.
@@ -318,7 +316,7 @@ async fn the_wire_json_is_the_graphql_spelling() {
         r#"{"edge":{"cmp":{"op":"EQ","lhs":{"read":{"src":{"expr":{"read":{"field":{"name":"NAME"}}}}}},"rhs":{"const":{"str":"alice"}}}}}"#
     );
     let literal = r#"{ edge: { cmp: { op: EQ, lhs: { read: { src: { expr: { read: { field: { name: NAME } } } } } }, rhs: { const: { str: "alice" } } } } }"#;
-    assert_eq!(from_literal(literal).await.unwrap(), tree_json(&tree));
+    assert_eq!(from_literal(literal).await.unwrap(), tree);
 }
 
 #[tokio::test]
@@ -512,7 +510,7 @@ async fn every_layer_is_sent_as_the_view_it_means() {
         let json = serde_json::to_value(GqlFilter::try_from(&tree).unwrap()).unwrap();
         assert!(!json.to_string().contains("null"), "{json}");
         let back = from_json(json.clone()).unwrap();
-        assert_eq!(from_variable(json).await.unwrap(), tree_json(&back));
+        assert_eq!(from_variable(json).await.unwrap(), back);
         let expected = graph.filter(tree).unwrap();
         let actual = graph.filter(back).unwrap();
         assert_eq!(

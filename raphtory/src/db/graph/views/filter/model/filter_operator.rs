@@ -207,8 +207,7 @@ pub trait StringComparable: Clone + Send + Sync + 'static {
 }
 
 /// Ordering and equality operators used by `Expr::Cmp`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     Eq,
     Ne,
@@ -219,8 +218,7 @@ pub enum BinaryOp {
 }
 
 /// String-only operators used by `Expr::Str`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StringOp {
     StartsWith,
     EndsWith,

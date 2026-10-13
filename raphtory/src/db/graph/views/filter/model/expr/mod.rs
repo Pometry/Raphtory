@@ -45,14 +45,12 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
     Direction,
 };
-use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
 use typing::static_comparison_type;
 
 /// One view restriction, in the order it was applied. Each one is the graph
 /// view method of the same name applied to the view built so far.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ViewOp {
     /// `window(start, end)`.
     Window { start: EventTime, end: EventTime },
@@ -98,8 +96,7 @@ pub enum ViewOp {
 }
 
 /// A built-in node field.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
     Id,
     Name,
@@ -111,8 +108,7 @@ pub enum Field {
 /// `Sum`, `Avg`, `Min`, `Max`, `First`, `Last` and `Len` reduce the innermost
 /// lists: on a history of list values they answer per update. `Earliest` and
 /// `Latest` pick one update of a temporal history, whatever its type.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Agg {
     Sum,
     Avg,
@@ -152,7 +148,7 @@ pub trait OpaqueOp: Send + Sync + 'static {
 
 /// A node value already built in this process, carried inside a tree as a
 /// node term: a value over in-process state (a node-state column). It runs
-/// but does not serialise: asking for its wire form is an error, not a guess.
+/// but has no wire form: asking for one is an error, not a guess.
 #[derive(Clone)]
 pub struct OpaqueFilter(pub Arc<dyn OpaqueOp>);
 
@@ -182,21 +178,8 @@ impl PartialEq for OpaqueFilter {
     }
 }
 
-impl Serialize for OpaqueFilter {
-    fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
-        Err(serde::ser::Error::custom(OPAQUE_FILTER_ERROR))
-    }
-}
-
-impl<'de> Deserialize<'de> for OpaqueFilter {
-    fn deserialize<D: serde::Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
-        Err(serde::de::Error::custom(OPAQUE_FILTER_ERROR))
-    }
-}
-
 /// What every entity can do with a value, whatever terms the entity offers.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr<L> {
     Const(Prop),
     Agg(Agg, Box<Expr<L>>),
@@ -217,40 +200,31 @@ pub enum Expr<L> {
     Or(Vec<Expr<L>>),
     Not(Box<Expr<L>>),
     /// A term the entity offers; see [`NodeLeaf`], [`EdgeLeaf`], [`ExplodedEdgeLeaf`].
-    /// Serialised as the leaf itself, so the term's name is the key.
-    #[serde(untagged)]
     Term(L),
 }
 
 /// What a node offers: the surface of `NodeFilter`.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NodeLeaf {
     Field {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         field: Field,
     },
     Degree {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         direction: Direction,
     },
     Property {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         name: String,
         /// The property's history as a list instead of its latest value.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         temporal: bool,
     },
     Metadata {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         name: String,
     },
     IsActive {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     /// A node value built in this process (a node-state column) that has no
@@ -260,35 +234,27 @@ pub enum NodeLeaf {
 
 /// What an edge offers: the surface of `EdgeFilter`, plus a look at either
 /// endpoint node.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum EdgeLeaf {
     Property {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         name: String,
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         temporal: bool,
     },
     Metadata {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         name: String,
     },
     IsActive {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     IsValid {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     IsDeleted {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     IsSelfLoop {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     /// A node expression evaluated on the edge's source node.
@@ -298,35 +264,27 @@ pub enum EdgeLeaf {
 }
 
 /// What an exploded edge offers: the surface of `ExplodedEdgeFilter`.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ExplodedEdgeLeaf {
     Property {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         name: String,
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         temporal: bool,
     },
     Metadata {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
         name: String,
     },
     IsActive {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     IsValid {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     IsDeleted {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
     IsSelfLoop {
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
         views: Vec<ViewOp>,
     },
 }
@@ -422,8 +380,7 @@ impl<L> Expr<L> {
 /// `And` and `Or` are each read on the same base graph and their graphs
 /// combine; `Not` keeps what its leg drops. A node or an edge stays in a
 /// collection when it exists in that graph.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FilterExpr {
     Node(NodeExpr),
     Edge(EdgeExpr),
