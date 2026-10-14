@@ -815,7 +815,7 @@ pub fn label_propagation(
 }
 
 /// Computes belief propagation with Dirichlet certainty.
-/// 
+///
 /// Implementation of NetConf (Eswaran, Günnemann & Faloutsos, 2017) using the modulation
 /// matrix M = cI (homophily).
 ///

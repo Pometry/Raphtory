@@ -5,11 +5,8 @@ use crate::{
             state::{GenericNodeState, Index, TypedNodeState},
             view::{
                 internal::{filtered_node::FilteredNodeStorageOps, FilterOps, InternalLayerOps},
-                Filter, StaticGraphViewOps,
+                StaticGraphViewOps,
             },
-        },
-        graph::views::filter::model::{
-            edge_filter::EdgeFilter, ComposableFilter, EdgeViewFilterOps,
         },
         task::{custom_pool, POOL},
     },
@@ -17,7 +14,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{entities::VID, Direction};
-use rayon::prelude::*;
+use rayon::{prelude::*, ThreadPool};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -65,42 +62,33 @@ pub struct BeliefPropState {
     pub sum_b1_ln_b1: f64,
 }
 
-/// Seed evidence, as accepted by [`belief_propagation`].
-///
-/// Implemented for a `HashMap` keyed by anything that names a node -- a name, a global id, or a
-/// `Node` -- so that callers never have to reach for the internal `VID`s the algorithm works in.
-/// Each node maps to its `(label, mass)` pairs.
-pub trait IntoSeedBeliefs {
-    /// Resolves the caller's node references into the `VID`-keyed map the algorithm uses.
-    fn into_seed_beliefs<G: StaticGraphViewOps>(
-        self,
-        graph: &G,
-    ) -> Result<HashMap<VID, Vec<(usize, f64)>>, GraphError>;
-}
-
-impl<V: AsNodeRef> IntoSeedBeliefs for HashMap<V, Vec<(usize, f64)>> {
-    fn into_seed_beliefs<G: StaticGraphViewOps>(
-        self,
-        graph: &G,
-    ) -> Result<HashMap<VID, Vec<(usize, f64)>>, GraphError> {
-        let mut resolved = HashMap::with_capacity(self.len());
-        for (node, beliefs) in self {
-            let node_ref = node.as_node_ref();
-            match graph.node(node_ref) {
-                Some(n) => {
-                    resolved.insert(n.node, beliefs);
-                }
-                None => {
-                    let gid = match node_ref {
-                        NodeRef::Internal(vid) => graph.node_id(vid),
-                        NodeRef::External(gid) => gid.to_owned(),
-                    };
-                    return Err(GraphError::NodeMissingError(gid));
+/// Resolves the caller's node references into the `VID`-keyed map the algorithm uses.
+fn resolve_seeds<G: StaticGraphViewOps, V: AsNodeRef>(
+    graph: &G,
+    seeds: HashMap<V, Vec<(usize, f64)>>,
+) -> Result<HashMap<VID, Vec<(usize, f64)>>, GraphError> {
+    let mut resolved = HashMap::with_capacity(seeds.len());
+    for (node, beliefs) in seeds {
+        let node_ref = node.as_node_ref();
+        match graph.node(node_ref) {
+            Some(n) => {
+                if resolved.insert(n.node, beliefs).is_some() {
+                    return Err(invalid(format!(
+                        "node {} appears more than once in seeds",
+                        n.id()
+                    )));
                 }
             }
+            None => {
+                let gid = match node_ref {
+                    NodeRef::Internal(vid) => graph.node_id(vid),
+                    NodeRef::External(gid) => gid.to_owned(),
+                };
+                return Err(GraphError::NodeMissingError(gid));
+            }
         }
-        Ok(resolved)
     }
+    Ok(resolved)
 }
 
 fn invalid(reason: String) -> GraphError {
@@ -143,7 +131,6 @@ fn compact_seeds(
     index: &Index<VID>,
     epsilon: f64,
 ) -> Result<(Vec<usize>, Vec<Vec<(usize, f64)>>), GraphError> {
-    // convert VID -> [(label, mass), ...] to label -> [(pos, mass), ...]
     let mut seeds_by_label: FxHashMap<usize, Vec<(usize, f64)>> = FxHashMap::default();
     for (vid, beliefs) in seeds {
         let pos = index.index(&vid).expect("seed VID not in index");
@@ -171,22 +158,15 @@ fn compact_seeds(
         )));
     }
 
-    // for each label (slot) sort the [(pos, mass), ...] tuples by pos
-    let mut labels: Vec<usize> = seeds_by_label.keys().copied().collect();
-    labels.sort_unstable();
-    let seeds_by_slot = labels
-        .iter()
-        .map(|label| {
-            // move the Vec in seeds_by_label instead of copying it
-            let mut slot_seeds = seeds_by_label
-                .remove(label)
-                .expect("label taken from seeds_by_label");
+    let mut by_label: Vec<(usize, Vec<(usize, f64)>)> = seeds_by_label.into_iter().collect();
+    by_label.sort_unstable_by_key(|&(label, _)| label);
+    Ok(by_label
+        .into_iter()
+        .map(|(label, mut slot_seeds)| {
             slot_seeds.sort_unstable_by_key(|&(pos, _)| pos);
-            slot_seeds
+            (label, slot_seeds)
         })
-        .collect();
-    // labels and seeds_by_slot are both indexed by slot
-    Ok((labels, seeds_by_slot))
+        .unzip())
 }
 
 /// Inserts `(slot, value)` into one node's top-r row, which is kept by value descending.
@@ -199,7 +179,6 @@ fn insert_top(slots: &mut [u16], values: &mut [f64], slot: u16, value: f64) {
     let Some(k) = (0..slots.len()).find(|&k| slots[k] == EMPTY_SLOT || value > values[k]) else {
         return;
     };
-    // shift smaller elements, overwrite with new value at position k
     slots[k..].rotate_right(1);
     values[k..].rotate_right(1);
     slots[k] = slot;
@@ -277,11 +256,10 @@ fn with_neighbours<G: StaticGraphViewOps, R>(
     g: &G,
     index: &Index<VID>,
     f: impl FnOnce(&(dyn Fn(usize, &mut Vec<usize>) + Sync)) -> R,
-) -> Result<R, GraphError> {
-    let filtered = g.filter(EdgeFilter.is_self_loop().not())?;
+) -> R {
     // One lock for the whole run: `core_node` on a locked storage is an indexed read
     let locked = g.core_graph().lock();
-    let layer_ids = filtered.layer_ids();
+    let layer_ids = g.layer_ids();
     let collect_nbors = |pos: usize, out: &mut Vec<usize>| {
         out.clear();
         let vid = index.value(pos).expect("position not in index");
@@ -289,11 +267,12 @@ fn with_neighbours<G: StaticGraphViewOps, R>(
             locked
                 .core_node(vid)
                 .as_ref()
-                .filtered_neighbours_iter(&filtered, layer_ids, Direction::BOTH)
+                .filtered_neighbours_iter(g, layer_ids, Direction::BOTH)
+                .filter(|&nbor| nbor != vid)
                 .map(|nbor| index.index(&nbor).expect("neighbour VID not in index")),
         );
     };
-    Ok(f(&collect_nbors))
+    f(&collect_nbors)
 }
 
 /// Propagates one label from its seeds until its frontier empties, `max_iter` sweeps pass, or `ρ̂`
@@ -465,7 +444,8 @@ fn propagate_label(
 ///
 /// Divergence detected earlier is an error: each sweep's increase in belief `S_t` gives the
 /// two-step estimate `ρ̂ = √(S_t / S_{t−2})` of the update's spectral radius, and once it exceeds
-/// 1.05 for 3 consecutive sweeps after a 7-sweep warm-up, the whole run stops.
+/// 1.05 for `RHO_DIVERGENCE_SWEEPS` consecutive sweeps after `RHO_WARMUP_SWEEPS` warm-up sweeps,
+/// the whole run stops.
 ///
 /// # Seeds
 ///
@@ -477,8 +457,9 @@ fn propagate_label(
 /// # Arguments
 ///
 /// - `g` - A reference to the graph
-/// - `seeds` - A HashMap of node to its `(label, mass)` pairs. Masses must be finite and `>= 0`;
-///   a label repeated within one node's pairs is an error, not a sum. Label values are
+/// - `seeds` - A HashMap keyed by anything that names a node (a name, a global id or a `Node`),
+///   mapping each node to its `(label, mass)` pairs. Naming the same node twice is an error. Masses
+///   must be finite and `>= 0`; a label repeated within one node's pairs is an error, not a sum. Label values are
 ///   unconstrained but they are held as `u16` so at most 65,535 distinct seed labels are supported.
 /// - `c` - Decay per hop, in `(0, 1)`.
 /// - `epsilon` - Evidence floor: a belief below it counts as no evidence, is set to 0 and does not
@@ -499,9 +480,9 @@ fn propagate_label(
 /// One line of statistics per label (iterations, convergence, nodes reached, largest belief) is
 /// printed; it is not part of the return value.
 #[allow(clippy::too_many_arguments)]
-pub fn belief_propagation<G: StaticGraphViewOps>(
+pub fn belief_propagation<G: StaticGraphViewOps, V: AsNodeRef>(
     g: &G,
-    seeds: impl IntoSeedBeliefs,
+    seeds: HashMap<V, Vec<(usize, f64)>>,
     c: f64,
     epsilon: f64,
     activation_tol: Option<f64>,
@@ -517,7 +498,7 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
     // Seeds, the index and the output all live on `g` itself; the self-loop filter only shapes
     // the adjacency. A node whose only edges are self-loops drops out of the filtered view, but
     // it stays here, with no neighbours.
-    let seeds = seeds.into_seed_beliefs(g)?;
+    let seeds = resolve_seeds(g, seeds)?;
     let index = node_index(g);
     let n = index.len();
     let (labels, seeds_by_slot) = compact_seeds(seeds, &index, epsilon)?;
@@ -536,7 +517,7 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
     let mut sum_b_ln_b = vec![0.0f64; n];
     let mut sum_b1_ln_b1 = vec![0.0f64; n];
 
-    let pool: Arc<rayon::ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
+    let pool: Arc<ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
     with_neighbours(g, &index, |collect_nbors| {
         pool.install(|| {
             if BP_TRACE {
@@ -591,7 +572,7 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
                         );
                         mass[u] += value;
                         sum_b_ln_b[u] += value * value.ln();
-                        sum_b1_ln_b1[u] += (value + 1.0) * value.ln_1p(); // ln(1+x)
+                        sum_b1_ln_b1[u] += (value + 1.0) * value.ln_1p();
                     }
                     b[u] = 0.0;
                 }
@@ -612,7 +593,7 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
             }
             Ok(())
         })
-    })??;
+    })?;
 
     let values: Vec<BeliefPropState> = (0..n)
         .into_par_iter()
@@ -653,20 +634,22 @@ pub fn belief_propagation<G: StaticGraphViewOps>(
 /// # Arguments
 ///
 /// - `g` - A reference to the graph
-/// - `seeds` - The same seeds as [`belief_propagation`]; they are validated the same way.
+/// - `seeds` - The same seeds as [`belief_propagation`]; they are validated the same way, and at
+///   least one seed mass must reach `epsilon`.
 /// - `c` - Decay per hop, in `(0, 1)`.
 /// - `epsilon` - (Optional) Evidence floor. Defaults to `1e-8`: it should be small so the floor doesn't
 ///   stop the probe short of the dense core of the graph.
-/// - `max_iter` - (Optional) Maximum sweeps. Defaults to 30.
+/// - `max_iter` - (Optional) Maximum sweeps. Defaults to 30. Must exceed `RHO_WARMUP_SWEEPS`, since
+///   `ρ̂` is only measured after the warm-up.
 /// - `threads` - (Optional) Number of threads to use
 ///
 /// # Returns
 ///
-/// `ρ̂`, or `None` if no sweep was valid: the probe died out before the warm-up ended. Divergence
+/// `ρ̂`, or `None` if the probe died out before any valid sweep. Divergence
 /// is not an error here: it stops the probe early and returns `ρ̂ > 1`.
-pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps>(
+pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps, V: AsNodeRef>(
     g: &G,
-    seeds: impl IntoSeedBeliefs,
+    seeds: HashMap<V, Vec<(usize, f64)>>,
     c: f64,
     epsilon: Option<f64>,
     max_iter: Option<usize>,
@@ -675,8 +658,14 @@ pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps>(
     let epsilon = epsilon.unwrap_or(DEFAULT_PROBE_EPSILON);
     let max_iter = max_iter.unwrap_or(DEFAULT_PROBE_MAX_ITER);
     validate_params(c, epsilon, epsilon, 1)?;
+    if max_iter <= RHO_WARMUP_SWEEPS {
+        return Err(invalid(format!(
+            "max_iter must be > {RHO_WARMUP_SWEEPS}: rho is only measured after the \
+             {RHO_WARMUP_SWEEPS}-sweep warm-up, got {max_iter}"
+        )));
+    }
 
-    let seeds = seeds.into_seed_beliefs(g)?;
+    let seeds = resolve_seeds(g, seeds)?;
     let index = node_index(g);
     let n = index.len();
 
@@ -691,6 +680,11 @@ pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps>(
         }
         same
     });
+    if merged.is_empty() {
+        return Err(invalid(format!(
+            "no seed mass reaches epsilon = {epsilon}: there is nothing to propagate"
+        )));
+    }
 
     let mut b = vec![0.0f64; n];
     let active: Vec<AtomicBool> = (0..n).map(|_| AtomicBool::new(false)).collect();
@@ -698,7 +692,7 @@ pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps>(
     let mut new_vals: Vec<f64> = Vec::new();
     let mut window: VecDeque<Sweep> = VecDeque::with_capacity(10);
 
-    let pool: Arc<rayon::ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
+    let pool: Arc<ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
     let (iterations, converged, diverged, rho) = with_neighbours(g, &index, |collect_nbors| {
         pool.install(|| {
             propagate_label(
@@ -715,7 +709,7 @@ pub fn belief_propagation_probe_convergence<G: StaticGraphViewOps>(
                 max_iter,
             )
         })
-    })?;
+    });
     println!(
         "probe c={c} seeds={} iterations={iterations} converged={} diverged={} reached={} rho={}",
         merged.len(),
