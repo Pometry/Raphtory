@@ -1,11 +1,12 @@
 use raphtory::{
     db::{
-        api::view::Filter,
+        api::view::{Filter, IntoDynamic},
         graph::views::filter::model::{
-            expr::NodeExpr, node_filter::NodeFilter, EntityExprFilterOps, PropertyExprFactory,
+            expr::NodeExpr, node_filter::NodeFilter, EntityAggOps, EntityExprFilterOps,
+            PropertyExprFactory,
         },
     },
-    prelude::{AdditionOps, Graph, NO_PROPS},
+    prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -106,5 +107,34 @@ fn a_filter_needs_one_bool_and_says_when_to_add_a_qualifier() {
         refused(&g, prop("nested_strs").into()),
         "Invalid filter: a filter needs a boolean answer, but this expression has type \
          List<List<Str>>"
+    );
+}
+
+/// A history is a list before any graph is at hand; the graph supplies its
+/// element type, at whatever depth. A list-valued property's history is a list
+/// of lists, so `len()` answers once per update.
+#[test]
+fn a_history_takes_its_element_type_from_the_graph() {
+    let g = graph();
+    let history = |name: &str| NodeFilter.property(name).temporal();
+    let per_element = "Invalid filter: a filter needs one boolean answer, but comparing a \
+                       list or temporal property gives one per element (List<Bool>); add any() \
+                       or all() to say whether any or every element must match";
+    assert_eq!(refused(&g, history("score").gt(1i64)), per_element);
+    assert_eq!(refused(&g, history("ints").len().ge(2u64)), per_element);
+    // Each update of `ints` is a list, so a list constant is compared with
+    // each update, not with the whole history.
+    let ints = || Prop::list([1i64, 2]).unwrap();
+    assert_eq!(refused(&g, history("ints").eq(ints())), per_element);
+    assert!(g.filter(history("ints").eq(ints()).any()).is_ok());
+    let kept = g
+        .filter(history("ints").len().ge(2u64).any())
+        .unwrap()
+        .into_dynamic();
+    let kept: Vec<String> = kept.nodes().iter().map(|n| n.name()).collect();
+    assert_eq!(kept, ["n"]);
+    assert_eq!(
+        refused(&g, history("score").sum().gt("a")),
+        "Invalid filter: value a of type Str cannot be compared with I64"
     );
 }

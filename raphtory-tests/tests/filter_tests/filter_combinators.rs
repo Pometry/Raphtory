@@ -1,6 +1,6 @@
 use raphtory::{
     db::{
-        api::view::{DynamicGraph, Filter, IntoDynamic},
+        api::view::{internal::IntoDynGraphArc, DynamicGraph, Filter, IntoDynamic},
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
             model::{
@@ -16,7 +16,7 @@ use raphtory::{
     },
 };
 use raphtory_api::core::{entities::properties::prop::IntoProp, storage::timeindex::AsTime};
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::Arc};
 
 /// a.score 9@1 · b.score 6@7 · a→b [x] @3 · b→c [y] @7
 fn graph() -> Graph {
@@ -46,8 +46,8 @@ fn scored(base: &DynamicGraph) -> DynamicGraph {
         .into_dynamic()
 }
 
-/// Each view a leg can carry, by name.
-fn view_legs(base: &DynamicGraph) -> Vec<(&'static str, DynamicGraph)> {
+/// Each view an operand can carry, by name.
+fn view_operands(base: &DynamicGraph) -> Vec<(&'static str, DynamicGraph)> {
     vec![
         ("window", base.window(0, 2).into_dynamic()),
         ("at", base.at(1).into_dynamic()),
@@ -73,16 +73,26 @@ fn set(items: &[&str]) -> BTreeSet<String> {
 }
 
 #[test]
-fn and_keeps_what_both_legs_keep_whatever_view_a_leg_carries() {
+fn and_keeps_what_both_operands_keep_whatever_view_an_operand_carries() {
     for (kind, base) in bases() {
         let pred = scored(&base);
-        for (view, leg) in view_legs(&base) {
-            let and = AndFilteredGraph::new(base.clone(), leg.clone(), pred.clone());
+        for (view, operand) in view_operands(&base) {
+            let and = AndFilteredGraph::new(
+                base.clone(),
+                Arc::from([
+                    operand.clone().into_dyn_graph_arc(),
+                    pred.clone().into_dyn_graph_arc(),
+                ]),
+            );
             let label = format!("{kind} {view} & score>4");
-            assert_eq!(names(&and), &names(&leg) & &names(&pred), "{label}: nodes");
+            assert_eq!(
+                names(&and),
+                &names(&operand) & &names(&pred),
+                "{label}: nodes"
+            );
             assert_eq!(
                 edge_ids(&and),
-                &edge_ids(&leg) & &edge_ids(&pred),
+                &edge_ids(&operand) & &edge_ids(&pred),
                 "{label}: edges"
             );
         }
@@ -90,23 +100,35 @@ fn and_keeps_what_both_legs_keep_whatever_view_a_leg_carries() {
 }
 
 #[test]
-fn and_with_a_window_leg_keeps_only_what_is_in_the_window() {
+fn and_with_a_window_operand_keeps_only_what_is_in_the_window() {
     for (kind, base) in bases() {
-        let and = AndFilteredGraph::new(base.clone(), base.window(0, 2), scored(&base));
+        let and = AndFilteredGraph::new(
+            base.clone(),
+            Arc::from([
+                base.window(0, 2).into_dyn_graph_arc(),
+                scored(&base).into_dyn_graph_arc(),
+            ]),
+        );
         assert_eq!(names(&and), set(&["a"]), "{kind}: nodes");
         assert_eq!(edge_ids(&and), set(&[]), "{kind}: edges");
     }
 }
 
 #[test]
-fn or_keeps_what_either_leg_keeps_whatever_view_a_leg_carries() {
+fn or_keeps_what_either_operand_keeps_whatever_view_an_operand_carries() {
     for (kind, base) in bases() {
         let pred = scored(&base);
-        for (view, leg) in view_legs(&base) {
-            let or = OrFilteredGraph::new(base.clone(), leg.clone(), pred.clone());
+        for (view, operand) in view_operands(&base) {
+            let or = OrFilteredGraph::new(
+                base.clone(),
+                Arc::from([
+                    operand.clone().into_dyn_graph_arc(),
+                    pred.clone().into_dyn_graph_arc(),
+                ]),
+            );
             assert_eq!(
                 names(&or),
-                &names(&leg) | &names(&pred),
+                &names(&operand) | &names(&pred),
                 "{kind} {view} | score>4: nodes"
             );
         }
@@ -114,9 +136,15 @@ fn or_keeps_what_either_leg_keeps_whatever_view_a_leg_carries() {
 }
 
 #[test]
-fn or_with_a_window_leg_adds_the_window_to_the_predicate() {
+fn or_with_a_window_operand_adds_the_window_to_the_predicate() {
     for (kind, base) in bases() {
-        let or = OrFilteredGraph::new(base.clone(), base.window(0, 2), scored(&base));
+        let or = OrFilteredGraph::new(
+            base.clone(),
+            Arc::from([
+                base.window(0, 2).into_dyn_graph_arc(),
+                scored(&base).into_dyn_graph_arc(),
+            ]),
+        );
         assert_eq!(names(&or), set(&["a", "b"]), "{kind}: nodes");
         assert_eq!(edge_ids(&or), set(&["a->b"]), "{kind}: edges");
     }
@@ -168,9 +196,9 @@ fn updates_graph() -> Graph {
     g
 }
 
-/// Legs that restrict updates and layers: a window, a layer and an update
+/// Operands that restrict updates and layers: a window, a layer and an update
 /// predicate.
-fn update_legs(base: &DynamicGraph) -> Vec<(&'static str, DynamicGraph)> {
+fn update_operands(base: &DynamicGraph) -> Vec<(&'static str, DynamicGraph)> {
     vec![
         ("window", base.window(0, 4).into_dynamic()),
         ("layers", base.layers("x").unwrap().into_dynamic()),
@@ -219,12 +247,18 @@ fn update_bases() -> [(&'static str, DynamicGraph); 2] {
 }
 
 #[test]
-fn and_keeps_the_updates_and_layers_both_legs_keep() {
+fn and_keeps_the_updates_and_layers_both_operands_keep() {
     for (kind, base) in update_bases() {
-        let legs = update_legs(&base);
-        for (lv, left) in &legs {
-            for (rv, right) in &legs {
-                let and = AndFilteredGraph::new(base.clone(), left.clone(), right.clone());
+        let operands = update_operands(&base);
+        for (lv, left) in &operands {
+            for (rv, right) in &operands {
+                let and = AndFilteredGraph::new(
+                    base.clone(),
+                    Arc::from([
+                        left.clone().into_dyn_graph_arc(),
+                        right.clone().into_dyn_graph_arc(),
+                    ]),
+                );
                 let label = format!("{kind} {lv} & {rv}");
                 assert_eq!(
                     updates(&and),
@@ -242,12 +276,18 @@ fn and_keeps_the_updates_and_layers_both_legs_keep() {
 }
 
 #[test]
-fn or_keeps_the_updates_and_layers_either_leg_keeps() {
+fn or_keeps_the_updates_and_layers_either_operand_keeps() {
     for (kind, base) in update_bases() {
-        let legs = update_legs(&base);
-        for (lv, left) in &legs {
-            for (rv, right) in &legs {
-                let or = OrFilteredGraph::new(base.clone(), left.clone(), right.clone());
+        let operands = update_operands(&base);
+        for (lv, left) in &operands {
+            for (rv, right) in &operands {
+                let or = OrFilteredGraph::new(
+                    base.clone(),
+                    Arc::from([
+                        left.clone().into_dyn_graph_arc(),
+                        right.clone().into_dyn_graph_arc(),
+                    ]),
+                );
                 let label = format!("{kind} {lv} | {rv}");
                 assert_eq!(
                     updates(&or),

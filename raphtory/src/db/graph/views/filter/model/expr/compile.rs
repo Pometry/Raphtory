@@ -5,7 +5,7 @@
 //! graph, and every other node of a value expression becomes one op over the
 //! ops of its children, built by the entity's [`OpFamily`]. A `Bool`-typed
 //! value is a filter on its entity through its [`Leaf`]; a whole filter is the
-//! graph its legs keep, combined by `and`, `or` and `not`.
+//! graph its expressions keep, combined by `and`, `or` and `not`.
 
 use super::{
     builder::{Chain, GraphLeaf},
@@ -19,7 +19,7 @@ use crate::{
                 ops::{
                     filter::NodeExistsOp,
                     node::{Name, Type},
-                    Const, Degree, HistoryOp, NodeFilterOp,
+                    Const, Degree, HistoryOp,
                 },
                 NodeOp,
             },
@@ -35,18 +35,18 @@ use crate::{
             model::{
                 edge_expr::{
                     ops::{
-                        AllOfEdgeOp, AndEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
+                        AllOfEdgeOp, AnyOfEdgeOp, BinaryValueEdgeOp, EdgeEndpointNodeOp,
                         EdgeExistsOp, EdgeMetaOp, EdgePropOp, IsActiveEdgePropOp,
-                        IsDeletedEdgePropOp, IsSelfLoopEdgePropOp, IsValidEdgePropOp, NotEdgeOp,
-                        OrEdgeOp, TemporalEdgePropOp, UnaryValueEdgeOp,
+                        IsDeletedEdgePropOp, IsSelfLoopEdgePropOp, IsValidEdgePropOp,
+                        TemporalEdgePropOp, UnaryValueEdgeOp,
                     },
                     EdgeOp,
                 },
                 edge_filter::Endpoint,
                 expr::typing::{
-                    cmp_kernel, comparison_shape, not_kernel, presence_kernel, qualified_type,
-                    require_bool, set_kernel, set_shape, str_kernel, string_shape, BinaryKernel,
-                    SetMembers, Shape, ShapeError, UnaryKernel,
+                    cmp_kernel, comparison_shape, list, not_kernel, presence_kernel,
+                    qualified_type, require_bool, set_kernel, set_shape, str_kernel, string_shape,
+                    truthy, BinaryKernel, SetMembers, Shape, ShapeError, UnaryKernel,
                 },
                 filter_operator::UnaryOp,
                 node_expr::ops::{
@@ -305,7 +305,7 @@ impl Leaf for NodeLeaf {
                     hidden: Some(Prop::Bool(false)),
                 })
             }
-            NodeLeaf::Opaque(value) => value.0.node_value_op(graph)?,
+            NodeLeaf::Opaque(value) => value.op.clone(),
         })
     }
 
@@ -321,8 +321,9 @@ impl Leaf for NodeLeaf {
         expr: &NodeExpr,
         graph: DynGraphArc<'g>,
     ) -> Result<DynEdgeFilter<'g>, GraphError> {
-        expr.refuse_constant()?;
-        both_ends(expr.clone()).edge_test(graph)
+        Ok(Arc::new(
+            both_ends_value(expr, graph)?.map(|value| truthy(&value)),
+        ))
     }
 
     fn graph_filter<'g>(
@@ -361,7 +362,9 @@ impl Leaf for NodeLeaf {
             } => PropType::Str,
             NodeLeaf::Degree { .. } => PropType::U64,
             NodeLeaf::IsActive { .. } => PropType::Bool,
-            NodeLeaf::Opaque(value) => value.0.prop_type(),
+            NodeLeaf::Opaque(value) => value.op.prop_type(),
+            // A history is a list, whatever the property's type.
+            NodeLeaf::Property { temporal: true, .. } => list(PropType::Empty),
             NodeLeaf::Field { .. } | NodeLeaf::Property { .. } | NodeLeaf::Metadata { .. } => {
                 PropType::Empty
             }
@@ -378,7 +381,7 @@ impl Leaf for NodeLeaf {
             }
             | NodeLeaf::Degree { .. }
             | NodeLeaf::IsActive { .. } => false,
-            NodeLeaf::Opaque(value) => value.0.nullable(),
+            NodeLeaf::Opaque(value) => value.nullable,
             NodeLeaf::Field { .. } | NodeLeaf::Property { .. } | NodeLeaf::Metadata { .. } => true,
         }
     }
@@ -455,9 +458,11 @@ impl EdgeTerm<'_> {
             | EdgeTerm::IsValid(_)
             | EdgeTerm::IsDeleted(_)
             | EdgeTerm::IsSelfLoop => PropType::Bool,
-            EdgeTerm::Property { .. } | EdgeTerm::Metadata { .. } | EdgeTerm::Endpoint(..) => {
-                PropType::Empty
-            }
+            // A history is a list, whatever the property's type.
+            EdgeTerm::Property { temporal: true, .. } => list(PropType::Empty),
+            // An endpoint term is the node expression read at that end.
+            EdgeTerm::Endpoint(inner, _) => inner.prop_type(),
+            EdgeTerm::Property { .. } | EdgeTerm::Metadata { .. } => PropType::Empty,
         }
     }
 
@@ -955,7 +960,7 @@ impl<L: Leaf> Expr<L> {
         Ok(L::Ops::unary(
             self.value_op(graph)?,
             op,
-            presence_kernel,
+            presence_kernel(op),
             PropType::Bool,
         ))
     }
@@ -993,15 +998,23 @@ impl<L: Leaf> Expr<L> {
         graph: DynGraphArc<'g>,
         name: &str,
     ) -> Result<Vec<Arc<<L::Ops as OpFamily>::Value<'g>>>, GraphError> {
-        FilterExpr::needs_operand(name, items)?;
-        items
-            .iter()
-            .map(|item| {
-                let op = item.value_op(graph.clone())?;
-                require_bool(&item.resolved_type(&op), name)?;
-                Ok(op)
-            })
-            .collect()
+        each_operand(items, name, |item| {
+            let op = item.value_op(graph.clone())?;
+            require_bool(&item.resolved_type(&op), name)?;
+            Ok(op)
+        })
+    }
+
+    /// The boolean value this tree is as a filter. A tree built only from
+    /// constants answers the same for every item, so it is refused.
+    pub(crate) fn filter_value<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
+        self.refuse_constant()?;
+        let op = self.value_op(graph)?;
+        require_bool(&self.resolved_type(&op), "a filter")?;
+        Ok(op)
     }
 }
 
@@ -1015,7 +1028,23 @@ pub(crate) fn both_ends(nodes: NodeExpr) -> EdgeExpr {
     ])
 }
 
-/// A filter is the graph its legs keep, each leg read on the same base graph.
+/// The boolean value of each edge a node predicate is: both ends pass it. A
+/// constant predicate is refused, as it is on its own; the check must see the
+/// node predicate itself, since wrapped in `src`/`dst` it is a term.
+fn both_ends_value<'g>(
+    nodes: &NodeExpr,
+    graph: DynGraphArc<'g>,
+) -> Result<Arc<<EdgeOps as OpFamily>::Value<'g>>, GraphError> {
+    nodes.refuse_constant()?;
+    both_ends(nodes.clone()).filter_value(graph)
+}
+
+/// The boolean value of an existence test.
+fn exists_value(exists: bool) -> Option<Prop> {
+    Some(Prop::Bool(exists))
+}
+
+/// A filter is the graph its expressions keep, each expression read on the same base graph.
 /// On a collection it is a test of each item instead.
 impl CreateFilter for FilterExpr {
     type FilteredGraph<'graph, G>
@@ -1037,7 +1066,7 @@ impl CreateFilter for FilterExpr {
         G: GraphView + 'graph;
 
     /// The graph that keeps what the filter keeps. A leaf keeps what its
-    /// tree keeps; a view is the graph seen through it; the legs of `and` and
+    /// tree keeps; a view is the graph seen through it; the expressions of `and` and
     /// `or` each run on the same graph and their graphs combine. A view under
     /// `or` or `not` is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
@@ -1049,22 +1078,21 @@ impl CreateFilter for FilterExpr {
             FilterExpr::Node(expr) => NodeLeaf::graph_filter(&expr, graph),
             FilterExpr::Edge(expr) => EdgeLeaf::graph_filter(&expr, graph),
             FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::graph_filter(&expr, graph),
-            FilterExpr::View(views) => view_leg(graph, &views),
-            FilterExpr::And(legs) => fold_legs(
-                &legs,
-                "and",
-                |leg| leg.clone().create_graph_filter(graph.clone()),
-                |l, r| AndFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc(),
-            ),
-            FilterExpr::Or(legs) => {
-                legs.iter()
+            FilterExpr::View(views) => view_expr(graph, &views),
+            FilterExpr::And(expressions) => {
+                let operands = each_operand(&expressions, "and", |expression| {
+                    expression.clone().create_graph_filter(graph.clone())
+                })?;
+                Ok(AndFilteredGraph::new(graph, operands).into_dyn_graph_arc())
+            }
+            FilterExpr::Or(expressions) => {
+                expressions
+                    .iter()
                     .try_for_each(FilterExpr::no_view_below_top_level)?;
-                fold_legs(
-                    &legs,
-                    "or",
-                    |leg| leg.clone().create_graph_filter(graph.clone()),
-                    |l, r| OrFilteredGraph::new(graph.clone(), l, r).into_dyn_graph_arc(),
-                )
+                let operands = each_operand(&expressions, "or", |expression| {
+                    expression.clone().create_graph_filter(graph.clone())
+                })?;
+                Ok(OrFilteredGraph::new(graph, operands).into_dyn_graph_arc())
             }
             FilterExpr::Not(inner) => {
                 inner.no_view_below_top_level()?;
@@ -1095,99 +1123,128 @@ impl CreateFilter for FilterExpr {
 }
 
 impl FilterExpr {
-    /// The test of each node of a collection: a node predicate tests the node,
-    /// a view asks that it exist in the view, and `and`, `or` and `not`
-    /// combine the legs' tests.
+    /// The test of each node of a collection: the boolean value
+    /// [`Self::node_value`] gives, holding when it is true.
     fn node_test<'g>(
         &self,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'g>, GraphError> {
-        match self {
-            FilterExpr::Node(expr) => NodeLeaf::node_filter(expr, graph),
-            FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => Err(GraphError::NotNodeFilter),
-            FilterExpr::View(views) => Ok(Arc::new(NodeExistsOp::new(view_leg(graph, views)?))),
-            FilterExpr::And(legs) => fold_legs(
-                legs,
-                "and",
-                |leg| leg.node_test(graph.clone()),
-                |l, r| Arc::new(l.and(r)),
-            ),
-            FilterExpr::Or(legs) => fold_legs(
-                legs,
-                "or",
-                |leg| leg.node_test(graph.clone()),
-                |l, r| Arc::new(l.or(r)),
-            ),
-            FilterExpr::Not(inner) => Ok(Arc::new(inner.node_test(graph)?.not())),
-        }
+        Ok(Arc::new(
+            self.node_value(graph)?.map(|value| truthy(&value)),
+        ))
+    }
+
+    /// The boolean value of each node of a collection: a node predicate is
+    /// its value on the node, a view asks that the node exist in the view, and
+    /// `and`, `or` and `not` are one op over the values of their expressions.
+    fn node_value<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<<NodeOps as OpFamily>::Value<'g>>, GraphError> {
+        Ok(match self {
+            FilterExpr::Node(expr) => expr.filter_value(graph)?,
+            FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) => {
+                return Err(GraphError::NotNodeFilter)
+            }
+            FilterExpr::View(views) => {
+                Arc::new(NodeExistsOp::new(view_expr(graph, views)?).map(exists_value))
+            }
+            FilterExpr::And(expressions) => {
+                NodeOps::all_of(each_operand(expressions, "and", |expression| {
+                    expression.node_value(graph.clone())
+                })?)
+            }
+            FilterExpr::Or(expressions) => {
+                NodeOps::any_of(each_operand(expressions, "or", |expression| {
+                    expression.node_value(graph.clone())
+                })?)
+            }
+            FilterExpr::Not(inner) => {
+                NodeOps::unary(inner.node_value(graph)?, (), not_kernel, PropType::Bool)
+            }
+        })
     }
 
     /// The test of each edge of a collection, or of each update on an
-    /// exploded one: an edge predicate tests the item, a node predicate asks
-    /// that both ends pass, a view asks that the item exist in the view, and
-    /// `and`, `or` and `not` combine the legs' tests. Legs that only test nodes
-    /// combine into one node predicate first, so `name == "b" | name == "c"`
-    /// keeps the edge b→c.
+    /// exploded one: the boolean value [`Self::edge_value`] gives, holding
+    /// when it is true.
     fn edge_test<'g>(&self, graph: DynGraphArc<'g>) -> Result<DynEdgeFilter<'g>, GraphError> {
+        Ok(Arc::new(
+            self.edge_value(graph)?.map(|value| truthy(&value)),
+        ))
+    }
+
+    /// The boolean value of each edge of a collection, or of each update on
+    /// an exploded one: an edge predicate is its value on the item, a node
+    /// predicate asks that both ends pass, a view asks that the item exist in
+    /// the view, and `and`, `or` and `not` are one op over the values of
+    /// their expressions. Expressions that only test nodes combine into one
+    /// node predicate first, so `name == "b" | name == "c"` keeps the edge b→c.
+    fn edge_value<'g>(
+        &self,
+        graph: DynGraphArc<'g>,
+    ) -> Result<Arc<<EdgeOps as OpFamily>::Value<'g>>, GraphError> {
         if let Some(nodes) = self.node_only()? {
-            return NodeLeaf::edge_filter(&nodes, graph);
+            return both_ends_value(&nodes, graph);
         }
-        match self {
-            FilterExpr::Node(expr) => NodeLeaf::edge_filter(expr, graph),
-            FilterExpr::Edge(expr) => EdgeLeaf::edge_filter(expr, graph),
-            FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::edge_filter(expr, graph),
-            FilterExpr::View(views) => Ok(Arc::new(EdgeExistsOp::new(view_leg(graph, views)?))),
-            FilterExpr::And(legs) => fold_legs(
-                legs,
-                "and",
-                |leg| leg.edge_test(graph.clone()),
-                |left, right| Arc::new(AndEdgeOp { left, right }),
-            ),
-            FilterExpr::Or(legs) => fold_legs(
-                legs,
-                "or",
-                |leg| leg.edge_test(graph.clone()),
-                |left, right| Arc::new(OrEdgeOp { left, right }),
-            ),
-            FilterExpr::Not(inner) => Ok(Arc::new(NotEdgeOp(inner.edge_test(graph)?))),
-        }
+        Ok(match self {
+            FilterExpr::Node(expr) => both_ends_value(expr, graph)?,
+            FilterExpr::Edge(expr) => expr.filter_value(graph)?,
+            FilterExpr::ExplodedEdge(expr) => {
+                Arc::new(ExplodedEdgeLeaf::edge_filter(expr, graph)?.map(exists_value))
+            }
+            FilterExpr::View(views) => {
+                Arc::new(EdgeExistsOp::new(view_expr(graph, views)?).map(exists_value))
+            }
+            FilterExpr::And(expressions) => {
+                EdgeOps::all_of(each_operand(expressions, "and", |expression| {
+                    expression.edge_value(graph.clone())
+                })?)
+            }
+            FilterExpr::Or(expressions) => {
+                EdgeOps::any_of(each_operand(expressions, "or", |expression| {
+                    expression.edge_value(graph.clone())
+                })?)
+            }
+            FilterExpr::Not(inner) => {
+                EdgeOps::unary(inner.edge_value(graph)?, (), not_kernel, PropType::Bool)
+            }
+        })
     }
 
     /// This filter as one node predicate, when it tests nodes only. A
-    /// constant leg is refused before the legs merge, as it is on its own.
+    /// constant expression is refused before the expressions merge, as it is on its own.
     fn node_only(&self) -> Result<Option<NodeExpr>, GraphError> {
-        // The legs' node predicates when every leg has one, `None` when one does not.
-        let all = |legs: &[FilterExpr]| -> Result<Option<Vec<NodeExpr>>, GraphError> {
-            legs.iter().map(Self::node_only).collect()
+        // The expressions' node predicates when every expression has one, `None` when one does not.
+        let all = |expressions: &[FilterExpr]| -> Result<Option<Vec<NodeExpr>>, GraphError> {
+            expressions.iter().map(Self::node_only).collect()
         };
         Ok(match self {
             FilterExpr::Node(expr) => {
                 expr.refuse_constant()?;
                 Some(expr.clone())
             }
-            FilterExpr::And(legs) => all(legs)?.map(Expr::And),
-            FilterExpr::Or(legs) => all(legs)?.map(Expr::Or),
+            FilterExpr::And(expressions) => all(expressions)?.map(Expr::And),
+            FilterExpr::Or(expressions) => all(expressions)?.map(Expr::Or),
             FilterExpr::Not(inner) => inner.node_only()?.map(|expr| Expr::Not(Box::new(expr))),
             FilterExpr::Edge(_) | FilterExpr::ExplodedEdge(_) | FilterExpr::View(_) => None,
         })
     }
 }
 
-/// The legs tested one by one and joined pairwise, left to right. `and` or
-/// `or` of nothing is refused.
-fn fold_legs<T>(
-    legs: &[FilterExpr],
+/// `operand` of each of the operands of `and` or `or`, in order. `and` or `or`
+/// of nothing is refused.
+fn each_operand<I, T, C: FromIterator<T>>(
+    items: &[I],
     name: &str,
-    test: impl Fn(&FilterExpr) -> Result<T, GraphError>,
-    join: impl Fn(T, T) -> T,
-) -> Result<T, GraphError> {
-    let (first, rest) = FilterExpr::needs_operand(name, legs)?;
-    rest.iter()
-        .try_fold(test(first)?, |acc, leg| Ok(join(acc, test(leg)?)))
+    operand: impl FnMut(&I) -> Result<T, GraphError>,
+) -> Result<C, GraphError> {
+    FilterExpr::needs_operand(name, items)?;
+    items.iter().map(operand).collect()
 }
 
-/// The graph a view leg keeps. A leg with no view is refused.
-fn view_leg<'g>(graph: DynGraphArc<'g>, views: &[ViewOp]) -> Result<DynGraphArc<'g>, GraphError> {
+/// The graph a view expression keeps. An expression with no view is refused.
+fn view_expr<'g>(graph: DynGraphArc<'g>, views: &[ViewOp]) -> Result<DynGraphArc<'g>, GraphError> {
     FilterExpr::needs_view(views)?;
     apply_views(graph, views)
 }

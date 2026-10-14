@@ -120,6 +120,16 @@ class FilterExprReprTest(TestCase):
             ".subgraph_node_types(['person', 'org']).valid()",
         )
 
+    def test_repr_of_a_filter_built_from_node_state_is_compiled(self):
+        from raphtory.algorithms import alternating_mask
+
+        graph = Graph()
+        graph.add_node(1, 1)
+        state = alternating_mask(graph)
+        expr = filter.Node.by_state_column(state, "bool_col")
+        self.assertEqual(repr(expr), "<compiled>")
+        self.assertEqual(repr(~expr), "~<compiled>")
+
     def test_repr_shows_expressions_on_both_sides(self):
         expr = filter.Node.degree() > filter.Node.in_degree()
         self.assertEqual(

@@ -524,122 +524,6 @@ impl<G: GraphView> EdgeOp for EdgeExistsOp<G> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct AndEdgeOp<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for AndEdgeOp<L, R> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
-        self.left.apply(storage, edge) && self.right.apply(storage, edge)
-    }
-
-    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        self.left.apply_layer(storage, edge, layer) && self.right.apply_layer(storage, edge, layer)
-    }
-
-    fn apply_exploded(
-        &self,
-        storage: &GraphStorage,
-        edge: EdgeEntryRef,
-        layer: LayerId,
-        t: EventTime,
-    ) -> bool {
-        self.left.apply_exploded(storage, edge, layer, t)
-            && self.right.apply_exploded(storage, edge, layer, t)
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
-    }
-
-    fn const_value(&self) -> Option<bool> {
-        match (self.left.const_value(), self.right.const_value()) {
-            (Some(false), _) | (_, Some(false)) => Some(false),
-            (Some(true), Some(true)) => Some(true),
-            _ => None,
-        }
-    }
-}
-
-/// The opposite of a boolean edge op.
-#[derive(Debug, Clone)]
-pub struct NotEdgeOp<T>(pub(crate) T);
-
-impl<T: EdgeOp<Output = bool>> EdgeOp for NotEdgeOp<T> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
-        !self.0.apply(storage, edge)
-    }
-
-    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        !self.0.apply_layer(storage, edge, layer)
-    }
-
-    fn apply_exploded(
-        &self,
-        storage: &GraphStorage,
-        edge: EdgeEntryRef,
-        layer: LayerId,
-        t: EventTime,
-    ) -> bool {
-        !self.0.apply_exploded(storage, edge, layer, t)
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
-    }
-
-    fn const_value(&self) -> Option<bool> {
-        self.0.const_value().map(|v| !v)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct OrEdgeOp<L, R> {
-    pub(crate) left: L,
-    pub(crate) right: R,
-}
-
-impl<L: EdgeOp<Output = bool>, R: EdgeOp<Output = bool>> EdgeOp for OrEdgeOp<L, R> {
-    type Output = bool;
-
-    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
-        self.left.apply(storage, edge) || self.right.apply(storage, edge)
-    }
-
-    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        self.left.apply_layer(storage, edge, layer) || self.right.apply_layer(storage, edge, layer)
-    }
-
-    fn apply_exploded(
-        &self,
-        storage: &GraphStorage,
-        edge: EdgeEntryRef,
-        layer: LayerId,
-        t: EventTime,
-    ) -> bool {
-        self.left.apply_exploded(storage, edge, layer, t)
-            || self.right.apply_exploded(storage, edge, layer, t)
-    }
-
-    fn prop_type(&self) -> PropType {
-        PropType::Bool
-    }
-
-    fn const_value(&self) -> Option<bool> {
-        match (self.left.const_value(), self.right.const_value()) {
-            (Some(true), _) | (_, Some(true)) => Some(true),
-            (Some(false), Some(false)) => Some(false),
-            _ => None,
-        }
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Value ops — a boolean (or element-wise boolean) built from other values
 // ─────────────────────────────────────────────────────────────────────────────
@@ -836,20 +720,22 @@ impl<'g> EdgeOp for AnyOfEdgeOp<'g> {
     }
 }
 
-/// Adapts a boolean edge value to the plain boolean the filtered graphs consume.
-pub struct TruthyEdgeOp<'g> {
-    pub(crate) inner: Arc<dyn EdgeOp<Output = Option<Prop>> + 'g>,
+/// An edge op whose value is passed through `map`.
+#[derive(Debug, Clone)]
+pub struct MapEdgeOp<Op: EdgeOp, V> {
+    pub(crate) op: Op,
+    pub(crate) map: fn(Op::Output) -> V,
 }
 
-impl<'g> EdgeOp for TruthyEdgeOp<'g> {
-    type Output = bool;
+impl<Op: EdgeOp, V: Clone + Send + Sync> EdgeOp for MapEdgeOp<Op, V> {
+    type Output = V;
 
-    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> bool {
-        truthy(&self.inner.apply(storage, edge))
+    fn apply(&self, storage: &GraphStorage, edge: EdgeEntryRef) -> V {
+        (self.map)(self.op.apply(storage, edge))
     }
 
-    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        truthy(&self.inner.apply_layer(storage, edge, layer))
+    fn apply_layer(&self, storage: &GraphStorage, edge: EdgeEntryRef, layer: LayerId) -> V {
+        (self.map)(self.op.apply_layer(storage, edge, layer))
     }
 
     fn apply_exploded(
@@ -858,7 +744,11 @@ impl<'g> EdgeOp for TruthyEdgeOp<'g> {
         edge: EdgeEntryRef,
         layer: LayerId,
         t: EventTime,
-    ) -> bool {
-        truthy(&self.inner.apply_exploded(storage, edge, layer, t))
+    ) -> V {
+        (self.map)(self.op.apply_exploded(storage, edge, layer, t))
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.op.prop_type()
     }
 }

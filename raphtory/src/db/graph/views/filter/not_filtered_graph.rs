@@ -11,7 +11,7 @@ use crate::{
                 InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::leg::{
+        graph::views::filter::operand::{
             keeps_edge, keeps_edge_layer, keeps_exploded_edge, keeps_node, restricts_edges,
             restricts_nodes,
         },
@@ -30,7 +30,8 @@ use raphtory_storage::{
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 
-/// The graph keeping what a predicate leg drops; a view leg is refused before this graph is built.
+/// The graph keeping what a predicate operand drops; a view operand is refused
+/// before this graph is built.
 #[derive(Debug, Clone)]
 pub struct NotFilteredGraph<G, T> {
     pub(crate) graph: G,
@@ -66,9 +67,9 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for NotFilteredGra
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for NotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for NotFilteredGraph<G, T> {}
 
-/// The complement of a leg: a node or an edge stays when the graph keeps it and
-/// the leg drops it, so a node or an edge that exists in a window or layer leg
-/// goes with all its layers and updates. Only a leg's predicate on layers or on
+/// The complement of an operand: a node or an edge stays when the graph keeps it and
+/// the operand drops it, so a node or an edge that exists in a window or layer operand
+/// goes with all its layers and updates. Only an operand's predicate on layers or on
 /// updates is complemented a layer or an update at a time.
 impl<G: GraphView, T: GraphView> InternalNodeFilterOps for NotFilteredGraph<G, T> {
     fn internal_nodes_filtered(&self) -> bool {

@@ -12,7 +12,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, PyResult, Python};
+use pyo3::{pyclass, pymethods};
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 /// Entry point for filtering an edge endpoint (source or destination).
@@ -30,15 +30,12 @@ pub struct PyEdgeEndpoint(EdgeEndpoint);
 
 #[pymethods]
 impl PyEdgeEndpoint {
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+    fn __repr__(&self) -> String {
         let end = match self.0.endpoint() {
             Endpoint::Src => "src",
             Endpoint::Dst => "dst",
         };
-        Ok(format!(
-            "{}.{end}()",
-            repr::factory(py, "Edge", self.0.views())?
-        ))
+        format!("{}.{end}()", repr::factory("Edge", self.0.views()))
     }
 
     /// Selects the endpoint node ID field for filtering.
@@ -104,8 +101,8 @@ pub struct PyEdgeFilter(pub(crate) Chain<EdgeLeaf>);
 
 #[pymethods]
 impl PyEdgeFilter {
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "Edge", self.0.views())
+    fn __repr__(&self) -> String {
+        repr::factory("Edge", self.0.views())
     }
 
     /// Selects the edge **source endpoint** for filtering.
@@ -256,7 +253,7 @@ impl PyEdgeFilter {
     /// Returns:
     ///     filter.EdgeFilter:
     fn exclude_layer(&self, layer: String) -> PyEdgeFilter {
-        Self(self.0.clone().exclude_layers([layer]))
+        Self(self.0.clone().exclude_layers(layer))
     }
 
     /// Reads through a view of every layer except the given ones.

@@ -104,10 +104,10 @@ def _kind(name):
 
 
 def _has_view(a, b):
-    # On `filter()` a view leg is pinned on its own
+    # On `filter()` a view expression is pinned on its own
     # (`test_a_view_and_a_predicate_are_each_read_on_the_base_graph_on_filter`). On
-    # `edges[]` it is an existence test like any other leg
-    # (`test_a_view_leg_is_an_existence_test_on_select`).
+    # `edges[]` it is an existence test like any other expression
+    # (`test_a_view_expression_is_an_existence_test_on_select`).
     return a in VIEWS or b in VIEWS
 
 
@@ -309,7 +309,7 @@ def _combinations_follow_set_algebra(mixed):
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
             if _has_view(a, b):
-                # on `edges[]` a view leg is an existence test, so `|` on it is a union
+                # on `edges[]` a view expression is an existence test, so `|` on it is a union
                 # too; on `filter()` a view under `|` is refused
                 select_only.update({f"{a} & {b}", f"{a} | {b}"})
                 cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
@@ -317,7 +317,7 @@ def _combinations_follow_set_algebra(mixed):
             if _kind(a) == _kind(b) == "node":
                 # Node predicates combine on nodes first: an edge stays when both
                 # ends pass `a or b`, which is more than the union of the two
-                # both-ends sets (an edge whose ends pass different legs stays).
+                # both-ends sets (an edge whose ends pass different expressions stays).
                 either = node_sets[a] | node_sets[b]
                 both = node_sets[a] & node_sets[b]
                 cases.append(
@@ -354,8 +354,8 @@ def _combinations_follow_set_algebra(mixed):
                     )
                 )
             else:
-                # An `or` across kinds is the union of what each leg keeps: the
-                # edge leg's edges plus the edges with both ends in the node leg.
+                # An `or` across kinds is the union of what each expression keeps: the
+                # edge expression's edges plus the edges with both ends in the node expression.
                 mixed_cases.append(
                     (f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b])
                 )
@@ -520,7 +520,7 @@ def test_a_view_and_a_predicate_are_each_read_on_the_base_graph_on_filter():
             for name, atom in atoms.items():
                 if name in VIEWS:
                     continue
-                # Each leg is read on the base graph; to filter inside a window use
+                # Each expression is read on the base graph; to filter inside a window use
                 # graph.window(..).filter(..).
                 want = _ids(viewed.edges) & _ids(graph.filter(atom).edges)
                 got = _ids(graph.filter(atoms[v] & atom).edges)
@@ -545,9 +545,9 @@ def test_a_view_and_a_predicate_are_each_read_on_the_base_graph_on_filter():
 
 
 @with_variants(_init)
-def test_a_view_leg_is_an_existence_test_on_select():
-    """On `edges[]`, a view leg asks "does the edge exist in that view?" and every other
-    leg reads the collection's own graph, so `view & X` is the intersection of the two
+def test_a_view_expression_is_an_existence_test_on_select():
+    """On `edges[]`, a view expression asks "does the edge exist in that view?" and every other
+    expression reads the collection's own graph, so `view & X` is the intersection of the two
     answers. The view does not scope `X`: `window(3, 12) & score > 15` keeps b->c, whose
     endpoints only get those scores at 10 and 15, where inside the window c has none.
     """
@@ -565,7 +565,7 @@ def test_a_view_leg_is_an_existence_test_on_select():
                     mismatches.append(
                         f"[edges[]] {v} & {name}: got {sorted(got)} want {sorted(want)}"
                     )
-        # each view leg is its own existence test; they do not chain into one view
+        # each view expression is its own existence test; they do not chain into one view
         want = _ids(graph.window(3, 12).edges) & _ids(graph.layers(["work"]).edges)
         got = _ids(graph.edges[atoms["window"] & atoms["layer"]])
         if got != want:
@@ -582,7 +582,7 @@ def test_a_view_leg_is_an_existence_test_on_select():
 
 @with_variants(_init)
 def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
-    """On `edges[]` a view leg is an existence test, so `|` and `~` on it have their plain
+    """On `edges[]` a view expression is an existence test, so `|` and `~` on it have their plain
     set meanings. On `filter()` there is no graph that is "layered or heavy", nor one that
     is "not layered", so the same filters are refused there, when applied.
     """

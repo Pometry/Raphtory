@@ -400,7 +400,7 @@ EDGE_ENDPOINT_EXPRS = {
 COMBINATOR_EXPRS = {
     "comb.and": lambda: (f.Node.property("score") > 5) & (f.Node.node_type() == "user"),
     "comb.or": lambda: (f.Node.name() == "iso") | (f.Node.node_type() == "admin"),
-    # a node OR an edge predicate: every node, and the edges either leg keeps
+    # a node OR an edge predicate: every node, and the edges either expression keeps
     "comb.mixed_or": lambda: (f.Node.name() == "iso")
     | (f.Edge.property("weight") > 3.0),
     "comb.not": lambda: ~(f.Node.node_type() == "admin"),

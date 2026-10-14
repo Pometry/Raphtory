@@ -89,8 +89,8 @@ def test_node_collection_combinations_follow_set_algebra():
         every = frozenset(graph.nodes.name)
         cases = []
         views = {"window", "before", "layer"}
-        # On `nodes[]` a view leg is an existence test, so it follows set algebra under `&`,
-        # `|` and `~`. On `filter()` each leg is read on the base graph (pinned below), and
+        # On `nodes[]` a view expression is an existence test, so it follows set algebra under `&`,
+        # `|` and `~`. On `filter()` each expression is read on the base graph (pinned below), and
         # `|` or `~` on a view is refused.
         select_only = set()
         for a, b in combinations(atoms, 2):
@@ -113,7 +113,7 @@ def test_node_collection_combinations_follow_set_algebra():
             ):
                 mismatches.append(f"[filter()] {label}")
         assert not mismatches, mismatches
-        # Each leg is read on the base graph; to filter inside a window use
+        # Each expression is read on the base graph; to filter inside a window use
         # graph.window(..).filter(..). On `nodes[]` the view is one test among the others:
         # c exists in the window through the edge at 10, and its score of 30 is read on the
         # graph, so `window & prop` keeps b and c.

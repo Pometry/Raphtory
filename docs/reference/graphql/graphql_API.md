@@ -4595,7 +4595,7 @@ expression and narrows nodes, edges, and their properties to what matches.
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
 <td>
 
-Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently on the same graph and the results intersected. A `view` leg keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter.
+Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter.
 
 </td>
 </tr>
@@ -12807,7 +12807,7 @@ A graph-level view with no predicate: the result is the view.
 <td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
 <td>
 
-Every leg holds, each read on the same graph.
+Every expression holds, each read on the same graph.
 
 </td>
 </tr>
@@ -12816,8 +12816,9 @@ Every leg holds, each read on the same graph.
 <td valign="top">[<a href="#filterexpr">FilterExpr</a>!]</td>
 <td>
 
-Any leg holds. Node legs combine on nodes and edge legs on edges; a leg
-of the other kind leaves that side unconstrained. No view legs.
+Any expression holds. Node expressions combine on nodes and edge
+expressions on edges; an expression of the other kind leaves that side
+unconstrained. No view expressions.
 
 </td>
 </tr>

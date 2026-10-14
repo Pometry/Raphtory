@@ -7,7 +7,7 @@ use crate::{
         graph::views::filter::{model::expr::FilterExpr, CreateFilter, DynEdgeFilter},
     },
     errors::GraphError,
-    python::filter::{node_expr::PyExpr, repr},
+    python::{filter::node_expr::PyExpr, types::repr::Repr},
 };
 use pyo3::{exceptions::PyTypeError, prelude::*, Borrowed};
 use std::sync::Arc;
@@ -88,8 +88,8 @@ impl PyFilterExpr {
 
     /// The Python expression that builds this filter, module-qualified, so
     /// `eval` rebuilds it after `import raphtory`.
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::filter(py, &self.0)
+    fn __repr__(&self) -> String {
+        self.0.repr()
     }
 }
 

@@ -11,9 +11,10 @@
 use crate::{
     db::graph::views::filter::model::{
         comparable_set_values, const_mismatch_error,
+        expr::Agg,
         filter_operator::{BinaryOp, Comparable, StringComparable, StringOp, UnaryOp},
-        node_expr::ops::{broadcast_binary, broadcast_unary},
-        not_a_string_error, types_mismatch_error, validate_binary_op,
+        node_expr::ops::{agg_out_pt, broadcast_binary, broadcast_unary},
+        not_a_string_error, require_aggregable, types_mismatch_error, validate_binary_op,
     },
     errors::GraphError,
 };
@@ -162,6 +163,48 @@ pub(crate) fn static_comparison_type(op: &BinaryOp, lhs: &PropType, rhs: &PropTy
         .unwrap_or(PropType::Empty)
 }
 
+/// The result type of a string test of `lhs` against `rhs`, when both are
+/// known before the filter meets a graph; `Empty` otherwise, or when the test
+/// is refused.
+pub(crate) fn static_string_type(lhs: &PropType, rhs: &PropType) -> PropType {
+    if !is_known(lhs) || !is_known(rhs) {
+        return PropType::Empty;
+    }
+    string_shape(lhs, rhs)
+        .map(|(out, _)| out)
+        .unwrap_or(PropType::Empty)
+}
+
+/// The result type of a membership test of `lhs` against `values`, when
+/// `lhs` is known before the filter meets a graph; `Empty` otherwise.
+pub(crate) fn static_set_type(lhs: &PropType, values: &[Prop]) -> PropType {
+    if !is_known(lhs) {
+        return PropType::Empty;
+    }
+    set_shape(lhs, values).0
+}
+
+/// The result type of `agg` over `inner`, when `inner` is known before the
+/// filter meets a graph; `Empty` otherwise, or when the aggregate is refused.
+/// A partly known list is not enough: its unknown elements may be lists
+/// themselves, which an aggregate keeps as an outer level.
+pub(crate) fn static_aggregate_type(agg: Agg, inner: &PropType) -> PropType {
+    if !is_known(inner) || require_aggregable(inner, agg).is_err() {
+        return PropType::Empty;
+    }
+    agg_out_pt(agg, inner.clone())
+}
+
+/// The result type of `any()`/`all()` over `inner`, when `inner` is known
+/// before the filter meets a graph; `Empty` otherwise, or when the qualifier
+/// is refused.
+pub(crate) fn static_qualified_type(inner: &PropType) -> PropType {
+    if !is_known(inner) {
+        return PropType::Empty;
+    }
+    qualified_type(inner).unwrap_or(PropType::Empty)
+}
+
 /// Whether `pt` is fully known: no `Empty` anywhere inside it.
 pub(crate) fn is_known(pt: &PropType) -> bool {
     match pt {
@@ -278,12 +321,21 @@ pub(crate) fn set_kernel(shape: Shape) -> UnaryKernel<SetMembers> {
     }
 }
 
-/// Whether a value is present (`is_some`) or missing (`is_none`).
-pub(crate) fn presence_kernel(op: &UnaryOp, v: Option<Prop>) -> Option<Prop> {
-    Some(Prop::Bool(match op {
-        UnaryOp::IsSome => v.is_some(),
-        UnaryOp::IsNone => v.is_none(),
-    }))
+fn is_some(_: &UnaryOp, v: Option<Prop>) -> Option<Prop> {
+    Some(Prop::Bool(v.is_some()))
+}
+
+fn is_none(_: &UnaryOp, v: Option<Prop>) -> Option<Prop> {
+    Some(Prop::Bool(v.is_none()))
+}
+
+/// The presence kernel for `op`: whether a value is present (`is_some`) or
+/// missing (`is_none`).
+pub(crate) fn presence_kernel(op: UnaryOp) -> UnaryKernel<UnaryOp> {
+    match op {
+        UnaryOp::IsSome => is_some,
+        UnaryOp::IsNone => is_none,
+    }
 }
 
 /// The opposite of a boolean value.

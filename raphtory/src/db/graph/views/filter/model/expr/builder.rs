@@ -19,7 +19,7 @@
 
 use crate::{
     db::{
-        api::state::{NodeStateValue, TypedNodeState},
+        api::state::{NodeOp, NodeStateValue, TypedNodeState},
         graph::views::filter::model::{
             edge_filter::{EdgeFilter, Endpoint},
             exploded_edge_filter::ExplodedEdgeFilter,
@@ -331,7 +331,8 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
         V: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
     {
-        Ok(OpaqueFilter::new(state.bool_col_filter(col)?).into_filter())
+        let op = state.bool_col_filter(col)?.map(|b| Some(Prop::Bool(b)));
+        Ok(OpaqueFilter::new(op, false).into_filter())
     }
 }
 

@@ -21,13 +21,13 @@ use crate::{
     db::{
         api::view::internal::DynGraphArc,
         graph::views::filter::{
-            model::expr::{typing::require_bool, EdgeOps, Expr, Leaf},
+            model::expr::{typing::truthy, EdgeOps, Expr, Leaf},
             DynEdgeFilter,
         },
     },
     errors::GraphError,
 };
-use ops::TruthyEdgeOp;
+use ops::MapEdgeOp;
 use raphtory_api::core::{
     entities::{properties::prop::PropType, LayerId},
     storage::timeindex::EventTime,
@@ -45,10 +45,9 @@ impl<L: Leaf<Ops = EdgeOps>> Expr<L> {
         &self,
         graph: DynGraphArc<'g>,
     ) -> Result<DynEdgeFilter<'g>, GraphError> {
-        self.refuse_constant()?;
-        let op = self.value_op(graph)?;
-        require_bool(&self.resolved_type(&op), "a filter")?;
-        Ok(Arc::new(TruthyEdgeOp { inner: op }))
+        Ok(Arc::new(
+            self.filter_value(graph)?.map(|value| truthy(&value)),
+        ))
     }
 }
 
@@ -89,5 +88,12 @@ pub trait EdgeOp: Send + Sync {
     /// Returns `Some(value)` if the edge op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
         None
+    }
+
+    fn map<V: Clone + Send + Sync>(self, map: fn(Self::Output) -> V) -> MapEdgeOp<Self, V>
+    where
+        Self: Sized,
+    {
+        MapEdgeOp { op: self, map }
     }
 }

@@ -5,15 +5,15 @@ use crate::{
                 InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
             },
             view::internal::{
-                GraphView, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
+                DynGraphArc, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
                 InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
                 Static,
             },
         },
-        graph::views::filter::leg::{
+        graph::views::filter::operand::{
             keeps_edge, keeps_edge_layer, keeps_exploded_edge, keeps_node, restricts_edge_layers,
-            restricts_edges, restricts_exploded_edges, restricts_nodes, restricts_view,
+            restricts_edges, restricts_exploded_edges, restricts_nodes,
         },
     },
     prelude::GraphViewOps,
@@ -29,21 +29,24 @@ use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
+use std::sync::Arc;
 
-#[derive(Debug, Clone)]
-pub struct OrFilteredGraph<G, L, R> {
+/// The graph keeping what any operand keeps. A node or an edge is filtered
+/// only when every operand restricts it. Its node and edge lists are the base
+/// graph's, not the union of the operands', so they are never trusted.
+#[derive(Clone)]
+pub struct OrFilteredGraph<'graph, G> {
     pub(crate) graph: G,
-    pub(crate) left: L,
-    pub(crate) right: R,
+    pub(crate) operands: Arc<[DynGraphArc<'graph>]>,
 }
 
-impl<G, L, R> OrFilteredGraph<G, L, R> {
-    pub fn new(graph: G, left: L, right: R) -> Self {
-        Self { graph, left, right }
+impl<'graph, G> OrFilteredGraph<'graph, G> {
+    pub fn new(graph: G, operands: Arc<[DynGraphArc<'graph>]>) -> Self {
+        Self { graph, operands }
     }
 }
 
-impl<G, L, R> Base for OrFilteredGraph<G, L, R> {
+impl<G> Base for OrFilteredGraph<'_, G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {
@@ -51,75 +54,64 @@ impl<G, L, R> Base for OrFilteredGraph<G, L, R> {
     }
 }
 
-impl<G, L, R> Static for OrFilteredGraph<G, L, R> {}
-impl<G, L, R> Immutable for OrFilteredGraph<G, L, R> {}
+impl<G> Static for OrFilteredGraph<'_, G> {}
+impl<G> Immutable for OrFilteredGraph<'_, G> {}
 
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreGraphOps for OrFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for OrFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritLayerOps for OrFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritListOps for OrFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for OrFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for OrFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodePropertySchemaOps
-    for OrFilteredGraph<G, L, R>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgePropertySchemaOps
-    for OrFilteredGraph<G, L, R>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for OrFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritListOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for OrFilteredGraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for OrFilteredGraph<'graph, G> {}
 
-impl<G, L: GraphView, R: GraphView> InternalNodeFilterOps for OrFilteredGraph<G, L, R> {
+impl<G> InternalNodeFilterOps for OrFilteredGraph<'_, G> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
-        restricts_nodes(&self.left) && restricts_nodes(&self.right)
+        self.operands.iter().all(restricts_nodes)
     }
 
     #[inline]
     fn internal_node_list_trusted(&self) -> bool {
-        self.left.internal_node_list_trusted()
-            && self.right.internal_node_list_trusted()
-            && !restricts_view(&self.left)
-            && !restricts_view(&self.right)
+        false
     }
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, _layer_ids: &LayerIds) -> bool {
-        keeps_node(&self.left, node) || keeps_node(&self.right, node)
+        self.operands
+            .iter()
+            .any(|operand| keeps_node(operand, node))
     }
 }
 
-/// A layer or an update of an edge belongs to the union through the legs that
-/// keep the edge, so either leg restricting layers or updates can drop one
-/// that the other leg's edge would otherwise let through.
-impl<G, L: GraphView, R: GraphView> InternalEdgeLayerFilterOps for OrFilteredGraph<G, L, R> {
+/// A layer or an update of an edge belongs to the union through the operands that
+/// keep the edge, so any operand restricting layers or updates can drop one
+/// that another operand's edge would otherwise let through.
+impl<G> InternalEdgeLayerFilterOps for OrFilteredGraph<'_, G> {
     fn internal_edge_layer_filtered(&self) -> bool {
-        restricts_edge_layers(&self.left) || restricts_edge_layers(&self.right)
+        self.operands.iter().any(restricts_edge_layers)
     }
 
     fn internal_layer_filter_edge_list_trusted(&self) -> bool {
-        self.left.internal_layer_filter_edge_list_trusted()
-            && self.right.internal_layer_filter_edge_list_trusted()
-            && !restricts_view(&self.left)
-            && !restricts_view(&self.right)
+        false
     }
 
     fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        keeps_edge_layer(&self.left, edge, layer) || keeps_edge_layer(&self.right, edge, layer)
+        self.operands
+            .iter()
+            .any(|operand| keeps_edge_layer(operand, edge, layer))
     }
 }
 
-impl<G, L: GraphView, R: GraphView> InternalExplodedEdgeFilterOps for OrFilteredGraph<G, L, R> {
+impl<G> InternalExplodedEdgeFilterOps for OrFilteredGraph<'_, G> {
     fn internal_exploded_edge_filtered(&self) -> bool {
-        restricts_exploded_edges(&self.left) || restricts_exploded_edges(&self.right)
+        self.operands.iter().any(restricts_exploded_edges)
     }
 
     fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
-        self.left.internal_exploded_filter_edge_list_trusted()
-            && self.right.internal_exploded_filter_edge_list_trusted()
-            && !restricts_view(&self.left)
-            && !restricts_view(&self.right)
+        false
     }
 
     fn internal_filter_exploded_edge(
@@ -128,26 +120,27 @@ impl<G, L: GraphView, R: GraphView> InternalExplodedEdgeFilterOps for OrFiltered
         t: EventTime,
         _layer_ids: &LayerIds,
     ) -> bool {
-        keeps_exploded_edge(&self.left, eid, t) || keeps_exploded_edge(&self.right, eid, t)
+        self.operands
+            .iter()
+            .any(|operand| keeps_exploded_edge(operand, eid, t))
     }
 }
 
-impl<G, L: GraphView, R: GraphView> InternalEdgeFilterOps for OrFilteredGraph<G, L, R> {
+impl<G> InternalEdgeFilterOps for OrFilteredGraph<'_, G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        restricts_edges(&self.left) && restricts_edges(&self.right)
+        self.operands.iter().all(restricts_edges)
     }
 
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
-        self.left.internal_edge_list_trusted()
-            && self.right.internal_edge_list_trusted()
-            && !restricts_view(&self.left)
-            && !restricts_view(&self.right)
+        false
     }
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeEntryRef, _layer_ids: &LayerIds) -> bool {
-        keeps_edge(&self.left, edge) || keeps_edge(&self.right, edge)
+        self.operands
+            .iter()
+            .any(|operand| keeps_edge(operand, edge))
     }
 }

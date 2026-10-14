@@ -476,10 +476,10 @@ fn read_views(views: &[ViewOp]) -> Option<Vec<GqlViewOp>> {
     (!ops.is_empty()).then_some(ops)
 }
 
-/// A view leg's views as GraphQL spells them. A leg is refused when it has
-/// no view, so a leg whose views all restrict nothing is spelled as
-/// excluding no layer, which restricts nothing too.
-fn view_leg(views: &[ViewOp]) -> Vec<GqlViewOp> {
+/// A view expression's views as GraphQL spells them. An expression is refused
+/// when it has no view, so an expression whose views all restrict nothing is
+/// spelled as excluding no layer, which restricts nothing too.
+fn view_expr(views: &[ViewOp]) -> Vec<GqlViewOp> {
     match read_views(views) {
         Some(ops) => ops,
         None if views.is_empty() => Vec::new(),
@@ -1475,10 +1475,11 @@ pub enum GqlFilter {
     ExplodedEdge(ExplodedEdgeExpr),
     /// A graph-level view with no predicate: the result is the view.
     View(Vec<GqlViewOp>),
-    /// Every leg holds, each read on the same graph.
+    /// Every expression holds, each read on the same graph.
     And(Vec<GqlFilter>),
-    /// Any leg holds. Node legs combine on nodes and edge legs on edges; a leg
-    /// of the other kind leaves that side unconstrained. No view legs.
+    /// Any expression holds. Node expressions combine on nodes and edge
+    /// expressions on edges; an expression of the other kind leaves that side
+    /// unconstrained. No view expressions.
     Or(Vec<GqlFilter>),
     /// The filter that keeps what the inner one drops: a negated node filter
     /// keeps the nodes that fail it and the edges between them. No views.
@@ -1532,7 +1533,7 @@ impl TryFrom<&expr::FilterExpr> for GqlFilter {
             F::Node(e) => GqlFilter::Node(NodeExpr::from_tree(e)?),
             F::Edge(e) => GqlFilter::Edge(EdgeExpr::from_tree(e)?),
             F::ExplodedEdge(e) => GqlFilter::ExplodedEdge(ExplodedEdgeExpr::from_tree(e)?),
-            F::View(ops) => GqlFilter::View(view_leg(ops)),
+            F::View(ops) => GqlFilter::View(view_expr(ops)),
             F::And(items) => GqlFilter::And(
                 items
                     .iter()

@@ -990,6 +990,48 @@ def test_filter_nodes_for_node_name_all_is_invalid():
         (filter.Node.name() == "N1").any()
 
 
+def test_a_test_is_one_boolean_before_any_graph():
+    # A presence test, a combination and a string or membership test of a
+    # name each give one boolean answer, known where they are written, so a
+    # qualifier or a mistyped constant after one is refused there.
+    msg = (
+        "Invalid filter: any()/all() need one boolean answer per element, which "
+        "comparing a list or temporal property gives; this expression gives a "
+        "single boolean answer, so drop the any()/all()"
+    )
+    name_is_n1 = filter.Node.name() == "N1"
+    for expr in (
+        filter.Node.property("p").is_some(),
+        filter.Node.property("p").is_none(),
+        filter.Node.name().starts_with("N"),
+        filter.Node.name().is_in(["N1"]),
+        ~name_is_n1,
+        name_is_n1 & (filter.Node.degree() > 1),
+        name_is_n1 | (filter.Node.degree() > 1),
+    ):
+        with pytest.raises(TypeError, match="^" + re.escape(msg) + "$"):
+            expr.any()
+    with pytest.raises(
+        TypeError,
+        match="^"
+        + re.escape("Invalid filter: value 1 of type I64 cannot be compared with Bool")
+        + "$",
+    ):
+        filter.Node.property("p").is_some() == 1
+    # An endpoint term has the type of the node expression it reads.
+    with pytest.raises(
+        TypeError,
+        match="^"
+        + re.escape("Invalid filter: value 3 of type I64 cannot be compared with Str")
+        + "$",
+    ):
+        filter.Edge.src().name() == 3
+    # A history is a list whose element type only the graph knows, so these
+    # wait for the graph: either may be an element-wise comparison.
+    filter.Node.property("p").temporal() > 1
+    filter.Node.property("p").temporal() == [1, 2]
+
+
 @with_variants(init_graph)
 def test_filter_nodes_for_node_name_len_is_invalid():
     def check(graph):

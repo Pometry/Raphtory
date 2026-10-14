@@ -2,7 +2,7 @@ use crate::{
     db::graph::views::filter::model::{
         expr::{
             builder::{EntityAggOps, NodeFilterFactory},
-            typing::{is_known, qualified_type},
+            typing::{comparison_shape, is_known, qualified_type},
             Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, FilterExpr, Leaf,
             NodeExpr, NodeLeaf, PropertyTerm,
         },
@@ -16,7 +16,7 @@ use crate::{
             repr,
         },
         graph::node_state::PyOutputNodeState,
-        types::iterable::FromIterable,
+        types::{iterable::FromIterable, repr::Repr},
     },
 };
 use pyo3::{
@@ -223,11 +223,17 @@ enum ExprOrValue {
 
 /// Values are checked against the expression's statically known type at the
 /// comparison itself, so a mistyped literal fails where it is written instead
-/// of at some later `filter()` call. Unknown types defer to filter time. The
-/// check is the engine's own; python only asks it early.
-fn check_value(lhs: &Typed, v: &Prop) -> PyResult<()> {
-    validate_const_comparable(&lhs.prop_type(), Some(v))
-        .map_err(|e| PyTypeError::new_err(e.to_string()))
+/// of at some later `filter()` call. A type not fully known (a history whose
+/// element type is not) defers to filter time. The check is the engine's own,
+/// a list-valued side compared element by element; python only asks it early.
+fn check_value(lhs: &Typed, op: BinaryOp, v: &Prop) -> PyResult<()> {
+    let pt = lhs.prop_type();
+    if is_known(&pt) {
+        let rhs = v.dtype();
+        comparison_shape(&op, &pt, &rhs)
+            .map_err(|e| PyTypeError::new_err(e.into_error(&rhs, Some(v)).to_string()))?;
+    }
+    Ok(())
 }
 
 /// Presence tests only mean something on an expression that can be missing.
@@ -265,7 +271,7 @@ impl PyExpr {
                 Ok(PyExpr(zip_typed!(self.0.clone(), e.0, |l, r| l.cmp(op, r))?))
             }
             ExprOrValue::Value(v) => {
-                check_value(&self.0, &v)?;
+                check_value(&self.0, op, &v)?;
                 Ok(PyExpr(map_typed!(self.0.clone(), |e| e.cmp(op, v))))
             }
         }
@@ -634,8 +640,8 @@ impl PyExpr {
 
     /// The Python expression that builds this one, module-qualified, so `eval`
     /// rebuilds it after `import raphtory`.
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::typed(py, &self.0)
+    fn __repr__(&self) -> String {
+        self.0.repr()
     }
 }
 
@@ -651,8 +657,8 @@ impl PyPropertyExpr {
         PyExpr(self.0.temporal())
     }
 
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::typed(py, &self.0.latest())
+    fn __repr__(&self) -> String {
+        self.0.latest().repr()
     }
 }
 
@@ -672,8 +678,8 @@ impl PyNodeFilter {
 
 #[pymethods]
 impl PyNodeFilter {
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "Node", self.0.views())
+    fn __repr__(&self) -> String {
+        repr::factory("Node", self.0.views())
     }
 
     /// Selects the node ID field for filtering.
@@ -862,7 +868,7 @@ impl PyNodeFilter {
     /// Returns:
     ///     filter.NodeFilter:
     fn exclude_layer(&self, layer: String) -> PyNodeFilter {
-        Self(self.0.clone().exclude_layers([layer]))
+        Self(self.0.clone().exclude_layers(layer))
     }
 
     /// Reads through a view of every layer except the given ones.

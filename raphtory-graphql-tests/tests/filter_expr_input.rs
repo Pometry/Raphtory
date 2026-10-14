@@ -78,10 +78,10 @@ async fn assert_round_trip(tree: F) {
     assert_eq!(from_variable(json).await.unwrap(), tree);
 }
 
-/// How one view is sent: the single view of a view leg holding only it.
+/// How one view is sent: the single view of a view expression holding only it.
 fn sent_view(op: &ViewOp) -> serde_json::Value {
-    let leg = GqlFilter::try_from(&F::View(vec![op.clone()])).unwrap();
-    let mut json = serde_json::to_value(leg).unwrap();
+    let expression = GqlFilter::try_from(&F::View(vec![op.clone()])).unwrap();
+    let mut json = serde_json::to_value(expression).unwrap();
     let views = json["view"].as_array_mut().unwrap();
     assert_eq!(views.len(), 1, "{views:?}");
     views.remove(0)
@@ -522,22 +522,22 @@ async fn every_layer_is_sent_as_the_view_it_means() {
             expected.edges().id().collect_vec()
         );
     }
-    // A view leg whose views all restrict nothing is sent as excluding
-    // no layer: an empty leg would be refused.
+    // A view expression whose views all restrict nothing is sent as excluding
+    // no layer: an empty expression would be refused.
     let json = serde_json::to_value(GqlFilter::try_from(&F::View(vec![every()])).unwrap());
     assert_eq!(json.unwrap(), json!({ "view": [{ "excludeLayers": [] }] }));
     // Excluding every layer is no layer.
     let json = serde_json::to_value(GqlFilter::try_from(&F::View(vec![none()])).unwrap());
     assert_eq!(json.unwrap(), json!({ "view": [{ "layers": [] }] }));
-    // A leg with no view at all is still sent empty, and still refused.
+    // An expression with no view at all is still sent empty, and still refused.
     let empty = GqlFilter::try_from(&F::View(Vec::new())).unwrap();
     assert_eq!(serde_json::to_value(empty).unwrap(), json!({ "view": [] }));
 }
 
-/// An empty view leg, `and` or `or` is refused while it is decoded, with the
+/// An empty view expression, `and` or `or` is refused while it is decoded, with the
 /// message the filter itself refuses it with, by GraphQL and by serde.
 #[tokio::test]
-async fn empty_legs_are_refused_when_decoded() {
+async fn empty_expressions_are_refused_when_decoded() {
     for (filter, message) in [
         (
             json!({ "view": [] }),

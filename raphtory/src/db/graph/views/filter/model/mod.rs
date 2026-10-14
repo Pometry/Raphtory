@@ -35,7 +35,7 @@ pub use expr::builder::{
 };
 
 use crate::db::graph::views::filter::model::expr::Agg;
-use raphtory_api::core::entities::properties::prop::PropType;
+use raphtory_api::core::entities::properties::prop::{unify_types, PropType};
 
 /// Reject ordering operators on a type that has no ordering.
 ///
@@ -66,18 +66,21 @@ pub fn not_a_string_error(prop_type: &PropType) -> GraphError {
     ))
 }
 
-/// Pick the more specific of the two known prop types.
+/// The type of an expression, from what the tree knows before any graph is
+/// at hand (`expr_pt`) and what the op it compiled to reports (`op_pt`).
 ///
-/// A tree and the op it compiles to may both have a known prop type, but
-/// what the tree knows (e.g. a degree term is a `U64`) is not always
-/// propagated through generic wrappers like `Map<Op, V>`. Prefer whichever side
-/// has a concrete type so validation can fire early.
+/// Each side may know only part of the type: a temporal property term knows
+/// it is a list (`List<Empty>`) but not of what, while its op knows the
+/// element type; an `is_active()` term knows it is a `Bool`, while the op it
+/// compiles to, a mapped history, reports nothing. The two are unified, an
+/// unknown part on one side filled in from the other, at any depth of lists
+/// and maps. When they conflict, the tree's type is kept: an op can report the
+/// type of an op it wraps rather than its own.
 pub fn resolved_prop_type(expr_pt: PropType, op_pt: PropType) -> PropType {
-    if expr_pt != PropType::Empty {
-        expr_pt
-    } else {
-        op_pt
-    }
+    // `unify_types` reports whether it filled anything in; nothing here
+    // depends on that.
+    let mut unified = false;
+    unify_types(&expr_pt, &op_pt, &mut unified).unwrap_or(expr_pt)
 }
 
 /// Reject a constant compared against an expression whose type it can never
@@ -118,7 +121,7 @@ pub fn types_mismatch_error(lhs_pt: &PropType, rhs_pt: &PropType) -> GraphError 
 /// string or boolean history has no sum and no least value. An unresolved
 /// type (`PropType::Empty`) passes and is checked again once known.
 pub fn require_aggregable(pt: &PropType, agg: Agg) -> Result<(), GraphError> {
-    let op = format!("{agg}()");
+    let op = format!("{}()", agg.name());
     match pt {
         PropType::Empty => Ok(()),
         PropType::List(_) => {

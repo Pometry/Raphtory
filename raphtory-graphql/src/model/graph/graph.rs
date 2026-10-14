@@ -708,7 +708,7 @@ impl GqlGraph {
     pub async fn filter(
         &self,
         #[graphql(
-            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each leg evaluated independently on the same graph and the results intersected. A `view` leg keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter."
+            desc = "Optional filter expression made of node/edge predicates, graph views (window, layer, ...), or and/or/not combinations of them. `and` is an intersection, each expression evaluated independently on the same graph and the results intersected. A `view` expression keeps what exists in the view; to filter inside a window use `graph.window(..).filter(expr)`. A `view` cannot appear under `or` or `not`. If omitted, applies the identity filter."
         )]
         expr: Option<GqlFilter>,
     ) -> Result<Self, GraphError> {

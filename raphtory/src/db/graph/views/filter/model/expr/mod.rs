@@ -33,10 +33,7 @@ pub(super) use compile::EdgeOps;
 pub use compile::Leaf;
 
 use super::filter_operator::{BinaryOp, StringOp};
-use crate::{
-    db::api::{state::NodeOp, view::internal::DynGraphArc},
-    errors::GraphError,
-};
+use crate::{db::api::state::NodeOp, errors::GraphError};
 use raphtory_api::core::{
     entities::{
         properties::prop::{Prop, PropType},
@@ -46,7 +43,10 @@ use raphtory_api::core::{
     Direction,
 };
 use std::{fmt, sync::Arc};
-use typing::static_comparison_type;
+use typing::{
+    static_aggregate_type, static_comparison_type, static_qualified_type, static_set_type,
+    static_string_type,
+};
 
 /// One view restriction, in the order it was applied. Each one is the graph
 /// view method of the same name applied to the view built so far.
@@ -121,6 +121,23 @@ pub enum Agg {
     Latest,
 }
 
+impl Agg {
+    /// The aggregate as its method is called: `sum`, `avg` and so on.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Agg::Sum => "sum",
+            Agg::Avg => "avg",
+            Agg::Min => "min",
+            Agg::Max => "max",
+            Agg::First => "first",
+            Agg::Last => "last",
+            Agg::Len => "len",
+            Agg::Earliest => "earliest",
+            Agg::Latest => "latest",
+        }
+    }
+}
+
 /// Which elements of an element-wise boolean result must hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Qualifier {
@@ -130,34 +147,25 @@ pub enum Qualifier {
     All,
 }
 
-/// A node value built in this process, from in-process state (a node-state
-/// column) rather than from data: what an [`OpaqueFilter`] carries.
-pub trait OpaqueOp: Send + Sync + 'static {
-    /// The op that reads the value per node against `graph`.
-    fn node_value_op<'g>(
-        &self,
-        graph: DynGraphArc<'g>,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError>;
-
-    /// The type of the value, when it is fixed whatever the graph.
-    fn prop_type(&self) -> PropType;
-
-    /// Whether the value can be missing.
-    fn nullable(&self) -> bool;
-}
-
 /// A node value already built in this process, carried inside a tree as a
 /// node term: a value over in-process state (a node-state column). It runs
 /// but has no wire form: asking for one is an error, not a guess.
 #[derive(Clone)]
-pub struct OpaqueFilter(pub Arc<dyn OpaqueOp>);
+pub struct OpaqueFilter {
+    op: Arc<dyn NodeOp<Output = Option<Prop>>>,
+    nullable: bool,
+}
 
 pub const OPAQUE_FILTER_ERROR: &str =
     "this filter has no server-side form; it was built from in-process state";
 
 impl OpaqueFilter {
-    pub fn new<E: OpaqueOp>(expr: E) -> Self {
-        OpaqueFilter(Arc::new(expr))
+    /// The compiled `op`, and whether its value can be missing.
+    pub fn new(op: impl NodeOp<Output = Option<Prop>> + 'static, nullable: bool) -> Self {
+        OpaqueFilter {
+            op: Arc::new(op),
+            nullable,
+        }
     }
 
     /// The filter this value is: a predicate on nodes.
@@ -174,7 +182,7 @@ impl fmt::Debug for OpaqueFilter {
 
 impl PartialEq for OpaqueFilter {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+        Arc::ptr_eq(&self.op, &other.op)
     }
 }
 
@@ -298,9 +306,13 @@ pub type ExplodedEdgeExpr = Expr<ExplodedEdgeLeaf>;
 /// Each answer is read off the tree; a term answers for itself through its
 /// [`Leaf`].
 impl<L: Leaf> Expr<L> {
-    /// The result type, when it is known before the filter meets a graph: a
-    /// constant's, a term's, or one boolean (or one per element) for a
-    /// comparison of known types. Anything else is `Empty`.
+    /// The result type, as far as it is known before the filter meets a
+    /// graph. A test (`is_some()`, `is_none()`, `and`, `or`, `not`) is always
+    /// one boolean. A comparison, a string or membership test, an aggregate
+    /// and `any()`/`all()` have the type their rule gives once their operands
+    /// are fully known; until then they are `Empty`. A term answers for
+    /// itself: a temporal property is a list whose elements are not yet known
+    /// (`List<Empty>`).
     pub(crate) fn prop_type(&self) -> PropType {
         match self {
             Expr::Const(value) => value.dtype(),
@@ -308,16 +320,13 @@ impl<L: Leaf> Expr<L> {
             Expr::Cmp(op, lhs, rhs) => {
                 static_comparison_type(op, &lhs.prop_type(), &rhs.prop_type())
             }
-            Expr::Agg(..)
-            | Expr::Str(..)
-            | Expr::In { .. }
-            | Expr::IsSome(_)
-            | Expr::IsNone(_)
-            | Expr::Any(_)
-            | Expr::All(_)
-            | Expr::And(_)
-            | Expr::Or(_)
-            | Expr::Not(_) => PropType::Empty,
+            Expr::Str(_, lhs, rhs) => static_string_type(&lhs.prop_type(), &rhs.prop_type()),
+            Expr::In { expr, values, .. } => static_set_type(&expr.prop_type(), values),
+            Expr::Agg(agg, inner) => static_aggregate_type(*agg, &inner.prop_type()),
+            Expr::Any(inner) | Expr::All(inner) => static_qualified_type(&inner.prop_type()),
+            Expr::IsSome(_) | Expr::IsNone(_) | Expr::And(_) | Expr::Or(_) | Expr::Not(_) => {
+                PropType::Bool
+            }
         }
     }
 
@@ -376,9 +385,9 @@ impl<L> Expr<L> {
 /// combination of filters.
 ///
 /// A filter is a graph: a node predicate keeps the nodes that pass it, an edge
-/// predicate the edges, and a view is the graph seen through it. The legs of
+/// predicate the edges, and a view is the graph seen through it. The expressions of
 /// `And` and `Or` are each read on the same base graph and their graphs
-/// combine; `Not` keeps what its leg drops. A node or an edge stays in a
+/// combine; `Not` keeps what its expression drops. A node or an edge stays in a
 /// collection when it exists in that graph.
 #[derive(Clone, Debug, PartialEq)]
 pub enum FilterExpr {
@@ -394,7 +403,7 @@ pub enum FilterExpr {
 }
 
 impl FilterExpr {
-    /// Refuses a view leg with no view in it: it is not "no restriction".
+    /// Refuses a view expression with no view in it: it is not "no restriction".
     pub fn needs_view(views: &[ViewOp]) -> Result<(), GraphError> {
         if views.is_empty() {
             return Err(GraphError::invalid_filter(
@@ -404,20 +413,23 @@ impl FilterExpr {
         Ok(())
     }
 
-    /// The first leg of `and` or `or` (`name`) and the rest, of a filter or
-    /// of an expression. An `and` or `or` with no legs is refused.
-    pub fn needs_operand<'a, T>(name: &str, legs: &'a [T]) -> Result<(&'a T, &'a [T]), GraphError> {
-        legs.split_first().ok_or_else(|| {
+    /// The first expression of `and` or `or` (`name`) and the rest, of a filter or
+    /// of an expression. An `and` or `or` with no expressions is refused.
+    pub fn needs_operand<'a, T>(
+        name: &str,
+        expressions: &'a [T],
+    ) -> Result<(&'a T, &'a [T]), GraphError> {
+        expressions.split_first().ok_or_else(|| {
             GraphError::invalid_filter(format!("`{name}` needs at least one operand"))
         })
     }
 
-    /// Refuses a view in this leg of `or` or `not`: the union with a view, or
+    /// Refuses a view in this expression of `or` or `not`: the union with a view, or
     /// the complement of one, waits until views compose with time semantics.
     pub(crate) fn no_view_below_top_level(&self) -> Result<(), GraphError> {
         if self.has_view() {
             return Err(GraphError::invalid_filter(
-                "a view applies to the whole filter: use it alone or as a leg of the top-level `and`, \
+                "a view applies to the whole filter: use it alone or as an expression of the top-level `and`, \
                  not under `or` or `not`",
             ));
         }

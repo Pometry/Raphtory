@@ -156,7 +156,7 @@ def test_edge_reads_through_an_endpoint_keep_the_edge_views():
         assert edge_pairs(client, early) == [("alice", "bob")]
 
 
-def test_a_view_leg_restricts_the_whole_filter():
+def test_a_view_expression_restricts_the_whole_filter():
     """`and: [view, predicate]` applies the view first and the predicate inside it,
     like `graph.window(0, 2).filter(predicate)`: dave's updates at 2 and 3 fall
     outside [0, 2), so he is gone before the predicate runs."""
@@ -388,8 +388,8 @@ def test_a_view_without_argument_is_named_by_kind():
             client.query(NODES, {"f": {"view": [{"kind": "VALIDATE"}]}})
 
 
-def test_empty_legs_are_refused():
-    """An `and`, `or` or view leg with nothing under it is refused wherever it
+def test_empty_expressions_are_refused():
+    """An `and`, `or` or view expression with nothing under it is refused wherever it
     sits; in particular an empty `and`, and `not` of it, are not "everything"."""
     window = {"view": [{"window": {"start": 0, "end": 5}}]}
     with graphql_client(build()) as client:

@@ -833,9 +833,8 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
         # Presence is a whole-value question; a qualifier has nothing to
         # collapse on a single boolean.
-        filter_expr = filter.Node.property("prop8").is_some().any()
         with pytest.raises(Exception, match=QUALIFIER_ON_ONE_ANSWER):
-            graph.filter(filter_expr).nodes.id
+            filter.Node.property("prop8").is_some().any()
         filter_expr = filter.Node.property("prop8").is_some()
         assert sorted(graph.filter(filter_expr).nodes.id) == ["a", "d"]
 
@@ -1074,7 +1073,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
 @with_variants(init_graph)
 def test_prop_not_found_error():
     def check(graph):
-        filter_expr = filter.Node.property("p").is_some().any()
+        filter_expr = filter.Node.property("p").is_some()
         with pytest.raises(
             Exception,
             match=r"Property p does not exist",

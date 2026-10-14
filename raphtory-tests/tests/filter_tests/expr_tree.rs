@@ -193,7 +193,7 @@ fn views_scope_the_term_not_the_result() {
     // inside [0,5): alice's latest score is 7, bob's is 5
     let f = node(cmp(BinaryOp::Gt, windowed, c(4.0)));
     assert_eq!(nodes(&g, &f), ["alice", "bob"]);
-    assert_eq!(f.to_string(), "NODE(WINDOW[0..5](score) > 4)");
+    assert_eq!(f.to_string(), "NODE(WINDOW(0..5)(score) > 4)");
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn edges_endpoints_and_structure() {
         views: vec![ViewOp::Layers("works".into())],
     }));
     assert_eq!(edges(&g, &works), ["bob->carol"]);
-    assert_eq!(works.to_string(), "EDGE(LAYER[works](IS_ACTIVE))");
+    assert_eq!(works.to_string(), "EDGE(LAYER([works])(IS_ACTIVE))");
     let exploded = FilterExpr::ExplodedEdge(cmp(
         BinaryOp::Eq,
         Expr::Term(ExplodedEdgeLeaf::Property {
@@ -418,18 +418,18 @@ fn type_clashes_are_refused_when_the_filter_is_built() {
 }
 
 #[test]
-fn a_view_leg_restricts_the_whole_filter() {
+fn a_view_expression_restricts_the_whole_filter() {
     let g = graph();
     let score_gt_4 = node(cmp(BinaryOp::Gt, prop("score"), c(4.0)));
     let win = FilterExpr::View(vec![window(0, 7)]);
-    // Each leg is read on the base graph; to filter inside a window use
+    // Each expression is read on the base graph; to filter inside a window use
     // graph.window(..).filter(..).
     let f = FilterExpr::And(vec![win.clone(), score_gt_4.clone()]);
     assert_eq!(nodes(&g, &f), ["alice"]);
     // A view alone is the result.
     let f = FilterExpr::View(vec![window(0, 5), ViewOp::Latest]);
     assert_eq!(edges(&g, &f), ["alice->bob"]);
-    assert_eq!(f.to_string(), "VIEW(WINDOW[0..5] . LATEST)");
+    assert_eq!(f.to_string(), "VIEW(WINDOW(0..5) . LATEST)");
     assert!(error(&g, &FilterExpr::View(vec![])).contains("at least one view"));
     // Under `or` or `not` a view has no graph to produce.
     let or = FilterExpr::Or(vec![win.clone(), score_gt_4.clone()]);
@@ -438,11 +438,11 @@ fn a_view_leg_restricts_the_whole_filter() {
     assert!(f.has_view() && !score_gt_4.has_view());
 }
 
-/// A view leg is one more test, "exists in the view", and the other legs read
+/// A view expression is one more test, "exists in the view", and the other expressions read
 /// the base graph, on a collection and on the graph alike. So `window(0,5) &
 /// window(5,8).score > 6` keeps alice, whose score is 9 at 6.
 #[test]
-fn a_view_leg_in_a_select_is_an_existence_test() {
+fn a_view_expression_in_a_select_is_an_existence_test() {
     fn selected<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<String> {
         let mut ids: Vec<String> = edges
             .iter()
@@ -466,7 +466,7 @@ fn a_view_leg_in_a_select_is_an_existence_test() {
     let mut names: Vec<String> = g.nodes().select(f.clone()).unwrap().name().collect();
     names.sort();
     assert_eq!(names, ["alice"]);
-    // Each leg is read on the base graph; to filter inside a window use
+    // Each expression is read on the base graph; to filter inside a window use
     // graph.window(..).filter(..).
     assert_eq!(nodes(&g, &f), ["alice"]);
 
@@ -496,7 +496,7 @@ fn a_view_leg_in_a_select_is_an_existence_test() {
     assert_eq!(selected(g.edges().select(active).unwrap()), ["c->d"]);
 }
 
-/// On a collection a view leg is a test like any other, so it takes `or`
+/// On a collection a view expression is a test like any other, so it takes `or`
 /// and `not`: "exists in the view", "does not exist in it". The same filters
 /// have no graph to produce and are refused on `graph.filter`.
 #[test]
@@ -864,7 +864,7 @@ fn filters_answer_the_node_and_edge_questions_separately() {
             &["bob->carol"],
         ),
         (
-            "or(node, node): an edge whose ends pass different legs",
+            "or(node, node): an edge whose ends pass different expressions",
             FilterExpr::Or(vec![score_gt(8.0), score_lt(3.0)]),
             &["alice", "bob", "dave"],
             &["alice->bob"],
@@ -889,9 +889,9 @@ fn mixed_node_and_edge_filters_answer_each_question() {
             &["bob->carol"],
         ),
         (
-            // the union of what each keeps: every node, and the edges either leg
+            // the union of what each keeps: every node, and the edges either expression
             // keeps (none between alice and herself, and carol->dave by weight)
-            "or(node, edge): the union of what each leg keeps",
+            "or(node, edge): the union of what each expression keeps",
             FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
             &ALL_NODES,
             &["carol->dave"],
@@ -903,7 +903,7 @@ fn mixed_node_and_edge_filters_answer_each_question() {
             &ALL_EDGES,
         ),
         (
-            // the or keeps carol->dave only, which the node leg's ends then drop
+            // the or keeps carol->dave only, which the node expression's ends then drop
             "and(node, or(node, edge)): the or's edges count",
             FilterExpr::And(vec![
                 score_gt(1.5),
@@ -1047,9 +1047,9 @@ fn typed_combinators_answer_the_node_and_edge_questions_separately() {
 }
 
 /// The edge b→c is kept by `name == "b" | name == "c"` because each end
-/// passes one leg.
+/// passes one expression.
 #[test]
-fn a_typed_or_of_node_legs_keeps_an_edge_whose_ends_pass_different_legs() {
+fn a_typed_or_of_node_expressions_keeps_an_edge_whose_ends_pass_different_expressions() {
     let g = chain();
     let name_is = |n: &'static str| NodeFilter.name().eq(n);
 
@@ -1065,32 +1065,11 @@ fn a_typed_or_of_node_legs_keeps_an_edge_whose_ends_pass_different_legs() {
     assert_eq!(names, ["a"], "not(or): nodes.select");
 }
 
-/// The same on the filtered graph.
-#[test]
-#[ignore = "a node created only by an edge vanishes once its edges are hidden (#2821)"]
-fn a_typed_or_of_node_legs_keeps_an_edge_whose_ends_pass_different_legs_on_the_graph() {
-    let g = chain();
-    let name_is = |n: &'static str| NodeFilter.name().eq(n);
-
-    let or = name_is("b").or(name_is("c"));
-    assert_eq!(
-        edge_ids(&g.filter(or.clone()).unwrap()),
-        ["b->c"],
-        "or: filter"
-    );
-
-    let not_or = name_is("b").or(name_is("c")).not();
-    assert!(
-        edge_ids(&g.filter(not_or).unwrap()).is_empty(),
-        "not(or): filter"
-    );
-}
-
-/// The union of what each leg keeps: no edge has both ends at b, so only the
-/// edge leg's b->c.
+/// The union of what each expression keeps: no edge has both ends at b, so only the
+/// edge expression's b->c.
 #[test]
 #[ignore = "mixed node and edge combinations are being specified"]
-fn a_typed_or_of_a_node_and_an_edge_leg_is_the_union() {
+fn a_typed_or_of_a_node_and_an_edge_expression_is_the_union() {
     let g = chain();
     let or_node_edge = NodeFilter
         .name()
@@ -1110,11 +1089,11 @@ fn a_typed_or_of_a_node_and_an_edge_leg_is_the_union() {
 
 /// An `or` between a node predicate and an edge predicate is the union of what
 /// each keeps: every node, since an edge predicate keeps every node, and the
-/// edges either leg keeps, where the node leg keeps the edges with both ends
+/// edges either expression keeps, where the node expression keeps the edges with both ends
 /// inside its nodes. It is not "everything".
 #[test]
 #[ignore = "mixed node and edge combinations are being specified"]
-fn a_mixed_or_is_the_union_of_what_its_legs_keep() {
+fn a_mixed_or_is_the_union_of_what_its_expressions_keep() {
     // a→b w=3 · b→c w=7 · c→d w=1 · a→a w=1; every node added on its own too,
     // so a node with every edge hidden still exists (#2821)
     let g = Graph::new();
@@ -1142,13 +1121,13 @@ fn a_mixed_or_is_the_union_of_what_its_legs_keep() {
         .map(|e| (e.src().name(), e.dst().name()))
         .collect();
     edges.sort();
-    // b→c passes the edge leg; a→a has both ends inside the node leg's nodes
+    // b→c passes the edge expression; a→a has both ends inside the node expression's nodes
     assert_eq!(edges, [("a".into(), "a".into()), ("b".into(), "c".into())]);
-    // the edge leg alone keeps every node and one edge
+    // the edge expression alone keeps every node and one edge
     assert_eq!(g.filter(heavy).unwrap().edges().len(), 1);
 
-    // with an exploded-edge leg the union is decided update by update: b→c's
-    // update by weight, a→a's because both ends are inside the node leg
+    // with an exploded-edge expression the union is decided update by update: b→c's
+    // update by weight, a→a's because both ends are inside the node expression
     let heavy_update = ExplodedEdgeFilter.property("w").eq(7i64);
     let union = g
         .filter(FilterExpr::Or(vec![named_a.into(), heavy_update.into()]))
@@ -1166,11 +1145,11 @@ fn a_mixed_or_is_the_union_of_what_its_legs_keep() {
     );
 }
 
-/// An `and`, `or` or view leg with nothing under it is refused wherever it
+/// An `and`, `or` or view expression with nothing under it is refused wherever it
 /// sits: an empty `and` is not "everything", `not` of it is not either, and an
-/// empty view leg beside a real one is not nothing.
+/// empty view expression beside a real one is not nothing.
 #[test]
-fn empty_legs_are_refused() {
+fn empty_expressions_are_refused() {
     let g = Graph::new();
     g.add_node(1, "a", NO_PROPS, None, None).unwrap();
     let refused = |filter: FilterExpr, message: &str| {
@@ -1626,8 +1605,8 @@ fn the_new_views_display_and_the_builder_spells_them() {
     let f = FilterExpr::View(ops.clone());
     assert_eq!(
         f.to_string(),
-        "VIEW(DEFAULT_LAYER . EXCLUDE_LAYER[a, b] . VALID_LAYER[a, c] . \
-         EXCLUDE_VALID_LAYER[c] . SHRINK_START[3] . SHRINK_END[9])"
+        "VIEW(DEFAULT_LAYER . EXCLUDE_LAYER([a, b]) . VALID_LAYER([a, c]) . \
+         EXCLUDE_VALID_LAYER([c]) . SHRINK_START(3) . SHRINK_END(9))"
     );
     // The builder spells the same ops.
     let built: FilterExpr = GraphFilter
@@ -1780,7 +1759,7 @@ fn the_node_set_views_display_and_the_builder_spells_them() {
     let f = FilterExpr::View(ops.clone());
     assert_eq!(
         f.to_string(),
-        "VIEW(EXCLUDE_NODES[a, 7] . SUBGRAPH[1, b] . SUBGRAPH_NODE_TYPES[person, org] . VALID)"
+        "VIEW(EXCLUDE_NODES([a, 7]) . SUBGRAPH([1, b]) . SUBGRAPH_NODE_TYPES([person, org]) . VALID)"
     );
     // The builder spells the same ops.
     let built: FilterExpr = GraphFilter
@@ -1790,6 +1769,31 @@ fn the_node_set_views_display_and_the_builder_spells_them() {
         .valid()
         .into();
     assert_eq!(built, f);
+}
+
+/// A layer selection displays as a list of names, so no layer name can read
+/// as `*` (every layer) or `[]` (no layer); an aggregate displays the same
+/// on its own as inside a tree.
+#[test]
+fn layer_selections_display_as_lists_and_aggregates_as_capitals() {
+    let layers = FilterExpr::View(vec![
+        ViewOp::Layers(Layer::All),
+        ViewOp::Layers(Layer::None),
+        ViewOp::Layers(Layer::Default),
+        ViewOp::Layers("*".into()),
+        ViewOp::Layers(["a", "b"].into()),
+    ]);
+    assert_eq!(
+        layers.to_string(),
+        "VIEW(LAYER(*) . LAYER([]) . LAYER([_default]) . LAYER([*]) . LAYER([a, b]))"
+    );
+    assert_eq!(Agg::Sum.to_string(), "SUM");
+    let summed = node(cmp(
+        BinaryOp::Gt,
+        Expr::Agg(Agg::Sum, Box::new(prop("score"))),
+        c(4.0),
+    ));
+    assert_eq!(summed.to_string(), "NODE(SUM(score) > 4)");
 }
 
 /// alice [person] score 3@0 7@2 9@6 kind=x · bob [person] score 5@1 2@7
@@ -1940,7 +1944,7 @@ fn a_constant_under_not_is_refused_as_a_tree() {
 }
 
 #[test]
-fn a_constant_leg_of_a_node_and_or_or_is_refused() {
+fn a_constant_expression_of_a_node_and_or_or_is_refused() {
     let g = oracle_graph().into_dynamic();
     let alice = || NodeFilter.name().eq("alice");
     let constant = || Expr::<NodeLeaf>::Const(true.into());

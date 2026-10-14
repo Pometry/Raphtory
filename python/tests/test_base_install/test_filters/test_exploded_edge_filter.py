@@ -215,7 +215,7 @@ def test_with_edge_or_node_filter(GraphClass):
     weight_e3 = filter.ExplodedEdge.property("weight") == 3
     name_filter = filter.Node.name() == "2"
 
-    # An `or` across kinds is the union of what each leg keeps: the updates
+    # An `or` across kinds is the union of what each expression keeps: the updates
     # with weight 3, plus the edges with both ends among the nodes named "2",
     # of which there are none. It is not everything.
     actual = [

@@ -9,7 +9,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, PyResult, Python};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 /// A graph-level view scope.
@@ -34,8 +34,8 @@ impl PyGraphFilter {
 
 #[pymethods]
 impl PyGraphFilter {
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "Graph", self.0.views())
+    fn __repr__(&self) -> String {
+        repr::factory("Graph", self.0.views())
     }
 
     /// Restricts evaluation to events within a time window.
@@ -150,7 +150,7 @@ impl PyGraphFilter {
     /// Returns:
     ///     filter.GraphFilter:
     fn exclude_layer(&self, layer: String) -> PyGraphFilter {
-        Self(self.0.clone().exclude_layers([layer]))
+        Self(self.0.clone().exclude_layers(layer))
     }
 
     /// Reads through a view of every layer except the given ones.

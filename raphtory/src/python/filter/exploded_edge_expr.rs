@@ -12,7 +12,7 @@ use crate::{
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, PyResult, Python};
+use pyo3::{pyclass, pymethods};
 use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 
 /// An exploded-edge filter scoped to a view.
@@ -32,8 +32,8 @@ impl PyExplodedEdgeFilter {
 
 #[pymethods]
 impl PyExplodedEdgeFilter {
-    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        repr::factory(py, "ExplodedEdge", self.0.views())
+    fn __repr__(&self) -> String {
+        repr::factory("ExplodedEdge", self.0.views())
     }
 
     /// Filters an exploded edge property by name.
@@ -174,7 +174,7 @@ impl PyExplodedEdgeFilter {
     /// Returns:
     ///     filter.ExplodedEdgeFilter:
     fn exclude_layer(&self, layer: String) -> PyExplodedEdgeFilter {
-        Self(self.0.clone().exclude_layers([layer]))
+        Self(self.0.clone().exclude_layers(layer))
     }
 
     /// Reads through a view of every layer except the given ones.

@@ -2,77 +2,60 @@
 
 use super::{Agg, EdgeLeaf, ExplodedEdgeLeaf, Expr, Field, FilterExpr, NodeLeaf, ViewOp};
 use crate::db::graph::views::filter::model::filter_operator::{BinaryOp, StringOp};
-use raphtory_api::core::{
-    entities::{Layer, GID},
-    storage::timeindex::AsTime,
-    Direction,
-};
+use raphtory_api::core::{entities::Layer, storage::timeindex::AsTime, Direction};
 use std::fmt::{self, Display};
 
-/// The layer selection as a reader would write it: the names themselves,
-/// `*` for every layer, `none` for no layer.
+/// The layer selection as a reader would write it: `*` for every layer, the
+/// names as a list otherwise, so `[]` is no layer and no name can read as
+/// `*`.
 fn layer_label(layer: &Layer) -> String {
     match layer {
         Layer::All => "*".to_string(),
-        Layer::None => "none".to_string(),
-        Layer::Default => "_default".to_string(),
-        Layer::One(name) => name.to_string(),
-        Layer::Multiple(names) => names
-            .iter()
-            .map(|n| n.to_string())
-            .collect::<Vec<_>>()
-            .join(", "),
+        Layer::None => "[]".to_string(),
+        Layer::Default => "[_default]".to_string(),
+        Layer::One(name) => format!("[{name}]"),
+        Layer::Multiple(names) => list(names.iter()),
     }
 }
 
-/// Node ids as a comma-separated list.
-fn id_list(ids: &[GID]) -> String {
-    ids.iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(", ")
+/// Values as a bracketed, comma-separated list.
+fn list<T: Display>(items: impl Iterator<Item = T>) -> String {
+    format!(
+        "[{}]",
+        items.map(|i| i.to_string()).collect::<Vec<_>>().join(", ")
+    )
 }
 
-/// The aggregate as it is called: `sum`, `avg` and so on.
+/// The aggregate as it reads in an expression: `SUM`, `AVG` and so on.
 impl Display for Agg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Agg::Sum => "sum",
-            Agg::Avg => "avg",
-            Agg::Min => "min",
-            Agg::Max => "max",
-            Agg::First => "first",
-            Agg::Last => "last",
-            Agg::Len => "len",
-            Agg::Earliest => "earliest",
-            Agg::Latest => "latest",
-        })
+        f.write_str(&self.name().to_ascii_uppercase())
     }
 }
 
 impl Display for ViewOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ViewOp::Window { start, end } => write!(f, "WINDOW[{}..{}]", start.t(), end.t()),
-            ViewOp::At(t) => write!(f, "AT[{}]", t.t()),
-            ViewOp::After(t) => write!(f, "AFTER[{}]", t.t()),
-            ViewOp::Before(t) => write!(f, "BEFORE[{}]", t.t()),
+            ViewOp::Window { start, end } => write!(f, "WINDOW({}..{})", start.t(), end.t()),
+            ViewOp::At(t) => write!(f, "AT({})", t.t()),
+            ViewOp::After(t) => write!(f, "AFTER({})", t.t()),
+            ViewOp::Before(t) => write!(f, "BEFORE({})", t.t()),
             ViewOp::Latest => write!(f, "LATEST"),
-            ViewOp::SnapshotAt(t) => write!(f, "SNAPSHOT_AT[{}]", t.t()),
+            ViewOp::SnapshotAt(t) => write!(f, "SNAPSHOT_AT({})", t.t()),
             ViewOp::SnapshotLatest => write!(f, "SNAPSHOT_LATEST"),
-            ViewOp::Layers(layer) => write!(f, "LAYER[{}]", layer_label(layer)),
+            ViewOp::Layers(layer) => write!(f, "LAYER({})", layer_label(layer)),
             ViewOp::DefaultLayer => write!(f, "DEFAULT_LAYER"),
-            ViewOp::ExcludeLayers(layer) => write!(f, "EXCLUDE_LAYER[{}]", layer_label(layer)),
-            ViewOp::ValidLayers(layer) => write!(f, "VALID_LAYER[{}]", layer_label(layer)),
+            ViewOp::ExcludeLayers(layer) => write!(f, "EXCLUDE_LAYER({})", layer_label(layer)),
+            ViewOp::ValidLayers(layer) => write!(f, "VALID_LAYER({})", layer_label(layer)),
             ViewOp::ExcludeValidLayers(layer) => {
-                write!(f, "EXCLUDE_VALID_LAYER[{}]", layer_label(layer))
+                write!(f, "EXCLUDE_VALID_LAYER({})", layer_label(layer))
             }
-            ViewOp::ShrinkStart(t) => write!(f, "SHRINK_START[{}]", t.t()),
-            ViewOp::ShrinkEnd(t) => write!(f, "SHRINK_END[{}]", t.t()),
-            ViewOp::ExcludeNodes(ids) => write!(f, "EXCLUDE_NODES[{}]", id_list(ids)),
-            ViewOp::Subgraph(ids) => write!(f, "SUBGRAPH[{}]", id_list(ids)),
+            ViewOp::ShrinkStart(t) => write!(f, "SHRINK_START({})", t.t()),
+            ViewOp::ShrinkEnd(t) => write!(f, "SHRINK_END({})", t.t()),
+            ViewOp::ExcludeNodes(ids) => write!(f, "EXCLUDE_NODES({})", list(ids.iter())),
+            ViewOp::Subgraph(ids) => write!(f, "SUBGRAPH({})", list(ids.iter())),
             ViewOp::SubgraphNodeTypes(types) => {
-                write!(f, "SUBGRAPH_NODE_TYPES[{}]", types.join(", "))
+                write!(f, "SUBGRAPH_NODE_TYPES({})", list(types.iter()))
             }
             ViewOp::Valid => write!(f, "VALID"),
         }
@@ -177,7 +160,7 @@ impl<L: Display> Display for Expr<L> {
         match self {
             Expr::Const(v) => write!(f, "{v}"),
             Expr::Term(leaf) => write!(f, "{leaf}"),
-            Expr::Agg(agg, e) => write!(f, "{}({e})", agg.to_string().to_uppercase()),
+            Expr::Agg(agg, e) => write!(f, "{agg}({e})"),
             Expr::Cmp(op, l, r) => {
                 let sym = match op {
                     BinaryOp::Eq => "==",
@@ -198,7 +181,7 @@ impl<L: Display> Display for Expr<L> {
                     StringOp::FuzzySearch {
                         levenshtein_distance,
                         prefix_match,
-                    } => format!("FUZZY_SEARCH[{levenshtein_distance}, {prefix_match}]"),
+                    } => format!("FUZZY_SEARCH({levenshtein_distance}, {prefix_match})"),
                 };
                 write!(f, "{l} {name} {r}")
             }
@@ -208,14 +191,7 @@ impl<L: Display> Display for Expr<L> {
                 negated,
             } => {
                 let name = if *negated { "NOT IN" } else { "IN" };
-                write!(f, "{expr} {name} [")?;
-                for (i, value) in values.iter().enumerate() {
-                    if i > 0 {
-                        f.write_str(", ")?;
-                    }
-                    write!(f, "{value}")?;
-                }
-                f.write_str("]")
+                write!(f, "{expr} {name} {}", list(values.iter()))
             }
             Expr::IsSome(e) => write!(f, "IS_SOME({e})"),
             Expr::IsNone(e) => write!(f, "IS_NONE({e})"),
