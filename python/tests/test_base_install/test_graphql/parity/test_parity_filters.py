@@ -450,6 +450,11 @@ VIEW_EXPRS = {
     "view.and_mixed": lambda: f.Graph.window(2, 8)
     & (f.Node.node_type() != "bot")
     & f.Edge.property("weight").is_some(),
+    # A disjunction of two view scopes is their union, and a negated view is
+    # its complement — both narrow, so both belong here rather than among the
+    # expressions that cannot discriminate.
+    "view.or_view": lambda: f.Graph.at(3) | f.Graph.at(5),
+    "view.not_view": lambda: ~f.Graph.layer("knows"),
 }
 
 # View scopes attached to a node or edge predicate rather than to the graph:
@@ -653,9 +658,12 @@ def _baseline(pair, key, probe, reach):
 # (`pred.edge.is_deleted`) — those prove the validity and activity axes really
 # do cross the wire.
 #
-# The last three are a property of the combinator lowering: a disjunction or a
-# negation across two *different* scopes cannot exclude anything, because each
-# branch leaves the other scope unconstrained.
+# The last one is a property of the combinator lowering: a disjunction of a
+# node and an edge predicate cannot exclude anything, because each branch
+# leaves the other entity type unconstrained. Its view counterparts used to
+# belong here too — a disjunction or negation of view scopes returned
+# everything — and now narrow, so they sit in `EXPRS` as `view.or_view` and
+# `view.not_view`.
 _UNIVERSAL_EXPRS = {
     "universal.node.is_active": (
         lambda: f.Node.is_active(),
@@ -677,16 +685,6 @@ _UNIVERSAL_EXPRS = {
         lambda: (f.Node.name() == "iso") | (f.Edge.property("weight") > 3.0),
         "a node OR an edge predicate: each branch leaves the other entity "
         "type unconstrained, so the disjunction admits everything",
-    ),
-    "universal.view_or": (
-        lambda: f.Graph.at(3) | f.Graph.at(5),
-        "a disjunction of two view scopes widens rather than narrows",
-    ),
-    "universal.view_not": (
-        lambda: ~f.Graph.layer("knows"),
-        "negating a view scope does not exclude entities from the result; the "
-        "intended semantics are undecided (#2718), so this pins today's no-op "
-        "rather than endorsing it",
     ),
 }
 

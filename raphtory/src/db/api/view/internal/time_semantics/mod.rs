@@ -10,12 +10,15 @@ mod event_semantics;
 pub mod filtered_edge;
 pub mod filtered_node;
 mod history_filter;
+mod multi_window_time_semantics;
 mod persistent_semantics;
+mod time_ranges;
 mod time_semantics;
 mod time_semantics_ops;
 mod window_time_semantics;
 
 pub use history_filter::*;
+pub use time_ranges::TimeRanges;
 pub use time_semantics::TimeSemantics;
 pub use time_semantics_ops::*;
 

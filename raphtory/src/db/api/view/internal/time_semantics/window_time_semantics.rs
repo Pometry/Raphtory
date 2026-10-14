@@ -1,8 +1,9 @@
 use crate::db::api::view::internal::{
     time_semantics::{
-        base_time_semantics::BaseTimeSemantics, time_semantics_ops::NodeTimeSemanticsOps,
+        base_time_semantics::BaseTimeSemantics,
+        time_semantics_ops::{NodeTimeSemanticsOps, NodeTimeSemanticsWindowOps},
     },
-    EdgeTimeSemanticsOps, GraphView,
+    EdgeTimeSemanticsOps, EdgeTimeSemanticsWindowOps, GraphView,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerId, LayerIds, ELID},
@@ -51,26 +52,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics.node_earliest_time_window(node, view, w)
-    }
-
-    #[inline]
-    fn node_latest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics.node_latest_time_window(node, view, w)
-    }
-
-    #[inline]
     fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -93,29 +74,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn node_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        self.semantics.node_history_window(node, view, layer_ids, w)
-    }
-
-    #[inline]
-    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        self.semantics
-            .node_history_window_rev(node, view, layer_ids, w)
-    }
-
-    #[inline]
     fn node_edge_history_count<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -123,16 +81,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     ) -> usize {
         self.semantics
             .node_edge_history_count_window(node, view, self.window.clone())
-    }
-
-    #[inline]
-    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> usize {
-        self.semantics.node_edge_history_count_window(node, view, w)
     }
 
     #[inline]
@@ -147,17 +95,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        self.semantics
-            .node_edge_history_window(node, view, layer_ids, w)
-    }
-    #[inline]
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -167,17 +104,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics
             .node_edge_history_rev_window(node, view, layer_ids, self.window.clone())
     }
-    #[inline]
-    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        self.semantics
-            .node_edge_history_rev_window(node, view, layer_ids, w)
-    }
+
     #[inline]
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
@@ -190,17 +117,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn node_updates_window<'graph, G: GraphView + 'graph>(
-        self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-        prop_ids: Arc<[usize]>,
-    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        self.semantics.node_updates_window(node, view, w, prop_ids)
-    }
-
-    #[inline]
     fn node_valid<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -208,16 +124,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     ) -> bool {
         self.semantics
             .node_valid_window(node, view, self.window.clone())
-    }
-
-    #[inline]
-    fn node_valid_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics.node_valid_window(node, view, w)
     }
 
     #[inline]
@@ -242,30 +148,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
             .node_tprop_iter_window_rev(node, view, prop_id, self.window.clone())
     }
 
-    #[inline]
-    fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        self.semantics
-            .node_tprop_iter_window(node, view, prop_id, w)
-    }
-
-    #[inline]
-    fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        self.semantics
-            .node_tprop_iter_window_rev(node, view, prop_id, w)
-    }
-
     fn node_tprop_last<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -274,17 +156,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<(EventTime, Prop)> {
         self.semantics
             .node_tprop_last_window(node, view, prop_id, self.window.clone())
-    }
-
-    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> Option<(EventTime, Prop)> {
-        self.semantics
-            .node_tprop_last_window(node, view, prop_id, w)
     }
 
     #[inline]
@@ -297,19 +168,6 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<(EventTime, Prop)> {
         self.semantics
             .node_tprop_last_at_window(node, view, prop_id, t, self.window.clone())
-    }
-
-    #[inline]
-    fn node_tprop_last_at_window<'graph, G: GraphView + 'graph>(
-        &self,
-        node: NodeStorageRef<'graph>,
-        view: G,
-        prop_id: usize,
-        t: EventTime,
-        w: Range<EventTime>,
-    ) -> Option<(EventTime, Prop)> {
-        self.semantics
-            .node_tprop_last_at_window(node, view, prop_id, t, w)
     }
 }
 
@@ -328,31 +186,9 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
             .include_edge_window(edge, view, layer_id, self.window.clone())
     }
 
-    #[inline]
-    fn include_edge_window<G: GraphView>(
-        &self,
-        edge: EdgeEntryRef,
-        view: G,
-        layer_id: LayerId,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics.include_edge_window(edge, view, layer_id, w)
-    }
-
     fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: EventTime, view: G) -> bool {
         self.semantics
             .include_exploded_edge_window(elid, t, view, self.window.clone())
-    }
-
-    fn include_exploded_edge_window<G: GraphView>(
-        &self,
-        elid: ELID,
-        t: EventTime,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics
-            .include_exploded_edge_window(elid, t, view, w)
     }
 
     #[inline]
@@ -378,29 +214,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        edge: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        self.semantics.edge_history_window(edge, view, layer_ids, w)
-    }
-
-    #[inline]
-    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        edge: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        self.semantics
-            .edge_history_window_rev(edge, view, layer_ids, w)
-    }
-
-    #[inline]
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeEntryRef,
@@ -408,16 +221,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> usize {
         self.semantics
             .edge_exploded_count_window(edge, view, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_exploded_count_window<'graph, G: GraphView + 'graph>(
-        &self,
-        edge: EdgeEntryRef,
-        view: G,
-        w: Range<EventTime>,
-    ) -> usize {
-        self.semantics.edge_exploded_count_window(edge, view, w)
     }
 
     #[inline]
@@ -443,28 +246,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_window_exploded<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        self.semantics.edge_window_exploded(e, view, layer_ids, w)
-    }
-
-    #[inline]
-    fn edge_window_layers<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'graph {
-        self.semantics.edge_window_layers(e, view, layer_ids, w)
-    }
-
-    #[inline]
     fn edge_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
@@ -472,16 +253,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<EventTime> {
         self.semantics
             .edge_earliest_time_window(e, view, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_earliest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics.edge_earliest_time_window(e, view, w)
     }
 
     #[inline]
@@ -497,19 +268,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics
-            .edge_exploded_earliest_time_window(e, view, t, layer, w)
-    }
-
-    #[inline]
     fn edge_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
@@ -517,16 +275,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<EventTime> {
         self.semantics
             .edge_latest_time_window(e, view, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_latest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics.edge_latest_time_window(e, view, w)
     }
 
     #[inline]
@@ -539,19 +287,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<EventTime> {
         self.semantics
             .edge_exploded_latest_time_window(e, view, t, layer, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics
-            .edge_exploded_latest_time_window(e, view, t, layer, w)
     }
 
     #[inline]
@@ -577,29 +312,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        self.semantics
-            .edge_deletion_history_window(e, view, layer_ids, w)
-    }
-
-    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
-        self.semantics
-            .edge_deletion_history_window_rev(e, view, layer_ids, w)
-    }
-
-    #[inline]
     fn edge_is_valid<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -607,16 +319,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> bool {
         self.semantics
             .edge_is_valid_window(e, view, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_is_valid_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        r: Range<EventTime>,
-    ) -> bool {
-        self.semantics.edge_is_valid_window(e, view, r)
     }
 
     #[inline]
@@ -630,16 +332,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_is_deleted_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics.edge_is_deleted_window(e, view, w)
-    }
-
-    #[inline]
     fn edge_is_active<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -647,16 +339,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> bool {
         self.semantics
             .edge_is_active_window(e, view, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_is_active_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics.edge_is_active_window(e, view, w)
     }
 
     #[inline]
@@ -672,19 +354,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics
-            .edge_is_active_exploded_window(e, view, t, layer, w)
-    }
-
-    #[inline]
     fn edge_is_valid_exploded<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -697,19 +366,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn edge_is_valid_exploded_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> bool {
-        self.semantics
-            .edge_is_valid_exploded_window(e, view, t, layer, w)
-    }
-
-    #[inline]
     fn edge_exploded_deletion<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -719,19 +375,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<EventTime> {
         self.semantics
             .edge_exploded_deletion_window(e, view, t, layer, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_exploded_deletion_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        t: EventTime,
-        layer: LayerId,
-        w: Range<EventTime>,
-    ) -> Option<EventTime> {
-        self.semantics
-            .edge_exploded_deletion_window(e, view, t, layer, w)
     }
 
     #[inline]
@@ -769,22 +412,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        edge_time: EventTime,
-        layer_id: LayerId,
-        prop_id: usize,
-        at: EventTime,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        self.semantics.temporal_edge_prop_exploded_last_at_window(
-            e, view, edge_time, layer_id, prop_id, at, w,
-        )
-    }
-
-    #[inline]
     fn temporal_edge_prop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -797,19 +424,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn temporal_edge_prop_last_at_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        prop_id: usize,
-        t: EventTime,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        self.semantics
-            .temporal_edge_prop_last_at_window(e, view, prop_id, t, w)
-    }
-
-    #[inline]
     fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -818,18 +432,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<Prop> {
         self.semantics
             .temporal_edge_prop_last_window(e, view, prop_id, self.window.clone())
-    }
-
-    #[inline]
-    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        self.semantics
-            .temporal_edge_prop_last_window(e, view, prop_id, w)
     }
 
     #[inline]
@@ -857,32 +459,6 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn temporal_edge_prop_hist_window<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph {
-        self.semantics
-            .temporal_edge_prop_hist_window(e, view, layer_ids, prop_id, w)
-    }
-
-    #[inline]
-    fn temporal_edge_prop_hist_window_rev<'graph, G: GraphView + 'graph>(
-        self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        layer_ids: &'graph LayerIds,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph {
-        self.semantics
-            .temporal_edge_prop_hist_window_rev(e, view, layer_ids, prop_id, w)
-    }
-
-    #[inline]
     fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,
@@ -891,16 +467,5 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     ) -> Option<Prop> {
         self.semantics
             .edge_metadata_window(e, view, prop_id, self.window.clone())
-    }
-
-    #[inline]
-    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
-        &self,
-        e: EdgeEntryRef<'graph>,
-        view: G,
-        prop_id: usize,
-        w: Range<EventTime>,
-    ) -> Option<Prop> {
-        self.semantics.edge_metadata_window(e, view, prop_id, w)
     }
 }

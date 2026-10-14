@@ -10,6 +10,7 @@ use crate::{
                 not_filter::NotFilter, or_filter::OrFilter, AndFilter, DynCreateFilter, FilterTree,
                 TryAsCompositeFilter,
             },
+            resolved_view::ViewBounds,
             CreateFilter,
         },
     },
@@ -97,5 +98,12 @@ impl CreateFilter for PyFilterExpr {
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         self.0.filter_graph_view(graph)
+    }
+
+    fn view_bounds<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<ViewBounds, GraphError> {
+        self.0.view_bounds(graph)
     }
 }

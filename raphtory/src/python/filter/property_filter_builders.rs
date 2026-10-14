@@ -2,12 +2,13 @@ use crate::{
     db::graph::views::filter::{
         model::{
             edge_filter::EdgeEndpointWrapper,
+            graph_filter::ViewFilter,
             property_filter::{
                 builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
             DynEdgeViewFilterOps, DynEdgeViewProps, DynNodeViewProps, DynPropertyFilterBuilder,
-            DynTemporalPropertyFilterBuilder, DynView, EntityMarker, InternalPropertyFilterBuilder,
+            DynTemporalPropertyFilterBuilder, EntityMarker, InternalPropertyFilterBuilder,
             PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
             ViewWrapOps,
         },
@@ -426,7 +427,7 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
     extends = PyFilterExpr,
     frozen
 )]
-pub struct PyViewFilterBuilder(pub(crate) DynView);
+pub struct PyViewFilterBuilder(pub(crate) ViewFilter);
 
 #[pymethods]
 impl PyViewFilterBuilder {
@@ -467,27 +468,27 @@ impl PyViewFilterBuilder {
 
     /// Evaluates against the latest available state.
     fn latest(&self) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().latest()))
+        PyViewFilterBuilder(self.0.clone().latest())
     }
 
     /// Evaluates against a snapshot of the graph at a specific time.
     fn snapshot_at(&self, time: EventTime) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().snapshot_at(time)))
+        PyViewFilterBuilder(self.0.clone().snapshot_at(time))
     }
 
     /// Evaluates against the most recent snapshot of the graph.
     fn snapshot_latest(&self) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().snapshot_latest()))
+        PyViewFilterBuilder(self.0.clone().snapshot_latest())
     }
 
     /// Restricts evaluation to a single layer.
     fn layer(&self, layer: String) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().layer(layer)))
+        PyViewFilterBuilder(self.0.clone().layer(layer))
     }
 
     /// Restricts evaluation to any of the given layers.
     fn layers(&self, layers: FromIterable<String>) -> PyViewFilterBuilder {
-        PyViewFilterBuilder(Arc::new(self.0.clone().layer(layers)))
+        PyViewFilterBuilder(self.0.clone().layer(layers))
     }
 }
 
@@ -497,7 +498,7 @@ impl<'py> IntoPyObject<'py> for PyViewFilterBuilder {
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let parent = PyFilterExpr(self.0.clone());
+        let parent = PyFilterExpr(Arc::new(self.0.clone()));
         Bound::new(py, (self, parent))
     }
 }

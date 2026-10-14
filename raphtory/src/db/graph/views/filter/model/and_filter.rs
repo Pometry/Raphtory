@@ -1,8 +1,8 @@
 use crate::{
     db::{
         api::{
-            state::ops::{filter::AndOp, NodeFilterOp},
-            view::internal::GraphView,
+            state::ops::{filter::NodeExistsOp, NodeFilterOp, NodeOp},
+            view::internal::{DynGraphArc, GraphView},
         },
         graph::views::filter::{
             and_filtered_graph::AndFilteredGraph,
@@ -12,13 +12,13 @@ use crate::{
                 node_filter::CompositeNodeFilter, ComposableFilter, FilterTree,
                 TryAsCompositeFilter,
             },
+            resolved_view::ViewBounds,
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AndFilter<L, R> {
@@ -35,20 +35,17 @@ impl<L: Display, R: Display> Display for AndFilter<L, R> {
 impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
 impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
+    // Erased because a resolved view becomes one of `WindowedGraph`,
+    // `MultiWindowedGraph`, `LayeredGraph` or the graph itself, and no single
+    // associated type names all four; a graph carrying the resolved
+    // `TimeSemantics` would, see #2776.
     type EntityFiltered<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = AndFilteredGraph<
-        G,
-        L::EntityFiltered<'graph, G, L::FilteredGraph<'graph, F>>,
-        R::EntityFiltered<'graph, G, R::FilteredGraph<'graph, F>>,
-    >
+        = DynGraphArc<'graph>
     where
         Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>
-        = AndOp<
-        L::NodeFilter<'graph, G, L::FilteredGraph<'graph, F>>,
-        R::NodeFilter<'graph, G, R::FilteredGraph<'graph, F>>,
-    >
+        = Arc<dyn NodeOp<Output = bool> + 'graph>
     where
         Self: 'graph;
 
@@ -56,33 +53,52 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         = G
     where
         Self: 'graph,
-        G: GraphViewOps<'graph>;
+        G: GraphView + 'graph;
 
+    // The result is the composed view (left applied, then right), and every
+    // operand is evaluated on it: `filter(V & P)` is `g.view(V).filter(P)`.
+    // A conjunction of views alone is that view, with nothing wrapped around
+    // it.
     fn create_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
-    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError> {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_filter(graph.clone(), l)?;
-        let right = self.right.create_filter(graph.clone(), r)?;
-        Ok(AndFilteredGraph::new(graph, left, right))
+        _filtered: F,
+    ) -> Result<Self::EntityFiltered<'graph, G, F>, GraphError>
+    where
+        Self: 'graph,
+    {
+        let bounds = self.view_bounds(graph.clone())?;
+        let views_only = bounds.is_view_only();
+        let composed = bounds.apply(graph)?;
+        if views_only {
+            return Ok(composed);
+        }
+        let left_scope = self.left.filter_graph_view(composed.clone())?;
+        let right_scope = self.right.filter_graph_view(composed.clone())?;
+        let left = self.left.create_filter(composed.clone(), left_scope)?;
+        let right = self.right.create_filter(composed.clone(), right_scope)?;
+        Ok(Arc::new(AndFilteredGraph::new(composed, left, right)))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph, F: GraphView + 'graph>(
         self,
         graph: G,
-        filtered: F,
+        _filtered: F,
     ) -> Result<Self::NodeFilter<'graph, G, F>, GraphError>
     where
         Self: 'graph,
     {
-        let l = self.left.filter_graph_view(filtered.clone())?;
-        let r = self.right.filter_graph_view(filtered)?;
-        let left = self.left.create_node_filter(graph.clone(), l)?;
-        let right = self.right.create_node_filter(graph, r)?;
-        Ok(left.and(right))
+        let bounds = self.view_bounds(graph.clone())?;
+        let views_only = bounds.is_view_only();
+        let composed = bounds.apply(graph)?;
+        if views_only {
+            return Ok(Arc::new(NodeExistsOp::new(composed)));
+        }
+        let left_scope = self.left.filter_graph_view(composed.clone())?;
+        let right_scope = self.right.filter_graph_view(composed.clone())?;
+        let left = self.left.create_node_filter(composed.clone(), left_scope)?;
+        let right = self.right.create_node_filter(composed, right_scope)?;
+        Ok(Arc::new(left.and(right)))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -93,6 +109,18 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         Self: 'graph,
     {
         Ok(graph)
+    }
+
+    /// Left, then right: `latest()` and `snapshot_at` resolve against the
+    /// graph they are applied to, so the order is part of the meaning.
+    fn view_bounds<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<ViewBounds, GraphError> {
+        let left = self.left.view_bounds(graph.clone())?;
+        let after_left = left.clone().apply(graph.clone())?;
+        let right = self.right.view_bounds(after_left)?;
+        Ok(ViewBounds::and(&left, &right, &graph))
     }
 }
 
