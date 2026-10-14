@@ -117,27 +117,19 @@ pub fn load_edges_from_df_prefetch<
         num_rows,
     } = df_view;
 
-    LOAD_POOL.install(|| {
-        rayon::scope(|s| {
-            let (tx, rx) = mpsc::sync_channel(2);
+    let mut result: Result<(), GraphError> = Ok(());
+    LOAD_POOL.in_place_scope(|s| {
+        let (sender, rx) = mpsc::sync_channel(2);
 
-            s.spawn(move |_| {
-                let sender = tx;
-                for chunk in chunks {
-                    if let Err(e) = sender.send(chunk) {
-                        error!("Error sending chunk to loader: {}", e);
-                        break;
-                    }
-                }
-            });
+        let df_view_prefetch = DFView {
+            names,
+            chunks: rx,
+            num_rows,
+        };
+        let result = &mut result;
 
-            let df_view_prefetch = DFView {
-                names,
-                chunks: rx,
-                num_rows,
-            };
-
-            load_edges_from_df(
+        s.spawn(move |_| {
+            *result = load_edges_from_df(
                 df_view_prefetch,
                 column_names,
                 resolve_nodes,
@@ -147,12 +139,17 @@ pub fn load_edges_from_df_prefetch<
                 layer,
                 graph,
                 delete,
-            )?;
-            Ok::<(), GraphError>(())
-        })?;
+            );
+        });
 
-        Ok(())
-    })
+        for chunk in chunks {
+            if let Err(e) = sender.send(chunk) {
+                error!("Error sending chunk to loader: {}", e);
+                break;
+            }
+        }
+    });
+    result
 }
 
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
