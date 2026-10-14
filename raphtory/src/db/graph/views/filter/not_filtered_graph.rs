@@ -1,13 +1,19 @@
 use crate::{
-    db::api::{
-        properties::internal::{
-            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+    db::{
+        api::{
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
+            view::internal::{
+                GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+                InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+                InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
+            },
         },
-        view::internal::{
-            FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-            InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
+        graph::views::filter::operand::{
+            keeps_edge, keeps_edge_layer, keeps_exploded_edge, keeps_node, restricts_edges,
+            restricts_nodes,
         },
     },
     prelude::GraphViewOps,
@@ -24,10 +30,18 @@ use raphtory_storage::{
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 
+/// The graph keeping what a predicate operand drops; a view operand is refused
+/// before this graph is built.
 #[derive(Debug, Clone)]
 pub struct NotFilteredGraph<G, T> {
     pub(crate) graph: G,
     pub(crate) filter: T,
+}
+
+impl<G, T> NotFilteredGraph<G, T> {
+    pub fn new(graph: G, filter: T) -> Self {
+        Self { graph, filter }
+    }
 }
 
 impl<G, T> Base for NotFilteredGraph<G, T> {
@@ -53,19 +67,19 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for NotFilteredGra
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for NotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for NotFilteredGraph<G, T> {}
 
+/// The complement of an operand: a node or an edge stays when the graph keeps it and
+/// the operand drops it, so a node or an edge that exists in a window or layer operand
+/// goes with all its layers and updates. Only an operand's predicate on layers or on
+/// updates is complemented a layer or an update at a time.
 impl<G: GraphView, T: GraphView> InternalNodeFilterOps for NotFilteredGraph<G, T> {
     fn internal_nodes_filtered(&self) -> bool {
-        self.graph.internal_nodes_filtered() || self.filter.internal_nodes_filtered()
+        self.graph.internal_nodes_filtered() || restricts_nodes(&self.filter)
     }
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.internal_filter_node(node, layer_ids) && {
-            !self.filter.internal_nodes_filtered()
-                || !self
-                    .filter
-                    .internal_filter_node(node, self.filter.layer_ids())
-        }
+        self.graph.internal_filter_node(node, layer_ids)
+            && !(restricts_nodes(&self.filter) && keeps_node(&self.filter, node))
     }
 }
 
@@ -81,10 +95,9 @@ impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalEdgeLayerFilterOps
     }
 
     fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        self.graph.internal_filter_edge_layer(edge, layer) && {
-            !self.filter.internal_edge_layer_filtered()
-                || !self.filter.internal_filter_edge_layer(edge, layer)
-        }
+        self.graph.internal_filter_edge_layer(edge, layer)
+            && !(self.filter.internal_edge_layer_filtered()
+                && keeps_edge_layer(&self.filter, edge, layer))
     }
 }
 
@@ -100,16 +113,10 @@ impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalExplodedEdgeFilterOp
         false
     }
 
-    fn internal_filter_exploded_edge(
-        &self,
-        eid: ELID,
-        t: EventTime,
-        _layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph.filter_exploded_edge(eid, t) && {
-            !self.filter.internal_exploded_edge_filtered()
-                || !self.filter.filter_exploded_edge(eid, t)
-        }
+    fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
+            && !(self.filter.internal_exploded_edge_filtered()
+                && keeps_exploded_edge(&self.filter, eid, t))
     }
 }
 
@@ -118,7 +125,7 @@ impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalEdgeFilterOps
 {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.graph.internal_edge_filtered() || self.filter.internal_edge_filtered()
+        self.graph.internal_edge_filtered() || restricts_edges(&self.filter)
     }
 
     #[inline]
@@ -128,11 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalEdgeFilterOps
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
-        self.graph.internal_filter_edge(edge, layer_ids) && {
-            !self.filter.internal_edge_filtered()
-                || !self
-                    .filter
-                    .internal_filter_edge(edge, self.filter.layer_ids())
-        }
+        self.graph.internal_filter_edge(edge, layer_ids)
+            && !(restricts_edges(&self.filter) && keeps_edge(&self.filter, edge))
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     model::graph::{
         collection::{check_list_allowed, check_page_limit},
-        filtering::{GqlFilter, GqlNodeFilter, PathFromNodeViewCollection},
+        filter_expr_input::GqlFilter,
         history::GqlHistory,
         nested_edges::GqlNestedEdges,
         path_from_node::GqlPathFromNode,
@@ -14,10 +14,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue}
 use raphtory::{
     db::{
         api::view::{filter_ops::Select, DynamicGraph, Filter},
-        graph::{
-            path::PathFromGraph,
-            views::filter::model::{CompositeNodeFilter, DynFilter},
-        },
+        graph::path::PathFromGraph,
     },
     errors::GraphError,
     prelude::*,
@@ -446,55 +443,6 @@ impl GqlPathFromGraph {
         .await)
     }
 
-    /// Takes a specified selection of views and applies them in given order.
-
-    pub async fn apply_views(
-        &self,
-        #[graphql(
-            desc = "Ordered list of view operations; each entry is a one-of variant (`window`, `layer`, `filter`, ...) applied to the running result."
-        )]
-        views: Vec<PathFromNodeViewCollection>,
-    ) -> Result<GqlPathFromGraph, GraphError> {
-        let mut return_view: GqlPathFromGraph = self.clone();
-        for view in views {
-            return_view = match view {
-                PathFromNodeViewCollection::Layers(layers) => return_view.layers(layers).await,
-                PathFromNodeViewCollection::ExcludeLayers(layers) => {
-                    return_view.exclude_layers(layers).await
-                }
-                PathFromNodeViewCollection::ExcludeLayer(layer) => {
-                    return_view.exclude_layer(layer).await
-                }
-                PathFromNodeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
-                }
-                PathFromNodeViewCollection::ShrinkStart(time) => {
-                    return_view.shrink_start(time).await
-                }
-                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                PathFromNodeViewCollection::At(time) => return_view.at(time).await,
-                PathFromNodeViewCollection::SnapshotLatest(apply) => {
-                    if apply {
-                        return_view.snapshot_latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                PathFromNodeViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
-                PathFromNodeViewCollection::Latest(apply) => {
-                    if apply {
-                        return_view.latest().await
-                    } else {
-                        return_view
-                    }
-                }
-                PathFromNodeViewCollection::Before(time) => return_view.before(time).await,
-                PathFromNodeViewCollection::After(time) => return_view.after(time).await,
-            }
-        }
-        Ok(return_view)
-    }
-
     /// Narrow the neighbour set to nodes matching `expr`. The filter sticks to
     /// the returned path — every subsequent traversal (further hops, edges,
     /// properties) continues to see the filtered scope.
@@ -510,8 +458,7 @@ impl GqlPathFromGraph {
     ) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: DynFilter = expr.try_into()?;
-            let filtered = self_clone.nn.filter(filter)?;
+            let filtered = self_clone.nn.filter(expr)?;
             Ok(self_clone.update(filtered.into_dyn()))
         })
         .await
@@ -543,11 +490,10 @@ impl GqlPathFromGraph {
 
     /// Returns the neighbouring nodes reachable one further hop from each source
     /// path (both directions), as a nested `PathFromGraph`.
-    pub async fn neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+    pub async fn neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -555,11 +501,10 @@ impl GqlPathFromGraph {
 
     /// Returns the in-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn in_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+    pub async fn in_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))
@@ -567,11 +512,10 @@ impl GqlPathFromGraph {
 
     /// Returns the out-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn out_neighbours(&self, select: Option<GqlNodeFilter>) -> Result<Self, GraphError> {
+    pub async fn out_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
-            let nf: CompositeNodeFilter = expr.try_into()?;
-            let narrowed = blocking_compute(move || base.select(nf)).await?;
+            let narrowed = blocking_compute(move || base.select(expr)).await?;
             return Ok(GqlPathFromGraph::new(narrowed));
         }
         Ok(GqlPathFromGraph::new(base))

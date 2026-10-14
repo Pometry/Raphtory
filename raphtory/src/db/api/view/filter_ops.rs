@@ -10,14 +10,8 @@ pub trait Filter<'graph>: InternalFilter<'graph> {
     fn filter<F: CreateFilter>(
         &self,
         filter: F,
-    ) -> Result<
-        Self::Filtered<
-            F::EntityFiltered<'graph, Self::Graph, F::FilteredGraph<'graph, Self::Graph>>,
-        >,
-        GraphError,
-    > {
-        let fg = filter.filter_graph_view(self.base_graph().clone())?;
-        Ok(self.apply_filter(filter.create_filter(self.base_graph().clone(), fg)?))
+    ) -> Result<Self::Filtered<F::FilteredGraph<'graph, Self::Graph>>, GraphError> {
+        Ok(self.apply_filter(filter.create_graph_filter(self.base_graph().clone())?))
     }
 }
 
@@ -31,13 +25,10 @@ pub trait Select<'graph>: 'graph {
 
 impl<'graph, T: InternalNodeSelect<'graph> + 'graph> Select<'graph> for T {
     type IterFiltered<Filter: CreateFilter + 'graph> =
-        <T as InternalNodeSelect<'graph>>::IterFiltered<
-            Filter::NodeFilter<'graph, T::IterGraph, Filter::FilteredGraph<'graph, T::IterGraph>>,
-        >;
+        <T as InternalNodeSelect<'graph>>::IterFiltered<Filter::NodeFilter<'graph, T::IterGraph>>;
 
     fn select<F: CreateFilter>(&self, filter: F) -> Result<Self::IterFiltered<F>, GraphError> {
-        let fg = filter.filter_graph_view(self.iter_graph().clone())?;
-        Ok(self.apply_iter_filter(filter.create_node_filter(self.iter_graph().clone(), fg)?))
+        Ok(self.apply_iter_filter(filter.create_node_filter(self.iter_graph().clone())?))
     }
 }
 

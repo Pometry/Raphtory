@@ -8,18 +8,13 @@ use raphtory::{
             },
         },
         graph::views::filter::{
-            model::{
-                node_filter::{ops::NodeFilterOps, NodeFilter},
-                property_filter::ops::PropertyFilterOps,
-                ComposableFilter, PropertyFilterFactory,
-            },
+            model::{ComposableFilter, PropertyExprFactory},
             CreateFilter,
         },
     },
     prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::fmt::Debug;
 use storage::api::node_type_index::NodeTypeIndexOps;
 
 #[test]
@@ -164,16 +159,17 @@ fn type_index_subgraph_matches_scan() {
     assert_eq!(sorted_edges(&persons), [("a".into(), "b".into())]);
 }
 
-fn check_filter_matches_scan<F: CreateFilter + Clone + Debug>(
+fn check_filter_matches_scan<F: CreateFilter + Clone>(
     indexed: &Graph,
     scanned: &Graph,
     filter: F,
+    label: &str,
 ) {
     let i = indexed.filter(filter.clone()).unwrap();
     let s = scanned.filter(filter.clone()).unwrap();
-    assert_eq!(sorted_names(&i), sorted_names(&s), "{filter:?}");
-    assert_eq!(i.count_nodes(), s.count_nodes(), "{filter:?}");
-    assert_eq!(sorted_edges(&i), sorted_edges(&s), "{filter:?}");
+    assert_eq!(sorted_names(&i), sorted_names(&s), "{label}");
+    assert_eq!(i.count_nodes(), s.count_nodes(), "{label}");
+    assert_eq!(sorted_edges(&i), sorted_edges(&s), "{label}");
 
     let mut i_nodes = indexed
         .nodes()
@@ -189,7 +185,7 @@ fn check_filter_matches_scan<F: CreateFilter + Clone + Debug>(
         .collect::<Vec<_>>();
     i_nodes.sort();
     s_nodes.sort();
-    assert_eq!(i_nodes, s_nodes, "{filter:?}");
+    assert_eq!(i_nodes, s_nodes, "{label}");
 }
 
 #[test]
@@ -229,48 +225,69 @@ fn type_index_nodes_type_filter_matches_scan() {
 fn type_index_combined_filters_match_scan() {
     let (indexed, scanned) = typed_graphs();
 
-    check_filter_matches_scan(&indexed, &scanned, NodeFilter::node_type().eq("Person"));
     check_filter_matches_scan(
         &indexed,
         &scanned,
-        NodeFilter::node_type()
+        NodeFilter.node_type().eq("Person"),
+        "node_type == \"Person\"",
+    );
+    check_filter_matches_scan(
+        &indexed,
+        &scanned,
+        NodeFilter
+            .node_type()
             .eq("Person")
             .and(NodeFilter.property("p").gt(1i64)),
+        "node_type == \"Person\" and p > 1",
     );
     check_filter_matches_scan(
         &indexed,
         &scanned,
-        NodeFilter::node_type()
+        NodeFilter
+            .node_type()
             .eq("Person")
             .or(NodeFilter.property("p").gt(3i64)),
+        "node_type == \"Person\" or p > 3",
     );
     check_filter_matches_scan(
         &indexed,
         &scanned,
-        NodeFilter::node_type()
+        NodeFilter
+            .node_type()
             .is_in(["Person", "City"])
-            .or(NodeFilter::name().eq("c")),
+            .or(NodeFilter.name().eq("c")),
+        "node_type in [Person, City] or name == \"c\"",
     );
     check_filter_matches_scan(
         &indexed,
         &scanned,
-        NodeFilter::node_type()
+        NodeFilter
+            .node_type()
             .is_in(["Person", "Company"])
-            .and(NodeFilter::node_type().is_in(["Company", "City"])),
+            .and(NodeFilter.node_type().is_in(["Company", "City"])),
+        "node_type in [Person, Company] and node_type in [Company, City]",
     );
     check_filter_matches_scan(
         &indexed,
         &scanned,
-        NodeFilter::name()
+        NodeFilter
+            .name()
             .is_in(["a", "c", "e"])
-            .and(NodeFilter::node_type().is_in(["Person", "City"])),
+            .and(NodeFilter.node_type().is_in(["Person", "City"])),
+        "name in [a, c, e] and node_type in [Person, City]",
     );
 
-    check_filter_matches_scan(&indexed, &scanned, NodeFilter::node_type().ne("Person"));
     check_filter_matches_scan(
         &indexed,
         &scanned,
-        NodeFilter::node_type().is_in(["_default", "City"]),
+        NodeFilter.node_type().ne("Person"),
+        "node_type != \"Person\"",
+    );
+    check_filter_matches_scan(
+        &indexed,
+        &scanned,
+        NodeFilter.node_type().is_in(["_default", "City"]),
+        "node_type in [_default, City]",
     );
 
     // type filter stacked on a property filtered view must not claim exactness

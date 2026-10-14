@@ -31,8 +31,9 @@ mod test_nodes_filters_cached_view_graph {
         cached_view::{CachedGraphTransformer, WindowedCachedGraphTransformer},
         init_graph, Edges, Nodes,
     };
-    use raphtory::db::graph::views::filter::model::{
-        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+    use raphtory::{
+        db::graph::views::filter::model::{node_filter::NodeFilter, PropertyExprFactory},
+        prelude::EntityExprFilterOps,
     };
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, TestGraphVariants, TestVariants,
@@ -87,8 +88,8 @@ mod test_edges_filter_cached_view_graph {
     use crate::filter_tests::cached_view::{
         CachedGraphTransformer, WindowedCachedGraphTransformer,
     };
-    use raphtory::db::graph::views::filter::model::{
-        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+    use raphtory::{
+        db::graph::views::filter::model::PropertyExprFactory, prelude::EntityExprFilterOps,
     };
 
     use crate::filter_tests::{init_graph, Edges, Nodes};

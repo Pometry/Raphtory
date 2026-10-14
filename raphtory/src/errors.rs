@@ -315,9 +315,6 @@ pub enum GraphError {
     #[error("System time error: {0}")]
     SystemTimeError(#[from] SystemTimeError),
 
-    #[error("Property filtering not implemented on PersistentGraph yet")]
-    PropertyFilteringNotImplemented,
-
     #[error("Expected a {0} for {1} operator")]
     ExpectedValueForOperator(String, String),
 
@@ -327,8 +324,11 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
-    #[error("Node filter expected")]
+    #[error("Expression is not a node filter")]
     NotNodeFilter,
+
+    #[error("Expression is not an edge filter")]
+    NotEdgeFilter,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
@@ -360,9 +360,6 @@ pub enum GraphError {
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
-    #[error("More than one view set within a ViewCollection object - due to limitations in graphql we cannot tell which order to execute these in. Please add these views as individual objects in the order you want them to execute.")]
-    TooManyViewsSet,
-
     #[error("Invalid Value conversion")]
     InvalidValueConversion,
 
@@ -371,15 +368,6 @@ pub enum GraphError {
 
     #[error("Value cannot be empty.")]
     EmptyValue,
-
-    #[error("Filter must contain at least one filter condition.")]
-    ParsingError,
-
-    #[error("Node filter is not supported for edge filtering")]
-    NodeFilterIsNotEdgeFilter,
-
-    #[error("Only property filters are supported for exploded edge filtering")]
-    NotExplodedEdgeFilter,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
@@ -419,6 +407,11 @@ impl From<InvalidNodeId> for GraphError {
 }
 
 impl GraphError {
+    /// A filter the engine can give no meaning to.
+    pub fn invalid_filter(msg: impl Into<String>) -> Self {
+        GraphError::InvalidFilter(msg.into())
+    }
+
     pub fn no_default_layer<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         let valid_layers = graph.unique_layers().join(", ");
         GraphError::NoDefaultLayer { valid_layers }
