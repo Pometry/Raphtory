@@ -190,7 +190,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let pos = self.local_pos();
-        self.writer.add_props(t, pos, layer, props)
+        self.writer.add_props(t, pos, layer, true, props)
     }
 
     fn can_set_type(&self) -> bool {
@@ -696,7 +696,7 @@ impl InternalAdditionOps for TemporalGraph {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, layer_id, props);
+        node_writer.add_props(t, node_pos, layer_id, true, props);
         Ok(node_writer)
     }
 

@@ -63,6 +63,10 @@ where
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     ReadLockedNodeStorage<NS, EXT>
 {
+    pub fn storage(&self) -> &NodeStorageInner<NS, EXT> {
+        &self.storage
+    }
+
     pub fn node_ref(
         &self,
         node: impl Into<VID>,

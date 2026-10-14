@@ -55,7 +55,6 @@ __all__ = [
     "RemoteGraphSchema",
     "RemoteNodeSchema",
     "RemoteLayerSchema",
-    "RemoteEdgeSchema",
     "RemotePropertySchema",
     "RemoteNodeAddition",
     "RemoteUpdate",
@@ -5498,12 +5497,12 @@ class RemoteLayerSchema(object):
         """Return repr(self)."""
 
     @property
-    def edges(self) -> list[RemoteEdgeSchema]:
+    def metadata(self) -> list[RemotePropertySchema]:
         """
-        The edge schemas in this layer, one per `(src_type, dst_type)` pair.
+        The metadata schemas observed on edges in this layer.
 
         Returns:
-            list[RemoteEdgeSchema]: one entry per endpoint-type pair.
+            list[RemotePropertySchema]: one entry per metadata key.
         """
 
     @property
@@ -5515,46 +5514,13 @@ class RemoteLayerSchema(object):
             str: the layer name.
         """
 
-class RemoteEdgeSchema(object):
-    """Schema for edges between a specific `(src_type, dst_type)` pair."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    @property
-    def dst_type(self) -> str:
-        """
-        The node type of the edges' destination endpoint.
-
-        Returns:
-            str: the destination node type.
-        """
-
-    @property
-    def metadata(self) -> list[RemotePropertySchema]:
-        """
-        The metadata schemas observed on these edges.
-
-        Returns:
-            list[RemotePropertySchema]: one entry per metadata key.
-        """
-
     @property
     def properties(self) -> list[RemotePropertySchema]:
         """
-        The temporal property schemas observed on these edges.
+        The temporal property schemas observed on edges in this layer.
 
         Returns:
             list[RemotePropertySchema]: one entry per property key.
-        """
-
-    @property
-    def src_type(self) -> str:
-        """
-        The node type of the edges' source endpoint.
-
-        Returns:
-            str: the source node type.
         """
 
 class RemotePropertySchema(object):

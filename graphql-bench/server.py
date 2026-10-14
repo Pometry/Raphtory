@@ -54,4 +54,4 @@ else:
     del g
 
 logging.info("starting the graphql server on work_dir=data/apache")
-graphql.GraphServer(work_dir="data/apache").run()
+graphql.GraphServer(work_dir="data/apache", config={"logging": {"log_level": "debug"}}).run()

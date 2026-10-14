@@ -155,11 +155,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         t: T,
         pos: LocalPOS,
         layer_id: LayerId,
+        mark: bool,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
         self.graph_stats.update_time(t.t());
 
-        let (is_new_node, add) = self.writer.add_props(t, pos, layer_id, props);
+        let (is_new_node, add) = self.writer.add_props(t, pos, layer_id, mark, props);
         self.writer.increment_est_size(add);
 
         if is_new_node && !self.segment.has_node(pos, layer_id) {
@@ -187,21 +188,23 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         pos: LocalPOS,
         layer_id: LayerId,
+        mark: bool,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        self.update_c_props_inner(pos, layer_id, props, |layer_id| {
+        self.update_c_props_inner(pos, layer_id, props, mark, |layer_id| {
             self.graph_stats.increment(layer_id);
         });
     }
 
-    pub(crate) fn update_c_props_inner<P: AsPropRef>(
+    pub fn update_c_props_inner<P: AsPropRef>(
         &mut self,
         pos: LocalPOS,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
+        mark: bool,
         mut layer_counter: impl FnMut(LayerId),
     ) {
-        let (is_new_node, add) = self.writer.update_metadata(pos, layer_id, props);
+        let (is_new_node, add) = self.writer.update_metadata(pos, layer_id, props, mark);
         self.writer.increment_est_size(add);
         if is_new_node && !self.segment.has_node(pos, layer_id) {
             layer_counter(layer_id);
@@ -236,6 +239,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(
             pos,
             STATIC_GRAPH_LAYER_ID,
+            false,
             node_info_as_props(gid, node_type),
         );
     }
@@ -247,7 +251,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         };
 
         let props = [(NODE_ID_PROP_ID, gid)];
-        self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
+        self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, false, props);
     }
 
     pub fn store_node_type(&mut self, pos: LocalPOS, node_type: usize) {
@@ -256,7 +260,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
 
         let props = [(NODE_TYPE_PROP_ID, Prop::U64(node_type as u64))];
-        self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
+        self.update_c_props(pos, STATIC_GRAPH_LAYER_ID, false, props);
     }
 
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID) {

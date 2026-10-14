@@ -237,4 +237,28 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     fn metadata_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         EdgeRefOps::c_prop(self, layer_id, prop_id)
     }
+
+    // Layer-skip override: drop layers where we know the property isn't present
+    fn temporal_prop_iter(
+        self,
+        layer_ids: &'a LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
+        let meta = EdgeRefOps::edge_meta(&self);
+        self.layer_ids_iter(layer_ids)
+            .filter(move |&layer_id| meta.temporal_layer_has(layer_id, prop_id))
+            .map(move |id| (id, EdgeStorageOps::temporal_prop_layer(self, id, prop_id)))
+    }
+
+    // Layer-skip override: drop layers where we know the property isn't present
+    fn metadata_iter(
+        self,
+        layer_ids: &'a LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
+        let meta = EdgeRefOps::edge_meta(&self);
+        self.layer_ids_iter(layer_ids)
+            .filter(move |&layer_id| meta.metadata_layer_has(layer_id, prop_id))
+            .filter_map(move |id| Some((id, EdgeStorageOps::metadata_layer(self, id, prop_id)?)))
+    }
 }

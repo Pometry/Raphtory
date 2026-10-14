@@ -184,8 +184,8 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                 drop(mapper);
 
                 let mut mapper = match prop_type {
-                    PropType::Temporal => meta.temporal_prop_mapper().write_locked(),
-                    PropType::Constant => meta.metadata_mapper().write_locked(),
+                    PropType::Temporal => meta.temporal_prop_mapper().write_locked_mappers(),
+                    PropType::Constant => meta.metadata_mapper().write_locked_mappers(),
                 };
 
                 // Revalidate prop types
