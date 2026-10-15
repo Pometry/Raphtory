@@ -327,6 +327,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         )
     }
 
+    /// Write-lock the segments created since `pages` was taken and append them,
+    /// keeping the locks `pages` already holds.
+    pub fn lock_new_segments<'a>(&'a self, pages: &mut WriteLockedNodePages<'a, NS>) {
+        for segment_id in pages.len()..self.segments.count() {
+            let page = self.get_or_create_segment(segment_id);
+            pages.push(LockedNodePage::new(
+                segment_id,
+                &self.stats,
+                self.max_segment_len(),
+                page.as_ref(),
+                page.head_mut(),
+            ));
+        }
+    }
+
     pub fn reserve_vid(&self, row: usize) -> VID {
         let (seg, pos) = self.reserve_free_pos(row);
         pos.as_vid(seg, self.max_segment_len())

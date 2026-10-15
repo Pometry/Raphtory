@@ -144,9 +144,7 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             Ok::<_, GraphError>(())
         })?;
 
-        drop(write_locked_graph);
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        write_locked_graph.lock_new_segments();
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(

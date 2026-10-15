@@ -456,18 +456,29 @@ where
         self.graph
     }
 
+    /// Write-lock the node and edge segments created since this graph was locked
+    /// (e.g. by node or edge resolution), keeping the locks already held.
+    pub fn lock_new_segments(&mut self) {
+        self.graph
+            .storage
+            .nodes()
+            .lock_new_segments(&mut self.nodes);
+        self.graph
+            .storage
+            .edges()
+            .lock_new_segments(&mut self.edges);
+    }
+
     pub fn resize_segments_to_vid(&mut self, vid: VID) {
         let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
         self.graph.storage().nodes().grow(segment_id + 1);
-        std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked();
+        self.lock_new_segments();
     }
 
     pub fn resize_segments_to_eid(&mut self, eid: EID) {
         let (segment_id, _) = self.graph.storage.edges().resolve_pos(eid);
         self.graph.storage().edges().grow(segment_id + 1);
-        std::mem::take(&mut self.edges);
-        self.edges = self.graph.storage.edges().write_locked();
+        self.lock_new_segments();
     }
 
     pub fn edge_stats(&self) -> &Arc<GraphStats> {

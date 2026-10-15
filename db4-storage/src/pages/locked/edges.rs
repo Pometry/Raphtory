@@ -145,6 +145,12 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         self.writers.len()
     }
 
+    /// Append the page for the next segment; pages are indexed by segment id.
+    pub fn push(&mut self, page: LockedEdgePage<'a, ES>) {
+        assert_eq!(page.page_id(), self.writers.len());
+        self.writers.push(page);
+    }
+
     pub fn is_empty(&self) -> bool {
         self.writers.is_empty()
     }
