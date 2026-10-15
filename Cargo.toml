@@ -19,6 +19,8 @@ members = [
     "raphtory-graphql-tests",
     "raphtory-rdf",
     "raphtory-rdf-tests"
+    "raphtory-graphql-tests",
+    "raphtory-vectors",
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -69,6 +71,7 @@ raphtory-api = { version = "0.18.0", path = "raphtory-api", default-features = f
 raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", default-features = false }
 raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
+raphtory-vectors = { version = "0.18.0", path = "raphtory-vectors", default-features = false }
 raphtory-rdf = { version = "0.18.0", path = "raphtory-rdf", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }

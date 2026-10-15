@@ -16,9 +16,9 @@ use std::{path::PathBuf, thread, time::Duration};
 #[cfg(feature = "vectors")]
 use {
     pyo3::exceptions::PyAttributeError,
-    raphtory::{
-        python::packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
-        vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    raphtory_vectors::{
+        python::{PyOpenAIEmbeddings, TemplateConfig},
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
     },
 };
 

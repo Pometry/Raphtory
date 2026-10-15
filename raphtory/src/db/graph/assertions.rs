@@ -2,7 +2,10 @@ use crate::{
     db::{
         api::{
             state::ops::NodeFilterOp,
-            view::{internal::GraphView, time::internal::InternalTimeOps},
+            view::{
+                internal::{DynGraphArc, GraphView},
+                time::internal::InternalTimeOps,
+            },
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
@@ -15,7 +18,14 @@ use std::{
     fmt::Write,
     hint::black_box,
     ops::Deref,
+    sync::Arc,
 };
+
+/// Type-erase a graph view so the large assertion bodies below are compiled once
+/// (for `DynGraphArc`) rather than once per concrete view type at every call site.
+fn erase<'graph, G: GraphViewOps<'graph>>(g: &G) -> DynGraphArc<'graph> {
+    Arc::new(g.clone())
+}
 
 fn normalise_temporal_map<T: AsTime + Copy>(
     map: &HashMap<ArcStr, Vec<(T, Prop)>>,
@@ -530,9 +540,9 @@ pub fn assert_edges_equal_layer<
 }
 
 #[track_caller]
-fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
-    g1: &G1,
-    g2: &G2,
+fn assert_graph_equal_layer<'graph>(
+    g1: &DynGraphArc<'graph>,
+    g2: &DynGraphArc<'graph>,
     layer: Option<&str>,
     persistent: bool,
     only_timestamps: bool,
@@ -611,9 +621,9 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
 }
 
 #[track_caller]
-fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
-    g1: &G1,
-    g2: &G2,
+fn assert_graph_equal_inner<'graph>(
+    g1: &DynGraphArc<'graph>,
+    g2: &DynGraphArc<'graph>,
     persistent: bool,
     only_timestamps: bool,
 ) {
@@ -631,10 +641,14 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
 
         left_layers.par_iter().for_each(|layer| {
             assert_graph_equal_layer(
-                &g1.layers(layer.deref())
-                    .unwrap_or_else(|_| panic!("Left graph missing layer {layer})")),
-                &g2.layers(layer.deref())
-                    .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
+                &erase(
+                    &g1.layers(layer.deref())
+                        .unwrap_or_else(|_| panic!("Left graph missing layer {layer})")),
+                ),
+                &erase(
+                    &g2.layers(layer.deref())
+                        .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
+                ),
                 Some(layer),
                 persistent,
                 only_timestamps,
@@ -648,14 +662,14 @@ pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'gr
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_inner(g1, g2, false, false)
+    assert_graph_equal_inner(&erase(g1), &erase(g2), false, false)
 }
 
 pub fn assert_graph_equal_timestamps<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_inner(g1, g2, false, true)
+    assert_graph_equal_inner(&erase(g1), &erase(g2), false, true)
 }
 
 /// Equality check for materialized persistent graph that ignores the
@@ -669,5 +683,5 @@ pub fn assert_persistent_materialize_graph_equal<
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_inner(g1, g2, true, false)
+    assert_graph_equal_inner(&erase(g1), &erase(g2), true, false)
 }

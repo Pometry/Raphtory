@@ -96,9 +96,6 @@ pub mod python;
 #[cfg(feature = "io")]
 pub mod graph_loader;
 
-#[cfg(feature = "vectors")]
-pub mod vectors;
-
 #[cfg(feature = "io")]
 pub mod io;
 

@@ -52,6 +52,10 @@ impl Meta {
             .zip(self.layer_mapper.all_keys())
     }
 
+    pub fn all_layer_ids(&self) -> impl Iterator<Item = LayerId> + use<'_> {
+        self.layer_mapper.all_ids().map(LayerId)
+    }
+
     pub fn set_metadata_mapper(&mut self, meta: PropMapper) {
         self.metadata_mapper = meta;
     }
