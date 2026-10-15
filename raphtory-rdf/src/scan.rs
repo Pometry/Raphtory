@@ -9,9 +9,6 @@ use raphtory::{
 use raphtory_api::core::entities::VID;
 use std::iter;
 
-/// The `(edge, layer)` pairs visible in `view`, each an edge exploded into one layer, whose
-/// source is `subject`, whose layer is named `layer` and whose destination is `object` (`None`
-/// matches any).
 pub(crate) fn matching(
     view: &DynamicGraph,
     subject: Option<VID>,

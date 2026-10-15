@@ -6889,13 +6889,11 @@ name = "raphtory-rdf"
 version = "0.18.0"
 dependencies = [
  "chrono",
- "dashmap",
  "indexmap 2.14.0",
  "itertools 0.15.0",
  "oxigraph",
  "oxiri 0.2.11",
  "percent-encoding",
- "prefixmap",
  "proptest",
  "pyo3",
  "raphtory",
@@ -6920,7 +6918,7 @@ dependencies = [
  "raphtory",
  "raphtory-rdf",
  "rudof_rdf",
- "rustc-hash",
+ "shacl",
  "spargebra",
  "url",
 ]

@@ -1,5 +1,4 @@
-//! The limits of [`SparqlOptions`](crate::SparqlOptions): the length and size of a query, and
-//! the size of its results.
+//! The limits of [`SparqlOptions`](crate::SparqlOptions).
 use crate::{
     algebra::{walk, Node},
     RdfError,
@@ -10,7 +9,6 @@ use spargebra::{
 };
 use std::io::{self, Write};
 
-/// Fails with [`RdfError::QueryTooLong`] if `query` is longer than `max` bytes.
 pub(crate) fn check_query_length(query: &str, max: Option<usize>) -> Result<(), RdfError> {
     match max.filter(|&max| query.len() > max) {
         Some(max) => Err(RdfError::QueryTooLong {
@@ -21,12 +19,8 @@ pub(crate) fn check_query_length(query: &str, max: Option<usize>) -> Result<(), 
     }
 }
 
-/// How many rows of `VALUES` count as much as a triple pattern (see [`count_triple_patterns`]).
 pub(crate) const VALUES_ROWS_PER_PATTERN: usize = 100;
 
-/// The size of `query` as [`with_max_triple_patterns`] counts it.
-///
-/// [`with_max_triple_patterns`]: crate::SparqlOptions::with_max_triple_patterns
 pub(crate) fn count_triple_patterns(query: &Query) -> usize {
     let mut count = 0usize;
     walk(query, |node| {
@@ -50,8 +44,6 @@ pub(crate) fn count_triple_patterns(query: &Query) -> usize {
     count
 }
 
-/// Fails with [`RdfError::TooManyPatterns`] if `query` counts more than `max` (see
-/// [`count_triple_patterns`]).
 pub(crate) fn check_triple_patterns(query: &Query, max: Option<usize>) -> Result<(), RdfError> {
     let Some(max) = max else {
         return Ok(());
@@ -64,7 +56,6 @@ pub(crate) fn check_triple_patterns(query: &Query, max: Option<usize>) -> Result
     }
 }
 
-/// A writer that refuses a write that would take it past `max` bytes.
 pub(crate) struct Capped<W> {
     inner: W,
     max: Option<usize>,
@@ -82,12 +73,7 @@ impl<W: Write> Capped<W> {
         }
     }
 
-    pub(crate) fn into_inner(self) -> W {
-        self.inner
-    }
-
-    /// `result` of writing to this writer, or [`RdfError::ResultsTooLarge`] if a write was
-    /// refused, whatever error the refusal became.
+    // a refused write surfaces as whatever error the serializer made of it
     pub(crate) fn check<T>(&self, result: Result<T, RdfError>) -> Result<T, RdfError> {
         match self.max {
             Some(max) if self.exceeded => Err(RdfError::ResultsTooLarge { max }),

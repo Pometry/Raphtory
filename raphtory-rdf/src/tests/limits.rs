@@ -11,7 +11,6 @@ fn graph() -> RdfGraph {
     g.into()
 }
 
-/// Where the query nests too deep, if it does.
 fn too_deep(query: &str) -> Option<(usize, usize)> {
     match graph().sparql(query, &SparqlOptions::default()) {
         Err(RdfError::SparqlTooDeep { max, line, column }) => {
@@ -22,12 +21,10 @@ fn too_deep(query: &str) -> Option<(usize, usize)> {
     }
 }
 
-/// Queries whose brackets nest `depth` deep in total, one for each kind of bracket and for the
-/// constructs that recurse most per bracket.
+// one per kind of bracket and per construct that recurses most per bracket
 fn nested(depth: usize) -> Vec<String> {
     let n = depth - 1; // the brackets of the query itself
     vec![
-        // expressions
         format!(
             "ASK {{ FILTER({}1{}) }}",
             "(".repeat(n - 1),
@@ -38,7 +35,6 @@ fn nested(depth: usize) -> Vec<String> {
             "STR(".repeat(n - 1),
             ")".repeat(n - 1)
         ),
-        // group patterns, OPTIONAL and sub-queries
         format!("ASK {{ {} ?s ?p ?o {} }}", "{".repeat(n), "}".repeat(n)),
         format!(
             "ASK {{ ?s ?p ?o {} }}",
@@ -49,14 +45,12 @@ fn nested(depth: usize) -> Vec<String> {
             "{ SELECT * WHERE ".repeat(n - 1),
             "}".repeat(n - 1)
         ),
-        // blank node property lists, collections and paths
         format!("ASK {{ ?s ?p {}1{} }}", "[ ?p ".repeat(n), " ]".repeat(n)),
         format!("ASK {{ ?s ?p {}1{} }}", "(".repeat(n), ")".repeat(n)),
         format!("ASK {{ ?s {}a{} ?o }}", "(".repeat(n), ")".repeat(n)),
     ]
 }
 
-/// Queries nest up to `MAX_SPARQL_NESTING`, and deeper ones fail before they are parsed.
 #[test]
 fn queries_can_nest_up_to_the_limit() {
     for query in nested(MAX_SPARQL_NESTING) {
@@ -85,7 +79,6 @@ fn queries_can_nest_up_to_the_limit() {
     assert_eq!(too_deep(&query), Some((3, 142)));
 }
 
-/// The nesting scan skips brackets in strings, comments and escaped names, and no others.
 #[test]
 fn every_reading_of_the_query_is_checked() {
     let hiding = |deep: &str| {
@@ -157,7 +150,6 @@ fn every_reading_of_the_query_is_checked() {
     }
 }
 
-/// A long flat query runs on a stack sized to it, whatever the stack of the caller.
 #[test]
 fn long_flat_queries_run_on_a_sparql_stack() {
     // about 9,000 nested unions
@@ -175,7 +167,6 @@ fn long_flat_queries_run_on_a_sparql_stack() {
     }
 }
 
-/// A panic on the query's stack is an error of the query.
 #[test]
 fn a_panic_is_an_error() {
     let result = on_query_stack("ASK {}", || -> Result<(), RdfError> { panic!("boom") });

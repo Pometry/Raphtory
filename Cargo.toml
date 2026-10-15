@@ -18,8 +18,7 @@ members = [
     "drop-logging",
     "raphtory-graphql-tests",
     "raphtory-rdf",
-    "raphtory-rdf-tests"
-    "raphtory-graphql-tests",
+    "raphtory-rdf-tests",
     "raphtory-vectors",
 ]
 default-members = ["raphtory"]
@@ -222,7 +221,6 @@ percent-encoding = "2.3"
 # SPARQL-capable store).
 shacl = { version = "=0.3.24", default-features = false }
 rudof_rdf = { version = "=0.3.24", default-features = false }
-prefixmap = { version = "=0.3.24", default-features = false }
 rudof_iri = { version = "=0.3.24", default-features = false }
 
 [workspace.dependencies.storage]

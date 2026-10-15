@@ -31,9 +31,8 @@ pub struct RdfGraphQuery<'a>(&'a QueryRoot);
 
 #[ExpandObjectFields]
 impl<'a> RdfGraphQuery<'a> {
-    /// Returns a stored graph, event or persistent, viewed as RDF with persistent semantics:
-    /// one triple per edge and layer (source, layer, destination), where a retraction is a
-    /// deletion. Null if the caller cannot read the graph.
+    /// A stored graph, event or persistent, viewed as RDF with persistent semantics.
+    /// Null if the caller cannot read the graph.
     async fn rdf_graph(
         ctx: &Context<'_>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
@@ -46,10 +45,8 @@ impl<'a> RdfGraphQuery<'a> {
     }
 }
 
-/// A graph viewed as RDF, with persistent semantics: one triple per visible edge and layer
-/// (source, layer, destination). Every view field returns an RDF view, and the RDF fields see
-/// exactly the triples of the view: under `valid` the current state, under `at(time: T)` the
-/// state as of T, and on the whole graph every triple ever asserted or retracted.
+/// A graph viewed as RDF: one triple per visible edge and layer (source, layer, destination).
+/// The RDF fields see exactly the triples of the view.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "RdfGraph")]
 pub struct GqlRdfGraph {
@@ -242,13 +239,8 @@ impl GqlRdfGraph {
         self.graph.clone()
     }
 
-    /// Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
-    /// and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
-    /// `before(time: T + 1) { valid }` of the view. Queries longer than the server's
-    /// `max_sparql_query_length`, with more than `max_sparql_triple_patterns` triple patterns or
-    /// with brackets nested too deep are rejected before they run, and results larger than
-    /// `max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold the results, such as a
-    /// triple whose predicate does not end in an XML name. Null if the query fails unexpectedly.
+    /// Runs a SPARQL 1.1 query on the triples of this view and returns the serialized results.
+    /// The server's `max_sparql_*` settings bound it; null if the query fails unexpectedly.
     async fn sparql(
         &self,
         ctx: &Context<'_>,
@@ -266,9 +258,8 @@ impl GqlRdfGraph {
         .await
     }
 
-    /// Validates the triples of this view against a SHACL shapes graph and returns the W3C
-    /// `sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-    /// are rejected. Null if the validation fails unexpectedly.
+    /// Validates the triples of this view against SHACL shapes and returns the report.
+    /// Recursive shapes are rejected; null if the validation fails unexpectedly.
     async fn validate_shacl(
         &self,
         ctx: &Context<'_>,
@@ -357,7 +348,6 @@ mod tests {
     use serde_json::{json, Value as Json};
     use tempfile::TempDir;
 
-    /// `pg` holds [`people`], `eg` the same events as an event graph.
     fn graphs() -> Vec<(&'static str, MaterializedGraph)> {
         vec![
             ("pg", people().into()),
@@ -369,7 +359,6 @@ mod tests {
         setup_with_graphs(&graphs(), work_dir.path()).await.schema
     }
 
-    /// A schema whose server has the concurrency configuration `config`.
     async fn setup_with_config(work_dir: &TempDir, config: ConcurrencyConfig) -> Schema {
         let data = setup_with_graphs(&graphs(), work_dir.path()).await.data;
         App::create_schema()
@@ -379,7 +368,6 @@ mod tests {
             .unwrap()
     }
 
-    /// The data of `document` with `variables`, or its first error.
     async fn execute(
         schema: &Schema,
         document: &str,
@@ -393,7 +381,6 @@ mod tests {
         }
     }
 
-    /// The results of `query` on `rdfGraph(path: "pg") { valid { .. } }`.
     async fn sparql(schema: &Schema, query: &str) -> Result<String, ServerError> {
         let document =
             r#"query Q($q: String!) { rdfGraph(path: "pg") { valid { sparql(query: $q) } } }"#;

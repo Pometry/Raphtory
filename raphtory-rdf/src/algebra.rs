@@ -6,7 +6,6 @@ use spargebra::{
     Query,
 };
 
-/// A node of the algebra of a query.
 #[derive(Clone, Copy)]
 pub(crate) enum Node<'a> {
     Pattern(&'a GraphPattern),
@@ -14,13 +13,7 @@ pub(crate) enum Node<'a> {
     Path(&'a PropertyPathExpression),
 }
 
-/// Calls `visit` on the pattern of `query` (not the `CONSTRUCT` template) and every pattern,
-/// expression and property path inside it (`EXISTS` and sub-queries included), each before its
-/// children. Children are visited in the order of the algebra, which is not always the order of
-/// the query text: a `FILTER`'s expression comes before the pattern it filters, an `OPTIONAL`'s
-/// filter after both sides, and the aggregates of a `GROUP BY` after the pattern they group.
-///
-/// It walks with its own stack, so a query of any length needs little of the thread's stack.
+// iterative, so a query of any length needs little thread stack; children in algebra order
 pub(crate) fn walk<'a>(query: &'a Query, mut visit: impl FnMut(Node<'a>)) {
     let (Query::Select { pattern, .. }
     | Query::Ask { pattern, .. }
@@ -40,7 +33,6 @@ pub(crate) fn walk<'a>(query: &'a Query, mut visit: impl FnMut(Node<'a>)) {
     }
 }
 
-/// Pushes the children of `pattern` onto `stack`, in algebra order.
 fn push_pattern_children<'a>(pattern: &'a GraphPattern, stack: &mut Vec<Node<'a>>) {
     match pattern {
         GraphPattern::Bgp { .. } | GraphPattern::Values { .. } => {}
@@ -95,7 +87,6 @@ fn push_pattern_children<'a>(pattern: &'a GraphPattern, stack: &mut Vec<Node<'a>
     }
 }
 
-/// Pushes the children of `expression` onto `stack`, in algebra order.
 fn push_expression_children<'a>(expression: &'a Expression, stack: &mut Vec<Node<'a>>) {
     match expression {
         Expression::NamedNode(_)
@@ -133,7 +124,6 @@ fn push_expression_children<'a>(expression: &'a Expression, stack: &mut Vec<Node
     }
 }
 
-/// Pushes the children of `path` onto `stack`, in algebra order.
 fn push_path_children<'a>(path: &'a PropertyPathExpression, stack: &mut Vec<Node<'a>>) {
     match path {
         PropertyPathExpression::NamedNode(_) | PropertyPathExpression::NegatedPropertySet(_) => {}

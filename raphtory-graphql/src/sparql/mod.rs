@@ -12,7 +12,6 @@ use crate::{
 use raphtory_rdf::{RdfError, SparqlOptions};
 use thiserror::Error;
 
-/// Why an RDF field failed. The messages are the errors of the GraphQL fields.
 #[derive(Debug, Error)]
 pub(crate) enum SparqlError {
     #[error("{}{}", .0, limit_setting(.0))]
@@ -30,7 +29,6 @@ impl SparqlError {
     }
 }
 
-/// The server setting that limits a query, for the message of `error`.
 fn limit_setting(error: &RdfError) -> &'static str {
     match error {
         RdfError::QueryTooLong { .. } => " (`max_sparql_query_length`)",
@@ -40,8 +38,6 @@ fn limit_setting(error: &RdfError) -> &'static str {
     }
 }
 
-/// Runs `f` on the compute pool with the SPARQL options of `config` (the defaults if the server
-/// sets none). A panic gives `None`.
 pub(crate) async fn run_limited<T: Send + 'static>(
     config: Option<&ConcurrencyConfig>,
     f: impl FnOnce(&SparqlOptions) -> Result<T, RdfError> + Send + 'static,

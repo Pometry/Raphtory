@@ -21,8 +21,8 @@ raphtory = { workspace = true, features = ["panic-on-drop"] }
 raphtory-rdf = { workspace = true, optional = true }
 oxigraph = { workspace = true, optional = true }
 spargebra = { workspace = true, optional = true }
-rustc-hash = { workspace = true, optional = true }
 rudof_rdf = { workspace = true, optional = true }
+shacl = { workspace = true, optional = true }
 
 [dev-dependencies]
 url = { workspace = true }
@@ -33,7 +33,7 @@ rdf = [
     "dep:oxigraph",
     "dep:spargebra",
     "dep:rudof_rdf",
-    "dep:rustc-hash",
+    "dep:shacl",
 ]
 
 # The W3C SPARQL and Turtle test suites (test-suites/rdf-tests).

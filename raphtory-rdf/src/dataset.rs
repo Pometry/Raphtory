@@ -1,6 +1,6 @@
 //! The SPARQL dataset of a graph view.
 use crate::{
-    mapping::{layer_name_of, layer_term, name_of, term_of},
+    mapping::{iri_of, layer_name_of, name_of, term_of},
     scan::matching,
     time_graph::TimeGraph,
     RdfError,
@@ -27,38 +27,18 @@ use std::{
     sync::Arc,
 };
 
-/// Maximum number of entries in the per-dataset cache of internal terms.
 const CACHE_CAP: usize = 1 << 20;
 
-/// The internal form of an RDF term while a SPARQL query runs on a [`RaphtoryDataset`].
-///
-/// Every RDF term has exactly one internal value, so equality of internal terms is SPARQL
-/// `sameTerm`. In order of precedence, a term is:
-/// 1. [`Node`](RdfTerm::Node) if it is the term ([`term_of`]) of a node of the view,
-/// 2. otherwise [`Layer`](RdfTerm::Layer) if it is the term ([`layer_term`]) of a layer of the
-///    view,
-/// 3. otherwise [`TimeGraph`](RdfTerm::TimeGraph) if it is an IRI under
-///    [`ASOF_NS`](crate::ASOF_NS). One whose time does not parse is an error,
-///    [`RdfError::InvalidTimeGraph`], which aborts the query,
-/// 4. otherwise [`Other`](RdfTerm::Other).
-///
-/// So a predicate IRI that is also a node's term is the `Node` in every position, and the two
-/// join.
+// one internal value per term, so equality is sameTerm; a node's term is Node even as a predicate
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum RdfTerm {
-    /// A node of the view. Its RDF term is `term_of(node_name)`.
     Node(NodeTerm),
-    /// A layer whose term is not also the term of a node. Its RDF term is
-    /// `layer_term(layer_name)`.
     Layer(ArcStr),
-    /// A time graph `<raphtory:asof:T>`. Its RDF term is its IRI, as written in the query.
     TimeGraph(Arc<TimeGraph>),
-    /// A term that names neither a node nor a layer of the view nor a time graph, for example
-    /// a constant of the query that is not in the data.
     Other(Term),
 }
 
-/// A node of the view; equal to the same node read from any view of the graph.
+// compared by id, so equal to the same node read from any view of the graph
 #[derive(Clone)]
 pub(crate) struct NodeTerm(pub(crate) NodeView<'static, DynamicGraph>);
 
@@ -88,34 +68,18 @@ impl fmt::Debug for NodeTerm {
     }
 }
 
-/// A graph view as a SPARQL dataset, for use with an [`evaluator`](crate::query::evaluator)
-/// (`evaluator().for_query(parse(q)?).on_queryable_dataset(RaphtoryDataset::new(view))`).
-///
-/// - The default graph holds one triple per `(edge, layer)` pair visible in the view:
-///   `term_of(src) layer_term(layer) term_of(dst)`.
-/// - The only named graphs are the time graphs ([`TimeGraph`]).
-/// - Generalized triples (literal subject, or non-IRI layer term) are matched like any other.
-///   `CONSTRUCT` drops them, and `DESCRIBE` can be incomplete on such views.
-///
-/// A dataset is meant for one query.
+// the memo keeps its first answer for each term, so a dataset is meant for one query
 pub(crate) struct RaphtoryDataset {
     inner: Rc<Inner>,
-    /// The time graphs `GRAPH ?g` visits when `?g` is unbound.
     named: Vec<Arc<TimeGraph>>,
 }
 
-/// What the scans of a [`RaphtoryDataset`] share with it.
 struct Inner {
-    /// The caller's view.
     base: DynamicGraph,
-    /// `internalize_term`, memoised (up to [`CACHE_CAP`] entries).
     memo: RefCell<FxHashMap<Term, RdfTerm>>,
-    /// The predicate term of each layer read so far.
     predicates: RefCell<FxHashMap<Option<LayerId>, RdfTerm>>,
 }
 
-/// The bound terms of a quad pattern, resolved: the subject and object nodes and the layer of
-/// the predicate (`None`: unbound).
 struct Bound {
     subject: Option<VID>,
     layer: Option<ArcStr>,
@@ -123,7 +87,6 @@ struct Bound {
 }
 
 impl RaphtoryDataset {
-    /// Builds the dataset of `view`, listing no time graph.
     pub(crate) fn new(base: DynamicGraph) -> Self {
         Self {
             inner: Rc::new(Inner {
@@ -135,15 +98,11 @@ impl RaphtoryDataset {
         }
     }
 
-    /// Lists `graphs` as the named graphs `GRAPH ?g { .. }` visits with `?g` unbound when the
-    /// query has no `FROM NAMED`. Unlisted time graphs still match when named explicitly.
     pub(crate) fn with_time_graphs(mut self, graphs: Vec<TimeGraph>) -> Self {
         self.named = graphs.into_iter().map(Arc::new).collect();
         self
     }
 
-    /// The bound terms of a pattern, or `None` if it can match nothing: a bound subject or
-    /// object must be a node, and a bound predicate a layer.
     fn bind(
         subject: Option<&RdfTerm>,
         predicate: Option<&RdfTerm>,
@@ -165,7 +124,6 @@ impl RaphtoryDataset {
         })
     }
 
-    /// The quads matching a pattern in the default graph (`graph = None`) or in a time graph.
     fn scan(&self, bound: &Bound, graph: Option<&Arc<TimeGraph>>) -> QuadIter {
         let view = match graph {
             None => self.inner.base.clone(),
@@ -178,7 +136,6 @@ impl RaphtoryDataset {
         }
     }
 
-    /// The quads matching a pattern: one scan per graph it reads.
     fn quads(
         &self,
         subject: Option<&RdfTerm>,
@@ -192,9 +149,8 @@ impl RaphtoryDataset {
         match graph_name {
             Some(None) => vec![self.scan(&bound, None)],
             Some(Some(RdfTerm::TimeGraph(graph))) => vec![self.scan(&bound, Some(graph))],
-            // Other named graphs are never stored.
             Some(Some(_)) => Vec::new(),
-            // Every named graph: time graphs cannot be enumerated, so the listed ones.
+            // time graphs cannot be enumerated
             None => self
                 .named
                 .iter()
@@ -231,17 +187,16 @@ impl Inner {
                 return Ok(RdfTerm::TimeGraph(Arc::new(graph)));
             }
         }
-        // Unknown terms are accepted: they are constants or computed values of the query.
+        // constants or computed values of the query
         Ok(RdfTerm::Other(term.clone()))
     }
 
-    /// The predicate term of the layer of `edge`, so the internal value of its term.
     fn predicate(&self, edge: &EdgeView<DynamicGraph>) -> Result<RdfTerm, RdfError> {
         let layer = edge.edge.layer();
         if let Some(predicate) = self.predicates.borrow().get(&layer) {
             return Ok(predicate.clone());
         }
-        let predicate = self.internalize(layer_term(&edge.layer_name()?))?;
+        let predicate = self.internalize(iri_of(&edge.layer_name()?).into())?;
         self.predicates
             .borrow_mut()
             .insert(layer, predicate.clone());
@@ -256,7 +211,6 @@ fn node_of(term: &RdfTerm) -> Option<VID> {
     }
 }
 
-/// The layer a bound predicate stands for, if any.
 fn layer_of(predicate: &RdfTerm) -> Option<ArcStr> {
     match predicate {
         RdfTerm::Layer(layer) => Some(layer.clone()),
@@ -265,7 +219,6 @@ fn layer_of(predicate: &RdfTerm) -> Option<ArcStr> {
     }
 }
 
-/// Turns the matching `(edge, layer)` pairs into quads. Owns everything it uses.
 struct QuadIter {
     edges: BoxedIter<EdgeView<DynamicGraph>>,
     dataset: Rc<Inner>,
@@ -302,7 +255,6 @@ impl<'a> QueryableDataset<'a> for RaphtoryDataset {
             .flatten()
     }
 
-    /// The listed time graphs: time graphs cannot be enumerated.
     fn internal_named_graphs(&self) -> impl Iterator<Item = Result<RdfTerm, RdfError>> + use<'a> {
         let graphs: Vec<_> = self
             .named
@@ -312,7 +264,6 @@ impl<'a> QueryableDataset<'a> for RaphtoryDataset {
         graphs.into_iter()
     }
 
-    /// Every time graph exists (it may be empty); no other named graph does.
     fn contains_internal_graph_name(&self, graph_name: &RdfTerm) -> Result<bool, RdfError> {
         Ok(matches!(graph_name, RdfTerm::TimeGraph(_)))
     }
@@ -324,7 +275,7 @@ impl<'a> QueryableDataset<'a> for RaphtoryDataset {
     fn externalize_term(&self, term: RdfTerm) -> Result<Term, RdfError> {
         Ok(match term {
             RdfTerm::Node(node) => term_of(&node.0.name()),
-            RdfTerm::Layer(layer) => layer_term(&layer),
+            RdfTerm::Layer(layer) => iri_of(&layer).into(),
             RdfTerm::TimeGraph(graph) => graph.iri.clone().into(),
             RdfTerm::Other(t) => t,
         })

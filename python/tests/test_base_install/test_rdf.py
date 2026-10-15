@@ -42,12 +42,12 @@ def test_wrapping_a_graph_shares_its_storage():
     rg = RdfGraph(g)
     assert rg.sparql("ASK { raphtory:Alice raphtory:knows raphtory:Bob }") is True
 
-    rg.add_triple(2, A, P, B)
+    rg.add_triple(2, A, "_:p", B)
     assert g.has_edge(A, B)
     # the values of sparql() are the names add_triple and retract_triple take
     row = rg.sparql(f"SELECT ?s ?p ?o {{ ?s ?p ?o FILTER(?s = <{A}>) }}")[0]
     rg.retract_triple(3, row["s"], row["p"], row["o"])
-    assert rg.valid().sparql(f"ASK {{ <{A}> <{P}> <{B}> }}") is False
+    assert rg.valid().sparql(f"ASK {{ <{A}> ?p <{B}> }}") is False
 
     assert isinstance(rg.graph, PersistentGraph)
     assert rg.graph.has_edge("Alice", "Bob")
@@ -118,13 +118,11 @@ def test_views():
         rg.exclude_nodes(["http://ex/b"]),
         rg.cache_view(),
         rg.window(15, 35),
-        rg.layers(["http%3A%2F%2Fex%2Fq"]),
+        rg.layers(["http://ex/q"]),
         rg.filter(filter.Node.name() != "http://ex/b"),
     ]
     assert all(isinstance(view, RdfView) for view in views)
-    assert rg.layers(["http%3A%2F%2Fex%2Fq"]).sparql("SELECT ?o { ?s ?p ?o }") == [
-        {"o": C}
-    ]
+    assert rg.layers(["http://ex/q"]).sparql("SELECT ?o { ?s ?p ?o }") == [{"o": C}]
 
 
 def test_to_rdf(tmp_path):

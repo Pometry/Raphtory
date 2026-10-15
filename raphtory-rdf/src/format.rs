@@ -26,9 +26,7 @@ pub enum RdfFormat {
 }
 
 impl RdfFormat {
-    /// Parses a format from a file extension, a name or a media type, such as `"ttl"`, `".ttl"`,
-    /// `"turtle"`, `"text/turtle"`, `"nt"`, `"n-triples"`, `"nq"`, `"trig"`, `"rdf"`, `"xml"`,
-    /// `"jsonld"` or `"n3"` (case-insensitive). Fails with [`RdfError::UnknownFormat`].
+    /// Parses a file extension, name or media type such as `ttl`, `turtle` or `text/turtle`.
     pub fn parse(s: &str) -> Result<Self, RdfError> {
         let t = s.trim();
         let t = t.strip_prefix('.').unwrap_or(t);
@@ -38,26 +36,21 @@ impl RdfFormat {
             .ok_or_else(|| RdfError::UnknownFormat(s.to_owned()))
     }
 
-    /// The format named by the extension of a file, read as [`parse`](Self::parse) reads a
-    /// name. Fails with [`RdfError::NoPathFormat`] if the path has no extension or one that
-    /// names no format.
+    /// The format the extension of a file names.
     pub fn from_path(path: &Path) -> Result<Self, RdfError> {
         path.extension()
             .and_then(|extension| Self::parse(extension.to_str()?).ok())
             .ok_or_else(|| RdfError::NoPathFormat(path.to_owned()))
     }
 
-    /// The format of a file extension such as `ttl`, `nt`, `rdf` or `jsonld`
-    /// (case-insensitive), or `None` if it names none.
+    /// The format of a file extension such as `ttl` (case-insensitive).
     pub fn from_extension(extension: &str) -> Option<Self> {
         OxRdfFormat::from_extension(extension).and_then(Self::from_oxigraph)
     }
 
-    /// The format of a media type such as `text/turtle` or
-    /// `application/n-triples; charset=utf-8` (case-insensitive), or `None` if it names none.
+    /// The format of a media type such as `text/turtle` (case-insensitive).
     pub fn from_media_type(media_type: &str) -> Option<Self> {
-        // oxigraph panics on a parameter whose value is a lone `"` (it strips the quotes of
-        // `profile="…"` by slicing)
+        // oxigraph panics on a parameter whose value is a lone `"`
         let lone_quote = media_type.split(';').skip(1).any(|parameter| {
             parameter
                 .split_once('=')
@@ -127,14 +120,12 @@ pub enum QueryResultsFormat {
 }
 
 impl QueryResultsFormat {
-    /// The format of a file extension such as `srj`, `srx`, `csv` or `tsv`
-    /// (case-insensitive), or `None` if it names none.
+    /// The format of a file extension such as `srj` (case-insensitive).
     pub fn from_extension(extension: &str) -> Option<Self> {
         OxQueryResultsFormat::from_extension(extension).and_then(Self::from_oxigraph)
     }
 
-    /// The format of a media type such as `application/sparql-results+json` or `text/csv`
-    /// (case-insensitive), or `None` if it names none.
+    /// The format of a media type such as `text/csv` (case-insensitive).
     pub fn from_media_type(media_type: &str) -> Option<Self> {
         OxQueryResultsFormat::from_media_type(media_type).and_then(Self::from_oxigraph)
     }

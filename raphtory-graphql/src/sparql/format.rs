@@ -45,7 +45,6 @@ impl GqlSparqlFormat {
         Self::N3,
     ];
 
-    /// The name of the format, as [`SparqlFormat::parse`] and [`RdfFormat::parse`] read it.
     fn name(self) -> &'static str {
         match self {
             Self::Json => "json",
@@ -70,7 +69,6 @@ impl GqlSparqlFormat {
         RdfFormat::parse(self.name())
     }
 
-    /// The value that names `format` for the results of a query of `form`.
     pub(crate) fn naming(form: QueryForm, format: SparqlFormat) -> Option<Self> {
         Self::ALL.into_iter().find(|name| {
             name.sparql_format().is_ok_and(|named| {
@@ -89,7 +87,6 @@ mod tests {
     use super::GqlSparqlFormat;
     use raphtory_rdf::{QueryForm, QueryResultsFormat, RdfFormat, SparqlFormat};
 
-    /// Every format the endpoint can choose has a value that names it.
     #[test]
     fn every_format_has_a_value() {
         let named = |form, format: SparqlFormat| {

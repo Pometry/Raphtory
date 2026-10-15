@@ -1,6 +1,5 @@
-//! The W3C SPARQL 1.0/1.1 query evaluation and Turtle evaluation tests (test-suites/rdf-tests)
-//! run on `RdfGraph`. Skipped: named graphs (`qt:graphData`, `FROM`, `FROM NAMED`), which
-//! Raphtory does not store, and the syntax and CSV serialization tests.
+//! The W3C SPARQL 1.0/1.1 query and Turtle evaluation tests (test-suites/rdf-tests) on `RdfGraph`,
+//! skipping named graphs (Raphtory does not store them) and the syntax and CSV serialization tests.
 use oxigraph::{
     io::{RdfFormat as OxRdfFormat, RdfParser},
     model::{
@@ -327,8 +326,7 @@ fn compare(
     Err(format!("expected\n{expected}\ngot\n{actual}").into())
 }
 
-/// Each solution is its own blank node, not linked to a common one, or canonicalization would
-/// permute all the solutions that look alike.
+// each solution is its own blank node, or canonicalization would permute alike solutions
 fn canonical(results: SparqlResults, lax: bool, ordered: bool) -> Graph {
     let set = iri(RS, "ResultSet");
     let triples = match results {

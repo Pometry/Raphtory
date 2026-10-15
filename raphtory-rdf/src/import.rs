@@ -1,8 +1,4 @@
-//! Writing RDF triples to a graph: one edge event per triple.
-//!
-//! Asserting `s p o` at `t` is `add_edge(t, name(s), name(o), NO_PROPS, Some(layer(p)))` and
-//! retracting it is `delete_edge(t, name(s), name(o), Some(layer(p)))`, where `name` is
-//! [`name_of`] and `layer` is [`layer_name_of`].
+//! Writing RDF triples to a graph: one `add_edge` or `delete_edge` event per triple.
 use crate::{
     mapping::{is_rdf11_term, layer_name_of, name_of},
     RdfError, RdfFormat,
@@ -15,9 +11,6 @@ use raphtory::{errors::GraphError, prelude::*};
 use raphtory_api::core::utils::time::InputTime;
 use std::{fs::File, io::Read, path::Path};
 
-/// Why a term cannot be stored: an RDF 1.2 term ([`RdfError::Rdf12Term`]) or an IRI under
-/// [`RESERVED_NS`](crate::RESERVED_NS) that does not encode a name
-/// ([`RdfError::NonCanonicalTerm`]).
 fn unstorable(t: TermRef<'_>) -> RdfError {
     if is_rdf11_term(t) {
         RdfError::NonCanonicalTerm(t.to_string())
@@ -26,28 +19,14 @@ fn unstorable(t: TermRef<'_>) -> RdfError {
     }
 }
 
-/// The node name of a term, or why it cannot be stored.
 fn name(t: TermRef<'_>) -> Result<String, RdfError> {
     name_of(t).ok_or_else(|| unstorable(t))
 }
 
-/// The printable characters that Windows or Unix do not allow in file names.
-const UNSAFE_LAYER_CHARS: [char; 9] = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
-
-/// The layer name of a predicate, or why it cannot be stored.
 fn layer(t: TermRef<'_>) -> Result<String, RdfError> {
-    let name = layer_name_of(t).ok_or_else(|| unstorable(t))?;
-    // only `<raphtory:..>` predicates can decode to these; escaped IRIs never do
-    if name.trim().is_empty()
-        || name.contains(|c: char| c.is_control() || UNSAFE_LAYER_CHARS.contains(&c))
-    {
-        return Err(RdfError::UnsafeLayerName(t.to_string()));
-    }
-    Ok(name)
+    layer_name_of(t).ok_or_else(|| unstorable(t))
 }
 
-/// Writes one triple event: an assertion (`add_edge`) or a retraction (`delete_edge`).
-/// Blank-node labels are used as written.
 pub(crate) fn write_triple<G: AdditionOps + DeletionOps>(
     g: &G,
     time: InputTime,
@@ -65,11 +44,6 @@ pub(crate) fn write_triple<G: AdditionOps + DeletionOps>(
     Ok(())
 }
 
-/// Asserts (or retracts) every triple of an RDF document at `time`, in document order, and
-/// returns the number of triples read.
-///
-/// When asserting, blank nodes are renamed to fresh random labels; when retracting, labels are
-/// used as written. Not atomic: triples before an error stay in the graph.
 pub(crate) fn read_document<G: AdditionOps + DeletionOps>(
     g: &G,
     time: InputTime,
@@ -86,7 +60,7 @@ pub(crate) fn read_document<G: AdditionOps + DeletionOps>(
         parser = parser.with_base_iri(base_iri).map_err(RdfError::from)?;
     }
     let mut count = 0;
-    // The parsers buffer their input themselves.
+    // the parsers buffer their input themselves
     for quad in parser.for_reader(data) {
         let quad = quad.map_err(RdfError::from)?;
         let triple = quad.as_ref().into();
@@ -96,8 +70,6 @@ pub(crate) fn read_document<G: AdditionOps + DeletionOps>(
     Ok(count)
 }
 
-/// Opens the RDF document at `path` for reading, with its format: `format`, else the one its
-/// extension names ([`RdfFormat::from_path`]).
 pub(crate) fn open_document(
     path: &Path,
     format: Option<RdfFormat>,

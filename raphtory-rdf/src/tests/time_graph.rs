@@ -1,6 +1,6 @@
 //! Time graphs `<raphtory:asof:T>`.
 use super::{
-    ask, layer_of, select,
+    ask, select,
     temporal::{assert_at, nt, retract_at, spo, O, O2, P, Q, S, SPO},
 };
 use crate::{
@@ -14,12 +14,10 @@ use raphtory::{
 };
 use std::{collections::BTreeSet, fmt::Display};
 
-/// The IRI of the time graph `T`, in SPARQL (and N-Triples) form.
 fn asof(t: impl Display) -> String {
     format!("<{ASOF_NS}{t}>")
 }
 
-/// The triples of the time graph `T` of the view, read with `GRAPH`.
 fn in_graph<G: StaticGraphViewOps + IntoDynamic>(
     view: &RdfView<G>,
     t: impl Display,
@@ -66,8 +64,6 @@ fn query_outlines() {
     ));
 }
 
-/// The time graphs a query names are the constant IRIs under `raphtory:asof:` written anywhere
-/// in it.
 #[test]
 fn time_graphs_named_by_a_query() {
     let named = |query: &str| -> BTreeSet<String> {
@@ -144,7 +140,6 @@ fn time_graphs_named_by_a_query() {
     );
 }
 
-/// A time graph of a view is `view.before(T + 1).valid()`.
 #[test]
 fn time_graphs_are_valid_before() {
     let rg = RdfGraph::new();
@@ -158,7 +153,6 @@ fn time_graphs_are_valid_before() {
     assert_eq!(in_graph(&rg.window(15, 35), 60), BTreeSet::from([sqo]));
 }
 
-/// Time graphs keep the layer and node filters of the view.
 #[test]
 fn time_graphs_of_other_views() {
     let rg = RdfGraph::new();
@@ -167,7 +161,7 @@ fn time_graphs_of_other_views() {
     assert_at(&rg, 1, [O, P, O2]);
     retract_at(&rg, 3, SPO);
     assert_eq!(
-        in_graph(&rg.layers(layer_of(P)).unwrap(), 2),
+        in_graph(&rg.layers(P).unwrap(), 2),
         BTreeSet::from([nt(SPO), nt([O, P, O2])])
     );
     assert_eq!(
@@ -176,8 +170,6 @@ fn time_graphs_of_other_views() {
     );
 }
 
-/// Each spelling of an instant is its own time graph, named as written, with the same triples;
-/// every time graph exists, and a time that does not parse is an error.
 #[test]
 fn spellings_of_an_instant() {
     let rg = RdfGraph::new();

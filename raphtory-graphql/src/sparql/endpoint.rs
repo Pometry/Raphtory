@@ -1,14 +1,5 @@
-//! The SPARQL 1.1 Protocol endpoint: `/sparql/<graph path>` answers a SPARQL query by executing
-//! it, with the request's `Authorization` header, on the GraphQL endpoint as the `sparql` field
-//! of `rdfGraph(path:)`, so it gets the same permission checks, access filters and limits.
-//!
-//! The query runs on `valid` of the graph, the current state, unless it reads a time graph
-//! `<raphtory:asof:T>` ([`QueryOutline::reads_time_graphs`]): then it runs on the whole graph,
-//! since a time graph already holds the state at its time. `asof=T` runs it on
-//! `before(time: T + 1) { valid }`.
-//!
-//! The query is parsed, to choose the view and the format, before the GraphQL endpoint
-//! authenticates the request.
+//! The SPARQL 1.1 Protocol endpoint `/sparql/<graph path>`: it runs the query as the `sparql`
+//! field of `rdfGraph(path:)` on the GraphQL endpoint, with the same permission checks and limits.
 use crate::{
     auth::AuthenticatedGraphQL,
     paths::PathValidationError,
@@ -35,12 +26,11 @@ use url::form_urlencoded;
 
 const ALLOWED: &str = "GET, POST, OPTIONS";
 
-/// The GraphQL request the endpoint runs: the `sparql` field of `rdfGraph(path:)` under `views`.
 const QUERY: &str = "query SparqlEndpoint($path: String!, $views: [GraphViewCollection!]!, \
                      $query: String!, $format: SparqlFormat!) { rdfGraph(path: $path) { \
                      applyViews(views: $views) { sparql(query: $query, format: $format) } } }";
 
-/// The accepted media types with their q values, best first; `*/*` when the header is missing.
+// poem's `Accept` is sorted best first
 fn media_ranges(accept: &[Mime]) -> Vec<(&str, f32)> {
     if accept.is_empty() {
         return vec![("*/*", 1.0)];
@@ -61,7 +51,6 @@ fn media_ranges(accept: &[Mime]) -> Vec<(&str, f32)> {
         .collect()
 }
 
-/// Why a protocol request failed. The response is the message as plain text.
 #[derive(Debug, Error)]
 enum EndpointError {
     #[error("the request has more than one `{0}`")]
@@ -81,11 +70,9 @@ enum EndpointError {
     Query(SparqlError),
     #[error("the Accept header allows no format of {} results", .0.name())]
     NotAcceptable(QueryForm),
-    /// The status and the messages of the errors of the GraphQL request.
     #[error("{1}")]
     GraphQL(StatusCode, String),
-    /// A graph that does not exist or that the caller cannot read; the two are
-    /// indistinguishable.
+    // also a graph the caller cannot read, so the two are indistinguishable
     #[error(transparent)]
     GraphNotFound(PathValidationError),
     #[error("the SPARQL endpoint answers GET and POST requests")]
@@ -127,7 +114,7 @@ impl Params {
         match name {
             "query" => once(&mut self.query, "query", value)?,
             "asof" => once(&mut self.asof, "asof", value)?,
-            // other parameters (such as the `format` and `output` of some clients) are ignored
+            // such as the `format` and `output` of some clients
             _ => {}
         }
         Ok(())
@@ -141,15 +128,12 @@ impl Params {
     }
 }
 
-/// The SPARQL 1.1 Protocol endpoint for the graphs of a server.
 pub(crate) struct SparqlEndpoint<E> {
     graphql: Arc<AuthenticatedGraphQL<E>>,
     options: SparqlOptions,
 }
 
 impl<E> SparqlEndpoint<E> {
-    /// An endpoint that executes queries on `graphql`, the GraphQL endpoint of the server, whose
-    /// SPARQL queries run with `options`.
     pub(crate) fn new(graphql: Arc<AuthenticatedGraphQL<E>>, options: SparqlOptions) -> Self {
         Self { graphql, options }
     }
@@ -210,6 +194,7 @@ impl<E: Executor> SparqlEndpoint<E> {
             .map(TimeGraph::parse_time)
             .transpose()
             .map_err(EndpointError::InvalidAsof)?;
+        // parsed before the GraphQL endpoint authenticates, to choose the view and the format
         let (parsed, options) = (query.clone(), self.options.clone());
         let outline = blocking_compute(move || QueryOutline::parse(&parsed, &options))
             .await
@@ -222,6 +207,7 @@ impl<E: Executor> SparqlEndpoint<E> {
                 })
                 .ok_or(EndpointError::NotAcceptable(outline.form))?;
 
+        // the current state, or the whole graph for a query reading time graphs (they hold theirs)
         let views = match asof {
             Some(time) => json!([{ "before": time.saturating_add(1) }, { "valid": true }]),
             None if outline.reads_time_graphs => json!([]),

@@ -7277,9 +7277,8 @@ type QueryRoot {
 		path: String!
 	): VectorisedGraph
 	"""
-	Returns a stored graph, event or persistent, viewed as RDF with persistent semantics:
-	one triple per edge and layer (source, layer, destination), where a retraction is a
-	deletion. Null if the caller cannot read the graph.
+	A stored graph, event or persistent, viewed as RDF with persistent semantics.
+	Null if the caller cannot read the graph.
 	"""
 	rdfGraph(
 		"""
@@ -7290,10 +7289,8 @@ type QueryRoot {
 }
 
 """
-A graph viewed as RDF, with persistent semantics: one triple per visible edge and layer
-(source, layer, destination). Every view field returns an RDF view, and the RDF fields see
-exactly the triples of the view: under `valid` the current state, under `at(time: T)` the
-state as of T, and on the whole graph every triple ever asserted or retracted.
+A graph viewed as RDF: one triple per visible edge and layer (source, layer, destination).
+The RDF fields see exactly the triples of the view.
 """
 type RdfGraph {
 	"""
@@ -7498,13 +7495,8 @@ type RdfGraph {
 	"""
 	graph: Graph!
 	"""
-	Runs a SPARQL 1.1 query (SELECT, ASK, CONSTRUCT or DESCRIBE) on the triples of this view
-	and returns the results as one serialized document. `GRAPH <raphtory:asof:T>` matches
-	`before(time: T + 1) { valid }` of the view. Queries longer than the server's
-	`max_sparql_query_length`, with more than `max_sparql_triple_patterns` triple patterns or
-	with brackets nested too deep are rejected before they run, and results larger than
-	`max_sparql_result_bytes` fail. RDF/XML fails when it cannot hold the results, such as a
-	triple whose predicate does not end in an XML name. Null if the query fails unexpectedly.
+	Runs a SPARQL 1.1 query on the triples of this view and returns the serialized results.
+	The server's `max_sparql_*` settings bound it; null if the query fails unexpectedly.
 	"""
 	sparql(
 		"""
@@ -7517,9 +7509,8 @@ type RdfGraph {
 		format: SparqlFormat
 	): String
 	"""
-	Validates the triples of this view against a SHACL shapes graph and returns the W3C
-	`sh:ValidationReport`, with RDF terms. Recursive shapes (a shape that refers to itself)
-	are rejected. Null if the validation fails unexpectedly.
+	Validates the triples of this view against SHACL shapes and returns the report.
+	Recursive shapes are rejected; null if the validation fails unexpectedly.
 	"""
 	validateShacl(
 		"""

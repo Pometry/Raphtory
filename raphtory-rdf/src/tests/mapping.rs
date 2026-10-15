@@ -1,6 +1,6 @@
 //! The name <-> term bijections (node names and layer names).
 use crate::{
-    mapping::{layer_name_of, layer_term},
+    mapping::{iri_of, layer_name_of},
     name_of, term_of, Literal, NamedNode, RdfFormat, Term, Triple, RESERVED_NS,
 };
 use oxigraph::{
@@ -27,8 +27,6 @@ fn assert_round_trip(name: &str) {
     assert_parses_back(&term);
 }
 
-/// Every term `term_of` produces can be written in N-Triples and Turtle (as an object, and as
-/// a subject or predicate where RDF allows) and read back by the parsers `load_rdf` uses.
 fn assert_parses_back(term: &Term) {
     let s = NamedNode::new_unchecked("http://ex/s");
     let p = NamedNode::new_unchecked("http://ex/p");
@@ -75,7 +73,6 @@ fn names() -> impl Strategy<Value = String> {
 
 fn canonical_terms() -> impl Strategy<Value = Term> {
     prop_oneof![
-        // absolute IRIs not under the reserved namespace
         "[a-z][a-z0-9+.-]{0,5}:[a-zA-Z0-9/:@._~-]{0,12}".prop_filter_map("valid IRI", |s| {
             (!s.starts_with(RESERVED_NS))
                 .then(|| NamedNode::new(s).ok().map(Term::from))
@@ -83,13 +80,10 @@ fn canonical_terms() -> impl Strategy<Value = Term> {
         }),
         "http://ex/\\PC{0,8}"
             .prop_filter_map("valid IRI", |s| NamedNode::new(s).ok().map(Term::from)),
-        // canonical terms under the reserved namespace
         any::<String>().prop_map(|n| term_of(&n)),
-        // blank nodes
         "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,8}"
             .prop_filter_map("valid label", |s| BlankNode::new(s).ok().map(Term::from)),
         any::<u128>().prop_map(|id| BlankNode::new_from_unique_id(id).into()),
-        // literals
         any::<String>().prop_map(|v| Literal::new_simple_literal(v).into()),
         "[\\\\\"\n\r\t\u{8}\u{c}\u{0}\u{7f}a-z]{0,6}"
             .prop_map(|v| Literal::new_simple_literal(v).into()),
@@ -121,13 +115,11 @@ fn canonical_terms() -> impl Strategy<Value = Term> {
 }
 
 proptest! {
-    /// `name_of(term_of(n)) == Some(n)` for any string.
     #[test]
     fn name_term_name_round_trip(name in names()) {
         assert_round_trip(&name);
     }
 
-    /// `term_of(name_of(t)) == t` for canonical terms.
     #[test]
     fn term_name_term_round_trip(term in canonical_terms()) {
         let name = name_of(term.as_ref());
@@ -137,102 +129,61 @@ proptest! {
     }
 }
 
-/// The printable characters and NUL that Windows or Unix do not allow in file names.
-const PATH_UNSAFE: [char; 10] = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0'];
-
 fn assert_layer_round_trip(name: &str) {
-    let term = layer_term(name);
+    let predicate = iri_of(name);
     assert_eq!(
-        layer_name_of(term.as_ref()).as_deref(),
+        layer_name_of(predicate.as_ref().into()).as_deref(),
         Some(name),
-        "layer {name:?} -> term {term}"
+        "layer {name:?} -> {predicate}"
     );
-    if let Term::NamedNode(n) = &term {
-        assert!(NamedNode::new(n.as_str()).is_ok(), "invalid IRI {n}");
-        if !n.as_str().starts_with(RESERVED_NS) {
-            assert!(
-                !name.contains(PATH_UNSAFE),
-                "layer name {name:?} of {n} is not path safe"
-            );
-        }
-    }
-    if !name.contains(['/', '%', ':', '?', '*']) || name.starts_with('"') || name.starts_with("_:")
-    {
-        assert_eq!(term, term_of(name), "{name:?} changed term");
-    }
-    assert_parses_back(&term);
+    assert!(
+        NamedNode::new(predicate.as_str()).is_ok(),
+        "invalid IRI {predicate}"
+    );
+    assert_parses_back(&predicate.into());
 }
 
-/// Names that are, or are close to, escaped IRIs.
-fn layer_names() -> impl Strategy<Value = String> {
-    prop_oneof![
-        names(),
-        "[a-z]{1,4}(:|%3A|%3a)([a-z0-9:?*@._~ ]|%2F|%25|%3A|%3F|%2A|%2f|%3a|%3f|%2a|%20|%41|%2|%3|%|/|\\\\){0,8}",
-        "raphtory(:|%3A)([a-z]|%2F|%25|%3A|%3F|%2A|/|:|\\?|\\*){0,6}",
-        layer_iris().prop_map(|iri| layer_name_of(iri.as_ref().into()).unwrap()),
-    ]
-}
-
-/// IRIs not under the reserved namespace, including ones with `?`, `*`, `%2F`, `%25`, `%3A` and
-/// other escapes.
 fn layer_iris() -> impl Strategy<Value = NamedNode> {
-    prop_oneof![
-        "[a-z][a-z0-9+.-]{0,5}:[a-zA-Z0-9/:?*@._~-]{0,12}",
-        "http://ex/([a-z/:?*]|%2F|%25|%3A|%3F|%2A|%2f|%3a|%3f|%2a|%41|%20){0,8}",
-        "http://ex/\\PC{0,8}",
-        "urn:[a-z]{0,4}(%2[5FA]|%3[AF]){0,3}",
-    ]
-    .prop_filter_map("valid IRI", |s| {
-        (!s.starts_with(RESERVED_NS))
-            .then(|| NamedNode::new(s).ok())
-            .flatten()
-    })
+    "[a-z][a-z0-9+.-]{0,5}:[a-zA-Z0-9/:?*@%._~-]{0,12}|http://ex/\\PC{0,8}".prop_filter_map(
+        "valid IRI",
+        |s| {
+            NamedNode::new(s)
+                .ok()
+                .filter(|iri| !iri.as_str().starts_with(RESERVED_NS))
+        },
+    )
 }
 
 proptest! {
-    /// `layer_name_of(layer_term(n)) == Some(n)` for any string.
     #[test]
-    fn layer_name_term_name_round_trip(name in layer_names()) {
+    fn layer_name_term_name_round_trip(name in names()) {
         assert_layer_round_trip(&name);
     }
 
-    /// The layer of every IRI predicate round-trips and is safe as a file name.
     #[test]
     fn layer_iri_round_trip(iri in layer_iris()) {
-        let term = Term::from(iri.clone());
-        let name = layer_name_of(term.as_ref());
-        prop_assert!(name.is_some(), "no layer name for {}", iri);
-        let name = name.unwrap();
-        prop_assert!(!name.contains(PATH_UNSAFE), "{:?}", name);
-        prop_assert_eq!(layer_term(&name), term);
+        prop_assert_eq!(layer_name_of(iri.as_ref().into()), Some(iri.as_str().to_owned()));
+        prop_assert_eq!(iri_of(iri.as_str()), iri);
     }
 }
 
-/// Rows of the layer mapping table.
 #[test]
 fn layer_mapping_table() {
-    let cases: Vec<(&str, Term)> = vec![
-        ("http%3A%2F%2Fex%2Fknows", iri("http://ex/knows")),
-        ("http%3A%2F%2Fex%2Fa%252Fb", iri("http://ex/a%2Fb")),
-        ("_default", iri("raphtory:_default")),
-        // a valid IRI, but not an escaped one
-        ("http://ex/p", iri("raphtory:http%3A%2F%2Fex%2Fp")),
-        ("urn%3ax", iri("raphtory:urn%253ax")),
-        ("_:b1", BlankNode::new("b1").unwrap().into()),
-        ("\"x\"", Literal::new_simple_literal("x").into()),
+    let cases = [
+        ("http://ex/knows", "http://ex/knows"),
+        ("knows", "raphtory:knows"),
+        ("_default", "raphtory:_default"),
+        ("2024", "raphtory:2024"),
+        ("raphtory:x", "raphtory:raphtory%3Ax"),
+        ("_:b1", "raphtory:_%3Ab1"),
+        ("\"x\"", "raphtory:%22x%22"),
     ];
-    for (name, term) in cases {
-        assert_eq!(layer_term(name), term, "layer_term({name:?})");
-        assert_eq!(
-            layer_name_of(term.as_ref()).as_deref(),
-            Some(name),
-            "layer_name_of({term})"
-        );
+    for (name, predicate) in cases {
+        assert_eq!(iri_of(name).as_str(), predicate, "iri_of({name:?})");
         assert_layer_round_trip(name);
     }
 }
 
-/// Rows of the mapping table.
 #[test]
 fn mapping_table() {
     let cases: Vec<(&str, Term)> = vec![
