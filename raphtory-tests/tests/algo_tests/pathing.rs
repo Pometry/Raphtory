@@ -7,7 +7,10 @@ mod dijkstra_tests {
     };
     use raphtory_api::core::Direction;
 
-    fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
+    /// `(time, src, dst, props)`
+    type EdgeRow<'a> = (i64, &'a str, &'a str, Vec<(&'a str, f32)>);
+
+    fn load_graph(edges: Vec<EdgeRow>) -> Graph {
         let graph = Graph::new();
 
         for (t, src, dst, props) in edges {

@@ -65,9 +65,9 @@ impl<G> InheritMaterialize for UnfilteredSubgraph<G> {}
 impl<G> InheritLayerOps for UnfilteredSubgraph<G> {}
 impl<G> InheritNodeHistoryFilter for UnfilteredSubgraph<G> {}
 impl<G> InheritEdgeHistoryFilter for UnfilteredSubgraph<G> {}
-impl<'graph, G: GraphView> InheritExplodedEdgeFilterOps for UnfilteredSubgraph<G> {}
-impl<'graph, G: GraphView> InheritEdgeLayerFilterOps for UnfilteredSubgraph<G> {}
-impl<'graph, G: GraphView> InheritEdgeFilterOps for UnfilteredSubgraph<G> {}
+impl<G: GraphView> InheritExplodedEdgeFilterOps for UnfilteredSubgraph<G> {}
+impl<G: GraphView> InheritEdgeLayerFilterOps for UnfilteredSubgraph<G> {}
+impl<G: GraphView> InheritEdgeFilterOps for UnfilteredSubgraph<G> {}
 
 impl<G: InternalNodeFilterOps> InternalNodeFilterOps for UnfilteredSubgraph<G> {
     fn internal_nodes_filtered(&self) -> bool {

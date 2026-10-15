@@ -152,6 +152,7 @@ pub fn load_edges_from_df_prefetch<
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
     column_names: ColumnNames,

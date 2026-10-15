@@ -112,7 +112,6 @@ impl GqlGraph {
     /// View restricted to the named layers. Updates on any other layer are hidden;
     /// if that leaves a node or edge with no updates left, it disappears from the
     /// view.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -124,7 +123,6 @@ impl GqlGraph {
     /// View with the named layers hidden. Updates on those layers are removed; if
     /// that leaves a node or edge with no updates left, it disappears from the
     /// view.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -136,7 +134,6 @@ impl GqlGraph {
     /// View restricted to a single layer. Convenience form of
     /// `layers(names: [name])` — updates on any other layer are hidden, and
     /// entities with nothing left disappear.
-
     pub async fn layer(
         &self,
         #[graphql(desc = "Layer name to include.")] name: String,
@@ -147,7 +144,6 @@ impl GqlGraph {
     /// View with one layer hidden. Convenience form of
     /// `excludeLayers(names: [name])` — updates on that layer are removed, and
     /// entities with nothing left disappear.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -157,7 +153,6 @@ impl GqlGraph {
 
     /// View restricted to a chosen set of nodes and the edges between them. Edges
     /// connecting a selected node to a non-selected node are hidden.
-
     pub async fn subgraph(
         &self,
         #[graphql(desc = "Node ids to keep.")] nodes: Vec<GqlNodeId>,
@@ -175,7 +170,6 @@ impl GqlGraph {
     }
 
     /// View restricted to nodes with the given node types.
-
     pub async fn subgraph_node_types(
         &self,
         #[graphql(desc = "Node types to include.")] node_types: Vec<String>,
@@ -186,7 +180,6 @@ impl GqlGraph {
     }
 
     /// View with a set of nodes removed (along with any edges touching them).
-
     pub async fn exclude_nodes(
         &self,
         #[graphql(desc = "Node ids to exclude.")] nodes: Vec<GqlNodeId>,
@@ -208,7 +201,6 @@ impl GqlGraph {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -241,7 +233,6 @@ impl GqlGraph {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -263,7 +254,6 @@ impl GqlGraph {
     }
 
     /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -275,7 +265,6 @@ impl GqlGraph {
     }
 
     /// Creates a view including all events at a specified time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -291,7 +280,6 @@ impl GqlGraph {
     }
 
     /// Create a view including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -306,7 +294,6 @@ impl GqlGraph {
     }
 
     /// Create a view including all events before a specified end (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -316,7 +303,6 @@ impl GqlGraph {
     }
 
     /// Create a view including all events after a specified start (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -326,7 +312,6 @@ impl GqlGraph {
     }
 
     /// Set the start of the window to the larger of the specified value or current start.
-
     pub async fn shrink_start(
         &self,
         #[graphql(
@@ -339,7 +324,6 @@ impl GqlGraph {
     }
 
     /// Set the end of the window to the smaller of the specified value or current end.
-
     pub async fn shrink_end(
         &self,
         #[graphql(
@@ -570,8 +554,7 @@ impl GqlGraph {
     }
 
     /// All edges in this view, optionally narrowed by a filter.
-
-    pub async fn edges<'a>(
+    pub async fn edges(
         &self,
         #[graphql(
             desc = "Optional edge filter (by property, layer, src/dst, etc.). If omitted, every edge in the view is returned."

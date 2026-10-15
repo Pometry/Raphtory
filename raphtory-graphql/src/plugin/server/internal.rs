@@ -12,7 +12,7 @@ pub trait ServerExtensionImpl: ServerExtension {
     fn boxed_clone(&self) -> Box<dyn ServerExtensionImpl>;
 }
 
-impl<'de, T: ServerExtension + FromArgMatches + Clone> ServerExtensionImpl for T {
+impl<T: ServerExtension + FromArgMatches + Clone> ServerExtensionImpl for T {
     fn dyn_update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), clap::Error> {
         self.update_from_arg_matches(matches)
     }

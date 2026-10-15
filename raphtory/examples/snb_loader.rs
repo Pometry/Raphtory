@@ -29,7 +29,7 @@ struct NodeParquetInput {
 }
 
 impl NodeParquetInput {
-    fn new<'a>(
+    fn new(
         path: impl AsRef<Path>,
         time_col: &str,
         id_col: &str,

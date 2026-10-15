@@ -5,9 +5,8 @@ use crate::{
         api::{
             state::{
                 ops::{
-                    ArrowMap, ArrowNodeOp, Const, DynNodeFilter, EarliestTime, FilterOps,
-                    HistoryOp, IntoArrowNodeOp, IntoDynNodeOp, LatestTime, Map, NodeFilterOp,
-                    NodeOp,
+                    ArrowMapped, ArrowNodeOp, Const, DynNodeFilter, EarliestTime, FilterOps,
+                    HistoryOp, IntoArrowNodeOp, IntoDynNodeOp, LatestTime, NodeFilterOp, NodeOp,
                 },
                 GenericNodeState, Index, NodeState, NodeStateOps,
             },
@@ -37,6 +36,10 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use storage::api::node_type_index::NodeTypeIndexOps;
+
+/// A [`LazyNodeState`] whose op maps the output of `Op` to `V`, exposed as the arrow struct `A`.
+pub type MappedLazyNodeState<'graph, Op, V, A, G, GH, F> =
+    LazyNodeState<'graph, ArrowMapped<Op, V, A>, G, GH, F>;
 
 #[derive(Clone)]
 pub struct LazyNodeState<'graph, Op, G, GH = G, F = Const<bool>> {
@@ -84,8 +87,7 @@ where
 }
 
 impl<
-        'a,
-        'graph: 'a,
+        'graph,
         O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
@@ -106,8 +108,7 @@ where
 }
 
 impl<
-        'a,
-        'graph: 'a,
+        'graph,
         O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
@@ -128,8 +129,7 @@ where
 }
 
 impl<
-        'a,
-        'graph: 'a,
+        'graph,
         O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
@@ -405,12 +405,15 @@ impl From<Option<i64>> for TimeStampStruct {
     }
 }
 
+/// An optional time entry converted to a UTC datetime, which can fail if the time is out of range.
+pub type OptionDateTimeResult = Result<Option<DateTime<Utc>>, TimeError>;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DateTimeStruct {
     pub datetime: Option<DateTime<Utc>>,
 }
-impl From<Result<Option<DateTime<Utc>>, TimeError>> for DateTimeStruct {
-    fn from(datetime: Result<Option<DateTime<Utc>>, TimeError>) -> Self {
+impl From<OptionDateTimeResult> for DateTimeStruct {
+    fn from(datetime: OptionDateTimeResult) -> Self {
         DateTimeStruct {
             datetime: datetime.ok().flatten(),
         }
@@ -455,9 +458,11 @@ impl<
 
     pub fn intervals(
         &self,
-    ) -> LazyNodeState<
+    ) -> MappedLazyNodeState<
         'graph,
-        ArrowMap<Map<HistoryOp<'graph, GH>, Intervals<NodeView<'graph, GH>>>, IntervalsStruct>,
+        HistoryOp<'graph, GH>,
+        Intervals<NodeView<'graph, GH>>,
+        IntervalsStruct,
         G,
         GH,
         F,
@@ -468,12 +473,11 @@ impl<
 
     pub fn t(
         &self,
-    ) -> LazyNodeState<
+    ) -> MappedLazyNodeState<
         'graph,
-        ArrowMap<
-            Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<'graph, GH>>>,
-            TimeStampsStruct,
-        >,
+        HistoryOp<'graph, GH>,
+        HistoryTimestamp<NodeView<'graph, GH>>,
+        TimeStampsStruct,
         G,
         GH,
         F,
@@ -484,12 +488,11 @@ impl<
 
     pub fn dt(
         &self,
-    ) -> LazyNodeState<
+    ) -> MappedLazyNodeState<
         'graph,
-        ArrowMap<
-            Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<'graph, GH>>>,
-            DateTimesStruct,
-        >,
+        HistoryOp<'graph, GH>,
+        HistoryDateTime<NodeView<'graph, GH>>,
+        DateTimesStruct,
         G,
         GH,
         F,
@@ -500,9 +503,11 @@ impl<
 
     pub fn event_id(
         &self,
-    ) -> LazyNodeState<
+    ) -> MappedLazyNodeState<
         'graph,
-        ArrowMap<Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<'_, GH>>>, EventIdsStruct>,
+        HistoryOp<'graph, GH>,
+        HistoryEventId<NodeView<'_, GH>>,
+        EventIdsStruct,
         G,
         GH,
         F,
@@ -525,26 +530,15 @@ impl<
 {
     pub fn t(
         &self,
-    ) -> LazyNodeState<
-        'graph,
-        ArrowMap<Map<EarliestTime<GH>, Option<i64>>, TimeStampStruct>,
-        G,
-        GH,
-        F,
-    > {
+    ) -> MappedLazyNodeState<'graph, EarliestTime<GH>, Option<i64>, TimeStampStruct, G, GH, F> {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
         LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 
     pub fn dt(
         &self,
-    ) -> LazyNodeState<
-        'graph,
-        ArrowMap<Map<EarliestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>, DateTimeStruct>,
-        G,
-        GH,
-        F,
-    > {
+    ) -> MappedLazyNodeState<'graph, EarliestTime<GH>, OptionDateTimeResult, DateTimeStruct, G, GH, F>
+    {
         let op = self
             .op
             .clone()
@@ -554,13 +548,7 @@ impl<
 
     pub fn event_id(
         &self,
-    ) -> LazyNodeState<
-        'graph,
-        ArrowMap<Map<EarliestTime<GH>, Option<usize>>, EventIdStruct>,
-        G,
-        GH,
-        F,
-    > {
+    ) -> MappedLazyNodeState<'graph, EarliestTime<GH>, Option<usize>, EventIdStruct, G, GH, F> {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
         LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
@@ -575,21 +563,15 @@ impl<
 {
     pub fn t(
         &self,
-    ) -> LazyNodeState<'graph, ArrowMap<Map<LatestTime<GH>, Option<i64>>, TimeStampStruct>, G, GH, F>
-    {
+    ) -> MappedLazyNodeState<'graph, LatestTime<GH>, Option<i64>, TimeStampStruct, G, GH, F> {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
         LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 
     pub fn dt(
         &self,
-    ) -> LazyNodeState<
-        'graph,
-        ArrowMap<Map<LatestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>, DateTimeStruct>,
-        G,
-        GH,
-        F,
-    > {
+    ) -> MappedLazyNodeState<'graph, LatestTime<GH>, OptionDateTimeResult, DateTimeStruct, G, GH, F>
+    {
         let op = self
             .op
             .clone()
@@ -599,8 +581,7 @@ impl<
 
     pub fn event_id(
         &self,
-    ) -> LazyNodeState<'graph, ArrowMap<Map<LatestTime<GH>, Option<usize>>, EventIdStruct>, G, GH, F>
-    {
+    ) -> MappedLazyNodeState<'graph, LatestTime<GH>, Option<usize>, EventIdStruct, G, GH, F> {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
         LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }

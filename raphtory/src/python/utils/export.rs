@@ -13,11 +13,12 @@ use raphtory_api::core::{
 use rayon::{iter::IntoParallelRefIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn extract_properties<P>(
     include_property_history: bool,
     convert_datetime: bool,
     explode: bool,
-    column_names: &Vec<String>,
+    column_names: &[String],
     is_prop_both_temp_and_const: &HashSet<String>,
     properties: &Properties<P>,
     metadata: &Metadata<P>,
@@ -38,7 +39,7 @@ pub(crate) fn extract_properties<P>(
 
     if explode {
         let mut empty_dict = HashMap::new();
-        column_names.clone().iter().for_each(|name| {
+        column_names.iter().for_each(|name| {
             let _ = empty_dict.insert(name.clone(), Prop::from(""));
         });
 
@@ -143,10 +144,11 @@ pub(crate) fn get_column_names_from_props(
     is_prop_both_temp_and_const
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn create_row(
     convert_datetime: bool,
     explode: bool,
-    column_names: &Vec<String>,
+    column_names: &[String],
     properties_map: HashMap<String, Prop>,
     prop_time_dict: HashMap<i64, HashMap<String, Prop>>,
     row_header: Vec<Prop>,

@@ -10,7 +10,10 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+            meta::{
+                Meta, PropWithStatus, DEFAULT_NODE_TYPE_ID, NODE_TYPE_PROP_ID,
+                STATIC_GRAPH_LAYER_ID,
+            },
             prop::{Prop, PropType, PropUnwrap},
         },
         LayerId,
@@ -724,7 +727,7 @@ impl InternalAdditionOps for TemporalGraph {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
         if is_static {
             let prop_ids = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const_with_status())

@@ -239,11 +239,11 @@ macro_rules! py_float_iterable {
 ///
 /// * `name` - The identifier for the iterable struct
 /// * `cmp_item` - Struct to use for comparisons, needs to support `cmp_item: From<item>`
-///                and `cmp_item: PartialEq` and FromPyObject for all the python types we
-///                want to compare with
+///   and `cmp_item: PartialEq` and FromPyObject for all the python types we
+///   want to compare with
 /// * `cmp_internal` - Name for the internal Enum that is created by the macro to implement
-///                    the conversion from python (only needed because we can't create our own
-///                    unique identifier without a proc macro)
+///   the conversion from python (only needed because we can't create our own
+///   unique identifier without a proc macro)
 macro_rules! py_iterable_comp {
     ($name:ty, $cmp_item:ty, $cmp_internal:ident) => {
         enum $cmp_internal {

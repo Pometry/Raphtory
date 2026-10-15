@@ -38,7 +38,10 @@ pub(crate) use crate::{
 };
 use crate::{
     db::{api::state::OutputTypedNodeState, graph::nodes::IntoDynNodes},
-    python::graph::node_state::ops::{ArrowMap, Map},
+    python::graph::node_state::{
+        node_state_intervals::HistoryIntervals,
+        ops::{ArrowMap, Map},
+    },
 };
 
 /// A lazy view over History objects for each node.
@@ -84,13 +87,8 @@ impl HistoryView {
     #[getter]
     fn t(
         &self,
-    ) -> LazyNodeState<
-        'static,
-        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyHistoryTimestamp>, TimeStampsStruct>,
-        DynamicGraph,
-        DynamicGraph,
-        DynNodeFilter,
-    > {
+    ) -> LazyNodeState<'static, HistoryI64<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         let op = self.inner.op.clone().map(|hist| hist.t().into());
         LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
@@ -102,13 +100,8 @@ impl HistoryView {
     #[getter]
     fn dt(
         &self,
-    ) -> LazyNodeState<
-        'static,
-        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>, DateTimesStruct>,
-        DynamicGraph,
-        DynamicGraph,
-        DynNodeFilter,
-    > {
+    ) -> LazyNodeState<'static, HistoryDT<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         let op = self.inner.op.clone().map(|hist| hist.dt().into());
         LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
@@ -120,13 +113,8 @@ impl HistoryView {
     #[getter]
     fn event_id(
         &self,
-    ) -> LazyNodeState<
-        'static,
-        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyHistoryEventId>, EventIdsStruct>,
-        DynamicGraph,
-        DynamicGraph,
-        DynNodeFilter,
-    > {
+    ) -> LazyNodeState<'static, HistoryU64<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         let op = self.inner.op.clone().map(|hist| hist.event_id().into());
         LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
@@ -140,7 +128,7 @@ impl HistoryView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyIntervals>, IntervalsStruct>,
+        HistoryIntervals<DynamicGraph>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,

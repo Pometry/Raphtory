@@ -512,6 +512,9 @@ pub(crate) fn expect_edge_list(
 /// layer_name)` — everything needed to pin a handle to the event.
 pub(crate) type ExplodedEdgeRecord = (GID, GID, i64, i64, String);
 
+/// One member of a layer-exploded edge fetch: `(src, dst, layer_name)`.
+pub(crate) type LayeredEdgeRecord = (GID, GID, String);
+
 fn expect_map(
     v: JsonValue,
     context: &str,
@@ -573,7 +576,7 @@ pub(crate) fn expect_exploded_edge_list(
 fn expect_layered_edge_record(
     v: JsonValue,
     context: &str,
-) -> Result<(GID, GID, String), ClientError> {
+) -> Result<LayeredEdgeRecord, ClientError> {
     let mut record = expect_map(v, context)?;
     let src = expect_gid(
         into_element(extract_element(&mut record, "src")?, "id", context)?,
@@ -593,7 +596,7 @@ fn expect_layered_edge_record(
 pub(crate) fn expect_exploded_layers_edge_list(
     v: JsonValue,
     context: &str,
-) -> Result<Vec<(GID, GID, String)>, ClientError> {
+) -> Result<Vec<LayeredEdgeRecord>, ClientError> {
     let records = expect_list(v, context)?;
     records
         .into_iter()
@@ -606,7 +609,7 @@ pub(crate) fn expect_exploded_layers_edge_list(
 pub(crate) fn expect_nested_exploded_layers_edge_list(
     v: JsonValue,
     context: &str,
-) -> Result<Vec<Vec<(GID, GID, String)>>, ClientError> {
+) -> Result<Vec<Vec<LayeredEdgeRecord>>, ClientError> {
     let records = expect_list(v, context)?;
     records
         .into_iter()
