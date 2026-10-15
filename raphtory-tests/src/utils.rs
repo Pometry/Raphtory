@@ -41,6 +41,9 @@ use std::{
     sync::Arc,
 };
 
+/// Count of each temporal property value per timestamp, keyed by property name.
+type TPropCounts = HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>>;
+
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
 }
@@ -55,74 +58,80 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
     };
 
     // compare histories as multiset as order for values with the same timestamp is ambiguous!
-    let get_fixture_t_prop_counts =
-        |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
-            for (t, props) in t_props {
-                for (k, v) in props {
-                    grouped.entry(ArcStr::from(k.as_str()))
-                        .or_default().entry(*t).or_default().entry(v.clone()).and_modify(|v| *v += 1).or_insert(1);
-                }
+    let get_fixture_t_prop_counts = |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> TPropCounts {
+        let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
+        for (t, props) in t_props {
+            for (k, v) in props {
+                grouped
+                    .entry(ArcStr::from(k.as_str()))
+                    .or_default()
+                    .entry(*t)
+                    .or_default()
+                    .entry(v.clone())
+                    .and_modify(|v| *v += 1)
+                    .or_insert(1);
             }
-            grouped.into_iter().map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect())).collect()
-        };
+        }
+        grouped
+            .into_iter()
+            .map(|(key, value)| (key, value.into_iter().sorted_by_key(|(t, _)| *t).collect()))
+            .collect()
+    };
 
-    let get_node_t_prop_map =
-        |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
-                .properties()
-                .temporal()
-                .iter()
-                .filter(|(_, props)| !props.is_empty())
-                .map(|(key, values)| {
-                    let runs = values
-                        .iter()
-                        .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
-                        .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt.t() == rt.t() {
-                                for (v, count) in rv {
-                                    lv.entry(v).and_modify(|c| *c += count).or_insert(count);
-                                }
-                                Ok((lt, lv))
-                            } else {
-                                Err(((lt, lv), (rt, rv)))
+    let get_node_t_prop_map = |node: &NodeView<&Graph>| -> TPropCounts {
+        let out: TPropCounts = node
+            .properties()
+            .temporal()
+            .iter()
+            .filter(|(_, props)| !props.is_empty())
+            .map(|(key, values)| {
+                let runs = values
+                    .iter()
+                    .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
+                    .coalesce(|(lt, mut lv), (rt, rv)| {
+                        if lt.t() == rt.t() {
+                            for (v, count) in rv {
+                                lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                             }
-                        })
-                        .map(|(t, v)| (t.t(), v))
-                        .collect();
-                    (key, runs)
-                })
-                .collect();
-            out
-        };
-    let get_edge_t_prop_counts =
-        |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
-                .properties()
-                .temporal()
-                .iter()
-                .filter(|(_, props)| !props.is_empty())
-                .map(|(key, values)| {
-                    let runs = values
-                        .iter()
-                        .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
-                        .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt.t() == rt.t() {
-                                for (v, count) in rv {
-                                    lv.entry(v).and_modify(|c| *c += count).or_insert(count);
-                                }
-                                Ok((lt, lv))
-                            } else {
-                                Err(((lt, lv), (rt, rv)))
+                            Ok((lt, lv))
+                        } else {
+                            Err(((lt, lv), (rt, rv)))
+                        }
+                    })
+                    .map(|(t, v)| (t.t(), v))
+                    .collect();
+                (key, runs)
+            })
+            .collect();
+        out
+    };
+    let get_edge_t_prop_counts = |edge: &EdgeView<&Graph>| -> TPropCounts {
+        let out: TPropCounts = edge
+            .properties()
+            .temporal()
+            .iter()
+            .filter(|(_, props)| !props.is_empty())
+            .map(|(key, values)| {
+                let runs = values
+                    .iter()
+                    .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
+                    .coalesce(|(lt, mut lv), (rt, rv)| {
+                        if lt.t() == rt.t() {
+                            for (v, count) in rv {
+                                lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                             }
-                        })
-                        .map(|(t, v)| (t.t(), v))
-                        .collect();
-                    (key, runs)
-                })
-                .collect();
-            out
-        };
+                            Ok((lt, lv))
+                        } else {
+                            Err(((lt, lv), (rt, rv)))
+                        }
+                    })
+                    .map(|(t, v)| (t.t(), v))
+                    .collect();
+                (key, runs)
+            })
+            .collect();
+        out
+    };
 
     // collect expected sets from fixture
     let mut expected_node_histories: HashMap<u64, Vec<i64>> = fixture

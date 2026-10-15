@@ -33,6 +33,13 @@ use pyo3::{
 use raphtory_api::core::entities::properties::prop::PropExact;
 use std::{collections::HashMap, sync::Arc};
 
+/// The shared column values of a group together with the nodes in it.
+#[cfg(feature = "datafusion")]
+type PyNodeGroup = (
+    TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
+    Nodes<'static, DynamicGraph>,
+);
+
 #[pyclass(name = "OutputNodeState", module = "raphtory.node_state", frozen)]
 pub struct PyOutputNodeState {
     pub inner: OutputTypedNodeState<'static, DynamicGraph>,
@@ -223,16 +230,7 @@ impl PyOutputNodeState {
     /// Returns:
     ///     list[tuple[dict, Nodes]]: The grouped nodes
     #[cfg(feature = "datafusion")]
-    fn groups(
-        &self,
-        cols: Vec<String>,
-    ) -> Result<
-        Vec<(
-            TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
-            Nodes<'static, DynamicGraph>,
-        )>,
-        GraphError,
-    > {
+    fn groups(&self, cols: Vec<String>) -> Result<Vec<PyNodeGroup>, GraphError> {
         self.inner.get_groups(cols)
     }
 

@@ -75,7 +75,6 @@ impl GqlNodes {
     }
 
     /// Return a view of the nodes containing all layers specified.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -84,7 +83,6 @@ impl GqlNodes {
     }
 
     /// Return a view of the nodes containing all layers except those specified.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -94,13 +92,11 @@ impl GqlNodes {
     }
 
     /// Return a view of the nodes containing the specified layer.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
     /// Return a view of the nodes containing all layers except those specified.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -117,7 +113,6 @@ impl GqlNodes {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -150,7 +145,6 @@ impl GqlNodes {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -172,7 +166,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -182,7 +175,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events at a specified time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -197,7 +189,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -212,7 +203,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events before specified end time (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -221,7 +211,6 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events after the specified start time (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -230,7 +219,6 @@ impl GqlNodes {
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -240,7 +228,6 @@ impl GqlNodes {
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -250,7 +237,6 @@ impl GqlNodes {
     }
 
     /// Filter nodes by node type.
-
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node-type names to keep.")] node_types: Vec<String>,
@@ -262,7 +248,6 @@ impl GqlNodes {
     /// Apply a list of views in the given order and return the resulting nodes
     /// collection. Lets callers compose window, layer, filter, and snapshot
     /// operations in a single call.
-
     pub async fn apply_views(
         &self,
         #[graphql(
@@ -324,7 +309,6 @@ impl GqlNodes {
 
     /// Sort the nodes. Multiple criteria are applied lexicographically (ties on the
     /// first key break to the second, etc.).
-
     pub async fn sorted(
         &self,
         #[graphql(
@@ -416,7 +400,6 @@ impl GqlNodes {
     /////////////////
 
     /// Number of nodes in the current view.
-
     /// The property keys this collection reports: the first member's registry
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
@@ -515,7 +498,6 @@ impl GqlNodes {
     /// ```
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -550,7 +532,6 @@ impl GqlNodes {
     /// ```
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     pub async fn select(
         &self,
         #[graphql(

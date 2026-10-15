@@ -101,7 +101,7 @@ impl MemNodeTypeIndex {
     // TODO: We are exposing dashmap here, return a better type for this.
     pub fn sorted_entries(&self) -> Vec<RefMulti<'_, usize, BTreeSet<VID>>> {
         let mut entries: Vec<_> = self.map.iter().collect();
-        entries.sort_unstable_by_key(|entry| entry.key().clone());
+        entries.sort_unstable_by_key(|entry| *entry.key());
 
         entries
     }
@@ -168,6 +168,7 @@ impl FrozenNodeTypeEntry {
         Self::new(frozen, |frozen| frozen.type_sets(type_ids))
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.borrow_sets().iter().map(|set| set.len()).sum()
     }

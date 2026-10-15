@@ -36,6 +36,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmentOps>
     BulkEdgeWriter<'a, MP, ES>
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn bulk_add_edge<P: AsPropRef>(
         &mut self,
         t: EventTime,

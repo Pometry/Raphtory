@@ -210,10 +210,11 @@ mod test {
         );
     }
 
+    /// One chunk of `(ids, node_types, times)` columns.
+    type NodeTypeChunk<'a> = (Vec<u64>, Vec<Option<&'a str>>, Vec<i64>);
+
     /// Builds a node dataframe with an `id`/`node_type`/`time` column per chunk.
-    fn node_type_df(
-        chunks: Vec<(Vec<u64>, Vec<Option<&str>>, Vec<i64>)>,
-    ) -> DFView<IntoIter<Result<DFChunk, GraphError>>> {
+    fn node_type_df(chunks: Vec<NodeTypeChunk>) -> DFView<IntoIter<Result<DFChunk, GraphError>>> {
         let num_rows = chunks.iter().map(|(ids, ..)| ids.len()).sum();
 
         DFView {

@@ -650,7 +650,7 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
     }
 }
 
-impl<'a, 'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph>>
+impl<'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph>>
     PartialEq<NodeState<'graph, V, G>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &NodeState<'graph, V, G>) -> bool {

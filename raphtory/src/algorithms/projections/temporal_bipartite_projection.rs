@@ -27,7 +27,6 @@ struct Visitor {
 ///
 /// # Returns
 /// Projected (unipartite) temporal graph.
-
 pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,

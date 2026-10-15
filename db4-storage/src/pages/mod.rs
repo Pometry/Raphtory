@@ -330,6 +330,7 @@ impl<I: From<usize> + Into<usize>> SegmentCounts<I> {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn into_iter(self) -> impl Iterator<Item = I> {
         let max_seg_len = self.max_seg_len as usize;
         self.counts.into_iter().enumerate().flat_map(move |(i, c)| {

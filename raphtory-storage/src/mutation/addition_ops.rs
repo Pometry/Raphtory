@@ -10,7 +10,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{
-                meta::Meta,
+                meta::{Meta, PropWithStatus},
                 prop::{Prop, PropType},
             },
             GidRef, LayerId, EID, VID,
@@ -21,6 +21,9 @@ use raphtory_api::{
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use storage::{wal::LSN, Extension};
+
+/// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
+pub type NodeTypeResolution = MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>;
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
@@ -47,7 +50,7 @@ pub trait InternalAdditionOps {
         &self,
         id: NodeRef,
         node_type: Option<&str>,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error>;
+    ) -> Result<NodeTypeResolution, Self::Error>;
 
     /// resolve node and type without modifying the storage (use in bulk loaders only)
     fn resolve_node_and_type(
@@ -99,7 +102,7 @@ pub trait InternalAdditionOps {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error>;
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error>;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -210,7 +213,7 @@ impl InternalAdditionOps for GraphStorage {
         &self,
         id: NodeRef,
         node_type: Option<&str>,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+    ) -> Result<NodeTypeResolution, Self::Error> {
         self.mutable()?
             .resolve_and_update_node_and_type(id, node_type)
     }
@@ -252,7 +255,7 @@ impl InternalAdditionOps for GraphStorage {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
         self.mutable()?
             .validate_props_with_status(is_static, meta, props)
     }
@@ -320,7 +323,7 @@ where
         &self,
         id: NodeRef,
         node_type: Option<&str>,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+    ) -> Result<NodeTypeResolution, Self::Error> {
         self.base().resolve_and_update_node_and_type(id, node_type)
     }
 
@@ -366,7 +369,7 @@ where
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
         self.base()
             .validate_props_with_status(is_static, meta, props)
     }

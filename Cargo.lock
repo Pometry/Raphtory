@@ -6368,10 +6368,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raphtory-auth-noop"
-version = "0.18.0"
-
-[[package]]
 name = "raphtory-benchmark"
 version = "0.18.0"
 dependencies = [
@@ -6512,7 +6508,6 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "raphtory",
- "raphtory-auth-noop",
  "raphtory-graphql",
  "raphtory-vectors",
  "tikv-jemallocator",
@@ -6543,7 +6538,6 @@ dependencies = [
 name = "raphtory-server"
 version = "0.18.0"
 dependencies = [
- "raphtory-auth-noop",
  "raphtory-graphql",
  "serde",
  "serde_json",

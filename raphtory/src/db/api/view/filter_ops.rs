@@ -6,16 +6,20 @@ use crate::{
     errors::GraphError,
 };
 
+/// The view produced by applying the filter `F` to `V`.
+pub type FilteredView<'graph, V, F> = <V as InternalFilter<'graph>>::Filtered<
+    <F as CreateFilter>::EntityFiltered<
+        'graph,
+        <V as InternalFilter<'graph>>::Graph,
+        <F as CreateFilter>::FilteredGraph<'graph, <V as InternalFilter<'graph>>::Graph>,
+    >,
+>;
+
 pub trait Filter<'graph>: InternalFilter<'graph> {
     fn filter<F: CreateFilter>(
         &self,
         filter: F,
-    ) -> Result<
-        Self::Filtered<
-            F::EntityFiltered<'graph, Self::Graph, F::FilteredGraph<'graph, Self::Graph>>,
-        >,
-        GraphError,
-    > {
+    ) -> Result<FilteredView<'graph, Self, F>, GraphError> {
         let fg = filter.filter_graph_view(self.base_graph().clone())?;
         Ok(self.apply_filter(filter.create_filter(self.base_graph().clone(), fg)?))
     }

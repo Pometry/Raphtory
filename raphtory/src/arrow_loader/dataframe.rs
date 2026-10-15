@@ -237,8 +237,6 @@ impl SecondaryIndexCol {
 
     /// Generate a secondary index column with values from `start` to `end` (not inclusive).
     pub fn new_from_range(start: usize, end: usize) -> Self {
-        let start = start;
-        let end = end;
         SecondaryIndexCol::Range(start..end)
     }
 
@@ -266,6 +264,7 @@ impl SecondaryIndexCol {
         self.iter().max().unwrap_or(0)
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         match self {
             SecondaryIndexCol::DataFrame(arr) => arr.len(),

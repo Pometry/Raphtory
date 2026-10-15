@@ -334,7 +334,6 @@ pub fn load_nodes_from_df<
 /// Must be called from a single-threaded context if is_materializing == true && node_id_col.is_none() && node_type_id_col.is_none()
 #[allow(clippy::too_many_arguments)]
 pub fn load_node_props_from_df<
-    'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,

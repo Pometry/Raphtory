@@ -112,6 +112,7 @@ pub fn load_nodes_from_parquet<
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     parquet_path: impl AsRef<Path>,
@@ -350,6 +351,7 @@ pub fn load_edge_deletions_from_parquet<
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     parquet_path: &Path,

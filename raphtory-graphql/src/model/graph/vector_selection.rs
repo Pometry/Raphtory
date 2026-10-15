@@ -57,7 +57,6 @@ impl GqlVectorSelection {
 
     /// Add every document associated with the named nodes to the selection.
     /// Documents added this way receive a score of 0 (no similarity ranking).
-
     pub async fn add_nodes(
         &self,
         #[graphql(desc = "Node ids whose documents to include.")] nodes: Vec<GqlNodeId>,
@@ -69,7 +68,6 @@ impl GqlVectorSelection {
 
     /// Add every document associated with the named edges to the selection.
     /// Documents added this way receive a score of 0 (no similarity ranking).
-
     pub async fn add_edges(
         &self,
         #[graphql(desc = "List of `{src, dst}` pairs identifying the edges.")] edges: Vec<
@@ -85,7 +83,6 @@ impl GqlVectorSelection {
     /// Grow the selection by including documents that are within `hops` of any
     /// document already in the selection. Two documents are 1 hop apart if
     /// they're on the same entity or on a connected node/edge pair.
-
     pub async fn expand(
         &self,
         #[graphql(desc = "Number of expansion rounds (1 = direct neighbours).")] hops: usize,
@@ -107,7 +104,6 @@ impl GqlVectorSelection {
     /// query. Each pass takes the one-hop neighbour set of the current
     /// selection and adds the highest-scoring entities (mixed nodes and
     /// edges); the loop continues until `limit` entities have been added.
-
     pub async fn expand_entities_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
@@ -128,7 +124,6 @@ impl GqlVectorSelection {
 
     /// Like `expandEntitiesBySimilarity` but restricted to nodes — iteratively
     /// add the highest-scoring adjacent nodes to the selection.
-
     pub async fn expand_nodes_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
@@ -149,7 +144,6 @@ impl GqlVectorSelection {
 
     /// Like `expandEntitiesBySimilarity` but restricted to edges — iteratively
     /// add the highest-scoring adjacent edges to the selection.
-
     pub async fn expand_edges_by_similarity(
         &self,
         #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,

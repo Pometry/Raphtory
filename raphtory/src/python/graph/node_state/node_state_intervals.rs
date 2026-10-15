@@ -34,7 +34,8 @@ pub(crate) use crate::{
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 
-type HistoryIntervals<G> = ArrowMap<Map<HistoryOp<'static, G>, PyIntervals>, IntervalsStruct>;
+pub(super) type HistoryIntervals<G> =
+    ArrowMap<Map<HistoryOp<'static, G>, PyIntervals>, IntervalsStruct>;
 impl_lazy_node_state!(
     IntervalsView<HistoryIntervals<DynamicGraph>>,
     "NodeStateIntervals",
@@ -57,7 +58,7 @@ impl IntervalsView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<f64>>, AvgIntervalStruct>,
+        IntervalsFloat<DynamicGraph>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
@@ -72,13 +73,8 @@ impl IntervalsView {
     ///     IntervalsIntegerView: A lazy view over the median interval between consecutive timestamps for each node. The median is None if there is fewer than 1 interval.
     pub fn median(
         &self,
-    ) -> LazyNodeState<
-        'static,
-        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<i64>>, IntervalStruct>,
-        DynamicGraph,
-        DynamicGraph,
-        DynNodeFilter,
-    > {
+    ) -> LazyNodeState<'static, IntervalsI64<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         let op = self.inner.op.clone().map(|v| v.median());
         LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
@@ -89,13 +85,8 @@ impl IntervalsView {
     ///     IntervalsIntegerView: A lazy view over the maximum interval between consecutive timestamps for each node. The maximum is None if there is fewer than 1 interval.
     pub fn max(
         &self,
-    ) -> LazyNodeState<
-        'static,
-        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<i64>>, IntervalStruct>,
-        DynamicGraph,
-        DynamicGraph,
-        DynNodeFilter,
-    > {
+    ) -> LazyNodeState<'static, IntervalsI64<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         let op = self.inner.op.clone().map(|v| v.max());
         LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
@@ -106,13 +97,8 @@ impl IntervalsView {
     ///     IntervalsIntegerView: A lazy view over the minimum interval between consecutive timestamps for each node. The minimum is None if there is fewer than 1 interval.
     pub fn min(
         &self,
-    ) -> LazyNodeState<
-        'static,
-        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<i64>>, IntervalStruct>,
-        DynamicGraph,
-        DynamicGraph,
-        DynNodeFilter,
-    > {
+    ) -> LazyNodeState<'static, IntervalsI64<DynamicGraph>, DynamicGraph, DynamicGraph, DynNodeFilter>
+    {
         let op = self.inner.op.clone().map(|v| v.min());
         LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
