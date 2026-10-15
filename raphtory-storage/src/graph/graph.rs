@@ -16,7 +16,7 @@ use raphtory_api::core::entities::{
     properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
 };
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
-use std::{collections::HashSet, fmt::Debug, iter, path::Path, sync::Arc};
+use std::{collections::HashSet, fmt::Debug, iter, sync::Arc};
 use storage::{
     api::nodes::{GlobalPropCandidates, PropPredicate, PropSemantics, SelectedProps},
     error::StorageError,
@@ -121,13 +121,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Locked(_) => Err(StorageError::ReadOnlyGraphError),
             GraphStorage::Unlocked(graph) => graph.vacuum(),
-        }
-    }
-
-    pub fn disk_storage_path(&self) -> Option<&Path> {
-        match self {
-            GraphStorage::Locked(graph) => graph.graph.disk_storage_path(),
-            GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
         }
     }
 
