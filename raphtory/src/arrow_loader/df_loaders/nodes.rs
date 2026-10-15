@@ -31,9 +31,9 @@ use std::{
 };
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
-    pages::locked::nodes::LockedNodePage,
+    pages::locked::nodes::{LockedNodePage, WriteLockedNodePages},
     segments::node_type_index::index::MemNodeTypeIndex,
-    Extension,
+    Extension, NS,
 };
 
 #[cfg(feature = "progress")]
@@ -179,6 +179,15 @@ pub fn load_nodes_from_df<
         let mut node_col_resolved = vec![];
         let mut node_resolve_cache: Option<NodeResolveCache<(VID, usize)>> = None;
 
+        // held for the whole load
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        let node_stats = write_locked_graph.node_stats().clone();
+        let max_node_segment_len = write_locked_graph
+            .graph()
+            .storage()
+            .nodes()
+            .max_segment_len();
+
         for chunk in df_view.chunks {
             let df = chunk?;
 
@@ -233,6 +242,7 @@ pub fn load_nodes_from_df<
 
             let (src_vids, gid_str_cache) = get_or_resolve_node_vids::<G>(
                 graph,
+                &write_locked_graph.nodes,
                 node_id_index,
                 &mut node_resolve_cache,
                 &mut node_col_resolved,
@@ -248,18 +258,12 @@ pub fn load_nodes_from_df<
                 index.notify_write();
             }
 
-            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-            let node_stats = write_locked_graph.node_stats().clone();
-
-            let max_node_segment_len = write_locked_graph
-                .graph()
-                .storage()
-                .nodes()
-                .max_segment_len() as usize;
+            // node resolution may have created new node segments
+            write_locked_graph.lock_new_segments();
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
-                max_node_segment_len as u32,
+                max_node_segment_len,
                 write_locked_graph.nodes.len(),
             );
 
@@ -387,6 +391,9 @@ pub fn load_node_props_from_df<
     let mut node_col_resolved = vec![];
     let mut node_type_resolved = vec![];
 
+    // held for the whole load
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
     for chunk in df_view.chunks {
         let df = chunk?;
         if df.is_empty() {
@@ -432,7 +439,6 @@ pub fn load_node_props_from_df<
             .max()
             .map(VID)
             .unwrap_or(VID(0));
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
         write_locked_graph.resize_segments_to_vid(max_vid);
 
         write_locked_graph
@@ -491,6 +497,7 @@ fn get_or_resolve_node_vids<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
+    locked_nodes: &WriteLockedNodePages<'_, NS<Extension>>,
     src_index: usize,
     node_resolve_cache: &mut Option<NodeResolveCache<(VID, usize)>>,
     src_col_resolved: &'a mut Vec<VID>,
@@ -505,6 +512,7 @@ fn get_or_resolve_node_vids<
 
         resolve_node_vids_and_types_with_cache(
             graph,
+            locked_nodes,
             cache,
             src_col_resolved,
             src_col,
@@ -536,6 +544,7 @@ fn resolve_node_vids_and_types_with_cache<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
+    locked_nodes: &WriteLockedNodePages<'_, NS<Extension>>,
     cache: &mut NodeResolveCache<(VID, usize)>,
     node_col_resolved: &'a mut Vec<VID>,
     node_col: &'a NodeCol,
@@ -566,20 +575,22 @@ fn resolve_node_vids_and_types_with_cache<
                             should_store = true;
                             Ok((vid, node_type))
                         }
-                        MaybeNew::Existing(vid) => match existing_stored_node_type(graph, vid) {
-                            None => {
-                                should_store = true;
-                                Ok((vid, node_type))
+                        MaybeNew::Existing(vid) => {
+                            match existing_stored_node_type(locked_nodes, vid) {
+                                None => {
+                                    should_store = true;
+                                    Ok((vid, node_type))
+                                }
+                                Some(existing) if existing == node_type => Ok((vid, existing)),
+                                Some(existing) => Err(GraphError::LoadError {
+                                    source: LoadError::ConflictingNodeType {
+                                        gid: gid.into(),
+                                        existing: node_type_name(graph, existing),
+                                        new: node_type_name(graph, node_type),
+                                    },
+                                }),
                             }
-                            Some(existing) if existing == node_type => Ok((vid, existing)),
-                            Some(existing) => Err(GraphError::LoadError {
-                                source: LoadError::ConflictingNodeType {
-                                    gid: gid.into(),
-                                    existing: node_type_name(graph, existing),
-                                    new: node_type_name(graph, node_type),
-                                },
-                            }),
-                        },
+                        }
                     }
                 })?;
 
@@ -610,12 +621,14 @@ fn resolve_node_vids_and_types_with_cache<
     Ok((node_col_resolved.as_slice(), new_gids_by_shard.concat()))
 }
 
-fn existing_stored_node_type<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    graph: &G,
+/// Reads through the held write locks: the graph's read path would deadlock on them.
+/// An existing node always lives in a segment that is already held.
+fn existing_stored_node_type(
+    locked_nodes: &WriteLockedNodePages<'_, NS<Extension>>,
     vid: VID,
 ) -> Option<usize> {
-    graph
-        .node_metadata(vid, NODE_TYPE_PROP_ID)
+    locked_nodes
+        .node_metadata(vid, STATIC_GRAPH_LAYER_ID, NODE_TYPE_PROP_ID)
         .and_then(|prop| prop.into_u64())
         .map(|id| id as usize)
 }
