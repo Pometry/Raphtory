@@ -1,3 +1,4 @@
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::{
         self,
@@ -434,6 +435,8 @@ where
     pub edges: WriteLockedEdgePages<'a, ES<EXT>>,
     pub graph_props: WriteLockedGraphPropPages<'a, GS<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
+    // Declared last so it is released after the segment locks.
+    _bulk_load: RwLockWriteGuard<'a, ()>,
 }
 
 impl<'a, EXT> WriteLockedGraph<'a, EXT>
@@ -443,12 +446,15 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
+    /// Takes the bulk load write guard first, waiting for regular updates in flight to finish.
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
+        let bulk_load = graph.storage.bulk_load_write();
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph_props: graph.storage.graph_props().write_locked(),
             graph,
+            _bulk_load: bulk_load,
         }
     }
 
