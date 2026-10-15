@@ -987,6 +987,90 @@ mod io_tests {
         assert!(!g.has_node(9u64));
         assert_eq!(g.node(1u64).unwrap().metadata().get("str_prop"), None);
     }
+    fn small_pages_graph() -> Graph {
+        Graph::new_with_config(
+            Args::default()
+                .with_max_node_page_len(2)
+                .with_max_edge_page_len(2),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn test_lock_new_segments_covers_segments_created_while_locked() {
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held_nodes = wlg.nodes.len();
+        let held_edges = wlg.edges.len();
+
+        tg.storage().nodes().grow(held_nodes + 3);
+        tg.storage().edges().grow(held_edges + 2);
+        assert_eq!(wlg.nodes.len(), held_nodes);
+        assert_eq!(wlg.edges.len(), held_edges);
+
+        wlg.lock_new_segments();
+
+        assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
+        assert_eq!(wlg.edges.len(), tg.storage().edges().num_segments());
+        assert_eq!(wlg.nodes.len(), held_nodes + 3);
+        assert_eq!(wlg.edges.len(), held_edges + 2);
+        for segment_id in 0..wlg.nodes.len() {
+            assert_eq!(
+                wlg.nodes.get_mut(segment_id).unwrap().segment_id(),
+                segment_id
+            );
+        }
+        for segment_id in 0..wlg.edges.len() {
+            assert_eq!(wlg.edges.get_mut(segment_id).unwrap().page_id(), segment_id);
+        }
+
+        // nothing new: no-op
+        wlg.lock_new_segments();
+        assert_eq!(wlg.nodes.len(), held_nodes + 3);
+        assert_eq!(wlg.edges.len(), held_edges + 2);
+    }
+
+    #[test]
+    fn test_load_edges_creating_many_segments_in_one_chunk() {
+        // every edge is new and the pages are tiny, so the node pass of a single
+        // chunk has to create edge segments that the edge pass then writes to
+        let edges = (0..200u64)
+            .map(|i| (i, i + 1000, i as i64, i.to_string(), i as i64))
+            .collect::<Vec<_>>();
+        let g = small_pages_graph();
+        load_edges_from_df(
+            build_df(edges.len(), &edges),
+            ColumnNames::new("time", None, "src", "dst", None),
+            true,
+            &["str_prop", "int_prop"],
+            &[],
+            None,
+            None,
+            &g,
+            false,
+        )
+        .unwrap();
+
+        let g2 = Graph::new();
+        for (src, dst, time, str_prop, int_prop) in &edges {
+            g2.add_edge(
+                *time,
+                *src,
+                *dst,
+                [
+                    ("str_prop", str_prop.clone().into_prop()),
+                    ("int_prop", int_prop.into_prop()),
+                ],
+                None,
+            )
+            .unwrap();
+        }
+        assert_eq!(g.count_edges(), edges.len());
+        assert_graph_equal(&g, &g2);
+    }
 }
 
 mod parquet_tests {

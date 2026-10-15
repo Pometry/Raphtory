@@ -468,6 +468,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         )
     }
 
+    /// Write-lock the segments created since `pages` was taken and append them,
+    /// keeping the locks `pages` already holds.
+    pub fn lock_new_segments<'a>(&'a self, pages: &mut WriteLockedEdgePages<'a, ES>) {
+        for segment_id in pages.len()..self.segments.count() {
+            let page = self.get_or_create_segment(segment_id);
+            pages.push(LockedEdgePage::new(
+                segment_id,
+                self.max_page_len(),
+                page.as_ref(),
+                &self.layer_counter,
+                page.head_mut(),
+            ));
+        }
+    }
+
     /// Retrieve the segment for an edge given its EID
     pub fn get_edge_segment(&self, eid: EID) -> Option<&Arc<ES>> {
         let (segment_id, _) = resolve_pos(eid, self.max_page_len());

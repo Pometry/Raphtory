@@ -428,8 +428,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 update_inbound_edges(shard, zip, delete);
             });
 
-        drop(write_locked_graph);
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        // the node pass may have created new edge segments
+        write_locked_graph.lock_new_segments();
         let edge_rows_by_segment = group_rows_by_eid_segment(
             &eid_col_resolved,
             max_edge_page_len,

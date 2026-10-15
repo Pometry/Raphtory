@@ -110,6 +110,12 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.writers.len()
     }
 
+    /// Append the page for the next segment; pages are indexed by segment id.
+    pub fn push(&mut self, page: LockedNodePage<'a, NS>) {
+        assert_eq!(page.segment_id(), self.writers.len());
+        self.writers.push(page);
+    }
+
     #[inline]
     pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodePage<'a, NS>> {
         self.writers.get_mut(segment_id)
