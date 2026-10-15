@@ -46,6 +46,7 @@ use tracing::{error, warn};
 pub use crate::model::graph::vectorised_graph::VectorQuery;
 use crate::{model::plugins::Plugins, plugin::schema::RegisterPlugin};
 
+use crate::paths::PathValidationError;
 pub use algorithms::GqlAlgorithms;
 
 pub(crate) mod algorithms;
@@ -294,7 +295,11 @@ impl QueryRoot {
     /// Returns:: Namespace or error if no namespace found
     pub async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(Namespace::try_new(data.work_dir_read().await, path)?)
+        let namespace = Namespace::try_new(data.work_dir_read().await, path.clone())?;
+        if !is_namespace_visible(ctx, &data.auth_policy, &namespace)? {
+            Err(PathValidationError::NamespaceDoesNotExist(path))?
+        }
+        Ok(namespace)
     }
 
     /// Returns root namespace
