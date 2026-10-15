@@ -224,6 +224,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut node_resolve_cache: Option<NodeResolveCache<VID>> = None;
 
+    // held for the whole load
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols =
@@ -288,7 +291,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         let secondary_index_col =
             extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
 
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        // node resolution may have created new node segments
+        write_locked_graph.lock_new_segments();
         let max_node_segment_len = write_locked_graph
             .graph()
             .storage()

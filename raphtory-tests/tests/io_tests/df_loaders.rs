@@ -987,6 +987,129 @@ mod io_tests {
         assert!(!g.has_node(9u64));
         assert_eq!(g.node(1u64).unwrap().metadata().get("str_prop"), None);
     }
+    /// Runs `f` on another thread and fails the test if it does not finish in time,
+    /// so a deadlocked load fails instead of hanging the test run.
+    fn finishes_within<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || tx.send(f()).unwrap());
+        rx.recv_timeout(std::time::Duration::from_secs(60))
+            .expect("bulk load did not finish (deadlock?)")
+    }
+
+    fn load_typed_nodes(
+        g: &Graph,
+        chunk_size: usize,
+        nodes: &[(u64, i64, &str)],
+    ) -> Result<(), GraphError> {
+        load_nodes_from_df(
+            build_nodes_df(chunk_size, nodes),
+            "time",
+            None,
+            "id",
+            &[],
+            &[],
+            None,
+            None,
+            Some("node_type"),
+            g,
+            true,
+            None,
+            None,
+            None,
+        )
+    }
+
+    fn sorted_node_types(g: &Graph) -> Vec<(GID, Option<ArcStr>)> {
+        let mut result = g
+            .nodes()
+            .into_iter()
+            .map(|node| (node.id(), node.node_type()))
+            .collect::<Vec<_>>();
+        result.sort();
+        result
+    }
+
+    #[test]
+    fn test_reload_existing_typed_nodes() {
+        let nodes: Vec<(u64, i64, &str)> = (0..20u64)
+            .map(|i| (i, i as i64, if i % 2 == 0 { "even" } else { "odd" }))
+            .collect();
+        let g = small_pages_graph();
+        let g_load = g.clone();
+        let reloaded = nodes
+            .iter()
+            .map(|(id, t, ty)| (*id, t + 100, *ty))
+            .collect::<Vec<_>>();
+        finishes_within(move || {
+            load_typed_nodes(&g_load, 7, &nodes).unwrap();
+            // every gid already exists and already has the same type
+            load_typed_nodes(&g_load, 7, &reloaded).unwrap();
+        });
+
+        let expected = (0..20u64)
+            .map(|i| {
+                (
+                    GID::U64(i),
+                    Some(ArcStr::from(if i % 2 == 0 { "even" } else { "odd" })),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(sorted_node_types(&g), expected);
+        for node in g.nodes() {
+            assert_eq!(node.history().len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_load_typed_nodes_after_edges() {
+        let edges = (0..20u64)
+            .map(|i| (i, (i + 1) % 20, i as i64, i.to_string(), i as i64))
+            .collect::<Vec<_>>();
+        let nodes: Vec<(u64, i64, &str)> = (0..20u64).map(|i| (i, 50, "typed")).collect();
+        let g = small_pages_graph();
+        let g_load = g.clone();
+        finishes_within(move || {
+            load_edges_from_df(
+                build_df(7, &edges),
+                ColumnNames::new("time", None, "src", "dst", None),
+                true,
+                &[],
+                &[],
+                None,
+                None,
+                &g_load,
+                false,
+            )
+            .unwrap();
+            // every gid already exists without a stored type
+            load_typed_nodes(&g_load, 7, &nodes).unwrap();
+        });
+
+        let expected = (0..20u64)
+            .map(|i| (GID::U64(i), Some(ArcStr::from("typed"))))
+            .collect::<Vec<_>>();
+        assert_eq!(sorted_node_types(&g), expected);
+        assert_eq!(g.count_edges(), 20);
+    }
+
+    #[test]
+    fn test_reload_existing_node_with_conflicting_type_fails() {
+        let g = small_pages_graph();
+        let g_load = g.clone();
+        let result = finishes_within(move || {
+            load_typed_nodes(&g_load, 7, &[(1, 1, "a"), (2, 2, "b")]).unwrap();
+            load_typed_nodes(&g_load, 7, &[(1, 3, "b")])
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            sorted_node_types(&g),
+            vec![
+                (GID::U64(1), Some(ArcStr::from("a"))),
+                (GID::U64(2), Some(ArcStr::from("b"))),
+            ]
+        );
+    }
+
     fn small_pages_graph() -> Graph {
         Graph::new_with_config(
             Args::default()
