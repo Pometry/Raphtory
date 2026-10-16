@@ -545,6 +545,13 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.try_write()
     }
 
+    fn try_head_mut_for(
+        &self,
+        timeout: std::time::Duration,
+    ) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
+        self.segment.try_write_for(timeout)
+    }
+
     fn set_dirty(&self, _dirty: bool) {}
 
     fn is_dirty(&self) -> bool {

@@ -145,6 +145,30 @@ pub mod error {
 
         #[error("Graph requires WAL recovery; load with WAL enabled")]
         RecoveryRequired,
+
+        #[error(
+            "Bulk load timed out locking new {kind} segment {segment_id}: a reader or an \
+             unguarded writer is holding it. The batch in progress may be partially applied."
+        )]
+        SegmentLockTimeout {
+            kind: SegmentKind,
+            segment_id: usize,
+        },
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SegmentKind {
+        Node,
+        Edge,
+    }
+
+    impl std::fmt::Display for SegmentKind {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                SegmentKind::Node => f.write_str("node"),
+                SegmentKind::Edge => f.write_str("edge"),
+            }
+        }
     }
 
     impl StorageError {

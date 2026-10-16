@@ -35,7 +35,7 @@ use storage::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
-    transaction::TransactionManager,
+    transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
@@ -743,8 +743,11 @@ impl InternalAdditionOps for TemporalGraph {
 }
 
 impl DurabilityOps for TemporalGraph {
-    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError> {
-        Ok(&self.transaction_manager)
+    fn transaction_manager(&self) -> Result<TransactionGuard<'_>, MutationError> {
+        Ok(TransactionGuard::new(
+            &self.transaction_manager,
+            self.storage().bulk_load_shared(),
+        ))
     }
 
     fn wal(&self) -> Result<&Wal, MutationError> {
