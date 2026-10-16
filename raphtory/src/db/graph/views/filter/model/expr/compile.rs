@@ -1070,7 +1070,9 @@ impl CreateFilter for FilterExpr {
     /// of node expressions alone is one node predicate, as on collections;
     /// otherwise the expressions of `and` and `or` each run on the same graph and
     /// their graphs combine. The result of an `and` is windowed to the overlap
-    /// of its view operands. A view under `or` or `not` is refused.
+    /// of its view operands. A `not` of one leaf is the leaf's negated predicate;
+    /// a `not` of a combination is the complement graph. A view under `or` or
+    /// `not` is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -1114,8 +1116,18 @@ impl CreateFilter for FilterExpr {
             }
             FilterExpr::Not(inner) => {
                 inner.no_view_below_top_level()?;
-                let inner = inner.create_graph_filter(graph.clone())?;
-                Ok(NotFilteredGraph::new(graph, inner).into_dyn_graph_arc())
+                match *inner {
+                    FilterExpr::Edge(expr) => {
+                        EdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
+                    }
+                    FilterExpr::ExplodedEdge(expr) => {
+                        ExplodedEdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
+                    }
+                    inner => {
+                        let inner = inner.create_graph_filter(graph.clone())?;
+                        Ok(NotFilteredGraph::new(graph, inner).into_dyn_graph_arc())
+                    }
+                }
             }
         }
     }

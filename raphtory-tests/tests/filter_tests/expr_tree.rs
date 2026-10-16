@@ -837,7 +837,8 @@ fn assert_answers(cases: Vec<(&str, FilterExpr, &[&str], &[&str])>) {
 }
 
 /// A filter keeps nodes and edges: a negated node predicate keeps the nodes
-/// that fail it and the edges between them; the per-edge form of every
+/// that fail it and the edges between them; a negated edge predicate keeps
+/// every node and the edges that fail it; the per-edge form of every
 /// filter agrees with its graph; and a chain of filters gives the `and`'s
 /// answer.
 #[test]
@@ -868,6 +869,12 @@ fn filters_answer_the_node_and_edge_questions_separately() {
             FilterExpr::Or(vec![score_gt(8.0), score_lt(3.0)]),
             &["alice", "bob", "dave"],
             &["alice->bob"],
+        ),
+        (
+            "not(edge)",
+            not(w_gt(2)),
+            &ALL_NODES,
+            &["alice->bob", "bob->carol"],
         ),
     ]);
 }
@@ -901,12 +908,6 @@ fn mixed_or_filters_answer_each_question() {
 #[ignore = "`~` of a mixed node and edge combination is being specified"]
 fn mixed_node_and_edge_filters_answer_each_question() {
     assert_answers(vec![
-        (
-            "not(edge)",
-            not(w_gt(2)),
-            &ALL_NODES,
-            &["alice->bob", "bob->carol"],
-        ),
         (
             "not(and(node, edge)): each answer negated",
             not(FilterExpr::And(vec![score_gt(4.0), w_gt(2)])),
@@ -959,6 +960,39 @@ fn not_over_an_exploded_predicate_keeps_the_other_instances() {
         instances(&not),
         [("alice".to_string(), 1), ("bob".to_string(), 2)]
     );
+}
+
+/// Chained after a node filter, `not` over an exploded-edge predicate negates
+/// each instance of the edges the node filter keeps.
+#[test]
+fn a_chained_not_over_an_exploded_predicate_keeps_the_other_instances() {
+    let g = graph();
+    // alice.score 3@0 7@2 9@6 · bob.score 5@1 2@7 · alice→bob w=1@1 w=2@4
+    let w_gt_1 = FilterExpr::ExplodedEdge(cmp(
+        BinaryOp::Gt,
+        Expr::Term(ExplodedEdgeLeaf::Property {
+            views: vec![],
+            name: "w".into(),
+            temporal: false,
+        }),
+        Expr::Const(1i64.into()),
+    ));
+    let chained = g
+        .filter(score_gt(1.5))
+        .unwrap()
+        .filter(FilterExpr::Not(Box::new(w_gt_1)))
+        .unwrap();
+    let mut names: Vec<String> = chained.nodes().iter().map(|n| n.name()).collect();
+    names.sort();
+    assert_eq!(names, ["alice", "bob"]);
+    let mut instances: Vec<(String, String, i64)> = chained
+        .edges()
+        .explode()
+        .iter()
+        .map(|e| (e.src().name(), e.dst().name(), e.time().unwrap().0))
+        .collect();
+    instances.sort();
+    assert_eq!(instances, [("alice".to_string(), "bob".to_string(), 1)]);
 }
 
 /// On a graph a view under `not` is refused, before and after the push-down.

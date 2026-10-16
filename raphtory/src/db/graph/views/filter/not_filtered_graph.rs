@@ -30,8 +30,9 @@ use raphtory_storage::{
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 
-/// The graph keeping what a predicate operand drops; a view operand is refused
-/// before this graph is built.
+/// The graph keeping what an operand combining predicates drops; a `not` of a
+/// single predicate is that predicate negated instead, and a view operand is
+/// refused before this graph is built.
 #[derive(Debug, Clone)]
 pub struct NotFilteredGraph<G, T> {
     pub(crate) graph: G,
