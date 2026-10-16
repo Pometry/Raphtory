@@ -132,6 +132,7 @@ pub trait NodeWriteLock: Send + Sync {
         layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     );
+    fn internal_delete(&mut self, t: EventTime, layer: LayerId);
 
     fn can_set_type(&self) -> bool;
 

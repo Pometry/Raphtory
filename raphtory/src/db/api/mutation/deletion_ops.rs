@@ -5,14 +5,14 @@ use crate::{
             mutation::{time_from_input_session, TryIntoInputTime},
             view::StaticGraphViewOps,
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
 use raphtory_storage::{
     durability_ops::DurabilityOps,
-    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -91,6 +91,52 @@ pub trait DeletionOps:
     ) -> Result<EdgeView<Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.delete_edge(time, src, dst, layer)
+    }
+
+    fn delete_node<V: AsNodeRef, T: TryIntoInputTime>(
+        &self,
+        t: T,
+        node: V,
+        layer: Option<&str>,
+    ) -> Result<NodeView<'static, Self>, GraphError> {
+        let transaction_manager = self.core_graph().transaction_manager()?;
+        let wal = self.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let session = self.write_session().map_err(|err| err.into())?;
+        let node_ref = node.as_node_ref();
+        let node_gid = node_ref.as_gid_ref();
+
+        self.validate_gids(node_gid).map_err(into_graph_err)?;
+
+        let ti = time_from_input_session(&session, t)?;
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
+        let mut writer = self.atomic_add_node(node_ref).map_err(into_graph_err)?;
+        let node_id = writer.node().inner();
+        let lsn = wal.log_delete_node(
+            transaction_id,
+            ti,
+            node_gid,
+            node_id,
+            layer,
+            layer_id.inner(),
+        )?;
+        writer.internal_delete(ti, layer_id.inner());
+
+        // Update node segment with the lsn of the wal entry.
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+
+        // Segment lock can be released before flush to allow
+        // other operations to proceed.
+        drop(writer);
+
+        // Flush the wal entry to disk.
+        // Any error here is fatal.
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
+        Ok(NodeView::new_internal(self.clone(), node_id))
     }
 }
 

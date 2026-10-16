@@ -23,6 +23,7 @@ use std::{
         Arc,
     },
 };
+use storage::api::nodes::NodeEntryOps;
 use tracing::debug;
 
 /// Label carried by a node that has not (yet) been assigned a community.

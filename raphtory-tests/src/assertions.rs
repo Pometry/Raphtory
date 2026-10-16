@@ -320,14 +320,17 @@ fn assert_results(
                 pre_transform(&graph);
                 let graph = erase_graph(transform.apply(graph.clone()));
                 let result = sorted(apply.apply(graph));
-                assert_eq!(expected, result);
+                assert_eq!(expected, result, "Mismatched results for event semantics");
             }
             TestGraphVariants::PersistentGraph => {
                 pre_transform(&graph);
                 let base = graph.persistent_graph();
                 let graph = erase_graph(transform.apply(base));
                 let result = sorted(apply.apply(graph));
-                assert_eq!(expected, result);
+                assert_eq!(
+                    expected, result,
+                    "Mismatched results for persistent semantics"
+                );
             }
         }
     }

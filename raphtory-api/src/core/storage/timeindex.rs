@@ -248,6 +248,14 @@ impl EventTime {
         }
     }
 
+    /// start of the next timestamp or EventTime::MAX on overflow
+    pub fn next_t(&self) -> Self {
+        match self.0.checked_add(1) {
+            None => Self::MAX,
+            Some(t) => Self::start(t),
+        }
+    }
+
     pub fn previous(&self) -> Self {
         if self.1 > 0 {
             Self(self.0, self.1 - 1)

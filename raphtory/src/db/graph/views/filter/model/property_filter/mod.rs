@@ -40,9 +40,10 @@ use raphtory_api::core::{
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    nodes::node_ref::NodeStorageRef,
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use storage::api::nodes::{NodeEntryOps, NodeRefOps};
 
 pub mod builders;
 mod evaluate;
@@ -310,8 +311,9 @@ impl<M> PropertyFilter<M> {
                     let core_node = graph.core_node(node_view.node);
                     let prop_ids: Arc<[usize]> = graph.node_visible_temporal_prop_ids().collect();
 
+                    // TODO: this is horrifically inefficient!
                     let node_update_count = semantics
-                        .node_updates(core_node.as_ref(), graph, prop_ids)
+                        .node_updates(core_node.as_ref(), graph, graph.layer_ids(), prop_ids)
                         .count();
                     let prop_time_count = seq.len();
 

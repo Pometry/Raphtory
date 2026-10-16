@@ -234,19 +234,15 @@ pub struct SegmentLockedNodeEntry<
     locked: Arc<NS::ArcLockedSegment>,
 }
 
-impl<'a, NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>> NodeEntryOps<'a>
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>> NodeEntryOps
     for SegmentLockedNodeEntry<NS, EXT>
 {
     type Ref<'b>
         = <NS::ArcLockedSegment as LockedNSSegment>::EntryRef<'b>
     where
-        'a: 'b,
         Self: 'b;
 
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b,
-    {
+    fn as_ref<'b>(&'b self) -> Self::Ref<'b> {
         self.locked.entry_ref(self.pos)
     }
 }
