@@ -50,7 +50,7 @@ impl<G: CoreGraphOps + From<GraphStorage>> Stage<G> {
         &self.graph
     }
 
-    /// Finalise all writes and promote the staged graph as the new primary graph.
+    /// Finalise all writes and promote the staged graph as the new active graph.
     pub fn finish(self) -> Result<G, StageError> {
         let storage = self.graph.core_graph();
         storage.flush()?;
