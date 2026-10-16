@@ -975,7 +975,11 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .into_iter()
             .chain(additions.range(t.next()..EventTime::MAX).first())
             .min()
-            .or_else(|| view.latest_time_global().map(EventTime::end))
+            // still in force: clamp to the end of the view. This value is returned to the
+            // caller, so use the same convention as the windowed twin (the bound with event id
+            // 0) rather than EventTime::end, whose usize::MAX marker is only meant as a range
+            // bound and leaked into Python as a 20-digit event id.
+            .or_else(|| view.latest_time_global().map(EventTime::start))
     }
 
     fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
