@@ -21,6 +21,8 @@ use crate::{
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
+                masked_edge_graph::MaskedEdgeGraph,
+                masked_node_graph::MaskedNodeGraph,
                 node_subgraph::{NodeSubgraph, UnfilteredSubgraph},
                 valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
@@ -126,6 +128,26 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for UnfilteredS
 }
 
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeSubgraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for MaskedNodeGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for MaskedEdgeGraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -399,7 +421,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView: Returns the subgraph
-    fn exclude_nodes(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
+    fn exclude_nodes(&self, nodes: Vec<PyNodeRef>) -> MaskedNodeGraph<DynamicGraph> {
         self.graph.exclude_nodes(nodes)
     }
 

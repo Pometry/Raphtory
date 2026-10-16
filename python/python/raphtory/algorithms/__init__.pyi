@@ -35,6 +35,7 @@ from raphtory.iterables import *
 
 __all__ = [
     "dijkstra_single_source_shortest_paths",
+    "all_simple_paths",
     "global_reciprocity",
     "betweenness_centrality",
     "all_local_reciprocity",
@@ -104,6 +105,25 @@ def dijkstra_single_source_shortest_paths(
     Returns:
         NodeStateWeightedSP: Mapping from nodes to a tuple containing the total cost and the nodes representing the shortest path.
 
+    """
+
+def all_simple_paths(
+    graph: GraphView, source: NodeInput, target: NodeInput
+) -> Iterator[Nodes]:
+    """
+    Find all simple (i.e., loop-less) paths between a pair of nodes.
+
+    This algorithm generates paths lazily in order from shortest to longest.
+    The number of paths between a pair of nodes can be extremely large, it is
+    typically not recommended to list all of them!
+
+    Arguments:
+        graph (GraphView): The input graph view
+        source (NodeInput): The source node for the paths
+        target (NodeInput): The target node for the paths
+
+    Returns:
+        Iterator[Nodes]: An iterator of paths from shortest to longest
     """
 
 def global_reciprocity(graph: GraphView) -> float:

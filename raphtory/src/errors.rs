@@ -1,6 +1,8 @@
 use crate::{
-    algorithms::dynamics::temporal::epidemics::SeedError, core::storage::lazy_vec::IllegalSet,
-    db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
+    algorithms::{dynamics::temporal::epidemics::SeedError, pathing::all_paths::AllPathsError},
+    core::storage::lazy_vec::IllegalSet,
+    db::graph::views::filter::model::filter_operator::FilterOperator,
+    prelude::GraphViewOps,
 };
 use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
@@ -232,6 +234,9 @@ pub enum GraphError {
 
     #[error("Metadata {0} does not exist")]
     MetadataMissingError(String),
+
+    #[error(transparent)]
+    AllPathsError(#[from] AllPathsError),
 
     // wasm
     #[error(transparent)]
