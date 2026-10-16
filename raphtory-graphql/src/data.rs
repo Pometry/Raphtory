@@ -47,6 +47,7 @@ use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{debug, error, warn};
 use walkdir::WalkDir;
 
+use crate::auth_policy::AuthPolicyError;
 #[cfg(feature = "vectors")]
 use {
     crate::model::graph::vectorised_graph::GqlVectorisedGraph,
@@ -715,6 +716,8 @@ pub enum PermissionError {
         graph: String,
         operation: String,
     },
+    #[error("Internal server error, access policy is misconfigured")]
+    AuthPolicyError,
 }
 
 /// Machine-readable `extensions.code` values attached to authorization errors so
@@ -725,6 +728,7 @@ pub enum PermissionError {
 /// an unauthorized caller.
 pub const CODE_ACCESS_DENIED: &str = "ACCESS_DENIED";
 pub const CODE_GRAPH_NOT_FOUND: &str = "GRAPH_NOT_FOUND";
+pub const CODE_AUTH_ERROR: &str = "AUTH_ERROR";
 
 /// Build an `async_graphql::Error` carrying a `code` in its extensions. The
 /// human-readable message is preserved unchanged; only the structured code is
@@ -748,6 +752,7 @@ impl PermissionError {
             | PermissionError::GraphWriteRequired { .. }
             | PermissionError::GraphUnfilteredReadRequired { .. }
             | PermissionError::NamespaceWriteRequired { .. } => CODE_ACCESS_DENIED,
+            PermissionError::AuthPolicyError => CODE_AUTH_ERROR,
         }
     }
 
@@ -818,7 +823,7 @@ fn require_at_least_read(
                     error = %e,
                     "Authorization policy could not resolve graph permissions"
                 );
-                Err(PermissionError::GraphNotFound.into_gql_error())
+                Err(PermissionError::AuthPolicyError.into_gql_error())
             }
             Ok(None) => {
                 warn!(graph = path, "Access denied by auth policy");
@@ -832,10 +837,9 @@ fn require_at_least_read(
                         error!(
                             namespace,
                             error = %e,
-                            "Authorization policy could not resolve namespace permissions; \
-                             hiding the graph"
+                            "Authorization policy could not resolve namespace permissions when checking graph visibility."
                         );
-                        false
+                        return Err(PermissionError::AuthPolicyError.into_gql_error());
                     }
                 };
                 if disclosable {
@@ -881,8 +885,11 @@ async fn refine(
             .refine_permission(ctx, path, perm)
             .await
             .map_err(|msg| {
-                warn!(graph = path, "Access denied while refining permission");
-                msg.into()
+                error!(
+                    graph = path,
+                    "Authpolicy failure when refining permissions: {msg}"
+                );
+                PermissionError::AuthPolicyError.into_gql_error()
             }),
         None => Ok(perm),
     }
