@@ -746,7 +746,7 @@ impl DurabilityOps for TemporalGraph {
     fn transaction_manager(&self) -> Result<TransactionGuard<'_>, MutationError> {
         Ok(TransactionGuard::new(
             &self.transaction_manager,
-            self.storage().bulk_load_read(),
+            self.storage().bulk_load_shared(),
         ))
     }
 

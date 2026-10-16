@@ -259,7 +259,9 @@ pub fn load_nodes_from_df<
             }
 
             // node resolution may have created new node segments
-            write_locked_graph.lock_new_segments();
+            write_locked_graph
+                .lock_new_segments()
+                .map_err(into_graph_err)?;
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
@@ -439,7 +441,9 @@ pub fn load_node_props_from_df<
             .max()
             .map(VID)
             .unwrap_or(VID(0));
-        write_locked_graph.resize_segments_to_vid(max_vid);
+        write_locked_graph
+            .resize_segments_to_vid(max_vid)
+            .map_err(into_graph_err)?;
 
         write_locked_graph
             .nodes

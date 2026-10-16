@@ -2,7 +2,7 @@ use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps, LockedESegment},
-    error::StorageError,
+    error::{SegmentKind, StorageError},
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
@@ -28,6 +28,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
@@ -470,17 +471,28 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     /// Write-lock the segments created since `pages` was taken and append them,
     /// keeping the locks `pages` already holds.
-    pub fn lock_new_segments<'a>(&'a self, pages: &mut WriteLockedEdgePages<'a, ES>) {
+    pub fn lock_new_segments<'a>(
+        &'a self,
+        pages: &mut WriteLockedEdgePages<'a, ES>,
+        timeout: Duration,
+    ) -> Result<(), StorageError> {
         for segment_id in pages.len()..self.segments.count() {
             let page = self.get_or_create_segment(segment_id);
+            let lock = page
+                .try_head_mut_for(timeout)
+                .ok_or(StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Edge,
+                    segment_id,
+                })?;
             pages.push(LockedEdgePage::new(
                 segment_id,
                 self.max_page_len(),
                 page.as_ref(),
                 &self.layer_counter,
-                page.head_mut(),
+                lock,
             ));
         }
+        Ok(())
     }
 
     /// Retrieve the segment for an edge given its EID
