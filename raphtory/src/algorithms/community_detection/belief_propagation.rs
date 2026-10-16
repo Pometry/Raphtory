@@ -56,10 +56,10 @@ pub struct BeliefPropState {
     pub top_values: Vec<f64>,
     /// Certainty: `Σ_i b_u(i)` over every label above the floor, not only the top-r.
     pub mass: f64,
-    /// Entropy 1: `Σ_i b_u(i) ln b_u(i)`.
+    /// `Σ_i b_u(i) ln b_u(i)`, from which the leaning entropy is `H0 = ln S − sum_b_ln_b / S`.
     pub sum_b_ln_b: f64,
-    /// Entropy 2: `Σ_i (b_u(i) + 1) ln(b_u(i) + 1)`.
-    pub sum_b1_ln_b1: f64,
+    /// Number of labels whose belief at this node is `≥ epsilon`
+    pub n_labels: u16,
 }
 
 /// Resolves the caller's node references into the `VID`-keyed map the algorithm uses.
@@ -95,6 +95,13 @@ fn invalid(reason: String) -> GraphError {
     GraphError::InvalidValue { reason }
 }
 
+fn validate_c(c: f64) -> Result<(), GraphError> {
+    if !(c > 0.0 && c < 1.0) {
+        return Err(invalid(format!("c must be in (0, 1), got {c}")));
+    }
+    Ok(())
+}
+
 /// Checks the scalar parameters.
 fn validate_params(
     c: f64,
@@ -102,9 +109,7 @@ fn validate_params(
     activation_tol: f64,
     top_r: usize,
 ) -> Result<(), GraphError> {
-    if !(c > 0.0 && c < 1.0) {
-        return Err(invalid(format!("c must be in (0, 1), got {c}")));
-    }
+    validate_c(c)?;
     if !(epsilon.is_finite() && epsilon > 0.0) {
         return Err(invalid(format!(
             "epsilon must be finite and > 0, got {epsilon}"
@@ -473,9 +478,10 @@ fn propagate_label(
 /// # Returns
 ///
 /// A `TypedNodeState` mapping each node to its `BeliefPropState`: its `top_r` strongest labels and
-/// their D-beliefs, its `mass`, and the two entropy sums `Σ b ln b` and `Σ (b+1) ln(b+1)` over
-/// every label above the floor. Nodes with no evidence get empty vectors and zeros. The output is
-/// bit-identical across thread counts.
+/// their D-beliefs (`top_labels`, `top_values`), and, over every label above the floor, its `mass`
+/// `Σ b`, the sum `sum_b_ln_b` = `Σ b ln b`, and the count `n_labels`. Nodes with no evidence get
+/// empty vectors and zeros. The output is bit-identical across thread counts.
+/// `belief_propagation_readout` turns it into shares, hops and perplexity.
 ///
 /// One line of statistics per label (iterations, convergence, nodes reached, largest belief) is
 /// printed; it is not part of the return value.
@@ -515,7 +521,7 @@ pub fn belief_propagation<G: StaticGraphViewOps, V: AsNodeRef>(
     let mut top_values = vec![0.0f64; n * top_r];
     let mut mass = vec![0.0f64; n];
     let mut sum_b_ln_b = vec![0.0f64; n];
-    let mut sum_b1_ln_b1 = vec![0.0f64; n];
+    let mut n_labels = vec![0u16; n];
 
     let pool: Arc<ThreadPool> = threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
     with_neighbours(g, &index, |collect_nbors| {
@@ -572,7 +578,7 @@ pub fn belief_propagation<G: StaticGraphViewOps, V: AsNodeRef>(
                         );
                         mass[u] += value;
                         sum_b_ln_b[u] += value * value.ln();
-                        sum_b1_ln_b1[u] += (value + 1.0) * value.ln_1p();
+                        n_labels[u] += 1;
                     }
                     b[u] = 0.0;
                 }
@@ -610,13 +616,94 @@ pub fn belief_propagation<G: StaticGraphViewOps, V: AsNodeRef>(
                 top_values: row_values,
                 mass: mass[pos],
                 sum_b_ln_b: sum_b_ln_b[pos],
-                sum_b1_ln_b1: sum_b1_ln_b1[pos],
+                n_labels: n_labels[pos],
             }
         })
         .collect();
 
     Ok(TypedNodeState::new(
         GenericNodeState::new_from_eval_with_index(g.clone(), values, index, None),
+    ))
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct BeliefPropReadout {
+    /// The strongest labels, as in `BeliefPropState`.
+    pub top_labels: Vec<usize>,
+    /// Each top label's share of the node's evidence, `b_i / S`.
+    pub share: Vec<f64>,
+    /// Hop-equivalent of the mass, `ln S / ln c`: hops from one observation's worth of evidence.
+    /// Negative when `S > 1`. `None` for nodes with no evidence.
+    pub h: Option<f64>,
+    /// Effective number of labels `exp(H0)`, over every label above the floor. `None` for nodes
+    /// with no evidence.
+    pub perplexity: Option<f64>,
+    /// Number of labels above the floor, as in `BeliefPropState`.
+    pub n_labels: u16,
+}
+
+impl BeliefPropReadout {
+    fn from_state(state: BeliefPropState, ln_c: f64) -> Self {
+        if state.n_labels == 0 {
+            return Self::default();
+        }
+        let mass = state.mass;
+        let ln_mass = mass.ln();
+        // `H0` is in `[0, ln n_labels]`; the clip only absorbs rounding at the ends.
+        let h0 = ln_mass - state.sum_b_ln_b / mass;
+        let max_h0 = f64::from(state.n_labels).ln();
+        debug_assert!(
+            h0 > -1e-9 && h0 < max_h0 + 1e-9,
+            "H0 = {h0} outside [0, {max_h0}]"
+        );
+        Self {
+            top_labels: state.top_labels,
+            share: state.top_values.iter().map(|b| b / mass).collect(),
+            h: Some(ln_mass / ln_c),
+            perplexity: Some(h0.clamp(0.0, max_h0).exp()),
+            n_labels: state.n_labels,
+        }
+    }
+}
+
+/// Reads a belief propagation state out as shares, hops and perplexity.
+///
+/// Each node's Dirichlet belief `b = S · p` splits into its leaning `p_i = b_i / S` and its
+/// certainty `S` (`mass`). Each row is mapped on its own, so the output has the same nodes as
+/// `state`.
+///
+/// # Arguments
+///
+/// - `state` - The output of [`belief_propagation`].
+/// - `c` - The decay per hop `state` was computed with, in (0, 1).
+///
+/// # Returns
+///
+/// A `TypedNodeState` mapping each node to its `BeliefPropReadout`: its `top_labels` and their
+/// `share` of the evidence, the hop-equivalent `h = ln S / ln c`, the `perplexity` `exp(H0)` with
+/// `H0 = ln S − sum_b_ln_b / S` clipped to `[0, ln n_labels]`, and its `n_labels`.
+/// Nodes with no evidence get an empty `share` and `None` for `h` and `perplexity`.
+pub fn belief_propagation_readout<
+    'graph,
+    G: GraphViewOps<'graph>,
+    T: Clone + Send + Sync + 'graph,
+>(
+    state: &TypedNodeState<'graph, BeliefPropState, G, T>,
+    c: f64,
+) -> Result<TypedNodeState<'graph, BeliefPropReadout, G>, GraphError> {
+    validate_c(c)?;
+    let ln_c = c.ln();
+    // Not `values_to_rows()`, which panics on a state of another shape.
+    let rows: Vec<BeliefPropState> = serde_arrow::from_record_batch(state.state.values_ref())
+        .map_err(|e| invalid(format!("not a belief_propagation state: {e}")))?;
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index_mapped(
+            state.state.base_graph.clone(),
+            rows,
+            state.state.keys_ref().clone(),
+            |row| BeliefPropReadout::from_state(row, ln_c),
+            None,
+        ),
     ))
 }
 

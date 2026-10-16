@@ -239,7 +239,8 @@ mod belief_propagation {
     use proptest::prelude::*;
     use raphtory::{
         algorithms::community_detection::belief_propagation::{
-            belief_propagation, belief_propagation_probe_convergence, BeliefPropState,
+            belief_propagation, belief_propagation_probe_convergence, belief_propagation_readout,
+            BeliefPropReadout, BeliefPropState,
         },
         db::api::view::{internal::FilterOps, StaticGraphViewOps},
         prelude::*,
@@ -666,8 +667,9 @@ mod belief_propagation {
             );
         }
 
-        // Doubling is exact in floating point, so every belief must double bit for bit. The
-        // entropy sums are not linear in the masses and are not compared.
+        // Doubling is exact in floating point, so every belief must double bit for bit, and the
+        // same labels survive the doubled floor. `sum_b_ln_b` is not linear in the masses, but
+        // the leaning entropy `H0 = ln S - sum_b_ln_b / S` built from it is scale-free.
         let doubled: Seeds = seeds
             .iter()
             .map(|(node, pairs)| {
@@ -682,6 +684,16 @@ mod belief_propagation {
             let values: Vec<f64> = state.top_values.iter().map(|v| 2.0 * v).collect();
             assert_eq!(twice.top_values, values, "node {node}");
             assert_eq!(twice.mass, 2.0 * state.mass, "node {node}");
+            assert_eq!(twice.n_labels, state.n_labels, "node {node}");
+            if state.mass > 0.0 {
+                let h0 = |s: &BeliefPropState| s.mass.ln() - s.sum_b_ln_b / s.mass;
+                assert!(
+                    (h0(twice) - h0(state)).abs() <= 1e-9,
+                    "node {node}: H0 {} vs {}",
+                    h0(twice),
+                    h0(state)
+                );
+            }
         }
 
         // Last, since it changes `g`: a self-loop on every node.
@@ -704,6 +716,8 @@ mod belief_propagation {
         for (src, dst) in [("p", "x"), ("x", "q"), ("x", "y"), ("y", "z")] {
             g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
+        // w is isolated, so no label reaches it.
+        g.add_node(0, "w", NO_PROPS, None, None).unwrap();
         // At x, by the tree formula: `strongest` 10 (its own seed); 3 and 5 tie exactly at
         // 2c = 1, one hop each by symmetry; 7 at c^2 = 0.25, two hops.
         let seeds: Seeds = HashMap::from([
@@ -722,6 +736,12 @@ mod belief_propagation {
             "3 and 5 should tie exactly"
         );
         assert_eq!(top_2["x"].top_labels, vec![strongest, 3]);
+        // All 4 labels reach x, more than `top_r = 2` lists.
+        assert_eq!(top_2["x"].n_labels, 4);
+
+        let w = &top_2["w"];
+        assert!(w.top_labels.is_empty() && w.top_values.is_empty());
+        assert_eq!((w.mass, w.sum_b_ln_b, w.n_labels), (0.0, 0.0, 0));
 
         for (node, state) in &full {
             // Value descending, and a tie goes to the smaller label.
@@ -746,9 +766,15 @@ mod belief_propagation {
             assert_eq!(short.top_values, state.top_values[..keep], "node {node}");
             assert_eq!(short.mass, state.mass, "node {node}");
             assert_eq!(short.sum_b_ln_b, state.sum_b_ln_b, "node {node}");
-            assert_eq!(short.sum_b1_ln_b1, state.sum_b1_ln_b1, "node {node}");
+            assert_eq!(short.n_labels, state.n_labels, "node {node}");
+            assert!(
+                short.n_labels as usize >= short.top_labels.len(),
+                "node {node}"
+            );
 
-            // With `top_r` covering every label, the sums are the sums of the listed values.
+            // With `top_r` covering every label, the sums are the sums of the listed values, and
+            // the count is the length of the list.
+            assert_eq!(state.n_labels as usize, state.top_labels.len(), "node {node}");
             let values = &state.top_values;
             let close = |a: f64, b: f64| (a - b).abs() <= 1e-12 * (1.0 + b.abs());
             assert!(close(state.mass, values.iter().sum()), "node {node}: mass");
@@ -756,12 +782,85 @@ mod belief_propagation {
                 close(state.sum_b_ln_b, values.iter().map(|v| v * v.ln()).sum()),
                 "node {node}: sum_b_ln_b"
             );
+        }
+    }
+
+    /// The readout against the tree formula `b = m c^k`, which gives `h = k + ln m / ln c`.
+    #[test]
+    fn bp_readout() {
+        let c: f64 = 0.5;
+        let g = Graph::new();
+        // Path a-b-d with one label. Path p-x-q with two labels that tie exactly at x by
+        // symmetry. w is isolated.
+        for (src, dst) in [("a", "b"), ("b", "d"), ("p", "x"), ("x", "q")] {
+            g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+        }
+        g.add_node(0, "w", NO_PROPS, None, None).unwrap();
+        let seeds: Seeds = HashMap::from([
+            ("a".to_string(), vec![(7, 4.0)]),
+            ("p".to_string(), vec![(3, 2.0)]),
+            ("q".to_string(), vec![(5, 2.0)]),
+        ]);
+        let readout = |top_r: usize| -> HashMap<String, BeliefPropReadout> {
+            let state = belief_propagation(
+                &g,
+                seeds.clone(),
+                c,
+                EPSILON,
+                Some(TOL),
+                Some(MAX_ITER),
+                Some(top_r),
+                Some(1),
+            )
+            .unwrap();
+            belief_propagation_readout(&state, c)
+                .unwrap()
+                .iter()
+                .map(|(node, row)| (node.name(), row.clone()))
+                .collect()
+        };
+        let full = readout(5);
+        let close = |a: f64, b: f64| (a - b).abs() <= 1e-9;
+
+        // One label, at k = 0, 1, 2 hops from a seed of mass 4: h = k - 2.
+        for (node, k) in [("a", 0.0), ("b", 1.0), ("d", 2.0)] {
+            let row = &full[node];
+            assert_eq!(row.top_labels, vec![7], "node {node}");
+            assert_eq!(row.n_labels, 1, "node {node}");
+            assert!(close(row.share[0], 1.0), "node {node}: share");
+            assert!(close(row.h.unwrap(), k - 2.0), "node {node}: h");
+            assert!(close(row.perplexity.unwrap(), 1.0), "node {node}: perplexity");
+        }
+
+        // x: labels 3 and 5 each arrive one hop from a seed of mass 2, at 2c = 1, so S = 2 and
+        // h = ln S / ln c = ln 2 / ln 0.5 = -1. Checking h checks S too, since S = c^h.
+        let x = &full["x"];
+        assert_eq!(x.top_labels, vec![3, 5]);
+        assert_eq!(x.n_labels, 2);
+        assert!(x.share.iter().all(|&s| close(s, 0.5)), "x: share");
+        assert!(close(x.h.unwrap(), -1.0), "x: h");
+        assert!(close(x.perplexity.unwrap(), 2.0), "x: perplexity");
+
+        // Shares sum to 1 when the top-r lists every label, and to less when it is truncated.
+        let top_1 = readout(1);
+        for (node, row) in &full {
+            let short: f64 = top_1[node].share.iter().sum();
+            if row.n_labels > 0 {
+                assert!(close(row.share.iter().sum(), 1.0), "node {node}: shares");
+                assert!(short <= 1.0 + 1e-12, "node {node}: truncated shares");
+            }
+        }
+        assert!(close(top_1["x"].share.iter().sum(), 0.5));
+
+        assert_eq!(full["w"], BeliefPropReadout::default());
+        assert!(full["w"].h.is_none() && full["w"].perplexity.is_none());
+
+        let state = belief_propagation(&g, seeds.clone(), c, EPSILON, None, None, None, None)
+            .unwrap();
+        for bad in [0.0, 1.0, -0.5, f64::NAN] {
             assert!(
-                close(
-                    state.sum_b1_ln_b1,
-                    values.iter().map(|v| (v + 1.0) * v.ln_1p()).sum()
-                ),
-                "node {node}: sum_b1_ln_b1"
+                belief_propagation_readout(&state, bad).is_err(),
+                "c = {bad}"
             );
         }
     }

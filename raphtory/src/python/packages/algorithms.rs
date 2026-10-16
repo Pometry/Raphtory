@@ -13,6 +13,7 @@ use crate::{
             belief_propagation::{
                 belief_propagation as belief_propagation_rs,
                 belief_propagation_probe_convergence as belief_propagation_probe_convergence_rs,
+                belief_propagation_readout as belief_propagation_readout_rs, BeliefPropState,
             },
             label_propagation::label_propagation as label_propagation_rs,
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
@@ -62,7 +63,7 @@ use crate::{
     },
     db::{
         api::{
-            state::{ops::filter::NO_FILTER, Index, OutputTypedNodeState},
+            state::{ops::filter::NO_FILTER, Index, OutputTypedNodeState, TypedNodeState},
             view::internal::DynamicGraph,
         },
         graph::nodes::Nodes,
@@ -71,7 +72,7 @@ use crate::{
     prelude::Graph,
     python::{
         filter::filter_expr::PyFilterExpr,
-        graph::{node::PyNode, views::graph_view::PyGraphView},
+        graph::{node::PyNode, node_state::PyOutputNodeState, views::graph_view::PyGraphView},
         utils::PyNodeRef,
     },
 };
@@ -830,7 +831,7 @@ pub fn label_propagation(
 ///     threads (int, optional): Number of threads to use
 ///
 /// Returns:
-///     OutputNodeState: NodeState mapping nodes to their `top_r` strongest labels and D-beliefs, their `mass`, and entropy sums.
+///     OutputNodeState: NodeState mapping nodes to their `top_r` strongest labels (`top_labels`) and D-beliefs (`top_values`), and, over every label above the floor, their `mass` (Σ b), `sum_b_ln_b` (Σ b ln b) and `n_labels` (label count).
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, seeds, c, epsilon, activation_tol=None, max_iter=None, top_r=None, threads=None)]]
@@ -856,6 +857,30 @@ pub fn belief_propagation(
         threads,
     )?;
     Ok(result.to_output_nodestate())
+}
+
+/// Reads a `belief_propagation` state out as shares, hops and perplexity.
+///
+/// Each node's belief `b = S · p` splits into its leaning `p_i = b_i / S` and its certainty `S` (`mass`).
+///
+/// Arguments:
+///     state (OutputNodeState): The output of `belief_propagation`.
+///     c (float): The decay per hop the state was computed with, in (0, 1).
+///
+/// Returns:
+///     OutputNodeState: NodeState mapping nodes to their `top_labels`, each label's `share` (b_i / S), the hop-equivalent `h` (ln S / ln c), the `perplexity` exp(H0) with H0 = ln S - sum_b_ln_b / S clipped to [0, ln n_labels], and their `n_labels`. Nodes with no evidence get an empty `share` and None for `h` and `perplexity`.
+///
+/// Raises:
+///     GraphError: If `state` is not a `belief_propagation` state, or `c` is not in (0, 1).
+///
+#[pyfunction]
+#[pyo3[signature = (state, c)]]
+pub fn belief_propagation_readout(
+    state: &PyOutputNodeState,
+    c: f64,
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
+    let state = TypedNodeState::<BeliefPropState, DynamicGraph>::new(state.inner.state.clone());
+    Ok(belief_propagation_readout_rs(&state, c)?.to_output_nodestate())
 }
 
 /// Estimates the spectral radius of the belief propagation update at decay `c`.
