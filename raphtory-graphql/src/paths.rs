@@ -18,7 +18,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
-    WriteableGraphFolder, DIRTY_PATH, ROOT_RAPH_PATH,
+    WriteableGraphFolder, DIRTY_PATH, GRAPH_META_PATH, ROOT_RAPH_PATH,
 };
 use std::{
     cmp::Ordering,
@@ -286,7 +286,7 @@ impl ValidGraphPaths for UnlockedGraphFolder {
     }
 }
 
-fn valid_component(component: Component<'_>) -> Result<&str, InvalidPathReason> {
+fn validate_component(component: Component<'_>) -> Result<&str, InvalidPathReason> {
     match component {
         Component::Prefix(_) => Err(InvalidPathReason::RootNotAllowed),
         Component::RootDir => Err(InvalidPathReason::RootNotAllowed),
@@ -296,8 +296,17 @@ fn valid_component(component: Component<'_>) -> Result<&str, InvalidPathReason> 
             let component_str = component
                 .to_str()
                 .ok_or(InvalidPathReason::PathNotParsable)?;
+
             if component_str.starts_with(".") {
                 Err(InvalidPathReason::HiddenPathNotAllowed)
+            } else if [ROOT_RAPH_PATH, DIRTY_PATH, GRAPH_META_PATH]
+                .iter()
+                // Case-insensitive filesystems would otherwise still collide.
+                .any(|reserved| component_str.eq_ignore_ascii_case(reserved))
+            {
+                Err(InvalidPathReason::ReservedNameNotAllowed(
+                    component_str.to_string(),
+                ))
             } else {
                 Ok(component_str)
             }
@@ -309,17 +318,22 @@ fn extend_and_validate(
     full_path: &mut PathBuf,
     component: Component,
 ) -> Result<(), InternalPathValidationError> {
-    let component = valid_component(component)?;
+    let component = validate_component(component)?;
+
     // check if some intermediate path is already a graph
     if full_path.join(ROOT_RAPH_PATH).exists() {
         return Err(InvalidPathReason::ParentIsGraph.into());
     }
+
     full_path.push(component);
-    //check for symlinks
+
+    // check for symlinks
     if full_path.is_symlink() {
         return Err(InvalidPathReason::SymlinkNotAllowed.into());
     }
+
     ensure_clean_folder(&full_path)?;
+
     Ok(())
 }
 
@@ -664,9 +678,9 @@ impl<V, E: Into<InternalPathValidationError>> WithPath for Result<V, E> {
     }
 }
 
-fn valid_relative_path(relative_path: &Path) -> Result<(), InternalPathValidationError> {
+fn validate_relative_path(relative_path: &Path) -> Result<(), InternalPathValidationError> {
     let mut components = relative_path.components();
-    valid_component(
+    validate_component(
         components
             .next()
             .ok_or(InternalPathValidationError::EmptyRelativePath)?,
@@ -692,7 +706,7 @@ fn read_dirty_relative_path(
     let mut json_string = String::new();
     file.read_to_string(&mut json_string)?;
     let path: RelativePath = serde_json::from_str(&json_string)?;
-    valid_relative_path(path.path.as_ref())?;
+    validate_relative_path(path.path.as_ref())?;
     Ok(Some(path.path))
 }
 

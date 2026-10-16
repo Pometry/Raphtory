@@ -46,7 +46,7 @@ def _persist_disk_graph(graph_dir):
 def _persist_parquet_graph(graph_dir):
     """Build a graph in memory and write it to ``graph_dir`` as parquet.
     ``to_parquet`` produces a folder containing both the parquet data
-    and the ``.meta`` file the server uses for namespace listings."""
+    and the ``meta`` file the server uses for namespace listings."""
     g = Graph()
     g.add_node(1, "bob", {"role": "designer"})
     g.add_metadata({"format": "parquet", "owner": "pometry"})
@@ -54,14 +54,14 @@ def _persist_parquet_graph(graph_dir):
 
 
 def _read_is_diskgraph(graph_dir):
-    """Walk ``graph_dir`` for the ``.meta`` JSON file (which lives inside
+    """Walk ``graph_dir`` for the ``meta`` JSON file (which lives inside
     a data subdirectory) and return its ``is_diskgraph`` flag — the
     field that drives `MetaGraph.metadata` dispatch."""
     for root, _, files in os.walk(graph_dir):
-        if ".meta" in files:
-            with open(os.path.join(root, ".meta")) as fp:
+        if "meta" in files:
+            with open(os.path.join(root, "meta")) as fp:
                 return json.load(fp)["meta"]["is_diskgraph"]
-    raise AssertionError(f"no .meta file under {graph_dir}")
+    raise AssertionError(f"no meta file under {graph_dir}")
 
 
 def _list_metadata_by_path(client):
@@ -89,7 +89,7 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
     # Pre-create both graphs before the server starts. The disk graph
     # needs its writer lock released; the parquet graph is written via
     # `to_parquet`, which produces the format-specific files plus the
-    # `.meta` JSON that drives `MetaGraph.metadata` dispatch. We avoid
+    # `meta` JSON that drives `MetaGraph.metadata` dispatch. We avoid
     # `client.send_graph(...)` here because, with the storage feature
     # compiled in, it would materialize the uploaded graph as a disk
     # graph rather than parquet — which would defeat the point of this

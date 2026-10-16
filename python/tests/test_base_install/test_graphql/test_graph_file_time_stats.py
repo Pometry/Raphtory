@@ -26,9 +26,9 @@ def test_graph_file_time_stats():
         gql_last_opened_time = result["graph"]["lastOpened"]
         gql_last_updated_time = result["graph"]["lastUpdated"]
 
-        raph_file_path = os.path.join(graph_file_path, ".raph")
+        raph_file_path = os.path.join(graph_file_path, "raph")
         raph_file_stats = os.stat(raph_file_path)
-        meta_file_path = os.path.join(graph_file_path, "data0", ".meta")
+        meta_file_path = os.path.join(graph_file_path, "data0", "meta")
         meta_file_stats = os.stat(meta_file_path)
         created_time_fs = raph_file_stats.st_ctime * 1000
         last_opened_time_fs = meta_file_stats.st_atime * 1000

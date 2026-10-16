@@ -2025,6 +2025,27 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_new_graph_rejects_reserved_path_components() {
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Args::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let should_work = true;
+        test_new_graph(&schema, "raphs", should_work).await;
+        test_new_graph(&schema, "ns/metadata", should_work).await;
+
+        let should_work = false;
+        test_new_graph(&schema, "raph", should_work).await;
+        test_new_graph(&schema, "ns/dirty", should_work).await;
+        test_new_graph(&schema, "ns/meta", should_work).await;
+        test_new_graph(&schema, "RAPH", should_work).await;
+        test_new_graph(&schema, "raph/graph", should_work).await;
+
+        assert_namespace_graphs(&schema, "", vec!["raphs"], vec!["ns"]).await;
+        assert_namespace_graphs(&schema, "ns", vec!["ns/metadata"], vec![]).await;
+    }
+
+    #[tokio::test]
     async fn test_node_types() {
         // Ensure node types are returned correctly by the server.
         let node_types = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];

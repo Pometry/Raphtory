@@ -103,7 +103,7 @@ impl<
         Ok(())
     }
 
-    /// Refresh the graph metadata file (`.meta`) for disk-backed graphs.
+    /// Refresh the graph metadata file (`meta`) for disk-backed graphs.
     pub fn refresh_metadata(&self) -> Result<(), StorageError> {
         if let Some(graph_dir) = self.graph_dir.as_ref()
             && let Some(data_folder) = graph_dir.parent()
