@@ -49,13 +49,14 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (shard, global)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn run_task_v2<S: 'static>(
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
         morcel: &mut [S],
         prev_local_state: &Vec<S>,
-        reverse_vids: &Vec<VID>,
+        reverse_vids: &[VID],
         storage: &GraphStorage,
         index: &Index<VID>,
         atomic_done: &AtomicBool,
@@ -123,6 +124,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn run_task_list<S: Send + Sync + 'static>(
         &mut self,
         tasks: &[Job<G, CS, S>],
@@ -132,7 +134,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         global_state: Global<CS>,
         mut local_state: Vec<S>,
         prev_local_state: &Vec<S>,
-        reverse_vids: &Vec<VID>,
+        reverse_vids: &[VID],
         storage: &GraphStorage,
         index: &Index<VID>,
     ) -> (bool, Shard<CS>, Global<CS>, Vec<S>) {
@@ -222,6 +224,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (init.clone(), init)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn run<
         B,
         F: FnOnce(
@@ -259,6 +262,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     /// Execute tasks over nodes in `node_index`. Used for running algorithms over a super- or subset
     /// of the nodes in the graph view.
+    #[allow(clippy::too_many_arguments)]
     pub fn run_with_index<
         B,
         F: FnOnce(

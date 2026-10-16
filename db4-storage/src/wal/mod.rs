@@ -83,6 +83,7 @@ pub trait GraphWalOps {
     /// ReplayEntry represents the type of the wal entry returned during replay.
     type ReplayEntry;
 
+    #[allow(clippy::too_many_arguments)]
     fn log_add_edge(
         &self,
         transaction_id: TransactionID,
@@ -105,6 +106,7 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn log_delete_edge(
         &self,
         transaction_id: TransactionID,
@@ -118,6 +120,7 @@ pub trait GraphWalOps {
         layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn log_add_node(
         &self,
         transaction_id: TransactionID,
@@ -193,6 +196,7 @@ pub trait GraphWalOps {
 
 /// Trait for defining callbacks for replaying from wal.
 pub trait GraphReplay {
+    #[allow(clippy::too_many_arguments)]
     fn replay_add_edge(
         &mut self,
         lsn: LSN,
@@ -217,6 +221,7 @@ pub trait GraphReplay {
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn replay_delete_edge(
         &mut self,
         lsn: LSN,
@@ -231,6 +236,7 @@ pub trait GraphReplay {
         layer_id: LayerId,
     ) -> Result<(), StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn replay_add_node(
         &mut self,
         lsn: LSN,

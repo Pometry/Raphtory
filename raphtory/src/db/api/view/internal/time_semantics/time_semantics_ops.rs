@@ -562,6 +562,7 @@ pub trait EdgeTimeSemanticsOps {
         at: EventTime,
     ) -> Option<Prop>;
 
+    #[allow(clippy::too_many_arguments)]
     fn temporal_edge_prop_exploded_last_at_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef<'graph>,

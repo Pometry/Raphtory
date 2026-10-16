@@ -231,10 +231,10 @@ impl InheritNodeHistoryFilter for DynamicGraph {}
 
 impl InheritEdgeHistoryFilter for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritViewOps for &'graph1 G {}
+impl<G: GraphView> InheritViewOps for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritStorageOps for &'graph1 G {}
+impl<G: GraphView> InheritStorageOps for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritNodeHistoryFilter for &'graph1 G {}
+impl<G: GraphView> InheritNodeHistoryFilter for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritEdgeHistoryFilter for &'graph1 G {}
+impl<G: GraphView> InheritEdgeHistoryFilter for &G {}

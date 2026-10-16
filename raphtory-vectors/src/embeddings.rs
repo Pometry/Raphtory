@@ -1,11 +1,11 @@
 use crate::errors::VectorResult;
-use std::{hash::Hash, pin::Pin, sync::Arc};
+use std::{hash::Hash, sync::Arc};
 
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
-use futures_util::{future::BoxFuture, Stream, StreamExt};
+use futures_util::{future::BoxFuture, stream::BoxStream, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{cache::CachedEmbeddingModel, storage::OpenAIEmbeddings, Embedding};
@@ -88,7 +88,7 @@ where
         .chunks(CHUNK_SIZE)
         .then(|chunk| async {
             let texts = chunk.iter().map(|(_, text)| text.clone()).collect();
-            let stream: Pin<Box<dyn Stream<Item = VectorResult<(u64, Embedding)>> + Send>> =
+            let stream: BoxStream<'static, VectorResult<(u64, Embedding)>> =
                 match model.get_embeddings(texts).await {
                     Ok(embeddings) => {
                         let embedded: Vec<_> = chunk

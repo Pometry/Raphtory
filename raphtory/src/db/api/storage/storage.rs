@@ -10,7 +10,7 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::Meta,
+            meta::{Meta, PropWithStatus},
             prop::{AsPropRef, Prop, PropType},
         },
         GidRef, LayerId, EID, VID,
@@ -388,7 +388,7 @@ impl InternalAdditionOps for Storage {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
         Ok(self
             .graph
             .validate_props_with_status(is_static, meta, props)?)

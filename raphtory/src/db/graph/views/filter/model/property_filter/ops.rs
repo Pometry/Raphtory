@@ -223,6 +223,7 @@ pub trait ElemQualifierOps: InternalPropertyFilterBuilder {
 
 impl<T: InternalPropertyFilterBuilder> ElemQualifierOps for T {}
 
+#[allow(clippy::len_without_is_empty)]
 pub trait ListAggOps: InternalPropertyFilterBuilder {
     fn len(&self) -> Self::ExprBuilder {
         let builder = PropertyExprBuilderInput {

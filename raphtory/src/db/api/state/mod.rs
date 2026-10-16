@@ -7,13 +7,15 @@ mod node_state_ord_ops;
 pub mod ops;
 
 pub use generic_node_state::{
-    convert_prop_map, GenericNodeState, MergePriority, NodeStateOutput, NodeStateOutputType,
-    NodeStateValue, OutputTypedNodeState, PropMap, TransformedPropMap, TypedNodeState,
+    convert_prop_map, GenericNodeState, MergePriority, NodeCols, NodeStateOutput,
+    NodeStateOutputType, NodeStateValue, OutputTypedNodeState, PropMap, TransformedPropMap,
+    TypedNodeState,
 };
 pub use group_by::{NodeGroups, NodeStateGroupBy};
 pub use lazy_node_state::{
     AvgIntervalStruct, DateTimeStruct, DateTimesStruct, EventIdStruct, EventIdsStruct,
-    IntervalStruct, IntervalsStruct, LazyNodeState, TimeStampStruct, TimeStampsStruct,
+    IntervalStruct, IntervalsStruct, LazyNodeState, MappedLazyNodeState, OptionDateTimeResult,
+    TimeStampStruct, TimeStampsStruct,
 };
 pub use node_state::{Index, IndexIntoIter, IndexParIter, NodeState};
 pub use node_state_ops::NodeStateOps;

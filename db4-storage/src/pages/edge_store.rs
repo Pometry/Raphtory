@@ -186,7 +186,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
-            free_segments: free_segments.try_into().unwrap(),
+            free_segments,
             path,
             prop_meta: edge_meta,
             ext,

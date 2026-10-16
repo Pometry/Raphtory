@@ -34,9 +34,9 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use pyo3::{exceptions::PyException, prelude::*, Borrowed};
+use pyo3::{prelude::*, Borrowed};
 use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
-use std::{path::PathBuf, sync::OnceLock};
+use std::path::PathBuf;
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;

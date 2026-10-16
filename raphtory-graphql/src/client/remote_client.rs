@@ -147,15 +147,14 @@ impl RemoteClient {
             mutation SendGraph($path: String!, $graph: String!, $overwrite: Boolean!) {
                 sendGraph(path: $path, graph: $graph, overwrite: $overwrite)
             }
-        "#
-        .to_owned();
+        "#;
         let variables = json!({
             "path": json!(path),
             "graph": json!(encoded_graph),
             "overwrite": json!(overwrite),
         });
 
-        let data = self.query(&query, variables).await?;
+        let data = self.query(query, variables).await?;
         match data.get("sendGraph") {
             Some(JsonValue::String(_)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(

@@ -122,6 +122,7 @@ pub(crate) fn load_edge_deletions_from_df<
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_props_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
