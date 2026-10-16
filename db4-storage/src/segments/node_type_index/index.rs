@@ -1,10 +1,9 @@
 use dashmap::mapref::{multiple::RefMulti, one::Ref};
 use itertools::Itertools;
+use lock_api::ArcRwLockReadGuard;
 use ouroboros::self_referencing;
-use raphtory_api::{
-    core::storage::{ArcRwLockReadGuard, FxDashMap},
-    iter::IntoDynBoxed,
-};
+use parking_lot::RawRwLock;
+use raphtory_api::{core::storage::FxDashMap, iter::IntoDynBoxed};
 use raphtory_core::{entities::VID, utils::iter::GenLockedIter};
 use std::{
     collections::BTreeSet,
@@ -116,14 +115,17 @@ impl MemNodeTypeIndex {
 
 #[self_referencing]
 pub struct MemNodeTypeEntry {
-    head: ArcRwLockReadGuard<MemNodeTypeIndex>,
+    head: ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex>,
     #[borrows(head)]
     #[covariant]
     sets: Vec<Ref<'this, usize, BTreeSet<VID>>>,
 }
 
 impl MemNodeTypeEntry {
-    pub fn with_types(head: ArcRwLockReadGuard<MemNodeTypeIndex>, type_ids: &[usize]) -> Self {
+    pub fn with_types(
+        head: ArcRwLockReadGuard<RawRwLock, MemNodeTypeIndex>,
+        type_ids: &[usize],
+    ) -> Self {
         Self::new(head, |head| head.type_sets(type_ids))
     }
 

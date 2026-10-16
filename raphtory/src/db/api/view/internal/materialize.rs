@@ -4,6 +4,7 @@ use crate::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{iter::BoxedLIter, GraphType};
@@ -11,9 +12,7 @@ use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps}
 use std::ops::Range;
 
 #[cfg(feature = "io")]
-use {
-    crate::errors::GraphError, raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args,
-};
+use {raphtory_api::core::storage::graph_folder::GraphPaths, storage::Args};
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -238,11 +237,9 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
 pub trait InternalMaterialize {
     fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         match self.graph_type() {
-            GraphType::EventGraph => {
-                MaterializedGraph::EventGraph(Graph::from_internal_graph(graph))
-            }
+            GraphType::EventGraph => MaterializedGraph::EventGraph(Graph::from(graph)),
             GraphType::PersistentGraph => {
-                MaterializedGraph::PersistentGraph(PersistentGraph::from_internal_graph(graph))
+                MaterializedGraph::PersistentGraph(PersistentGraph::from(graph))
             }
         }
     }

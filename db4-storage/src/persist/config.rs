@@ -1,13 +1,13 @@
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 600_000; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 6_000_000; // 2^20
-pub const CONFIG_FILE_NAME: &str = "config.json";
+const CONFIG_FILE_NAME: &str = "config.json";
 
 use crate::{
     error::StorageError,
     persist::args::{ArgsOps, BaseArgs},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
 /// Trait for graph storage configuration.
@@ -17,16 +17,19 @@ use tempfile::NamedTempFile;
 pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
     type Args: ArgsOps<Config = Self>;
 
+    fn config_path(dir: &Path) -> PathBuf {
+        dir.join(CONFIG_FILE_NAME)
+    }
+
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
-        let config_file = dir.join(CONFIG_FILE_NAME);
-        let config_file = std::fs::File::open(config_file)?;
+        let config_file = std::fs::File::open(Self::config_path(dir))?;
         let config = serde_json::from_reader(config_file)?;
 
         Ok(config)
     }
 
     fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
-        let config_path = dir.join(CONFIG_FILE_NAME);
+        let config_path = Self::config_path(dir);
         let mut tmp_file = NamedTempFile::new_in(dir)?;
 
         serde_json::to_writer_pretty(&mut tmp_file, self)?;
@@ -37,6 +40,8 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Sized + Clone {
 
         Ok(())
     }
+
+    fn copy_to(src: &Path, dst: &Path) -> Result<(), StorageError>;
 
     fn max_node_page_len(&self) -> u32;
 
@@ -96,6 +101,10 @@ impl ConfigOps for BaseConfig {
 
     fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
         *self
+    }
+
+    fn copy_to(src: &Path, dst: &Path) -> Result<(), StorageError> {
+        Ok(())
     }
 }
 
