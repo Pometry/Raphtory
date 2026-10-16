@@ -295,8 +295,8 @@ def test_edge_collection_time_view_actually_narrows():
 
 def _combinations_follow_set_algebra(mixed):
     """The `&`, `|` and `~` combinations of every pair of atoms, checked against set
-    algebra over the single-atom results. `mixed` picks the `|` and `~` combinations of a
-    node atom with an edge atom, and only those."""
+    algebra over the single-atom results. `mixed` picks, of a node atom with an edge atom,
+    only the `|` combinations (`"or"`) or only the `~` ones (`"not"`)."""
 
     def check(graph):
         atoms, single = _atoms(), _singles(graph)
@@ -304,7 +304,7 @@ def _combinations_follow_set_algebra(mixed):
         node_sets = _node_sets(graph)
         every = _ids(graph.edges)
         cases = []
-        mixed_cases = []
+        mixed_cases = {"or": [], "not": []}
         select_only = set()
         for a, b in combinations(atoms, 2):
             cases.append((f"{a} & {b}", atoms[a] & atoms[b], single[a] & single[b]))
@@ -356,17 +356,19 @@ def _combinations_follow_set_algebra(mixed):
             else:
                 # An `or` across kinds is the union of what each expression keeps: the
                 # edge expression's edges plus the edges with both ends in the node expression.
-                mixed_cases.append(
+                mixed_cases["or"].append(
                     (f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b])
                 )
-                mixed_cases.append(
+                mixed_cases["not"].append(
                     (
                         f"~({a} & {b})",
                         ~(atoms[a] & atoms[b]),
                         negated[a] & negated[b],
                     )
                 )
-                mixed_cases.append((f"~({a} | {b})", ~(atoms[a] | atoms[b]), every))
+                mixed_cases["not"].append(
+                    (f"~({a} | {b})", ~(atoms[a] | atoms[b]), every)
+                )
         for a in atoms:
             if a in VIEWS:
                 select_only.add(f"~{a}")
@@ -381,7 +383,7 @@ def _combinations_follow_set_algebra(mixed):
             )
         )
         mismatches = []
-        for label, expr, want in mixed_cases if mixed else cases:
+        for label, expr, want in mixed_cases[mixed] if mixed else cases:
             paths = [("edges[]", lambda: _ids(graph.edges[expr]))]
             if label not in select_only:
                 paths.append(("filter()", lambda: _ids(graph.filter(expr).edges)))
@@ -401,12 +403,17 @@ def test_combinations_follow_set_algebra():
     return _combinations_follow_set_algebra(mixed=False)
 
 
-@pytest.mark.xfail(
-    reason="mixed node and edge combinations are being specified", strict=True
-)
 @with_variants(_init)
 def test_mixed_combinations_follow_set_algebra():
-    return _combinations_follow_set_algebra(mixed=True)
+    return _combinations_follow_set_algebra(mixed="or")
+
+
+@pytest.mark.xfail(
+    reason="`~` of a mixed node and edge combination is being specified", strict=True
+)
+@with_variants(_init)
+def test_mixed_negations_follow_set_algebra():
+    return _combinations_follow_set_algebra(mixed="not")
 
 
 @with_variants(_init)

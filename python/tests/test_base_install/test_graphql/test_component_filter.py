@@ -70,16 +70,13 @@ def test_out_component_scoped_by_graph_layer_filter(client):
 
 def test_component_filter_node_or(client):
     # node OR: step only through nodes named b or c
-    # a fails the filter, so its edges are hidden; nodes made only by edges leave the filtered graph when their edges are hidden
-    assert (
-        _names(
-            client,
-            "a",
-            "outComponent",
-            '{ or: [{ node: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "b" } } } } }, { node: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "c" } } } } }] }',
-        )
-        == []
-    )
+    # same answer as `isIn [b, c]`: a node filter scopes the steps by the node stepped onto
+    assert _names(
+        client,
+        "a",
+        "outComponent",
+        '{ or: [{ node: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "b" } } } } }, { node: { cmp: { op: EQ, lhs: { read: { field: { name: NAME } } }, rhs: { const: { str: "c" } } } } }] }',
+    ) == ["b", "c"]
 
 
 def test_component_filter_and_or_combinators(client):

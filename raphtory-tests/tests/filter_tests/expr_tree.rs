@@ -872,8 +872,33 @@ fn filters_answer_the_node_and_edge_questions_separately() {
     ]);
 }
 
+/// An `or` of a node and an edge expression keeps what either keeps.
 #[test]
-#[ignore = "mixed node and edge combinations are being specified"]
+fn mixed_or_filters_answer_each_question() {
+    assert_answers(vec![
+        (
+            // the union of what each keeps: every node, and the edges either expression
+            // keeps (none between alice and herself, and carol->dave by weight)
+            "or(node, edge): the union of what each expression keeps",
+            FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
+            &ALL_NODES,
+            &["carol->dave"],
+        ),
+        (
+            // the or keeps carol->dave only, which the node expression's ends then drop
+            "and(node, or(node, edge)): the or's edges count",
+            FilterExpr::And(vec![
+                score_gt(1.5),
+                FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
+            ]),
+            &["alice", "bob"],
+            &[],
+        ),
+    ]);
+}
+
+#[test]
+#[ignore = "`~` of a mixed node and edge combination is being specified"]
 fn mixed_node_and_edge_filters_answer_each_question() {
     assert_answers(vec![
         (
@@ -889,28 +914,10 @@ fn mixed_node_and_edge_filters_answer_each_question() {
             &["bob->carol"],
         ),
         (
-            // the union of what each keeps: every node, and the edges either expression
-            // keeps (none between alice and herself, and carol->dave by weight)
-            "or(node, edge): the union of what each expression keeps",
-            FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
-            &ALL_NODES,
-            &["carol->dave"],
-        ),
-        (
             "not(or(node, edge)): still open",
             not(FilterExpr::Or(vec![score_gt(4.0), w_gt(2)])),
             &ALL_NODES,
             &ALL_EDGES,
-        ),
-        (
-            // the or keeps carol->dave only, which the node expression's ends then drop
-            "and(node, or(node, edge)): the or's edges count",
-            FilterExpr::And(vec![
-                score_gt(1.5),
-                FilterExpr::Or(vec![score_gt(4.0), w_gt(2)]),
-            ]),
-            &["alice", "bob"],
-            &[],
         ),
     ]);
 }
@@ -1068,7 +1075,6 @@ fn a_typed_or_of_node_expressions_keeps_an_edge_whose_ends_pass_different_expres
 /// The union of what each expression keeps: no edge has both ends at b, so only the
 /// edge expression's b->c.
 #[test]
-#[ignore = "mixed node and edge combinations are being specified"]
 fn a_typed_or_of_a_node_and_an_edge_expression_is_the_union() {
     let g = chain();
     let or_node_edge = NodeFilter
@@ -1092,7 +1098,6 @@ fn a_typed_or_of_a_node_and_an_edge_expression_is_the_union() {
 /// edges either expression keeps, where the node expression keeps the edges with both ends
 /// inside its nodes. It is not "everything".
 #[test]
-#[ignore = "mixed node and edge combinations are being specified"]
 fn a_mixed_or_is_the_union_of_what_its_expressions_keep() {
     // a→b w=3 · b→c w=7 · c→d w=1 · a→a w=1; every node added on its own too,
     // so a node with every edge hidden still exists (#2821)

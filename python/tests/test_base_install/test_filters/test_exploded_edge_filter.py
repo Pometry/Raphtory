@@ -197,19 +197,7 @@ def test_with_edge_node_filter(GraphClass):
     assert sorted(actual) == sorted(expected)
 
 
-@pytest.mark.parametrize(
-    "GraphClass",
-    [
-        pytest.param(
-            GraphClass,
-            marks=pytest.mark.xfail(
-                reason="mixed node and edge combinations are being specified",
-                strict=True,
-            ),
-        )
-        for GraphClass in (Graph, PersistentGraph)
-    ],
-)
+@pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_with_edge_or_node_filter(GraphClass):
     g = _edge_node_graph(GraphClass)
     weight_e3 = filter.ExplodedEdge.property("weight") == 3

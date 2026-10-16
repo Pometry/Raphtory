@@ -1066,14 +1066,23 @@ impl CreateFilter for FilterExpr {
         G: GraphView + 'graph;
 
     /// The graph that keeps what the filter keeps. A leaf keeps what its
-    /// tree keeps; a view is the graph seen through it; the expressions of `and` and
-    /// `or` each run on the same graph and their graphs combine. A view under
-    /// `or` or `not` is refused.
+    /// tree keeps; a view is the graph seen through it. An `and`, `or` or `not`
+    /// of node expressions alone is one node predicate, as on collections;
+    /// otherwise the expressions of `and` and `or` each run on the same graph and
+    /// their graphs combine. A view under `or` or `not` is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
     ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
         let graph = graph.into_dyn_graph_arc();
+        if matches!(
+            self,
+            FilterExpr::And(_) | FilterExpr::Or(_) | FilterExpr::Not(_)
+        ) {
+            if let Some(nodes) = self.node_only()? {
+                return NodeLeaf::graph_filter(&nodes, graph);
+            }
+        }
         match self {
             FilterExpr::Node(expr) => NodeLeaf::graph_filter(&expr, graph),
             FilterExpr::Edge(expr) => EdgeLeaf::graph_filter(&expr, graph),

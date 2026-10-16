@@ -56,9 +56,31 @@ pub(super) fn keeps_node<L: GraphView>(operand: &L, node: NodeStorageRef) -> boo
     !restricts_nodes(operand) || operand.filter_node(node)
 }
 
+/// Whether `operand` can drop an edge, by itself or by dropping one of its ends.
+pub(super) fn restricts_edges_or_ends<L: GraphView>(operand: &L) -> bool {
+    restricts_edges(operand) || restricts_nodes(operand)
+}
+
+/// Whether `operand` keeps `layer` of an edge it keeps.
+fn keeps_layer<L: GraphView>(operand: &L, edge: EdgeEntryRef, layer: LayerId) -> bool {
+    !restricts_edge_layers(operand)
+        || (operand.layer_ids().contains(&layer) && operand.filter_edge_layer(edge, layer))
+}
+
+/// Whether `operand` keeps the update `eid` of an edge it keeps at `t`.
+fn keeps_update<L: GraphView>(operand: &L, eid: ELID, t: EventTime) -> bool {
+    !restricts_exploded_edges(operand) || operand.filter_exploded_edge(eid, t)
+}
+
 /// Whether `operand` keeps `edge`.
 pub(super) fn keeps_edge<L: GraphView>(operand: &L, edge: EdgeEntryRef) -> bool {
     !restricts_edges(operand) || operand.filter_edge(edge)
+}
+
+/// Whether `operand` keeps `edge` and both its ends. An operand that restricts only
+/// nodes keeps the edges between the nodes it keeps.
+pub(super) fn keeps_edge_and_ends<L: GraphView>(operand: &L, edge: EdgeEntryRef) -> bool {
+    !restricts_edges_or_ends(operand) || operand.filter_edge(edge)
 }
 
 /// Whether `operand` keeps `layer` of `edge`. A layer belongs to an operand through
@@ -68,9 +90,16 @@ pub(super) fn keeps_edge_layer<L: GraphView>(
     edge: EdgeEntryRef,
     layer: LayerId,
 ) -> bool {
-    keeps_edge(operand, edge)
-        && (!restricts_edge_layers(operand)
-            || (operand.layer_ids().contains(&layer) && operand.filter_edge_layer(edge, layer)))
+    keeps_edge(operand, edge) && keeps_layer(operand, edge, layer)
+}
+
+/// Whether `operand` keeps `layer` of `edge` and both ends of `edge`.
+pub(super) fn keeps_edge_layer_and_ends<L: GraphView>(
+    operand: &L,
+    edge: EdgeEntryRef,
+    layer: LayerId,
+) -> bool {
+    keeps_edge_and_ends(operand, edge) && keeps_layer(operand, edge, layer)
 }
 
 /// Whether `operand` keeps the update `eid` of an edge at `t`. An update belongs
@@ -79,5 +108,16 @@ pub(super) fn keeps_edge_layer<L: GraphView>(
 pub(super) fn keeps_exploded_edge<L: GraphView>(operand: &L, eid: ELID, t: EventTime) -> bool {
     (!restricts_edges(operand)
         || operand.filter_edge(operand.core_edge(Either::Left(eid.eid())).as_ref()))
-        && (!restricts_exploded_edges(operand) || operand.filter_exploded_edge(eid, t))
+        && keeps_update(operand, eid, t)
+}
+
+/// Whether `operand` keeps the update `eid` of an edge at `t` and both ends of the edge.
+pub(super) fn keeps_exploded_edge_and_ends<L: GraphView>(
+    operand: &L,
+    eid: ELID,
+    t: EventTime,
+) -> bool {
+    (!restricts_edges_or_ends(operand)
+        || operand.filter_edge(operand.core_edge(Either::Left(eid.eid())).as_ref()))
+        && keeps_update(operand, eid, t)
 }

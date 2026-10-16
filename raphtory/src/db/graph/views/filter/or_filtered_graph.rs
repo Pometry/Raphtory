@@ -12,8 +12,9 @@ use crate::{
             },
         },
         graph::views::filter::operand::{
-            keeps_edge, keeps_edge_layer, keeps_exploded_edge, keeps_node, restricts_edge_layers,
-            restricts_edges, restricts_exploded_edges, restricts_nodes,
+            keeps_edge_and_ends, keeps_edge_layer_and_ends, keeps_exploded_edge_and_ends,
+            keeps_node, restricts_edge_layers, restricts_edges_or_ends, restricts_exploded_edges,
+            restricts_nodes,
         },
     },
     prelude::GraphViewOps,
@@ -32,8 +33,11 @@ use raphtory_storage::{
 use std::sync::Arc;
 
 /// The graph keeping what any operand keeps. A node or an edge is filtered
-/// only when every operand restricts it. Its node and edge lists are the base
-/// graph's, not the union of the operands', so they are never trusted.
+/// only when every operand restricts it. An operand keeps an edge, a layer of it
+/// or an update of it only with both ends of the edge, so an operand restricting
+/// only nodes keeps the edges between its nodes. An `or` of node expressions alone
+/// never reaches this graph: it is one node predicate. Its node and edge lists are
+/// the base graph's, not the union of the operands', so they are never trusted.
 #[derive(Clone)]
 pub struct OrFilteredGraph<'graph, G> {
     pub(crate) graph: G,
@@ -101,7 +105,7 @@ impl<G> InternalEdgeLayerFilterOps for OrFilteredGraph<'_, G> {
     fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.operands
             .iter()
-            .any(|operand| keeps_edge_layer(operand, edge, layer))
+            .any(|operand| keeps_edge_layer_and_ends(operand, edge, layer))
     }
 }
 
@@ -122,14 +126,14 @@ impl<G> InternalExplodedEdgeFilterOps for OrFilteredGraph<'_, G> {
     ) -> bool {
         self.operands
             .iter()
-            .any(|operand| keeps_exploded_edge(operand, eid, t))
+            .any(|operand| keeps_exploded_edge_and_ends(operand, eid, t))
     }
 }
 
 impl<G> InternalEdgeFilterOps for OrFilteredGraph<'_, G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.operands.iter().all(restricts_edges)
+        self.operands.iter().all(restricts_edges_or_ends)
     }
 
     #[inline]
@@ -141,6 +145,6 @@ impl<G> InternalEdgeFilterOps for OrFilteredGraph<'_, G> {
     fn internal_filter_edge(&self, edge: EdgeEntryRef, _layer_ids: &LayerIds) -> bool {
         self.operands
             .iter()
-            .any(|operand| keeps_edge(operand, edge))
+            .any(|operand| keeps_edge_and_ends(operand, edge))
     }
 }
