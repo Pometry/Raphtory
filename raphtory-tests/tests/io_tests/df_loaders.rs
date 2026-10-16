@@ -1194,6 +1194,123 @@ mod io_tests {
         assert_eq!(g.count_edges(), edges.len());
         assert_graph_equal(&g, &g2);
     }
+
+    /// Runs `f` on another thread and asserts it is still blocked after a short wait.
+    /// Returns a receiver that yields once `f` finishes.
+    fn assert_blocked(f: impl FnOnce() + Send + 'static) -> std::sync::mpsc::Receiver<()> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            f();
+            tx.send(()).unwrap();
+        });
+        assert!(
+            rx.recv_timeout(std::time::Duration::from_millis(200))
+                .is_err(),
+            "ran while the graph was write locked for a bulk load"
+        );
+        rx
+    }
+
+    #[test]
+    fn test_write_locked_graph_excludes_regular_updates_and_vacuum() {
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let wlg = g.write_lock().unwrap();
+
+        // gids far beyond the held segments, so only the bulk load lock can block these
+        let g_update = g.clone();
+        let update_done = assert_blocked(move || {
+            g_update.add_edge(1, 100, 101, NO_PROPS, None).unwrap();
+        });
+        let g_node = g.clone();
+        let node_done = assert_blocked(move || {
+            g_node.add_node(1, 200, NO_PROPS, None, None).unwrap();
+        });
+        let g_vacuum = g.clone();
+        let vacuum_done = assert_blocked(move || {
+            g_vacuum.vacuum().unwrap();
+        });
+
+        drop(wlg);
+        let timeout = std::time::Duration::from_secs(60);
+        update_done.recv_timeout(timeout).unwrap();
+        node_done.recv_timeout(timeout).unwrap();
+        vacuum_done.recv_timeout(timeout).unwrap();
+        assert!(g.has_edge(100, 101));
+        assert!(g.has_node(200));
+    }
+
+    #[test]
+    fn test_regular_updates_during_edge_bulk_load() {
+        const BULK_EDGES: u64 = 2000;
+        const THREADS: u64 = 4;
+        const UPDATES: u64 = 200;
+
+        let g = small_pages_graph();
+        let edges = (0..BULK_EDGES)
+            .map(|i| (i, i + 1, i as i64, i.to_string(), i as i64))
+            .collect::<Vec<_>>();
+
+        let g_load = g.clone();
+        let g_updates = g.clone();
+        finishes_within(move || {
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    load_edges_from_df(
+                        build_df(50, &edges),
+                        ColumnNames::new("time", None, "src", "dst", None),
+                        true,
+                        &["str_prop", "int_prop"],
+                        &[],
+                        None,
+                        None,
+                        &g_load,
+                        false,
+                    )
+                    .unwrap();
+                });
+                for thread in 0..THREADS {
+                    let g = &g_updates;
+                    s.spawn(move || {
+                        for j in 0..UPDATES {
+                            let t = (thread * UPDATES + j) as i64;
+                            // new nodes and a new edge, disjoint from the bulk load
+                            let base = 1_000_000 + 2 * (thread * UPDATES + j);
+                            g.add_edge(t, base, base + 1, NO_PROPS, None).unwrap();
+                            g.add_node(t, base, NO_PROPS, Some("regular"), None)
+                                .unwrap();
+                            g.node(base + 1).unwrap().set_node_type("regular").unwrap();
+                            // a new edge between nodes the bulk load also writes
+                            let k = thread * UPDATES + j;
+                            g.add_edge(t, k, k + 3, NO_PROPS, None).unwrap();
+                        }
+                    });
+                }
+            });
+        });
+
+        let regular_nodes = 2 * THREADS * UPDATES;
+        let regular_edges = 2 * THREADS * UPDATES;
+        assert_eq!(g.count_nodes() as u64, BULK_EDGES + 1 + regular_nodes);
+        assert_eq!(g.count_edges() as u64, BULK_EDGES + regular_edges);
+        for i in 0..BULK_EDGES {
+            let edge = g.edge(i, i + 1).unwrap();
+            assert_eq!(edge.properties().get("int_prop"), Some(Prop::I64(i as i64)));
+        }
+        for k in 0..THREADS * UPDATES {
+            assert!(g.has_edge(k, k + 3));
+            let base = 1_000_000 + 2 * k;
+            assert_eq!(
+                g.node(base).unwrap().node_type(),
+                Some(ArcStr::from("regular"))
+            );
+            assert_eq!(
+                g.node(base + 1).unwrap().node_type(),
+                Some(ArcStr::from("regular"))
+            );
+        }
+    }
 }
 
 mod parquet_tests {
