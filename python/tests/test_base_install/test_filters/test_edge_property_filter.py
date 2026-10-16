@@ -1,5 +1,5 @@
 from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
-from raphtory import filter, Prop, Edges, NestedEdges
+from raphtory import filter, Prop, Edges, NestedEdges, Graph
 from filters_setup import init_graph, init_graph3, create_test_graph2
 from utils import with_variants
 import pytest
@@ -1781,6 +1781,27 @@ def test_filter_edges_graph_filter_window_layer():
         assert sorted(graph.filter(expr).edges.id) == [(1, 2)]
 
     return check
+
+
+def test_a_window_under_and_cuts_node_histories():
+    # time        0    1    2    3    4    5    6
+    #             |    |    |    |    |    |    |
+    # a           ● added
+    # a.score          ●(9)                     ●(2)
+    # a->b.w           ●(3)                     ●(7)
+    # window(0,4) [===================)
+    graph = Graph()
+    graph.add_node(0, "a")
+    graph.add_node(1, "a", {"score": 9})
+    graph.add_node(6, "a", {"score": 2})
+    graph.add_edge(1, "a", "b", {"w": 3})
+    graph.add_edge(6, "a", "b", {"w": 7})
+    expr = filter.Graph.window(0, 4) & (filter.Edge.property("w") > 0)
+    result = graph.filter(expr)
+    assert sorted(result.edges.id) == [("a", "b")]
+    # t=1 twice: the score update and the a->b update; t=6 is gone
+    assert list(result.node("a").history.t.collect()) == [0, 1, 1]
+    assert list(result.node("a").properties.temporal.get("score").values()) == [9]
 
 
 @with_variants(init_graph3, variants=["graph"])

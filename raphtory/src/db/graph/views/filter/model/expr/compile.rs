@@ -25,7 +25,7 @@ use crate::{
             },
             view::{
                 internal::{DynGraphArc, GraphView, IntoDynGraphArc},
-                GraphViewOps, LayerOps, TimeOps,
+                GraphViewOps, InternalTimeOps, LayerOps, TimeOps,
             },
         },
         graph::views::filter::{
@@ -1069,7 +1069,8 @@ impl CreateFilter for FilterExpr {
     /// tree keeps; a view is the graph seen through it. An `and`, `or` or `not`
     /// of node expressions alone is one node predicate, as on collections;
     /// otherwise the expressions of `and` and `or` each run on the same graph and
-    /// their graphs combine. A view under `or` or `not` is refused.
+    /// their graphs combine. The result of an `and` is windowed to the overlap
+    /// of its view operands. A view under `or` or `not` is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -1089,10 +1090,18 @@ impl CreateFilter for FilterExpr {
             FilterExpr::ExplodedEdge(expr) => ExplodedEdgeLeaf::graph_filter(&expr, graph),
             FilterExpr::View(views) => view_expr(graph, &views),
             FilterExpr::And(expressions) => {
-                let operands = each_operand(&expressions, "and", |expression| {
-                    expression.clone().create_graph_filter(graph.clone())
-                })?;
-                Ok(AndFilteredGraph::new(graph, operands).into_dyn_graph_arc())
+                let operands: Arc<[DynGraphArc<'graph>]> =
+                    each_operand(&expressions, "and", |expression| {
+                        expression.clone().create_graph_filter(graph.clone())
+                    })?;
+                let start = operands.iter().filter_map(|o| o.start()).max();
+                let end = operands.iter().filter_map(|o| o.end()).min();
+                let and = AndFilteredGraph::new(graph, operands);
+                if start.is_some() || end.is_some() {
+                    Ok(and.internal_window(start, end).into_dyn_graph_arc())
+                } else {
+                    Ok(and.into_dyn_graph_arc())
+                }
             }
             FilterExpr::Or(expressions) => {
                 expressions
