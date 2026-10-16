@@ -99,6 +99,75 @@ impl PyRemoteNodes {
         ))
     }
 
+    /// Narrow this collection to the nodes in positions `start..end` — the
+    /// half-open range, as in Python slicing. An `end` at or below `start`
+    /// gives an empty collection.
+    ///
+    /// Unlike the other combinators this is **not lazy**: a slice is positional
+    /// and only the server knows which nodes fall in it, so this fires one RPC
+    /// to fetch their ids and pins them. What comes back is an ordinary
+    /// `RemoteNodes`, so everything chains off it as usual:
+    ///
+    /// ```python
+    /// top = rg.nodes.filter(f).sorted(by_score).slice(0, 20)
+    /// top.properties.as_dict()
+    /// top.degree
+    /// ```
+    ///
+    /// Order of application matters, exactly as it does for list slicing:
+    /// `.sorted(k).slice(0, n)` is the top `n` by `k`, whereas
+    /// `.slice(0, n).sorted(k)` sorts *within* an arbitrary `n`. Likewise
+    /// `.filter(f).slice(..)` slices the matching nodes, while
+    /// `.slice(..).filter(f)` keeps whichever of the sliced nodes match.
+    ///
+    /// Slicing is not a snapshot: each call is its own traversal, so concurrent
+    /// writes can shift nodes between slices.
+    ///
+    /// Arguments:
+    ///     start (int): 0-based position to start at, inclusive.
+    ///     end (int): position to stop at, exclusive.
+    ///
+    /// Returns:
+    ///     RemoteNodes: a collection restricted to that range of nodes.
+    pub fn slice(&self, start: usize, end: usize) -> Result<PyRemoteNodes, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        let sliced = execute_async_task(move || async move { nodes.slice(start, end).await })?;
+        Ok(PyRemoteNodes::new(sliced))
+    }
+
+    /// One page of this collection as a list of `RemoteNode` handles — the
+    /// bounded counterpart of `collect()`. At most `limit` handles, starting
+    /// `page_index * limit + offset` nodes in. Both `offset` and `page_index`
+    /// default to 0. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Returns handles, so a read on each fires its own RPC. For a columnar
+    /// read across the whole page in a single request, use `slice()`.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of nodes in the page.
+    ///     offset (int, optional): additional nodes to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[RemoteNode]: at most `limit` handles.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<PyRemoteNode>, ClientError> {
+        let nodes = Arc::clone(&self.nodes);
+        let page = execute_async_task(
+            move || async move { nodes.page(limit, offset, page_index).await },
+        )?;
+        Ok(page.into_iter().map(PyRemoteNode::new).collect())
+    }
+
     /// Reorder this collection by an ordered list of sort keys. Multi-key
     /// sort is lexicographic (ties on key 1 break to key 2). Lazy — no RPC.
     ///

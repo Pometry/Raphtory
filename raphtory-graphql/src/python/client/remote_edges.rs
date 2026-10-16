@@ -347,6 +347,39 @@ impl PyRemoteEdges {
         Ok(result.into_iter().map(PyRemoteEdge::new).collect())
     }
 
+    /// One page of this collection — the bounded counterpart of `collect()`,
+    /// materialized identically. At most `limit` edges, starting
+    /// `page_index * limit + offset` in. Both `offset` and `page_index` default
+    /// to 0. Fires one RPC.
+    ///
+    /// A result shorter than `limit` means the collection is exhausted. Prefer
+    /// this to `collect()` on a large collection, and use it where the server
+    /// runs with bulk list endpoints disabled — `collect()` is rejected there.
+    ///
+    /// Paging is not a snapshot: each page is its own traversal, so concurrent
+    /// writes can shift members between pages.
+    ///
+    /// Arguments:
+    ///     limit (int): maximum number of edges in the page.
+    ///     offset (int, optional): additional edges to skip.
+    ///     page_index (int, optional): 0-based page number.
+    ///
+    /// Returns:
+    ///     list[RemoteEdge]: at most `limit` edges.
+    #[pyo3(signature = (limit, offset = None, page_index = None))]
+    pub fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<PyRemoteEdge>, ClientError> {
+        let edges = Arc::clone(&self.edges);
+        let result = execute_async_task(
+            move || async move { edges.page(limit, offset, page_index).await },
+        )?;
+        Ok(result.into_iter().map(PyRemoteEdge::new).collect())
+    }
+
     /// Enables `for e in remote_edges:` — fetches all `(src, dst)` pairs in
     /// one RPC, then yields a `RemoteEdge` handle for each. Edge handles are
     /// not batched: each terminal on a yielded edge fires its own RPC.
