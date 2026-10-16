@@ -1134,7 +1134,7 @@ mod io_tests {
         assert_eq!(wlg.nodes.len(), held_nodes);
         assert_eq!(wlg.edges.len(), held_edges);
 
-        wlg.lock_new_segments();
+        wlg.lock_new_segments().unwrap();
 
         assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
         assert_eq!(wlg.edges.len(), tg.storage().edges().num_segments());
@@ -1151,9 +1151,95 @@ mod io_tests {
         }
 
         // nothing new: no-op
-        wlg.lock_new_segments();
+        wlg.lock_new_segments().unwrap();
         assert_eq!(wlg.nodes.len(), held_nodes + 3);
         assert_eq!(wlg.edges.len(), held_edges + 2);
+    }
+
+    #[test]
+    fn test_lock_new_segments_times_out_on_held_node_segment() {
+        use storage::{
+            api::nodes::NodeSegmentOps,
+            error::{SegmentKind, StorageError},
+        };
+
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held = wlg.nodes.len();
+        tg.storage().nodes().grow(held + 2);
+
+        // a reader holding the second new segment
+        let reader = tg.storage().nodes().get_or_create_segment(held + 1).head();
+        let err = wlg
+            .lock_new_segments_within(std::time::Duration::from_millis(100))
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Node,
+                    segment_id,
+                } if segment_id == held + 1
+            ),
+            "{err:?}"
+        );
+        let message = err.to_string();
+        assert!(
+            message.contains("a reader or an unguarded writer"),
+            "{message}"
+        );
+        assert!(message.contains("partially applied"), "{message}");
+        // the new segment before it stays locked
+        assert_eq!(wlg.nodes.len(), held + 1);
+
+        drop(reader);
+        wlg.lock_new_segments().unwrap();
+        assert_eq!(wlg.nodes.len(), held + 2);
+    }
+
+    #[test]
+    fn test_lock_new_segments_times_out_on_held_edge_segment() {
+        use storage::{
+            api::edges::EdgeSegmentOps,
+            error::{SegmentKind, StorageError},
+        };
+
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held_nodes = wlg.nodes.len();
+        let held_edges = wlg.edges.len();
+        tg.storage().edges().grow(held_edges + 1);
+
+        let reader = tg
+            .storage()
+            .edges()
+            .get_or_create_segment(held_edges)
+            .head();
+        let err = wlg
+            .lock_new_segments_within(std::time::Duration::from_millis(100))
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Edge,
+                    segment_id,
+                } if segment_id == held_edges
+            ),
+            "{err:?}"
+        );
+        assert_eq!(wlg.nodes.len(), held_nodes);
+        assert_eq!(wlg.edges.len(), held_edges);
+
+        drop(reader);
+        wlg.lock_new_segments().unwrap();
+        assert_eq!(wlg.edges.len(), held_edges + 1);
     }
 
     #[test]

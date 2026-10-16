@@ -18,6 +18,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
+    time::Duration,
 };
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
@@ -71,6 +72,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
+
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
     fn set_dirty(&self, dirty: bool);
 

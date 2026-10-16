@@ -5,7 +5,7 @@ use crate::{
         node_type_index::NodeTypeIndexOps,
         nodes::{LockedNSSegment, NodeEntryOps, NodeSegmentOps},
     },
-    error::StorageError,
+    error::{SegmentKind, StorageError},
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
@@ -27,6 +27,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, atomic::AtomicU32},
+    time::Duration,
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
@@ -329,17 +330,30 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     /// Write-lock the segments created since `pages` was taken and append them,
     /// keeping the locks `pages` already holds.
-    pub fn lock_new_segments<'a>(&'a self, pages: &mut WriteLockedNodePages<'a, NS>) {
+    ///
+    /// Fails with `SegmentLockTimeout` if a new segment cannot be locked within `timeout`.
+    pub fn lock_new_segments<'a>(
+        &'a self,
+        pages: &mut WriteLockedNodePages<'a, NS>,
+        timeout: Duration,
+    ) -> Result<(), StorageError> {
         for segment_id in pages.len()..self.segments.count() {
             let page = self.get_or_create_segment(segment_id);
+            let lock = page
+                .try_head_mut_for(timeout)
+                .ok_or(StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Node,
+                    segment_id,
+                })?;
             pages.push(LockedNodePage::new(
                 segment_id,
                 &self.stats,
                 self.max_segment_len(),
                 page.as_ref(),
-                page.head_mut(),
+                lock,
             ));
         }
+        Ok(())
     }
 
     pub fn reserve_vid(&self, row: usize) -> VID {

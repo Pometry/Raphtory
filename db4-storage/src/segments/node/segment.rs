@@ -546,6 +546,13 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.inner.try_write()
     }
 
+    fn try_head_mut_for(
+        &self,
+        timeout: std::time::Duration,
+    ) -> Option<parking_lot::RwLockWriteGuard<'_, MemNodeSegment>> {
+        self.inner.try_write_for(timeout)
+    }
+
     fn notify_write(
         &self,
         _head_lock: impl DerefMut<Target = MemNodeSegment>,

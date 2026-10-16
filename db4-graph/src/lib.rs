@@ -17,6 +17,7 @@ use std::{
     ops::Deref,
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
+    time::Duration,
 };
 use storage::{
     api::{
@@ -423,6 +424,11 @@ where
     }
 }
 
+/// How long a bulk load waits to lock a segment created during the load. Nothing should hold
+/// such a segment while the bulk load lock is held exclusively, so timing out means a reader
+/// or an unguarded writer has it.
+pub const NEW_SEGMENT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
@@ -448,7 +454,7 @@ where
 {
     /// Takes the bulk load write guard first, waiting for regular updates in flight to finish.
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
-        let bulk_load = graph.storage.bulk_load_write();
+        let bulk_load = graph.storage.bulk_load_exclusive();
         WriteLockedGraph {
             nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
@@ -464,27 +470,35 @@ where
 
     /// Write-lock the node and edge segments created since this graph was locked
     /// (e.g. by node or edge resolution), keeping the locks already held.
-    pub fn lock_new_segments(&mut self) {
+    ///
+    /// Fails with `SegmentLockTimeout` if a new segment stays locked for
+    /// [`NEW_SEGMENT_LOCK_TIMEOUT`].
+    pub fn lock_new_segments(&mut self) -> Result<(), StorageError> {
+        self.lock_new_segments_within(NEW_SEGMENT_LOCK_TIMEOUT)
+    }
+
+    /// [`Self::lock_new_segments`] with a custom timeout.
+    pub fn lock_new_segments_within(&mut self, timeout: Duration) -> Result<(), StorageError> {
         self.graph
             .storage
             .nodes()
-            .lock_new_segments(&mut self.nodes);
+            .lock_new_segments(&mut self.nodes, timeout)?;
         self.graph
             .storage
             .edges()
-            .lock_new_segments(&mut self.edges);
+            .lock_new_segments(&mut self.edges, timeout)
     }
 
-    pub fn resize_segments_to_vid(&mut self, vid: VID) {
+    pub fn resize_segments_to_vid(&mut self, vid: VID) -> Result<(), StorageError> {
         let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
         self.graph.storage().nodes().grow(segment_id + 1);
-        self.lock_new_segments();
+        self.lock_new_segments()
     }
 
-    pub fn resize_segments_to_eid(&mut self, eid: EID) {
+    pub fn resize_segments_to_eid(&mut self, eid: EID) -> Result<(), StorageError> {
         let (segment_id, _) = self.graph.storage.edges().resolve_pos(eid);
         self.graph.storage().edges().grow(segment_id + 1);
-        self.lock_new_segments();
+        self.lock_new_segments()
     }
 
     pub fn edge_stats(&self) -> &Arc<GraphStats> {

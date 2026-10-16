@@ -27,6 +27,7 @@ use std::{
         Arc,
         atomic::{AtomicU32, Ordering},
     },
+    time::Duration,
 };
 
 use crate::{
@@ -224,6 +225,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
+
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
 
     fn notify_write(
         &self,
