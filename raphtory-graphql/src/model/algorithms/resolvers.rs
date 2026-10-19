@@ -15,7 +15,7 @@ use crate::{
     Value,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use rand::{prelude::StdRng, SeedableRng};
+use rand::{make_rng, prelude::StdRng, SeedableRng};
 use raphtory::{
     algorithms::{
         bipartite::max_weight_matching::max_weight_matching,
@@ -682,7 +682,7 @@ impl GqlAlgorithms {
             .run(move |graph| {
                 let mut rng = match rng_seed {
                     Some(seed) => StdRng::seed_from_u64(seed),
-                    None => StdRng::from_os_rng(),
+                    None => make_rng(),
                 };
                 temporal_SEIR(
                     &graph,

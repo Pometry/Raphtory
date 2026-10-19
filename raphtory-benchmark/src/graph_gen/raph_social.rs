@@ -19,7 +19,7 @@ use fake::{
     },
     Fake,
 };
-use rand::{rng, seq::IndexedRandom, Rng};
+use rand::{rng, seq::IndexedRandom, Rng, RngExt};
 use raphtory::prelude::*;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt::Debug};

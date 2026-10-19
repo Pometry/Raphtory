@@ -1,12 +1,10 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
-
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, RngExt, SeedableRng};
 use raphtory::prelude::{AdditionOps, Graph, NO_PROPS};
 use raphtory_vectors::{
-    cache::VectorCache, embeddings::EmbeddingResult, storage::OpenAIEmbeddings,
-    template::DocumentTemplate, vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
-    Embedding,
+    cache::VectorCache, storage::OpenAIEmbeddings, template::DocumentTemplate,
+    vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
 };
+use std::hash::{DefaultHasher, Hash, Hasher};
 use tokio::runtime::Runtime;
 
 pub fn gen_embedding_for_bench(text: &str) -> Embedding {
@@ -16,13 +14,6 @@ pub fn gen_embedding_for_bench(text: &str) -> Embedding {
 
     let mut rng: StdRng = SeedableRng::seed_from_u64(hash);
     (0..1536).map(|_| rng.random()).collect()
-}
-
-async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-    Ok(texts
-        .iter()
-        .map(|text| gen_embedding_for_bench(text))
-        .collect())
 }
 
 pub fn create_graph_for_vector_bench(size: usize) -> Graph {

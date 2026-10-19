@@ -720,6 +720,13 @@ pub enum PermissionError {
     AuthPolicyError,
 }
 
+impl From<AuthPolicyError> for PermissionError {
+    fn from(value: AuthPolicyError) -> Self {
+        error!("Auth policy failure: {value}");
+        PermissionError::AuthPolicyError
+    }
+}
+
 /// Machine-readable `extensions.code` values attached to authorization errors so
 /// the client classifies failures by structure rather than by message wording.
 ///

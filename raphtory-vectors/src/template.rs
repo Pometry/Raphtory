@@ -1,6 +1,7 @@
 use super::datetimeformat::datetimeformat;
 use minijinja::{
-    value::{Enumerator, Object},
+    syntax::SyntaxConfig,
+    value::{Enumerator, Object, Serde},
     Environment, Template, Value,
 };
 use raphtory::{
@@ -98,7 +99,7 @@ impl DocumentTemplate {
         let template = self.node_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);
-        match template.render(NodeTemplateContext::from(node.clone())) {
+        match template.render(Serde(NodeTemplateContext::from(node.clone()))) {
             Ok(mut document) => {
                 truncate(&mut document);
                 Some(document)
@@ -116,7 +117,7 @@ impl DocumentTemplate {
         let template = self.edge_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);
-        match template.render(EdgeTemplateContext::from(edge.clone())) {
+        match template.render(Serde(EdgeTemplateContext::from(edge.clone()))) {
             Ok(mut document) => {
                 truncate(&mut document);
                 Some(document)
@@ -142,8 +143,13 @@ fn build_template<'a>(env: &'a mut Environment<'a>, template: &'a str) -> Templa
     minijinja_contrib::add_to_environment(env);
     env.add_filter("datetimeformat", datetimeformat);
     // it's important adding these settings
-    env.set_trim_blocks(true);
-    env.set_lstrip_blocks(true);
+    env.set_syntax(
+        SyntaxConfig::builder()
+            .trim_blocks(true)
+            .lstrip_blocks(true)
+            .build()
+            .expect("selected options should always be valid"),
+    );
     // before adding any template
     env.add_template("template", template).unwrap();
     env.get_template("template").unwrap()
