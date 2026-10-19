@@ -2,10 +2,16 @@ use raphtory::{
     db::{
         api::{
             state::ops::NodeOp,
-            view::{filter_ops::Select, internal::NodeList, Filter},
+            view::{
+                filter_ops::Select,
+                internal::{ListOps, NodeList},
+                Filter,
+            },
         },
         graph::views::filter::{
             model::{
+                expr::{Expr, Field, NodeExpr, NodeLeaf},
+                filter_operator::BinaryOp,
                 graph_filter::GraphFilter,
                 node_filter::{NodeFilter, NodeFilterFactory},
                 ComposableFilter, EntityAggOps, PropertyExprFactory, ViewWrapOps,
@@ -13,7 +19,9 @@ use raphtory::{
             CreateFilter,
         },
     },
-    prelude::{AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{
+        AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS,
+    },
 };
 use raphtory_api::core::entities::{
     properties::prop::{IntoProp, Prop},
@@ -558,7 +566,7 @@ fn windowed_temporal_term_skips_node_absent_from_window() {
 // ── Domain narrowing for id comparisons ──────────────────────────────────
 //
 // These pin that an id test starts from the nodes it names instead of
-// visiting every node. They fail until domain narrowing returns.
+// visiting every node.
 
 /// The nodes a compiled node filter will actually visit.
 fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
@@ -611,6 +619,63 @@ fn id_eq_for_an_absent_node_visits_nothing() {
         }
         other => panic!("an absent id should narrow to nothing, got {other:?}"),
     }
+}
+
+#[test]
+fn a_constant_on_the_left_names_its_node() {
+    let g = build_test_graph();
+    let filter: NodeExpr = Expr::Cmp(
+        BinaryOp::Eq,
+        Box::new(Expr::Const("b".into())),
+        Box::new(Expr::Term(NodeLeaf::Field {
+            views: vec![],
+            field: Field::Id,
+        })),
+    );
+    assert_eq!(listed(filter_domain(filter, &g)), vids(&g, &["b"]));
+}
+
+#[test]
+fn an_id_of_the_wrong_type_keeps_every_node() {
+    // A string constant against numeric ids (or the reverse) is refused when
+    // the filter is built. A number that is not a numeric id (a negative or a
+    // fractional one) is compared, but names no node by lookup: the test runs
+    // on every node and holds on none.
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    for value in [Prop::I64(-1), Prop::F64(5.5)] {
+        let domain = filter_domain(NodeFilter.id().eq(value.clone()), &g);
+        assert!(
+            matches!(domain, NodeList::All),
+            "id == {value:?} must keep the full domain, got {domain:?}"
+        );
+        assert!(selected_names(NodeFilter.id().eq(value), &g).is_empty());
+    }
+}
+
+#[test]
+fn an_id_test_narrows_the_filtered_graphs_node_list() {
+    let g = build_test_graph();
+    let filtered = g.filter(NodeFilter.id().eq("b")).unwrap();
+    assert_eq!(listed(filtered.node_list()), vids(&g, &["b"]));
+}
+
+/// The id names its node whatever the window; the window still hides a node
+/// with no event in it.
+#[test]
+fn an_id_test_inside_a_window_keeps_only_the_named_node_in_the_window() {
+    let g = build_domain_graph();
+    let names = |start: i64, end: i64| -> Vec<String> {
+        g.window(start, end)
+            .filter(NodeFilter.id().eq("b"))
+            .unwrap()
+            .nodes()
+            .name()
+            .collect()
+    };
+    assert_eq!(names(0, 2), vec!["b"]);
+    assert!(names(6, 9).is_empty());
 }
 
 #[test]
