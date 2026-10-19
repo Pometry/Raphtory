@@ -49,10 +49,9 @@ pub(crate) fn extract_properties<P>(
                 let _ = prop_time_dict.insert(start_time, empty_dict.clone());
             } else {
                 metadata.iter_filtered().for_each(|(name, prop_val)| {
-                    if !prop_time_dict.contains_key(&start_time) {
-                        let _ = prop_time_dict.insert(start_time, empty_dict.clone());
-                    }
-                    let data_dict = prop_time_dict.get_mut(&0i64).unwrap();
+                    let data_dict = prop_time_dict
+                        .entry(start_time)
+                        .or_insert_with(|| empty_dict.clone());
                     let _ = data_dict.insert(name.to_string(), prop_val);
                 })
             }
@@ -68,10 +67,9 @@ pub(crate) fn extract_properties<P>(
                 } else {
                     prop_name.to_string()
                 };
-                if !prop_time_dict.contains_key(&time) {
-                    prop_time_dict.insert(time, empty_dict.clone());
-                }
-                let data_dict = prop_time_dict.get_mut(&time).unwrap();
+                let data_dict = prop_time_dict
+                    .entry(time)
+                    .or_insert_with(|| empty_dict.clone());
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
     } else if include_property_history {
