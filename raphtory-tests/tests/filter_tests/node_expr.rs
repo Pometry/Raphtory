@@ -679,6 +679,44 @@ fn an_id_test_inside_a_window_keeps_only_the_named_node_in_the_window() {
 }
 
 #[test]
+fn name_eq_visits_only_the_named_node() {
+    // On a graph with string ids a node's name is its id.
+    let g = build_test_graph();
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("b"), &g)),
+        vids(&g, &["b"])
+    );
+    assert_eq!(selected_names(NodeFilter.name().eq("b"), &g), vec!["b"]);
+}
+
+#[test]
+fn name_is_in_visits_only_the_named_nodes() {
+    let g = build_test_graph();
+    let filter = || {
+        NodeFilter
+            .name()
+            .is_in(vec!["a".into_prop(), "c".into_prop()])
+    };
+    assert_eq!(listed(filter_domain(filter(), &g)), vids(&g, &["a", "c"]));
+    assert_eq!(selected_names(filter(), &g), vec!["a", "c"]);
+}
+
+#[test]
+fn a_name_test_on_numeric_ids_keeps_every_node() {
+    // On a numeric-id graph a node's name is its id written as a string, so
+    // the name is not a key of the id index: the test runs on every node.
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    let domain = filter_domain(NodeFilter.name().eq("1"), &g);
+    assert!(
+        matches!(domain, NodeList::All),
+        "name == 1 on numeric ids must keep the full domain, got {domain:?}"
+    );
+    assert_eq!(selected_names(NodeFilter.name().eq("1"), &g), vec!["1"]);
+}
+
+#[test]
 fn non_id_and_inequality_filters_keep_the_full_domain() {
     let g = build_test_graph();
     // Only equality and set membership on the id or the name name specific
@@ -777,14 +815,16 @@ fn or_of_two_subgraphs_visits_their_union() {
 }
 
 #[test]
-fn and_of_a_subgraph_and_a_predicate_visits_the_subgraph() {
+fn and_of_a_subgraph_and_a_name_test_visits_their_intersection() {
     let g = build_domain_graph();
+    // On string ids a name test names its node, so the `and` visits the
+    // intersection of the subgraph and the named node.
     let both = || {
         GraphFilter
             .subgraph(["a", "b"])
             .and(NodeFilter.name().eq("a"))
     };
-    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["a", "b"]));
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["a"]));
     assert_eq!(selected_names(both(), &g), vec!["a"]);
 }
 

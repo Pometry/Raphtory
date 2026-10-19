@@ -161,8 +161,8 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
 /// The id a constant names on a graph whose ids are of type `id_type`, or
 /// `None` when it names none by its own value: a string names a string id, a
 /// non-negative integer the numeric id of the same value.
-fn id_ref(id_type: Option<GidType>, value: &Prop) -> Option<GidRef<'_>> {
-    match (id_type?, value) {
+fn id_ref(id_type: GidType, value: &Prop) -> Option<GidRef<'_>> {
+    match (id_type, value) {
         (GidType::Str, Prop::Str(s)) => Some(GidRef::Str(s)),
         (GidType::U64, Prop::U64(n)) => Some(GidRef::U64(*n)),
         (GidType::U64, Prop::U32(n)) => Some(GidRef::U64(u64::from(*n))),
@@ -429,27 +429,39 @@ impl Leaf for NodeLeaf {
     }
 
     /// An id names its node through the graph's id index, whatever the views
-    /// on the term: an id does not depend on them. The list makes no claim
-    /// to be exact, so the test still runs on every node in it.
+    /// on the term: an id does not depend on them. A name names its node the
+    /// same way only on a graph whose ids are strings, where a node's name is
+    /// its id; on a numeric-id graph every node may match. The list makes no
+    /// claim to be exact, so the test still runs on every node in it.
     fn named_by(&self, values: &[Prop], graph: &DynGraphArc<'_>) -> Option<NodeList> {
-        match self {
+        let id_type = match self {
             NodeLeaf::Field {
                 field: Field::Id, ..
-            } => {
-                let id_type = graph.id_type();
-                let ids = values
-                    .iter()
-                    .map(|value| id_ref(id_type, value))
-                    .collect::<Option<Vec<_>>>()?;
-                Some(NodeList::List {
-                    elems: ids
-                        .into_iter()
-                        .filter_map(|id| graph.internalise_node(NodeRef::External(id)))
-                        .collect(),
-                })
-            }
+            } => graph.id_type(),
+            NodeLeaf::Field {
+                field: Field::Name, ..
+            } => graph.id_type().filter(|id_type| *id_type == GidType::Str),
             _ => None,
-        }
+        }?;
+        let ids = values
+            .iter()
+            .map(|value| id_ref(id_type, value))
+            .collect::<Option<Vec<_>>>()?;
+        Some(nodes_with_ids(graph, ids))
+    }
+}
+
+/// The nodes of `graph` with the given ids; an id the graph does not hold
+/// names no node.
+fn nodes_with_ids<'a>(
+    graph: &DynGraphArc<'_>,
+    ids: impl IntoIterator<Item = GidRef<'a>>,
+) -> NodeList {
+    NodeList::List {
+        elems: ids
+            .into_iter()
+            .filter_map(|id| graph.internalise_node(NodeRef::External(id)))
+            .collect(),
     }
 }
 
