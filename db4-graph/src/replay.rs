@@ -45,15 +45,11 @@ where
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(src_name.as_ref(), src_id)?;
+            self.graph().gid_resolver.set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(dst_name.as_ref(), dst_id)?;
+            self.graph().gid_resolver.set(dst_name.as_ref(), dst_id)?;
         }
 
         // Insert layer id into the layer meta of both edge and node.
@@ -286,15 +282,11 @@ where
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(src_name.as_ref(), src_id)?;
+            self.graph().gid_resolver.set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            self.graph()
-                .logical_to_physical
-                .set(dst_name.as_ref(), dst_id)?;
+            self.graph().gid_resolver.set(dst_name.as_ref(), dst_id)?;
         }
 
         // Insert layer id into the layer meta of both edge and node.
@@ -462,9 +454,7 @@ where
     ) -> Result<(), StorageError> {
         // Insert node id into resolver.
         if let Some(ref name) = node_name {
-            self.graph()
-                .logical_to_physical
-                .set(name.as_ref(), node_id)?;
+            self.graph().gid_resolver.set(name.as_ref(), node_id)?;
         }
 
         // Make layer name -> id mapping available to both edge and node meta.
@@ -636,11 +626,11 @@ where
 
             unify_types(graph_props_meta, &props, true)?;
 
-            let writer = self.graph_props.writer();
-            let props = props.into_iter().map(|(_, id, p)| (id, p));
+            let props = props.into_iter().map(|(_, id, prop)| (id, prop));
+            let graph_props = &mut self.graph_props;
 
-            writer.add_properties(t, props);
-            writer.set_lsn(lsn);
+            graph_props.add_properties(t, props);
+            graph_props.set_lsn(lsn);
         }
 
         Ok(())
@@ -660,11 +650,11 @@ where
 
             unify_types(graph_props_meta, &props, false)?;
 
-            let writer = self.graph_props.writer();
-            let props = props.into_iter().map(|(_, id, p)| (id, p));
+            let props = props.into_iter().map(|(_, id, prop)| (id, prop));
+            let graph_props = &mut self.graph_props;
 
-            writer.update_metadata(props);
-            writer.set_lsn(lsn);
+            graph_props.update_metadata(props);
+            graph_props.set_lsn(lsn);
         }
 
         Ok(())
