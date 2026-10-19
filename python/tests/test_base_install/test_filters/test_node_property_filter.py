@@ -1279,6 +1279,28 @@ def test_filter_nodes_temporal_layer_sum_ge():
     return check
 
 
+def init_layer_degree_graph(graph):
+    # a ──fire_nation──▶ b
+    # a ──(default)────▶ c
+    # Each node also has an event of its own, so a filtered graph that hides
+    # its neighbours still keeps it.
+    for node_id in ["a", "b", "c"]:
+        graph.add_node(1, node_id)
+    graph.add_edge(1, "a", "b", layer="fire_nation")
+    graph.add_edge(1, "a", "c")
+    return graph
+
+
+@with_variants(init_layer_degree_graph)
+def test_filter_nodes_layer_degree():
+    def check(graph):
+        expr = filter.Node.layers(["fire_nation"]).degree() == 1
+        assert sorted(graph.filter(expr).nodes.id) == ["a", "b"]
+        assert sorted(graph.nodes[expr].id) == ["a", "b"]
+
+    return check
+
+
 @with_variants(create_test_graph)
 def test_filter_nodes_at():
     def check(graph):

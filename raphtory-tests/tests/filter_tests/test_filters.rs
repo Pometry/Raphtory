@@ -2805,10 +2805,14 @@ mod test_node_property_filter {
             graph_filter::GraphFilter, node_filter::NodeFilter, ComposableFilter,
             PropertyExprFactory, ViewWrapOps,
         },
-        prelude::{EntityAggOps, EntityExprFilterOps},
+        prelude::{
+            AdditionOps, EntityAggOps, EntityExprFilterOps, Graph, NodeFilterFactory, NO_PROPS,
+        },
     };
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory_tests::assertions::{assert_filter_nodes_results, TestVariants};
+    use raphtory_tests::assertions::{
+        assert_filter_nodes_results, assert_select_nodes_results, TestVariants,
+    };
     use std::vec;
 
     #[test]
@@ -3999,10 +4003,10 @@ mod test_node_property_filter {
     }
 
     #[test]
-    #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_layer_filter() {
+        // Node 3 has p2 too, but in fire_nation.
         let filter = NodeFilter
-            .layers("_default")
+            .layers("air_nomads")
             .property("p2")
             .temporal()
             .sum()
@@ -4010,7 +4014,7 @@ mod test_node_property_filter {
 
         let expected_results = vec!["2"];
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4019,7 +4023,6 @@ mod test_node_property_filter {
     }
 
     #[test]
-    #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_layer_then_window_ordering() {
         // In layer "fire_nation" within window [1,4), node "1" matches p1 == "shivam_kapoor".
         let filter = NodeFilter
@@ -4031,7 +4034,7 @@ mod test_node_property_filter {
         let expected_results = vec!["1"];
 
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
@@ -4040,7 +4043,6 @@ mod test_node_property_filter {
     }
 
     #[test]
-    #[ignore] // TODO: Enable this when node layer is supported
     fn test_nodes_window_then_layer_ordering() {
         // Same semantics as above, but reversed chaining order.
         let filter = NodeFilter
@@ -4052,12 +4054,59 @@ mod test_node_property_filter {
         let expected_results = vec!["1"];
 
         assert_filter_nodes_results(
-            init_nodes_graph,
+            init_nodes_layers_graph,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
             TestVariants::All,
         );
+    }
+
+    #[test]
+    fn test_nodes_layer_degree() {
+        // a ──fire_nation──▶ b
+        // a ──(default)────▶ c
+        // Each node also has an event of its own, so a filtered graph that
+        // hides its neighbours still keeps it.
+        let init_graph = |graph: Graph| {
+            for id in ["a", "b", "c"] {
+                graph.add_node(1, id, NO_PROPS, None, None).unwrap();
+            }
+            graph
+                .add_edge(1, "a", "b", NO_PROPS, Some("fire_nation"))
+                .unwrap();
+            graph.add_edge(1, "a", "c", NO_PROPS, None).unwrap();
+            graph
+        };
+
+        let cases = [
+            (NodeFilter.degree().eq(2u64), vec!["a"]),
+            (
+                NodeFilter.layers("fire_nation").degree().eq(1u64),
+                vec!["a", "b"],
+            ),
+            (
+                NodeFilter.layers("fire_nation").degree().eq(0u64),
+                vec!["c"],
+            ),
+        ];
+
+        for (filter, expected_results) in cases {
+            assert_filter_nodes_results(
+                init_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_select_nodes_results(
+                init_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
     }
 
     #[test]
