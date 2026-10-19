@@ -220,8 +220,8 @@ where
 
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
         let nodes = self.storage().nodes();
-        let (page_id, pos) = nodes.resolve_pos(vid);
-        let node_page = nodes.get_segment(page_id)?;
+        let (segment_id, pos) = nodes.resolve_pos(vid);
+        let node_page = nodes.get_segment(segment_id)?;
 
         if pos.0 < node_page.num_nodes() {
             Some(vid)

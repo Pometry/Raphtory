@@ -355,7 +355,7 @@ pub struct EdgeSegmentView<EXT> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicU32,
-    ext: EXT,
+    _ext: EXT,
 }
 
 #[derive(Debug)]
@@ -464,7 +464,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn load(
-        _page_id: usize,
+        _segment_id: usize,
         _max_page_len: u32,
         _meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
@@ -478,20 +478,25 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         ))
     }
 
-    fn new(page_id: usize, meta: Arc<Meta>, _path: Option<PathBuf>, ext: Self::Extension) -> Self {
+    fn new(
+        segment_id: usize,
+        meta: Arc<Meta>,
+        _path: Option<PathBuf>,
+        ext: Self::Extension,
+    ) -> Self {
         let max_page_len = ext.config().max_edge_page_len();
 
         Self {
             segment: parking_lot::RwLock::new(MemEdgeSegment::new(
-                page_id,
+                segment_id,
                 max_page_len,
                 meta,
                 ext.memory_tracker().clone(),
             ))
             .into(),
-            segment_id: page_id,
+            segment_id: segment_id,
             num_edges: AtomicU32::new(0),
-            ext,
+            _ext: ext,
         }
     }
 

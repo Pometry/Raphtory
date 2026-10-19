@@ -205,12 +205,12 @@ impl From<LocalPOS> for usize {
 }
 
 impl LocalPOS {
-    pub fn as_vid(self, page_id: usize, max_page_len: u32) -> VID {
-        VID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_vid(self, segment_id: usize, max_page_len: u32) -> VID {
+        VID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
-    pub fn as_eid(self, page_id: usize, max_page_len: u32) -> EID {
-        EID(page_id * (max_page_len as usize) + (self.0 as usize))
+    pub fn as_eid(self, segment_id: usize, max_page_len: u32) -> EID {
+        EID(segment_id * (max_page_len as usize) + (self.0 as usize))
     }
 
     pub fn as_index(self) -> usize {

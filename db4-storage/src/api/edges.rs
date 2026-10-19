@@ -41,7 +41,7 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     fn layer_count(&self, layer_id: LayerId) -> u32;
 
     fn load(
-        page_id: usize,
+        segment_id: usize,
         max_page_len: u32,
         meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -50,7 +50,8 @@ pub trait EdgeSegmentOps: Send + Sync + Debug + 'static {
     where
         Self: Sized;
 
-    fn new(page_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension) -> Self;
+    fn new(segment_id: usize, meta: Arc<Meta>, path: Option<PathBuf>, ext: Self::Extension)
+    -> Self;
 
     fn segment_id(&self) -> usize;
 

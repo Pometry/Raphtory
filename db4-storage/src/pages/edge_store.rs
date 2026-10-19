@@ -469,9 +469,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         WriteLockedEdgeSegments::new(
             self.segments
                 .iter()
-                .map(|(page_id, page)| {
+                .map(|(segment_id, page)| {
                     LockedEdgeSegment::new(
-                        page_id,
+                        segment_id,
                         self.max_page_len(),
                         page.as_ref(),
                         &self.layer_counter,
@@ -593,8 +593,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .cycle()
             .take(3)
             .filter_map(|lock| lock.try_read())
-            .filter_map(|page_id| {
-                let page = self.segments.get(*page_id)?;
+            .filter_map(|segment_id| {
+                let page = self.segments.get(*segment_id)?;
                 let guard = page.try_head_mut()?;
                 if page.num_edges() < self.max_page_len() {
                     Some((page, guard))

@@ -1147,7 +1147,7 @@ mod io_tests {
             );
         }
         for segment_id in 0..wlg.edges.len() {
-            assert_eq!(wlg.edges.get_mut(segment_id).unwrap().page_id(), segment_id);
+            assert_eq!(wlg.edges.get_mut(segment_id).unwrap().id(), segment_id);
         }
 
         // nothing new: no-op

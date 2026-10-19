@@ -1,3 +1,5 @@
+#[cfg(feature = "datafusion")]
+use crate::errors::GraphError;
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
@@ -12,7 +14,6 @@ use crate::{
         },
         graph::nodes::Nodes,
     },
-    errors::GraphError,
     prelude::{GraphViewOps, NodeStateOps, Prop},
     python::{
         graph::{
