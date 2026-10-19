@@ -6,8 +6,9 @@ use raphtory::{
         },
         graph::views::filter::{
             model::{
+                graph_filter::GraphFilter,
                 node_filter::{NodeFilter, NodeFilterFactory},
-                EntityAggOps, PropertyExprFactory, ViewWrapOps,
+                ComposableFilter, EntityAggOps, PropertyExprFactory, ViewWrapOps,
             },
             CreateFilter,
         },
@@ -630,4 +631,118 @@ fn non_id_and_inequality_filters_keep_the_full_domain() {
             "{label} must keep the full domain, got {domain:?}"
         );
     }
+}
+
+// ── Domain narrowing for combined views ──────────────────────────────────
+//
+// An `and` of views visits the nodes every operand visits, an `or` the nodes
+// some operand visits. A window reports its base's list, and a `not` visits
+// every node.
+
+/// a: @1, @7 · b: @1 · c: @7 · d: @4 · e: @4
+///
+/// ```text
+/// time   0    1    2    3    4    5    6    7    8    9
+/// a           ●                             ●
+/// b           ●
+/// c                                         ●
+/// d                          ●
+/// e                          ●
+///        └─ window [0, 2) ┘            └─ window [6, 9) ┘
+/// ```
+fn build_domain_graph() -> Graph {
+    let g = Graph::new();
+    for (t, name) in [(1, "a"), (7, "a"), (1, "b"), (7, "c"), (4, "d"), (4, "e")] {
+        g.add_node(t, name, NO_PROPS, None, None).unwrap();
+    }
+    g
+}
+
+/// The sorted vertex ids of the named nodes.
+fn vids(g: &Graph, names: &[&str]) -> Vec<VID> {
+    let mut vids: Vec<VID> = names.iter().map(|n| g.node(n).unwrap().node).collect();
+    vids.sort();
+    vids
+}
+
+/// The sorted vertex ids of a domain that names its nodes.
+fn listed(domain: NodeList) -> Vec<VID> {
+    match domain {
+        NodeList::List { elems } => {
+            let mut got: Vec<VID> = elems.into_iter().collect();
+            got.sort();
+            got
+        }
+        other => panic!("the domain should name its nodes, got {other:?}"),
+    }
+}
+
+/// The sorted names `g.nodes().select(filter)` keeps.
+fn selected_names<F: CreateFilter + 'static>(filter: F, g: &Graph) -> Vec<String> {
+    let mut names: Vec<String> = g.nodes().select(filter).unwrap().name().collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn and_of_two_subgraphs_visits_their_intersection() {
+    let g = build_domain_graph();
+    let both = || {
+        GraphFilter
+            .subgraph(["a", "b"])
+            .and(GraphFilter.subgraph(["b", "c"]))
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["b"]));
+    assert_eq!(selected_names(both(), &g), vec!["b"]);
+}
+
+#[test]
+fn or_of_two_subgraphs_visits_their_union() {
+    let g = build_domain_graph();
+    let either = || {
+        GraphFilter
+            .subgraph(["a", "b"])
+            .or(GraphFilter.subgraph(["b", "c"]))
+    };
+    assert_eq!(
+        listed(filter_domain(either(), &g)),
+        vids(&g, &["a", "b", "c"])
+    );
+    assert_eq!(selected_names(either(), &g), vec!["a", "b", "c"]);
+}
+
+#[test]
+fn and_of_a_subgraph_and_a_predicate_visits_the_subgraph() {
+    let g = build_domain_graph();
+    let both = || {
+        GraphFilter
+            .subgraph(["a", "b"])
+            .and(NodeFilter.name().eq("a"))
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["a", "b"]));
+    assert_eq!(selected_names(both(), &g), vec!["a"]);
+}
+
+#[test]
+fn and_of_two_windows_visits_every_node() {
+    let g = build_domain_graph();
+    let both = || GraphFilter.window(0, 2).and(GraphFilter.window(6, 9));
+    let domain = filter_domain(both(), &g);
+    assert!(
+        matches!(domain, NodeList::All),
+        "a window reports its base's list, got {domain:?}"
+    );
+    assert_eq!(selected_names(both(), &g), vec!["a"]);
+}
+
+#[test]
+fn not_of_a_subgraph_visits_every_node() {
+    let g = build_domain_graph();
+    let outside = || GraphFilter.subgraph(["a", "b"]).not();
+    let domain = filter_domain(outside(), &g);
+    assert!(
+        matches!(domain, NodeList::All),
+        "a not visits every node, got {domain:?}"
+    );
+    assert_eq!(selected_names(outside(), &g), vec!["c", "d", "e"]);
 }

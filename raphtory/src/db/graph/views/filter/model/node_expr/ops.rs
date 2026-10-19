@@ -684,8 +684,11 @@ pub struct AllOfNodeOp<'g> {
 impl<'g> NodeOp for AllOfNodeOp<'g> {
     type Output = Option<Prop>;
 
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
+    /// The nodes every item visits: the intersection of the items' domains.
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.items.iter().fold(NodeList::All, |acc, item| {
+            acc.intersection(&item.domain(storage), storage)
+        })
     }
 
     fn prop_type(&self) -> PropType {
@@ -709,8 +712,11 @@ pub struct AnyOfNodeOp<'g> {
 impl<'g> NodeOp for AnyOfNodeOp<'g> {
     type Output = Option<Prop>;
 
-    fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
+    /// The nodes some item visits: the union of the items' domains.
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.items.iter().fold(NodeList::empty(), |acc, item| {
+            acc.union(&item.domain(storage), storage)
+        })
     }
 
     fn prop_type(&self) -> PropType {

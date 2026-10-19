@@ -147,3 +147,24 @@ def test_node_collection_combinations_follow_set_algebra():
                 graph.filter(expr)
 
     return check
+
+
+def _five(graph):
+    for name in ["a", "b", "c", "d", "e"]:
+        graph.add_node(1, name)
+    return graph
+
+
+@with_variants(_five)
+def test_combined_subgraphs_select_their_set_algebra():
+    """`&` of subgraphs keeps their intersection, `|` their union, and `&` of a
+    subgraph and a predicate keeps what passes both."""
+
+    def check(graph):
+        ab = Graph.subgraph(["a", "b"])
+        bc = Graph.subgraph(["b", "c"])
+        assert sorted(graph.nodes[ab & bc].id) == ["b"]
+        assert sorted(graph.nodes[ab | bc].id) == ["a", "b", "c"]
+        assert sorted(graph.nodes[ab & (Node.name() == "a")].id) == ["a"]
+
+    return check
