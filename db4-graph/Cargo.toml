@@ -16,3 +16,4 @@ storage.workspace = true
 raphtory-api.workspace = true
 raphtory-core.workspace = true
 rayon.workspace = true
+parking_lot.workspace = true

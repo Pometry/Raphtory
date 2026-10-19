@@ -144,7 +144,8 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
     }
 }
 
-/// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions for mutable and immutable views
+/// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions
+/// for mutable and immutable views.
 pub trait Immutable {}
 
 pub enum DynOrMutableGraph {
@@ -230,10 +231,10 @@ impl InheritNodeHistoryFilter for DynamicGraph {}
 
 impl InheritEdgeHistoryFilter for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritViewOps for &'graph1 G {}
+impl<G: GraphView> InheritViewOps for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritStorageOps for &'graph1 G {}
+impl<G: GraphView> InheritStorageOps for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritNodeHistoryFilter for &'graph1 G {}
+impl<G: GraphView> InheritNodeHistoryFilter for &G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritEdgeHistoryFilter for &'graph1 G {}
+impl<G: GraphView> InheritEdgeHistoryFilter for &G {}

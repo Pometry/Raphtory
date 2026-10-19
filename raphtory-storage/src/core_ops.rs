@@ -1,7 +1,7 @@
 use crate::graph::{
     edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
     graph::GraphStorage,
-    locked::LockedGraph,
+    locked::ReadLockedGraph,
     nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
 };
 use either::Either;
@@ -32,24 +32,16 @@ pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> boo
 pub trait CoreGraphOps: Send + Sync {
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
-            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.logical_to_physical.dtype()
+            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.gid_resolver.dtype()
             }
         }
     }
 
-    // fn num_shards(&self) -> usize {
-    //     match self.core_graph() {
-    //         GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-    //             graph.storage.num_shards()
-    //         }
-    //     }
-    // }
-
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {
         match self.core_graph() {
-            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+            GraphStorage::Locked(ReadLockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.storage().read_event_id()
             }
         }
