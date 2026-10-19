@@ -2,13 +2,12 @@ use crate::{
     db::graph::views::filter::model::{
         expr::{
             builder::{EntityAggOps, NodeFilterFactory},
-            typing::{comparison_shape, is_known, qualified_type},
             Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, FilterExpr, Leaf,
             NodeExpr, NodeLeaf, PropertyTerm,
         },
         filter_operator::{BinaryOp, StringOp},
         node_filter::NodeFilter,
-        validate_const_comparable, EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
+        EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
     },
     python::{
         filter::{
@@ -25,10 +24,7 @@ use pyo3::{
     IntoPyObjectExt,
 };
 use raphtory_api::core::{
-    entities::{
-        properties::prop::{Prop, PropType},
-        GID,
-    },
+    entities::{properties::prop::Prop, GID},
     storage::timeindex::EventTime,
 };
 
@@ -82,22 +78,34 @@ impl Typed {
         }
     }
 
-    /// The statically known type of the expression.
-    fn prop_type(&self) -> PropType {
+    /// Refuses `value` under `op` where it is written when the expression's type is known.
+    fn check_value(&self, op: BinaryOp, value: &Prop) -> PyResult<()> {
         match self {
-            Typed::Node(e) => e.prop_type(),
-            Typed::Edge(e) => e.prop_type(),
-            Typed::ExplodedEdge(e) => e.prop_type(),
+            Typed::Node(e) => e.check_value(op, value),
+            Typed::Edge(e) => e.check_value(op, value),
+            Typed::ExplodedEdge(e) => e.check_value(op, value),
         }
+        .map_err(|e| PyTypeError::new_err(e.to_string()))
     }
 
-    /// Whether the expression can be missing.
-    fn nullable(&self) -> bool {
+    /// Refuses the presence test `op` on an expression that always has a value.
+    fn check_nullable(&self, op: &str) -> PyResult<()> {
         match self {
-            Typed::Node(e) => e.nullable(),
-            Typed::Edge(e) => e.nullable(),
-            Typed::ExplodedEdge(e) => e.nullable(),
+            Typed::Node(e) => e.check_nullable(op),
+            Typed::Edge(e) => e.check_nullable(op),
+            Typed::ExplodedEdge(e) => e.check_nullable(op),
         }
+        .map_err(|e| PyTypeError::new_err(e.to_string()))
+    }
+
+    /// Refuses `any()`/`all()` where it is written when the expression's type is known.
+    fn check_qualifiable(&self) -> PyResult<()> {
+        match self {
+            Typed::Node(e) => e.check_qualifiable(),
+            Typed::Edge(e) => e.check_qualifiable(),
+            Typed::ExplodedEdge(e) => e.check_qualifiable(),
+        }
+        .map_err(|e| PyTypeError::new_err(e.to_string()))
     }
 
     /// The filter this boolean expression is, on its entity.
@@ -221,49 +229,6 @@ enum ExprOrValue {
     Value(Prop),
 }
 
-/// Values are checked against the expression's statically known type at the
-/// comparison itself, so a mistyped literal fails where it is written instead
-/// of at some later `filter()` call. A type not fully known (a history whose
-/// element type is not) defers to filter time. The check is the engine's own,
-/// a list-valued side compared element by element; python only asks it early.
-fn check_value(lhs: &Typed, op: BinaryOp, v: &Prop) -> PyResult<()> {
-    let pt = lhs.prop_type();
-    if is_known(&pt) {
-        let rhs = v.dtype();
-        comparison_shape(&op, &pt, &rhs)
-            .map_err(|e| PyTypeError::new_err(e.into_error(&rhs, Some(v)).to_string()))?;
-    }
-    Ok(())
-}
-
-/// Presence tests only mean something on an expression that can be missing.
-fn check_nullable(lhs: &Typed, op: &str) -> PyResult<()> {
-    if !lhs.nullable() {
-        return Err(PyTypeError::new_err(format!(
-            "{op}() is not valid on an expression that always has a value"
-        )));
-    }
-    Ok(())
-}
-
-/// `any()`/`all()` only follow a comparison that gives one boolean per
-/// element. When the expression's type is already known and is not that, the
-/// qualifier is refused where it is written; otherwise it is checked when the
-/// filter is applied.
-fn check_qualifiable(inner: &Typed) -> PyResult<()> {
-    let pt = inner.prop_type();
-    if is_known(&pt) {
-        qualified_type(&pt).map_err(|e| PyTypeError::new_err(e.to_string()))?;
-    }
-    Ok(())
-}
-
-/// String operators require a string operand whatever the lhs type.
-fn check_str_value(v: &Prop) -> PyResult<()> {
-    validate_const_comparable(&PropType::Str, Some(v))
-        .map_err(|e| PyTypeError::new_err(e.to_string()))
-}
-
 impl PyExpr {
     fn compare(&self, op: BinaryOp, other: ExprOrValue) -> PyResult<PyExpr> {
         match other {
@@ -271,7 +236,7 @@ impl PyExpr {
                 Ok(PyExpr(zip_typed!(self.0.clone(), e.0, |l, r| l.cmp(op, r))?))
             }
             ExprOrValue::Value(v) => {
-                check_value(&self.0, op, &v)?;
+                self.0.check_value(op, &v)?;
                 Ok(PyExpr(map_typed!(self.0.clone(), |e| e.cmp(op, v))))
             }
         }
@@ -283,14 +248,14 @@ impl PyExpr {
                 zip_typed!(self.0.clone(), e.0, |l, r| l.string(op, r))?
             )),
             ExprOrValue::Value(v) => {
-                check_str_value(&v)?;
+                NodeExpr::check_str_value(&v).map_err(|e| PyTypeError::new_err(e.to_string()))?;
                 Ok(PyExpr(map_typed!(self.0.clone(), |e| e.string(op, v))))
             }
         }
     }
 
     fn presence(&self, none: bool, name: &str) -> PyResult<PyExpr> {
-        check_nullable(&self.0, name)?;
+        self.0.check_nullable(name)?;
         Ok(PyExpr(map_typed!(self.0.clone(), |e| if none {
             e.is_none()
         } else {
@@ -533,7 +498,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn any(&self) -> PyResult<PyExpr> {
-        check_qualifiable(&self.0)?;
+        self.0.check_qualifiable()?;
         Ok(PyExpr(map_typed!(self.0.clone(), |e| e.any())))
     }
 
@@ -544,7 +509,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn all(&self) -> PyResult<PyExpr> {
-        check_qualifiable(&self.0)?;
+        self.0.check_qualifiable()?;
         Ok(PyExpr(map_typed!(self.0.clone(), |e| e.all())))
     }
 

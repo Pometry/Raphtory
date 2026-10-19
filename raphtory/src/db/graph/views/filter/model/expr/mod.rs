@@ -32,7 +32,10 @@ pub use builder::{Chain, EdgeEndpoint, EdgeKind, GraphLeaf, PropertyTerm};
 pub(super) use compile::EdgeOps;
 pub use compile::Leaf;
 
-use super::filter_operator::{BinaryOp, StringOp};
+use super::{
+    filter_operator::{BinaryOp, StringOp},
+    validate_const_comparable,
+};
 use crate::{db::api::state::NodeOp, errors::GraphError};
 use raphtory_api::core::{
     entities::{
@@ -44,8 +47,8 @@ use raphtory_api::core::{
 };
 use std::{fmt, sync::Arc};
 use typing::{
-    static_aggregate_type, static_comparison_type, static_qualified_type, static_set_type,
-    static_string_type,
+    comparison_shape, is_known, qualified_type, static_aggregate_type, static_comparison_type,
+    static_qualified_type, static_set_type, static_string_type,
 };
 
 /// One view restriction, in the order it was applied. Each one is the graph
@@ -356,6 +359,43 @@ impl<L: Leaf> Expr<L> {
             | Expr::Or(_)
             | Expr::Not(_) => false,
         }
+    }
+
+    /// Refuses `value` against this expression under `op` when the expression's type is
+    /// already known and can never be compared with it, element by element for a list; an
+    /// expression whose type only a graph knows defers to filter time.
+    pub fn check_value(&self, op: BinaryOp, value: &Prop) -> Result<(), GraphError> {
+        let pt = self.prop_type();
+        if is_known(&pt) {
+            let rhs = value.dtype();
+            comparison_shape(&op, &pt, &rhs).map_err(|e| e.into_error(&rhs, Some(value)))?;
+        }
+        Ok(())
+    }
+
+    /// Refuses a string operator's operand that is not a string, whatever the left side.
+    pub fn check_str_value(value: &Prop) -> Result<(), GraphError> {
+        validate_const_comparable(&PropType::Str, Some(value))
+    }
+
+    /// Refuses the presence test `op` on an expression that can never be missing.
+    pub fn check_nullable(&self, op: &str) -> Result<(), GraphError> {
+        if !self.nullable() {
+            return Err(GraphError::invalid_filter(format!(
+                "{op}() is not valid on an expression that always has a value"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Refuses `any()`/`all()` after this expression when its type is already known and is
+    /// not one boolean per element; an expression whose type only a graph knows defers.
+    pub fn check_qualifiable(&self) -> Result<(), GraphError> {
+        let pt = self.prop_type();
+        if is_known(&pt) {
+            qualified_type(&pt)?;
+        }
+        Ok(())
     }
 }
 

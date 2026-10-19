@@ -2,8 +2,10 @@ use raphtory::{
     db::{
         api::view::{Filter, IntoDynamic},
         graph::views::filter::model::{
-            expr::NodeExpr, node_filter::NodeFilter, EntityAggOps, EntityExprFilterOps,
-            PropertyExprFactory,
+            expr::NodeExpr,
+            filter_operator::BinaryOp,
+            node_filter::{NodeFilter, NodeFilterFactory},
+            EntityAggOps, EntityExprFilterOps, PropertyExprFactory,
         },
     },
     prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
@@ -137,4 +139,62 @@ fn a_history_takes_its_element_type_from_the_graph() {
         refused(&g, history("score").sum().gt("a")),
         "Invalid filter: value a of type Str cannot be compared with I64"
     );
+}
+
+#[test]
+fn the_static_checks_answer_before_any_graph() {
+    let prop = || NodeExpr::from(NodeFilter.property("p"));
+    // A name is a Str, known before any graph: a number is refused at once.
+    let err = NodeFilter
+        .name()
+        .check_value(BinaryOp::Eq, &5i64.into())
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        err,
+        "Invalid filter: value 5 of type I64 cannot be compared with Str"
+    );
+    // A property's type only a graph knows, so the check waits for it.
+    assert!(prop().check_value(BinaryOp::Eq, &5i64.into()).is_ok());
+
+    // A degree always has a value; a property may be missing.
+    let err = NodeFilter
+        .degree()
+        .check_nullable("is_none")
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        err,
+        "Invalid filter: is_none() is not valid on an expression that always has a value"
+    );
+    assert!(prop().check_nullable("is_none").is_ok());
+
+    // Comparing a name is one boolean, so any()/all() after it is refused; a
+    // history compared with a value waits for the graph to know its elements.
+    let err = NodeFilter
+        .name()
+        .eq("x")
+        .check_qualifiable()
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("this expression gives a single boolean answer"),
+        "{err}"
+    );
+    assert!(NodeFilter
+        .property("p")
+        .temporal()
+        .gt(1i64)
+        .check_qualifiable()
+        .is_ok());
+
+    // A string operator takes only a string operand.
+    let err = NodeExpr::check_str_value(&5i64.into())
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        err,
+        "Invalid filter: value 5 of type I64 cannot be compared with Str"
+    );
+    assert!(NodeExpr::check_str_value(&"x".into()).is_ok());
 }
