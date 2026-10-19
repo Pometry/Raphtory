@@ -1213,6 +1213,10 @@ enum EdgeField {
 	"""
 	IS_ACTIVE
 	"""
+	Whether the edge exists in the views.
+	"""
+	EXISTS
+	"""
 	Whether the edge is valid (on a persistent graph, its last update is an
 	addition).
 	"""
@@ -4733,6 +4737,10 @@ enum NodeField {
 	Whether the node is active.
 	"""
 	IS_ACTIVE
+	"""
+	Whether the node exists in the views.
+	"""
+	EXISTS
 }
 
 """

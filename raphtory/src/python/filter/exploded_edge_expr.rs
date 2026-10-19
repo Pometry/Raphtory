@@ -300,6 +300,14 @@ impl PyExplodedEdgeFilter {
         PyExpr(self.0.clone().is_active().into())
     }
 
+    /// Matches exploded edges that exist in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn exists(&self) -> PyExpr {
+        PyExpr(self.0.clone().exists().into())
+    }
+
     /// Matches exploded edges that are structurally valid in the current view.
     ///
     /// Returns:
@@ -615,6 +623,15 @@ impl PyExplodedEdge {
     #[staticmethod]
     fn is_active() -> PyExpr {
         PyExplodedEdgeFilter::root().is_active()
+    }
+
+    /// Matches exploded edges that exist in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn exists() -> PyExpr {
+        PyExplodedEdgeFilter::root().exists()
     }
 
     /// Matches exploded edges that are structurally valid in the current view.

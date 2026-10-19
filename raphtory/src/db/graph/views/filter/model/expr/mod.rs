@@ -235,6 +235,9 @@ pub enum NodeLeaf {
     IsActive {
         views: Vec<ViewOp>,
     },
+    Exists {
+        views: Vec<ViewOp>,
+    },
     /// A node value built in this process (a node-state column) that has no
     /// wire form: it runs where it was built and cannot be sent anywhere.
     Opaque(OpaqueFilter),
@@ -254,6 +257,9 @@ pub enum EdgeLeaf {
         name: String,
     },
     IsActive {
+        views: Vec<ViewOp>,
+    },
+    Exists {
         views: Vec<ViewOp>,
     },
     IsValid {
@@ -284,6 +290,9 @@ pub enum ExplodedEdgeLeaf {
         name: String,
     },
     IsActive {
+        views: Vec<ViewOp>,
+    },
+    Exists {
         views: Vec<ViewOp>,
     },
     IsValid {
@@ -430,7 +439,7 @@ impl FilterExpr {
         if self.has_view() {
             return Err(GraphError::invalid_filter(
                 "a view applies to the whole filter: use it alone or as an expression of the top-level `and`, \
-                 not under `or` or `not`",
+                 not under `or` or `not`; to test that an entity does not exist in a view, negate `.exists()`",
             ));
         }
         Ok(())

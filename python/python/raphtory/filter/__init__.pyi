@@ -529,6 +529,15 @@ class Node(object):
         """
 
     @staticmethod
+    def exists() -> filter.Expr:
+        """
+        Matches nodes that exist in the current view.
+
+        Returns:
+            filter.Expr:
+        """
+
+    @staticmethod
     def id() -> filter.Expr:
         """
         Selects the node ID field for filtering.
@@ -880,6 +889,14 @@ class NodeFilter(object):
             filter.NodeFilter:
         """
 
+    def exists(self) -> filter.Expr:
+        """
+        Matches nodes that exist in the current view.
+
+        Returns:
+            filter.Expr:
+        """
+
     def id(self) -> filter.Expr:
         """
         Selects the node ID field for filtering.
@@ -1207,6 +1224,15 @@ class Edge(object):
         """
 
     @staticmethod
+    def exists() -> filter.Expr:
+        """
+        Matches edges that exist in the current view.
+
+        Returns:
+            filter.Expr:
+        """
+
+    @staticmethod
     def is_active() -> filter.Expr:
         """
         Matches edges that have at least one event in the current view.
@@ -1529,6 +1555,14 @@ class EdgeFilter(object):
 
         Returns:
             filter.EdgeFilter:
+        """
+
+    def exists(self) -> filter.Expr:
+        """
+        Matches edges that exist in the current view.
+
+        Returns:
+            filter.Expr:
         """
 
     def is_active(self) -> filter.Expr:
@@ -1897,6 +1931,15 @@ class ExplodedEdge(object):
         """
 
     @staticmethod
+    def exists() -> filter.Expr:
+        """
+        Matches exploded edges that exist in the current view.
+
+        Returns:
+            filter.Expr:
+        """
+
+    @staticmethod
     def is_active() -> filter.Expr:
         """
         Matches exploded edges that have at least one event in the current view.
@@ -2209,6 +2252,14 @@ class ExplodedEdgeFilter(object):
 
         Returns:
             filter.ExplodedEdgeFilter:
+        """
+
+    def exists(self) -> filter.Expr:
+        """
+        Matches exploded edges that exist in the current view.
+
+        Returns:
+            filter.Expr:
         """
 
     def is_active(self) -> filter.Expr:

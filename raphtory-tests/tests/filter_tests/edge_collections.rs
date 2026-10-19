@@ -8,7 +8,7 @@ use raphtory::{
                 exploded_edge_filter::ExplodedEdgeFilter,
                 graph_filter::GraphFilter,
                 node_filter::{NodeFilter, NodeFilterFactory},
-                PropertyExprFactory, ViewWrapOps,
+                EdgeViewFilterOps, PropertyExprFactory, ViewWrapOps,
             },
         },
     },
@@ -130,4 +130,44 @@ fn select_asks_about_the_items_of_the_collection() {
     assert_eq!(exploded(&edges), vec![ab(1), ab(7)]);
     let instances = g.edges().explode().select(latest_seven()).unwrap();
     assert_eq!(exploded(&instances), vec![ab(7)]);
+}
+
+/// A view on a collection is the `exists()` test of the collection's items,
+/// read through the same views: once per edge on edges, once per exploded
+/// edge on exploded edges.
+#[test]
+fn a_view_on_a_collection_is_its_exists_test() {
+    let g = graph();
+    let ab = |t| ("a".to_string(), "b".to_string(), t);
+    let bc = |t| ("b".to_string(), "c".to_string(), t);
+
+    let view = g.edges().select(GraphFilter.window(0, 5)).unwrap();
+    let exists = g.edges().select(EdgeFilter.window(0, 5).exists()).unwrap();
+    assert_eq!(exploded(&view), vec![ab(1), ab(7), bc(2)]);
+    assert_eq!(exploded(&exists), exploded(&view));
+    let view = g.edges().select(GraphFilter.layers("y")).unwrap();
+    let exists = g.edges().select(EdgeFilter.layers("y").exists()).unwrap();
+    assert_eq!(exploded(&view), vec![ab(1), ab(7)]);
+    assert_eq!(exploded(&exists), exploded(&view));
+
+    let view = g
+        .edges()
+        .explode()
+        .select(GraphFilter.window(0, 5))
+        .unwrap();
+    let exists = g
+        .edges()
+        .explode()
+        .select(ExplodedEdgeFilter.window(0, 5).exists())
+        .unwrap();
+    assert_eq!(exploded(&view), vec![ab(1), bc(2)]);
+    assert_eq!(exploded(&exists), exploded(&view));
+    let view = g.edges().explode().select(GraphFilter.layers("y")).unwrap();
+    let exists = g
+        .edges()
+        .explode()
+        .select(ExplodedEdgeFilter.layers("y").exists())
+        .unwrap();
+    assert_eq!(exploded(&view), vec![ab(7)]);
+    assert_eq!(exploded(&exists), exploded(&view));
 }

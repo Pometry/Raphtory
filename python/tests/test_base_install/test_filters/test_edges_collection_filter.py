@@ -64,6 +64,39 @@ def _init(graph):
     return graph
 
 
+def _views(root):
+    """Each view atom, built on `root`: `Graph` for the view itself, `Edge` for the
+    `.exists()` test of it."""
+    return {
+        "layer": root.layer("work"),
+        "layers2": root.layers(["work", "friends"]),
+        "before": root.before(10),
+        "after": root.after(8),
+        "window": root.window(3, 12),
+        "at": root.at(10),
+        "latest": root.latest(),
+        "snap_at": root.snapshot_at(10),
+        "snap_latest": root.snapshot_latest(),
+        "default_layer": root.default_layer(),
+        "exclude_layer": root.exclude_layer("work"),
+        "exclude_layers2": root.exclude_layers(["work", "friends"]),
+        "valid_layers": root.valid_layers(["work", "nope"]),
+        "exclude_valid_layers": root.exclude_valid_layers(["work", "nope"]),
+        "shrink_start": root.shrink_start(8),
+        "shrink_end": root.shrink_end(12),
+        "shrunk_window": root.window(3, 20).shrink_start(8).shrink_end(12),
+        "exclude_nodes": root.exclude_nodes(["c", "nope"]),
+        "subgraph": root.subgraph(["a", "b", "d"]),
+        "subgraph_node_types": root.subgraph_node_types(["person"]),
+        "valid": root.valid(),
+    }
+
+
+def _exists():
+    """Each view atom as the edge test "exists in the view"."""
+    return {name: view.exists() for name, view in _views(Edge).items()}
+
+
 def _atoms():
     return {
         "edge_prop": Edge.property("weight") > 5,
@@ -71,27 +104,7 @@ def _atoms():
         "dst": Edge.dst().name() == "c",
         "node_prop": Node.property("score") > 15,
         "node_name": Node.name().is_in(["b", "c"]),
-        "layer": Graph.layer("work"),
-        "layers2": Graph.layers(["work", "friends"]),
-        "before": Graph.before(10),
-        "after": Graph.after(8),
-        "window": Graph.window(3, 12),
-        "at": Graph.at(10),
-        "latest": Graph.latest(),
-        "snap_at": Graph.snapshot_at(10),
-        "snap_latest": Graph.snapshot_latest(),
-        "default_layer": Graph.default_layer(),
-        "exclude_layer": Graph.exclude_layer("work"),
-        "exclude_layers2": Graph.exclude_layers(["work", "friends"]),
-        "valid_layers": Graph.valid_layers(["work", "nope"]),
-        "exclude_valid_layers": Graph.exclude_valid_layers(["work", "nope"]),
-        "shrink_start": Graph.shrink_start(8),
-        "shrink_end": Graph.shrink_end(12),
-        "shrunk_window": Graph.window(3, 20).shrink_start(8).shrink_end(12),
-        "exclude_nodes": Graph.exclude_nodes(["c", "nope"]),
-        "subgraph": Graph.subgraph(["a", "b", "d"]),
-        "subgraph_node_types": Graph.subgraph_node_types(["person"]),
-        "valid": Graph.valid(),
+        **_views(Graph),
         "is_valid": Edge.is_valid(),
         "is_deleted": Edge.is_deleted(),
         "is_active": Edge.is_active(),
@@ -369,10 +382,14 @@ def _combinations_follow_set_algebra(mixed):
                 mixed_cases["not"].append(
                     (f"~({a} | {b})", ~(atoms[a] | atoms[b]), every)
                 )
+        exists = _exists()
         for a in atoms:
             if a in VIEWS:
-                select_only.add(f"~{a}")
-                cases.append((f"~{a}", ~atoms[a], every - single[a]))
+                # `~` of a view is "exists in the graph `~` keeps", which has no graph
+                # yet; "does not exist in the view" is `~` of its `.exists()` test
+                with pytest.raises(Exception, match="exists"):
+                    graph.edges[~atoms[a]]
+                cases.append((f"~{a}.exists()", ~exists[a], every - single[a]))
             else:
                 cases.append((f"~{a}", ~atoms[a], negated[a]))
         cases.append(
@@ -589,9 +606,11 @@ def test_a_view_expression_is_an_existence_test_on_select():
 
 @with_variants(_init)
 def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
-    """On `edges[]` a view expression is an existence test, so `|` and `~` on it have their plain
-    set meanings. On `filter()` there is no graph that is "layered or heavy", nor one that
-    is "not layered", so the same filters are refused there, when applied.
+    """On `edges[]` a view expression is an existence test, so `|` on it has its plain set
+    meaning. On `filter()` there is no graph that is "layered or heavy", so the same filters
+    are refused there, when applied. `~` of an expression with a view is "exists in the graph
+    `~` keeps", and there is no graph that is "not layered", so it is refused on both;
+    "not in the layer" is `~` of the `.exists()` test.
     """
 
     def check(graph):
@@ -602,7 +621,6 @@ def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
                 atoms["edge_prop"] | atoms["layer"],
                 single["edge_prop"] | single["layer"],
             ),
-            "~layer": (~atoms["layer"], every - single["layer"]),
             "(edge_prop & layer) | src": (
                 (atoms["edge_prop"] & atoms["layer"]) | atoms["src"],
                 (single["edge_prop"] & single["layer"]) | single["src"],
@@ -612,11 +630,49 @@ def test_a_view_under_or_or_not_is_a_test_on_select_and_refused_on_filter():
             assert _ids(graph.edges[expr]) == want, label
             with pytest.raises(Exception, match="view"):
                 graph.filter(expr)
-        # a negated composite follows the two-question rule rather than set algebra;
-        # it runs on the collection and is refused on the graph like the rest
-        composite = ~(atoms["edge_prop"] & atoms["layer"])
-        graph.edges[composite]
-        with pytest.raises(Exception, match="view"):
-            graph.filter(composite)
+        not_in_layer = ~_exists()["layer"]
+        assert _ids(graph.edges[not_in_layer]) == every - single["layer"]
+        for expr in (~atoms["layer"], ~(atoms["edge_prop"] & atoms["layer"])):
+            with pytest.raises(Exception, match="exists"):
+                graph.edges[expr]
+            with pytest.raises(Exception, match="view"):
+                graph.filter(expr)
+
+    return check
+
+
+@with_variants(_init)
+def test_a_view_on_a_collection_is_its_exists_test():
+    """On `nodes[]`, `edges[]` and exploded edges a view expression is the `.exists()` test of
+    the collection's items, read through the same view: once per node, once per edge, once per
+    exploded edge."""
+
+    def exploded(collection):
+        return sorted(
+            (e.src.name, e.dst.name, e.time.t, e.layer_name) for e in collection
+        )
+
+    def check(graph):
+        views = _views(Graph)
+        nodes, edges = _views(Node), _views(Edge)
+        exploded_edges = _views(filter.ExplodedEdge)
+        mismatches = []
+        for name, view in views.items():
+            if sorted(graph.nodes[view].name) != sorted(
+                graph.nodes[nodes[name].exists()].name
+            ):
+                mismatches.append(f"[nodes[]] {name}")
+            if _ids(graph.edges[view]) != _ids(graph.edges[edges[name].exists()]):
+                mismatches.append(f"[edges[]] {name}")
+            instances = graph.edges.explode()
+            if exploded(instances[view]) != exploded(
+                instances[exploded_edges[name].exists()]
+            ):
+                mismatches.append(f"[explode()[]] {name}")
+        assert not mismatches, mismatches
+        # not vacuous: the window keeps some of each, and drops some
+        window = Edge.window(3, 12).exists()
+        assert _ids(graph.edges[window]) == _ids(graph.window(3, 12).edges)
+        assert _ids(graph.edges[window]) != _ids(graph.edges)
 
     return check

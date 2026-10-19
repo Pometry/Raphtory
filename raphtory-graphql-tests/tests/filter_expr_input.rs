@@ -215,6 +215,12 @@ fn node_leaves() -> Vec<NodeLeaf> {
         NodeLeaf::IsActive {
             views: vec![ViewOp::Layers("work".into())],
         },
+        NodeLeaf::Exists {
+            views: vec![ViewOp::Window {
+                start: t(1),
+                end: t(4),
+            }],
+        },
     ]
 }
 
@@ -243,6 +249,7 @@ async fn every_edge_variant_round_trips() {
             name: "kind".into(),
         },
         EdgeLeaf::IsActive { views: views() },
+        EdgeLeaf::Exists { views: views() },
         EdgeLeaf::IsValid { views: Vec::new() },
         EdgeLeaf::IsDeleted { views: views() },
         EdgeLeaf::IsSelfLoop { views: Vec::new() },
@@ -271,6 +278,9 @@ async fn every_exploded_edge_variant_round_trips() {
         },
         ExplodedEdgeLeaf::IsActive {
             views: vec![ViewOp::Valid],
+        },
+        ExplodedEdgeLeaf::Exists {
+            views: vec![ViewOp::Layers("work".into())],
         },
         ExplodedEdgeLeaf::IsValid { views: Vec::new() },
         ExplodedEdgeLeaf::IsDeleted { views: Vec::new() },

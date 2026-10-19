@@ -994,6 +994,14 @@ impl PyNodeFilter {
         PyExpr(self.0.clone().is_active().into())
     }
 
+    /// Matches nodes that exist in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn exists(&self) -> PyExpr {
+        PyExpr(self.0.clone().exists().into())
+    }
+
     /// Build a node filter from a boolean column of an existing node-state result.
     ///
     /// Arguments:
@@ -1354,6 +1362,15 @@ impl PyNode {
     #[staticmethod]
     fn is_active() -> PyExpr {
         PyNodeFilter::root().is_active()
+    }
+
+    /// Matches nodes that exist in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn exists() -> PyExpr {
+        PyNodeFilter::root().exists()
     }
 
     /// Build a node filter from a boolean column of an existing node-state result.

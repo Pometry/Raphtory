@@ -121,6 +121,9 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// Whether the entity is active inside `views`.
     fn is_active(views: Vec<ViewOp>) -> Self;
 
+    /// Whether the entity exists in `views`.
+    fn exists(views: Vec<ViewOp>) -> Self;
+
     /// The filter a boolean expression over this leaf type is, as data.
     fn filter(expr: Expr<Self>) -> FilterExpr;
 
@@ -305,6 +308,9 @@ impl Leaf for NodeLeaf {
                     hidden: Some(Prop::Bool(false)),
                 })
             }
+            NodeLeaf::Exists { views } => {
+                Arc::new(NodeExistsOp::new(apply_views(graph, views)?).map(exists_value))
+            }
             NodeLeaf::Opaque(value) => value.op.clone(),
         })
     }
@@ -350,6 +356,10 @@ impl Leaf for NodeLeaf {
         NodeLeaf::IsActive { views }
     }
 
+    fn exists(views: Vec<ViewOp>) -> Self {
+        NodeLeaf::Exists { views }
+    }
+
     fn filter(expr: Expr<Self>) -> FilterExpr {
         FilterExpr::Node(expr)
     }
@@ -361,7 +371,7 @@ impl Leaf for NodeLeaf {
                 ..
             } => PropType::Str,
             NodeLeaf::Degree { .. } => PropType::U64,
-            NodeLeaf::IsActive { .. } => PropType::Bool,
+            NodeLeaf::IsActive { .. } | NodeLeaf::Exists { .. } => PropType::Bool,
             NodeLeaf::Opaque(value) => value.op.prop_type(),
             // A history is a list, whatever the property's type.
             NodeLeaf::Property { temporal: true, .. } => list(PropType::Empty),
@@ -372,7 +382,7 @@ impl Leaf for NodeLeaf {
     }
 
     /// Every node has a type (an unset one reads as `"_default"`), a degree
-    /// and an answer to whether it is active.
+    /// and an answer to whether it is active and whether it exists.
     fn nullable(&self) -> bool {
         match self {
             NodeLeaf::Field {
@@ -380,7 +390,8 @@ impl Leaf for NodeLeaf {
                 ..
             }
             | NodeLeaf::Degree { .. }
-            | NodeLeaf::IsActive { .. } => false,
+            | NodeLeaf::IsActive { .. }
+            | NodeLeaf::Exists { .. } => false,
             NodeLeaf::Opaque(value) => value.nullable,
             NodeLeaf::Field { .. } | NodeLeaf::Property { .. } | NodeLeaf::Metadata { .. } => true,
         }
@@ -405,6 +416,7 @@ enum EdgeTerm<'a> {
         name: &'a str,
     },
     IsActive(&'a [ViewOp]),
+    Exists(&'a [ViewOp]),
     IsValid(&'a [ViewOp]),
     IsDeleted(&'a [ViewOp]),
     IsSelfLoop,
@@ -426,6 +438,9 @@ impl EdgeTerm<'_> {
             EdgeTerm::IsActive(views) => Arc::new(IsActiveEdgePropOp {
                 graph: apply_views(graph, views)?,
             }),
+            EdgeTerm::Exists(views) => {
+                Arc::new(EdgeExistsOp::new(apply_views(graph, views)?).map(exists_value))
+            }
             EdgeTerm::IsValid(views) => Arc::new(IsValidEdgePropOp {
                 graph: apply_views(graph, views)?,
             }),
@@ -455,6 +470,7 @@ impl EdgeTerm<'_> {
     fn prop_type(&self) -> PropType {
         match self {
             EdgeTerm::IsActive(_)
+            | EdgeTerm::Exists(_)
             | EdgeTerm::IsValid(_)
             | EdgeTerm::IsDeleted(_)
             | EdgeTerm::IsSelfLoop => PropType::Bool,
@@ -488,6 +504,7 @@ impl EdgeLeaf {
             },
             EdgeLeaf::Metadata { views, name } => EdgeTerm::Metadata { views, name },
             EdgeLeaf::IsActive { views } => EdgeTerm::IsActive(views),
+            EdgeLeaf::Exists { views } => EdgeTerm::Exists(views),
             EdgeLeaf::IsValid { views } => EdgeTerm::IsValid(views),
             EdgeLeaf::IsDeleted { views } => EdgeTerm::IsDeleted(views),
             EdgeLeaf::IsSelfLoop { .. } => EdgeTerm::IsSelfLoop,
@@ -511,6 +528,7 @@ impl ExplodedEdgeLeaf {
             },
             ExplodedEdgeLeaf::Metadata { views, name } => EdgeTerm::Metadata { views, name },
             ExplodedEdgeLeaf::IsActive { views } => EdgeTerm::IsActive(views),
+            ExplodedEdgeLeaf::Exists { views } => EdgeTerm::Exists(views),
             ExplodedEdgeLeaf::IsValid { views } => EdgeTerm::IsValid(views),
             ExplodedEdgeLeaf::IsDeleted { views } => EdgeTerm::IsDeleted(views),
             ExplodedEdgeLeaf::IsSelfLoop { .. } => EdgeTerm::IsSelfLoop,
@@ -557,6 +575,10 @@ impl Leaf for EdgeLeaf {
 
     fn is_active(views: Vec<ViewOp>) -> Self {
         EdgeLeaf::IsActive { views }
+    }
+
+    fn exists(views: Vec<ViewOp>) -> Self {
+        EdgeLeaf::Exists { views }
     }
 
     fn filter(expr: Expr<Self>) -> FilterExpr {
@@ -618,6 +640,10 @@ impl Leaf for ExplodedEdgeLeaf {
 
     fn is_active(views: Vec<ViewOp>) -> Self {
         ExplodedEdgeLeaf::IsActive { views }
+    }
+
+    fn exists(views: Vec<ViewOp>) -> Self {
+        ExplodedEdgeLeaf::Exists { views }
     }
 
     fn filter(expr: Expr<Self>) -> FilterExpr {
@@ -1165,8 +1191,10 @@ impl FilterExpr {
     }
 
     /// The boolean value of each node of a collection: a node predicate is
-    /// its value on the node, a view asks that the node exist in the view, and
-    /// `and`, `or` and `not` are one op over the values of their expressions.
+    /// its value on the node, a view asks that the node exist in the view (its
+    /// `exists()` test), `not` of an expression with a view asks that the node
+    /// exist in the graph that `not` keeps, and otherwise `and`, `or` and `not`
+    /// are one op over the values of their expressions.
     fn node_value<'g>(
         &self,
         graph: DynGraphArc<'g>,
@@ -1177,7 +1205,8 @@ impl FilterExpr {
                 return Err(GraphError::NotNodeFilter)
             }
             FilterExpr::View(views) => {
-                Arc::new(NodeExistsOp::new(view_expr(graph, views)?).map(exists_value))
+                FilterExpr::needs_view(views)?;
+                Expr::Term(NodeLeaf::exists(views.clone())).filter_value(graph)?
             }
             FilterExpr::And(expressions) => {
                 NodeOps::all_of(each_operand(expressions, "and", |expression| {
@@ -1189,6 +1218,9 @@ impl FilterExpr {
                     expression.node_value(graph.clone())
                 })?)
             }
+            FilterExpr::Not(inner) if inner.has_view() => Arc::new(
+                NodeExistsOp::new(self.clone().create_graph_filter(graph)?).map(exists_value),
+            ),
             FilterExpr::Not(inner) => {
                 NodeOps::unary(inner.node_value(graph)?, (), not_kernel, PropType::Bool)
             }
@@ -1207,9 +1239,11 @@ impl FilterExpr {
     /// The boolean value of each edge of a collection, or of each update on
     /// an exploded one: an edge predicate is its value on the item, a node
     /// predicate asks that both ends pass, a view asks that the item exist in
-    /// the view, and `and`, `or` and `not` are one op over the values of
-    /// their expressions. Expressions that only test nodes combine into one
-    /// node predicate first, so `name == "b" | name == "c"` keeps the edge b→c.
+    /// the view (its `exists()` test), `not` of an expression with a view asks
+    /// that the item exist in the graph that `not` keeps, and otherwise `and`,
+    /// `or` and `not` are one op over the values of their expressions.
+    /// Expressions that only test nodes combine into one node predicate
+    /// first, so `name == "b" | name == "c"` keeps the edge b→c.
     fn edge_value<'g>(
         &self,
         graph: DynGraphArc<'g>,
@@ -1224,7 +1258,8 @@ impl FilterExpr {
                 Arc::new(ExplodedEdgeLeaf::edge_filter(expr, graph)?.map(exists_value))
             }
             FilterExpr::View(views) => {
-                Arc::new(EdgeExistsOp::new(view_expr(graph, views)?).map(exists_value))
+                FilterExpr::needs_view(views)?;
+                Expr::Term(EdgeLeaf::exists(views.clone())).filter_value(graph)?
             }
             FilterExpr::And(expressions) => {
                 EdgeOps::all_of(each_operand(expressions, "and", |expression| {
@@ -1236,6 +1271,9 @@ impl FilterExpr {
                     expression.edge_value(graph.clone())
                 })?)
             }
+            FilterExpr::Not(inner) if inner.has_view() => Arc::new(
+                EdgeExistsOp::new(self.clone().create_graph_filter(graph)?).map(exists_value),
+            ),
             FilterExpr::Not(inner) => {
                 EdgeOps::unary(inner.edge_value(graph)?, (), not_kernel, PropType::Bool)
             }

@@ -14995,6 +14995,14 @@ Whether the edge is active.
 </td>
 </tr>
 <tr>
+<td valign="top"><strong>EXISTS</strong></td>
+<td>
+
+Whether the edge exists in the views.
+
+</td>
+</tr>
+<tr>
 <td valign="top"><strong>IS_VALID</strong></td>
 <td>
 
@@ -15181,6 +15189,14 @@ The number of edges out of the node.
 <td>
 
 Whether the node is active.
+
+</td>
+</tr>
+<tr>
+<td valign="top"><strong>EXISTS</strong></td>
+<td>
+
+Whether the node exists in the views.
 
 </td>
 </tr>

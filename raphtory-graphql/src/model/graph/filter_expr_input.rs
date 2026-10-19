@@ -228,6 +228,8 @@ pub enum NodeField {
     OutDegree,
     /// Whether the node is active.
     IsActive,
+    /// Whether the node exists in the views.
+    Exists,
 }
 
 impl NodeField {
@@ -259,6 +261,7 @@ impl NodeField {
                 direction: Direction::OUT,
             },
             NodeField::IsActive => NodeLeaf::is_active(views),
+            NodeField::Exists => NodeLeaf::exists(views),
         }
     }
 }
@@ -289,6 +292,8 @@ impl From<Direction> for NodeField {
 pub enum EdgeField {
     /// Whether the edge is active.
     IsActive,
+    /// Whether the edge exists in the views.
+    Exists,
     /// Whether the edge is valid (on a persistent graph, its last update is an
     /// addition).
     IsValid,
@@ -304,6 +309,7 @@ impl EdgeField {
     fn leaf<L: EdgeKind>(self, views: Vec<ViewOp>) -> L {
         match self {
             EdgeField::IsActive => L::is_active(views),
+            EdgeField::Exists => L::exists(views),
             EdgeField::IsValid => L::is_valid(views),
             EdgeField::IsDeleted => L::is_deleted(views),
             EdgeField::IsSelfLoop => L::is_self_loop(views),
@@ -615,6 +621,10 @@ impl Term for NodeRead {
                 name: NodeField::IsActive,
                 views: read_views(views),
             }),
+            NodeLeaf::Exists { views } => NodeRead::Field(NodeFieldRead {
+                name: NodeField::Exists,
+                views: read_views(views),
+            }),
             NodeLeaf::Opaque(_) => return Err(invalid(OPAQUE_FILTER_ERROR)),
         })
     }
@@ -677,6 +687,10 @@ impl Term for EdgeRead {
             }),
             EdgeLeaf::IsActive { views } => EdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsActive,
+                views: read_views(views),
+            }),
+            EdgeLeaf::Exists { views } => EdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::Exists,
                 views: read_views(views),
             }),
             EdgeLeaf::IsValid { views } => EdgeRead::Field(EdgeFieldRead {
@@ -757,6 +771,10 @@ impl Term for ExplodedEdgeRead {
             }),
             ExplodedEdgeLeaf::IsActive { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
                 name: EdgeField::IsActive,
+                views: read_views(views),
+            }),
+            ExplodedEdgeLeaf::Exists { views } => ExplodedEdgeRead::Field(EdgeFieldRead {
+                name: EdgeField::Exists,
                 views: read_views(views),
             }),
             ExplodedEdgeLeaf::IsValid { views } => ExplodedEdgeRead::Field(EdgeFieldRead {

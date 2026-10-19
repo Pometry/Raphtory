@@ -252,6 +252,7 @@ fn node_tail(leaf: &NodeLeaf) -> Option<(&[ViewOp], String)> {
         } => (views, property(name, *temporal)),
         NodeLeaf::Metadata { views, name } => (views, format!(".metadata({})", python(name))),
         NodeLeaf::IsActive { views } => (views, ".is_active()".to_owned()),
+        NodeLeaf::Exists { views } => (views, ".exists()".to_owned()),
         NodeLeaf::Opaque(_) => return None,
     })
 }
@@ -266,6 +267,7 @@ impl Repr for EdgeLeaf {
             } => (views, property(name, *temporal)),
             EdgeLeaf::Metadata { views, name } => (views, format!(".metadata({})", python(name))),
             EdgeLeaf::IsActive { views } => (views, ".is_active()".to_owned()),
+            EdgeLeaf::Exists { views } => (views, ".exists()".to_owned()),
             EdgeLeaf::IsValid { views } => (views, ".is_valid()".to_owned()),
             EdgeLeaf::IsDeleted { views } => (views, ".is_deleted()".to_owned()),
             EdgeLeaf::IsSelfLoop { views } => (views, ".is_self_loop()".to_owned()),
@@ -301,6 +303,7 @@ impl Repr for ExplodedEdgeLeaf {
                 (views, format!(".metadata({})", python(name)))
             }
             ExplodedEdgeLeaf::IsActive { views } => (views, ".is_active()".to_owned()),
+            ExplodedEdgeLeaf::Exists { views } => (views, ".exists()".to_owned()),
             ExplodedEdgeLeaf::IsValid { views } => (views, ".is_valid()".to_owned()),
             ExplodedEdgeLeaf::IsDeleted { views } => (views, ".is_deleted()".to_owned()),
             ExplodedEdgeLeaf::IsSelfLoop { views } => (views, ".is_self_loop()".to_owned()),

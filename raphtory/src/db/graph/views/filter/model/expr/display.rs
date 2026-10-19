@@ -112,6 +112,7 @@ impl Display for NodeLeaf {
             } => property(f, v, name, *temporal),
             NodeLeaf::Metadata { views: v, name } => views(f, v, &format!("METADATA({name})")),
             NodeLeaf::IsActive { views: v } => views(f, v, &"IS_ACTIVE"),
+            NodeLeaf::Exists { views: v } => views(f, v, &"EXISTS"),
             NodeLeaf::Opaque(_) => f.write_str("OPAQUE"),
         }
     }
@@ -127,6 +128,7 @@ impl Display for EdgeLeaf {
             } => property(f, v, name, *temporal),
             EdgeLeaf::Metadata { views: v, name } => views(f, v, &format!("METADATA({name})")),
             EdgeLeaf::IsActive { views: v } => views(f, v, &"IS_ACTIVE"),
+            EdgeLeaf::Exists { views: v } => views(f, v, &"EXISTS"),
             EdgeLeaf::IsValid { views: v } => views(f, v, &"IS_VALID"),
             EdgeLeaf::IsDeleted { views: v } => views(f, v, &"IS_DELETED"),
             EdgeLeaf::IsSelfLoop { views: v } => views(f, v, &"IS_SELF_LOOP"),
@@ -148,6 +150,7 @@ impl Display for ExplodedEdgeLeaf {
                 views(f, v, &format!("METADATA({name})"))
             }
             ExplodedEdgeLeaf::IsActive { views: v } => views(f, v, &"IS_ACTIVE"),
+            ExplodedEdgeLeaf::Exists { views: v } => views(f, v, &"EXISTS"),
             ExplodedEdgeLeaf::IsValid { views: v } => views(f, v, &"IS_VALID"),
             ExplodedEdgeLeaf::IsDeleted { views: v } => views(f, v, &"IS_DELETED"),
             ExplodedEdgeLeaf::IsSelfLoop { views: v } => views(f, v, &"IS_SELF_LOOP"),

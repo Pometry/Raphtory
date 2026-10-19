@@ -379,6 +379,14 @@ impl PyEdgeFilter {
         PyExpr(self.0.clone().is_active().into())
     }
 
+    /// Matches edges that exist in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    fn exists(&self) -> PyExpr {
+        PyExpr(self.0.clone().exists().into())
+    }
+
     /// Matches edges that are structurally valid in the current view.
     ///
     /// Returns:
@@ -707,6 +715,15 @@ impl PyEdge {
     #[staticmethod]
     fn is_active() -> PyExpr {
         PyEdgeFilter::root().is_active()
+    }
+
+    /// Matches edges that exist in the current view.
+    ///
+    /// Returns:
+    ///     filter.Expr:
+    #[staticmethod]
+    fn exists() -> PyExpr {
+        PyEdgeFilter::root().exists()
     }
 
     /// Matches edges that are structurally valid in the current view.

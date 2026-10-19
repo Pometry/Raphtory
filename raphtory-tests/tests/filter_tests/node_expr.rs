@@ -738,7 +738,12 @@ fn and_of_two_windows_visits_every_node() {
 #[test]
 fn not_of_a_subgraph_visits_every_node() {
     let g = build_domain_graph();
-    let outside = || GraphFilter.subgraph(["a", "b"]).not();
+    // A negated view is refused on a collection; the negated `exists()` is the test.
+    assert!(g
+        .nodes()
+        .select(GraphFilter.subgraph(["a", "b"]).not())
+        .is_err());
+    let outside = || NodeFilter.subgraph(["a", "b"]).exists().not();
     let domain = filter_domain(outside(), &g);
     assert!(
         matches!(domain, NodeList::All),

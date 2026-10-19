@@ -53,6 +53,10 @@ From a node, or from the end of an edge (`filter.Edge.src()` and `filter.Edge.ds
 Edges and exploded edges offer `.property(...)` and `.metadata(...)` too, and have boolean tests of
 their own: `.is_valid()`, `.is_deleted()`, `.is_active()`, `.is_self_loop()`.
 
+Nodes, edges and exploded edges also offer `.exists()`: whether the entity is in the term's views,
+as in `filter.Edge.window(5, 10).exists()`. It is not `.is_active()`: on a persistent graph an
+edge that stays alive across a window exists in it without being active.
+
 ## How you compare
 
 A term is an [Expr][raphtory.filter.Expr]. Comparing it gives a boolean `Expr`, which is accepted anywhere a filter is.

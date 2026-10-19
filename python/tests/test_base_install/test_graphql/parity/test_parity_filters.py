@@ -509,6 +509,7 @@ SCOPED_EXPRS = {
         lambda: f.Node.latest().window(11, 13).property("score") > 15
     ),
     "scoped.node.is_active": lambda: f.Node.window(1, 3).is_active(),
+    "scoped.node.exists": lambda: f.Node.window(1, 3).exists(),
     "scoped.node.exclude_layer": lambda: f.Node.exclude_layer("knows").degree() >= 2,
     "scoped.node.shrink_start": lambda: f.Node.shrink_start(5).property("score") > 15,
     "scoped.node.shrink_end": lambda: f.Node.shrink_end(4).property("score") > 15,
@@ -542,6 +543,7 @@ SCOPED_EXPRS = {
     )
     > 2.0,
     "scoped.edge.subgraph": lambda: f.Edge.subgraph(["hub", "spoke1"]).is_active(),
+    "scoped.edge.exists": lambda: f.Edge.window(2, 5).exists(),
     "scoped.edge.is_valid": lambda: f.Edge.window(2, 4).is_valid(),
     "scoped.edge.is_deleted": lambda: f.Edge.window(2, 11).is_deleted(),
     "scoped.exploded.is_valid": lambda: f.ExplodedEdge.window(2, 4).is_valid(),

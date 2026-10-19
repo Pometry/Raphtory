@@ -321,6 +321,11 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
         Expr::Term(NodeLeaf::is_active(self.into().views))
     }
 
+    /// Whether the node exists in the views.
+    fn exists(self) -> Expr<NodeLeaf> {
+        Expr::Term(NodeLeaf::exists(self.into().views))
+    }
+
     /// The nodes a boolean column of a node state marks. Built from
     /// in-process state, so it has no wire form and travels opaque.
     fn by_column<'graph, V, G, T>(
@@ -339,7 +344,7 @@ pub trait NodeFilterFactory: Into<Chain<NodeLeaf>> {
 impl NodeFilterFactory for NodeFilter {}
 impl NodeFilterFactory for Chain<NodeLeaf> {}
 
-/// The unit tests an edge offers, beyond `is_active`. Implemented by the two
+/// The unit tests an edge offers, beyond `is_active` and `exists`. Implemented by the two
 /// edge leaf types.
 pub trait EdgeKind: Leaf {
     fn is_valid(views: Vec<ViewOp>) -> Self;
@@ -380,6 +385,11 @@ impl EdgeKind for ExplodedEdgeLeaf {
 pub trait EdgeViewFilterOps<L: EdgeKind>: Into<Chain<L>> {
     fn is_active(self) -> Expr<L> {
         Expr::Term(L::is_active(self.into().views))
+    }
+
+    /// Whether the edge exists in the views.
+    fn exists(self) -> Expr<L> {
+        Expr::Term(L::exists(self.into().views))
     }
 
     fn is_valid(self) -> Expr<L> {

@@ -496,9 +496,10 @@ fn a_view_expression_in_a_select_is_an_existence_test() {
     assert_eq!(selected(g.edges().select(active).unwrap()), ["c->d"]);
 }
 
-/// On a collection a view expression is a test like any other, so it takes `or`
-/// and `not`: "exists in the view", "does not exist in it". The same filters
-/// have no graph to produce and are refused on `graph.filter`.
+/// On a collection a view expression is a test like any other, so it takes `or`:
+/// "exists in the view". `not` of an expression with a view is "exists in the
+/// graph `not` keeps", which `graph.filter` refuses, so a collection refuses it
+/// too; "does not exist in the view" is spelled `.exists().not()`.
 #[test]
 fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     fn selected<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<String> {
@@ -509,13 +510,24 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
         ids.sort();
         ids
     }
+    fn refused(error: GraphError) -> String {
+        let message = error.to_string();
+        assert!(
+            message.contains("view") && message.contains("exists"),
+            "{message}"
+        );
+        message
+    }
     let g = graph();
-    // eve has nothing after 0, so she alone is outside [5, 8)
+    // `not` of a view is refused on a collection as on the graph
     let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(5, 8)])));
-    let mut names: Vec<String> = g.nodes().select(outside.clone()).unwrap().name().collect();
+    refused(g.nodes().select(outside.clone()).map(|_| ()).unwrap_err());
+    assert!(error(&g, &outside).contains("view"));
+    // eve has nothing after 0, so she alone does not exist in [5, 8)
+    let outside = NodeFilter.window(5, 8).exists().not();
+    let mut names: Vec<String> = g.nodes().select(outside).unwrap().name().collect();
     names.sort();
     assert_eq!(names, ["eve"]);
-    assert!(error(&g, &outside).contains("view"));
     // bob is active in [7, 8) and alice's score is 9: either keeps a node
     let either = FilterExpr::Or(vec![
         FilterExpr::View(vec![window(7, 8)]),
@@ -525,18 +537,21 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     names.sort();
     assert_eq!(names, ["alice", "bob"]);
     assert!(error(&g, &either).contains("view"));
-    // carol→dave is the one edge with nothing before 3
+    // the same on edges
     let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(0, 3)])));
+    refused(g.edges().select(outside).map(|_| ()).unwrap_err());
+    // carol→dave is the one edge with nothing before 3
+    let outside = EdgeFilter.window(0, 3).exists().not();
     assert_eq!(
         selected(g.edges().select(outside).unwrap()),
         ["carol->dave"]
     );
     // the test is existence: on a persistent graph an edge alive through the
-    // window exists in it, so `not` keeps nothing, where `not active` keeps it
+    // window exists in it, so `not exists` keeps nothing, where `not active` keeps it
     let g = PersistentGraph::new();
     g.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
     g.add_edge(7, "c", "d", NO_PROPS, None).unwrap();
-    let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(5, 10)])));
+    let outside = EdgeFilter.window(5, 10).exists().not();
     assert!(selected(g.edges().select(outside).unwrap()).is_empty());
     let inactive = EdgeFilter.window(5, 10).is_active().not();
     assert_eq!(selected(g.edges().select(inactive).unwrap()), ["a->b"]);

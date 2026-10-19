@@ -89,8 +89,8 @@ def test_node_collection_combinations_follow_set_algebra():
         every = frozenset(graph.nodes.name)
         cases = []
         views = {"window", "before", "layer"}
-        # On `nodes[]` a view expression is an existence test, so it follows set algebra under `&`,
-        # `|` and `~`. On `filter()` each expression is read on the base graph (pinned below), and
+        # On `nodes[]` a view expression is an existence test, so it follows set algebra under `&`
+        # and `|`. On `filter()` each expression is read on the base graph (pinned below), and
         # `|` or `~` on a view is refused.
         select_only = set()
         for a, b in combinations(atoms, 2):
@@ -98,10 +98,20 @@ def test_node_collection_combinations_follow_set_algebra():
             cases.append((f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b]))
             if a in views or b in views:
                 select_only.update({f"{a} & {b}", f"{a} | {b}"})
+        # `~` of a view is "exists in the graph `~` keeps", which has no graph yet;
+        # "does not exist in the view" is `~` of its `.exists()` test
+        exists = {
+            "window": Node.window(3, 12).exists(),
+            "before": Node.before(12).exists(),
+            "layer": Node.layer("work").exists(),
+        }
         for a in atoms:
-            cases.append((f"~{a}", ~atoms[a], every - single[a]))
             if a in views:
-                select_only.add(f"~{a}")
+                with pytest.raises(Exception, match="exists"):
+                    graph.nodes[~atoms[a]]
+                cases.append((f"~{a}.exists()", ~exists[a], every - single[a]))
+            else:
+                cases.append((f"~{a}", ~atoms[a], every - single[a]))
 
         mismatches = []
         for label, expr, want in cases:
@@ -140,8 +150,13 @@ def test_node_collection_combinations_follow_set_algebra():
         assert frozenset(
             graph.filter(atoms["window"] & atoms["layer"]).nodes.name
         ) == frozenset(graph.window(3, 12).layer("work").nodes.name)
-        # `|` and `~` on a view: a plain test on `nodes[]`, refused on `filter()`
-        assert frozenset(graph.nodes[~atoms["window"]].name) == every - single["window"]
+        # `|` on a view: a plain test on `nodes[]`, refused on `filter()`; `~` on a view is
+        # refused on both, and "not in the window" is `~` of the `.exists()` test
+        assert (
+            frozenset(graph.nodes[~exists["window"]].name) == every - single["window"]
+        )
+        with pytest.raises(Exception, match="exists"):
+            graph.nodes[~atoms["window"]]
         for expr in (~atoms["window"], atoms["name"] | atoms["window"]):
             with pytest.raises(Exception, match="view"):
                 graph.filter(expr)
