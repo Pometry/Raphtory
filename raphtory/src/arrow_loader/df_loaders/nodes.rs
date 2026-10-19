@@ -32,11 +32,11 @@ use std::{
 };
 use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
-    pages::locked::nodes::LockedNodeSegment,
-    segments::node_type_index::MemNodeTypeIndex,
-    Extension,
-    pages::locked::nodes::{LockedNodeSegment, WriteLockedNodePages},
-    segments::node_type_index::index::MemNodeTypeIndex,
+    // pages::locked::nodes::LockedNodeSegment,
+    // segments::node_type_index::MemNodeTypeIndex,
+    // Extension,
+    // pages::locked::nodes::{LockedNodeSegment, WriteLockedNodePages},
+    // segments::node_type_index::index::MemNodeTypeIndex,
     Extension, NS,
 };
 
@@ -55,6 +55,8 @@ use crate::arrow_loader::{
 };
 #[cfg(feature = "progress")]
 use kdam::BarExt;
+use storage::pages::locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments};
+use storage::segments::node_type_index::MemNodeTypeIndex;
 
 /// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
@@ -502,7 +504,7 @@ fn get_or_resolve_node_vids<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
-    locked_nodes: &WriteLockedNodePages<'_, NS<Extension>>,
+    locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     src_index: usize,
     node_resolve_cache: &mut Option<NodeResolveCache<(VID, usize)>>,
     src_col_resolved: &'a mut Vec<VID>,
@@ -549,7 +551,7 @@ fn resolve_node_vids_and_types_with_cache<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
-    locked_nodes: &WriteLockedNodePages<'_, NS<Extension>>,
+    locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     cache: &mut NodeResolveCache<(VID, usize)>,
     node_col_resolved: &'a mut Vec<VID>,
     node_col: &'a NodeCol,
@@ -629,7 +631,7 @@ fn resolve_node_vids_and_types_with_cache<
 /// Reads through the held write locks: the graph's read path would deadlock on them.
 /// An existing node always lives in a segment that is already held.
 fn existing_stored_node_type(
-    locked_nodes: &WriteLockedNodePages<'_, NS<Extension>>,
+    locked_nodes: &WriteLockedNodeSegments<'_, NS<Extension>>,
     vid: VID,
 ) -> Option<usize> {
     locked_nodes
