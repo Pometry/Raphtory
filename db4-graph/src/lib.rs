@@ -1,5 +1,4 @@
-use parking_lot::RwLockWriteGuard;
-use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex};
+use parking_lot::{lock_api::ArcMutexGuard, Mutex, RawMutex, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{
         self,

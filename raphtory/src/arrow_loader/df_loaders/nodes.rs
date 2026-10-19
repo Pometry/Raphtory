@@ -37,7 +37,8 @@ use storage::{
     // Extension,
     // pages::locked::nodes::{LockedNodeSegment, WriteLockedNodePages},
     // segments::node_type_index::index::MemNodeTypeIndex,
-    Extension, NS,
+    Extension,
+    NS,
 };
 
 #[cfg(feature = "progress")]
@@ -55,8 +56,10 @@ use crate::arrow_loader::{
 };
 #[cfg(feature = "progress")]
 use kdam::BarExt;
-use storage::pages::locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments};
-use storage::segments::node_type_index::MemNodeTypeIndex;
+use storage::{
+    pages::locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments},
+    segments::node_type_index::MemNodeTypeIndex,
+};
 
 /// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
