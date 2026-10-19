@@ -2180,6 +2180,7 @@ name = "db4-graph"
 version = "0.18.0"
 dependencies = [
  "db4-storage",
+ "parking_lot",
  "raphtory-api",
  "raphtory-core",
  "rayon",

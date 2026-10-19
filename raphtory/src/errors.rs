@@ -19,7 +19,7 @@ use raphtory_core::entities::{
     graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
 };
-use raphtory_storage::mutation::MutationError;
+use raphtory_storage::{mutation::MutationError, stage::StageError};
 use std::{
     fmt::Debug,
     io,
@@ -147,6 +147,9 @@ pub enum GraphError {
     MutationError(#[from] MutationError),
 
     #[error(transparent)]
+    StageError(#[from] StageError),
+
+    #[error(transparent)]
     PropError(#[from] PropError),
 
     #[error(transparent)]
@@ -233,7 +236,6 @@ pub enum GraphError {
     #[error("Metadata {0} does not exist")]
     MetadataMissingError(String),
 
-    // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
 
