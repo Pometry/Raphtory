@@ -1,13 +1,17 @@
 use raphtory::{
     db::{
         api::view::{DynamicGraph, Filter, IntoDynamic},
-        graph::views::filter::model::{
-            expr::{EdgeLeaf, Expr, FilterExpr, ViewOp},
-            filter_operator::BinaryOp,
+        graph::views::{
+            deletion_graph::PersistentGraph,
+            filter::model::{
+                expr::{EdgeLeaf, Expr, FilterExpr, ViewOp},
+                filter_operator::BinaryOp,
+            },
         },
     },
     prelude::{
-        AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, TimeOps, NO_PROPS,
+        AdditionOps, EdgeViewOps, Graph, GraphViewOps, LayerOps, NodeViewOps, PropertyAdditionOps,
+        TimeOps, NO_PROPS,
     },
 };
 use raphtory_api::core::{
@@ -203,6 +207,53 @@ fn an_empty_overlap_keeps_nothing() {
 }
 
 /// ```text
+/// time        0    1    2    3    4    5    6    7    8    9
+/// a           ●    ●                        ●                  (the fixture above)
+/// a→b.w            ●(3)                     ●(7)
+/// window(0,2) [=========)
+/// window(6,9)                               [==============)
+/// overlap     (none)
+/// ```
+/// The same on a persistent graph, where a node or edge added before a window
+/// is alive in it: an empty window still keeps nothing.
+#[test]
+fn an_empty_overlap_keeps_nothing_on_a_persistent_graph() {
+    let g = PersistentGraph::new();
+    g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+    g.add_edge(1, "a", "b", [("w", 3i64)], None).unwrap();
+    g.add_edge(6, "a", "b", [("w", 7i64)], None).unwrap();
+    let result = g
+        .filter(and(vec![window(0, 2), window(6, 9)]))
+        .unwrap()
+        .into_dynamic();
+    assert!(node_names(&result).is_empty(), "{:?}", node_names(&result));
+    assert!(edge_names(&result).is_empty(), "{:?}", edge_names(&result));
+}
+
+/// ```text
+/// time        0    1    2    3    4    5    6
+///             |    |    |    |    |    |    |
+/// graph.p          ●(1)                     ●(2)
+/// a→b.w            ●(3)                     ●(7)   (plus the fixture above)
+/// window(0,4) [===================)
+/// ```
+/// `window(0,4) & w > 0`: the graph's own temporal property is cut to the
+/// window, as on the chained form.
+#[test]
+fn a_window_under_and_cuts_graph_properties() {
+    let g = graph();
+    g.add_properties(1, [("p", 1i64)]).unwrap();
+    g.add_properties(6, [("p", 2i64)]).unwrap();
+    let and = filtered(&g, and(vec![window(0, 4), w_gt(0)]));
+    let chained = g.window(0, 4).filter(w_gt(0)).unwrap().into_dynamic();
+    for (form, result) in [("and", &and), ("chained", &chained)] {
+        let p = result.properties().temporal().get("p").unwrap();
+        assert_eq!(p.values().collect::<Vec<_>>(), [Prop::I64(1)], "{form}");
+        assert_eq!(p.latest(), Some(Prop::I64(1)), "{form}");
+    }
+}
+
+/// ```text
 /// time         0    3    7    12   25
 ///              |    |    |    |    |
 /// a, d         ●
@@ -244,4 +295,24 @@ fn a_predicate_only_and_on_a_windowed_graph_adds_no_window() {
     assert_eq!(result.start(), windowed.start());
     assert_eq!(result.end(), windowed.end());
     assert_eq!(node_history(&result, "a"), node_history(&windowed, "a"));
+}
+
+/// ```text
+/// time        0    1    2    3    4    5    6    7    8    9
+///             |    |    |    |    |    |    |    |    |    |
+/// a           ●    ●                        ●                  (the fixture above)
+/// window(2,9)           [===================================)
+/// ```
+/// `window(2,9) & w > 0` reports the window's bounds; `w > 0 & w < 10` has
+/// no view and reports the unwindowed graph's bounds.
+#[test]
+fn an_and_resolves_its_window_when_built() {
+    let g = graph();
+    let windowed = filtered(&g, and(vec![window(2, 9), w_gt(0)]));
+    assert_eq!(windowed.start(), Some(EventTime::start(2)));
+    assert_eq!(windowed.end(), Some(EventTime::start(9)));
+
+    let predicates = filtered(&g, and(vec![w_gt(0), w_lt(10)]));
+    assert_eq!(predicates.start(), g.start());
+    assert_eq!(predicates.end(), g.end());
 }
