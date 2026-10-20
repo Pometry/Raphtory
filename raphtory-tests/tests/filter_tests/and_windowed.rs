@@ -58,6 +58,18 @@ fn w_gt(v: i64) -> FilterExpr {
     ))
 }
 
+fn w_lt(v: i64) -> FilterExpr {
+    FilterExpr::Edge(Expr::Cmp(
+        BinaryOp::Lt,
+        Box::new(Expr::Term(EdgeLeaf::Property {
+            views: vec![],
+            name: "w".into(),
+            temporal: false,
+        })),
+        Box::new(Expr::Const(v.into())),
+    ))
+}
+
 fn and(operands: Vec<FilterExpr>) -> FilterExpr {
     FilterExpr::And(operands)
 }
@@ -216,4 +228,20 @@ fn two_views_under_and_intersect_per_update_for_nodes() {
     assert_eq!(edge_updates(&friends, "a", "d"), [7]);
     let layered = g.window(3, 12).layers("friends").unwrap().into_dynamic();
     assert_eq!(node_names(&layered), node_names(&friends));
+}
+
+/// The fixture above, `window(0,4)` then `w > 0 & w < 10`: the `and` has no
+/// view, so it keeps the windowed graph's bounds and history as they are.
+#[test]
+fn a_predicate_only_and_on_a_windowed_graph_adds_no_window() {
+    let g = graph();
+    let windowed = g.window(0, 4);
+    let result = windowed
+        .filter(and(vec![w_gt(0), w_lt(10)]))
+        .unwrap()
+        .into_dynamic();
+    let windowed = windowed.into_dynamic();
+    assert_eq!(result.start(), windowed.start());
+    assert_eq!(result.end(), windowed.end());
+    assert_eq!(node_history(&result, "a"), node_history(&windowed, "a"));
 }

@@ -308,7 +308,7 @@ impl Leaf for NodeLeaf {
                 })
             }
             NodeLeaf::Exists { views } => {
-                Arc::new(NodeExistsOp::new(apply_views(graph, views)?).map(exists_value))
+                Arc::new(NodeExistsOp::new(view_expr(graph, views)?).map(exists_value))
             }
             NodeLeaf::Opaque(value) => value.op.clone(),
         })
@@ -438,7 +438,7 @@ impl EdgeTerm<'_> {
                 graph: apply_views(graph, views)?,
             }),
             EdgeTerm::Exists(views) => {
-                Arc::new(EdgeExistsOp::new(apply_views(graph, views)?).map(exists_value))
+                Arc::new(EdgeExistsOp::new(view_expr(graph, views)?).map(exists_value))
             }
             EdgeTerm::IsValid(views) => Arc::new(IsValidEdgePropOp {
                 graph: apply_views(graph, views)?,
@@ -977,11 +977,7 @@ impl<L: Leaf> Expr<L> {
         op: UnaryOp,
         graph: DynGraphArc<'g>,
     ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
-        if !self.nullable() {
-            return Err(GraphError::invalid_filter(format!(
-                "{op}() is not valid on an expression that always has a value"
-            )));
-        }
+        self.check_nullable(op)?;
         Ok(L::Ops::unary(
             self.value_op(graph)?,
             op,
@@ -1122,8 +1118,16 @@ impl CreateFilter for FilterExpr {
                     each_operand(&expressions, "and", |expression| {
                         expression.clone().create_graph_filter(graph.clone())
                     })?;
-                let start = operands.iter().filter_map(|o| o.start()).max();
-                let end = operands.iter().filter_map(|o| o.end()).min();
+                // Only an operand with a view moves the bounds; a predicate keeps the base's.
+                let viewed = || {
+                    expressions
+                        .iter()
+                        .zip(operands.iter())
+                        .filter(|(expression, _)| expression.has_view())
+                        .map(|(_, operand)| operand)
+                };
+                let start = viewed().filter_map(|operand| operand.start()).max();
+                let end = viewed().filter_map(|operand| operand.end()).min();
                 let and = AndFilteredGraph::new(graph, operands);
                 if start.is_some() || end.is_some() {
                     Ok(and.internal_window(start, end).into_dyn_graph_arc())
@@ -1148,9 +1152,6 @@ impl CreateFilter for FilterExpr {
                     }
                     FilterExpr::ExplodedEdge(expr) => {
                         ExplodedEdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
-                    }
-                    FilterExpr::Node(expr) => {
-                        NodeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
                     }
                     combination => combination.negated().create_graph_filter(graph),
                 }
@@ -1194,7 +1195,9 @@ impl FilterExpr {
     /// its value on the node, a view asks that the node exist in the view (its
     /// `exists()` test), `not` of an expression with a view asks that the node
     /// exist in the graph that `not` keeps, and otherwise `and`, `or` and `not`
-    /// are one op over the values of their expressions.
+    /// are one op over the values of their expressions. That graph is refused
+    /// until multi-window time semantics exist, so today a `not` with a view
+    /// refuses with the graph's message.
     fn node_value<'g>(
         &self,
         graph: DynGraphArc<'g>,
@@ -1240,8 +1243,12 @@ impl FilterExpr {
     /// an exploded one: an edge predicate is its value on the item, a node
     /// predicate asks that both ends pass, a view asks that the item exist in
     /// the view (its `exists()` test), `not` of an expression with a view asks
-    /// that the item exist in the graph that `not` keeps, and otherwise `and`,
-    /// `or` and `not` are one op over the values of their expressions.
+    /// that the item exist in the graph that `not` keeps, `not` of a
+    /// combination distributes over it as on a graph, `not` of a leaf is one op
+    /// over its value, and otherwise `and` and `or` are one op over the values
+    /// of their expressions. That graph is refused until multi-window time
+    /// semantics exist, so today a `not` with a view refuses with the graph's
+    /// message.
     /// Expressions that only test nodes combine into one node predicate
     /// first, so `name == "b" | name == "c"` keeps the edge b→c.
     fn edge_value<'g>(

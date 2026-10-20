@@ -531,7 +531,7 @@ class Node(object):
     @staticmethod
     def exists() -> filter.Expr:
         """
-        Matches nodes that exist in the current view.
+        Matches nodes that exist in the views written before it.
 
         Returns:
             filter.Expr:
@@ -891,7 +891,7 @@ class NodeFilter(object):
 
     def exists(self) -> filter.Expr:
         """
-        Matches nodes that exist in the current view.
+        Matches nodes that exist in the views written before it.
 
         Returns:
             filter.Expr:
@@ -1226,7 +1226,7 @@ class Edge(object):
     @staticmethod
     def exists() -> filter.Expr:
         """
-        Matches edges that exist in the current view.
+        Matches edges that exist in the views written before it.
 
         Returns:
             filter.Expr:
@@ -1559,7 +1559,7 @@ class EdgeFilter(object):
 
     def exists(self) -> filter.Expr:
         """
-        Matches edges that exist in the current view.
+        Matches edges that exist in the views written before it.
 
         Returns:
             filter.Expr:
@@ -1933,7 +1933,7 @@ class ExplodedEdge(object):
     @staticmethod
     def exists() -> filter.Expr:
         """
-        Matches exploded edges that exist in the current view.
+        Matches exploded edges that exist in the views written before it.
 
         Returns:
             filter.Expr:
@@ -2256,7 +2256,7 @@ class ExplodedEdgeFilter(object):
 
     def exists(self) -> filter.Expr:
         """
-        Matches exploded edges that exist in the current view.
+        Matches exploded edges that exist in the views written before it.
 
         Returns:
             filter.Expr:

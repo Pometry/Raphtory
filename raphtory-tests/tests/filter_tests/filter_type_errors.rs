@@ -3,7 +3,7 @@ use raphtory::{
         api::view::{Filter, IntoDynamic},
         graph::views::filter::model::{
             expr::NodeExpr,
-            filter_operator::BinaryOp,
+            filter_operator::{BinaryOp, UnaryOp},
             node_filter::{NodeFilter, NodeFilterFactory},
             EntityAggOps, EntityExprFilterOps, PropertyExprFactory,
         },
@@ -160,14 +160,14 @@ fn the_static_checks_answer_before_any_graph() {
     // A degree always has a value; a property may be missing.
     let err = NodeFilter
         .degree()
-        .check_nullable("is_none")
+        .check_nullable(UnaryOp::IsNone)
         .unwrap_err()
         .to_string();
     assert_eq!(
         err,
-        "Invalid filter: is_none() is not valid on an expression that always has a value"
+        "Invalid filter: IS_NONE() is not valid on an expression that always has a value"
     );
-    assert!(prop().check_nullable("is_none").is_ok());
+    assert!(prop().check_nullable(UnaryOp::IsNone).is_ok());
 
     // Comparing a name is one boolean, so any()/all() after it is refused; a
     // history compared with a value waits for the graph to know its elements.
@@ -188,13 +188,29 @@ fn the_static_checks_answer_before_any_graph() {
         .check_qualifiable()
         .is_ok());
 
-    // A string operator takes only a string operand.
-    let err = NodeExpr::check_str_value(&5i64.into())
+    // A string operator takes only a string operand; on a degree, known to be a
+    // number, it is refused whatever the operand.
+    let err = prop().check_string(&5i64.into()).unwrap_err().to_string();
+    assert_eq!(
+        err,
+        "Invalid filter: value 5 of type I64 cannot be compared with Str"
+    );
+    assert!(prop().check_string(&"x".into()).is_ok());
+    let err = NodeExpr::from(NodeFilter.name())
+        .check_string(&5i64.into())
         .unwrap_err()
         .to_string();
     assert_eq!(
         err,
         "Invalid filter: value 5 of type I64 cannot be compared with Str"
     );
-    assert!(NodeExpr::check_str_value(&"x".into()).is_ok());
+    let err = NodeFilter
+        .degree()
+        .check_string(&"x".into())
+        .unwrap_err()
+        .to_string();
+    assert_eq!(
+        err,
+        "Invalid filter: string operator requires a Str property, but the property type is U64"
+    );
 }

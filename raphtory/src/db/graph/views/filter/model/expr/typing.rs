@@ -6,7 +6,9 @@
 //! answer per element, a `List<Bool>`, which `any()` or `all()` turn into one.
 //! The shape is decided here, from the types alone, when the expression is
 //! built against a graph; the caller words a mismatch, since it is the one
-//! holding the constant a message can name.
+//! holding the constant a message can name. The checks that answer before any
+//! graph, where an expression is written, live on `Expr` and apply these same
+//! rules to the types already known.
 
 use crate::{
     db::graph::views::filter::model::{

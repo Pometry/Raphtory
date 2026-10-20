@@ -6,8 +6,8 @@ answers "which nodes stay" and "which edges stay", a node predicate answers the 
 ends stayed", and `&`, `|`, `~` combine the direct answers. Within one kind that is plain set
 algebra (`~` of an edge predicate keeps the other edges; `~` of a node predicate keeps the nodes
 that fail it and the edges between them; `~(a & b)` is `~a | ~b`, `~(a | b)` is `~a & ~b`).
-Across kinds, `&` intersects, `~(a & b)` negates each answer, and `|` leaves both questions open
-(every edge), as the graph filter has always done; that last reading is inherited, not chosen here.
+Across kinds, `&` intersects, `|` is the union of the two answers, and `~` distributes over both
+(`~(a & b)` is `~a | ~b`, `~(a | b)` is `~a & ~b`) down to the single filters.
 """
 
 from itertools import combinations

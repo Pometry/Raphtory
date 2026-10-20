@@ -33,7 +33,7 @@ pub(super) use compile::EdgeOps;
 pub use compile::Leaf;
 
 use super::{
-    filter_operator::{BinaryOp, StringOp},
+    filter_operator::{BinaryOp, StringOp, UnaryOp},
     validate_const_comparable,
 };
 use crate::{db::api::state::NodeOp, errors::GraphError};
@@ -48,7 +48,7 @@ use raphtory_api::core::{
 use std::{fmt, sync::Arc};
 use typing::{
     comparison_shape, is_known, qualified_type, static_aggregate_type, static_comparison_type,
-    static_qualified_type, static_set_type, static_string_type,
+    static_qualified_type, static_set_type, static_string_type, string_shape,
 };
 
 /// One view restriction, in the order it was applied. Each one is the graph
@@ -373,13 +373,21 @@ impl<L: Leaf> Expr<L> {
         Ok(())
     }
 
-    /// Refuses a string operator's operand that is not a string, whatever the left side.
-    pub fn check_str_value(value: &Prop) -> Result<(), GraphError> {
+    /// Refuses `value` as the operand of a string operator on this expression: when the
+    /// expression's type is already known, by the string rule; otherwise a value that is not
+    /// a string, whatever the left side.
+    pub fn check_string(&self, value: &Prop) -> Result<(), GraphError> {
+        let pt = self.prop_type();
+        if is_known(&pt) {
+            let rhs = value.dtype();
+            string_shape(&pt, &rhs).map_err(|e| e.into_error(&rhs, Some(value)))?;
+            return Ok(());
+        }
         validate_const_comparable(&PropType::Str, Some(value))
     }
 
     /// Refuses the presence test `op` on an expression that can never be missing.
-    pub fn check_nullable(&self, op: &str) -> Result<(), GraphError> {
+    pub fn check_nullable(&self, op: UnaryOp) -> Result<(), GraphError> {
         if !self.nullable() {
             return Err(GraphError::invalid_filter(format!(
                 "{op}() is not valid on an expression that always has a value"

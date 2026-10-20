@@ -300,7 +300,7 @@ impl PyExplodedEdgeFilter {
         PyExpr(self.0.clone().is_active().into())
     }
 
-    /// Matches exploded edges that exist in the current view.
+    /// Matches exploded edges that exist in the views written before it.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -625,7 +625,7 @@ impl PyExplodedEdge {
         PyExplodedEdgeFilter::root().is_active()
     }
 
-    /// Matches exploded edges that exist in the current view.
+    /// Matches exploded edges that exist in the views written before it.
     ///
     /// Returns:
     ///     filter.Expr:

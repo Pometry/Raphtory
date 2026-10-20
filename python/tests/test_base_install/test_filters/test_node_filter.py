@@ -990,6 +990,18 @@ def test_filter_nodes_for_node_name_all_is_invalid():
         (filter.Node.name() == "N1").any()
 
 
+def test_a_string_operator_on_a_degree_is_refused_where_written():
+    # A degree is a number, known before any graph, so a string operator on it
+    # is refused at the operator, whatever the operand.
+    msg = (
+        "Invalid filter: string operator requires a Str property, but the "
+        "property type is U64"
+    )
+    degree = filter.Node.degree()
+    with pytest.raises(TypeError, match="^" + re.escape(msg) + "$"):
+        degree.contains("x")
+
+
 def test_a_test_is_one_boolean_before_any_graph():
     # A presence test, a combination and a string or membership test of a
     # name each give one boolean answer, known where they are written, so a

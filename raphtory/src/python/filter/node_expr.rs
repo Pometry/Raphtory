@@ -5,7 +5,7 @@ use crate::{
             Chain, EdgeExpr, EdgeLeaf, ExplodedEdgeExpr, ExplodedEdgeLeaf, Expr, FilterExpr, Leaf,
             NodeExpr, NodeLeaf, PropertyTerm,
         },
-        filter_operator::{BinaryOp, StringOp},
+        filter_operator::{BinaryOp, StringOp, UnaryOp},
         node_filter::NodeFilter,
         EntityExprFilterOps, PropertyExprFactory, ViewWrapOps,
     },
@@ -88,8 +88,18 @@ impl Typed {
         .map_err(|e| PyTypeError::new_err(e.to_string()))
     }
 
+    /// Refuses `value` as a string operator's operand where it is written.
+    fn check_string(&self, value: &Prop) -> PyResult<()> {
+        match self {
+            Typed::Node(e) => e.check_string(value),
+            Typed::Edge(e) => e.check_string(value),
+            Typed::ExplodedEdge(e) => e.check_string(value),
+        }
+        .map_err(|e| PyTypeError::new_err(e.to_string()))
+    }
+
     /// Refuses the presence test `op` on an expression that always has a value.
-    fn check_nullable(&self, op: &str) -> PyResult<()> {
+    fn check_nullable(&self, op: UnaryOp) -> PyResult<()> {
         match self {
             Typed::Node(e) => e.check_nullable(op),
             Typed::Edge(e) => e.check_nullable(op),
@@ -248,14 +258,14 @@ impl PyExpr {
                 zip_typed!(self.0.clone(), e.0, |l, r| l.string(op, r))?
             )),
             ExprOrValue::Value(v) => {
-                NodeExpr::check_str_value(&v).map_err(|e| PyTypeError::new_err(e.to_string()))?;
+                self.0.check_string(&v)?;
                 Ok(PyExpr(map_typed!(self.0.clone(), |e| e.string(op, v))))
             }
         }
     }
 
-    fn presence(&self, none: bool, name: &str) -> PyResult<PyExpr> {
-        self.0.check_nullable(name)?;
+    fn presence(&self, none: bool, op: UnaryOp) -> PyResult<PyExpr> {
+        self.0.check_nullable(op)?;
         Ok(PyExpr(map_typed!(self.0.clone(), |e| if none {
             e.is_none()
         } else {
@@ -480,7 +490,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn is_some(&self) -> PyResult<PyExpr> {
-        self.presence(false, "is_some")
+        self.presence(false, UnaryOp::IsSome)
     }
 
     /// Checks whether the value is missing.
@@ -488,7 +498,7 @@ impl PyExpr {
     /// Returns:
     ///     filter.Expr:
     fn is_none(&self) -> PyResult<PyExpr> {
-        self.presence(true, "is_none")
+        self.presence(true, UnaryOp::IsNone)
     }
 
     /// Requires that **any** element matches. Follows a comparison against a
@@ -959,7 +969,7 @@ impl PyNodeFilter {
         PyExpr(self.0.clone().is_active().into())
     }
 
-    /// Matches nodes that exist in the current view.
+    /// Matches nodes that exist in the views written before it.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -1329,7 +1339,7 @@ impl PyNode {
         PyNodeFilter::root().is_active()
     }
 
-    /// Matches nodes that exist in the current view.
+    /// Matches nodes that exist in the views written before it.
     ///
     /// Returns:
     ///     filter.Expr:

@@ -171,3 +171,25 @@ fn a_view_on_a_collection_is_its_exists_test() {
     assert_eq!(exploded(&view), vec![ab(7)]);
     assert_eq!(exploded(&exists), exploded(&view));
 }
+
+/// `exists()` asks about the views written before it, so with no view it is
+/// refused as an empty view is: on nodes, edges and exploded edges.
+#[test]
+fn exists_without_a_view_is_refused() {
+    let g = graph();
+    let errors = [
+        g.nodes().select(NodeFilter.exists()).err(),
+        g.edges().select(EdgeFilter.exists()).err(),
+        g.edges()
+            .explode()
+            .select(ExplodedEdgeFilter.exists())
+            .err(),
+    ];
+    for (entity, error) in ["node", "edge", "exploded edge"].into_iter().zip(errors) {
+        let error = error.map(|e| e.to_string());
+        assert!(
+            error.as_deref().is_some_and(|e| e.contains("view")),
+            "{entity}: {error:?}"
+        );
+    }
+}

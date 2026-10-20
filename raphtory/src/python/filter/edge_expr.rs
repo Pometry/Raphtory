@@ -379,7 +379,7 @@ impl PyEdgeFilter {
         PyExpr(self.0.clone().is_active().into())
     }
 
-    /// Matches edges that exist in the current view.
+    /// Matches edges that exist in the views written before it.
     ///
     /// Returns:
     ///     filter.Expr:
@@ -717,7 +717,7 @@ impl PyEdge {
         PyEdgeFilter::root().is_active()
     }
 
-    /// Matches edges that exist in the current view.
+    /// Matches edges that exist in the views written before it.
     ///
     /// Returns:
     ///     filter.Expr:
