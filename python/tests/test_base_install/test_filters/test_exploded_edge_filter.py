@@ -948,3 +948,32 @@ def test_temporal_constant(GraphClass):
         assert (
             len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
+
+
+@pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
+def test_a_scoped_exploded_property_reads_only_inside_its_view(GraphClass):
+    # a→b w=1 @1, w=3 @3 · b→c w=2 @2, both edges with metadata m=1
+    g = GraphClass()
+    g.add_edge(1, "a", "b", properties={"w": 1})
+    g.add_edge(3, "a", "b", properties={"w": 3})
+    g.add_edge(2, "b", "c", properties={"w": 2})
+    g.edge("a", "b").add_metadata({"m": 1})
+    g.edge("b", "c").add_metadata({"m": 1})
+
+    def instances(edges):
+        return [(e.src.name, e.dst.name, e.time.t) for e in edges]
+
+    cases = [
+        (filter.ExplodedEdge.window(0, 2).property("w").is_some(), [("a", "b", 1)]),
+        (filter.ExplodedEdge.window(0, 2).property("w") == 3, []),
+        (filter.ExplodedEdge.at(3).property("w") == 1, []),
+        (filter.ExplodedEdge.at(3).property("w") == 3, [("a", "b", 3)]),
+        (filter.ExplodedEdge.window(0, 2).metadata("m").is_some(), [("a", "b", 1)]),
+        (filter.ExplodedEdge.window(0, 2).is_active(), [("a", "b", 1)]),
+    ]
+    for expr, expected in cases:
+        assert instances(g.filter(expr).edges.explode()) == expected, expr
+        assert instances(g.edges.explode()[expr]) == expected, expr
+
+    edge_expr = filter.Edge.window(0, 2).property("w").is_some()
+    assert instances(g.edges.explode()[edge_expr]) == [("a", "b", 1)]
