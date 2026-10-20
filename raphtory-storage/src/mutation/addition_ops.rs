@@ -41,24 +41,24 @@ pub trait InternalAdditionOps {
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error>;
 
-    /// Map external node id to internal id, reserving space for a new empty node if needed.
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
-
-    /// Resolve a node and corresponding type, outer MaybeNew tracks whether the type
-    /// assignment is new for the node even if both node and type already existed.
-    /// updates the storage atomically to set the node type
-    fn resolve_and_update_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<NodeTypeResolution, Self::Error>;
-
-    /// resolve node and type without modifying the storage (use in bulk loaders only)
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error>;
+    // /// Map external node id to internal id, reserving space for a new empty node if needed.
+    // fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
+    //
+    // /// Resolve a node and corresponding type, outer MaybeNew tracks whether the type
+    // /// assignment is new for the node even if both node and type already existed.
+    // /// updates the storage atomically to set the node type
+    // fn resolve_and_update_node_and_type(
+    //     &self,
+    //     id: NodeRef,
+    //     node_type: Option<&str>,
+    // ) -> Result<NodeTypeResolution, Self::Error>;
+    //
+    // /// resolve node and type without modifying the storage (use in bulk loaders only)
+    // fn resolve_node_and_type(
+    //     &self,
+    //     id: NodeRef,
+    //     node_type: Option<&str>,
+    // ) -> Result<(VID, usize), Self::Error>;
 
     /// # Safety
     /// this function assumes it is called from behind a sharded structure that does not
@@ -216,18 +216,18 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.resolve_layer(layer)
     }
 
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        self.mutable()?.resolve_node(id)
-    }
-
-    fn resolve_and_update_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<NodeTypeResolution, Self::Error> {
-        self.mutable()?
-            .resolve_and_update_node_and_type(id, node_type)
-    }
+    // fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+    //     self.mutable()?.resolve_node(id)
+    // }
+    //
+    // fn resolve_and_update_node_and_type(
+    //     &self,
+    //     id: NodeRef,
+    //     node_type: Option<&str>,
+    // ) -> Result<NodeTypeResolution, Self::Error> {
+    //     self.mutable()?
+    //         .resolve_and_update_node_and_type(id, node_type)
+    // }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         self.mutable()?.write_session()
@@ -278,13 +278,13 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.validate_gids(gids)
     }
 
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        self.mutable()?.resolve_node_and_type(id, node_type)
-    }
+    // fn resolve_node_and_type(
+    //     &self,
+    //     id: NodeRef,
+    //     node_type: Option<&str>,
+    // ) -> Result<(VID, usize), Self::Error> {
+    //     self.mutable()?.resolve_node_and_type(id, node_type)
+    // }
 
     unsafe fn bulk_load_resolve_node(
         &self,
@@ -333,19 +333,19 @@ where
         self.base().resolve_layer(layer)
     }
 
-    #[inline]
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        self.base().resolve_node(id)
-    }
-
-    #[inline]
-    fn resolve_and_update_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<NodeTypeResolution, Self::Error> {
-        self.base().resolve_and_update_node_and_type(id, node_type)
-    }
+    // #[inline]
+    // fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+    //     self.base().resolve_node(id)
+    // }
+    //
+    // #[inline]
+    // fn resolve_and_update_node_and_type(
+    //     &self,
+    //     id: NodeRef,
+    //     node_type: Option<&str>,
+    // ) -> Result<NodeTypeResolution, Self::Error> {
+    //     self.base().resolve_and_update_node_and_type(id, node_type)
+    // }
 
     #[inline]
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
@@ -402,13 +402,13 @@ where
         self.base().validate_gids(gids)
     }
 
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        self.base().resolve_node_and_type(id, node_type)
-    }
+    // fn resolve_node_and_type(
+    //     &self,
+    //     id: NodeRef,
+    //     node_type: Option<&str>,
+    // ) -> Result<(VID, usize), Self::Error> {
+    //     self.base().resolve_node_and_type(id, node_type)
+    // }
 
     unsafe fn bulk_load_resolve_node(
         &self,

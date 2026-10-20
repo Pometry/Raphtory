@@ -10,18 +10,21 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    errors::{into_graph_err, GraphError},
+    errors::GraphError,
     prelude::{
         AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertiesOps,
         PropertyAdditionOps,
     },
 };
 use raphtory_api::core::{
-    entities::GID,
+    entities::{
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::unify_types},
+        GID,
+    },
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
 use raphtory_storage::{
-    durability_ops::DurabilityOps,
+    graph::graph::GraphStorage,
     mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     },
@@ -191,7 +194,9 @@ impl<
         node: &NodeView<'a, GHH>,
         merge: bool,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        import_node_internal(self, node, node.id(), merge)
+        let mut source = None;
+        let source = lock_source(self, node, &mut source)?;
+        import_node_internal(self, node, node.id(), merge, source)
     }
 
     fn import_node_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
@@ -200,7 +205,9 @@ impl<
         new_id: V,
         merge: bool,
     ) -> Result<NodeView<'static, Self>, GraphError> {
-        import_node_internal(self, node, new_id, merge)
+        let mut source = None;
+        let source = lock_source(self, node, &mut source)?;
+        import_node_internal(self, node, new_id, merge, source)
     }
 
     fn import_nodes<'a, GHH: GraphView>(
@@ -211,8 +218,11 @@ impl<
         let nodes: Vec<_> = nodes.into_iter().collect();
         let new_ids: Vec<GID> = nodes.iter().map(|n| n.borrow().id()).collect();
         check_existing_nodes(self, &new_ids, merge)?;
+        let mut source = None;
         for node in &nodes {
-            self.import_node(node.borrow(), merge)?;
+            let node = node.borrow();
+            let source = lock_source(self, node, &mut source)?;
+            import_node_internal(self, node, node.id(), merge, source)?;
         }
         Ok(())
     }
@@ -225,8 +235,11 @@ impl<
     ) -> Result<(), GraphError> {
         let new_ids: Vec<V> = new_ids.into_iter().collect();
         check_existing_nodes(self, &new_ids, merge)?;
+        let mut source = None;
         for (node, new_node_id) in nodes.into_iter().zip(new_ids) {
-            self.import_node_as(node.borrow(), new_node_id, merge)?;
+            let node = node.borrow();
+            let source = lock_source(self, node, &mut source)?;
+            import_node_internal(self, node, new_node_id, merge, source)?;
         }
         Ok(())
     }
@@ -287,57 +300,87 @@ fn import_node_internal<
     node: &NodeView<'a, GHH>,
     id: V,
     merge: bool,
+    source: &GraphStorage,
 ) -> Result<NodeView<'static, G>, GraphError> {
-    // TODO
-    // lock the core graph of the incoming node to dissalow changes to the node as we import it
-    // validate that the node property type for temporal props and metadata can be unified with ours
-    // proceed to explode the temporal properties and call add add_node the top level API
-    // that will manage the validation and the WAL and everything else
-    //
-    // Writes through the internal addition ops, so take the regular update guard here.
-    let _transaction_manager = graph.core_graph().transaction_manager()?;
     let id = id.as_node_ref();
-    let gid_ref = id.as_gid_ref();
-    graph.validate_gids(gid_ref).map_err(into_graph_err)?;
-    if !merge {
-        if let Some(existing_node) = graph.node(id) {
+    let exists = match graph.node(id) {
+        Some(existing_node) if !merge => {
             return Err(GraphError::NodeExistsError(existing_node.id()));
         }
+        existing_node => existing_node.is_some(),
+    };
+
+    // Collect upfront: we must not hold a read guard on the source while writing when
+    // importing into the same graph, and a new node needs at least one update to exist.
+    let mut rows = node.rows_gs(source).peekable();
+    if rows.peek().is_none() && !exists {
+        return Err(GraphError::ImportNodeWithoutUpdates(node.id()));
     }
 
-    let (node_internal, _) = graph
-        .resolve_and_update_node_and_type(id, node.node_type().as_str()) // <- we need to stop calling this
-        .map_err(into_graph_err)?
-        .inner();
-    let node_internal = node_internal.inner();
-    let session = graph.write_session().map_err(|err| err.into())?;
-    let keys = node.graph.node_meta().temporal_prop_mapper().all_keys();
-
-    for (t, l, row) in node.rows() {
-        let t = time_from_input_session(&session, t)?;
-
-        let props = graph
-            .validate_props(
-                false,
-                graph.node_meta(),
-                row.into_iter().map(|(prop_id, prop)| {
-                    let prop_key = &keys[prop_id];
-                    (prop_key, prop)
-                }),
-            )
-            .map_err(into_graph_err)?;
-
-        graph
-            .internal_add_node(t, node_internal, props, l)
-            .map_err(into_graph_err)?;
+    let src_meta = node.graph.node_meta();
+    let node_type = node.node_type();
+    for (t, layer_id, row) in rows {
+        let layer =
+            (layer_id != STATIC_GRAPH_LAYER_ID).then(|| src_meta.get_layer_name_by_id(layer_id));
+        let props = row
+            .into_iter()
+            .map(|(prop_id, prop)| (src_meta.get_prop_name(prop_id, false), prop));
+        graph.add_node(t, id, props, node_type.as_str(), layer.as_str())?;
     }
 
-    graph
-        .node(node_internal)
-        .expect("node added")
-        .add_metadata(node.metadata().iter_filtered())?;
+    let imported = graph.node(id).expect("node added");
+    imported.add_metadata(node.metadata().iter_filtered())?;
+    Ok(imported)
+}
 
-    Ok(graph.node(node_internal).unwrap())
+/// Returns the storage to read `node` from, read-locked so the node cannot change while we
+/// import it. The lock is taken once per distinct source graph, at which point we also check
+/// that its node property types unify with ours, so the imports that follow cannot fail on them.
+/// Importing from the target graph itself is not locked, as our own writes would block on it.
+fn lock_source<'s, G: StaticGraphViewOps, GHH: GraphView>(
+    graph: &G,
+    node: &NodeView<'_, GHH>,
+    source: &'s mut Option<GraphStorage>,
+) -> Result<&'s GraphStorage, GraphError> {
+    let node_storage = node.graph.core_graph();
+    if !source.as_ref().is_some_and(|s| s.ptr_eq(node_storage)) {
+        check_node_prop_types(graph, &node.graph)?;
+        *source = Some(if graph.core_graph().ptr_eq(node_storage) {
+            node_storage.clone()
+        } else {
+            node_storage.lock()
+        });
+    }
+    Ok(source.as_ref().expect("source set"))
+}
+
+fn check_node_prop_types<G: StaticGraphViewOps, GHH: GraphView>(
+    graph: &G,
+    source: &GHH,
+) -> Result<(), GraphError> {
+    let src_meta = source.node_meta();
+    let meta = graph.node_meta();
+    for (prop_ids, is_static) in [
+        (source.node_visible_temporal_prop_ids(), false),
+        (source.node_visible_metadata_ids(), true),
+    ] {
+        let src_mapper = if is_static {
+            src_meta.metadata_mapper()
+        } else {
+            src_meta.temporal_prop_mapper()
+        };
+        for prop_id in prop_ids {
+            let Some(src_dtype) = src_mapper.get_dtype(prop_id) else {
+                continue;
+            };
+            let name = src_meta.get_prop_name(prop_id, is_static);
+            if let Some((_, dtype)) = meta.get_prop_id_and_type(&name, is_static) {
+                unify_types(&dtype, &src_dtype, &mut false)
+                    .map_err(|err| err.with_name(name.to_string()))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn import_edge_internal<
@@ -377,7 +420,7 @@ fn import_edge_internal<
             )?;
         }
 
-        for (t, _) in edge.deletions_hist() {
+        for (t, _) in ee.deletions_hist() {
             let ti = time_from_input_session(&session, t.t())?;
             graph.delete_edge(ti.t(), src_id, dst_id, Some(&layer_name))?;
         }

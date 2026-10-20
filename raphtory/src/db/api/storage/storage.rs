@@ -327,26 +327,26 @@ impl InternalAdditionOps for Storage {
         Ok(id)
     }
 
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        match id {
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-            NodeRef::External(_) => {
-                let id = self.graph.resolve_node(id)?;
+    //     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+    //         match id {
+    //             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+    //             NodeRef::External(_) => {
+    //                 let id = self.graph.resolve_node(id)?;
+    //
+    //                 Ok(id)
+    //             }
+    //         }
+    //     }
 
-                Ok(id)
-            }
-        }
-    }
-
-    fn resolve_and_update_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let node_and_type = self.graph.resolve_and_update_node_and_type(id, node_type)?;
-
-        Ok(node_and_type)
-    }
+    //     fn resolve_and_update_node_and_type(
+    //         &self,
+    //         id: NodeRef,
+    //         node_type: Option<&str>,
+    //     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+    //         let node_and_type = self.graph.resolve_and_update_node_and_type(id, node_type)?;
+    //
+    //         Ok(node_and_type)
+    //     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         let session = self.graph.write_session()?;
@@ -402,13 +402,13 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.validate_gids(gids)?)
     }
 
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        Ok(self.graph.resolve_node_and_type(id, node_type)?)
-    }
+    //     fn resolve_node_and_type(
+    //         &self,
+    //         id: NodeRef,
+    //         node_type: Option<&str>,
+    //     ) -> Result<(VID, usize), Self::Error> {
+    //         Ok(self.graph.resolve_node_and_type(id, node_type)?)
+    //     }
 
     unsafe fn bulk_load_resolve_node(
         &self,
