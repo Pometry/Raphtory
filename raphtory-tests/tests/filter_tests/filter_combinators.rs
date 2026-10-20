@@ -5,9 +5,9 @@ use raphtory::{
             and_filtered_graph::AndFilteredGraph,
             model::{
                 edge_filter::EdgeFilter, exploded_edge_filter::ExplodedEdgeFilter,
-                node_filter::NodeFilter, EntityExprFilterOps, PropertyExprFactory,
+                node_filter::NodeFilter, ComposableFilter, EntityExprFilterOps,
+                PropertyExprFactory,
             },
-            not_filtered_graph::NotFilteredGraph,
             or_filtered_graph::OrFilteredGraph,
         },
     },
@@ -159,7 +159,9 @@ fn not_of_a_node_predicate_keeps_the_nodes_it_drops() {
         ("event", g.clone().into_dynamic()),
         ("persistent", g.persistent_graph().into_dynamic()),
     ] {
-        let not = NotFilteredGraph::new(base.clone(), scored(&base));
+        let not = base
+            .filter(NodeFilter.property("score").gt(4i64).not())
+            .unwrap();
         assert_eq!(names(&not), set(&["c", "d"]), "{kind}: nodes");
         assert_eq!(edge_ids(&not), set(&[]), "{kind}: edges");
     }
@@ -176,11 +178,9 @@ fn not_of_an_edge_predicate_keeps_the_edges_it_drops() {
         ("event", g.clone().into_dynamic()),
         ("persistent", g.persistent_graph().into_dynamic()),
     ] {
-        let heavy = base
-            .filter(EdgeFilter.property("w").gt(5i64))
-            .unwrap()
-            .into_dynamic();
-        let not = NotFilteredGraph::new(base.clone(), heavy);
+        let not = base
+            .filter(EdgeFilter.property("w").gt(5i64).not())
+            .unwrap();
         assert_eq!(edge_ids(&not), set(&["a->b"]), "{kind}: edges");
         assert_eq!(names(&not), set(&["a", "b"]), "{kind}: nodes");
     }
@@ -307,10 +307,9 @@ fn or_keeps_the_updates_and_layers_either_operand_keeps() {
 #[test]
 fn not_of_an_update_predicate_keeps_the_updates_it_drops() {
     let base = updates_graph().into_dynamic();
-    let heavy = base
-        .filter(ExplodedEdgeFilter.property("w").gt(5i64))
+    let not = base
+        .filter(ExplodedEdgeFilter.property("w").gt(5i64).not())
         .unwrap();
-    let not = NotFilteredGraph::new(base.clone(), heavy);
     let kept = |t: i64| ("a".to_string(), "b".to_string(), t, "x".to_string());
     assert_eq!(updates(&not), BTreeSet::from([kept(1), kept(7)]));
     let layer = ("a".to_string(), "b".to_string(), "x".to_string());
@@ -320,10 +319,9 @@ fn not_of_an_update_predicate_keeps_the_updates_it_drops() {
 #[test]
 fn not_of_an_update_predicate_keeps_every_layer_on_a_persistent_graph() {
     let base = updates_graph().persistent_graph().into_dynamic();
-    let heavy = base
-        .filter(ExplodedEdgeFilter.property("w").gt(5i64))
+    let not = base
+        .filter(ExplodedEdgeFilter.property("w").gt(5i64).not())
         .unwrap();
-    let not = NotFilteredGraph::new(base.clone(), heavy);
     let kept = |t: i64| ("a".to_string(), "b".to_string(), t, "x".to_string());
     assert_eq!(updates(&not), BTreeSet::from([kept(1), kept(7)]));
     // The rejected update at 3 reads as a deletion on a persistent graph, so layer y stays.

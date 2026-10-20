@@ -60,7 +60,6 @@ use crate::{
                 require_aggregable, resolved_prop_type,
             },
             node_filtered_graph::NodeFilteredGraph,
-            not_filtered_graph::NotFilteredGraph,
             or_filtered_graph::OrFilteredGraph,
             CreateFilter, DynEdgeFilter,
         },
@@ -1097,8 +1096,9 @@ impl CreateFilter for FilterExpr {
     /// otherwise the expressions of `and` and `or` each run on the same graph and
     /// their graphs combine. The result of an `and` is windowed to the overlap
     /// of its view operands. A `not` of one leaf is the leaf's negated predicate;
-    /// a `not` of a combination is the complement graph. A view under `or` or
-    /// `not` is refused.
+    /// a `not` of a combination distributes over it: `not(and(x, y))` is
+    /// `or(not(x), not(y))`, `not(or(x, y))` is `and(not(x), not(y))` and
+    /// `not(not(x))` is `x`. A view under `or` or `not` is refused.
     fn create_graph_filter<'graph, G: GraphView + 'graph>(
         self,
         graph: G,
@@ -1149,10 +1149,10 @@ impl CreateFilter for FilterExpr {
                     FilterExpr::ExplodedEdge(expr) => {
                         ExplodedEdgeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
                     }
-                    inner => {
-                        let inner = inner.create_graph_filter(graph.clone())?;
-                        Ok(NotFilteredGraph::new(graph, inner).into_dyn_graph_arc())
+                    FilterExpr::Node(expr) => {
+                        NodeLeaf::graph_filter(&Expr::Not(Box::new(expr)), graph)
                     }
+                    combination => combination.negated().create_graph_filter(graph),
                 }
             }
         }
@@ -1274,10 +1274,38 @@ impl FilterExpr {
             FilterExpr::Not(inner) if inner.has_view() => Arc::new(
                 EdgeExistsOp::new(self.clone().create_graph_filter(graph)?).map(exists_value),
             ),
+            // A `not` over a combination is pushed down to its leaves, as on a graph.
+            FilterExpr::Not(inner)
+                if matches!(
+                    inner.as_ref(),
+                    FilterExpr::And(_) | FilterExpr::Or(_) | FilterExpr::Not(_)
+                ) =>
+            {
+                inner.as_ref().clone().negated().edge_value(graph)?
+            }
             FilterExpr::Not(inner) => {
                 EdgeOps::unary(inner.edge_value(graph)?, (), not_kernel, PropType::Bool)
             }
         })
+    }
+
+    /// The negation of this filter pushed one level down: the `not` of an `and`
+    /// is the `or` of its negated expressions, the `not` of an `or` the `and` of
+    /// them, and the `not` of a `not` the expression under it. A leaf or a view
+    /// keeps its `not`.
+    fn negated(self) -> FilterExpr {
+        let each = |expressions: Vec<FilterExpr>| {
+            expressions
+                .into_iter()
+                .map(|expression| FilterExpr::Not(Box::new(expression)))
+                .collect()
+        };
+        match self {
+            FilterExpr::And(expressions) => FilterExpr::Or(each(expressions)),
+            FilterExpr::Or(expressions) => FilterExpr::And(each(expressions)),
+            FilterExpr::Not(inner) => *inner,
+            leaf => FilterExpr::Not(Box::new(leaf)),
+        }
     }
 
     /// This filter as one node predicate, when it tests nodes only. A

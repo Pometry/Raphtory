@@ -372,15 +372,20 @@ def _combinations_follow_set_algebra(mixed):
                 mixed_cases["or"].append(
                     (f"{a} | {b}", atoms[a] | atoms[b], single[a] | single[b])
                 )
+                # `~` distributes over the combination (De Morgan)
                 mixed_cases["not"].append(
                     (
                         f"~({a} & {b})",
                         ~(atoms[a] & atoms[b]),
-                        negated[a] & negated[b],
+                        negated[a] | negated[b],
                     )
                 )
                 mixed_cases["not"].append(
-                    (f"~({a} | {b})", ~(atoms[a] | atoms[b]), every)
+                    (
+                        f"~({a} | {b})",
+                        ~(atoms[a] | atoms[b]),
+                        negated[a] & negated[b],
+                    )
                 )
         exists = _exists()
         for a in atoms:
@@ -425,9 +430,6 @@ def test_mixed_combinations_follow_set_algebra():
     return _combinations_follow_set_algebra(mixed="or")
 
 
-@pytest.mark.xfail(
-    reason="`~` of a mixed node and edge combination is being specified", strict=True
-)
 @with_variants(_init)
 def test_mixed_negations_follow_set_algebra():
     return _combinations_follow_set_algebra(mixed="not")

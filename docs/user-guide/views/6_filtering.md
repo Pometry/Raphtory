@@ -97,9 +97,9 @@ Use the bitwise operators: `&` for *and*, `|` for *or*, `~` for *not*. Python's 
 `~f` selects everything `f` did not select. A node without the property is not selected by
 `property("score") > 4`, so it *is* selected by `~(property("score") > 4)`. A negated node
 predicate is still a node predicate: on edges it keeps the edges between the nodes that fail it.
-Negating a combination negates its node tests and its edge tests: `~(a & b)` of two node tests is
-`~a | ~b`, and `~(node_test & edge_test)` keeps the nodes that fail the node test and, between
-them, the edges that fail the edge test.
+Negating a combination distributes over it: `~(a & b)` is `~a | ~b`, `~(a | b)` is `~a & ~b`, and
+`~~a` is `a`. So `~(node_test & edge_test)` keeps what `~node_test` keeps together with what
+`~edge_test` keeps, and `~(node_test | edge_test)` keeps only what both keep.
 
 /// tab | :fontawesome-brands-python: Python
 

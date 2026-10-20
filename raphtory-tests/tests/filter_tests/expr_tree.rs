@@ -919,23 +919,98 @@ fn mixed_or_filters_answer_each_question() {
     ]);
 }
 
+/// A `not` of a mixed combination distributes over it. `not(score > 4)` keeps
+/// bob, carol, dave, eve and bob->carol, carol->dave; `not(w > 2)` keeps every
+/// node and alice->bob, bob->carol.
 #[test]
-#[ignore = "`~` of a mixed node and edge combination is being specified"]
 fn mixed_node_and_edge_filters_answer_each_question() {
     assert_answers(vec![
         (
-            "not(and(node, edge)): each answer negated",
+            "not(and(node, edge)) = or(not(node), not(edge)): the union",
             not(FilterExpr::And(vec![score_gt(4.0), w_gt(2)])),
-            &["bob", "carol", "dave", "eve"],
-            &["bob->carol"],
-        ),
-        (
-            "not(or(node, edge)): still open",
-            not(FilterExpr::Or(vec![score_gt(4.0), w_gt(2)])),
             &ALL_NODES,
             &ALL_EDGES,
         ),
+        (
+            "not(or(node, edge)) = and(not(node), not(edge)): the overlap",
+            not(FilterExpr::Or(vec![score_gt(4.0), w_gt(2)])),
+            &["bob", "carol", "dave", "eve"],
+            &["bob->carol"],
+        ),
     ]);
+}
+
+/// a, b, c, d · a→b w=9 · a→c w=1 · b→d w=2 · c→d w=8
+fn square() -> Graph {
+    let g = Graph::new();
+    for name in ["a", "b", "c", "d"] {
+        g.add_node(0, name, NO_PROPS, None, None).unwrap();
+    }
+    for (src, dst, w) in [
+        ("a", "b", 9i64),
+        ("a", "c", 1),
+        ("b", "d", 2),
+        ("c", "d", 8),
+    ] {
+        g.add_edge(1, src, dst, [("w", w.into_prop())], None)
+            .unwrap();
+    }
+    g
+}
+
+/// `not(name == "a")` keeps b, c, d and b->d, c->d; `not(w > 5)` keeps every
+/// node and a->c, b->d. A `not` of their `and` keeps the union, of their `or`
+/// the overlap, and a `not` of a `not` is the filter itself.
+#[test]
+fn a_not_of_a_mixed_combination_distributes() {
+    let g = square();
+    let name_is_a = || NodeFilter.name().eq("a");
+    let w_gt_5 = || EdgeFilter.property("w").gt(5i64);
+    let filtered_nodes = |f: &FilterExpr| -> Vec<String> {
+        let mut n: Vec<String> = g.filter(f.clone()).unwrap().nodes().name().collect();
+        n.sort();
+        n
+    };
+
+    let not_and = name_is_a().and(w_gt_5()).not();
+    assert_eq!(
+        filtered_nodes(&not_and),
+        ["a", "b", "c", "d"],
+        "not(and): nodes"
+    );
+    let kept = ["a->c", "b->d", "c->d"];
+    assert_eq!(
+        edge_ids(&g.filter(not_and.clone()).unwrap()),
+        kept,
+        "not(and): edges"
+    );
+    assert_eq!(selected_edges(&g, &not_and), kept, "not(and): edges.select");
+
+    let not_or = name_is_a().or(w_gt_5()).not();
+    assert_eq!(filtered_nodes(&not_or), ["b", "c", "d"], "not(or): nodes");
+    assert_eq!(
+        edge_ids(&g.filter(not_or.clone()).unwrap()),
+        ["b->d"],
+        "not(or): edges"
+    );
+    assert_eq!(
+        selected_edges(&g, &not_or),
+        ["b->d"],
+        "not(or): edges.select"
+    );
+
+    let not_not = name_is_a().not().not();
+    let name_a: FilterExpr = name_is_a().into();
+    assert_eq!(
+        filtered_nodes(&not_not),
+        filtered_nodes(&name_a),
+        "not(not): nodes"
+    );
+    assert_eq!(
+        edge_ids(&g.filter(not_not).unwrap()),
+        edge_ids(&g.filter(name_a).unwrap()),
+        "not(not): edges"
+    );
 }
 
 /// `not` over an exploded-edge predicate negates each instance.
