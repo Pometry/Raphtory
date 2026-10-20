@@ -386,9 +386,8 @@ fn add_node_impl<
     }
 
     // We don't care about logging the default node type.
-    let node_type_and_id = Some(node_type_id)
-        .filter(|&id| id != DEFAULT_NODE_TYPE_ID)
-        .and_then(|id| node_type.map(|name| (name, id)));
+    let node_type_and_id =
+        node_type.zip(Some(node_type_id).filter(|&id| id != DEFAULT_NODE_TYPE_ID));
 
     let props = props_with_status
         .iter()
