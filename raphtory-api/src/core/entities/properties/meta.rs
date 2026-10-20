@@ -348,26 +348,24 @@ impl PropMapper {
     }
 
     /// Mark `prop_ids` as present in `layer_id`.
-    ///
-    /// A new bit waits for locked graphs to drop their guards.
-    pub fn mark_props_in_layer<I>(&self, layer_id: LayerId, prop_ids: I)
-    where
-        I: IntoIterator<Item = usize>,
-        I::IntoIter: Clone,
-    {
-        let prop_ids = prop_ids.into_iter();
-        if prop_ids.clone().next().is_none() {
+    pub fn mark_props_in_layer(
+        &self,
+        layer_id: LayerId,
+        prop_ids: impl IntoIterator<Item = usize>,
+    ) {
+        let mut prop_ids = prop_ids.into_iter().peekable();
+        if prop_ids.peek().is_none() {
             return;
         }
-        let all_marked = {
+        // ids before the first missing one are already marked, and bits are never unset
+        let first_missing = {
             let presence = self.layer_prop_presence.read_recursive();
-            prop_ids
-                .clone()
-                .all(|prop_id| presence_has(&presence, layer_id, prop_id))
+            prop_ids.find(|&prop_id| !presence_has(&presence, layer_id, prop_id))
         };
-        if !all_marked {
+        // new bits wait for locked graphs to drop their read guards so we can acquire a write guard
+        if let Some(first_missing) = first_missing {
             let mut presence = self.layer_prop_presence.write();
-            for prop_id in prop_ids {
+            for prop_id in std::iter::once(first_missing).chain(prop_ids) {
                 ensure_and_set(&mut presence, layer_id.0, prop_id);
             }
         }
@@ -1072,10 +1070,13 @@ mod layer_presence_tests {
     fn mark_props_in_layer_sets_only_that_layer() {
         let mapper = PropMapper::default();
         mapper.mark_props_in_layer(LayerId(2), [0, 3]);
+        // already-marked ids before and between the new ones
+        mapper.mark_props_in_layer(LayerId(2), [0, 1, 3, 4]);
 
-        assert!(mapper.layer_has(LayerId(2), 0));
-        assert!(mapper.layer_has(LayerId(2), 3));
-        assert!(!mapper.layer_has(LayerId(2), 1));
+        for prop_id in [0, 1, 3, 4] {
+            assert!(mapper.layer_has(LayerId(2), prop_id));
+        }
+        assert!(!mapper.layer_has(LayerId(2), 2));
         assert!(!mapper.layer_has(LayerId(1), 0));
     }
 
