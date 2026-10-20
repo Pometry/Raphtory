@@ -520,7 +520,7 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     }
     let g = graph();
     // `not` of a view is refused on a collection as on the graph
-    let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(5, 8)])));
+    let outside = GraphFilter.window(5, 8).not();
     refused(g.nodes().select(outside.clone()).map(|_| ()).unwrap_err());
     assert!(error(&g, &outside).contains("view"));
     // eve has nothing after 0, so she alone does not exist in [5, 8)
@@ -538,7 +538,7 @@ fn a_view_under_or_or_not_is_a_test_on_a_collection() {
     assert_eq!(names, ["alice", "bob"]);
     assert!(error(&g, &either).contains("view"));
     // the same on edges
-    let outside = FilterExpr::Not(Box::new(FilterExpr::View(vec![window(0, 3)])));
+    let outside = GraphFilter.window(0, 3).not();
     refused(g.edges().select(outside).map(|_| ()).unwrap_err());
     // carol→dave is the one edge with nothing before 3
     let outside = EdgeFilter.window(0, 3).exists().not();
