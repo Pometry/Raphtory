@@ -348,7 +348,6 @@ impl MemNodeSegment {
         t: T,
         node_pos: LocalPOS,
         layer_id: LayerId,
-        mark: bool,
         props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
@@ -356,8 +355,9 @@ impl MemNodeSegment {
         let row = layer.reserve_local_row(node_pos);
         let is_new = row.is_new();
         let row = row.inner().row;
+        let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
-        layer.append_t_props(row, ts, mark, layer_id, props);
+        prop_mut_entry.append_t_props(ts, props);
         let layer_est_size = layer.est_size();
         (is_new, layer_est_size - est_size)
     }
@@ -380,7 +380,6 @@ impl MemNodeSegment {
         node_pos: LocalPOS,
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
-        mark: bool,
     ) -> (bool, usize) {
         let segment_container = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();
@@ -388,7 +387,8 @@ impl MemNodeSegment {
         let row = segment_container.reserve_local_row(node_pos).map(|a| a.row);
         let is_new = row.is_new();
         let row = row.inner();
-        segment_container.append_const_props(row, layer_id, mark, props);
+        let mut prop_mut_entry = segment_container.properties_mut().get_mut_entry(row);
+        prop_mut_entry.append_const_props(props);
 
         let layer_est_size = segment_container.est_size();
         let added_size = (layer_est_size - est_size) + 8; // random estimate for constant properties
@@ -731,7 +731,6 @@ mod test {
         writer.update_c_props(
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
-            true,
             [(prop_id, Prop::U64(73))],
         );
 
@@ -760,7 +759,6 @@ mod test {
             42,
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
-            true,
             [(prop_id, Prop::F64(4.13))],
         );
 
@@ -774,7 +772,6 @@ mod test {
             72,
             LocalPOS(1),
             STATIC_GRAPH_LAYER_ID,
-            true,
             [(prop_id, Prop::F64(5.41))],
         );
 

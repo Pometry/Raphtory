@@ -381,20 +381,22 @@ impl InternalAdditionOps for Storage {
         &self,
         is_static: bool,
         meta: &Meta,
+        layer: LayerId,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        Ok(self.graph.validate_props(is_static, meta, prop)?)
+        Ok(self.graph.validate_props(is_static, meta, layer, prop)?)
     }
 
     fn validate_props_with_status<PN: AsRef<str>>(
         &self,
         is_static: bool,
         meta: &Meta,
+        layer: LayerId,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
         Ok(self
             .graph
-            .validate_props_with_status(is_static, meta, props)?)
+            .validate_props_with_status(is_static, meta, layer, props)?)
     }
 
     fn validate_gids<'a>(

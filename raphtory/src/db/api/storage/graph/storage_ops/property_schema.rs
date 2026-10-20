@@ -31,10 +31,10 @@ impl NodePropertySchemaOps for GraphStorage {
         Some(self.node_meta().metadata_mapper().get_name(id).clone())
     }
     fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.nodes().layer_has_temporal_prop(layer_id, prop_id)
+        self.node_temporal_presence().has(layer_id, prop_id)
     }
     fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.nodes().layer_has_metadata(layer_id, prop_id)
+        self.node_metadata_presence().has(layer_id, prop_id)
     }
 }
 
@@ -61,9 +61,9 @@ impl EdgePropertySchemaOps for GraphStorage {
         Some(self.edge_meta().metadata_mapper().get_name(id).clone())
     }
     fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.edges().layer_has_temporal_prop(layer_id, prop_id)
+        self.edge_temporal_presence().has(layer_id, prop_id)
     }
     fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.edges().layer_has_metadata(layer_id, prop_id)
+        self.edge_metadata_presence().has(layer_id, prop_id)
     }
 }

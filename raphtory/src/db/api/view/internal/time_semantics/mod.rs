@@ -1,8 +1,10 @@
+use crate::db::api::view::internal::GraphView;
 use raphtory_api::{
     core::{entities::properties::prop::Prop, storage::timeindex::EventTime},
     inherit::Base,
     iter::BoxedLIter,
 };
+use raphtory_storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use std::ops::Range;
 
 mod base_time_semantics;
@@ -235,4 +237,17 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     ) -> Option<(EventTime, Prop)> {
         self.graph().temporal_prop_last_at_window(prop_id, t, w)
     }
+}
+
+/// `node`'s values for `prop_id` in each layer of `view` that holds it.
+fn node_tprops<'graph, G: GraphView>(
+    node: NodeStorageRef<'graph>,
+    view: &G,
+    prop_id: usize,
+) -> impl Iterator<Item = storage::NodeTProps<'graph>> + Send + Sync + 'graph {
+    node.tprop_iter_layers(
+        view.layer_ids(),
+        prop_id,
+        view.core_graph().node_temporal_presence(),
+    )
 }

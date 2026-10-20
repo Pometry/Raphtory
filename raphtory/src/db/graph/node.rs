@@ -436,6 +436,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.node_meta(),
+            STATIC_GRAPH_LAYER_ID,
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
@@ -549,14 +550,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let transaction_id = transaction_manager.begin_transaction();
         let session = self.graph.write_session().map_err(|err| err.into())?;
 
-        let props_with_status = self
-            .graph
-            .validate_props_with_status(
-                false,
-                self.graph.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
         let layer_id = match layer {
             None => STATIC_GRAPH_LAYER_ID,
             Some(_) => self
@@ -565,6 +558,15 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .map_err(into_graph_err)?
                 .inner(),
         };
+        let props_with_status = self
+            .graph
+            .validate_props_with_status(
+                false,
+                self.graph.node_meta(),
+                layer_id,
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
 
         let t = time_from_input_session(&session, time)?;
         let vid = self.node;

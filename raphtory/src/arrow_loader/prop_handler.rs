@@ -115,7 +115,7 @@ impl PropCols {
 }
 
 /// Mark every `(layer, prop)` pair this chunk may write, once, before any rows
-/// are appended.
+/// are appended. Call it before taking the graph's write lock.
 pub fn mark_chunk_prop_presence(
     node_or_edge_meta: &Meta,
     layer_per_row: Option<&[usize]>,
@@ -124,20 +124,35 @@ pub fn mark_chunk_prop_presence(
     metadata: &PropCols,
     shared_metadata_ids: &[usize],
 ) {
-    if t_props.prop_ids().is_empty()
-        && metadata.prop_ids().is_empty()
-        && shared_metadata_ids.is_empty()
-    {
-        return;
+    if !t_props.prop_ids().is_empty() {
+        t_props.mark_layer_prop_pairs(
+            layer_per_row,
+            distinct_layers,
+            &mut node_or_edge_meta
+                .temporal_prop_mapper()
+                .write_locked_layer_presence(),
+        );
     }
-
-    t_props.mark_layer_prop_pairs(
+    mark_chunk_metadata_presence(
+        node_or_edge_meta,
         layer_per_row,
         distinct_layers,
-        &mut node_or_edge_meta
-            .temporal_prop_mapper()
-            .write_locked_layer_presence(),
+        metadata,
+        shared_metadata_ids,
     );
+}
+
+/// As [`mark_chunk_prop_presence`], for a chunk that only writes metadata.
+pub fn mark_chunk_metadata_presence(
+    node_or_edge_meta: &Meta,
+    layer_per_row: Option<&[usize]>,
+    distinct_layers: &[LayerId],
+    metadata: &PropCols,
+    shared_metadata_ids: &[usize],
+) {
+    if metadata.prop_ids().is_empty() && shared_metadata_ids.is_empty() {
+        return;
+    }
 
     let mut meta_presence = node_or_edge_meta
         .metadata_mapper()

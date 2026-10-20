@@ -412,6 +412,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.edge_meta(),
+            input_layer_id,
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
@@ -480,6 +481,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             .validate_props_with_status(
                 false,
                 self.graph.edge_meta(),
+                layer_id,
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;

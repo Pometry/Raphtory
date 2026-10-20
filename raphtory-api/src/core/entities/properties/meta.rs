@@ -11,7 +11,7 @@ use crate::core::{
     },
 };
 use itertools::{Either, Itertools};
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -247,6 +247,14 @@ impl Meta {
     pub fn metadata_layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
         self.metadata_mapper.layer_has(layer_id, prop_id)
     }
+
+    /// Read-locks both per-layer property/metadata presence bitsets.
+    pub fn read_lock_layer_presence(&self) -> MetaLayerPresence {
+        MetaLayerPresence {
+            temporal: self.temporal_prop_mapper.read_lock_layer_presence(),
+            metadata: self.metadata_mapper.read_lock_layer_presence(),
+        }
+    }
 }
 
 /// Manages the mapping of property names to their IDs, types and layers in which they exist.
@@ -316,10 +324,11 @@ impl PropMapper {
     /// has prop `prop_id`.
     #[inline]
     pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.layer_prop_presence
-            .read_recursive()
-            .get(layer_id.0)
-            .is_some_and(|row| row.get(prop_id).copied().unwrap_or(false))
+        presence_has(
+            &self.layer_prop_presence.read_recursive(),
+            layer_id,
+            prop_id,
+        )
     }
 
     /// Which prop ids are present in at least one layer, indexed by prop id.
@@ -338,13 +347,36 @@ impl PropMapper {
         any
     }
 
-    /// Mark `prop_id` as present in `layer_id`. Only takes the write lock once per (layer, prop)
-    pub fn mark_prop_in_layer(&self, layer_id: LayerId, prop_id: usize) {
-        if self.layer_has(layer_id, prop_id) {
+    /// Mark `prop_ids` as present in `layer_id`.
+    ///
+    /// A new bit waits for locked graphs to drop their guards.
+    pub fn mark_props_in_layer<I>(&self, layer_id: LayerId, prop_ids: I)
+    where
+        I: IntoIterator<Item = usize>,
+        I::IntoIter: Clone,
+    {
+        let prop_ids = prop_ids.into_iter();
+        if prop_ids.clone().next().is_none() {
             return;
         }
-        let mut guard = self.layer_prop_presence.write();
-        ensure_and_set(&mut guard, layer_id.0, prop_id);
+        let all_marked = {
+            let presence = self.layer_prop_presence.read_recursive();
+            prop_ids
+                .clone()
+                .all(|prop_id| presence_has(&presence, layer_id, prop_id))
+        };
+        if !all_marked {
+            let mut presence = self.layer_prop_presence.write();
+            for prop_id in prop_ids {
+                ensure_and_set(&mut presence, layer_id.0, prop_id);
+            }
+        }
+    }
+
+    /// Read-locks the presence bitset until the guard is dropped.
+    pub fn read_lock_layer_presence(&self) -> LockedLayerPresence {
+        // recursive, so a thread can lock the graph again while a writer waits
+        LockedLayerPresence(self.layer_prop_presence.read_arc_recursive())
     }
 
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
@@ -484,12 +516,19 @@ impl PropMapper {
         }
     }
 
-    /// Write-locks only the per-layer presence bitset.
+    /// Write-locks only the per-layer presence bitset. Take it before any segment lock.
     pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence<'_> {
         WriteLockedLayerPresence {
             presence: self.layer_prop_presence.write(),
         }
     }
+}
+
+#[inline]
+fn presence_has(presence: &[Vec<bool>], layer_id: LayerId, prop_id: usize) -> bool {
+    presence
+        .get(layer_id.0)
+        .is_some_and(|row| row.get(prop_id).copied().unwrap_or(false))
 }
 
 #[inline]
@@ -541,9 +580,63 @@ impl WriteLockedLayerPresence<'_> {
     }
 
     pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.presence
-            .get(layer_id.0)
-            .is_some_and(|layer| layer.get(prop_id).copied().unwrap_or(false))
+        presence_has(&self.presence, layer_id, prop_id)
+    }
+}
+
+/// Read guard on a presence bitset, held by locked graphs.
+#[derive(Debug)]
+pub struct LockedLayerPresence(ArcRwLockReadGuard<RawRwLock, Vec<Vec<bool>>>);
+
+impl LockedLayerPresence {
+    #[inline]
+    pub fn has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        presence_has(&self.0, layer_id, prop_id)
+    }
+}
+
+/// Read guards on one [`Meta`]'s temporal and metadata presence bitsets.
+#[derive(Debug)]
+pub struct MetaLayerPresence {
+    pub temporal: LockedLayerPresence,
+    pub metadata: LockedLayerPresence,
+}
+
+/// A locked graph's presence bitset (holds a read lock), or the live one (gets a read or write lock each time).
+#[derive(Clone, Copy)]
+pub enum LayerPresenceRef<'a> {
+    Locked(&'a LockedLayerPresence),
+    Live(&'a PropMapper),
+}
+
+impl LayerPresenceRef<'_> {
+    #[inline]
+    pub fn has(self, layer_id: LayerId, prop_id: usize) -> bool {
+        match self {
+            LayerPresenceRef::Locked(presence) => presence.has(layer_id, prop_id),
+            LayerPresenceRef::Live(mapper) => mapper.layer_has(layer_id, prop_id),
+        }
+    }
+
+    /// The layers in `layers` that hold `prop_id`.
+    pub fn present_layers(
+        self,
+        layers: impl IntoIterator<Item = LayerId>,
+        prop_id: usize,
+    ) -> Vec<LayerId> {
+        match self {
+            LayerPresenceRef::Locked(presence) => layers
+                .into_iter()
+                .filter(|&layer_id| presence.has(layer_id, prop_id))
+                .collect(),
+            LayerPresenceRef::Live(mapper) => {
+                let presence = mapper.layer_prop_presence.read_recursive();
+                layers
+                    .into_iter()
+                    .filter(|&layer_id| presence_has(&presence, layer_id, prop_id))
+                    .collect()
+            }
+        }
     }
 }
 
@@ -967,5 +1060,77 @@ mod write_locked_prop_mapper_tests {
         assert_eq!(after, before + expected_delta);
         assert_eq!(after, expected_type.est_size());
         assert_eq!(prop_mapper.get_dtype(0), Some(expected_type));
+    }
+}
+
+#[cfg(test)]
+mod layer_presence_tests {
+    use super::*;
+    use std::{sync::mpsc, thread, time::Duration};
+
+    #[test]
+    fn mark_props_in_layer_sets_only_that_layer() {
+        let mapper = PropMapper::default();
+        mapper.mark_props_in_layer(LayerId(2), [0, 3]);
+
+        assert!(mapper.layer_has(LayerId(2), 0));
+        assert!(mapper.layer_has(LayerId(2), 3));
+        assert!(!mapper.layer_has(LayerId(2), 1));
+        assert!(!mapper.layer_has(LayerId(1), 0));
+    }
+
+    #[test]
+    fn locked_presence_matches_live_and_skips_absent_layers() {
+        let mapper = PropMapper::default();
+        mapper.mark_props_in_layer(LayerId(1), [0]);
+        mapper.mark_props_in_layer(LayerId(3), [0]);
+        let locked = mapper.read_lock_layer_presence();
+
+        let layers = (0..5).map(LayerId);
+        for presence in [
+            LayerPresenceRef::Locked(&locked),
+            LayerPresenceRef::Live(&mapper),
+        ] {
+            assert_eq!(
+                presence.present_layers(layers.clone(), 0),
+                [LayerId(1), LayerId(3)]
+            );
+            assert!(presence.present_layers(layers.clone(), 1).is_empty());
+        }
+    }
+
+    #[test]
+    fn marking_set_bits_does_not_wait_for_locked_presence() {
+        let mapper = Arc::new(PropMapper::default());
+        mapper.mark_props_in_layer(LayerId(1), [0, 1]);
+        let _locked = mapper.read_lock_layer_presence();
+
+        let (done, finished) = mpsc::channel();
+        let writer = Arc::clone(&mapper);
+        thread::spawn(move || {
+            writer.mark_props_in_layer(LayerId(1), [1, 0]);
+            writer.mark_props_in_layer(LayerId(1), std::iter::empty());
+            done.send(()).unwrap();
+        });
+        assert!(finished.recv_timeout(Duration::from_secs(10)).is_ok());
+    }
+
+    #[test]
+    fn marking_a_new_bit_waits_until_locked_presence_is_dropped() {
+        let mapper = Arc::new(PropMapper::default());
+        let locked = mapper.read_lock_layer_presence();
+
+        let (done, finished) = mpsc::channel();
+        let writer = Arc::clone(&mapper);
+        thread::spawn(move || {
+            writer.mark_props_in_layer(LayerId(1), [0]);
+            done.send(()).unwrap();
+        });
+        assert!(finished.recv_timeout(Duration::from_millis(200)).is_err());
+        assert!(!locked.has(LayerId(1), 0));
+
+        drop(locked);
+        assert!(finished.recv_timeout(Duration::from_secs(10)).is_ok());
+        assert!(mapper.layer_has(LayerId(1), 0));
     }
 }

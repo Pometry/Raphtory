@@ -225,10 +225,12 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         )
         .map_err(into_graph_err)?;
 
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
         let props_with_status = self
             .validate_props_with_status(
                 false,
                 self.edge_meta(),
+                layer_id,
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
@@ -236,7 +238,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let ti = time_from_input_session(&session, t)?;
         let src_gid = src.as_gid_ref();
         let dst_gid = dst.as_gid_ref();
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
         // Hold all locks for src node, dst node and edge until writer goes out of scope.
         let mut writer = self
@@ -343,10 +344,15 @@ fn add_node_impl<
         )
         .map_err(into_graph_err)?;
 
+    let layer_id = match layer {
+        None => STATIC_GRAPH_LAYER_ID,
+        Some(_) => graph.resolve_layer(layer).map_err(into_graph_err)?.inner(),
+    };
     let props_with_status = graph
         .validate_props_with_status(
             false,
             graph.node_meta(),
+            layer_id,
             props.into_iter().map(|(k, v)| (k, v.into())),
         )
         .map_err(into_graph_err)?;
@@ -397,11 +403,6 @@ fn add_node_impl<
             (*prop_id, prop.clone())
         })
         .collect::<Vec<_>>();
-
-    let layer_id = match layer {
-        None => STATIC_GRAPH_LAYER_ID,
-        Some(_) => graph.resolve_layer(layer).map_err(into_graph_err)?.inner(),
-    };
 
     writer.internal_add_update(ti, layer_id, props);
 

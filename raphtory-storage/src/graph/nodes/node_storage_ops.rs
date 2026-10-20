@@ -2,7 +2,10 @@ use crate::graph::layer_ids_with_static;
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
-        properties::{meta::STATIC_GRAPH_LAYER, prop::Prop},
+        properties::{
+            meta::{LayerPresenceRef, STATIC_GRAPH_LAYER},
+            prop::Prop,
+        },
         GidRef, LayerId, LayerIds, VID,
     },
     storage::timeindex::TimeIndexOps,
@@ -72,12 +75,16 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
     /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
     /// explicit layer name). Unlayered nodes must be visible in every view.
+    /// Skips layers that `presence` says never held `prop_id` for efficiency.
     fn tprop_iter_layers(
         self,
         layer_ids: &LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
-        layer_ids_with_static(self.num_layers(), layer_ids)
+        presence: LayerPresenceRef<'_>,
+    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + use<'a, Self> {
+        presence
+            .present_layers(layer_ids_with_static(self.num_layers(), layer_ids), prop_id)
+            .into_iter()
             .map(move |id| self.temporal_prop_layer(id, prop_id))
     }
 
@@ -184,53 +191,6 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
 
     fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         NodeRefOps::c_prop(self, layer_id, prop_id)
-    }
-
-    // Layer-skip override: drop layers whose per-layer property presence bitset in
-    // Meta says `prop_id` has never been written
-    fn temporal_prop_iter(
-        self,
-        layer_ids: &'a LayerIds,
-        prop_id: usize,
-    ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + 'a {
-        let meta = NodeRefOps::node_meta(&self);
-        self.layer_ids_iter(layer_ids)
-            .filter(move |&layer_id| meta.temporal_layer_has(layer_id, prop_id))
-            .map(move |layer_id| {
-                (
-                    layer_id,
-                    NodeStorageOps::temporal_prop_layer(self, layer_id, prop_id),
-                )
-            })
-    }
-
-    // Layer-skip override: same shape as `temporal_prop_iter` but for the metadata mapper.
-    fn constant_prop_iter(
-        self,
-        layer_ids: &'a LayerIds,
-        prop_id: usize,
-    ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
-        let meta = NodeRefOps::node_meta(&self);
-        self.layer_ids_iter(layer_ids)
-            .filter(move |&layer_id| meta.metadata_layer_has(layer_id, prop_id))
-            .filter_map(move |layer_id| {
-                Some((
-                    layer_id,
-                    NodeStorageOps::constant_prop_layer(self, layer_id, prop_id)?,
-                ))
-            })
-    }
-
-    // Layer-skip override: drops layers that the per-layer bitset says don't carry `prop_id`.
-    fn tprop_iter_layers(
-        self,
-        layer_ids: &LayerIds,
-        prop_id: usize,
-    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
-        let meta = NodeRefOps::node_meta(&self);
-        layer_ids_with_static(self.num_layers(), layer_ids)
-            .filter(move |&id| meta.temporal_layer_has(id, prop_id))
-            .map(move |id| NodeStorageOps::temporal_prop_layer(self, id, prop_id))
     }
 
     fn temp_prop_rows_range(

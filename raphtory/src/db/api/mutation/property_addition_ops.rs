@@ -10,7 +10,10 @@ use raphtory_storage::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     },
 };
-use storage::wal::{GraphWalOps, WalOps};
+use storage::{
+    segments::graph_prop::segment::MemGraphPropSegment,
+    wal::{GraphWalOps, WalOps},
+};
 
 pub trait PropertyAdditionOps:
     InternalPropertyAdditionOps<Error: Into<GraphError>> + InternalAdditionOps<Error: Into<GraphError>>
@@ -63,6 +66,7 @@ impl<
             .validate_props_with_status(
                 false,
                 self.graph_props_meta(),
+                MemGraphPropSegment::DEFAULT_LAYER,
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
@@ -140,6 +144,7 @@ where
         .validate_props_with_status(
             true,
             graph.graph_props_meta(),
+            MemGraphPropSegment::DEFAULT_LAYER,
             props.into_iter().map(|(k, v)| (k, v.into())),
         )
         .map_err(into_graph_err)?;

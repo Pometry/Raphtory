@@ -331,9 +331,8 @@ pub fn load_nodes_from_df<
                                     .map(|(id, prop)| (*id, prop.as_prop_ref())),
                             );
 
-                            // `*_bulk` doesn't mark props in layers: presence already marked per chunk above
-                            writer.add_props(t, mut_node, layer_id, false, t_props);
-                            writer.update_c_props(mut_node, layer_id, false, c_props);
+                            writer.add_props(t, mut_node, layer_id, t_props);
+                            writer.update_c_props(mut_node, layer_id, c_props);
                         };
                     }
 
@@ -398,6 +397,8 @@ pub fn load_node_props_from_df<
             .resolve_node_property(key, dtype, true)
             .map_err(into_graph_err)
     })?;
+    // resolved outside the chunk's columns, marked separately below
+    let shared_metadata_ids: Vec<usize> = shared_metadata.iter().map(|(id, _)| *id).collect();
 
     let resolve_nodes = node_type_ids_col.is_some() && node_id_index.is_some();
 
@@ -424,12 +425,23 @@ pub fn load_node_props_from_df<
             node_col.validate(graph, LoadError::InvalidNodeError)?;
         }
         // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
-        let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
+        let (layer_col_resolved, distinct_layers) = if layer.is_some() || layer_col_index.is_some()
+        {
             let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
-            Some(layer_col.resolve_layer(None, graph, true)?.0)
+            let (layer_resolved, distinct_layers) = layer_col.resolve_layer(None, graph, true)?;
+            (Some(layer_resolved), distinct_layers)
         } else {
-            None
+            (None, vec![STATIC_GRAPH_LAYER_ID])
         };
+
+        // mark this chunk's (layer, prop) presence once
+        mark_chunk_metadata_presence(
+            graph.node_meta(),
+            layer_col_resolved.as_deref(),
+            &distinct_layers,
+            &metadata_cols,
+            &shared_metadata_ids,
+        );
 
         let (node_col_resolved, node_type_col_resolved) = get_or_resolve_node_vids_no_events::<G>(
             graph,
@@ -487,7 +499,7 @@ pub fn load_node_props_from_df<
                         c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
-                            writer.update_c_props(pos, row_layer, true, c_props.drain(..));
+                            writer.update_c_props(pos, row_layer, c_props.drain(..));
                         }
                     };
                 }

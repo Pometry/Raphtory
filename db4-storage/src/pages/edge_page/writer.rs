@@ -55,7 +55,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.graph_stats.update_time(t.t());
         if self
             .writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props, true)
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props)
             && !self.segment.immut_has_edge(edge_pos, layer_id)
         {
             // edge is new to this writer and also the immutable part of the segment
@@ -148,7 +148,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
             self.increment_layer_num_edges(layer_id);
         }
         self.writer
-            .update_const_properties(edge_pos, src, dst, layer_id, props, true);
+            .update_const_properties(edge_pos, src, dst, layer_id, props);
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
