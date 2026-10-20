@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::{
     distr::{Alphanumeric, SampleString},
-    rng, Rng,
+    rng, RngExt,
 };
 use raphtory::prelude::*;
 
