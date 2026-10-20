@@ -415,7 +415,7 @@ impl GraphStorage {
     /// The graph's per-layer property presence bitset, may be locked or unlocked.
     pub fn node_temporal_presence(&self) -> LayerPresenceRef<'_> {
         match self {
-            GraphStorage::Mem(storage) => {
+            GraphStorage::Locked(storage) => {
                 LayerPresenceRef::Locked(&storage.node_presence().temporal)
             }
             GraphStorage::Unlocked(storage) => {
@@ -427,7 +427,7 @@ impl GraphStorage {
     /// The graph's per-layer metadata presence bitset, may be locked or unlocked.
     pub fn node_metadata_presence(&self) -> LayerPresenceRef<'_> {
         match self {
-            GraphStorage::Mem(storage) => {
+            GraphStorage::Locked(storage) => {
                 LayerPresenceRef::Locked(&storage.node_presence().metadata)
             }
             GraphStorage::Unlocked(storage) => {
@@ -439,7 +439,7 @@ impl GraphStorage {
     /// The graph's per-layer property presence bitset, may be locked or unlocked.
     pub fn edge_temporal_presence(&self) -> LayerPresenceRef<'_> {
         match self {
-            GraphStorage::Mem(storage) => {
+            GraphStorage::Locked(storage) => {
                 LayerPresenceRef::Locked(&storage.edge_presence().temporal)
             }
             GraphStorage::Unlocked(storage) => {
@@ -451,7 +451,7 @@ impl GraphStorage {
     /// The graph's per-layer metadata presence bitset, may be locked or unlocked.
     pub fn edge_metadata_presence(&self) -> LayerPresenceRef<'_> {
         match self {
-            GraphStorage::Mem(storage) => {
+            GraphStorage::Locked(storage) => {
                 LayerPresenceRef::Locked(&storage.edge_presence().metadata)
             }
             GraphStorage::Unlocked(storage) => {
