@@ -1,3 +1,4 @@
+use super::PropList;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -32,10 +33,7 @@ pub fn prop_type() -> impl Strategy<Value = PropType> {
 
 pub fn make_props(
     schema: &HashMap<String, PropType>,
-) -> (
-    BoxedStrategy<Vec<(String, Prop)>>,
-    BoxedStrategy<Vec<(String, Prop)>>,
-) {
+) -> (BoxedStrategy<PropList>, BoxedStrategy<PropList>) {
     let mut iter = schema.iter();
 
     // split in half, one temporal one constant

@@ -6,7 +6,12 @@ use crate::{
 use chrono::DateTime;
 use regex::Regex;
 use serde::Deserialize;
-use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 use tracing::{error, info};
 
 #[allow(dead_code)]
@@ -45,10 +50,10 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
         unzip_file(zip_str,dir_str).expect("Failed to unzip stable coin data from https://snap.stanford.edu/data/ERC20-stablecoins.zip");
     }
 
-    fn restore_from_file(encoded_data_file: &PathBuf) -> Option<Graph> {
+    fn restore_from_file(encoded_data_file: &Path) -> Option<Graph> {
         if encoded_data_file.exists() {
             let now = Instant::now();
-            let g = Graph::decode(encoded_data_file.as_path())
+            let g = Graph::decode(encoded_data_file)
                 .map_err(|err| {
                     error!(
                         "Restoring from bincode failed with error: {}! Reloading file!",

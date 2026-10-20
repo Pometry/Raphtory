@@ -32,8 +32,8 @@ pub trait ImportOps: Sized {
     ///
     /// * `node` - A reference to the node to be imported.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if the imported node already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported node and the existing node (in the graph).
+    ///   If `merge` is `false`, the function will return an error if the imported node already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// # Returns
     ///
@@ -51,8 +51,8 @@ pub trait ImportOps: Sized {
     /// * `node` - A reference to the node to be imported.
     /// * `new_id` - The new node id.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if the imported node already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported node and the existing node (in the graph).
+    ///   If `merge` is `false`, the function will return an error if the imported node already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported node and the existing node (in the graph).
     ///
     /// # Returns
     ///
@@ -70,8 +70,8 @@ pub trait ImportOps: Sized {
     ///
     /// * `nodes` - A vector of references to the nodes to be imported.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
+    ///   If `merge` is `false`, the function will return an error if any of the imported nodes already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported nodes and the existing nodes (in the graph).
     ///
     /// Returns:
     ///     Ok(()) if the nodes were successfully imported.
@@ -108,13 +108,13 @@ pub trait ImportOps: Sized {
     ///
     /// * `edge` - A reference to the edge to be imported.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///   If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
     ///     Ok(()) if the edge were successfully imported.
     ///     Err(GraphError) if the operation fails.
-    fn import_edge<'a, GHH: GraphView>(
+    fn import_edge<GHH: GraphView>(
         &self,
         edge: &EdgeView<GHH>,
         merge: bool,
@@ -127,13 +127,13 @@ pub trait ImportOps: Sized {
     /// * `edge` - A reference to the edge to be imported.
     /// * `new_id` - The ID of the new edge. It's a tuple of the source and destination node ids.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
+    ///   If `merge` is `false`, the function will return an error if the imported edge already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported edge and the existing edge (in the graph).
     ///
     /// Returns:
     ///     Ok(()) if the edge were successfully imported.
     ///     Err(GraphError) if the operation fails.
-    fn import_edge_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
+    fn import_edge_as<GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         edge: &EdgeView<GHH>,
         new_id: (V, V),
@@ -146,13 +146,13 @@ pub trait ImportOps: Sized {
     ///
     /// * `edges` - A vector of references to the edges to be imported.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///   If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
     ///     Ok(()) if the edges were successfully imported.
     ///     Err(GraphError) if the operation fails.
-    fn import_edges<'a, GHH: GraphView>(
+    fn import_edges<GHH: GraphView>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH>>>,
         merge: bool,
@@ -165,13 +165,13 @@ pub trait ImportOps: Sized {
     /// * `edges` - A vector of references to the edges to be imported.
     /// * `new_ids` - The IDs of the new edges. It's a vector of tuples of the source and destination node ids.
     /// * `merge` - An optional boolean flag.
-    ///             If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
-    ///             If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
+    ///   If `merge` is `false`, the function will return an error if any of the imported edges already exists in the graph.
+    ///   If `merge` is `true`, the function merges the histories of the imported edges and the existing edges (in the graph).
     ///
     /// Returns:
     ///     Ok(()) if the edges were successfully imported.
     ///     Err(GraphError) if the operation fails.
-    fn import_edges_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
+    fn import_edges_as<GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH>>>,
         new_ids: impl IntoIterator<Item = (V, V)>,
@@ -228,7 +228,7 @@ impl<
         Ok(())
     }
 
-    fn import_edge<'a, GHH: GraphView>(
+    fn import_edge<GHH: GraphView>(
         &self,
         edge: &EdgeView<GHH>,
         merge: bool,
@@ -236,7 +236,7 @@ impl<
         import_edge_internal(self, edge, edge.src().id(), edge.dst().id(), merge)
     }
 
-    fn import_edge_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
+    fn import_edge_as<GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         edge: &EdgeView<GHH>,
         new_id: (V, V),
@@ -245,7 +245,7 @@ impl<
         import_edge_internal(self, edge, new_id.0, new_id.1, merge)
     }
 
-    fn import_edges<'a, GHH: GraphView>(
+    fn import_edges<GHH: GraphView>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH>>>,
         merge: bool,
@@ -259,7 +259,7 @@ impl<
         Ok(())
     }
 
-    fn import_edges_as<'a, GHH: GraphView, V: AsNodeRef + Clone + Debug>(
+    fn import_edges_as<GHH: GraphView, V: AsNodeRef + Clone + Debug>(
         &self,
         edges: impl IntoIterator<Item = impl Borrow<EdgeView<GHH>>>,
         new_ids: impl IntoIterator<Item = (V, V)>,
@@ -331,7 +331,6 @@ fn import_node_internal<
 }
 
 fn import_edge_internal<
-    'a,
     G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     GHH: GraphView,
     V: AsNodeRef + Clone + Debug,

@@ -77,7 +77,6 @@ impl GqlNode {
     }
 
     /// Return a view of node containing all layers specified.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -87,7 +86,6 @@ impl GqlNode {
     }
 
     /// Returns a collection containing nodes belonging to all layers except the excluded list of layers.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -97,13 +95,11 @@ impl GqlNode {
     }
 
     /// Returns a collection containing nodes belonging to the specified layer.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> GqlNode {
         self.vv.valid_layers(name).into()
     }
 
     /// Returns a collection containing nodes belonging to all layers except the excluded layer.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -120,7 +116,6 @@ impl GqlNode {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -153,7 +148,6 @@ impl GqlNode {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -175,7 +169,6 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -213,7 +206,6 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events before specified end time (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -222,7 +214,6 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events after the specified start time (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -231,7 +222,6 @@ impl GqlNode {
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -241,7 +231,6 @@ impl GqlNode {
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -486,7 +475,7 @@ impl GqlNode {
     }
 
     /// Returns neighbouring nodes.
-    pub async fn neighbours<'a>(
+    pub async fn neighbours(
         &self,
         select: Option<GqlNodeFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {
@@ -500,7 +489,7 @@ impl GqlNode {
     }
 
     /// Returns the number of neighbours that have at least one in-going edge to this node.
-    pub async fn in_neighbours<'a>(
+    pub async fn in_neighbours(
         &self,
         select: Option<GqlNodeFilter>,
     ) -> Result<GqlPathFromNode, GraphError> {

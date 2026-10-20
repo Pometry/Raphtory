@@ -618,6 +618,7 @@ fn assert_graph_equal_layer<'graph>(
 }
 
 #[track_caller]
+#[allow(clippy::unit_arg)]
 fn assert_graph_equal_inner<'graph>(
     g1: &DynGraphArc<'graph>,
     g2: &DynGraphArc<'graph>,

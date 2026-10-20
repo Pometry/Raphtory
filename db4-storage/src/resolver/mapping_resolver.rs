@@ -302,4 +302,8 @@ impl GIDResolverOps for MappingResolver {
     fn flush(&self) -> Result<(), StorageError> {
         Ok(())
     }
+
+    fn copy_to(&self, _path: impl AsRef<Path>) -> Result<(), StorageError> {
+        Ok(())
+    }
 }

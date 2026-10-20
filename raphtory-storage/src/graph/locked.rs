@@ -1,10 +1,11 @@
 use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::properties::meta::MetaLayerPresence;
 use std::sync::{Arc, OnceLock};
-use storage::{error::StorageError, Extension, ReadLockedEdges, ReadLockedNodes};
+use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
 
+/// A fully locked, read-only graph.
 #[derive(Debug)]
-pub struct LockedGraph {
+pub struct ReadLockedGraph {
     pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
     pub(crate) edges: Arc<ReadLockedEdges<Extension>>,
     /// Presence bitsets, read-locked on first use and held until the last clone is dropped.
@@ -13,7 +14,7 @@ pub struct LockedGraph {
     pub graph: Arc<TemporalGraph>,
 }
 
-impl LockedGraph {
+impl ReadLockedGraph {
     pub fn new(graph: Arc<TemporalGraph>) -> Self {
         let nodes = Arc::new(graph.storage().nodes().locked());
         let edges = Arc::new(graph.storage().edges().locked());
@@ -35,19 +36,11 @@ impl LockedGraph {
         self.edge_presence
             .get_or_init(|| self.graph.edge_meta().read_lock_layer_presence())
     }
-
-    pub fn flush(&self) -> Result<(), StorageError> {
-        self.graph.flush()
-    }
-
-    pub fn vacuum(&self) -> Result<(), StorageError> {
-        self.graph.vacuum()
-    }
 }
 
-impl Clone for LockedGraph {
+impl Clone for ReadLockedGraph {
     fn clone(&self) -> Self {
-        LockedGraph {
+        ReadLockedGraph {
             nodes: self.nodes.clone(),
             edges: self.edges.clone(),
             node_presence: self.node_presence.clone(),

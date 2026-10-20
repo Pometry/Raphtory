@@ -4,25 +4,21 @@ use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::VID;
 use std::{collections::HashMap, ops::Range};
 
-pub type AddEdge = (
-    VID,
-    VID,
-    i64,
-    Vec<(String, Prop)>,
-    Vec<(String, Prop)>,
-    Option<&'static str>,
-);
+/// Named property values, as passed to an addition.
+pub type PropList = Vec<(String, Prop)>;
+
+pub type AddEdge = (VID, VID, i64, PropList, PropList, Option<&'static str>);
 
 #[derive(Debug)]
 pub struct NodeFixture {
-    pub temp_props: Vec<(VID, i64, Vec<(String, Prop)>)>,
-    pub const_props: Vec<(VID, Vec<(String, Prop)>)>,
+    pub temp_props: Vec<(VID, i64, PropList)>,
+    pub const_props: Vec<(VID, PropList)>,
 }
 
 #[derive(Debug)]
 pub struct Fixture {
     pub edges: Vec<AddEdge>,
-    pub const_props: HashMap<(VID, VID), Vec<(String, Prop)>>,
+    pub const_props: HashMap<(VID, VID), PropList>,
 }
 
 impl From<Vec<AddEdge>> for Fixture {
@@ -52,7 +48,7 @@ pub fn make_edges(num_edges: usize, num_nodes: usize) -> impl Strategy<Value = F
         .prop_map(|edges| edges.into())
 }
 
-pub type PropsFixture = (Vec<(i64, Vec<(String, Prop)>)>, Vec<(String, Prop)>);
+pub type PropsFixture = (Vec<(i64, PropList)>, PropList);
 
 pub fn make_props_strat(num_props: Range<usize>) -> impl Strategy<Value = PropsFixture> {
     let schema = collection::hash_map(
@@ -136,14 +132,7 @@ pub fn edges_strat_with_layers(
     })
 }
 
-pub type EdgeValues = (
-    VID,
-    VID,
-    i64,
-    Vec<(String, Prop)>,
-    Vec<(String, Prop)>,
-    Option<&'static str>,
-);
+pub type EdgeValues = (VID, VID, i64, PropList, PropList, Option<&'static str>);
 
 pub fn build_raw_edges(len: usize, num_nodes: usize) -> impl Strategy<Value = Vec<EdgeValues>> {
     collection::hash_map((0i32..1000).prop_map(|i| i.to_string()), prop_type(), 0..20)

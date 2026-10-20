@@ -10,7 +10,7 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::Meta,
+            meta::{Meta, PropWithStatus},
             prop::{AsPropRef, Prop, PropType},
         },
         GidRef, LayerId, EID, VID,
@@ -48,7 +48,7 @@ pub struct Storage {
 
 impl From<GraphStorage> for Storage {
     fn from(graph: GraphStorage) -> Self {
-        Self::from_inner(graph)
+        Self { graph }
     }
 }
 
@@ -80,10 +80,6 @@ impl Storage {
         })
     }
 
-    pub(crate) fn from_inner(graph: GraphStorage) -> Self {
-        Self { graph }
-    }
-
     /// Produce a read-only handle backed by the same `TemporalGraph` as
     /// this storage. Mutations on the returned `Storage` return
     /// `Immutable::ReadLockedImmutable`. The handle holds read locks on
@@ -99,7 +95,8 @@ impl Storage {
 #[cfg(feature = "io")]
 mod io {
     use super::*;
-    use raphtory_storage::{graph::locked::LockedGraph, recovery_ops::RecoveryOps};
+    use raphtory_storage::{graph::locked::ReadLockedGraph, recovery_ops::RecoveryOps};
+
     impl Storage {
         pub fn new_at_path_with_config(
             path: impl AsRef<Path>,
@@ -135,13 +132,13 @@ mod io {
             // when other handles are attached to the same directory.
             let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
 
-            // `LockedGraph` holds read locks on the underlying segments, so
+            // `ReadLockedGraph` holds read locks on the underlying segments, so
             // every mutation entry point that goes through
             // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
-            let locked = LockedGraph::new(Arc::new(temporal_graph));
+            let locked = ReadLockedGraph::new(Arc::new(temporal_graph));
 
             Ok(Self {
-                graph: GraphStorage::Mem(locked),
+                graph: GraphStorage::Locked(locked),
             })
         }
 
@@ -393,7 +390,7 @@ impl InternalAdditionOps for Storage {
         meta: &Meta,
         layer: LayerId,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<PropWithStatus<PN>>, Self::Error> {
         Ok(self
             .graph
             .validate_props_with_status(is_static, meta, layer, props)?)

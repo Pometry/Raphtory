@@ -15,10 +15,10 @@
 //!
 //! ## Dataset statistics
 //! * Dataset statistics (sx-superuser)
-//! * Nodes 	194085
-//! * Temporal Edges 	1443339
-//! * Edges in static graph 	924886
-//! * Time span 	2773 days
+//! * Nodes    194085
+//! * Temporal Edges    1443339
+//! * Edges in static graph    924886
+//! * Time span    2773 days
 //!
 //! ## Source
 //! Ashwin Paranjape, Austin R. Benson, and Jure Leskovec. "Motifs in Temporal Networks."

@@ -29,6 +29,7 @@ impl<T: Clone> ToOwnedValue<T> for &T {
     }
 }
 
+#[allow(clippy::len_without_is_empty)]
 pub trait NodeStateOps<'a, 'graph: 'a>:
     IntoIterator<Item = (NodeView<'graph, Self::Graph>, Self::OwnedValue)> + Send + Sync + 'graph
 {

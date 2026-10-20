@@ -78,6 +78,7 @@ fn process_shared_properties(
     }
 }
 
+#[cfg(any(feature = "io", feature = "python"))]
 pub(crate) fn load_edge_deletions_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
 >(
@@ -122,6 +123,8 @@ pub(crate) fn load_edge_deletions_from_df<
     )
 }
 
+#[cfg(any(feature = "io", feature = "python"))]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn load_edges_props_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(

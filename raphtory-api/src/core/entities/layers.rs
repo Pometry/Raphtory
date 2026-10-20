@@ -200,6 +200,7 @@ impl Multiple {
     }
 
     #[inline]
+    #[allow(clippy::should_implement_trait)]
     pub fn into_iter(self) -> impl Iterator<Item = LayerId> {
         let ids = self.0.clone();
         (0..ids.len()).map(move |i| ids[i])

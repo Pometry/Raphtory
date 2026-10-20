@@ -75,7 +75,6 @@ impl GqlHistory {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -107,7 +106,6 @@ impl GqlHistory {
     ///
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
@@ -181,7 +179,6 @@ impl GqlHistory {
     /// Useful for converting millisecond timestamps into easily readable datetime strings.
     /// Optionally, a format string can be passed to format the output. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
-
     pub async fn datetimes(
         &self,
         #[graphql(
@@ -260,7 +257,6 @@ impl GqlHistoryTimestamp {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -291,7 +287,6 @@ impl GqlHistoryTimestamp {
     ///
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
@@ -331,7 +326,6 @@ impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings.
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
-
     pub async fn list(
         &self,
         ctx: &Context<'_>,
@@ -371,7 +365,6 @@ impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings in reverse chronological order.
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
-
     pub async fn list_rev(
         &self,
         ctx: &Context<'_>,
@@ -415,7 +408,6 @@ impl GqlHistoryDateTime {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -470,7 +462,6 @@ impl GqlHistoryDateTime {
     ///
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
@@ -573,7 +564,6 @@ impl GqlHistoryEventId {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -605,7 +595,6 @@ impl GqlHistoryEventId {
     ///
     /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page_rev(
         &self,
         ctx: &Context<'_>,
@@ -674,7 +663,6 @@ impl GqlIntervals {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -705,7 +693,6 @@ impl GqlIntervals {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page_rev(
         &self,
         ctx: &Context<'_>,

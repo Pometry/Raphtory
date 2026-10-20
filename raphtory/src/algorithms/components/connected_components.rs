@@ -62,7 +62,7 @@ impl AUnionFind {
         component_id
     }
 
-    pub fn to_vec(self) -> Vec<usize> {
+    pub fn into_vec(self) -> Vec<usize> {
         (0..self.labels.len()).into_par_iter().for_each(|i| {
             self.find(i);
         });
@@ -110,7 +110,7 @@ where
     });
     let result = TypedNodeState::new(GenericNodeState::new_from_eval_with_index_mapped(
         g.clone(),
-        dss.to_vec(),
+        dss.into_vec(),
         index,
         |value| ConnectedComponent {
             component_id: value,

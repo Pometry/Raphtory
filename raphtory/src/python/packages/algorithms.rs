@@ -110,7 +110,6 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
-
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
 /// This function returns the number of pairs of neighbours of a given node which are themselves connected.

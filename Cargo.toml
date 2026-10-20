@@ -7,7 +7,6 @@ members = [
     "examples/custom-gql-apis",
     "python",
     "raphtory-graphql",
-    "raphtory-auth-noop",
     "raphtory-server",
     "raphtory-api",
     "raphtory-core",
@@ -124,7 +123,7 @@ lock_api = { version = "0.4.14", features = ["arc_lock", "serde"] }
 dashmap = { version = "6.1.0", features = ["serde", "rayon"] }
 glam = "0.33.0"
 quad-rand = "0.2.3"
-zip = "8.6.0"
+zip = "9.0"
 bzip2 = "0.6.1"
 async-trait = "0.1.89"
 async-openai = "0.28.3"
@@ -209,7 +208,3 @@ inventory = "0.3.24"
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
-
-[workspace.dependencies.auth]
-package = "raphtory-auth-noop"
-path = "raphtory-auth-noop"

@@ -130,7 +130,7 @@ mod write_guard_tests {
 
     #[tokio::test]
     async fn graph_writes_are_refused_on_a_viewed_handle() {
-        let g = graph(ReadExpr::Valid { input: root() }.into());
+        let g = graph(ReadExpr::Valid { input: root() });
         expect_refused("add_node", g.add_node(1, "a", NO_PROPS, None, None).await);
         expect_refused(
             "create_node",

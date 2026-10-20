@@ -4,6 +4,7 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
 };
+use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -36,6 +37,12 @@ pub trait WalOps {
 
     /// Sets the position in the WAL stream.
     fn set_position(&self, lsn: LSN) -> Result<(), StorageError>;
+
+    /// Copies the latest WAL log file from `src` to `dst`.
+    ///
+    /// Used after a checkpoint is completed, since recovery now only needs the
+    /// WAL file containing the checkpoint. Older WAL files are omitted from the copy.
+    fn copy_tail_to(src: &Path, dst: &Path) -> Result<(), StorageError>;
 }
 
 #[derive(Debug)]
@@ -76,6 +83,7 @@ pub trait GraphWalOps {
     /// ReplayEntry represents the type of the wal entry returned during replay.
     type ReplayEntry;
 
+    #[allow(clippy::too_many_arguments)]
     fn log_add_edge(
         &self,
         transaction_id: TransactionID,
@@ -98,6 +106,7 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn log_delete_edge(
         &self,
         transaction_id: TransactionID,
@@ -111,6 +120,7 @@ pub trait GraphWalOps {
         layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn log_add_node(
         &self,
         transaction_id: TransactionID,
@@ -151,23 +161,31 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint indicating that all LSN < `redo` are persisted.
-    /// On recovery, replay will start from `redo` in the WAL stream.
-    fn log_checkpoint(&self, redo: LSN) -> Result<LSN, StorageError>;
+    /// Logs a checkpoint indicating that entries up to `redo` are reflected on disk.
+    /// Set `redo` to `None` to indicate all entries up to this checkpoint are on disk.
+    ///
+    /// Returns the LSN of the checkpoint entry.
+    fn log_checkpoint(&self, redo: Option<LSN>) -> Result<LSN, StorageError>;
 
-    /// Logs a shutdown checkpoint indicating a clean shutdown with all writes persisted.
+    /// Logs a shutdown checkpoint indicating a clean shutdown with all WAL entries
+    /// applied to storage.
+    ///
+    /// Returns the LSN of the shutdown checkpoint entry.
     fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError>;
 
-    /// Reads and decodes the WAL entry at the given LSN and validates that it is a checkpoint.
-    /// Returns the checkpoint redo LSN, denoting where replay should start from.
-    fn read_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+    /// Reads the WAL entry at `lsn` and validates it is a checkpoint.
+    ///
+    /// Returns the checkpoint redo LSN, or `None` if there is nothing to redo
+    /// up to this checkpoint.
+    fn read_checkpoint(&self, lsn: LSN) -> Result<Option<LSN>, StorageError>;
 
-    /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
-    /// Returns the LSN immediately after this record, marking the end of the WAL stream.
+    /// Reads the WAL entry at `lsn` and validates it is a shutdown checkpoint.
+    ///
+    /// Returns the LSN immediately after this entry, denoting the end of the WAL stream.
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
-    /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
-    /// If `start` is `None`, replay begins at the first record in the WAL stream.
+    /// Replays all entries in the WAL to the given graph, starting from `start`.
+    /// If `start` is `None`, replay begins at the first entry in the WAL stream.
     /// Returns the LSN immediately after the last entry in the WAL stream on success.
     fn replay_to_graph<G: GraphReplay>(
         &self,
@@ -178,6 +196,7 @@ pub trait GraphWalOps {
 
 /// Trait for defining callbacks for replaying from wal.
 pub trait GraphReplay {
+    #[allow(clippy::too_many_arguments)]
     fn replay_add_edge(
         &mut self,
         lsn: LSN,
@@ -202,6 +221,7 @@ pub trait GraphReplay {
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn replay_delete_edge(
         &mut self,
         lsn: LSN,
@@ -216,6 +236,7 @@ pub trait GraphReplay {
         layer_id: LayerId,
     ) -> Result<(), StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn replay_add_node(
         &mut self,
         lsn: LSN,
