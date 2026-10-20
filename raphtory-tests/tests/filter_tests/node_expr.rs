@@ -1,12 +1,10 @@
+use crate::filter_tests::filter_domain;
 use raphtory::{
     db::{
-        api::{
-            state::ops::NodeOp,
-            view::{
-                filter_ops::Select,
-                internal::{ListOps, NodeList},
-                Filter,
-            },
+        api::view::{
+            filter_ops::Select,
+            internal::{ListOps, NodeList},
+            Filter,
         },
         graph::views::filter::{
             model::{
@@ -27,7 +25,6 @@ use raphtory_api::core::entities::{
     properties::prop::{IntoProp, Prop},
     VID,
 };
-use raphtory_storage::core_ops::CoreGraphOps;
 
 // Test graph: a→b, a→c, b→c
 // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
@@ -568,16 +565,6 @@ fn windowed_temporal_term_skips_node_absent_from_window() {
 // These pin that an id test starts from the nodes it names instead of
 // visiting every node.
 
-/// The nodes a compiled node filter will actually visit.
-fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
-where
-    F: CreateFilter,
-    for<'g> F::NodeFilter<'g, Graph>: NodeOp<Output = bool>,
-{
-    let op = filter.create_node_filter(g.clone()).unwrap();
-    op.domain(&g.core_graph().lock())
-}
-
 #[test]
 fn id_eq_visits_only_the_named_node() {
     let g = build_test_graph();
@@ -611,6 +598,35 @@ fn id_is_in_visits_only_the_named_nodes() {
 }
 
 #[test]
+fn named_nodes_come_back_in_id_order() {
+    let g = build_test_graph();
+    let filter = || {
+        NodeFilter
+            .id()
+            .is_in(vec!["c".into_prop(), "a".into_prop()])
+    };
+    let filtered: Vec<String> = g.filter(filter()).unwrap().nodes().name().collect();
+    assert_eq!(filtered, vec!["a", "c"]);
+    let selected: Vec<String> = g.nodes().select(filter()).unwrap().name().collect();
+    assert_eq!(selected, vec!["a", "c"]);
+}
+
+/// The ids a test names are resolved when the filter is built, like
+/// `subgraph`, so the view does not grow with later additions; a test that
+/// names no ids reads the graph live.
+#[test]
+fn a_resolved_id_test_does_not_see_nodes_added_later() {
+    let g = Graph::new();
+    g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+    let named = g.filter(NodeFilter.id().eq("b")).unwrap();
+    let unnamed = g.filter(NodeFilter.id().ne("a")).unwrap();
+    g.add_node(1, "b", NO_PROPS, None, None).unwrap();
+    assert_eq!(named.nodes().iter().count(), 0);
+    let names: Vec<String> = unnamed.nodes().name().collect();
+    assert_eq!(names, vec!["b"]);
+}
+
+#[test]
 fn id_eq_for_an_absent_node_visits_nothing() {
     let g = build_test_graph();
     match filter_domain(NodeFilter.id().eq("nope"), &g) {
@@ -636,11 +652,11 @@ fn a_constant_on_the_left_names_its_node() {
 }
 
 #[test]
-fn an_id_of_the_wrong_type_keeps_every_node() {
-    // A string constant against numeric ids (or the reverse) is refused when
-    // the filter is built. A number that is not a numeric id (a negative or a
-    // fractional one) is compared, but names no node by lookup: the test runs
-    // on every node and holds on none.
+fn a_number_no_id_can_equal_keeps_every_node() {
+    // A negative or a fractional number names no numeric id: the test runs on
+    // every node and holds on none. A constant of the wrong type (a string
+    // against numeric ids, or the reverse) is refused earlier, when the
+    // filter is built.
     let g = Graph::new();
     g.add_node(0, 1, NO_PROPS, None, None).unwrap();
     g.add_node(0, 6, NO_PROPS, None, None).unwrap();
@@ -719,8 +735,8 @@ fn a_name_test_on_numeric_ids_keeps_every_node() {
 #[test]
 fn non_id_and_inequality_filters_keep_the_full_domain() {
     let g = build_test_graph();
-    // Only equality and set membership on the id or the name name specific
-    // nodes; everything else has to be evaluated per node.
+    // Only an equality or a set-membership test on the id or the name starts
+    // from the nodes it names; every other test runs on every node.
     for (label, domain) in [
         ("id != b", filter_domain(NodeFilter.id().ne("b"), &g)),
         ("name != b", filter_domain(NodeFilter.name().ne("b"), &g)),

@@ -21,7 +21,7 @@ use crate::{
                     node::{Name, Type},
                     Const, Degree, HistoryOp,
                 },
-                NodeOp,
+                Index, NodeOp,
             },
             view::{
                 internal::{DynGraphArc, GraphView, IntoDynGraphArc, NodeList},
@@ -428,19 +428,17 @@ impl Leaf for NodeLeaf {
         matches!(self, NodeLeaf::Property { temporal: true, .. })
     }
 
-    /// An id names its node through the graph's id index, whatever the views
-    /// on the term: an id does not depend on them. A name names its node the
-    /// same way only on a graph whose ids are strings, where a node's name is
-    /// its id; on a numeric-id graph every node may match. The list makes no
-    /// claim to be exact, so the test still runs on every node in it.
+    /// An id or a name names its node through the graph's id index, whatever
+    /// the views on the term: an id does not depend on them. A name is the
+    /// string id, so on a numeric-id graph a name constant (a string) names
+    /// no key and every node is visited. The list makes no claim to be exact,
+    /// so the test still runs on every node in it.
     fn named_by(&self, values: &[Prop], graph: &DynGraphArc<'_>) -> Option<NodeList> {
         let id_type = match self {
             NodeLeaf::Field {
-                field: Field::Id, ..
+                field: Field::Id | Field::Name,
+                ..
             } => graph.id_type(),
-            NodeLeaf::Field {
-                field: Field::Name, ..
-            } => graph.id_type().filter(|id_type| *id_type == GidType::Str),
             _ => None,
         }?;
         let ids = values
@@ -451,17 +449,20 @@ impl Leaf for NodeLeaf {
     }
 }
 
-/// The nodes of `graph` with the given ids; an id the graph does not hold
-/// names no node.
+/// The nodes of `graph` with the given ids, in node order whatever the order
+/// of the ids; an id the graph does not hold names no node.
 fn nodes_with_ids<'a>(
     graph: &DynGraphArc<'_>,
     ids: impl IntoIterator<Item = GidRef<'a>>,
 ) -> NodeList {
+    let mut vids: Vec<_> = ids
+        .into_iter()
+        .filter_map(|id| graph.internalise_node(NodeRef::External(id)))
+        .collect();
+    vids.sort();
+    vids.dedup();
     NodeList::List {
-        elems: ids
-            .into_iter()
-            .filter_map(|id| graph.internalise_node(NodeRef::External(id)))
-            .collect(),
+        elems: Index::from_sorted(vids, false),
     }
 }
 
@@ -750,7 +751,8 @@ pub trait OpFamily {
     fn constant<'g>(value: Prop) -> Arc<Self::Value<'g>>;
 
     /// Two values combined by `kernel` with the test's `param`, giving a
-    /// value of type `out` that can only hold on the nodes in `domain`.
+    /// value of type `out` that can only hold on the nodes in `domain`. An
+    /// edge family ignores `domain`: edges have no domain.
     fn binary<'g, P: Send + Sync + 'g>(
         left: Arc<Self::Value<'g>>,
         right: Arc<Self::Value<'g>>,
@@ -761,7 +763,8 @@ pub trait OpFamily {
     ) -> Arc<Self::Value<'g>>;
 
     /// One value mapped by `kernel` with the test's `param`, giving a value of
-    /// type `out` that can only hold on the nodes in `domain`.
+    /// type `out` that can only hold on the nodes in `domain`. An edge family
+    /// ignores `domain`: edges have no domain.
     fn unary<'g, P: Send + Sync + 'g>(
         inner: Arc<Self::Value<'g>>,
         param: P,
@@ -973,10 +976,10 @@ impl<L: Leaf> Expr<L> {
             Expr::Term(leaf) => leaf.value_op(graph)?,
             Expr::Agg(agg, inner) => inner.aggregate_op(*agg, graph)?,
             Expr::Cmp(op, lhs, rhs) => {
-                let named = |graph: &DynGraphArc<'g>| match (op, lhs.as_ref(), rhs.as_ref()) {
+                let domain = match (op, lhs.as_ref(), rhs.as_ref()) {
                     (BinaryOp::Eq, Expr::Term(leaf), Expr::Const(value))
                     | (BinaryOp::Eq, Expr::Const(value), Expr::Term(leaf)) => {
-                        leaf.named_by(slice::from_ref(value), graph)
+                        leaf.named_by(slice::from_ref(value), &graph)
                     }
                     _ => None,
                 };
@@ -987,13 +990,18 @@ impl<L: Leaf> Expr<L> {
                     *op,
                     |l, r| comparison_shape(op, l, r),
                     cmp_kernel,
-                    named,
+                    domain.unwrap_or(NodeList::All),
                 )?
             }
-            Expr::Str(op, lhs, rhs) => {
-                Self::binary_test_op(lhs, rhs, graph, *op, string_shape, str_kernel, |_| None)?
-            }
-            // Only a whole-value membership names the nodes it can hold on.
+            Expr::Str(op, lhs, rhs) => Self::binary_test_op(
+                lhs,
+                rhs,
+                graph,
+                *op,
+                string_shape,
+                str_kernel,
+                NodeList::All,
+            )?,
             Expr::In {
                 expr,
                 values,
@@ -1001,8 +1009,8 @@ impl<L: Leaf> Expr<L> {
             } => {
                 let inner = expr.value_op(graph.clone())?;
                 let (out, shape, members) = set_shape(&expr.resolved_type(&inner), values);
-                let domain = match (expr.as_ref(), shape, negated) {
-                    (Expr::Term(leaf), Shape::Whole, false) => leaf.named_by(&members, &graph),
+                let domain = match (expr.as_ref(), negated) {
+                    (Expr::Term(leaf), false) => leaf.named_by(&members, &graph),
                     _ => None,
                 };
                 L::Ops::unary(
@@ -1039,9 +1047,9 @@ impl<L: Leaf> Expr<L> {
     }
 
     /// A test of `lhs` against `rhs`: `shape` decides from the two types what
-    /// the test gives and how it evaluates, `kernel` evaluates it, and `named`
-    /// gives the nodes a whole-value test can hold on, when it knows them. A
-    /// mismatch names the constant when the right side is one.
+    /// the test gives and how it evaluates, `kernel` evaluates it, and `domain`
+    /// holds the nodes the test can hold on. A mismatch names the constant
+    /// when the right side is one.
     fn binary_test_op<'g, P: Send + Sync + 'g>(
         lhs: &Self,
         rhs: &Self,
@@ -1049,26 +1057,22 @@ impl<L: Leaf> Expr<L> {
         param: P,
         shape: impl FnOnce(&PropType, &PropType) -> Result<(PropType, Shape), ShapeError>,
         kernel: fn(Shape) -> BinaryKernel<P>,
-        named: impl FnOnce(&DynGraphArc<'g>) -> Option<NodeList>,
+        domain: NodeList,
     ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
         let left = lhs.value_op(graph.clone())?;
-        let right = rhs.value_op(graph.clone())?;
+        let right = rhs.value_op(graph)?;
         let lhs_pt = lhs.resolved_type(&left);
         let rhs_pt = rhs.resolved_type(&right);
         let rhs_const = L::Ops::const_value(&right);
         let (out, shape) =
             shape(&lhs_pt, &rhs_pt).map_err(|e| e.into_error(&rhs_pt, rhs_const.as_ref()))?;
-        let domain = match shape {
-            Shape::Whole => named(&graph),
-            Shape::Elementwise => None,
-        };
         Ok(L::Ops::binary(
             left,
             right,
             param,
             kernel(shape),
             out,
-            domain.unwrap_or(NodeList::All),
+            domain,
         ))
     }
 
