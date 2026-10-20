@@ -7,6 +7,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
+use parking_lot::ArcRwLockWriteGuard;
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -33,7 +34,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::wal::LSN;
+use storage::{segments::node::segment::MemNodeSegment, wal::LSN};
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
@@ -409,7 +410,16 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
     }
 
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
+    unsafe fn bulk_load_resolve_node(
+        &self,
+        id: GidRef<'_>,
+    ) -> Result<
+        (
+            MaybeNew<VID>,
+            Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+        ),
+        Self::Error,
+    > {
         Ok(self.graph.bulk_load_resolve_node(id)?)
     }
 

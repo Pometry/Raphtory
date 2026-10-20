@@ -7,6 +7,7 @@ use crate::{
     recovery_ops::RecoveryOps,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
+use parking_lot::ArcRwLockWriteGuard;
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -35,6 +36,7 @@ use storage::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
+    segments::node::segment::MemNodeSegment,
     transaction::TransactionGuard,
     wal::LSN,
     ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
@@ -245,13 +247,14 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(id)
     }
 
+    // TODO: this should not exist
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
         match id {
             NodeRef::External(id) => {
                 let id = match self.gid_resolver.get_or_init(id)? {
                     MaybeInit::VID(vid) => MaybeNew::Existing(vid),
                     MaybeInit::Init(init) => {
-                        let (seg, pos) = self.storage().nodes().reserve_free_pos(
+                        let (seg, pos, _) = self.storage().nodes().reserve_free_pos(
                             self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                         );
                         let vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
@@ -333,17 +336,26 @@ impl InternalAdditionOps for TemporalGraph {
         Ok((vid, node_type_id))
     }
 
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
+    unsafe fn bulk_load_resolve_node(
+        &self,
+        id: GidRef<'_>,
+    ) -> Result<
+        (
+            MaybeNew<VID>,
+            Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+        ),
+        Self::Error,
+    > {
         let vid = match self.gid_resolver.get(id) {
-            Some(vid) => MaybeNew::Existing(vid),
+            Some(vid) => (MaybeNew::Existing(vid), Vec::new()),
             None => {
-                let (seg, pos) = self
+                let (seg, pos, new_locks) = self
                     .storage()
                     .nodes()
                     .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
                 let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                 self.gid_resolver.set(id, new_vid)?;
-                MaybeNew::New(new_vid)
+                (MaybeNew::New(new_vid), new_locks)
             }
         };
 

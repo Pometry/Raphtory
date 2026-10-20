@@ -2,6 +2,7 @@
 use crate::arrow_loader::df_loaders::build_progress_bar;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
+use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
 
 use crate::{
     arrow_loader::{
@@ -49,6 +50,7 @@ use storage::{
         },
         resolve_pos,
     },
+    segments::node::segment::MemNodeSegment,
     Extension,
 };
 use tracing::error;
@@ -259,7 +261,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .transpose()?;
         let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
 
-        let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
+        let (src_vids, dst_vids, gid_str_cache, new_segment_guards) = if resolve_nodes {
             let cache = node_resolve_cache
                 .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
             resolve_node_vids_with_cache(
@@ -495,7 +497,15 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
     src_col: &'a NodeCol,
     dst_col: &'a NodeCol,
     len: usize,
-) -> Result<(&'a [VID], &'a [VID], Vec<(GidRef<'a>, VID)>), GraphError> {
+) -> Result<
+    (
+        &'a [VID],
+        &'a [VID],
+        Vec<(GidRef<'a>, VID)>,
+        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
+    ),
+    GraphError,
+> {
     src_col_resolved.resize_with(len, Default::default);
     dst_col_resolved.resize_with(len, Default::default);
 
@@ -505,31 +515,55 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
     let resolve_gid = |gid: GidRef<'_>| unsafe {
         graph
             .bulk_load_resolve_node(gid)
-            .map(|vid| vid.inner())
+            .map(|(vid, new_seg_guards)| (vid.inner(), new_seg_guards))
             .map_err(into_graph_err)
     };
 
-    node_cache.par_iter_mut().try_for_each(|mut shard| {
-        let iter = izip!(
-            src_col.iter(),
-            dst_col.iter(),
-            atomic_src_col.iter(),
-            atomic_dst_col.iter()
-        );
+    let new_segment_guards = node_cache
+        .par_iter_mut()
+        .map(|mut shard| {
+            let mut new_segment_guards = vec![];
 
-        for (src, dst, src_vid, dst_vid) in iter {
-            if shard.is_in_shard(src) {
-                let vid = shard.resolve_with(src, || resolve_gid(src))?.inner();
-                src_vid.store(vid.0, Ordering::Relaxed);
-            }
+            let iter = izip!(
+                src_col.iter(),
+                dst_col.iter(),
+                atomic_src_col.iter(),
+                atomic_dst_col.iter()
+            );
 
-            if shard.is_in_shard(dst) {
-                let vid = shard.resolve_with(dst, || resolve_gid(dst))?.inner();
-                dst_vid.store(vid.0, Ordering::Relaxed);
+            for (src, dst, src_vid, dst_vid) in iter {
+                if shard.is_in_shard(src) {
+                    let vid = shard
+                        .resolve_with(src, || match resolve_gid(src) {
+                            Ok((vid, guards)) => {
+                                new_segment_guards.extend(guards);
+                                Ok(vid)
+                            }
+                            Err(e) => Err(e),
+                        })?
+                        .inner();
+                    src_vid.store(vid.0, Ordering::Relaxed);
+                }
+
+                if shard.is_in_shard(dst) {
+                    let vid = shard
+                        .resolve_with(dst, || match resolve_gid(dst) {
+                            Ok((vid, guards)) => {
+                                new_segment_guards.extend(guards);
+                                Ok(vid)
+                            }
+                            Err(e) => Err(e),
+                        })?
+                        .inner();
+                    dst_vid.store(vid.0, Ordering::Relaxed);
+                }
             }
-        }
-        Ok::<_, GraphError>(())
-    })?;
+            Ok::<_, GraphError>(new_segment_guards)
+        })
+        .collect::<Result<Vec<Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>>, GraphError>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
     let node_ids = src_col
         .iter()
@@ -548,6 +582,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
         src_col_resolved.as_slice(),
         dst_col_resolved.as_slice(),
         node_ids,
+        new_segment_guards,
     ))
 }
 
@@ -567,24 +602,33 @@ pub fn get_or_resolve_node_vids<
     df: &'b DFChunk,
     src_col: &'a NodeCol,
     dst_col: &'a NodeCol,
-) -> Result<(&'c [VID], &'c [VID], Vec<(GidRef<'a>, VID)>), GraphError> {
-    let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
+) -> Result<
+    (
+        &'c [VID],
+        &'c [VID],
+        Vec<(GidRef<'a>, VID)>,
+        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
+    ),
+    GraphError,
+> {
+    if resolve_nodes {
         src_col_resolved.resize_with(df.len(), Default::default);
         dst_col_resolved.resize_with(df.len(), Default::default);
 
         let atomic_src_col = atomic_vid_from_mut_slice(src_col_resolved);
         let atomic_dst_col = atomic_vid_from_mut_slice(dst_col_resolved);
 
-        let gid_str_cache = resolve_nodes_with_cache::<G>(
+        let (gid_str_cache, new_seg_guards) = resolve_nodes_with_cache::<G>(
             graph,
             [src_col, dst_col].as_ref(),
             [atomic_src_col, atomic_dst_col].as_ref(),
         )?;
-        (
+        Ok((
             src_col_resolved.as_slice(),
             dst_col_resolved.as_slice(),
             gid_str_cache.into_iter().collect(),
-        )
+            new_seg_guards,
+        ))
     } else {
         let srcs = df.chunk[src_index]
             .as_primitive_opt::<UInt64Type>()
@@ -596,13 +640,13 @@ pub fn get_or_resolve_node_vids<
             .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[dst_index].data_type().clone()))?
             .values()
             .as_ref();
-        (
+        Ok((
             bytemuck::cast_slice(srcs),
             bytemuck::cast_slice(dsts),
             vec![],
-        )
-    };
-    Ok((src_vids, dst_vids, gid_str_cache))
+            vec![],
+        ))
+    }
 }
 
 fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(

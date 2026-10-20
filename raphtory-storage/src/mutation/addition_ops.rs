@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use db4_graph::WriteLockedGraph;
+use parking_lot::ArcRwLockWriteGuard;
 use raphtory_api::{
     core::{
         entities::{
@@ -20,7 +21,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
-use storage::{wal::LSN, Extension};
+use storage::{segments::node::segment::MemNodeSegment, wal::LSN, Extension};
 
 /// A resolved node and node type id; the outer [`MaybeNew`] tracks whether the type assignment is new.
 pub type NodeTypeResolution = MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>;
@@ -59,9 +60,19 @@ pub trait InternalAdditionOps {
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error>;
 
-    /// SAFETY this function assumes it is called from behind a sharded structure that does not
+    /// # Safety
+    /// this function assumes it is called from behind a sharded structure that does not
     /// allow the same id to be resolved at the same time by more than 1 thread
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error>;
+    unsafe fn bulk_load_resolve_node(
+        &self,
+        id: GidRef<'_>,
+    ) -> Result<
+        (
+            MaybeNew<VID>,
+            Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+        ),
+        Self::Error,
+    >;
 
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
@@ -275,7 +286,16 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.resolve_node_and_type(id, node_type)
     }
 
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
+    unsafe fn bulk_load_resolve_node(
+        &self,
+        id: GidRef<'_>,
+    ) -> Result<
+        (
+            MaybeNew<VID>,
+            Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+        ),
+        Self::Error,
+    > {
         self.mutable()?.bulk_load_resolve_node(id)
     }
 
@@ -390,7 +410,16 @@ where
         self.base().resolve_node_and_type(id, node_type)
     }
 
-    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<MaybeNew<VID>, Self::Error> {
+    unsafe fn bulk_load_resolve_node(
+        &self,
+        id: GidRef<'_>,
+    ) -> Result<
+        (
+            MaybeNew<VID>,
+            Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+        ),
+        Self::Error,
+    > {
         self.base().bulk_load_resolve_node(id)
     }
 

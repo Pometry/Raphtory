@@ -11,6 +11,7 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
+use lock_api::ArcRwLockWriteGuard;
 use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     Direction,
@@ -512,6 +513,11 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     #[inline(always)]
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
         self.inner.read_arc_recursive()
+    }
+
+    #[inline(always)]
+    fn head_mut_arc(&self) -> ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment> {
+        self.inner.write_arc()
     }
 
     #[inline(always)]

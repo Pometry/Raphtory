@@ -15,6 +15,7 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
+use lock_api::ArcRwLockWriteGuard;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
@@ -378,12 +379,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments.iter().any(|(_, segment)| segment.is_dirty())
     }
 
-    pub fn reserve_vid(&self, row: usize) -> VID {
-        let (seg, pos) = self.reserve_free_pos(row);
-        pos.as_vid(seg, self.max_segment_len())
-    }
-
-    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
+    pub fn reserve_free_pos(
+        &self,
+        row: usize,
+    ) -> (
+        usize,
+        LocalPOS,
+        Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+    ) {
         let slot_idx = row % *N;
         let maybe_free_page = {
             let segment_id = *self.free_segments[slot_idx].read_recursive();
@@ -391,7 +394,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
             page.and_then(|page| {
                 self.reserve_segment_row(page)
-                    .map(|pos| (page.segment_id(), LocalPOS(pos)))
+                    .map(|pos| (page.segment_id(), LocalPOS(pos), Vec::new()))
             })
         };
 
@@ -400,13 +403,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         } else {
             // not lucky, go wait on your slot
             let mut slot = self.free_segments[slot_idx].write();
+            let mut new_segment_locks = Vec::new();
             loop {
                 if let Some(page) = self.segments.get(*slot)
                     && let Some(pos) = self.reserve_segment_row(page)
                 {
-                    return (page.segment_id(), LocalPOS(pos));
+                    return (page.segment_id(), LocalPOS(pos), new_segment_locks);
                 }
-                *slot = self.push_new_segment();
+                *slot = self.push_new_segment(Some(&mut new_segment_locks));
             }
         }
     }
@@ -433,7 +437,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             None => {
                 // The current segment is full, drop its lock and push a new free segment
                 drop(writer);
-                segment_id = self.push_new_segment();
+                segment_id = self.push_new_segment(None);
                 *slot = segment_id;
                 let writer = self.writer(segment_id);
                 let local_pos = self
@@ -457,15 +461,24 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
-    fn push_new_segment(&self) -> usize {
+    fn push_new_segment(
+        &self,
+        new_segment_locks: Option<
+            &mut Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
+        >,
+    ) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
-            Arc::new(NS::new(
+            let segment = Arc::new(NS::new(
                 segment_id,
                 self.node_meta.clone(),
                 self.edge_meta.clone(),
                 self.path.clone(),
                 self.ext.clone(),
-            ))
+            ));
+            if let Some(new_segment_locks) = new_segment_locks {
+                new_segment_locks.push(segment.head_mut_arc())
+            };
+            segment
         });
 
         while self.segments.get(segment_id).is_none() {

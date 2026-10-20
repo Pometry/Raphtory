@@ -288,6 +288,12 @@ fn import_node_internal<
     id: V,
     merge: bool,
 ) -> Result<NodeView<'static, G>, GraphError> {
+    // TODO
+    // lock the core graph of the incoming node to dissalow changes to the node as we import it
+    // validate that the node property type for temporal props and metadata can be unified with ours
+    // proceed to explode the temporal properties and call add add_node the top level API
+    // that will manage the validation and the WAL and everything else
+    //
     // Writes through the internal addition ops, so take the regular update guard here.
     let _transaction_manager = graph.core_graph().transaction_manager()?;
     let id = id.as_node_ref();
@@ -300,7 +306,7 @@ fn import_node_internal<
     }
 
     let (node_internal, _) = graph
-        .resolve_and_update_node_and_type(id, node.node_type().as_str())
+        .resolve_and_update_node_and_type(id, node.node_type().as_str()) // <- we need to stop calling this
         .map_err(into_graph_err)?
         .inner();
     let node_internal = node_internal.inner();
