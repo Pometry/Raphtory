@@ -31,14 +31,12 @@ use std::{
     sync::{atomic::Ordering, mpsc},
 };
 use storage::{
-    api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
-    // pages::locked::nodes::LockedNodeSegment,
-    // segments::node_type_index::MemNodeTypeIndex,
-    // Extension,
-    // pages::locked::nodes::{LockedNodeSegment, WriteLockedNodePages},
-    // segments::node_type_index::index::MemNodeTypeIndex,
-    Extension,
-    NS,
+    api::nodes::NodeSegmentOps,
+    pages::locked::{
+        node_type_index::WriteLockedNodeTypeIndex,
+        nodes::{LockedNodeSegment, WriteLockedNodeSegments},
+    },
+    Extension, NS, NTI,
 };
 
 #[cfg(feature = "progress")]
@@ -56,10 +54,6 @@ use crate::arrow_loader::{
 };
 #[cfg(feature = "progress")]
 use kdam::BarExt;
-use storage::{
-    pages::locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments},
-    segments::node_type_index::MemNodeTypeIndex,
-};
 
 /// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
@@ -260,8 +254,13 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             )?;
 
             if resolve_nodes && !gid_str_cache.is_empty() {
-                let index = graph.core_graph().node_type_index();
-                populate_node_type_index(&gid_str_cache, &index.head_shared_arc());
+                let index = &mut write_locked_graph.node_type_index;
+                populate_node_type_index(
+                    gid_str_cache
+                        .iter()
+                        .map(|(_, (vid, node_type))| (*vid, *node_type)),
+                    index,
+                );
                 index.notify_write();
             }
 
@@ -438,6 +437,18 @@ pub fn load_node_props_from_df<
             node_type_col,
             is_materializing,
         )?;
+
+        if resolve_nodes && !node_col_resolved.is_empty() {
+            let index = &mut write_locked_graph.node_type_index;
+            populate_node_type_index(
+                node_col_resolved
+                    .iter()
+                    .zip(node_type_col_resolved)
+                    .map(|(vid, node_type)| (*vid, *node_type)),
+                index,
+            );
+            index.notify_write();
+        }
 
         // We assume this is fast enough
         let max_vid = node_col_resolved
@@ -827,16 +838,19 @@ fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     }
 }
 
-fn populate_node_type_index(gid_str_cache: &[Resolved<'_>], index: &MemNodeTypeIndex) {
+fn populate_node_type_index(
+    gid_str_cache: impl IntoIterator<Item = (VID, usize)>,
+    index: &WriteLockedNodeTypeIndex<NTI>,
+) {
     let mut by_type: HashMap<usize, Vec<VID>> = HashMap::new();
 
-    for (_, (vid, node_type)) in gid_str_cache {
+    for (vid, node_type) in gid_str_cache {
         // Nodes with default type don't need to be indexed.
-        if *node_type == DEFAULT_NODE_TYPE_ID {
+        if node_type == DEFAULT_NODE_TYPE_ID {
             continue;
         }
 
-        by_type.entry(*node_type).or_default().push(*vid);
+        by_type.entry(node_type).or_default().push(vid);
     }
 
     by_type.par_iter().for_each(|(node_type, vids)| {

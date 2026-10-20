@@ -35,6 +35,8 @@ where
 
     fn notify_write(&self);
 
+    fn notify_write_with_head(&self, head: impl DerefMut<Target = MemNodeTypeIndex>);
+
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self>;
 
     fn flush(&self) -> Result<(), StorageError> {

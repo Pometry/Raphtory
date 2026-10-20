@@ -20,6 +20,10 @@ impl<NTI: NodeTypeIndexOps> WriteLockedNodeTypeIndex<NTI> {
         self.head.insert_batch(type_id, vids);
     }
 
+    pub fn notify_write(&mut self) {
+        self.index.notify_write_with_head(self.head.deref_mut())
+    }
+
     pub fn flush(&mut self) -> Result<(), StorageError> {
         let head = self.head.deref_mut();
         self.index.flush_with_head(head)
