@@ -190,7 +190,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for Edges<'graph, 
             select,
             Arc::new(move |graph| {
                 let op = op.clone();
-                edges(graph).map(move |e| op(e)).into_dyn_boxed()
+                edges(graph).map(op).into_dyn_boxed()
             }),
         )
     }
@@ -396,7 +396,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for NestedEdges<'g
         let select = self.select.clone();
         let edges = Arc::new(move |graph: DynGraphArc<'graph>, n| {
             let op = op.clone();
-            edges(graph, n).map(move |e| op(e)).into_dyn_boxed()
+            edges(graph, n).map(op).into_dyn_boxed()
         });
         PathFromGraph::new_filtered(self.graph.clone(), select, self.nodes.clone(), edges)
     }

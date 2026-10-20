@@ -162,20 +162,12 @@ where
             // Find triangles on the UV edge
             if u.node > v.node {
                 let intersection_nbs = {
-                    match (
-                        u.entry(&neighbours_set)
-                            .read_ref()
-                            .unwrap_or(&FxHashSet::default()),
-                        v.entry(&neighbours_set)
-                            .read_ref()
-                            .unwrap_or(&FxHashSet::default()),
-                    ) {
-                        (u_set, v_set) => {
-                            let intersection =
-                                u_set.intersection(v_set).cloned().collect::<Vec<_>>();
-                            intersection
-                        }
-                    }
+                    let empty = FxHashSet::default();
+                    let u_entry = u.entry(&neighbours_set);
+                    let v_entry = v.entry(&neighbours_set);
+                    let u_set = u_entry.read_ref().unwrap_or(&empty);
+                    let v_set = v_entry.read_ref().unwrap_or(&empty);
+                    u_set.intersection(v_set).cloned().collect::<Vec<_>>()
                 };
 
                 if intersection_nbs.is_empty() {
