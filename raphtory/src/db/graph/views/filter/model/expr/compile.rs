@@ -429,22 +429,37 @@ impl Leaf for NodeLeaf {
     }
 
     /// An id or a name names its node through the graph's id index, whatever
-    /// the views on the term: an id does not depend on them. A name is the
-    /// string id, so on a numeric-id graph a name constant (a string) names
-    /// no key and every node is visited. The list makes no claim to be exact,
-    /// so the test still runs on every node in it.
+    /// the views on the term: neither depends on them. An id names the node
+    /// with that id. A name is a string, the id written out: on a graph with
+    /// string ids it is the id, on a graph with numeric ids it is parsed into
+    /// one, and a string that is no number names no node. The list makes no
+    /// claim to be exact, so the test still runs on every node in it.
     fn named_by(&self, values: &[Prop], graph: &DynGraphArc<'_>) -> Option<NodeList> {
-        let id_type = match self {
+        let id_type = graph.id_type()?;
+        let ids = match self {
             NodeLeaf::Field {
-                field: Field::Id | Field::Name,
-                ..
-            } => graph.id_type(),
-            _ => None,
-        }?;
-        let ids = values
-            .iter()
-            .map(|value| id_ref(id_type, value))
-            .collect::<Option<Vec<_>>>()?;
+                field: Field::Id, ..
+            } => values
+                .iter()
+                .map(|value| id_ref(id_type, value))
+                .collect::<Option<Vec<_>>>()?,
+            NodeLeaf::Field {
+                field: Field::Name, ..
+            } => {
+                let mut ids = Vec::with_capacity(values.len());
+                for value in values {
+                    let Prop::Str(name) = value else {
+                        return None;
+                    };
+                    match id_type {
+                        GidType::Str => ids.push(GidRef::Str(name)),
+                        GidType::U64 => ids.extend(name.parse().ok().map(GidRef::U64)),
+                    }
+                }
+                ids
+            }
+            _ => return None,
+        };
         Some(nodes_with_ids(graph, ids))
     }
 }

@@ -718,18 +718,52 @@ fn name_is_in_visits_only_the_named_nodes() {
 }
 
 #[test]
-fn a_name_test_on_numeric_ids_keeps_every_node() {
-    // On a numeric-id graph a node's name is its id written as a string, so
-    // the name is not a key of the id index: the test runs on every node.
+fn a_name_test_on_numeric_ids_parses_its_node() {
+    // On a numeric-id graph a node's name is its id written out, so a name
+    // that reads as a number names that node and one that does not names
+    // no node; the test still runs on every node named.
     let g = Graph::new();
     g.add_node(0, 1, NO_PROPS, None, None).unwrap();
     g.add_node(0, 6, NO_PROPS, None, None).unwrap();
-    let domain = filter_domain(NodeFilter.name().eq("1"), &g);
-    assert!(
-        matches!(domain, NodeList::All),
-        "name == 1 on numeric ids must keep the full domain, got {domain:?}"
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("1"), &g)),
+        vids(&g, &["1"])
     );
     assert_eq!(selected_names(NodeFilter.name().eq("1"), &g), vec!["1"]);
+    let both = || {
+        NodeFilter
+            .name()
+            .is_in(vec!["6".into_prop(), "1".into_prop()])
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["1", "6"]));
+    assert_eq!(selected_names(both(), &g), vec!["1", "6"]);
+    // "06" parses to 6 but is not node 6's name: visited, not kept
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("06"), &g)),
+        vids(&g, &["6"])
+    );
+    assert!(selected_names(NodeFilter.name().eq("06"), &g).is_empty());
+    // a name that is no number names nothing
+    assert!(listed(filter_domain(NodeFilter.name().eq("six"), &g)).is_empty());
+    assert!(selected_names(NodeFilter.name().eq("six"), &g).is_empty());
+}
+
+#[test]
+fn a_numeric_id_test_visits_only_the_named_node() {
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    for value in [Prop::U64(6), Prop::I64(6), Prop::U8(6)] {
+        assert_eq!(
+            listed(filter_domain(NodeFilter.id().eq(value.clone()), &g)),
+            vids(&g, &["6"]),
+            "id == {value:?}"
+        );
+        assert_eq!(selected_names(NodeFilter.id().eq(value), &g), vec!["6"]);
+    }
+    let both = || NodeFilter.id().is_in(vec![Prop::U64(6), Prop::U64(1)]);
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["1", "6"]));
+    assert_eq!(selected_names(both(), &g), vec!["1", "6"]);
 }
 
 #[test]
