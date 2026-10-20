@@ -102,12 +102,12 @@ pub fn ba_preferential_attachment(
         for _ in 0..edges_per_step {
             let mut sum = 0;
             let rand_num = rng.random_range(1..=normalisation);
-            for pos in 0..ids.len() {
+            for (pos, &degree) in degrees.iter().enumerate().take(ids.len()) {
                 if !positions_to_skip.contains(&pos) {
-                    sum += degrees[pos];
+                    sum += degree;
                     if sum >= rand_num {
                         positions_to_skip.insert(pos);
-                        normalisation -= degrees[pos];
+                        normalisation -= degree;
                         break;
                     }
                 }
