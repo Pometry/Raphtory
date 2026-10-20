@@ -373,10 +373,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     ///
     /// * `properties` - Property key-value pairs to add
     /// * `layer` - The layer to which properties should be added. If the edge view is restricted to a
-    ///             single layer, 'None' will add the properties to that layer and 'Some("name")'
-    ///             fails unless the layer matches the edge view. If the edge view is not restricted
-    ///             to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
-    ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
+    ///   single layer, 'None' will add the properties to that layer and 'Some("name")'
+    ///   fails unless the layer matches the edge view. If the edge view is not restricted
+    ///   to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
+    ///   sets the properties on layer '"name"' and fails if that layer doesn't exist.
     ///
     /// Returns:
     ///     Ok(()) if metadata added successfully.

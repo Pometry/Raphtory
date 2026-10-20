@@ -26,7 +26,7 @@ pub fn two_node_event(dir: usize, time: i64) -> TwoNodeEvent {
 }
 
 impl TwoNodeCounter {
-    pub fn execute(&mut self, events: &Vec<TwoNodeEvent>, delta: i64) {
+    pub fn execute(&mut self, events: &[TwoNodeEvent], delta: i64) {
         let mut start = 0;
         for event in events.iter() {
             while events[start].time + delta < event.time {
@@ -142,7 +142,7 @@ impl StarCounter {
             self.post_nodes[OUTGOING * self.n + cur_edge.nb];
     }
 
-    pub fn execute(&mut self, edges: &Vec<StarEvent>, delta: i64) {
+    pub fn execute(&mut self, edges: &[StarEvent], delta: i64) {
         let l = edges.len();
         if l < 3 {
             return;
@@ -219,7 +219,7 @@ pub struct TriangleCounter {
     final_counts: [usize; 8],
 }
 impl TriangleCounter {
-    pub fn execute(&mut self, edges: &Vec<TriangleEdge>, delta: i64) {
+    pub fn execute(&mut self, edges: &[TriangleEdge], delta: i64) {
         let l = edges.len();
         if l < 3 {
             return;

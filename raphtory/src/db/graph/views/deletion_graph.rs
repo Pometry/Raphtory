@@ -20,7 +20,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps, stage::Stage};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,
@@ -44,8 +44,6 @@ use {
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by event id) is a deletion,
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
-///
-///
 #[derive(Clone, Debug)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
@@ -53,7 +51,7 @@ impl Static for PersistentGraph {}
 
 impl From<GraphStorage> for PersistentGraph {
     fn from(value: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(value)))
+        Self(Arc::new(Storage::from(value)))
     }
 }
 
@@ -225,14 +223,6 @@ impl PersistentGraph {
         )?)))
     }
 
-    pub fn from_storage(storage: Arc<Storage>) -> Self {
-        Self(storage)
-    }
-
-    pub fn from_internal_graph(internal_graph: GraphStorage) -> Self {
-        Self(Arc::new(Storage::from_inner(internal_graph)))
-    }
-
     /// Return a read-only handle to this graph. Mutations on the returned
     /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
     /// `TemporalGraph` is shared — this is not a snapshot.
@@ -245,8 +235,12 @@ impl PersistentGraph {
         Self(Arc::new(self.0.read_only()))
     }
 
+    pub fn stage(&self) -> Result<Stage<Self>, GraphError> {
+        Stage::new(self).map_err(GraphError::from)
+    }
+
     pub fn event_graph(&self) -> Graph {
-        Graph::from_storage(self.0.clone())
+        Graph::from(self.0.clone())
     }
 
     pub fn persistent_graph(&self) -> PersistentGraph {
@@ -303,6 +297,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+
     #[inline]
     fn window_filtered(&self) -> bool {
         false

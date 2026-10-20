@@ -621,7 +621,6 @@ impl GqlTemporalProperty {
 
     /// The value at or before time `t` (latest update on or before `t`). Returns null
     /// if no update exists on or before `t`.
-
     pub async fn at(
         &self,
         #[graphql(
@@ -654,7 +653,6 @@ impl GqlTemporalProperty {
     }
 
     /// Collapses runs of consecutive-equal updates into a single `(time, value)` pair.
-
     pub async fn ordered_dedupe(
         &self,
         #[graphql(
@@ -792,7 +790,6 @@ impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
 impl GqlProperties {
     /// Look up a single property by key. Returns null if no property with that key
     /// exists in the current view.
-
     pub async fn get(
         &self,
         #[graphql(desc = "The property name.")] key: String,
@@ -803,7 +800,6 @@ impl GqlProperties {
     }
 
     /// Returns true if a property with the given key exists in this view.
-
     pub async fn contains(
         &self,
         #[graphql(desc = "The property name to look up.")] key: String,
@@ -814,7 +810,6 @@ impl GqlProperties {
     /// The data-type of the property's latest value by key, as its `PropType`
     /// display string (e.g. `"I64"`, `"Str"`, `"List<F64>"`). Returns null when
     /// the key isn't present. Mirrors the local `Properties.get_dtype_of`.
-
     pub async fn get_dtype_of(
         &self,
         #[graphql(desc = "The property name.")] key: String,
@@ -837,7 +832,6 @@ impl GqlProperties {
     }
 
     /// Snapshot of property values, one `{key, value}` entry per property.
-
     pub async fn values(
         &self,
         #[graphql(
@@ -875,7 +869,6 @@ impl GqlProperties {
 impl GqlMetadata {
     /// Look up a single metadata value by key. Returns null if no metadata with that
     /// key exists.
-
     pub async fn get(
         &self,
         #[graphql(desc = "The metadata name.")] key: String,
@@ -886,7 +879,6 @@ impl GqlMetadata {
     }
 
     /// Returns true if a metadata entry with the given key exists.
-
     pub async fn contains(
         &self,
         #[graphql(desc = "The metadata name to look up.")] key: String,
@@ -901,7 +893,6 @@ impl GqlMetadata {
     }
 
     /// All metadata values as `{key, value}` entries.
-
     pub(crate) async fn values(
         &self,
         #[graphql(
@@ -933,7 +924,6 @@ impl GqlMetadata {
 impl GqlTemporalProperties {
     /// Look up a single temporal property by key. Returns null if there's no temporal
     /// property with that key.
-
     pub async fn get(
         &self,
         #[graphql(desc = "The property name.")] key: String,
@@ -942,7 +932,6 @@ impl GqlTemporalProperties {
     }
 
     /// Returns true if a temporal property with the given key exists.
-
     pub async fn contains(
         &self,
         #[graphql(desc = "The property name to look up.")] key: String,
@@ -965,7 +954,6 @@ impl GqlTemporalProperties {
 
     /// All temporal properties, each as a `TemporalProperty` with its full timeline
     /// available. Use `history`, `values`, `latest`, `at`, etc. on each entry.
-
     pub async fn values(
         &self,
         #[graphql(

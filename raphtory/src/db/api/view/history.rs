@@ -36,6 +36,7 @@ use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, sync::Arc};
 
 /// Trait declaring the operations needed so that a type's History can be accessed using the `History` object
+#[allow(clippy::len_without_is_empty)]
 pub trait InternalHistoryOps: Send + Sync {
     /// Iterate over temporal entries in chronological order.
     fn iter(&self) -> BoxedLIter<'_, EventTime>;
@@ -826,7 +827,7 @@ impl<T: InternalHistoryOps + 'static> IntoIterator for HistoryTimestamp<T> {
     }
 }
 
-impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryTimestamp<T>
+impl<T: InternalHistoryOps, L, I: Copy> PartialEq<L> for HistoryTimestamp<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
     i64: PartialEq<I>,
@@ -836,13 +837,13 @@ where
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryTimestamp<T> {
+impl<T: InternalHistoryOps> PartialEq for HistoryTimestamp<T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryTimestamp<T> {}
+impl<T: InternalHistoryOps> Eq for HistoryTimestamp<T> {}
 
 /// History view that exposes UTC datetimes.
 #[derive(Debug, Clone, Copy)]
@@ -885,7 +886,7 @@ impl<T: InternalHistoryOps + 'static> IntoIterator for HistoryDateTime<T> {
     }
 }
 
-impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryDateTime<T>
+impl<T: InternalHistoryOps, L, I: Copy> PartialEq<L> for HistoryDateTime<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
     Result<DateTime<Utc>, TimeError>: PartialEq<I>,
@@ -895,13 +896,13 @@ where
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryDateTime<T> {
+impl<T: InternalHistoryOps> PartialEq for HistoryDateTime<T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryDateTime<T> {}
+impl<T: InternalHistoryOps> Eq for HistoryDateTime<T> {}
 
 /// History view that exposes event ids of time entries. They are used for ordering within the same timestamp.
 #[derive(Debug, Clone, Copy)]
@@ -938,7 +939,7 @@ impl<T: InternalHistoryOps + 'static> IntoIterator for HistoryEventId<T> {
     }
 }
 
-impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryEventId<T>
+impl<T: InternalHistoryOps, L, I: Copy> PartialEq<L> for HistoryEventId<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
     usize: PartialEq<I>,
@@ -948,13 +949,13 @@ where
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryEventId<T> {
+impl<T: InternalHistoryOps> PartialEq for HistoryEventId<T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryEventId<T> {}
+impl<T: InternalHistoryOps> Eq for HistoryEventId<T> {}
 
 /// View over the intervals between consecutive timestamps, expressed in milliseconds.
 #[derive(Debug, Clone, Copy)]
@@ -1041,7 +1042,7 @@ impl<T: InternalHistoryOps + 'static> IntoIterator for Intervals<T> {
     }
 }
 
-impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for Intervals<T>
+impl<T: InternalHistoryOps, L, I: Copy> PartialEq<L> for Intervals<T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
     i64: PartialEq<I>,
@@ -1051,15 +1052,16 @@ where
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> PartialEq for Intervals<T> {
+impl<T: InternalHistoryOps> PartialEq for Intervals<T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T: InternalHistoryOps + 'a> Eq for Intervals<T> {}
+impl<T: InternalHistoryOps> Eq for Intervals<T> {}
 
 /// Trait declaring the operations needed so that a type's deletion history can be accessed using the `History` object
+#[allow(clippy::len_without_is_empty)]
 pub trait InternalDeletionOps: Send + Sync {
     /// Iterate over deletion time entries in chronological order.
     fn iter(&self) -> BoxedLIter<'_, EventTime>;

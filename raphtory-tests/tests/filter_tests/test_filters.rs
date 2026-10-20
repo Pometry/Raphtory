@@ -2705,7 +2705,7 @@ mod test_node_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -2733,7 +2733,7 @@ mod test_node_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -2789,7 +2789,7 @@ mod test_node_filter {
         assert_select_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -4116,7 +4116,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4126,7 +4126,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4136,7 +4136,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -4146,7 +4146,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -4229,7 +4229,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4239,7 +4239,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -4249,7 +4249,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -4259,7 +4259,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4272,7 +4272,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -4282,7 +4282,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -4295,7 +4295,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4305,7 +4305,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4318,7 +4318,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4328,7 +4328,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4338,7 +4338,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4351,7 +4351,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -4364,7 +4364,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::EventOnly,
         );
@@ -4374,7 +4374,7 @@ mod test_node_property_filter {
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -4720,7 +4720,8 @@ mod test_node_property_filter_agg {
         graph: G,
     ) -> G {
         // Each tuple represents (timestamp, node_name, properties).
-        let nodes: [(i64, &str, Vec<(&str, Prop)>); 12] = [
+        type NodeRow<'a> = (i64, &'a str, Vec<(&'a str, Prop)>);
+        let nodes: [NodeRow; 12] = [
             (
                 1,
                 "n1",
@@ -8949,7 +8950,7 @@ mod test_edge_filter {
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -8966,7 +8967,7 @@ mod test_edge_filter {
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -8979,7 +8980,7 @@ mod test_edge_filter {
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -8992,7 +8993,7 @@ mod test_edge_filter {
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::PersistentOnly,
         );
@@ -9012,7 +9013,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestGraphVariants::PersistentGraph,
         );
@@ -9029,7 +9030,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestGraphVariants::PersistentGraph,
         );
@@ -9049,7 +9050,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestGraphVariants::PersistentGraph,
         );
@@ -9066,7 +9067,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestGraphVariants::PersistentGraph,
         );
@@ -9093,7 +9094,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestGraphVariants::PersistentGraph,
         );
@@ -9114,7 +9115,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -9135,7 +9136,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results,
             TestVariants::All,
         );
@@ -9159,7 +9160,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results_self_loop,
             TestVariants::All,
         );
@@ -9175,7 +9176,7 @@ mod test_edge_filter {
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
-            filter.clone(),
+            filter,
             &expected_results_self_loop,
             TestVariants::All,
         );

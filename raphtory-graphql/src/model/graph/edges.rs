@@ -65,7 +65,6 @@ impl GqlEdges {
     }
 
     /// Returns a collection containing only edges belonging to the listed layers.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -75,7 +74,6 @@ impl GqlEdges {
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded list of layers.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -85,13 +83,11 @@ impl GqlEdges {
     }
 
     /// Returns a collection containing edges belonging to the specified layer.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
     /// Returns a collection containing edges belonging to all layers except the excluded layer specified.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -108,7 +104,6 @@ impl GqlEdges {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -141,7 +136,6 @@ impl GqlEdges {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -163,7 +157,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -173,7 +166,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events at a specified time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -189,7 +181,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -203,7 +194,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events before a specified end (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -212,7 +202,6 @@ impl GqlEdges {
     }
 
     /// Creates a view of the Edge including all events after a specified start (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -221,7 +210,6 @@ impl GqlEdges {
     }
 
     /// Set the start of the window.
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -231,7 +219,6 @@ impl GqlEdges {
     }
 
     /// Set the end of the window.
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -256,7 +243,6 @@ impl GqlEdges {
 
     /// Sort the edges. Multiple criteria are applied lexicographically (ties
     /// on the first key break to the second, etc.).
-
     pub async fn sorted(
         &self,
         #[graphql(
@@ -331,7 +317,6 @@ impl GqlEdges {
     ///
     /// Returns:
     ///     int:
-
     /// The property keys this collection reports: the first member's registry
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
@@ -378,7 +363,6 @@ impl GqlEdges {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -421,7 +405,6 @@ impl GqlEdges {
     /// ```
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -455,7 +438,6 @@ impl GqlEdges {
     /// ```
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     pub async fn select(
         &self,
         #[graphql(

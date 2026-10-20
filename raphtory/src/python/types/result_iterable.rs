@@ -1,5 +1,5 @@
 use crate::python::{
-    types::repr::Repr,
+    types::{iterable::IterBuilder, repr::Repr},
     utils::{PyGenericIterator, PyNestedGenericIterator},
 };
 use chrono::{DateTime, Utc};
@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 #[pyclass(frozen, module = "raphtory")]
 pub struct ResultUtcDateTimeIterable {
-    builder: Arc<dyn Fn() -> BoxedIter<Result<DateTime<Utc>, TimeError>> + Send + Sync + 'static>,
+    builder: IterBuilder<Result<DateTime<Utc>, TimeError>>,
 }
 
 impl Repr for ResultUtcDateTimeIterable {
@@ -83,9 +83,7 @@ impl ResultUtcDateTimeIterable {
 
 #[pyclass(frozen, module = "raphtory")]
 pub struct NestedResultUtcDateTimeIterable {
-    builder: Arc<
-        dyn Fn() -> BoxedIter<BoxedIter<Result<DateTime<Utc>, TimeError>>> + Send + Sync + 'static,
-    >,
+    builder: IterBuilder<BoxedIter<Result<DateTime<Utc>, TimeError>>>,
 }
 
 impl Repr for NestedResultUtcDateTimeIterable {
@@ -180,9 +178,7 @@ impl NestedResultUtcDateTimeIterable {
 // Result<Option<_>> types
 #[pyclass(frozen, module = "raphtory")]
 pub struct ResultOptionUtcDateTimeIterable {
-    builder: Arc<
-        dyn Fn() -> BoxedIter<Result<Option<DateTime<Utc>>, TimeError>> + Send + Sync + 'static,
-    >,
+    builder: IterBuilder<Result<Option<DateTime<Utc>>, TimeError>>,
 }
 
 impl Repr for ResultOptionUtcDateTimeIterable {
@@ -256,12 +252,7 @@ impl ResultOptionUtcDateTimeIterable {
 
 #[pyclass(frozen, module = "raphtory")]
 pub struct NestedResultOptionUtcDateTimeIterable {
-    builder: Arc<
-        dyn Fn() -> BoxedIter<BoxedIter<Result<Option<DateTime<Utc>>, TimeError>>>
-            + Send
-            + Sync
-            + 'static,
-    >,
+    builder: IterBuilder<BoxedIter<Result<Option<DateTime<Utc>>, TimeError>>>,
 }
 
 impl Repr for NestedResultOptionUtcDateTimeIterable {

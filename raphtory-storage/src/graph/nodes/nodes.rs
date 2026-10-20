@@ -25,6 +25,7 @@ impl NodesStorage {
         self.storage.node_ref(vid)
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.storage.len()
     }

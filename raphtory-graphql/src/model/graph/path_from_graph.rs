@@ -112,7 +112,6 @@ impl GqlPathFromGraph {
     ////////////////////////
 
     /// Returns a view of PathFromGraph containing the specified layers, errors if any of the layers do not exist.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -128,7 +127,6 @@ impl GqlPathFromGraph {
     }
 
     /// Return a view of PathFromGraph containing all layers except the specified excluded layers, errors if any of the layers do not exist.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -138,13 +136,11 @@ impl GqlPathFromGraph {
     }
 
     /// Return a view of PathFromGraph containing the specified layer, errors if the layer does not exist.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
     /// Return a view of PathFromGraph containing all layers except the specified excluded layer, errors if the layer does not exist.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -153,7 +149,6 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events between a specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -163,7 +158,6 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events at time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -178,7 +172,6 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -193,7 +186,6 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events before the specified end (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -202,7 +194,6 @@ impl GqlPathFromGraph {
     }
 
     /// Create a view of the PathFromGraph including all events after the specified start (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -211,7 +202,6 @@ impl GqlPathFromGraph {
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -221,7 +211,6 @@ impl GqlPathFromGraph {
     }
 
     /// Set the end of the window to the smaller of the specified end and self.end().
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -231,7 +220,6 @@ impl GqlPathFromGraph {
     }
 
     /// Narrow this path to neighbours whose node type is in the given set.
-
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node types to keep.")] node_types: Vec<String>,
@@ -277,7 +265,6 @@ impl GqlPathFromGraph {
     /////////////////
 
     /// Number of source paths in this collection (one per source node).
-
     /// The property keys this collection reports: the first non-empty source's first member's registry
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
@@ -323,7 +310,6 @@ impl GqlPathFromGraph {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 source paths, offset by 11 (2 pages of 5 + 1),
     /// will be returned. Each entry is the per-source list of neighbour nodes.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -448,7 +434,6 @@ impl GqlPathFromGraph {
     /// properties) continues to see the filtered scope.
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -468,7 +453,6 @@ impl GqlPathFromGraph {
     /// — further traversals out of these nodes see the unfiltered graph again.
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     pub async fn select(
         &self,
         #[graphql(

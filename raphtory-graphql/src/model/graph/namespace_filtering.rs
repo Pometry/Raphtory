@@ -1145,9 +1145,7 @@ mod tests {
     fn unlisted_values_sort_after_every_listed_one() {
         // A double-digit order is the case that a naive string-prefixed rank
         // gets wrong: rank 5 must still sort before the unlisted bucket at 12.
-        let order: Vec<Value> = (0..12)
-            .map(|i| Value::Str(format!("v{i:02}").into()))
-            .collect();
+        let order: Vec<Value> = (0..12).map(|i| Value::Str(format!("v{i:02}"))).collect();
         let listed = rank_by_value_order(&str_prop("v05"), &order).unwrap();
         let unlisted = rank_by_value_order(&str_prop("zzz"), &order).unwrap();
 

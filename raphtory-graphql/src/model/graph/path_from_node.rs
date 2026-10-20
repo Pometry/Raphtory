@@ -58,7 +58,6 @@ impl GqlPathFromNode {
     ////////////////////////
 
     /// Returns a view of PathFromNode containing the specified layer, errors if the layer does not exist.
-
     pub async fn layers(
         &self,
         #[graphql(desc = "Layer names to include.")] names: Vec<String>,
@@ -74,7 +73,6 @@ impl GqlPathFromNode {
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
-
     pub async fn exclude_layers(
         &self,
         #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
@@ -84,13 +82,11 @@ impl GqlPathFromNode {
     }
 
     /// Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
-
     pub async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
     /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
-
     pub async fn exclude_layer(
         &self,
         #[graphql(desc = "Layer name to exclude.")] name: String,
@@ -107,7 +103,6 @@ impl GqlPathFromNode {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
-
     pub async fn rolling(
         &self,
         #[graphql(
@@ -140,7 +135,6 @@ impl GqlPathFromNode {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
-
     pub async fn expanding(
         &self,
         #[graphql(
@@ -162,7 +156,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
-
     pub async fn window(
         &self,
         #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
@@ -172,7 +165,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events at time.
-
     pub async fn at(
         &self,
         #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
@@ -187,7 +179,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
-
     pub async fn snapshot_at(
         &self,
         #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
@@ -202,7 +193,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
-
     pub async fn before(
         &self,
         #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
@@ -211,7 +201,6 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events after the specified start (exclusive).
-
     pub async fn after(
         &self,
         #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
@@ -220,7 +209,6 @@ impl GqlPathFromNode {
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
-
     pub async fn shrink_start(
         &self,
         #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
@@ -230,7 +218,6 @@ impl GqlPathFromNode {
     }
 
     /// Set the end of the window to the smaller of the specified end and self.end().
-
     pub async fn shrink_end(
         &self,
         #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
@@ -240,7 +227,6 @@ impl GqlPathFromNode {
     }
 
     /// Narrow this path to neighbours whose node type is in the given set.
-
     pub async fn type_filter(
         &self,
         #[graphql(desc = "Node types to keep.")] node_types: Vec<String>,
@@ -326,7 +312,6 @@ impl GqlPathFromNode {
     /////////////////
 
     /// Number of neighbour nodes reachable from the source in this view.
-
     /// The property keys this collection reports: the first member's registry
     /// view — the graph's registered property keys for the entity kind — or an
     /// empty list when there are no members. Mirrors the local collection
@@ -372,7 +357,6 @@ impl GqlPathFromNode {
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-
     pub async fn page(
         &self,
         ctx: &Context<'_>,
@@ -423,7 +407,6 @@ impl GqlPathFromNode {
     /// ```
     ///
     /// Contrast with `select`, which applies here and is not carried through.
-
     pub async fn filter(
         &self,
         #[graphql(
@@ -454,7 +437,6 @@ impl GqlPathFromNode {
     /// ```
     ///
     /// Contrast with `filter`, which persists the scope through subsequent ops.
-
     pub async fn select(
         &self,
         #[graphql(

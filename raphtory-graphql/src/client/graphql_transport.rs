@@ -2061,7 +2061,6 @@ fn read_depth(expr: &ReadExpr) -> usize {
 /// validation and terminal execution (server-side deletion in between), and
 /// for any future callers that construct a `ReadExpr::Node` / `Edge` without
 /// going through the validated builder.
-
 fn parse_read(
     expr: &ReadExpr,
     mut root: HashMap<String, JsonValue>,

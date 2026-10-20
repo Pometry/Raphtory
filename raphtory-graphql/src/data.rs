@@ -1683,7 +1683,6 @@ pub(crate) mod data_tests {
         let paths = data
             .get_all_graph_folders()
             .await
-            .into_iter()
             .map(|folder| folder.folder.root().to_path_buf())
             .collect_vec();
 

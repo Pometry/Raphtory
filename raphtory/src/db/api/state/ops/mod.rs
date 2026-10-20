@@ -139,6 +139,9 @@ pub struct ArrowMap<Op: NodeOp, A> {
     _phantom: PhantomData<A>,
 }
 
+/// Maps the output of `Op` to `V` and exposes the result as the arrow struct `A`.
+pub type ArrowMapped<Op, V, A> = ArrowMap<Map<Op, V>, A>;
+
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
     type Output = V;
 

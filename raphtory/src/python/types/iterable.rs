@@ -10,9 +10,12 @@ use std::{
     vec::IntoIter,
 };
 
+/// Shared constructor for a fresh iterator, called each time the Python side iterates.
+pub type IterBuilder<I> = Arc<dyn Fn() -> BoxedIter<I> + Send + Sync + 'static>;
+
 pub struct Iterable<I: Send + Sync, PyI: for<'py> IntoPyObject<'py> + From<I> + Repr> {
     pub name: &'static str,
-    pub builder: Arc<dyn Fn() -> BoxedIter<I> + Send + Sync + 'static>,
+    pub builder: IterBuilder<I>,
     pytype: PhantomData<PyI>,
 }
 
@@ -68,7 +71,7 @@ impl<I: Send + Sync + 'static, PyI: for<'py> IntoPyObject<'py> + From<I> + Repr>
 
 pub struct NestedIterable<I: Send + Sync, PyI: for<'py> IntoPyObject<'py> + From<I> + Repr> {
     pub name: &'static str,
-    pub builder: Arc<dyn Fn() -> BoxedIter<BoxedIter<I>> + Send + Sync + 'static>,
+    pub builder: IterBuilder<BoxedIter<I>>,
     pytype: PhantomData<PyI>,
 }
 
