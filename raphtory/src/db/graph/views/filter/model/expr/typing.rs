@@ -58,6 +58,14 @@ pub(crate) fn list(inner: PropType) -> PropType {
     PropType::List(Box::new(inner))
 }
 
+/// The element type under every level of list nesting of `pt`.
+fn innermost(pt: &PropType) -> &PropType {
+    match pt {
+        PropType::List(inner) => innermost(inner),
+        other => other,
+    }
+}
+
 /// The result type of comparing `lhs` with `rhs`: `Bool` when the two are
 /// comparable as they stand, `List<Bool>` (nested to match) when a list-valued
 /// side is compared element by element against the other.
@@ -67,7 +75,15 @@ pub(crate) fn comparison_shape(
     rhs: &PropType,
 ) -> Result<(PropType, Shape), ShapeError> {
     if lhs.is_comparable_with(rhs) {
-        validate_binary_op(op, lhs).map_err(ShapeError::Invalid)?;
+        // While the left side is unknown, the right side is the one the
+        // operator can be checked against: an ordering against a value no
+        // type can order is refused before any graph is at hand.
+        let checked = if lhs.is_unknown() {
+            innermost(rhs)
+        } else {
+            lhs
+        };
+        validate_binary_op(op, checked).map_err(ShapeError::Invalid)?;
         return Ok((PropType::Bool, Shape::Whole));
     }
     if let PropType::List(inner) = lhs {

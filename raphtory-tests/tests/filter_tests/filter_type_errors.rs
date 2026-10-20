@@ -141,6 +141,35 @@ fn a_history_takes_its_element_type_from_the_graph() {
     );
 }
 
+/// With the left side's type still unknown, an ordering against a value no
+/// type can order (a map, at any list depth) is refused where it is written;
+/// a value some type could order defers to filter time.
+#[test]
+fn an_ordering_against_an_unorderable_value_is_refused_before_any_graph() {
+    let prop = || NodeExpr::from(NodeFilter.property("p"));
+    let map = || Prop::map([("k", 1i64)]);
+    let refused = |value: Prop| {
+        prop()
+            .check_value(BinaryOp::Gt, &value)
+            .unwrap_err()
+            .to_string()
+    };
+    assert_eq!(
+        refused(map()),
+        "Invalid filter: operator > is not valid for map properties"
+    );
+    assert_eq!(
+        refused(Prop::list([map()]).unwrap()),
+        "Invalid filter: operator > is not valid for map properties"
+    );
+    assert!(prop().check_value(BinaryOp::Gt, &5i64.into()).is_ok());
+    assert!(prop().check_value(BinaryOp::Gt, &true.into()).is_ok());
+    assert!(prop()
+        .check_value(BinaryOp::Gt, &Prop::list([1i64, 2]).unwrap())
+        .is_ok());
+    assert!(prop().check_value(BinaryOp::Eq, &map()).is_ok());
+}
+
 #[test]
 fn the_static_checks_answer_before_any_graph() {
     let prop = || NodeExpr::from(NodeFilter.property("p"));

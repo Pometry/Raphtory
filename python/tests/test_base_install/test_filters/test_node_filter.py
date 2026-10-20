@@ -1002,6 +1002,20 @@ def test_a_string_operator_on_a_degree_is_refused_where_written():
         degree.contains("x")
 
 
+def test_an_ordering_against_a_map_is_refused_where_written():
+    # The property's type is not known before a graph, but no type orders
+    # against a map, so the refusal does not wait for `filter()`.
+    with pytest.raises(
+        TypeError,
+        match=re.escape("Invalid filter: operator > is not valid for map properties"),
+    ):
+        filter.Node.property("p") > {"k": 1}
+    # a value some type could order defers to filter time
+    filter.Node.property("p") > 5
+    filter.Node.property("p") > True
+    filter.Node.property("p") == {"k": 1}
+
+
 def test_a_test_is_one_boolean_before_any_graph():
     # A presence test, a combination and a string or membership test of a
     # name each give one boolean answer, known where they are written, so a

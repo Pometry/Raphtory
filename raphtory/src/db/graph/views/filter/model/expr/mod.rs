@@ -32,10 +32,7 @@ pub use builder::{Chain, EdgeEndpoint, EdgeKind, GraphLeaf, PropertyTerm};
 pub(super) use compile::EdgeOps;
 pub use compile::Leaf;
 
-use super::{
-    filter_operator::{BinaryOp, StringOp, UnaryOp},
-    validate_const_comparable,
-};
+use super::filter_operator::{BinaryOp, StringOp, UnaryOp};
 use crate::{db::api::state::NodeOp, errors::GraphError};
 use raphtory_api::core::{
     entities::{
@@ -361,15 +358,14 @@ impl<L: Leaf> Expr<L> {
         }
     }
 
-    /// Refuses `value` against this expression under `op` when the expression's type is
-    /// already known and can never be compared with it, element by element for a list; an
-    /// expression whose type only a graph knows defers to filter time.
+    /// Refuses `value` against this expression under `op` by the comparison rule:
+    /// when the expression's type is already known, a value it can never be compared
+    /// with, element by element for a list; while it is unknown, a value no type can
+    /// take under `op`.
     pub fn check_value(&self, op: BinaryOp, value: &Prop) -> Result<(), GraphError> {
-        let pt = self.prop_type();
-        if is_known(&pt) {
-            let rhs = value.dtype();
-            comparison_shape(&op, &pt, &rhs).map_err(|e| e.into_error(&rhs, Some(value)))?;
-        }
+        let rhs = value.dtype();
+        comparison_shape(&op, &self.prop_type(), &rhs)
+            .map_err(|e| e.into_error(&rhs, Some(value)))?;
         Ok(())
     }
 
