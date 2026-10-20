@@ -16,7 +16,7 @@
 //!
 //! There are three algorithms in this module:
 //! - `all_local_reciprocity` - returns the reciprocity of every node in the graph as a tuple of
-//! vector id and the reciprocity
+//!   vector id and the reciprocity
 //! - `global_reciprocity` - returns the global reciprocity of the entire graph
 //!
 //! # Examples

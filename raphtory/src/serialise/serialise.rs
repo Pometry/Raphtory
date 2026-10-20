@@ -197,17 +197,16 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         args: Args,
     ) -> Result<Self, GraphError> {
         target.init()?;
-        let graph;
-        if path.is_zip() {
+        let graph = if path.is_zip() {
             let reader = path.read_zip()?;
-            graph = Self::decode_from_zip_at(reader, target, args)?;
+            Self::decode_from_zip_at(reader, target, args)?
         } else {
-            graph = Self::decode_parquet(
+            Self::decode_parquet(
                 path.graph_path()?,
                 Some(target.graph_path()?.as_path()),
                 args,
-            )?;
-        }
+            )?
+        };
         let meta = Metadata {
             path: target.relative_graph_path()?,
             meta: build_graph_metadata(&graph),

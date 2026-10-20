@@ -11,15 +11,15 @@
 //! # Types
 //!
 //! * `GraphWindowSet` - A struct that allows iterating over a Graph broken down into multiple
-//! windowed views. It contains a `Graph` and an iterator of `Perspective`.
+//!   windowed views. It contains a `Graph` and an iterator of `Perspective`.
 //!
 //! * `WindowedGraph` - A struct that represents a windowed view of a `Graph`.
-//! It contains a `Graph`, a start time (`start`) and an end time (`end`).
+//!   It contains a `Graph`, a start time (`start`) and an end time (`end`).
 //!
 //! # Traits
 //!
 //! * `GraphViewInternalOps` - A trait that provides operations to a `WindowedGraph`
-//! used internally by the `GraphWindowSet`.
+//!   used internally by the `GraphWindowSet`.
 //!
 //! # Examples
 //!
