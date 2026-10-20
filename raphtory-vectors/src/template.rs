@@ -1,6 +1,7 @@
 use super::datetimeformat::datetimeformat;
 use minijinja::{
-    value::{Enumerator, Object},
+    syntax::SyntaxConfig,
+    value::{Enumerator, Object, Serde},
     Environment, Template, Value,
 };
 use raphtory::{
@@ -15,7 +16,7 @@ use raphtory_api::core::storage::{
     timeindex::EventTime,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use tracing::error;
 
 #[derive(Debug)]
@@ -49,13 +50,13 @@ impl Object for PropUpdate {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct NodeTemplateContext {
     name: String,
     node_type: Option<ArcStr>,
-    properties: Value,
-    metadata: Value,
-    temporal_properties: Value,
+    properties: BTreeMap<String, Value>,
+    metadata: BTreeMap<String, Value>,
+    temporal_properties: BTreeMap<String, Value>,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplateContext {
@@ -66,12 +67,12 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplate
             properties: value
                 .properties()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             metadata: value
                 .metadata()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             temporal_properties: value
                 .properties()
@@ -98,7 +99,7 @@ impl DocumentTemplate {
         let template = self.node_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);
-        match template.render(NodeTemplateContext::from(node.clone())) {
+        match template.render(Serde(NodeTemplateContext::from(node.clone()))) {
             Ok(mut document) => {
                 truncate(&mut document);
                 Some(document)
@@ -116,7 +117,7 @@ impl DocumentTemplate {
         let template = self.edge_template.as_str()?;
         let mut env = Environment::new();
         let template = build_template(&mut env, template);
-        match template.render(EdgeTemplateContext::from(edge.clone())) {
+        match template.render(Serde(EdgeTemplateContext::from(edge.clone()))) {
             Ok(mut document) => {
                 truncate(&mut document);
                 Some(document)
@@ -142,8 +143,13 @@ fn build_template<'a>(env: &'a mut Environment<'a>, template: &'a str) -> Templa
     minijinja_contrib::add_to_environment(env);
     env.add_filter("datetimeformat", datetimeformat);
     // it's important adding these settings
-    env.set_trim_blocks(true);
-    env.set_lstrip_blocks(true);
+    env.set_syntax(
+        SyntaxConfig::builder()
+            .trim_blocks(true)
+            .lstrip_blocks(true)
+            .build()
+            .expect("selected options should always be valid"),
+    );
     // before adding any template
     env.add_template("template", template).unwrap();
     env.get_template("template").unwrap()
@@ -155,9 +161,9 @@ struct EdgeTemplateContext {
     dst: NodeTemplateContext,
     history: Vec<i64>,
     layers: Vec<String>,
-    properties: Value,
-    metadata: Value,
-    temporal_properties: Value,
+    properties: BTreeMap<String, Value>,
+    metadata: BTreeMap<String, Value>,
+    temporal_properties: BTreeMap<String, Value>,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
@@ -174,12 +180,12 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
             properties: value // FIXME: boilerplate all over the place
                 .properties()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             metadata: value
                 .metadata()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             temporal_properties: value
                 .properties()

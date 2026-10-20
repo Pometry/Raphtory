@@ -355,7 +355,7 @@ pub struct EdgeSegmentView<EXT> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicU32,
-    ext: EXT,
+    _ext: EXT,
 }
 
 #[derive(Debug)]
@@ -491,7 +491,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
             .into(),
             segment_id: page_id,
             num_edges: AtomicU32::new(0),
-            ext,
+            _ext: ext,
         }
     }
 

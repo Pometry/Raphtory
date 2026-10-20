@@ -1,9 +1,8 @@
 //! Provides functionality for generating graphs for testing and benchmarking.
 
-use rand::Rng;
-use raphtory_api::core::entities::GID;
-
 use crate::prelude::*;
+use rand::RngExt;
+use raphtory_api::core::entities::GID;
 
 pub mod erdos_renyi;
 pub mod preferential_attachment;

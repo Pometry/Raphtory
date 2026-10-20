@@ -1,12 +1,10 @@
-#![allow(dead_code)]
-
 #[cfg(feature = "vectors")]
 pub mod vectors;
 
 use criterion::{
     measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
-use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
+use rand::{distr::Uniform, seq::*, RngExt, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
 use std::{collections::HashSet, hint::black_box, iter};
@@ -119,10 +117,6 @@ pub fn run_ingestion_benchmarks<F>(
             )
         },
     );
-}
-
-fn times(n: usize) -> impl Iterator {
-    std::iter::repeat_n((), n)
 }
 
 pub fn run_large_ingestion_benchmarks<F, F2>(
@@ -707,7 +701,7 @@ pub fn run_graph_ops_benches(
     let nodes = (&&graph)
         .nodes()
         .into_iter()
-        .choose_multiple(&mut rng, 1.max(graph.count_nodes() / 10))
+        .sample(&mut rng, 1.max(graph.count_nodes() / 10))
         .into_iter()
         .flat_map(|n| iter::once(n.id()).chain(n.out_neighbours().id().next())) // at least one edge per node
         .collect::<Vec<_>>();

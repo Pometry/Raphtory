@@ -103,7 +103,7 @@ impl ConfigOps for BaseConfig {
         *self
     }
 
-    fn copy_to(src: &Path, dst: &Path) -> Result<(), StorageError> {
+    fn copy_to(_src: &Path, _dst: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 }

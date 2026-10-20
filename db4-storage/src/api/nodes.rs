@@ -1,12 +1,24 @@
+use crate::{
+    LocalPOS,
+    error::StorageError,
+    generic_time_ops::LayerIter,
+    pages::node_store::increment_and_clamp,
+    segments::node::segment::MemNodeSegment,
+    utils::{Iter2, Iter3, Iter4},
+    wal::LSN,
+};
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::{
     core::{
         Direction,
-        entities::properties::{
-            meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID},
-            prop::{AsPropRef, Prop, PropUnwrap},
-            tprop::TPropOps,
+        entities::{
+            LayerId,
+            properties::{
+                meta::{Meta, NODE_ID_PROP_ID, NODE_TYPE_PROP_ID, STATIC_GRAPH_LAYER_ID},
+                prop::{AsPropRef, Prop, PropUnwrap, prop_hashable::HashableProp},
+                tprop::TPropOps,
+            },
         },
     },
     iter::IntoDynBoxed,
@@ -17,6 +29,8 @@ use raphtory_core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
+use raphtory_itertools::FastMergeExt;
+use rayon::prelude::*;
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -28,23 +42,6 @@ use std::{
         atomic::{AtomicU32, Ordering},
     },
 };
-
-use crate::{
-    LocalPOS,
-    error::StorageError,
-    generic_time_ops::LayerIter,
-    pages::node_store::increment_and_clamp,
-    persist::strategy::PersistenceStrategy,
-    segments::node::segment::MemNodeSegment,
-    utils::{Iter2, Iter3, Iter4},
-    wal::LSN,
-};
-use raphtory_api::core::entities::{
-    LayerId,
-    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::prop_hashable::HashableProp},
-};
-use raphtory_itertools::FastMergeExt;
-use rayon::prelude::*;
 
 /// A property predicate a storage backend may resolve to candidate rows via a
 /// secondary index. String operators use the semantics of the corresponding
