@@ -508,7 +508,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let mut batch: Option<RecordBatch> = None;
         let mut schema = self.values.schema();
 
-        if id_column.is_some() {
+        if let Some(id_column) = id_column {
             let ids: Vec<String> = self
                 .nodes()
                 .id()
@@ -521,11 +521,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             for field in &self.values.schema().fields().clone() {
                 builder.push(field.clone())
             }
-            builder.push(Arc::new(Field::new(
-                id_column.unwrap(),
-                DataType::LargeUtf8,
-                false,
-            )));
+            builder.push(Arc::new(Field::new(id_column, DataType::LargeUtf8, false)));
             schema = Arc::new(Schema::new(builder.finish().fields));
 
             let mut columns = self.values.columns().to_vec();
@@ -560,11 +556,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let iter = tgt_idx_set.iter();
         let mut idx_builder = UInt64Builder::with_capacity(tgt_idx_set_len);
         let left_col = lh_batch.column_by_name(col_name);
-        let left_len = if left_col.is_some() {
-            left_col.unwrap().len()
-        } else {
-            0
-        };
+        let left_len = left_col.map_or(0, |col| col.len());
         let right_col = rh_batch.column_by_name(col_name);
         let cat = match (left_col, right_col) {
             (Some(l), Some(r)) => &concat(&[l.as_ref(), r.as_ref()]).unwrap(),
