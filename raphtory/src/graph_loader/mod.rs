@@ -104,7 +104,7 @@ use std::{
     time::Duration,
 };
 use tempfile::NamedTempFile;
-use zip::read::ZipArchive;
+use zip::{read::ZipArchive, result::ZipResult};
 
 pub mod company_house;
 pub mod karate_club;
@@ -142,7 +142,7 @@ pub fn fetch_file(
     Ok(filepath)
 }
 
-fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()> {
+fn unzip_file(zip_file_path: &str, destination_path: &str) -> ZipResult<()> {
     let file = File::open(zip_file_path)?;
     let mut archive = ZipArchive::new(file)?;
 

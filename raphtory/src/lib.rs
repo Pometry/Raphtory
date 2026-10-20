@@ -85,6 +85,8 @@
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
 //! our [GitHub repository](https://github.com/Raphtory/raphtory)
+#![allow(clippy::module_inception)]
+
 pub mod algorithms;
 pub mod db;
 pub mod graphgen;

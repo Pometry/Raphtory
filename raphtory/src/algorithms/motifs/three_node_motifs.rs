@@ -166,11 +166,9 @@ impl StarCounter {
 
     pub fn return_counts(&self) -> [usize; 24] {
         let mut counts = [0; 24];
-        for i in 0..8 {
-            counts[i] = self.count_pre[i];
-            counts[8 + i] = self.count_mid[i];
-            counts[16 + i] = self.count_post[i];
-        }
+        counts[..8].copy_from_slice(&self.count_pre);
+        counts[8..16].copy_from_slice(&self.count_mid);
+        counts[16..].copy_from_slice(&self.count_post);
         counts
     }
 }

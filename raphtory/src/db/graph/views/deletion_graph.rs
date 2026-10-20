@@ -96,6 +96,7 @@ fn persisted_prop_value_at<'a>(
 }
 
 impl PersistentGraph {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         // TODO: This should return a Result.
         Self::new_with_config(Args::default()).unwrap()

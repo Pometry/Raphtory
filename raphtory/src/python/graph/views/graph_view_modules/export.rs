@@ -58,11 +58,9 @@ impl PyGraphView {
         let vis_graph = network.call((), Some(&kwargs))?;
         let mut groups = HashMap::new();
         if colour_nodes_by_type {
-            let mut index = 1;
-            for node in self.graph.nodes() {
+            for (index, node) in (1..).zip(self.graph.nodes()) {
                 let value = node.node_type().unwrap_or(ArcStr::from("_default"));
                 groups.insert(value, index);
-                index += 1;
             }
         }
 
