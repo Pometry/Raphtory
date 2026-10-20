@@ -16,7 +16,7 @@ use raphtory_api::core::storage::{
     timeindex::EventTime,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use tracing::error;
 
 #[derive(Debug)]
@@ -50,13 +50,13 @@ impl Object for PropUpdate {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct NodeTemplateContext {
     name: String,
     node_type: Option<ArcStr>,
-    properties: Value,
-    metadata: Value,
-    temporal_properties: Value,
+    properties: BTreeMap<String, Option<Prop>>,
+    metadata: BTreeMap<String, Option<Prop>>,
+    temporal_properties: BTreeMap<String, Value>,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplateContext {
@@ -161,9 +161,9 @@ struct EdgeTemplateContext {
     dst: NodeTemplateContext,
     history: Vec<i64>,
     layers: Vec<String>,
-    properties: Value,
-    metadata: Value,
-    temporal_properties: Value,
+    properties: BTreeMap<String, Option<Prop>>,
+    metadata: BTreeMap<String, Option<Prop>>,
+    temporal_properties: BTreeMap<String, Value>,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
