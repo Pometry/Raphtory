@@ -1296,16 +1296,13 @@ impl FilterExpr {
         })
     }
 
-    /// The negation of this filter pushed one level down: the `not` of an `and`
-    /// is the `or` of its negated expressions, the `not` of an `or` the `and` of
-    /// them, and the `not` of a `not` the expression under it. A leaf or a view
-    /// keeps its `not`.
+    /// The negation of this filter pushed down to its leaves: the `not` of an
+    /// `and` is the `or` of its negated expressions, the `not` of an `or` the
+    /// `and` of them, and the `not` of a `not` the expression under it. A leaf
+    /// or a view takes the `not`.
     fn negated(self) -> FilterExpr {
         let each = |expressions: Vec<FilterExpr>| {
-            expressions
-                .into_iter()
-                .map(|expression| FilterExpr::Not(Box::new(expression)))
-                .collect()
+            expressions.into_iter().map(FilterExpr::negated).collect()
         };
         match self {
             FilterExpr::And(expressions) => FilterExpr::Or(each(expressions)),
