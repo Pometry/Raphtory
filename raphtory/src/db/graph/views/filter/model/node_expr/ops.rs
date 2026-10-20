@@ -623,19 +623,21 @@ pub fn broadcast_binary(
 
 /// Two values combined by `kernel` with the test's `param`, producing a value
 /// of type `out`. The kernel is chosen for the test's shape when the op is built.
+/// `domain` holds every node the test can hold on, worked out when it was built.
 pub struct BinaryValueNodeOp<'g, P> {
     pub(crate) left: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     pub(crate) right: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     pub(crate) param: P,
     pub(crate) kernel: BinaryKernel<P>,
     pub(crate) out: PropType,
+    pub(crate) domain: NodeList,
 }
 
 impl<'g, P: Send + Sync> NodeOp for BinaryValueNodeOp<'g, P> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
+        self.domain.clone()
     }
 
     fn prop_type(&self) -> PropType {
@@ -652,19 +654,21 @@ impl<'g, P: Send + Sync> NodeOp for BinaryValueNodeOp<'g, P> {
 }
 
 /// One value mapped by `kernel` with the test's `param`, producing a value of
-/// type `out`.
+/// type `out`. `domain` holds every node the test can hold on, worked out when
+/// it was built.
 pub struct UnaryValueNodeOp<'g, P> {
     pub(crate) inner: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     pub(crate) param: P,
     pub(crate) kernel: UnaryKernel<P>,
     pub(crate) out: PropType,
+    pub(crate) domain: NodeList,
 }
 
 impl<'g, P: Send + Sync> NodeOp for UnaryValueNodeOp<'g, P> {
     type Output = Option<Prop>;
 
     fn domain(&self, _storage: &GraphStorage) -> NodeList {
-        NodeList::All
+        self.domain.clone()
     }
 
     fn prop_type(&self) -> PropType {

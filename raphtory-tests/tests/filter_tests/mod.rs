@@ -1,4 +1,14 @@
-use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
+use raphtory::{
+    db::{
+        api::{
+            state::ops::NodeOp,
+            view::{internal::NodeList, StaticGraphViewOps},
+        },
+        graph::views::filter::CreateFilter,
+    },
+    prelude::*,
+};
+use raphtory_storage::core_ops::CoreGraphOps;
 
 mod and_windowed;
 mod cached_view;
@@ -18,6 +28,16 @@ mod test_filters;
 mod test_layers;
 mod tests_node_type_filtered_subgraph;
 mod views_test;
+
+/// The nodes a compiled node filter will actually visit.
+pub fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
+where
+    F: CreateFilter,
+    for<'g> F::NodeFilter<'g, Graph>: NodeOp<Output = bool>,
+{
+    let op = filter.create_node_filter(g.clone()).unwrap();
+    op.domain(&g.core_graph().lock())
+}
 
 /// Whether [`init_graph`] adds nodes, and whether they carry a node type.
 #[derive(Clone, Copy, PartialEq, Eq)]

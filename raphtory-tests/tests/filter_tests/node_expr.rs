@@ -1,11 +1,15 @@
+use crate::filter_tests::filter_domain;
 use raphtory::{
     db::{
-        api::{
-            state::ops::NodeOp,
-            view::{filter_ops::Select, internal::NodeList, Filter},
+        api::view::{
+            filter_ops::Select,
+            internal::{ListOps, NodeList},
+            Filter,
         },
         graph::views::filter::{
             model::{
+                expr::{Expr, Field, NodeExpr, NodeLeaf},
+                filter_operator::BinaryOp,
                 graph_filter::GraphFilter,
                 node_filter::{NodeFilter, NodeFilterFactory},
                 ComposableFilter, EntityAggOps, PropertyExprFactory, ViewWrapOps,
@@ -13,13 +17,14 @@ use raphtory::{
             CreateFilter,
         },
     },
-    prelude::{AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{
+        AdditionOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps, TimeOps, NO_PROPS,
+    },
 };
 use raphtory_api::core::entities::{
     properties::prop::{IntoProp, Prop},
     VID,
 };
-use raphtory_storage::core_ops::CoreGraphOps;
 
 // Test graph: a→b, a→c, b→c
 // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
@@ -558,17 +563,7 @@ fn windowed_temporal_term_skips_node_absent_from_window() {
 // ── Domain narrowing for id comparisons ──────────────────────────────────
 //
 // These pin that an id test starts from the nodes it names instead of
-// visiting every node. They fail until domain narrowing returns.
-
-/// The nodes a compiled node filter will actually visit.
-fn filter_domain<F>(filter: F, g: &Graph) -> NodeList
-where
-    F: CreateFilter,
-    for<'g> F::NodeFilter<'g, Graph>: NodeOp<Output = bool>,
-{
-    let op = filter.create_node_filter(g.clone()).unwrap();
-    op.domain(&g.core_graph().lock())
-}
+// visiting every node.
 
 #[test]
 fn id_eq_visits_only_the_named_node() {
@@ -603,6 +598,35 @@ fn id_is_in_visits_only_the_named_nodes() {
 }
 
 #[test]
+fn named_nodes_come_back_in_id_order() {
+    let g = build_test_graph();
+    let filter = || {
+        NodeFilter
+            .id()
+            .is_in(vec!["c".into_prop(), "a".into_prop()])
+    };
+    let filtered: Vec<String> = g.filter(filter()).unwrap().nodes().name().collect();
+    assert_eq!(filtered, vec!["a", "c"]);
+    let selected: Vec<String> = g.nodes().select(filter()).unwrap().name().collect();
+    assert_eq!(selected, vec!["a", "c"]);
+}
+
+/// The ids a test names are resolved when the filter is built, like
+/// `subgraph`, so the view does not grow with later additions; a test that
+/// names no ids reads the graph live.
+#[test]
+fn a_resolved_id_test_does_not_see_nodes_added_later() {
+    let g = Graph::new();
+    g.add_node(0, "a", NO_PROPS, None, None).unwrap();
+    let named = g.filter(NodeFilter.id().eq("b")).unwrap();
+    let unnamed = g.filter(NodeFilter.id().ne("a")).unwrap();
+    g.add_node(1, "b", NO_PROPS, None, None).unwrap();
+    assert_eq!(named.nodes().iter().count(), 0);
+    let names: Vec<String> = unnamed.nodes().name().collect();
+    assert_eq!(names, vec!["b"]);
+}
+
+#[test]
 fn id_eq_for_an_absent_node_visits_nothing() {
     let g = build_test_graph();
     match filter_domain(NodeFilter.id().eq("nope"), &g) {
@@ -614,10 +638,139 @@ fn id_eq_for_an_absent_node_visits_nothing() {
 }
 
 #[test]
+fn a_constant_on_the_left_names_its_node() {
+    let g = build_test_graph();
+    let filter: NodeExpr = Expr::Cmp(
+        BinaryOp::Eq,
+        Box::new(Expr::Const("b".into())),
+        Box::new(Expr::Term(NodeLeaf::Field {
+            views: vec![],
+            field: Field::Id,
+        })),
+    );
+    assert_eq!(listed(filter_domain(filter, &g)), vids(&g, &["b"]));
+}
+
+#[test]
+fn a_number_no_id_can_equal_keeps_every_node() {
+    // A negative or a fractional number names no numeric id: the test runs on
+    // every node and holds on none. A constant of the wrong type (a string
+    // against numeric ids, or the reverse) is refused earlier, when the
+    // filter is built.
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    for value in [Prop::I64(-1), Prop::F64(5.5)] {
+        let domain = filter_domain(NodeFilter.id().eq(value.clone()), &g);
+        assert!(
+            matches!(domain, NodeList::All),
+            "id == {value:?} must keep the full domain, got {domain:?}"
+        );
+        assert!(selected_names(NodeFilter.id().eq(value), &g).is_empty());
+    }
+}
+
+#[test]
+fn an_id_test_narrows_the_filtered_graphs_node_list() {
+    let g = build_test_graph();
+    let filtered = g.filter(NodeFilter.id().eq("b")).unwrap();
+    assert_eq!(listed(filtered.node_list()), vids(&g, &["b"]));
+}
+
+/// The id names its node whatever the window; the window still hides a node
+/// with no event in it.
+#[test]
+fn an_id_test_inside_a_window_keeps_only_the_named_node_in_the_window() {
+    let g = build_domain_graph();
+    let names = |start: i64, end: i64| -> Vec<String> {
+        g.window(start, end)
+            .filter(NodeFilter.id().eq("b"))
+            .unwrap()
+            .nodes()
+            .name()
+            .collect()
+    };
+    assert_eq!(names(0, 2), vec!["b"]);
+    assert!(names(6, 9).is_empty());
+}
+
+#[test]
+fn name_eq_visits_only_the_named_node() {
+    // On a graph with string ids a node's name is its id.
+    let g = build_test_graph();
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("b"), &g)),
+        vids(&g, &["b"])
+    );
+    assert_eq!(selected_names(NodeFilter.name().eq("b"), &g), vec!["b"]);
+}
+
+#[test]
+fn name_is_in_visits_only_the_named_nodes() {
+    let g = build_test_graph();
+    let filter = || {
+        NodeFilter
+            .name()
+            .is_in(vec!["a".into_prop(), "c".into_prop()])
+    };
+    assert_eq!(listed(filter_domain(filter(), &g)), vids(&g, &["a", "c"]));
+    assert_eq!(selected_names(filter(), &g), vec!["a", "c"]);
+}
+
+#[test]
+fn a_name_test_on_numeric_ids_parses_its_node() {
+    // On a numeric-id graph a node's name is its id written out, so a name
+    // that reads as a number names that node and one that does not names
+    // no node; the test still runs on every node named.
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("1"), &g)),
+        vids(&g, &["1"])
+    );
+    assert_eq!(selected_names(NodeFilter.name().eq("1"), &g), vec!["1"]);
+    let both = || {
+        NodeFilter
+            .name()
+            .is_in(vec!["6".into_prop(), "1".into_prop()])
+    };
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["1", "6"]));
+    assert_eq!(selected_names(both(), &g), vec!["1", "6"]);
+    // "06" parses to 6 but is not node 6's name: visited, not kept
+    assert_eq!(
+        listed(filter_domain(NodeFilter.name().eq("06"), &g)),
+        vids(&g, &["6"])
+    );
+    assert!(selected_names(NodeFilter.name().eq("06"), &g).is_empty());
+    // a name that is no number names nothing
+    assert!(listed(filter_domain(NodeFilter.name().eq("six"), &g)).is_empty());
+    assert!(selected_names(NodeFilter.name().eq("six"), &g).is_empty());
+}
+
+#[test]
+fn a_numeric_id_test_visits_only_the_named_node() {
+    let g = Graph::new();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+    for value in [Prop::U64(6), Prop::I64(6), Prop::U8(6)] {
+        assert_eq!(
+            listed(filter_domain(NodeFilter.id().eq(value.clone()), &g)),
+            vids(&g, &["6"]),
+            "id == {value:?}"
+        );
+        assert_eq!(selected_names(NodeFilter.id().eq(value), &g), vec!["6"]);
+    }
+    let both = || NodeFilter.id().is_in(vec![Prop::U64(6), Prop::U64(1)]);
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["1", "6"]));
+    assert_eq!(selected_names(both(), &g), vec!["1", "6"]);
+}
+
+#[test]
 fn non_id_and_inequality_filters_keep_the_full_domain() {
     let g = build_test_graph();
-    // Only equality and set membership on the id or the name name specific
-    // nodes; everything else has to be evaluated per node.
+    // Only an equality or a set-membership test on the id or the name starts
+    // from the nodes it names; every other test runs on every node.
     for (label, domain) in [
         ("id != b", filter_domain(NodeFilter.id().ne("b"), &g)),
         ("name != b", filter_domain(NodeFilter.name().ne("b"), &g)),
@@ -712,14 +865,16 @@ fn or_of_two_subgraphs_visits_their_union() {
 }
 
 #[test]
-fn and_of_a_subgraph_and_a_predicate_visits_the_subgraph() {
+fn and_of_a_subgraph_and_a_name_test_visits_their_intersection() {
     let g = build_domain_graph();
+    // On string ids a name test names its node, so the `and` visits the
+    // intersection of the subgraph and the named node.
     let both = || {
         GraphFilter
             .subgraph(["a", "b"])
             .and(NodeFilter.name().eq("a"))
     };
-    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["a", "b"]));
+    assert_eq!(listed(filter_domain(both(), &g)), vids(&g, &["a"]));
     assert_eq!(selected_names(both(), &g), vec!["a"]);
 }
 

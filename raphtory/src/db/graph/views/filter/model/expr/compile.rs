@@ -21,10 +21,10 @@ use crate::{
                     node::{Name, Type},
                     Const, Degree, HistoryOp,
                 },
-                NodeOp,
+                Index, NodeOp,
             },
             view::{
-                internal::{DynGraphArc, GraphView, IntoDynGraphArc},
+                internal::{DynGraphArc, GraphView, IntoDynGraphArc, NodeList},
                 GraphViewOps, LayerOps, TimeOps,
             },
         },
@@ -48,7 +48,7 @@ use crate::{
                     qualified_type, require_bool, set_kernel, set_shape, str_kernel, string_shape,
                     truthy, BinaryKernel, SetMembers, Shape, ShapeError, UnaryKernel,
                 },
-                filter_operator::UnaryOp,
+                filter_operator::{BinaryOp, UnaryOp},
                 node_expr::ops::{
                     AllEdgeOp, AllNodeOp, AllOfNodeOp, AnyEdgeOp, AnyNodeOp, AnyOfNodeOp,
                     AvgEdgeOp, AvgNodeOp, BinaryValueNodeOp, EarliestEdgeOp, EarliestNodeOp,
@@ -66,9 +66,15 @@ use crate::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::properties::prop::{IntoProp, Prop, PropType};
+use raphtory_api::core::entities::{
+    properties::prop::{IntoProp, Prop, PropType},
+    GidRef, GidType,
+};
+use raphtory_core::entities::nodes::node_ref::NodeRef;
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     fmt::Debug,
+    slice,
     sync::{Arc, LazyLock},
 };
 
@@ -143,6 +149,28 @@ pub trait Leaf: Clone + Debug + PartialEq + Send + Sync + 'static {
     /// `earliest()` and `latest()` pick from.
     fn reads_history(&self) -> bool {
         false
+    }
+
+    /// The nodes whose value of this term is one of `values`, when the graph
+    /// can name them without a scan; `None` when every node may match.
+    fn named_by(&self, _values: &[Prop], _graph: &DynGraphArc<'_>) -> Option<NodeList> {
+        None
+    }
+}
+
+/// The id a constant names on a graph whose ids are of type `id_type`, or
+/// `None` when it names none by its own value: a string names a string id, a
+/// non-negative integer the numeric id of the same value.
+fn id_ref(id_type: GidType, value: &Prop) -> Option<GidRef<'_>> {
+    match (id_type, value) {
+        (GidType::Str, Prop::Str(s)) => Some(GidRef::Str(s)),
+        (GidType::U64, Prop::U64(n)) => Some(GidRef::U64(*n)),
+        (GidType::U64, Prop::U32(n)) => Some(GidRef::U64(u64::from(*n))),
+        (GidType::U64, Prop::U16(n)) => Some(GidRef::U64(u64::from(*n))),
+        (GidType::U64, Prop::U8(n)) => Some(GidRef::U64(u64::from(*n))),
+        (GidType::U64, Prop::I64(n)) => u64::try_from(*n).ok().map(GidRef::U64),
+        (GidType::U64, Prop::I32(n)) => u64::try_from(*n).ok().map(GidRef::U64),
+        _ => None,
     }
 }
 
@@ -398,6 +426,58 @@ impl Leaf for NodeLeaf {
 
     fn reads_history(&self) -> bool {
         matches!(self, NodeLeaf::Property { temporal: true, .. })
+    }
+
+    /// An id or a name names its node through the graph's id index, whatever
+    /// the views on the term: neither depends on them. An id names the node
+    /// with that id. A name is a string, the id written out: on a graph with
+    /// string ids it is the id, on a graph with numeric ids it is parsed into
+    /// one, and a string that is no number names no node. The list makes no
+    /// claim to be exact, so the test still runs on every node in it.
+    fn named_by(&self, values: &[Prop], graph: &DynGraphArc<'_>) -> Option<NodeList> {
+        let id_type = graph.id_type()?;
+        let ids = match self {
+            NodeLeaf::Field {
+                field: Field::Id, ..
+            } => values
+                .iter()
+                .map(|value| id_ref(id_type, value))
+                .collect::<Option<Vec<_>>>()?,
+            NodeLeaf::Field {
+                field: Field::Name, ..
+            } => {
+                let mut ids = Vec::with_capacity(values.len());
+                for value in values {
+                    let Prop::Str(name) = value else {
+                        return None;
+                    };
+                    match id_type {
+                        GidType::Str => ids.push(GidRef::Str(name)),
+                        GidType::U64 => ids.extend(name.parse().ok().map(GidRef::U64)),
+                    }
+                }
+                ids
+            }
+            _ => return None,
+        };
+        Some(nodes_with_ids(graph, ids))
+    }
+}
+
+/// The nodes of `graph` with the given ids, in node order whatever the order
+/// of the ids; an id the graph does not hold names no node.
+fn nodes_with_ids<'a>(
+    graph: &DynGraphArc<'_>,
+    ids: impl IntoIterator<Item = GidRef<'a>>,
+) -> NodeList {
+    let mut vids: Vec<_> = ids
+        .into_iter()
+        .filter_map(|id| graph.internalise_node(NodeRef::External(id)))
+        .collect();
+    vids.sort();
+    vids.dedup();
+    NodeList::List {
+        elems: Index::from_sorted(vids, false),
     }
 }
 
@@ -686,22 +766,26 @@ pub trait OpFamily {
     fn constant<'g>(value: Prop) -> Arc<Self::Value<'g>>;
 
     /// Two values combined by `kernel` with the test's `param`, giving a
-    /// value of type `out`.
+    /// value of type `out` that can only hold on the nodes in `domain`. An
+    /// edge family ignores `domain`: edges have no domain.
     fn binary<'g, P: Send + Sync + 'g>(
         left: Arc<Self::Value<'g>>,
         right: Arc<Self::Value<'g>>,
         param: P,
         kernel: BinaryKernel<P>,
         out: PropType,
+        domain: NodeList,
     ) -> Arc<Self::Value<'g>>;
 
     /// One value mapped by `kernel` with the test's `param`, giving a value of
-    /// type `out`.
+    /// type `out` that can only hold on the nodes in `domain`. An edge family
+    /// ignores `domain`: edges have no domain.
     fn unary<'g, P: Send + Sync + 'g>(
         inner: Arc<Self::Value<'g>>,
         param: P,
         kernel: UnaryKernel<P>,
         out: PropType,
+        domain: NodeList,
     ) -> Arc<Self::Value<'g>>;
 
     /// `and` of boolean values.
@@ -741,6 +825,7 @@ impl OpFamily for NodeOps {
         param: P,
         kernel: BinaryKernel<P>,
         out: PropType,
+        domain: NodeList,
     ) -> Arc<Self::Value<'g>> {
         Arc::new(BinaryValueNodeOp {
             left,
@@ -748,6 +833,7 @@ impl OpFamily for NodeOps {
             param,
             kernel,
             out,
+            domain,
         })
     }
 
@@ -756,12 +842,14 @@ impl OpFamily for NodeOps {
         param: P,
         kernel: UnaryKernel<P>,
         out: PropType,
+        domain: NodeList,
     ) -> Arc<Self::Value<'g>> {
         Arc::new(UnaryValueNodeOp {
             inner,
             param,
             kernel,
             out,
+            domain,
         })
     }
 
@@ -795,7 +883,8 @@ impl OpFamily for NodeOps {
     }
 }
 
-/// The ops of an edge or exploded-edge tree.
+/// The ops of an edge or exploded-edge tree. Edges have no domain, so the
+/// one a test is built with is not kept.
 pub struct EdgeOps;
 
 impl OpFamily for EdgeOps {
@@ -819,6 +908,7 @@ impl OpFamily for EdgeOps {
         param: P,
         kernel: BinaryKernel<P>,
         out: PropType,
+        _domain: NodeList,
     ) -> Arc<Self::Value<'g>> {
         Arc::new(BinaryValueEdgeOp {
             left,
@@ -834,6 +924,7 @@ impl OpFamily for EdgeOps {
         param: P,
         kernel: UnaryKernel<P>,
         out: PropType,
+        _domain: NodeList,
     ) -> Arc<Self::Value<'g>> {
         Arc::new(UnaryValueEdgeOp {
             inner,
@@ -899,29 +990,50 @@ impl<L: Leaf> Expr<L> {
             Expr::Const(value) => L::Ops::constant(value.clone()),
             Expr::Term(leaf) => leaf.value_op(graph)?,
             Expr::Agg(agg, inner) => inner.aggregate_op(*agg, graph)?,
-            Expr::Cmp(op, lhs, rhs) => Self::binary_test_op(
+            Expr::Cmp(op, lhs, rhs) => {
+                let domain = match (op, lhs.as_ref(), rhs.as_ref()) {
+                    (BinaryOp::Eq, Expr::Term(leaf), Expr::Const(value))
+                    | (BinaryOp::Eq, Expr::Const(value), Expr::Term(leaf)) => {
+                        leaf.named_by(slice::from_ref(value), &graph)
+                    }
+                    _ => None,
+                };
+                Self::binary_test_op(
+                    lhs,
+                    rhs,
+                    graph,
+                    *op,
+                    |l, r| comparison_shape(op, l, r),
+                    cmp_kernel,
+                    domain.unwrap_or(NodeList::All),
+                )?
+            }
+            Expr::Str(op, lhs, rhs) => Self::binary_test_op(
                 lhs,
                 rhs,
                 graph,
                 *op,
-                |l, r| comparison_shape(op, l, r),
-                cmp_kernel,
+                string_shape,
+                str_kernel,
+                NodeList::All,
             )?,
-            Expr::Str(op, lhs, rhs) => {
-                Self::binary_test_op(lhs, rhs, graph, *op, string_shape, str_kernel)?
-            }
             Expr::In {
                 expr,
                 values,
                 negated,
             } => {
-                let inner = expr.value_op(graph)?;
+                let inner = expr.value_op(graph.clone())?;
                 let (out, shape, members) = set_shape(&expr.resolved_type(&inner), values);
+                let domain = match (expr.as_ref(), negated) {
+                    (Expr::Term(leaf), false) => leaf.named_by(&members, &graph),
+                    _ => None,
+                };
                 L::Ops::unary(
                     inner,
                     SetMembers::new(members, *negated),
                     set_kernel(shape),
                     out,
+                    domain.unwrap_or(NodeList::All),
                 )
             }
             Expr::IsSome(inner) => inner.presence_op(UnaryOp::IsSome, graph)?,
@@ -933,7 +1045,7 @@ impl<L: Leaf> Expr<L> {
             Expr::Not(inner) => {
                 let op = inner.value_op(graph)?;
                 require_bool(&inner.resolved_type(&op), "not")?;
-                L::Ops::unary(op, (), not_kernel, PropType::Bool)
+                L::Ops::unary(op, (), not_kernel, PropType::Bool, NodeList::All)
             }
         })
     }
@@ -950,8 +1062,9 @@ impl<L: Leaf> Expr<L> {
     }
 
     /// A test of `lhs` against `rhs`: `shape` decides from the two types what
-    /// the test gives and how it evaluates, `kernel` evaluates it. A mismatch
-    /// names the constant when the right side is one.
+    /// the test gives and how it evaluates, `kernel` evaluates it, and `domain`
+    /// holds the nodes the test can hold on. A mismatch names the constant
+    /// when the right side is one.
     fn binary_test_op<'g, P: Send + Sync + 'g>(
         lhs: &Self,
         rhs: &Self,
@@ -959,6 +1072,7 @@ impl<L: Leaf> Expr<L> {
         param: P,
         shape: impl FnOnce(&PropType, &PropType) -> Result<(PropType, Shape), ShapeError>,
         kernel: fn(Shape) -> BinaryKernel<P>,
+        domain: NodeList,
     ) -> Result<Arc<<L::Ops as OpFamily>::Value<'g>>, GraphError> {
         let left = lhs.value_op(graph.clone())?;
         let right = rhs.value_op(graph)?;
@@ -967,7 +1081,14 @@ impl<L: Leaf> Expr<L> {
         let rhs_const = L::Ops::const_value(&right);
         let (out, shape) =
             shape(&lhs_pt, &rhs_pt).map_err(|e| e.into_error(&rhs_pt, rhs_const.as_ref()))?;
-        Ok(L::Ops::binary(left, right, param, kernel(shape), out))
+        Ok(L::Ops::binary(
+            left,
+            right,
+            param,
+            kernel(shape),
+            out,
+            domain,
+        ))
     }
 
     /// A presence test of this expression. It only means something on a
@@ -983,6 +1104,7 @@ impl<L: Leaf> Expr<L> {
             op,
             presence_kernel(op),
             PropType::Bool,
+            NodeList::All,
         ))
     }
 
@@ -1177,9 +1299,13 @@ impl FilterExpr {
             FilterExpr::Not(inner) if inner.has_view() => Arc::new(
                 NodeExistsOp::new(self.clone().create_graph_filter(graph)?).map(exists_value),
             ),
-            FilterExpr::Not(inner) => {
-                NodeOps::unary(inner.node_value(graph)?, (), not_kernel, PropType::Bool)
-            }
+            FilterExpr::Not(inner) => NodeOps::unary(
+                inner.node_value(graph)?,
+                (),
+                not_kernel,
+                PropType::Bool,
+                NodeList::All,
+            ),
         })
     }
 
@@ -1243,9 +1369,13 @@ impl FilterExpr {
             {
                 inner.as_ref().clone().negated().edge_value(graph)?
             }
-            FilterExpr::Not(inner) => {
-                EdgeOps::unary(inner.edge_value(graph)?, (), not_kernel, PropType::Bool)
-            }
+            FilterExpr::Not(inner) => EdgeOps::unary(
+                inner.edge_value(graph)?,
+                (),
+                not_kernel,
+                PropType::Bool,
+                NodeList::All,
+            ),
         })
     }
 
