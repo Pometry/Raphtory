@@ -54,8 +54,8 @@ impl Object for PropUpdate {
 struct NodeTemplateContext {
     name: String,
     node_type: Option<ArcStr>,
-    properties: BTreeMap<String, Option<Prop>>,
-    metadata: BTreeMap<String, Option<Prop>>,
+    properties: BTreeMap<String, Value>,
+    metadata: BTreeMap<String, Value>,
     temporal_properties: BTreeMap<String, Value>,
 }
 
@@ -67,12 +67,12 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplate
             properties: value
                 .properties()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             metadata: value
                 .metadata()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             temporal_properties: value
                 .properties()
@@ -161,8 +161,8 @@ struct EdgeTemplateContext {
     dst: NodeTemplateContext,
     history: Vec<i64>,
     layers: Vec<String>,
-    properties: BTreeMap<String, Option<Prop>>,
-    metadata: BTreeMap<String, Option<Prop>>,
+    properties: BTreeMap<String, Value>,
+    metadata: BTreeMap<String, Value>,
     temporal_properties: BTreeMap<String, Value>,
 }
 
@@ -180,12 +180,12 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
             properties: value // FIXME: boilerplate all over the place
                 .properties()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             metadata: value
                 .metadata()
                 .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
+                .map(|(key, value)| (key.to_string(), value.into()))
                 .collect(),
             temporal_properties: value
                 .properties()
