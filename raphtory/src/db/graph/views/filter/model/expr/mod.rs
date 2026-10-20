@@ -373,17 +373,13 @@ impl<L: Leaf> Expr<L> {
         Ok(())
     }
 
-    /// Refuses `value` as the operand of a string operator on this expression: when the
-    /// expression's type is already known, by the string rule; otherwise a value that is not
-    /// a string, whatever the left side.
+    /// Refuses `value` as the operand of a string operator on this expression by the
+    /// string rule, which asks for a string operand whatever the left side and, when
+    /// the expression's type is already known, for a string on the left as well.
     pub fn check_string(&self, value: &Prop) -> Result<(), GraphError> {
-        let pt = self.prop_type();
-        if is_known(&pt) {
-            let rhs = value.dtype();
-            string_shape(&pt, &rhs).map_err(|e| e.into_error(&rhs, Some(value)))?;
-            return Ok(());
-        }
-        validate_const_comparable(&PropType::Str, Some(value))
+        let rhs = value.dtype();
+        string_shape(&self.prop_type(), &rhs).map_err(|e| e.into_error(&rhs, Some(value)))?;
+        Ok(())
     }
 
     /// Refuses the presence test `op` on an expression that can never be missing.
