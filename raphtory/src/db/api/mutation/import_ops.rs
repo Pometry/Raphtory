@@ -20,8 +20,11 @@ use raphtory_api::core::{
     entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
-use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+use raphtory_storage::{
+    durability_ops::DurabilityOps,
+    mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    },
 };
 use std::{borrow::Borrow, fmt::Debug};
 
@@ -285,6 +288,8 @@ fn import_node_internal<
     id: V,
     merge: bool,
 ) -> Result<NodeView<'static, G>, GraphError> {
+    // Writes through the internal addition ops, so take the regular update guard here.
+    let _transaction_manager = graph.core_graph().transaction_manager()?;
     let id = id.as_node_ref();
     let gid_ref = id.as_gid_ref();
     graph.validate_gids(gid_ref).map_err(into_graph_err)?;
