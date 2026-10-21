@@ -279,7 +279,7 @@ pub struct PropMapper {
     row_size: AtomicUsize,
 
     /// Per-layer property presence bitset; `layer_prop_presence[layer_id][prop_id]`
-    /// is true iff this property has been observed in this layer
+    /// is true if this property has been observed in this layer
     layer_prop_presence: Arc<RwLock<Vec<Vec<bool>>>>,
 }
 
@@ -329,8 +329,7 @@ impl PropMapper {
 
     /// O(1) check: has property `prop_id` ever been observed in `layer_id`?
     /// `false` is authoritative; callers can safely skip column reads for
-    /// this (layer, prop). `true` means at least one entity in `layer_id`
-    /// has prop `prop_id`.
+    /// this (layer, prop).
     #[inline]
     pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
         presence_has(
@@ -382,7 +381,6 @@ impl PropMapper {
 
     /// Read-locks the presence bitset until the guard is dropped.
     pub fn read_lock_layer_presence(&self) -> ReadLockedLayerPresence {
-        // recursive, so a thread can lock the graph again while a writer waits
         ReadLockedLayerPresence(self.layer_prop_presence.read_arc_recursive())
     }
 
@@ -523,7 +521,7 @@ impl PropMapper {
         }
     }
 
-    /// Write-locks only the per-layer presence bitset. Take it before any segment lock.
+    /// Write-locks only the per-layer presence bitset.
     pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence {
         WriteLockedLayerPresence {
             presence: self.layer_prop_presence.write_arc(),

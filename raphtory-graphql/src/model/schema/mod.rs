@@ -56,7 +56,7 @@ pub(crate) fn collect_variants<P: PropertiesOps>(
         }
     }
 
-    // one read lock for every name and dtype, and prop id order for the output
+    // one read lock
     let locked = mapper.locked();
     locked
         .iter_ids_and_types()
