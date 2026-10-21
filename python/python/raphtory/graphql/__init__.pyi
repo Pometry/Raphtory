@@ -2292,10 +2292,10 @@ class RemoteNodes(object):
     def filter(self, filter: filter.FilterExpr) -> RemoteNodes:
         """
         Filter this collection by a filter expression from `raphtory.filter`
-        (the same builder used by local graphs). The filter **propagates**:
-        it narrows the current collection AND applies to downstream
-        traversals from the matching nodes (e.g. their `.neighbours`,
-        `.edges`). For a narrow-here-only variant, use `.select(...)`.
+        (the same builder used by local graphs). Every node stays in the
+        collection; the filter scopes what is reached through them (their
+        `.neighbours`, `.edges`, properties) and carries through later
+        traversals. To keep only the matching nodes, use `.select(...)`.
         Lazy — no RPC.
 
         Arguments:
@@ -2763,9 +2763,10 @@ class RemotePathFromNode(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemotePathFromNode:
         """
-        Filter this collection by a node filter. **Propagates** to downstream
-        traversals from the matching nodes. Mirrors the local
-        `PathFromNode.filter(FilterExpr)`. Lazy — no RPC.
+        Filter this collection by a node filter. Every node stays; the filter
+        scopes what is reached through them and carries through later
+        traversals. Mirrors the local `PathFromNode.filter(FilterExpr)`.
+        Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
@@ -3221,8 +3222,9 @@ class RemotePathFromGraph(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemotePathFromGraph:
         """
-        Filter this collection by a node filter. **Propagates** to downstream
-        traversals from the matching nodes. Lazy — no RPC.
+        Filter this collection by a node filter. Every node stays; the filter
+        scopes what is reached through them and carries through later
+        traversals. Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): a node filter expression from `raphtory.filter`.
@@ -3674,10 +3676,10 @@ class RemoteEdges(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemoteEdges:
         """
-        Filter this collection by a filter expression. **The filter
-        propagates**: it applies to the current collection's membership *and*
-        to downstream traversals from the matching edges. For a
-        narrow-here-only variant, use `.select(...)`. Lazy — no RPC.
+        Filter this collection by a filter expression. Every edge stays in the
+        collection; the filter scopes what is reached through them and carries
+        through later traversals. To keep only the matching edges, use
+        `.select(...)`. Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): a filter expression from `raphtory.filter`.
@@ -4135,8 +4137,9 @@ class RemoteNestedEdges(object):
 
     def filter(self, filter: filter.FilterExpr) -> RemoteNestedEdges:
         """
-        Filter this collection by an edge filter. **Propagates** to downstream
-        traversals from the matching edges. Lazy — no RPC.
+        Filter this collection by an edge filter. Every edge stays; the filter
+        scopes what is reached through them and carries through later
+        traversals. Lazy — no RPC.
 
         Arguments:
             filter (filter.FilterExpr): an edge filter expression from `raphtory.filter`.

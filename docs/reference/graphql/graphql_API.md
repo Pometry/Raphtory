@@ -3546,10 +3546,9 @@ Returns a list of all objects in the current selection of the collection. You sh
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Narrow the collection to edges matching `expr`. The filter sticks to the
-returned view — every subsequent traversal through these edges (their
-properties, their endpoints' neighbours, etc.) continues to see the
-filtered scope.
+Keep every edge in the collection and scope what is reached through them
+by `expr`: their properties, their endpoints and the endpoints'
+neighbours all see the filtered graph, and so does every later traversal.
 
 Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting everything to a specific week:
@@ -3560,7 +3559,8 @@ list { src { neighbours { list { name } } } }   # neighbours still windowed
 } }
 ```
 
-Contrast with `select`, which applies here and is not carried through.
+Contrast with `select`, which keeps only the edges matching `expr` and
+is not carried through.
 
 </td>
 </tr>
@@ -7850,7 +7850,11 @@ queryable.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outcomponent">outComponent</strong></td>
@@ -7867,7 +7871,11 @@ neighbours remain queryable.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Filter expression scoping which nodes and edges the walk steps through; a node it excludes is neither returned nor walked through.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.edges">edges</strong></td>
@@ -7881,7 +7889,11 @@ Returns all connected edges.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outedges">outEdges</strong></td>
@@ -7895,7 +7907,11 @@ Returns outgoing edges.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inedges">inEdges</strong></td>
@@ -7909,7 +7925,11 @@ Returns incoming edges.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.neighbours">neighbours</strong></td>
@@ -7923,7 +7943,11 @@ Returns neighbouring nodes.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inneighbours">inNeighbours</strong></td>
@@ -7937,7 +7961,11 @@ Returns the number of neighbours that have at least one in-going edge to this no
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outneighbours">outNeighbours</strong></td>
@@ -7951,12 +7979,22 @@ Returns the number of neighbours that have at least one out-going edge from this
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.filter">filter</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return this node with `expr` applied to everything reached through it:
+its neighbours, edges, degrees and properties all see the filtered graph,
+and so does every later traversal.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">expr</td>
@@ -9221,9 +9259,9 @@ bulk list endpoints are disabled.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Narrow the collection to nodes matching `expr`. The filter sticks to the
-returned view — every subsequent traversal through these nodes (their
-neighbours, edges, properties) continues to see the filtered scope.
+Keep every node in the collection and scope what is reached through them
+by `expr`: their neighbours, edges, degrees and properties all see the
+filtered graph, and so does every later traversal.
 
 Useful when you want one scoping rule to apply across the whole query.
 E.g. restricting everything to a specific week:
@@ -9234,7 +9272,8 @@ list { neighbours { list { name } } }   # neighbours still windowed
 } }
 ```
 
-Contrast with `select`, which applies here and is not carried through.
+Contrast with `select`, which keeps only the nodes matching `expr` and
+is not carried through.
 
 </td>
 </tr>
@@ -9294,7 +9333,11 @@ Returns the neighbouring nodes of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.inneighbours">inNeighbours</strong></td>
@@ -9308,7 +9351,11 @@ Returns the in-neighbours of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.outneighbours">outNeighbours</strong></td>
@@ -9322,7 +9369,11 @@ Returns the out-neighbours of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.edges">edges</strong></td>
@@ -9336,7 +9387,11 @@ Returns the incident edges (both directions) of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.inedges">inEdges</strong></td>
@@ -9350,7 +9405,11 @@ Returns the incoming edges of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.outedges">outEdges</strong></td>
@@ -9364,7 +9423,11 @@ Returns the outgoing edges of each node in the collection.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -9960,7 +10023,11 @@ path (both directions), as a nested `PathFromGraph`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.inneighbours">inNeighbours</strong></td>
@@ -9975,7 +10042,11 @@ path, as a nested `PathFromGraph`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.outneighbours">outNeighbours</strong></td>
@@ -9990,7 +10061,11 @@ path, as a nested `PathFromGraph`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromgraph.edges">edges</strong></td>
@@ -10622,7 +10697,11 @@ Returns the neighbouring nodes reachable one further hop from this path
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.inneighbours">inNeighbours</strong></td>
@@ -10637,7 +10716,11 @@ flat `PathFromNode`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.outneighbours">outNeighbours</strong></td>
@@ -10652,7 +10735,11 @@ flat `PathFromNode`.
 <tr>
 <td colspan="2" align="right" valign="top">select</td>
 <td valign="top"><a href="#filterexpr">FilterExpr</a></td>
-<td></td>
+<td>
+
+Keep only the results matching this expression at this step; later traversals see the unfiltered graph again.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.edges">edges</strong></td>

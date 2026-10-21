@@ -390,10 +390,9 @@ impl GqlEdges {
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
     }
 
-    /// Narrow the collection to edges matching `expr`. The filter sticks to the
-    /// returned view — every subsequent traversal through these edges (their
-    /// properties, their endpoints' neighbours, etc.) continues to see the
-    /// filtered scope.
+    /// Keep every edge in the collection and scope what is reached through them
+    /// by `expr`: their properties, their endpoints and the endpoints'
+    /// neighbours all see the filtered graph, and so does every later traversal.
     ///
     /// Useful when you want one scoping rule to apply across the whole query.
     /// E.g. restricting everything to a specific week:
@@ -404,7 +403,8 @@ impl GqlEdges {
     /// } }
     /// ```
     ///
-    /// Contrast with `select`, which applies here and is not carried through.
+    /// Contrast with `select`, which keeps only the edges matching `expr` and
+    /// is not carried through.
     pub async fn filter(
         &self,
         #[graphql(

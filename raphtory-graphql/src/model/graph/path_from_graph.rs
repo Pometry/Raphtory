@@ -474,7 +474,13 @@ impl GqlPathFromGraph {
 
     /// Returns the neighbouring nodes reachable one further hop from each source
     /// path (both directions), as a nested `PathFromGraph`.
-    pub async fn neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
+    pub async fn neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<Self, GraphError> {
         let base = self.nn.neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -485,7 +491,13 @@ impl GqlPathFromGraph {
 
     /// Returns the in-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn in_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
+    pub async fn in_neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<Self, GraphError> {
         let base = self.nn.in_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
@@ -496,7 +508,13 @@ impl GqlPathFromGraph {
 
     /// Returns the out-neighbours reachable one further hop from each source
     /// path, as a nested `PathFromGraph`.
-    pub async fn out_neighbours(&self, select: Option<GqlFilter>) -> Result<Self, GraphError> {
+    pub async fn out_neighbours(
+        &self,
+        #[graphql(
+            desc = "Keep only the results matching this expression at this step; later traversals see the unfiltered graph again."
+        )]
+        select: Option<GqlFilter>,
+    ) -> Result<Self, GraphError> {
         let base = self.nn.out_neighbours();
         if let Some(expr) = select {
             let narrowed = blocking_compute(move || base.select(expr)).await?;
