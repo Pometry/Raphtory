@@ -3,7 +3,7 @@ use proptest::{arbitrary::any, proptest};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::Filter,
+        api::view::{Filter, IntoDynamic},
         graph::{
             assertions::{
                 assert_graph_equal, assert_node_equal, assert_nodes_equal,
@@ -648,4 +648,42 @@ fn test_persistent_failure() {
     assert_eq!(gfw.count_edges(), 0);
     let gm = gfw.materialize().unwrap();
     assert_persistent_materialize_graph_equal(&gfw, &gm);
+}
+
+/// ```text
+/// time            0    1    10
+/// a→b [x] w=10         ●          k = "kx"
+/// a→b [y] w=1          ●          k = "ky"   (hidden by w > 5)
+/// c→d [y] w=10         ●
+/// window(0,10)    [=========)
+/// ```
+/// An exploded-edge filter that hides a→b's instance on layer y
+/// hides y's metadata too, inside a window as well as without one, on the
+/// filtered view and on its cache.
+#[test]
+fn windowed_metadata_of_a_filtered_view_keeps_its_layers() {
+    let g = Graph::new();
+    g.add_edge((1, 0), "a", "b", [("w", 10i64)], Some("x"))
+        .unwrap();
+    g.add_edge((1, 1), "a", "b", [("w", 1i64)], Some("y"))
+        .unwrap();
+    g.add_edge((1, 1), "c", "d", [("w", 10i64)], Some("y"))
+        .unwrap();
+    let ab = g.edge("a", "b").unwrap();
+    ab.add_metadata([("k", "kx")], Some("x")).unwrap();
+    ab.add_metadata([("k", "ky")], Some("y")).unwrap();
+
+    let view = g.filter(ExplodedEdgeFilter.property("w").gt(5i64)).unwrap();
+    let expected = Some(Prop::map([("x", "kx")]));
+    for (label, v) in [
+        ("filter", view.clone().into_dynamic()),
+        ("cache_view", view.cache_view().into_dynamic()),
+    ] {
+        let e = v.edge("a", "b").unwrap();
+        let layers: Vec<String> = e.layer_names().into_iter().map(|l| l.to_string()).collect();
+        assert_eq!(layers, ["x"], "{label}");
+        assert_eq!(e.metadata().get("k"), expected, "{label}");
+        let windowed = v.window(0, 10).edge("a", "b").unwrap();
+        assert_eq!(windowed.metadata().get("k"), expected, "{label}");
+    }
 }

@@ -970,6 +970,8 @@ def test_a_scoped_exploded_property_reads_only_inside_its_view(GraphClass):
         (filter.ExplodedEdge.at(3).property("w") == 3, [("a", "b", 3)]),
         (filter.ExplodedEdge.window(0, 2).metadata("m").is_some(), [("a", "b", 1)]),
         (filter.ExplodedEdge.window(0, 2).is_active(), [("a", "b", 1)]),
+        # A scoped state predicate is judged per exploded edge
+        (filter.ExplodedEdge.at(3).is_active(), [("a", "b", 3)]),
     ]
     for expr, expected in cases:
         assert instances(g.filter(expr).edges.explode()) == expected, expr
@@ -977,3 +979,68 @@ def test_a_scoped_exploded_property_reads_only_inside_its_view(GraphClass):
 
     edge_expr = filter.Edge.window(0, 2).property("w").is_some()
     assert instances(g.edges.explode()[edge_expr]) == [("a", "b", 1)]
+
+
+def _added_deleted_readded(graph):
+    """a→b added @1, deleted @5, added again @7
+
+    time   1    2    3    4    5    6    7    8    9
+    a→b    ●+                  ●-        ●+
+    """
+    graph.add_edge(1, "a", "b", properties={"w": 1})
+    graph.delete_edge(5, "a", "b")
+    graph.add_edge(7, "a", "b", properties={"w": 1})
+    return graph
+
+
+def _instance_times(edges):
+    return [e.time.t for e in edges]
+
+
+def test_exploded_is_deleted_is_judged_per_exploded_edge():
+    """On an event graph each exploded edge is an addition, and no addition
+    is itself deleted, so `ExplodedEdge.is_deleted()` keeps none of them, though
+    the edge as a whole has a deletion."""
+    g = _added_deleted_readded(Graph())
+    assert g.edge("a", "b").is_deleted()
+    expr = filter.ExplodedEdge.is_deleted()
+    assert _instance_times(g.filter(expr).edges.explode()) == []
+    assert _instance_times(g.edges.explode()[expr]) == []
+
+
+def test_exploded_is_valid_in_a_window_is_judged_per_exploded_edge():
+    """On a persistent graph, `window(6, 10).is_valid()` keeps the
+    addition @7, which is valid in the window, and not the addition @1, whose
+    edge was deleted @5.
+
+    time        1    2    3    4    5    6    7    8    9   10
+    a→b         ●+                  ●-        ●+
+    window(6,10)                         [===================)
+    """
+    g = _added_deleted_readded(PersistentGraph())
+    expr = filter.ExplodedEdge.window(6, 10).is_valid()
+    assert _instance_times(g.filter(expr).edges.explode()) == [7]
+    assert _instance_times(g.edges.explode()[expr]) == [7]
+
+
+def test_windowed_metadata_of_a_filtered_view_keeps_its_layers():
+    """An exploded-edge filter that hides a→b's instance on layer
+    y hides y's metadata too, inside a window as well as without one.
+
+    time            0    1    10
+    a→b [x] w=10         ●          k = "kx"
+    a→b [y] w=1          ●          k = "ky"   (hidden by w > 5)
+    c→d [y] w=10         ●
+    window(0,10)    [=========)
+    """
+    g = Graph()
+    g.add_edge(1, "a", "b", properties={"w": 10}, layer="x", event_id=0)
+    g.add_edge(1, "a", "b", properties={"w": 1}, layer="y", event_id=1)
+    g.add_edge(1, "c", "d", properties={"w": 10}, layer="y", event_id=1)
+    g.edge("a", "b").add_metadata({"k": "kx"}, layer="x")
+    g.edge("a", "b").add_metadata({"k": "ky"}, layer="y")
+    view = g.filter(filter.ExplodedEdge.property("w") > 5)
+    for label, v in [("filter", view), ("cache_view", view.cache_view())]:
+        assert v.edge("a", "b").layer_names == ["x"], label
+        assert v.edge("a", "b").metadata.get("k") == {"x": "kx"}, label
+        assert v.window(0, 10).edge("a", "b").metadata.get("k") == {"x": "kx"}, label

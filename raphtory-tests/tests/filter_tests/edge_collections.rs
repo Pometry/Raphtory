@@ -19,8 +19,8 @@ use raphtory::{
         },
     },
     prelude::{
-        AdditionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps, NodeViewOps,
-        PropertyAdditionOps, TimeOps,
+        AdditionOps, DeletionOps, EdgeViewOps, EntityExprFilterOps, Graph, GraphViewOps,
+        NodeViewOps, PropertyAdditionOps, TimeOps,
     },
 };
 use raphtory_api::core::storage::timeindex::AsTime;
@@ -239,6 +239,8 @@ fn check_scoped_exploded_reads<G: StaticGraphViewOps + AdditionOps + PropertyAdd
             vec![ab(1)],
         ),
         (ExplodedEdgeFilter.window(0, 2).is_active(), vec![ab(1)]),
+        // A scoped state predicate is judged per exploded edge
+        (ExplodedEdgeFilter.at(3).is_active(), vec![ab(3)]),
     ];
     for (filter, expected) in cases {
         let filtered = g.filter(filter.clone()).unwrap();
@@ -259,4 +261,46 @@ fn check_scoped_exploded_reads<G: StaticGraphViewOps + AdditionOps + PropertyAdd
 fn a_scoped_exploded_property_reads_only_inside_its_view() {
     check_scoped_exploded_reads(Graph::new());
     check_scoped_exploded_reads(PersistentGraph::new());
+}
+
+/// ```text
+/// time          1    2    3    4    5    6    7    8    9   10
+/// a→b           ●+                  ●-        ●+
+/// window(6,10)                           [===================)
+/// ```
+/// a→b added @1, deleted @5, added again @7.
+fn added_deleted_readded<G: StaticGraphViewOps + AdditionOps + DeletionOps>(g: G) -> G {
+    g.add_edge(1, "a", "b", [("w", 1i64)], None).unwrap();
+    g.delete_edge(5, "a", "b", None).unwrap();
+    g.add_edge(7, "a", "b", [("w", 1i64)], None).unwrap();
+    g
+}
+
+/// On an event graph each exploded edge is an addition and none of them
+/// is itself deleted, so `is_deleted()` keeps none, though the edge as a whole
+/// has a deletion.
+#[test]
+fn exploded_is_deleted_is_judged_per_exploded_edge() {
+    let g = added_deleted_readded(Graph::new());
+    assert!(g.edge("a", "b").unwrap().is_deleted());
+    let none: Vec<(String, String, i64)> = vec![];
+    let filter = ExplodedEdgeFilter.is_deleted();
+    let filtered = g.filter(filter.clone()).unwrap();
+    assert_eq!(exploded(&filtered.edges()), none);
+    let selected = g.edges().explode().select(filter).unwrap();
+    assert_eq!(exploded(&selected), none);
+}
+
+/// On a persistent graph `window(6, 10).is_valid()` keeps the
+/// addition @7, valid in the window, and not the addition @1, whose edge was
+/// deleted @5.
+#[test]
+fn exploded_is_valid_in_a_window_is_judged_per_exploded_edge() {
+    let g = added_deleted_readded(PersistentGraph::new());
+    let ab7 = vec![("a".to_string(), "b".to_string(), 7)];
+    let filter = ExplodedEdgeFilter.window(6, 10).is_valid();
+    let filtered = g.filter(filter.clone()).unwrap();
+    assert_eq!(exploded(&filtered.edges()), ab7);
+    let selected = g.edges().explode().select(filter).unwrap();
+    assert_eq!(exploded(&selected), ab7);
 }

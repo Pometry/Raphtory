@@ -401,3 +401,22 @@ def test_empty_expressions_are_refused():
         ]:
             with pytest.raises(Exception, match=message):
                 node_names(client, shape)
+
+
+def test_name_and_node_type_order_as_strings():
+    """`GT` on a name or a node type compares strings, so "b" is
+    after "a" and "A" is before it; the server answers as the local engine
+    does and keeps serving afterwards."""
+    g = Graph()
+    g.add_node(1, "b", node_type="t")
+    g.add_node(1, "A", node_type="a")
+    by_name = node(cmp("GT", read({"field": "NAME"}), const({"str": "a"})))
+    by_type = node(cmp("GT", read({"field": "NODE_TYPE"}), const({"str": "a"})))
+    with graphql_client(g) as client:
+        assert node_names(client, by_name) == ["b"]
+        assert node_names(client, by_type) == ["b"]
+        assert client.query('{ graph(path: "g") { countNodes } }') == {
+            "graph": {"countNodes": 2}
+        }
+    for expr in [f.Node.name() > "a", f.Node.node_type() > "a"]:
+        assert sorted(n.name for n in g.filter(expr).nodes) == ["b"]
