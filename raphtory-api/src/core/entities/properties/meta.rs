@@ -11,7 +11,9 @@ use crate::core::{
     },
 };
 use itertools::{Either, Itertools};
-use parking_lot::{ArcRwLockReadGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{
+    ArcRwLockReadGuard, ArcRwLockWriteGuard, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -256,8 +258,8 @@ impl Meta {
     }
 
     /// Read-locks both per-layer property/metadata presence bitsets.
-    pub fn read_lock_layer_presence(&self) -> MetaLayerPresence {
-        MetaLayerPresence {
+    pub fn read_lock_layer_presence(&self) -> ReadLockedMetaPresence {
+        ReadLockedMetaPresence {
             temporal: self.temporal_prop_mapper.read_lock_layer_presence(),
             metadata: self.metadata_mapper.read_lock_layer_presence(),
         }
@@ -379,9 +381,9 @@ impl PropMapper {
     }
 
     /// Read-locks the presence bitset until the guard is dropped.
-    pub fn read_lock_layer_presence(&self) -> LockedLayerPresence {
+    pub fn read_lock_layer_presence(&self) -> ReadLockedLayerPresence {
         // recursive, so a thread can lock the graph again while a writer waits
-        LockedLayerPresence(self.layer_prop_presence.read_arc_recursive())
+        ReadLockedLayerPresence(self.layer_prop_presence.read_arc_recursive())
     }
 
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
@@ -522,9 +524,9 @@ impl PropMapper {
     }
 
     /// Write-locks only the per-layer presence bitset. Take it before any segment lock.
-    pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence<'_> {
+    pub fn write_locked_layer_presence(&self) -> WriteLockedLayerPresence {
         WriteLockedLayerPresence {
-            presence: self.layer_prop_presence.write(),
+            presence: self.layer_prop_presence.write_arc(),
         }
     }
 }
@@ -566,11 +568,11 @@ pub struct WriteLockedPropMapper<'a> {
 }
 
 /// Write-locked view of a [`PropMapper`]'s per-layer property presence bitset.
-pub struct WriteLockedLayerPresence<'a> {
-    presence: RwLockWriteGuard<'a, Vec<Vec<bool>>>,
+pub struct WriteLockedLayerPresence {
+    presence: ArcRwLockWriteGuard<RawRwLock, Vec<Vec<bool>>>,
 }
 
-impl WriteLockedLayerPresence<'_> {
+impl WriteLockedLayerPresence {
     /// Mark `prop_id` as present in `layer_id`.
     pub fn mark(&mut self, layer_id: LayerId, prop_id: usize) -> bool {
         ensure_and_set(&mut self.presence, layer_id.0, prop_id)
@@ -591,9 +593,9 @@ impl WriteLockedLayerPresence<'_> {
 
 /// Read guard on a presence bitset, held by locked graphs.
 #[derive(Debug)]
-pub struct LockedLayerPresence(ArcRwLockReadGuard<RawRwLock, Vec<Vec<bool>>>);
+pub struct ReadLockedLayerPresence(ArcRwLockReadGuard<RawRwLock, Vec<Vec<bool>>>);
 
-impl LockedLayerPresence {
+impl ReadLockedLayerPresence {
     #[inline]
     pub fn has(&self, layer_id: LayerId, prop_id: usize) -> bool {
         presence_has(&self.0, layer_id, prop_id)
@@ -602,15 +604,15 @@ impl LockedLayerPresence {
 
 /// Read guards on one [`Meta`]'s temporal and metadata presence bitsets.
 #[derive(Debug)]
-pub struct MetaLayerPresence {
-    pub temporal: LockedLayerPresence,
-    pub metadata: LockedLayerPresence,
+pub struct ReadLockedMetaPresence {
+    pub temporal: ReadLockedLayerPresence,
+    pub metadata: ReadLockedLayerPresence,
 }
 
 /// A locked graph's presence bitset (holds a read lock), or the live one (gets a read or write lock each time).
 #[derive(Clone, Copy)]
 pub enum LayerPresenceRef<'a> {
-    Locked(&'a LockedLayerPresence),
+    Locked(&'a ReadLockedLayerPresence),
     Live(&'a PropMapper),
 }
 

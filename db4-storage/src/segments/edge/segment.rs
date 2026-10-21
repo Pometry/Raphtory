@@ -162,8 +162,6 @@ impl MemEdgeSegment {
     /// insert an edge
     ///
     /// returns a boolean flag indicating if the edge is new
-    #[inline]
-    #[allow(clippy::too_many_arguments)]
     pub fn insert_edge_internal<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
@@ -296,7 +294,6 @@ impl MemEdgeSegment {
         Ok(())
     }
 
-    #[inline]
     pub fn update_const_properties<P: AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,

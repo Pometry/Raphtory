@@ -1,5 +1,5 @@
 use db4_graph::TemporalGraph;
-use raphtory_api::core::entities::properties::meta::MetaLayerPresence;
+use raphtory_api::core::entities::properties::meta::ReadLockedMetaPresence;
 use std::sync::{Arc, OnceLock};
 use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
 
@@ -9,8 +9,8 @@ pub struct ReadLockedGraph {
     pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
     pub(crate) edges: Arc<ReadLockedEdges<Extension>>,
     /// Presence bitsets, read-locked on first use and held until the last clone is dropped.
-    node_presence: Arc<OnceLock<MetaLayerPresence>>,
-    edge_presence: Arc<OnceLock<MetaLayerPresence>>,
+    node_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
+    edge_presence: Arc<OnceLock<ReadLockedMetaPresence>>,
     pub graph: Arc<TemporalGraph>,
 }
 
@@ -27,12 +27,12 @@ impl ReadLockedGraph {
         }
     }
 
-    pub(crate) fn node_presence(&self) -> &MetaLayerPresence {
+    pub(crate) fn node_presence(&self) -> &ReadLockedMetaPresence {
         self.node_presence
             .get_or_init(|| self.graph.node_meta().read_lock_layer_presence())
     }
 
-    pub(crate) fn edge_presence(&self) -> &MetaLayerPresence {
+    pub(crate) fn edge_presence(&self) -> &ReadLockedMetaPresence {
         self.edge_presence
             .get_or_init(|| self.graph.edge_meta().read_lock_layer_presence())
     }
