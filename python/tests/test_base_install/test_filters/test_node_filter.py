@@ -1069,3 +1069,47 @@ def test_filter_nodes_for_node_name_len_is_invalid():
             graph.filter(filter_expr).nodes.id
 
     return check
+
+
+def test_a_node_window_bound_keeps_its_event_id():
+    """A window bound given as (time, event id) cuts between two
+    events at the same time, as `graph.window` does.
+
+    time (t, event id)   (0,0)  (1,0)  (1,3)  (1,5)  (2,0)
+    a p=1                        ●
+    b p=1                                      ●
+    window((1,3),(2,0))                 [===========)
+    window((0,0),(1,3))  [==================)
+    """
+    g = Graph()
+    g.add_node(1, "a", {"p": 1}, event_id=0)
+    g.add_node(1, "b", {"p": 1}, event_id=5)
+    for start, end, expected in [((1, 3), (2, 0), ["b"]), ((0, 0), (1, 3), ["a"])]:
+        expr = filter.Node.window(start, end).property("p") == 1
+        assert sorted(g.filter(expr).nodes.name) == expected
+        assert sorted(g.nodes[expr].name) == expected
+        assert sorted(g.window(start, end).nodes.name) == expected
+
+
+def test_name_and_node_type_order_as_strings():
+    """`>` on a name or a node type compares strings, so "b" is
+    after "a" and "A" is before it."""
+    g = Graph()
+    g.add_node(1, "b", node_type="t")
+    g.add_node(1, "A", node_type="a")
+    for expr in [filter.Node.name() > "a", filter.Node.node_type() > "a"]:
+        assert sorted(g.filter(expr).nodes.name) == ["b"]
+        assert sorted(g.nodes[expr].name) == ["b"]
+
+
+def test_view_builders_are_exported_from_filter():
+    """`raphtory.filter` exports the class each view builder returns."""
+    for owner in (filter.Node, filter.Edge, filter.ExplodedEdge, filter.Graph):
+        for builder in (
+            owner.window(0, 1),
+            owner.at(0),
+            owner.latest(),
+            owner.layers(["L"]),
+        ):
+            cls = type(builder)
+            assert getattr(filter, cls.__name__, None) is cls, cls.__name__

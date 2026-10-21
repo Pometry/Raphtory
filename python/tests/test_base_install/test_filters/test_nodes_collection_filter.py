@@ -183,3 +183,68 @@ def test_combined_subgraphs_select_their_set_algebra():
         assert sorted(graph.nodes[ab & (Node.name() == "a")].id) == ["a"]
 
     return check
+
+
+def _early_and_late(graph):
+    graph.add_node(1, "a")
+    graph.add_node(10, "b")
+    return graph
+
+
+@with_variants(_early_and_late)
+def test_a_time_view_under_and_restricts_like_the_graph_view():
+    """A time view under `&` with a node predicate keeps what the graph
+    view of the same name keeps, then applies the predicate inside it.
+
+    time        1    5    10
+    a           ●
+    b                     ●
+    after(5)         (=========
+    """
+
+    def check(graph):
+        names = Node.name().is_in(["a", "b"])
+        legs = [
+            (Graph.at(1), graph.at(1)),
+            (Graph.before(5), graph.before(5)),
+            (Graph.after(5), graph.after(5)),
+            (Graph.latest(), graph.latest()),
+            (Graph.snapshot_at(5), graph.snapshot_at(5)),
+        ]
+        for leg, viewed in legs:
+            assert sorted(graph.filter(leg & names).nodes.name) == sorted(
+                viewed.filter(names).nodes.name
+            ), leg
+
+    return check
+
+
+@with_variants(_early_and_late, variants=["graph"])
+def test_after_under_and_drops_what_came_before():
+    """On the event graph above, `after(5) & name in [a, b]` keeps b only."""
+
+    def check(graph):
+        names = Node.name().is_in(["a", "b"])
+        assert sorted(graph.filter(Graph.after(5) & names).nodes.name) == ["b"]
+
+    return check
+
+
+@with_variants(_rich)
+def test_a_filtered_count_matches_what_is_listed():
+    # A node filter's count, length and iteration agree, and match
+    # the collection form. Every node here has its own update, so none leaves
+    # the filtered graph by losing its edges (#2821).
+    def check(graph):
+        for expr in (
+            filter.Node.name() == "a",
+            filter.Node.name().is_in(["a", "c"]),
+            filter.Node.id() == "a",
+        ):
+            view = graph.filter(expr)
+            listed = len(list(view.nodes))
+            assert view.count_nodes() == listed, expr
+            assert len(view.nodes) == listed, expr
+            assert len(graph.nodes[expr]) == listed, expr
+
+    return check
