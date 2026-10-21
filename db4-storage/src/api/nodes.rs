@@ -27,6 +27,7 @@ use std::{
         Arc,
         atomic::{AtomicU32, Ordering},
     },
+    time::Duration,
 };
 
 use crate::{
@@ -34,7 +35,6 @@ use crate::{
     error::StorageError,
     generic_time_ops::LayerIter,
     pages::node_store::increment_and_clamp,
-    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
@@ -196,7 +196,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn t_len(&self) -> usize;
 
     fn load(
-        page_id: usize,
+        segment_id: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -206,7 +206,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         Self: Sized;
 
     fn new(
-        page_id: usize,
+        segment_id: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: Option<PathBuf>,
@@ -222,6 +222,8 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
+
+    fn try_head_mut_for(&self, timeout: Duration) -> Option<RwLockWriteGuard<'_, MemNodeSegment>>;
 
     fn notify_write(
         &self,

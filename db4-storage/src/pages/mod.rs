@@ -19,7 +19,7 @@ use edge_store::EdgeStorageInner;
 use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::{entities::properties::meta::Meta, storage::graph_folder::DataFolder};
 use rayon::prelude::*;
 use std::{
@@ -58,6 +58,8 @@ pub struct GraphStore<
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
     ext: EXT,
+    /// Write-held for the whole of a bulk load; regular updates and vacuum hold a read guard.
+    bulk_loader_lock: RwLock<()>,
 }
 
 impl<
@@ -189,6 +191,7 @@ impl<
             event_id: AtomicUsize::new(0),
             graph_dir: graph_dir.map(|dir| dir.path().to_path_buf()),
             ext,
+            bulk_loader_lock: RwLock::new(()),
         })
     }
 
@@ -229,6 +232,7 @@ impl<
             event_id: AtomicUsize::new(t_len),
             graph_dir: Some(graph_dir.path().to_path_buf()),
             ext,
+            bulk_loader_lock: RwLock::new(()),
         })
     }
 
@@ -332,7 +336,19 @@ impl<
         self.edges().get_free_writer()
     }
 
+    /// Read guard held by regular updates and vacuum, excluding them from bulk loads.
+    /// Recursive, so a regular update nested in another does not wait behind a queued bulk load.
+    pub fn bulk_load_shared(&self) -> RwLockReadGuard<'_, ()> {
+        self.bulk_loader_lock.read_recursive()
+    }
+
+    /// Write guard held for the whole of a bulk load or WAL replay.
+    pub fn bulk_load_exclusive(&self) -> RwLockWriteGuard<'_, ()> {
+        self.bulk_loader_lock.write()
+    }
+
     pub fn vacuum(self: &Arc<Self>) -> Result<(), StorageError> {
+        let _bulk_load = self.bulk_load_shared();
         let mut locked_nodes = self.nodes.write_locked();
         let mut locked_edges = self.edges.write_locked();
 
