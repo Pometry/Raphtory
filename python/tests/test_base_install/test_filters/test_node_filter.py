@@ -562,6 +562,29 @@ def test_node_type_comparison_to_a_non_string_type_is_a_python_error():
     assert isinstance(filter.Node.node_type() == "person", filter.Expr)
 
 
+def test_a_bare_str_is_refused_where_a_list_is_expected():
+    """A str is iterable, so it used to be split into its characters:
+    `layers("ab")` selected layers `a` and `b` instead of layer `ab`. The
+    filter methods now refuse it with the same TypeError the graph-level
+    methods raise."""
+    g = Graph()
+    g.add_edge(1, "x", "y", layer="ab")
+    g.add_edge(1, "x", "z", layer="a")
+    g.add_edge(1, "y", "z", layer="b")
+    with pytest.raises(TypeError) as graph_err:
+        g.layers("ab")
+    with pytest.raises(TypeError) as filter_err:
+        filter.Graph.layers("ab")
+    assert str(filter_err.value) == str(graph_err.value)
+    with pytest.raises(TypeError):
+        filter.Node.property("p").is_in("abc")
+    with pytest.raises(TypeError):
+        filter.Node.subgraph("ab")
+    assert sorted(e.id for e in g.filter(filter.Graph.layers(["ab"])).edges) == [
+        ("x", "y")
+    ]
+
+
 @with_variants(init_graph)
 def test_filter_nodes_for_node_type_ne():
     def check(graph):
