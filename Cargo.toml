@@ -134,7 +134,7 @@ kdam = "0.6.4"
 hashbrown = { version = "0.17.1" }
 pretty_assertions = "1.4.1"
 streaming-stats = "0.2.3"
-proptest = "1.11.0"
+proptest = "=1.11.0"
 proptest-derive = "0.8.0"
 criterion = "0.8.2"
 crossbeam-channel = "0.5.15"
