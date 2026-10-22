@@ -21,8 +21,10 @@ mod io_tests {
         errors::GraphError,
         prelude::*,
     };
-    use raphtory_api::core::entities::VID;
-    use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::{LayerIds, VID},
+        storage::arc_str::ArcStr,
+    };
     use raphtory_storage::{
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
