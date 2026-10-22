@@ -7,17 +7,14 @@ use crate::{
     wal::LSN,
 };
 use drop_logging::drop_error;
-use raphtory_api::core::{
-    entities::{
-        EID, LayerId, VID,
-        properties::{
-            meta::STATIC_GRAPH_LAYER_ID,
-            prop::{AsPropRef, Prop},
-        },
+use raphtory_api::core::entities::{
+    EID, LayerId, VID,
+    properties::{
+        meta::STATIC_GRAPH_LAYER_ID,
+        prop::{AsPropRef, Prop},
     },
-    storage::timeindex::EventTime,
 };
-use raphtory_core::storage::timeindex::AsTime;
+use raphtory_core::storage::timeindex::{AsTime, EventTime};
 use std::ops::DerefMut;
 
 #[derive(Debug)]

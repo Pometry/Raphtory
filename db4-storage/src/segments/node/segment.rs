@@ -325,7 +325,6 @@ impl MemNodeSegment {
         layer_est_size - est_size
     }
 
-    #[inline]
     pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
@@ -357,7 +356,6 @@ impl MemNodeSegment {
         Ok(())
     }
 
-    #[inline]
     pub fn update_metadata<P: AsPropRef>(
         &mut self,
         node_pos: LocalPOS,

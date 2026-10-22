@@ -439,12 +439,10 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         layer_filter: impl Fn(LayerId) -> bool,
     ) -> Option<Prop> {
         let layer_ids = view.layer_ids();
-        let mut values = view
-            .core_graph()
-            .edge_metadata_presence()
-            .present_layers(self.layer_ids_iter(layer_ids), prop_id)
-            .into_iter()
-            .filter(|&layer| layer_filter(layer))
+        let presence = view.core_graph().edge_metadata_presence();
+        let mut values = self
+            .layer_ids_iter(layer_ids)
+            .filter(|&layer| presence.has(layer, prop_id) && layer_filter(layer))
             .filter_map(|layer| Some((layer, self.metadata_layer(layer, prop_id)?)));
         if view.num_layers() > 1 {
             let mut values = values.peekable();

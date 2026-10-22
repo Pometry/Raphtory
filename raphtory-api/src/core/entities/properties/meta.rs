@@ -615,32 +615,13 @@ pub enum LayerPresenceRef<'a> {
 }
 
 impl LayerPresenceRef<'_> {
+    /// Whether `prop_id` was ever written in `layer_id`. Read-locked graphs don't need to lock the
+    /// layer presence bitset.
     #[inline]
     pub fn has(self, layer_id: LayerId, prop_id: usize) -> bool {
         match self {
             LayerPresenceRef::Locked(presence) => presence.has(layer_id, prop_id),
             LayerPresenceRef::Live(mapper) => mapper.layer_has(layer_id, prop_id),
-        }
-    }
-
-    /// The layers in `layers` that hold `prop_id`.
-    pub fn present_layers(
-        self,
-        layers: impl IntoIterator<Item = LayerId>,
-        prop_id: usize,
-    ) -> Vec<LayerId> {
-        match self {
-            LayerPresenceRef::Locked(presence) => layers
-                .into_iter()
-                .filter(|&layer_id| presence.has(layer_id, prop_id))
-                .collect(),
-            LayerPresenceRef::Live(mapper) => {
-                let presence = mapper.layer_prop_presence.read_recursive();
-                layers
-                    .into_iter()
-                    .filter(|&layer_id| presence_has(&presence, layer_id, prop_id))
-                    .collect()
-            }
         }
     }
 }
@@ -1088,22 +1069,24 @@ mod layer_presence_tests {
     }
 
     #[test]
-    fn locked_presence_matches_live_and_skips_absent_layers() {
+    fn locked_presence_matches_live() {
         let mapper = PropMapper::default();
         mapper.mark_props_in_layer(LayerId(1), [0]);
         mapper.mark_props_in_layer(LayerId(3), [0]);
         let locked = mapper.read_lock_layer_presence();
 
-        let layers = (0..5).map(LayerId);
         for presence in [
             LayerPresenceRef::Locked(&locked),
             LayerPresenceRef::Live(&mapper),
         ] {
-            assert_eq!(
-                presence.present_layers(layers.clone(), 0),
-                [LayerId(1), LayerId(3)]
-            );
-            assert!(presence.present_layers(layers.clone(), 1).is_empty());
+            let present = |prop_id| {
+                (0..5)
+                    .map(LayerId)
+                    .filter(|&layer_id| presence.has(layer_id, prop_id))
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(present(0), [LayerId(1), LayerId(3)]);
+            assert!(present(1).is_empty());
         }
     }
 

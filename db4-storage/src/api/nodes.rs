@@ -451,8 +451,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         }
     }
 
-    /// Graph-wide node `Meta`
-    fn node_meta(&self) -> &'a Arc<Meta>;
+    fn node_meta(&self) -> &Arc<Meta>;
 
     fn temp_prop_rows(
         self,

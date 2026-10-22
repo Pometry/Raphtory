@@ -2,10 +2,7 @@ use crate::graph::layer_ids_with_static;
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::EdgeRef,
-        properties::{
-            meta::{LayerPresenceRef, STATIC_GRAPH_LAYER},
-            prop::Prop,
-        },
+        properties::{meta::STATIC_GRAPH_LAYER, prop::Prop},
         GidRef, LayerId, LayerIds, VID,
     },
     storage::timeindex::TimeIndexOps,
@@ -64,7 +61,7 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         prop_id: usize,
     ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
-            .map(move |id| (id, NodeStorageOps::temporal_prop_layer(self, id, prop_id)))
+            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
@@ -75,16 +72,19 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
     /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
     /// explicit layer name). Unlayered nodes must be visible in every view.
-    /// Skips layers that `presence` says never held `prop_id` for efficiency.
-    fn tprop_iter_layers(
+    /// Skips layers where `has_prop` is false, i.e. the presence bitset says `prop_id`
+    /// was never written there.
+    fn tprop_iter_layers<F>(
         self,
         layer_ids: &LayerIds,
         prop_id: usize,
-        presence: LayerPresenceRef<'_>,
-    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + use<'a, Self> {
-        presence
-            .present_layers(layer_ids_with_static(self.num_layers(), layer_ids), prop_id)
-            .into_iter()
+        layer_has_prop: F,
+    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + use<'a, Self, F>
+    where
+        F: Fn(LayerId) -> bool + Send + Sync + 'a,
+    {
+        layer_ids_with_static(self.num_layers(), layer_ids)
+            .filter(move |&id| layer_has_prop(id))
             .map(move |id| self.temporal_prop_layer(id, prop_id))
     }
 
@@ -95,9 +95,8 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
-        self.layer_ids_iter(layer_ids).filter_map(move |id| {
-            Some((id, NodeStorageOps::constant_prop_layer(self, id, prop_id)?))
-        })
+        self.layer_ids_iter(layer_ids)
+            .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
     }
 
     fn temp_prop_rows_range(

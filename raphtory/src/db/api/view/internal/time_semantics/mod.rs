@@ -240,14 +240,16 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
 }
 
 /// `node`'s values for `prop_id` in each layer of `view` that holds it.
-fn node_tprops<'graph, G: GraphView>(
+fn node_tprops<'graph, G: GraphView + 'graph>(
     node: NodeStorageRef<'graph>,
-    view: &G,
+    view: G,
     prop_id: usize,
 ) -> impl Iterator<Item = storage::NodeTProps<'graph>> + Send + Sync + 'graph {
-    node.tprop_iter_layers(
-        view.layer_ids(),
-        prop_id,
-        view.core_graph().node_temporal_presence(),
-    )
+    // cloned so `view` can move into the presence check below
+    let layer_ids = view.layer_ids().clone();
+    node.tprop_iter_layers(&layer_ids, prop_id, move |layer_id| {
+        view.core_graph()
+            .node_temporal_presence()
+            .has(layer_id, prop_id)
+    })
 }

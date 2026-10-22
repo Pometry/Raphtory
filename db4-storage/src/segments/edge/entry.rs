@@ -5,11 +5,7 @@ use crate::{
     generic_time_ops::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
     segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
 };
-use raphtory_api::core::entities::{
-    LayerId,
-    edges::edge_ref::Dir,
-    properties::{meta::Meta, prop::Prop},
-};
+use raphtory_api::core::entities::{LayerId, edges::edge_ref::Dir, properties::prop::Prop};
 use raphtory_core::{
     entities::{
         EID, Multiple, VID,
@@ -18,7 +14,7 @@ use raphtory_core::{
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct MemEdgeEntry<'a, MES> {
@@ -230,10 +226,5 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     #[inline]
     fn internal_num_layers(self) -> usize {
         self.es.as_ref().len()
-    }
-
-    #[inline]
-    fn edge_meta(&self) -> &'a Arc<Meta> {
-        self.es.edge_meta()
     }
 }

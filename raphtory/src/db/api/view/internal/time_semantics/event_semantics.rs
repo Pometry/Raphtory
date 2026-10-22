@@ -269,7 +269,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .map(|p| p.iter())
             .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
@@ -280,7 +280,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .map(|p| p.iter_rev())
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
@@ -292,7 +292,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .map(move |p| p.iter_window(w.clone()))
             .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
@@ -304,7 +304,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .map(move |p| p.iter_window_rev(w.clone()))
             .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
@@ -315,7 +315,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .filter_map(|prop| prop.last())
             .max_by_key(|(t, _)| *t)
     }
@@ -327,7 +327,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .filter_map(|prop| prop.last_window(w.clone()))
             .max_by_key(|(t, _)| *t)
     }
@@ -339,7 +339,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        super::node_tprops(node, &view, prop_id)
+        super::node_tprops(node, view, prop_id)
             .filter_map(|prop| prop.last_before(t.next()))
             .max_by_key(|(t, _)| *t)
     }
@@ -353,7 +353,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            super::node_tprops(node, &view, prop_id)
+            super::node_tprops(node, view, prop_id)
                 .filter_map(|prop| prop.last_window(w.start..t.next()))
                 .max_by_key(|(t, _)| *t)
         } else {
