@@ -357,6 +357,34 @@ pub trait GraphPaths {
             .accessed()?
             .to_millis()?)
     }
+
+    /// Extract the data version from a path to a `data{id}/graph{id}/` directory.
+    fn version_from_graph_path(path: impl AsRef<Path>) -> Result<u64, GraphFolderError> {
+        let path = path.as_ref();
+        let invalid_path = || GraphFolderError::InvalidGraphPath(path.to_path_buf());
+
+        let graph_dir = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(invalid_path)?;
+
+        validate_path_pointer(graph_dir, GRAPH_PATH)?;
+
+        let data_dir = path
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .and_then(|name| name.to_str())
+            .ok_or_else(invalid_path)?;
+
+        validate_path_pointer(data_dir, DATA_PATH)?;
+
+        let version = data_dir
+            .strip_prefix(DATA_PATH)
+            .and_then(parse_u64_strict)
+            .ok_or_else(invalid_path)?;
+
+        Ok(version)
+    }
 }
 
 impl<P: AsRef<Path> + ?Sized> GraphPaths for P {
