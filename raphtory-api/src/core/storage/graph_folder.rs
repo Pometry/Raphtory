@@ -250,7 +250,7 @@ pub trait GraphPaths {
         Ok(path)
     }
 
-    fn meta_path(&self) -> Result<PathBuf, GraphFolderError> {
+    fn graph_meta_path(&self) -> Result<PathBuf, GraphFolderError> {
         let mut path = self.data_path()?.path;
         path.push(GRAPH_META_PATH);
         Ok(path)
@@ -299,7 +299,7 @@ pub trait GraphPaths {
             let mut zip_file = zip.by_name(&path)?;
             zip_file.read_to_string(&mut json)?;
         } else {
-            let mut file = File::open(self.meta_path()?)?;
+            let mut file = File::open(self.graph_meta_path()?)?;
             file.read_to_string(&mut json)?;
         }
         let metadata: Metadata = serde_json::from_str(&json)?;
@@ -307,13 +307,13 @@ pub trait GraphPaths {
     }
 
     fn write_metadata(&self, meta: Metadata) -> Result<(), GraphFolderError> {
-        meta.write(self.meta_path()?.as_ref())?;
+        meta.write(self.graph_meta_path()?.as_ref())?;
         Ok(())
     }
 
     /// Returns true if folder is occupied by a graph.
     fn is_reserved(&self) -> bool {
-        self.meta_path().is_ok_and(|path| path.exists())
+        self.graph_meta_path().is_ok_and(|path| path.exists())
     }
 
     /// Initialise the data folder and metadata pointer
@@ -347,11 +347,15 @@ pub trait GraphPaths {
     }
 
     fn last_updated(&self) -> Result<i64, GraphFolderError> {
-        Ok(fs::metadata(self.meta_path()?)?.modified()?.to_millis()?)
+        Ok(fs::metadata(self.graph_meta_path()?)?
+            .modified()?
+            .to_millis()?)
     }
 
     fn last_opened(&self) -> Result<i64, GraphFolderError> {
-        Ok(fs::metadata(self.meta_path()?)?.accessed()?.to_millis()?)
+        Ok(fs::metadata(self.graph_meta_path()?)?
+            .accessed()?
+            .to_millis()?)
     }
 }
 

@@ -110,7 +110,7 @@ fn test_zip_from_folder() {
     graph.encode(&initial_folder).unwrap();
 
     assert!(initial_folder.graph_path().unwrap().exists());
-    assert!(initial_folder.meta_path().unwrap().exists());
+    assert!(initial_folder.graph_meta_path().unwrap().exists());
 
     // Create a zip file from the folder
     let output_zip_path = temp_folder.path().join("output.zip");
@@ -212,7 +212,7 @@ fn test_unzip_to_folder() {
 
     // Verify the extracted folder has the same structure
     assert!(unzip_folder.graph_path().unwrap().exists());
-    assert!(unzip_folder.meta_path().unwrap().exists());
+    assert!(unzip_folder.graph_meta_path().unwrap().exists());
 
     // Verify the extracted graph is the same as the original
     let extracted_graph = Graph::decode(&unzip_folder).unwrap();
