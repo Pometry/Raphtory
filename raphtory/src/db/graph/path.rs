@@ -15,7 +15,7 @@ use crate::{
             create_node_type_filter,
             edges::{Edges, NestedEdges},
             node::NodeView,
-            views::filter::{and_filtered_graph::AndFilteredGraph, CreateFilter},
+            views::filter::CreateFilter,
         },
     },
     errors::GraphError,
@@ -301,14 +301,8 @@ where
         &self,
         filter: F,
     ) -> Result<PathFromGraph<'graph, G>, GraphError> {
-        let filter_graph = filter.filter_graph_view(self.base_graph.clone())?;
-        let filter = filter.create_node_filter(self.base_graph.clone(), filter_graph.clone())?;
-
-        let select = Arc::new(AndFilteredGraph::new(
-            self.base_graph.clone(),
-            self.select.clone(),
-            filter_graph,
-        ));
+        let filter = filter.create_node_filter(self.base_graph.clone())?;
+        let select = self.select.clone();
 
         let op = self.op.clone();
         let op = Arc::new(move |graph: DynGraphArc<'graph>, node| {
@@ -482,6 +476,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromNode<'
             base_graph: self.base_graph.clone(),
             select: Arc::new(self.base_graph.clone()),
             edges,
+            kind: Default::default(),
         }
     }
 
@@ -552,13 +547,8 @@ where
         filter: F,
     ) -> Result<PathFromNode<'graph, G>, GraphError> {
         let op = self.op.clone();
-        let filter_graph = filter.filter_graph_view(self.base_graph.clone())?;
-        let select = Arc::new(AndFilteredGraph::new(
-            self.base_graph.clone(),
-            self.select.clone(),
-            filter_graph.clone(),
-        ));
-        let filter_op = filter.create_node_filter(self.base_graph.clone(), filter_graph)?;
+        let select = self.select.clone();
+        let filter_op = filter.create_node_filter(self.base_graph.clone())?;
         Ok(PathFromNode {
             base_graph: self.base_graph.clone(),
             select,

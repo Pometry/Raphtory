@@ -42,10 +42,8 @@ mod test_nodes_filters_node_subgraph {
         Edges, Nodes,
     };
     use raphtory::{
-        db::graph::views::filter::model::{
-            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-        },
-        prelude::NodeFilter,
+        db::graph::views::filter::model::PropertyExprFactory,
+        prelude::{EntityExprFilterOps, NodeFilter},
     };
     use raphtory_tests::assertions::{
         assert_filter_nodes_results, TestGraphVariants, TestVariants,
@@ -133,10 +131,8 @@ mod test_edges_filters_node_subgraph {
         Edges, Nodes,
     };
     use raphtory::{
-        db::graph::views::filter::model::{
-            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-        },
-        prelude::EdgeFilter,
+        db::graph::views::filter::model::PropertyExprFactory,
+        prelude::{EdgeFilter, EntityExprFilterOps},
     };
     use raphtory_tests::assertions::{assert_filter_edges_results, TestVariants};
 
