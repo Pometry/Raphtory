@@ -1139,13 +1139,10 @@ impl Drop for DataInner {
 #[cfg(test)]
 pub(crate) mod data_tests {
     use super::InsertionError;
-    use crate::{
-        config::app_config::AppConfigBuilder, data::Data, paths::PathValidationError, GQLError,
-    };
+    use crate::{config::app_config::AppConfigBuilder, data::Data};
     use itertools::Itertools;
     use raphtory::{
         db::api::view::{internal::InternalStorageOps, MaterializedGraph},
-        errors::InvalidPathReason,
         prelude::*,
     };
     use raphtory_api::core::storage::graph_folder::GraphPaths;
@@ -1639,6 +1636,9 @@ pub(crate) mod data_tests {
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
         let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
         let g7_path = work_dir.join(".graph"); // Invalid hidden path
+        let g8_raph_path = work_dir.join("test/reserved/raph.json");
+        let g8_dirty_path = work_dir.join("test/reserved/dirty.json");
+        let g8_meta_path = work_dir.join("test/reserved/meta.json");
 
         create_graph_folder(&g0_path);
         create_graph_folder(&g1_path);
@@ -1646,6 +1646,9 @@ pub(crate) mod data_tests {
         create_graph_folder(&g3_path);
         create_graph_folder(&g4_path);
         create_graph_folder(&g7_path);
+        create_graph_folder(&g8_raph_path);
+        create_graph_folder(&g8_dirty_path);
+        create_graph_folder(&g8_meta_path);
 
         // Empty, non-graph folder
         fs::create_dir_all(&g5_path).unwrap();
@@ -1670,6 +1673,10 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
+
+        assert!(!paths.contains(&g8_raph_path));
+        assert!(!paths.contains(&g8_dirty_path));
+        assert!(!paths.contains(&g8_meta_path));
         assert!(!paths.contains(&g5_path)); // Empty folder is ignored
         assert!(!paths.contains(&g6_path)); // Non-graph folder is ignored
         assert!(!paths.contains(&g7_path)); // Hidden path is ignored
@@ -1679,23 +1686,17 @@ pub(crate) mod data_tests {
             .await
             .is_ok());
 
-        assert!(data.get_graph_unchecked("some/random/path").await.is_err());
-        assert!(data.get_graph_unchecked(".graph").await.is_err());
-
-        // Make sure inner directories cannot be loaded as graphs.
         for path in [
+            "some/random/path",
+            ".graph",
             "shivam/investigations/g4/raph.json",
             "shivam/investigations/g4/data0/meta.json",
             "shivam/investigations/g4/data0/graph0",
+            "test/reserved/raph.json",
+            "test/reserved/dirty.json",
+            "test/reserved/meta.json",
         ] {
-            match data.get_graph_unchecked(path).await {
-                Err(GQLError::Validation(PathValidationError::InvalidPath {
-                    graph,
-                    reason: InvalidPathReason::ParentIsGraph,
-                })) => assert_eq!(graph, path),
-                Err(other) => panic!("expected ParentIsGraph for {path}, got {other:?}"),
-                Ok(_) => panic!("expected ParentIsGraph for {path}, got Ok"),
-            }
+            assert!(data.get_graph_unchecked(path).await.is_err());
         }
     }
 

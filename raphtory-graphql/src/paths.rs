@@ -318,12 +318,13 @@ fn extend_and_validate(
     path: &mut PathBuf,
     component: Component,
 ) -> Result<(), InternalPathValidationError> {
+    let component = validate_component(component)?;
+
     // Check if the path being extended already contains a graph.
     if path.join(ROOT_RAPH_PATH).is_file() {
         return Err(InvalidPathReason::ParentIsGraph.into());
     }
 
-    let component = validate_component(component)?;
     path.push(component);
 
     if path.is_symlink() {
@@ -722,14 +723,13 @@ pub(crate) fn ensure_clean_folder(base_path: &Path) -> Result<(), InternalPathVa
                 warn!("Found dirty file with invalid path: {error}, cleaning...")
             }
         }
-        match fs::remove_file(base_path.join(DIRTY_PATH)) {
-            Ok(_) => {}
-            Err(err) => match err.kind() {
-                ErrorKind::NotFound => {}
-                _ => Err(err)?,
-            },
-        };
+        let dirty_path = base_path.join(DIRTY_PATH);
+
+        if dirty_path.is_file() {
+            fs::remove_file(dirty_path)?;
+        }
     }
+
     Ok(())
 }
 
