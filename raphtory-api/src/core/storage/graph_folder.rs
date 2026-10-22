@@ -15,6 +15,7 @@ use crate::{core::input::input_node::parse_u64_strict, to_millis::ToMillis, Grap
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeSet,
     fs::{self, File},
     io,
     io::{ErrorKind, Read, Seek, Write},
@@ -122,6 +123,14 @@ pub fn validate_path_pointer(relative_path: &str, prefix: &str) -> Result<(), Gr
         .ok_or_else(|| GraphFolderError::InvalidRelativePath(relative_path.to_string()))?;
 
     Ok(())
+}
+
+pub fn version_from_data_path(path: &str) -> Result<u64, GraphFolderError> {
+    validate_path_pointer(path, DATA_PATH)?;
+
+    path.strip_prefix(DATA_PATH)
+        .and_then(parse_u64_strict)
+        .ok_or_else(|| GraphFolderError::InvalidRelativePath(path.to_string()))
 }
 
 fn read_path_from_file(mut file: impl Read, prefix: &str) -> Result<String, GraphFolderError> {
@@ -312,7 +321,7 @@ pub trait GraphPaths {
     }
 
     /// Returns true if folder is occupied by a graph.
-    fn is_reserved(&self) -> bool {
+    fn has_graph(&self) -> bool {
         self.graph_meta_path().is_ok_and(|path| path.exists())
     }
 
@@ -358,32 +367,54 @@ pub trait GraphPaths {
             .to_millis()?)
     }
 
-    /// Extract the data version from a path to a `data{id}/graph{id}/` directory.
-    fn version_from_graph_path(path: impl AsRef<Path>) -> Result<u64, GraphFolderError> {
-        let path = path.as_ref();
-        let invalid_path = || GraphFolderError::InvalidGraphPath(path.to_path_buf());
+    /// Version id of the active `data{id}/` directory.
+    fn active_version(&self) -> Result<u64, GraphFolderError> {
+        let data_path = if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            get_zip_data_path(&mut zip)?
+        } else {
+            read_path_pointer(self.root(), ROOT_RAPH_PATH, DATA_PATH)?
+                .ok_or_else(|| GraphFolderError::InvalidGraphPath(self.root_raph_path()))?
+        };
 
-        let graph_dir = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(invalid_path)?;
+        version_from_data_path(&data_path)
+    }
 
-        validate_path_pointer(graph_dir, GRAPH_PATH)?;
+    /// All `data{id}/` versions under the graph root.
+    fn all_versions(&self) -> Result<Vec<u64>, GraphFolderError> {
+        if self.is_zip() {
+            let mut zip = self.read_zip()?;
+            let mut versions = BTreeSet::new();
 
-        let data_dir = path
-            .parent()
-            .and_then(|parent| parent.file_name())
-            .and_then(|name| name.to_str())
-            .ok_or_else(invalid_path)?;
+            for i in 0..zip.len() {
+                let file = zip.by_index(i)?;
+                let file_name = file.name()?;
+                let data_dir = file_name.split('/').next().unwrap_or("");
 
-        validate_path_pointer(data_dir, DATA_PATH)?;
+                if let Ok(version) = version_from_data_path(data_dir) {
+                    versions.insert(version);
+                }
+            }
 
-        let version = data_dir
-            .strip_prefix(DATA_PATH)
-            .and_then(parse_u64_strict)
-            .ok_or_else(invalid_path)?;
+            return Ok(versions.into_iter().collect());
+        }
 
-        Ok(version)
+        let mut versions = BTreeSet::new();
+        for entry in fs::read_dir(self.root())? {
+            let entry = entry?;
+
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+
+            if let Some(name) = entry.file_name().to_str() {
+                if let Ok(version) = version_from_data_path(name) {
+                    versions.insert(version);
+                }
+            }
+        }
+
+        Ok(versions.into_iter().collect())
     }
 }
 

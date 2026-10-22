@@ -223,7 +223,7 @@ impl ExistingGraphFolder {
         relative_path: &str,
     ) -> Result<Self, PathValidationError> {
         let graph_folder: GraphFolder = full_path.into_path().into();
-        if graph_folder.is_reserved() {
+        if graph_folder.has_graph() {
             Ok(Self {
                 folder: ValidGraphFolder {
                     global_path: graph_folder,
@@ -481,7 +481,7 @@ impl ValidWriteableGraphFolder {
         let is_new = valid_path.is_new();
         let graph_folder = GraphFolder::from(valid_path.path);
 
-        if !is_new && !graph_folder.is_reserved() {
+        if !is_new && !graph_folder.has_graph() {
             return Err(PathValidationError::InternalError {
                 graph: graph_name.to_string(),
                 error: InternalPathValidationError::GraphIsNamespace,
@@ -793,7 +793,7 @@ impl ValidGraphFolder {
     }
 
     pub(crate) fn as_existing(&self) -> Result<ExistingGraphFolder, PathValidationError> {
-        if self.global_path.is_reserved() {
+        if self.global_path.has_graph() {
             Ok(ExistingGraphFolder {
                 folder: self.clone(),
             })
