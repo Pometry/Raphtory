@@ -3,10 +3,10 @@
 //! Folder structure:
 //!
 //! GraphFolder
-//! ├── raph         # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
-//! ├── (dirty)      # Optional, has same format as raph; present only during atomic swap of data folders
+//! ├── raph.json    # Metadata file (json: {path: "data{id}"}) pointing at the current data folder
+//! ├── (dirty.json) # Optional, has same format as raph.json; present only during atomic swap of data folders
 //! └── data{id}/    # DataFolder (incremental id for atomic replacement)
-//!     ├── meta          # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
+//!     ├── meta.json     # Metadata file (json: {path: "graph{id}", meta: {}}) pointing at the current graph folder
 //!     ├── graph{id}/    # Graph data (incremental id for atomic replacement)
 //!     ├── index/        # Search indexes (optional)
 //!     └── vectors/      # Vector embeddings (optional)
@@ -26,12 +26,12 @@ use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 /// Metadata file that stores path to the data folder.
-pub const ROOT_RAPH_PATH: &str = "raph";
+pub const ROOT_RAPH_PATH: &str = "raph.json";
 /// Outer most directory containing all data.
 pub const DATA_PATH: &str = "data";
 pub const DEFAULT_DATA_PATH: &str = "data0";
 /// Metadata file that stores path to the graph folder and graph metadata.
-pub const GRAPH_META_PATH: &str = "meta";
+pub const GRAPH_META_PATH: &str = "meta.json";
 /// Directory that stores graph data.
 pub const GRAPH_PATH: &str = "graph";
 pub const DEFAULT_GRAPH_PATH: &str = "graph0";
@@ -40,7 +40,7 @@ pub const INDEX_PATH: &str = "index";
 /// Directory that stores vector embeddings of the graph.
 pub const VECTORS_PATH: &str = "vectors";
 /// Temporary metadata file for atomic replacement.
-pub const DIRTY_PATH: &str = "dirty";
+pub const DIRTY_PATH: &str = "dirty.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metadata {
