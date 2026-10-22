@@ -1139,10 +1139,13 @@ impl Drop for DataInner {
 #[cfg(test)]
 pub(crate) mod data_tests {
     use super::InsertionError;
-    use crate::{config::app_config::AppConfigBuilder, data::Data};
+    use crate::{
+        config::app_config::AppConfigBuilder, data::Data, paths::PathValidationError, GQLError,
+    };
     use itertools::Itertools;
     use raphtory::{
         db::api::view::{internal::InternalStorageOps, MaterializedGraph},
+        errors::InvalidPathReason,
         prelude::*,
     };
     use raphtory_api::core::storage::graph_folder::GraphPaths;
@@ -1678,6 +1681,22 @@ pub(crate) mod data_tests {
 
         assert!(data.get_graph_unchecked("some/random/path").await.is_err());
         assert!(data.get_graph_unchecked(".graph").await.is_err());
+
+        // Make sure inner directories cannot be loaded as graphs.
+        for path in [
+            "shivam/investigations/g4/raph.json",
+            "shivam/investigations/g4/data0/meta.json",
+            "shivam/investigations/g4/data0/graph0",
+        ] {
+            match data.get_graph_unchecked(path).await {
+                Err(GQLError::Validation(PathValidationError::InvalidPath {
+                    graph,
+                    reason: InvalidPathReason::ParentIsGraph,
+                })) => assert_eq!(graph, path),
+                Err(other) => panic!("expected ParentIsGraph for {path}, got {other:?}"),
+                Ok(_) => panic!("expected ParentIsGraph for {path}, got Ok"),
+            }
+        }
     }
 
     #[tokio::test]

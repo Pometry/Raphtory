@@ -18,7 +18,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::graph_folder::{
     GraphFolder, GraphFolderError, GraphMetadata, GraphPaths, Metadata, RelativePath,
-    WriteableGraphFolder, DIRTY_PATH, ROOT_RAPH_PATH,
+    WriteableGraphFolder, DIRTY_PATH, GRAPH_META_PATH, ROOT_RAPH_PATH,
 };
 use std::{
     cmp::Ordering,
@@ -136,12 +136,12 @@ impl ValidPath {
 
     /// path exists and is a graph
     pub fn is_graph(&self) -> bool {
-        self.0.exists() && self.0.join(ROOT_RAPH_PATH).exists()
+        self.0.exists() && self.0.join(ROOT_RAPH_PATH).is_file()
     }
 
     /// path exists and is a namespace
     pub fn is_namespace(&self) -> bool {
-        self.0.exists() && !self.0.join(ROOT_RAPH_PATH).exists()
+        self.0.exists() && !self.0.join(ROOT_RAPH_PATH).is_file()
     }
 
     pub fn into_path(self) -> PathBuf {
@@ -299,6 +299,14 @@ fn validate_component(component: Component<'_>) -> Result<&str, InvalidPathReaso
 
             if component_str.starts_with(".") {
                 Err(InvalidPathReason::HiddenPathNotAllowed)
+            } else if [ROOT_RAPH_PATH, DIRTY_PATH, GRAPH_META_PATH]
+                .iter()
+                // Case-insensitive filesystems would otherwise still collide.
+                .any(|reserved| component_str.eq_ignore_ascii_case(reserved))
+            {
+                Err(InvalidPathReason::ReservedNameNotAllowed(
+                    component_str.to_string(),
+                ))
             } else {
                 Ok(component_str)
             }
@@ -735,13 +743,16 @@ pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationE
         .to_str()
         .ok_or(InternalPathValidationError::NonUTFCharacters)?
         .to_string();
+
     let parent = path
         .parent()
         .ok_or(InternalPathValidationError::MissingParent)?;
+
     ensure_clean_folder(parent)?;
     let dirty_file_path = parent.join(DIRTY_PATH);
     let mut dirty_file = File::create_new(&dirty_file_path)?;
     dirty_file.write_all(&serde_json::to_vec(&RelativePath { path: cleanup_path })?)?;
+
     // make sure the dirty path is properly recorded before we proceed!
     dirty_file.sync_all()?;
     Ok(dirty_file_path)

@@ -2035,11 +2035,11 @@ mod graphql_test {
         test_new_graph(&schema, "ns/metadata", should_work).await;
 
         let should_work = false;
-        test_new_graph(&schema, "raph", should_work).await;
-        test_new_graph(&schema, "ns/dirty", should_work).await;
-        test_new_graph(&schema, "ns/meta", should_work).await;
-        test_new_graph(&schema, "RAPH", should_work).await;
-        test_new_graph(&schema, "raph/graph", should_work).await;
+        test_new_graph(&schema, "raph.json", should_work).await;
+        test_new_graph(&schema, "ns/raph.json", should_work).await;
+        test_new_graph(&schema, "ns/dirty.json", should_work).await;
+        test_new_graph(&schema, "ns/meta.json", should_work).await;
+        test_new_graph(&schema, "RAPH.JSON", should_work).await;
 
         assert_namespace_graphs(&schema, "", vec!["raphs"], vec!["ns"]).await;
         assert_namespace_graphs(&schema, "ns", vec!["ns/metadata"], vec![]).await;
