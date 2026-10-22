@@ -307,24 +307,22 @@ fn validate_component(component: Component<'_>) -> Result<&str, InvalidPathReaso
 }
 
 fn extend_and_validate(
-    full_path: &mut PathBuf,
+    path: &mut PathBuf,
     component: Component,
 ) -> Result<(), InternalPathValidationError> {
-    let component = validate_component(component)?;
-
-    // check if some intermediate path is already a graph
-    if full_path.join(ROOT_RAPH_PATH).exists() {
+    // Check if the path being extended already contains a graph.
+    if path.join(ROOT_RAPH_PATH).is_file() {
         return Err(InvalidPathReason::ParentIsGraph.into());
     }
 
-    full_path.push(component);
+    let component = validate_component(component)?;
+    path.push(component);
 
-    // check for symlinks
-    if full_path.is_symlink() {
+    if path.is_symlink() {
         return Err(InvalidPathReason::SymlinkNotAllowed.into());
     }
 
-    ensure_clean_folder(&full_path)?;
+    ensure_clean_folder(&path)?;
 
     Ok(())
 }
