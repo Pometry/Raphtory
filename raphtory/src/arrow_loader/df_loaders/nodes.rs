@@ -454,14 +454,14 @@ pub fn load_node_props_from_df<
 
         // pre-resolved ids may point past the segments we have
         // We assume this is fast enough
-        let max_vid = node_col_resolved
-            .iter()
-            .filter(|vid| vid.is_initialised())
-            .map(|vid| vid.index())
-            .max()
-            .map(VID)
-            .unwrap_or(VID(0));
-        write_locked_graph.resize_segments_to_vid(max_vid);
+        // let max_vid = node_col_resolved
+        //     .iter()
+        //     .filter(|vid| vid.is_initialised())
+        //     .map(|vid| vid.index())
+        //     .max()
+        //     .map(VID)
+        //     .unwrap_or(VID(0));
+        // write_locked_graph.resize_segments_to_vid(max_vid);
 
         write_locked_graph
             .nodes

@@ -166,7 +166,7 @@ where
 
         // Grab edge writer and add temporal props.
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
+        self.resize_segments_to_eid(eid)?;
 
         let segment = self
             .graph()
@@ -228,7 +228,7 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
+        self.resize_segments_to_eid(eid)?;
 
         let segment = self
             .graph()
@@ -402,7 +402,7 @@ where
 
         // Grab edge writer and delete the edge at (t, layer_id).
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
+        self.resize_segments_to_eid(eid)?;
 
         let segment = self
             .graph()
