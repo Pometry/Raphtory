@@ -9,13 +9,12 @@ use crate::{
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
-        locked::nodes::{LockedNodeSegment, WriteLockedNodeSegments},
+        locked::nodes::{ArcLockedNodeSegment, LockedNodeSegment, WriteLockedNodeSegments},
         row_group_par_iter,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
-use lock_api::ArcRwLockWriteGuard;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
@@ -375,18 +374,65 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         Ok(())
     }
 
+    /// Append the segments created and locked during a bulk load to `pages`.
+    ///
+    /// # Panics
+    /// If `pages` does not then hold every node segment in the graph: a segment created without
+    /// handing over its lock would let readers see its uninitialised nodes.
+    pub fn extend_new<'a>(
+        &'a self,
+        pages: &mut WriteLockedNodeSegments<'a, NS>,
+        mut new_segments: Vec<ArcLockedNodeSegment>,
+    ) {
+        // segments are pushed concurrently from several threads, so the ids arrive in any order
+        new_segments.sort_unstable_by_key(|segment| segment.segment_id());
+        for new_segment in new_segments {
+            let segment_id = new_segment.segment_id();
+            let page = self
+                .get_segment(segment_id)
+                .expect("locked segment must exist");
+            pages.push(LockedNodeSegment::new(
+                segment_id,
+                &self.stats,
+                self.max_segment_len(),
+                page,
+                new_segment,
+            ));
+        }
+        self.assert_all_locked(pages);
+    }
+
+    /// # Panics
+    /// If `pages` does not hold every node segment in the graph.
+    pub fn assert_all_locked(&self, pages: &WriteLockedNodeSegments<'_, NS>) {
+        assert_eq!(
+            pages.len(),
+            self.segments.count(),
+            "node segments were created during the bulk load without handing over their locks"
+        );
+    }
+
+    /// Create segments until there are `new_len`, returning them locked.
+    ///
+    /// Only for use behind the bulk load lock: no other thread may create node segments
+    /// concurrently.
+    pub fn grow_locked(&self, new_len: usize) -> Vec<ArcLockedNodeSegment> {
+        let mut new_segments = Vec::new();
+        while self.segments.count() < new_len {
+            self.push_new_segment(Some(&mut new_segments));
+        }
+        new_segments
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.segments.iter().any(|(_, segment)| segment.is_dirty())
     }
 
-    pub fn reserve_free_pos(
-        &self,
-        row: usize,
-    ) -> (
-        usize,
-        LocalPOS,
-        Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
-    ) {
+    /// Select a segment using `row` as a hint and reserve a row in it.
+    ///
+    /// Also returns the segments this created, write-locked before they were published.
+    /// A bulk loader must hand them to its `WriteLockedNodeSegments`, other callers can drop them.
+    pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS, Vec<ArcLockedNodeSegment>) {
         let slot_idx = row % *N;
         let maybe_free_page = {
             let segment_id = *self.free_segments[slot_idx].read_recursive();
@@ -461,12 +507,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
-    fn push_new_segment(
-        &self,
-        new_segment_locks: Option<
-            &mut Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
-        >,
-    ) -> usize {
+    /// Push a new segment; if `new_segment_locks` is given, the segment is write-locked before it
+    /// is published and its lock is pushed there.
+    fn push_new_segment(&self, new_segment_locks: Option<&mut Vec<ArcLockedNodeSegment>>) -> usize {
         let segment_id = self.segments.push_with(|segment_id| {
             let segment = Arc::new(NS::new(
                 segment_id,
@@ -476,7 +519,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 self.ext.clone(),
             ));
             if let Some(new_segment_locks) = new_segment_locks {
-                new_segment_locks.push(segment.head_mut_arc())
+                new_segment_locks.push(ArcLockedNodeSegment::new(
+                    segment_id,
+                    segment.head_mut_arc(),
+                ))
             };
             segment
         });

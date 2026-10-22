@@ -2,7 +2,6 @@
 use crate::arrow_loader::df_loaders::build_progress_bar;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
-use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
 
 use crate::{
     arrow_loader::{
@@ -46,11 +45,10 @@ use storage::{
     pages::{
         locked::{
             edges::{LockedEdgeSegment, WriteLockedEdgeSegments},
-            nodes::LockedNodeSegment,
+            nodes::{ArcLockedNodeSegment, LockedNodeSegment},
         },
         resolve_pos,
     },
-    segments::node::segment::MemNodeSegment,
     Extension,
 };
 use tracing::error;
@@ -294,9 +292,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
 
         // node resolution may have created new node segments
-        write_locked_graph
-            .lock_new_segments()
-            .map_err(into_graph_err)?;
+        write_locked_graph.extend_new(new_segment_guards);
         let max_node_segment_len = write_locked_graph
             .graph()
             .storage()
@@ -438,7 +434,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         // the node pass may have created new edge segments
         write_locked_graph
-            .lock_new_segments()
+            .lock_new_edge_segments()
             .map_err(into_graph_err)?;
         let edge_rows_by_segment = group_rows_by_eid_segment(
             &eid_col_resolved,
@@ -502,7 +498,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
         &'a [VID],
         &'a [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
+        Vec<ArcLockedNodeSegment>,
     ),
     GraphError,
 > {
@@ -560,7 +556,7 @@ fn resolve_node_vids_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps 
             }
             Ok::<_, GraphError>(new_segment_guards)
         })
-        .collect::<Result<Vec<Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>>, GraphError>>()?
+        .collect::<Result<Vec<Vec<ArcLockedNodeSegment>>, GraphError>>()?
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
@@ -607,7 +603,7 @@ pub fn get_or_resolve_node_vids<
         &'c [VID],
         &'c [VID],
         Vec<(GidRef<'a>, VID)>,
-        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
+        Vec<ArcLockedNodeSegment>,
     ),
     GraphError,
 > {

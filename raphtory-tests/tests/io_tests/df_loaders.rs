@@ -1120,6 +1120,56 @@ mod io_tests {
     }
 
     #[test]
+    fn test_new_node_segments_are_locked_before_hand_over() {
+        use storage::api::nodes::NodeSegmentOps;
+
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held = wlg.nodes.len();
+
+        // keep reserving until a row lands in a new segment
+        let mut new_segments = vec![];
+        let mut row = 0;
+        while new_segments.is_empty() {
+            let (_, _, locked) = tg.storage().nodes().reserve_free_pos(row);
+            new_segments.extend(locked);
+            row += 1;
+        }
+
+        // readers cannot see the new segments' nodes until the bulk load is done
+        for segment_id in held..tg.storage().nodes().num_segments() {
+            let segment = tg.storage().nodes().get_or_create_segment(segment_id);
+            assert!(segment.try_head_mut_for(std::time::Duration::ZERO).is_none());
+        }
+
+        wlg.extend_new(new_segments);
+        assert_eq!(wlg.nodes.len(), tg.storage().nodes().num_segments());
+        for segment_id in 0..wlg.nodes.len() {
+            assert_eq!(
+                wlg.nodes.get_mut(segment_id).unwrap().segment_id(),
+                segment_id
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "without handing over their locks")]
+    fn test_extend_new_panics_on_unlocked_node_segment() {
+        let g = small_pages_graph();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut wlg = g.write_lock().unwrap();
+        let tg = wlg.graph;
+        let held = wlg.nodes.len();
+        tg.storage().nodes().grow(held + 1);
+
+        wlg.extend_new(vec![]);
+    }
+
+    #[test]
     fn test_lock_new_segments_covers_segments_created_while_locked() {
         let g = small_pages_graph();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();

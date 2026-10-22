@@ -12,7 +12,6 @@ use crate::{
 use dashmap::SharedValue;
 #[cfg(feature = "progress")]
 use kdam::{Bar, BarBuilder, BarExt};
-use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
@@ -28,7 +27,7 @@ use std::{
     hash::BuildHasher,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use storage::{pages::resolve_pos, segments::node::segment::MemNodeSegment};
+use storage::pages::{locked::nodes::ArcLockedNodeSegment, resolve_pos};
 
 pub mod edge_props;
 pub mod edges;
@@ -284,13 +283,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<
-    (
-        FxDashMap<GidRef<'a>, VID>,
-        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
-    ),
-    GraphError,
-> {
+) -> Result<(FxDashMap<GidRef<'a>, VID>, Vec<ArcLockedNodeSegment>), GraphError> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
         |vid: &VID, idx, col_idx| {

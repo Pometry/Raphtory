@@ -344,12 +344,16 @@ fn lock_source<'s, G: StaticGraphViewOps, GHH: GraphView>(
 ) -> Result<&'s GraphStorage, GraphError> {
     let node_storage = node.graph.core_graph();
     if !source.as_ref().is_some_and(|s| s.ptr_eq(node_storage)) {
-        check_node_prop_types(graph, &node.graph)?;
-        *source = Some(if graph.core_graph().ptr_eq(node_storage) {
+        // release the previous source before locking the next one
+        *source = None;
+        // lock before checking, so the source cannot change after the check
+        let locked = if graph.core_graph().ptr_eq(node_storage) {
             node_storage.clone()
         } else {
             node_storage.lock()
-        });
+        };
+        check_node_prop_types(graph, &node.graph)?;
+        *source = Some(locked);
     }
     Ok(source.as_ref().expect("source set"))
 }

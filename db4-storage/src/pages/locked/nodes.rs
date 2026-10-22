@@ -10,11 +10,77 @@ use crate::{
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{ArcRwLockWriteGuard, RawRwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{ops::DerefMut, path::Path};
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
+
+/// A node segment created while the bulk loader holds the graph, write-locked before the segment
+/// was published so no reader can see its uninitialised nodes.
+///
+/// Hand it to [`WriteLockedNodeSegments`] through `NodeStorage::extend_new`.
+#[derive(Debug)]
+pub struct ArcLockedNodeSegment {
+    segment_id: usize,
+    head: ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>,
+}
+
+impl ArcLockedNodeSegment {
+    pub fn new(segment_id: usize, head: ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>) -> Self {
+        Self { segment_id, head }
+    }
+
+    #[inline(always)]
+    pub fn segment_id(&self) -> usize {
+        self.segment_id
+    }
+}
+
+/// The head lock of a [`LockedNodeSegment`]: borrowed for segments that existed when the graph
+/// was locked, owned for segments created and locked during the bulk load.
+#[derive(Debug)]
+pub enum LockedNodeHead<'a> {
+    Borrowed(RwLockWriteGuard<'a, MemNodeSegment>),
+    Arc(ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>),
+}
+
+impl<'a> From<RwLockWriteGuard<'a, MemNodeSegment>> for LockedNodeHead<'a> {
+    fn from(head: RwLockWriteGuard<'a, MemNodeSegment>) -> Self {
+        Self::Borrowed(head)
+    }
+}
+
+impl From<ArcLockedNodeSegment> for LockedNodeHead<'_> {
+    fn from(segment: ArcLockedNodeSegment) -> Self {
+        Self::Arc(segment.head)
+    }
+}
+
+impl Deref for LockedNodeHead<'_> {
+    type Target = MemNodeSegment;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Borrowed(head) => head,
+            Self::Arc(head) => head,
+        }
+    }
+}
+
+impl DerefMut for LockedNodeHead<'_> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Borrowed(head) => head,
+            Self::Arc(head) => head,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct LockedNodeSegment<'a, NS> {
@@ -22,7 +88,7 @@ pub struct LockedNodeSegment<'a, NS> {
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     segment: &'a NS,
-    head: RwLockWriteGuard<'a, MemNodeSegment>,
+    head: LockedNodeHead<'a>,
 }
 
 impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
@@ -31,14 +97,14 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         segment: &'a NS,
-        head: RwLockWriteGuard<'a, MemNodeSegment>,
+        head: impl Into<LockedNodeHead<'a>>,
     ) -> Self {
         Self {
             id,
             layer_counter,
             max_page_len,
             segment,
-            head,
+            head: head.into(),
         }
     }
 

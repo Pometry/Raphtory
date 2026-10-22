@@ -31,8 +31,10 @@ use storage::{
     pages::{
         layer_counter::GraphStats,
         locked::{
-            edges::WriteLockedEdgeSegments, graph_props::WriteLockedGraphPropSegment,
-            node_type_index::WriteLockedNodeTypeIndex, nodes::WriteLockedNodeSegments,
+            edges::WriteLockedEdgeSegments,
+            graph_props::WriteLockedGraphPropSegment,
+            node_type_index::WriteLockedNodeTypeIndex,
+            nodes::{ArcLockedNodeSegment, WriteLockedNodeSegments},
         },
     },
     persist::strategy::PersistenceStrategy,
@@ -517,6 +519,37 @@ where
             .storage
             .edges()
             .lock_new_segments(&mut self.edges, timeout)
+    }
+
+    /// Write-lock the edge segments created since this graph was locked, keeping the locks
+    /// already held. Bulk loaders hand over new node segments with [`Self::extend_new`] instead.
+    pub fn lock_new_edge_segments(&mut self) -> Result<(), StorageError> {
+        self.graph
+            .storage
+            .edges()
+            .lock_new_segments(&mut self.edges, NEW_SEGMENT_LOCK_TIMEOUT)
+    }
+
+    /// Take over the node segments created and locked during a bulk load (e.g. by node
+    /// resolution).
+    ///
+    /// # Panics
+    /// If any node segment in the graph is then still not held.
+    pub fn extend_new(&mut self, new_segments: Vec<ArcLockedNodeSegment>) {
+        self.graph
+            .storage
+            .nodes()
+            .extend_new(&mut self.nodes, new_segments);
+    }
+
+    /// Create the node segments up to `vid`, locked before they are published.
+    ///
+    /// For bulk loads of pre-resolved ids; replay uses [`Self::resize_segments_to_vid`].
+    pub fn grow_nodes_to_vid(&mut self, vid: VID) {
+        let nodes = self.graph.storage.nodes();
+        let (segment_id, _) = nodes.resolve_pos(vid);
+        let new_segments = nodes.grow_locked(segment_id + 1);
+        self.extend_new(new_segments);
     }
 
     pub fn resize_segments_to_vid(&mut self, vid: VID) -> Result<(), StorageError> {

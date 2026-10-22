@@ -146,7 +146,7 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
         })?;
 
         write_locked_graph
-            .lock_new_segments()
+            .lock_new_edge_segments()
             .map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {

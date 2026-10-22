@@ -6,7 +6,6 @@ use crate::{
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use itertools::izip;
-use parking_lot::{ArcRwLockWriteGuard, RawRwLock};
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
     core::{
@@ -35,9 +34,8 @@ use storage::{
     api::{node_type_index::NodeTypeIndexOps, nodes::NodeSegmentOps},
     pages::locked::{
         node_type_index::WriteLockedNodeTypeIndex,
-        nodes::{LockedNodeSegment, WriteLockedNodeSegments},
+        nodes::{ArcLockedNodeSegment, LockedNodeSegment, WriteLockedNodeSegments},
     },
-    segments::node::segment::MemNodeSegment,
     Extension, NS, NTI,
 };
 
@@ -267,9 +265,7 @@ pub fn load_nodes_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             }
 
             // node resolution may have created new node segments
-            write_locked_graph
-                .lock_new_segments()
-                .map_err(into_graph_err)?;
+            write_locked_graph.extend_new(new_segment_guards);
 
             let rows_by_segment = group_rows_by_vid_segment(
                 src_vids,
@@ -453,6 +449,10 @@ pub fn load_node_props_from_df<
             index.notify_write();
         }
 
+        // node resolution may have created new node segments
+        write_locked_graph.extend_new(new_segment_guards);
+
+        // pre-resolved ids may point past the segments we have
         // We assume this is fast enough
         let max_vid = node_col_resolved
             .iter()
@@ -461,9 +461,7 @@ pub fn load_node_props_from_df<
             .max()
             .map(VID)
             .unwrap_or(VID(0));
-        write_locked_graph
-            .resize_segments_to_vid(max_vid)
-            .map_err(into_graph_err)?;
+        write_locked_graph.grow_nodes_to_vid(max_vid);
 
         write_locked_graph
             .nodes
@@ -529,14 +527,7 @@ fn get_or_resolve_node_vids<
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
-) -> Result<
-    (
-        &'c [VID],
-        Vec<Resolved<'a>>,
-        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
-    ),
-    GraphError,
-> {
+) -> Result<(&'c [VID], Vec<Resolved<'a>>, Vec<ArcLockedNodeSegment>), GraphError> {
     if resolve_nodes {
         let cache = node_resolve_cache
             .get_or_insert_with(|| NodeResolveCache::new(df.len(), src_col.dtype()));
@@ -579,14 +570,7 @@ fn resolve_node_vids_and_types_with_cache<
     node_col: &'a NodeCol,
     node_types: &[usize],
     len: usize,
-) -> Result<
-    (
-        &'a [VID],
-        Vec<Resolved<'a>>,
-        Vec<ArcRwLockWriteGuard<RawRwLock, MemNodeSegment>>,
-    ),
-    GraphError,
-> {
+) -> Result<(&'a [VID], Vec<Resolved<'a>>, Vec<ArcLockedNodeSegment>), GraphError> {
     node_col_resolved.resize_with(len, Default::default);
     let atomic_node_col = atomic_vid_from_mut_slice(node_col_resolved);
 
@@ -716,14 +700,7 @@ fn get_or_resolve_node_vids_no_events<
     src_col: &'a NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<
-    (
-        &'c [VID],
-        &'c [usize],
-        Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
-    ),
-    GraphError,
-> {
+) -> Result<(&'c [VID], &'c [usize], Vec<ArcLockedNodeSegment>), GraphError> {
     assert!(!(node_type_ids_col.is_none() ^ node_id_col.is_none())); // both some or both none
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
         set_meta_for_pre_resolved_nodes_and_node_ids(
@@ -759,14 +736,7 @@ fn resolve_node_and_meta_for_node_col<
     src_col: &NodeCol,
     node_type_col: LayerCol<'a>,
     is_materializing: bool,
-) -> Result<
-    (
-        &'a [VID],
-        &'a [usize],
-        Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
-    ),
-    GraphError,
-> {
+) -> Result<(&'a [VID], &'a [usize], Vec<ArcLockedNodeSegment>), GraphError> {
     node_col_resolved.resize_with(df.len(), Default::default);
     node_type_resolved.resize_with(df.len(), Default::default);
 
@@ -839,14 +809,7 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
     node_type_col: LayerCol<'_>,
     node_type_index: usize,
     node_id_col: usize,
-) -> Result<
-    (
-        &'b [VID],
-        &'b [usize],
-        Vec<ArcRwLockWriteGuard<parking_lot::RawRwLock, MemNodeSegment>>,
-    ),
-    GraphError,
-> {
+) -> Result<(&'b [VID], &'b [usize], Vec<ArcLockedNodeSegment>), GraphError> {
     let srcs = df.chunk[node_id_col]
         .as_primitive_opt::<UInt64Type>()
         .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[node_id_col].data_type().clone()))?
