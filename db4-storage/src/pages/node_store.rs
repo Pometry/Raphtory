@@ -5,7 +5,7 @@ use crate::{
         node_type_index::NodeTypeIndexOps,
         nodes::{LockedNSSegment, NodeEntryOps, NodeSegmentOps},
     },
-    error::StorageError,
+    error::{SegmentKind, StorageError},
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
@@ -27,6 +27,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, atomic::AtomicU32},
+    time::Duration,
 };
 
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
@@ -332,9 +333,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         WriteLockedNodeSegments::new(
             self.segments
                 .iter()
-                .map(|(page_id, page)| {
+                .map(|(segment_id, page)| {
                     LockedNodeSegment::new(
-                        page_id,
+                        segment_id,
                         &self.stats,
                         self.max_segment_len(),
                         page.as_ref(),
@@ -343,6 +344,34 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
                 })
                 .collect(),
         )
+    }
+
+    /// Write-lock the segments created since `pages` was taken and append them,
+    /// keeping the locks `pages` already holds.
+    ///
+    /// Fails with `SegmentLockTimeout` if a new segment cannot be locked within `timeout`.
+    pub fn lock_new_segments<'a>(
+        &'a self,
+        pages: &mut WriteLockedNodeSegments<'a, NS>,
+        timeout: Duration,
+    ) -> Result<(), StorageError> {
+        for segment_id in pages.len()..self.segments.count() {
+            let page = self.get_or_create_segment(segment_id);
+            let lock = page
+                .try_head_mut_for(timeout)
+                .ok_or(StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Node,
+                    segment_id,
+                })?;
+            pages.push(LockedNodeSegment::new(
+                segment_id,
+                &self.stats,
+                self.max_segment_len(),
+                page.as_ref(),
+                lock,
+            ));
+        }
+        Ok(())
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -357,8 +386,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % *N;
         let maybe_free_page = {
-            let page_id = *self.free_segments[slot_idx].read_recursive();
-            let page = self.segments.get(page_id);
+            let segment_id = *self.free_segments[slot_idx].read_recursive();
+            let page = self.segments.get(segment_id);
 
             page.and_then(|page| {
                 self.reserve_segment_row(page)
@@ -447,16 +476,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
-        let (page_id, pos) = self.resolve_pos(node);
+        let (segment_id, pos) = self.resolve_pos(node);
         let node_page = self
-            .get_segment(page_id)
+            .get_segment(segment_id)
             .expect("Internal error: page not found");
         node_page.entry(pos)
     }
 
     pub fn try_node(&self, node: VID) -> Option<NS::Entry<'_>> {
-        let (page_id, pos) = self.resolve_pos(node);
-        let node_page = self.segments.get(page_id)?;
+        let (segment_id, pos) = self.resolve_pos(node);
+        let node_page = self.segments.get(segment_id)?;
         if pos.0 < node_page.num_nodes() {
             Some(node_page.entry(pos))
         } else {

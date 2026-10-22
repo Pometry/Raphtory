@@ -2,7 +2,7 @@ use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps, LockedESegment},
-    error::StorageError,
+    error::{SegmentKind, StorageError},
     pages::{
         SegmentCounts,
         layer_counter::GraphStats,
@@ -28,6 +28,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 pub static N: LazyLock<usize> = LazyLock::new(rayon::current_num_threads);
@@ -468,9 +469,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         WriteLockedEdgeSegments::new(
             self.segments
                 .iter()
-                .map(|(page_id, page)| {
+                .map(|(segment_id, page)| {
                     LockedEdgeSegment::new(
-                        page_id,
+                        segment_id,
                         self.max_page_len(),
                         page.as_ref(),
                         &self.layer_counter,
@@ -483,6 +484,32 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     pub fn is_dirty(&self) -> bool {
         self.segments.iter().any(|(_, segment)| segment.is_dirty())
+    }
+
+    /// Write-lock the segments created since `pages` was taken and append them,
+    /// keeping the locks `pages` already holds.
+    pub fn lock_new_segments<'a>(
+        &'a self,
+        pages: &mut WriteLockedEdgeSegments<'a, ES>,
+        timeout: Duration,
+    ) -> Result<(), StorageError> {
+        for segment_id in pages.len()..self.segments.count() {
+            let page = self.get_or_create_segment(segment_id);
+            let lock = page
+                .try_head_mut_for(timeout)
+                .ok_or(StorageError::SegmentLockTimeout {
+                    kind: SegmentKind::Edge,
+                    segment_id,
+                })?;
+            pages.push(LockedEdgeSegment::new(
+                segment_id,
+                self.max_page_len(),
+                page.as_ref(),
+                &self.layer_counter,
+                lock,
+            ));
+        }
+        Ok(())
     }
 
     /// Retrieve the segment for an edge given its EID
@@ -566,8 +593,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .cycle()
             .take(3)
             .filter_map(|lock| lock.try_read())
-            .filter_map(|page_id| {
-                let page = self.segments.get(*page_id)?;
+            .filter_map(|segment_id| {
+                let page = self.segments.get(*segment_id)?;
                 let guard = page.try_head_mut()?;
                 if page.num_edges() < self.max_page_len() {
                     Some((page, guard))

@@ -90,6 +90,9 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
     let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
 
+    // held for the whole load
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
@@ -141,8 +144,6 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             &dst_col,
         )?;
 
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
         eid_col_resolved.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
@@ -156,9 +157,9 @@ pub fn load_edges_metadata_from_df<G: StaticGraphViewOps + PropertyAdditionOps +
             Ok::<_, GraphError>(())
         })?;
 
-        drop(write_locked_graph);
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+        write_locked_graph
+            .lock_new_segments()
+            .map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(
