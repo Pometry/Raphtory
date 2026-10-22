@@ -11,7 +11,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{ops::DerefMut, path::Path};
@@ -85,6 +85,12 @@ impl<'a, NS: NodeSegmentOps> LockedNodeSegment<'a, NS> {
         self.head.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);
     }
+
+    pub fn get_metadata(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
+        self.head
+            .get_metadata(pos, layer_id, prop_id)
+            .or_else(|| self.segment.get_metadata_immut(pos, layer_id, prop_id))
+    }
 }
 
 pub struct WriteLockedNodeSegments<'a, NS> {
@@ -109,6 +115,24 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.segments.len()
+    }
+
+    /// Read node metadata through the held write locks. Use this instead of the graph's
+    /// read path while the pages are held, which would deadlock on the segment lock.
+    ///
+    /// Returns `None` if the node's segment is not held.
+    pub fn node_metadata(&self, vid: VID, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
+        let max_page_len = self.segments.first()?.max_page_len;
+        let (segment_id, pos) = resolve_pos(vid, max_page_len);
+        self.segments
+            .get(segment_id)?
+            .get_metadata(pos, layer_id, prop_id)
+    }
+
+    /// Append the page for the next segment; pages are indexed by segment id.
+    pub fn push(&mut self, page: LockedNodeSegment<'a, NS>) {
+        assert_eq!(page.segment_id(), self.segments.len());
+        self.segments.push(page);
     }
 
     #[inline]

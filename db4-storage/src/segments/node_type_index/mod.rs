@@ -78,6 +78,10 @@ impl<P: PersistenceStrategy> NodeTypeIndexOps for NodeTypeIndexView<P> {
             .store(self.head_shared_arc().est_size(), Ordering::Relaxed);
     }
 
+    fn notify_write_with_head(&self, head: impl DerefMut<Target = MemNodeTypeIndex>) {
+        self.est_size.store(head.est_size(), Ordering::Relaxed);
+    }
+
     fn write_locked(self: &Arc<Self>) -> WriteLockedNodeTypeIndex<Self> {
         let head = self.head.write_arc();
         let index = self.clone();
